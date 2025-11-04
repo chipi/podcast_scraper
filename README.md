@@ -48,6 +48,10 @@ python3 podcast_scraper.py https://example.com/feed.xml --output-dir ./my_transc
 
 # Transcribe with Whisper when episodes have no transcript
 python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --whisper-model base
+
+# Screenplay-style formatting (alternate speakers by pause gaps)
+python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --screenplay \
+  --num-speakers 2 --speaker-names "Host,Guest" --screenplay-gap 1.5
 ```
 
 ## Options
@@ -60,6 +64,10 @@ python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --w
 - `--delay-ms` (int): Delay between requests in milliseconds
 - `--transcribe-missing`: Use Whisper to transcribe when no transcript is provided
 - `--whisper-model` (str): Whisper model (e.g., `tiny`, `base`, `small`, `medium`)
+- `--screenplay`: Format Whisper transcript as screenplay with speaker turns
+- `--screenplay-gap` (float): Gap (seconds) to trigger speaker change (default: 1.25)
+- `--num-speakers` (int): Number of speakers to alternate between (default: 2)
+- `--speaker-names` (str): Comma-separated names to label speakers
 
 ## Notes
 

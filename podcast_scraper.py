@@ -32,6 +32,10 @@ class Config:
     prefer_types: List[str]
     transcribe_missing: bool
     whisper_model: str
+    screenplay: bool
+    screenplay_gap_s: float
+    screenplay_num_speakers: int
+    screenplay_speaker_names: List[str]
 
 
 def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], Optional[str]]:
@@ -157,7 +161,37 @@ def choose_transcript_url(candidates: List[Tuple[str, Optional[str]]], prefer_ty
                 return (u, t)
     return candidates[0]
 
+def _format_screenplay_from_segments(segments: List[dict], num_speakers: int, speaker_names: List[str], gap_s: float) -> str:
+    if not segments:
+        return ""
+    # Sort by start time to be safe
+    segs = sorted(segments, key=lambda s: float(s.get("start") or 0.0))
+    current_speaker_idx = 0
+    lines: List[Tuple[int, str]] = []  # (speaker_idx, text)
+    prev_end: Optional[float] = None
 
+    for s in segs:
+        text = (s.get("text") or "").strip()
+        if not text:
+            continue
+        start = float(s.get("start") or 0.0)
+        end = float(s.get("end") or start)
+        if prev_end is not None and start - prev_end > gap_s:
+            current_speaker_idx = (current_speaker_idx + 1) % max(1, num_speakers)
+        prev_end = end
+        if lines and lines[-1][0] == current_speaker_idx:
+            # merge with previous same speaker line
+            lines[-1] = (lines[-1][0], lines[-1][1] + (" " if lines[-1][1] else "") + text)
+        else:
+            lines.append((current_speaker_idx, text))
+
+    def speaker_label(idx: int) -> str:
+        if 0 <= idx < len(speaker_names):
+            return speaker_names[idx]
+        return f"SPEAKER {idx + 1}"
+
+    out_lines = [f"{speaker_label(idx)}: {txt}" for (idx, txt) in lines]
+    return "\n".join(out_lines) + "\n"
 def write_file(path: str, data: bytes) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "wb") as f:
@@ -175,6 +209,10 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser.add_argument("--delay-ms", type=int, default=0, help="Delay between requests (ms)")
     parser.add_argument("--transcribe-missing", action="store_true", help="Use Whisper to transcribe when no transcript is provided")
     parser.add_argument("--whisper-model", default="base", help="Whisper model to use (e.g., tiny, base, small, medium)")
+    parser.add_argument("--screenplay", action="store_true", help="Format Whisper transcript as screenplay with speaker turns")
+    parser.add_argument("--screenplay-gap", type=float, default=1.25, help="Gap (seconds) to trigger speaker change when formatting screenplay")
+    parser.add_argument("--num-speakers", type=int, default=2, help="Number of speakers to alternate between when formatting screenplay")
+    parser.add_argument("--speaker-names", default="", help="Comma-separated speaker names to use instead of SPEAKER 1..N")
     return parser.parse_args(argv)
 
 
@@ -191,7 +229,14 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         prefer_types=list(args.prefer_type or []),
         transcribe_missing=bool(args.transcribe_missing),
         whisper_model=str(args.whisper_model or "base"),
+        screenplay=bool(args.screenplay),
+        screenplay_gap_s=float(args.screenplay_gap),
+        screenplay_num_speakers=max(1, int(args.num_speakers)),
+        screenplay_speaker_names=[s.strip() for s in (args.speaker_names or "").split(",") if s.strip()],
     )
+
+
+
 
     try:
         sys.stderr.write(
@@ -282,6 +327,16 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                     # Force English output; set task to translate if language unknown for English output
                     result = model.transcribe(temp_media, task="translate", language="en")
                     text = (result.get("text") or "").strip()
+                    # Optionally format as screenplay using segments
+                    if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
+                        try:
+                            formatted = _format_screenplay_from_segments(
+                                result["segments"], cfg.screenplay_num_speakers, cfg.screenplay_speaker_names, cfg.screenplay_gap_s
+                            )
+                            if formatted.strip():
+                                text = formatted
+                        except Exception:
+                            pass
                     if not text:
                         raise RuntimeError("empty transcription")
                     out_name = f"{idx:04d} - {ep_title_safe}.txt"
