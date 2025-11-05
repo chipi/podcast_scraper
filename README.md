@@ -52,6 +52,10 @@ python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --w
 # Screenplay-style formatting (alternate speakers by pause gaps)
 python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --screenplay \
   --num-speakers 2 --speaker-names "Host,Guest" --screenplay-gap 1.5
+
+# Keep results from different runs separate (avoid overwrite)
+python3 podcast_scraper.py https://example.com/feed.xml --run-id auto
+python3 podcast_scraper.py https://example.com/feed.xml --run-id vtt_vs_plain
 ```
 
 ## Options
@@ -68,6 +72,7 @@ python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --s
 - `--screenplay-gap` (float): Gap (seconds) to trigger speaker change (default: 1.25)
 - `--num-speakers` (int): Number of speakers to alternate between (default: 2)
 - `--speaker-names` (str): Comma-separated names to label speakers
+- `--run-id` (str): Create a subfolder under output dir for this run; use `auto` to timestamp
 
 ## Notes
 

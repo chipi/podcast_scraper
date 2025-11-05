@@ -13,13 +13,11 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, build_opener, HTTPSHandler, HTTPHandler
 
-
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/119.0 Safari/537.36"
 )
-
 
 @dataclass
 class Config:
@@ -36,6 +34,7 @@ class Config:
     screenplay_gap_s: float
     screenplay_num_speakers: int
     screenplay_speaker_names: List[str]
+    run_id: Optional[str]
 
 
 def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], Optional[str]]:
@@ -51,7 +50,7 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
         return None, None
 
 
-def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str) -> bool:
+def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str) -> Tuple[bool, int]:
     headers = {"User-Agent": user_agent, "Accept": "*/*"}
     req = Request(url, headers=headers)
     opener = build_opener(HTTPHandler(), HTTPSHandler())
@@ -59,14 +58,16 @@ def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str
         with opener.open(req, timeout=timeout) as resp:
             os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
             with open(out_path, "wb") as f:
+                total = 0
                 while True:
                     chunk = resp.read(1024 * 256)  # 256KB
                     if not chunk:
                         break
                     f.write(chunk)
-        return True
+                    total += len(chunk)
+        return True, total
     except (HTTPError, URLError, OSError):
-        return False
+        return False, 0
 
 
 def sanitize_filename(name: str) -> str:
@@ -192,6 +193,8 @@ def _format_screenplay_from_segments(segments: List[dict], num_speakers: int, sp
 
     out_lines = [f"{speaker_label(idx)}: {txt}" for (idx, txt) in lines]
     return "\n".join(out_lines) + "\n"
+
+
 def write_file(path: str, data: bytes) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "wb") as f:
@@ -213,6 +216,7 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser.add_argument("--screenplay-gap", type=float, default=1.25, help="Gap (seconds) to trigger speaker change when formatting screenplay")
     parser.add_argument("--num-speakers", type=int, default=2, help="Number of speakers to alternate between when formatting screenplay")
     parser.add_argument("--speaker-names", default="", help="Comma-separated speaker names to use instead of SPEAKER 1..N")
+    parser.add_argument("--run-id", default=None, help="Optional run identifier to create a unique subfolder under the output directory; use 'auto' for timestamp")
     return parser.parse_args(argv)
 
 
@@ -233,16 +237,20 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         screenplay_gap_s=float(args.screenplay_gap),
         screenplay_num_speakers=max(1, int(args.num_speakers)),
         screenplay_speaker_names=[s.strip() for s in (args.speaker_names or "").split(",") if s.strip()],
+        run_id=(str(args.run_id) if args.run_id else None),
     )
 
-
-
+    # Resolve effective output directory (with optional run subfolder)
+    run_suffix: Optional[str] = None
+    if cfg.run_id:
+        run_suffix = time.strftime("%Y%m%d-%H%M%S") if cfg.run_id.lower() == "auto" else sanitize_filename(cfg.run_id)
+    effective_output_dir = os.path.join(cfg.output_dir, f"run_{run_suffix}") if run_suffix else cfg.output_dir
 
     try:
         sys.stderr.write(
             "Starting podcast transcript scrape\n"
             f"  rss: {cfg.rss_url}\n"
-            f"  output_dir: {cfg.output_dir}\n"
+            f"  output_dir: {effective_output_dir}\n"
             f"  max_episodes: {cfg.max_episodes or 'all'}\n"
         )
         sys.stderr.flush()
@@ -288,7 +296,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                 sys.stderr.write(f"[{idx}] no transcript; downloading media for Whisper: {ep_title}\n")
                 sys.stderr.flush()
 
-                temp_dir = os.path.join(cfg.output_dir, ".tmp_media")
+                temp_dir = os.path.join(effective_output_dir, ".tmp_media")
                 os.makedirs(temp_dir, exist_ok=True)
                 # derive extension from media type or URL
                 ext = ".bin"
@@ -312,10 +320,19 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                             break
 
                 temp_media = os.path.join(temp_dir, f"{idx:04d}_{ep_title_safe}{ext}")
-                if not http_download_to_file(media_url, cfg.user_agent, cfg.timeout, temp_media):
+                dl_start = time.time()
+                ok, total_bytes = http_download_to_file(media_url, cfg.user_agent, cfg.timeout, temp_media)
+                dl_elapsed = time.time() - dl_start
+                if not ok:
                     sys.stderr.write("    failed to download media for transcription\n")
                     sys.stderr.flush()
                     continue
+                try:
+                    mb = total_bytes / (1024 * 1024)
+                    sys.stderr.write(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s\n")
+                    sys.stderr.flush()
+                except Exception:
+                    pass
 
                 # Try local Whisper
                 try:
@@ -325,7 +342,9 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                     sys.stderr.flush()
                     model = whisper.load_model(cfg.whisper_model)
                     # Force English output; set task to translate if language unknown for English output
+                    tc_start = time.time()
                     result = model.transcribe(temp_media, task="translate", language="en")
+                    tc_elapsed = time.time() - tc_start
                     text = (result.get("text") or "").strip()
                     # Optionally format as screenplay using segments
                     if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
@@ -340,10 +359,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                     if not text:
                         raise RuntimeError("empty transcription")
                     out_name = f"{idx:04d} - {ep_title_safe}.txt"
-                    out_path = os.path.join(cfg.output_dir, out_name)
+                    out_path = os.path.join(effective_output_dir, out_name)
                     write_file(out_path, text.encode("utf-8"))
                     saved += 1
-                    sys.stderr.write(f"    saved transcript: {out_path}\n")
+                    sys.stderr.write(f"    saved transcript: {out_path} (transcribed in {tc_elapsed:.1f}s)\n")
                     sys.stderr.flush()
                 except Exception as e:
                     sys.stderr.write(f"    Whisper transcription failed or not installed: {e}\n")
@@ -402,7 +421,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                         break
 
         out_name = f"{idx:04d} - {ep_title_safe}{ext}"
-        out_path = os.path.join(cfg.output_dir, out_name)
+        out_path = os.path.join(effective_output_dir, out_name)
         try:
             write_file(out_path, data)
             saved += 1
@@ -415,12 +434,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         if cfg.delay_ms:
             time.sleep(cfg.delay_ms / 1000.0)
 
-    sys.stderr.write(f"Done. transcripts_saved={saved} in {cfg.output_dir}\n")
+    sys.stderr.write(f"Done. transcripts_saved={saved} in {effective_output_dir}\n")
     sys.stderr.flush()
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
