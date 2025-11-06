@@ -2,17 +2,40 @@
 
 import argparse
 import hashlib
+import logging
 import os
 import re
 import shutil
 import sys
 import time
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, quote, urlencode, urljoin, urlparse, urlunparse
 from urllib.request import Request, build_opener, HTTPSHandler, HTTPHandler
+
+# Set up logging to stderr
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    stream=sys.stderr,
+)
+logger = logging.getLogger(__name__)
+
+try:
+    from defusedxml.ElementTree import ParseError as DefusedXMLParseError
+    from defusedxml.ElementTree import Element, fromstring as safe_fromstring
+    XML_Element = Element
+    DEFUSEDXML_AVAILABLE = True
+except ImportError:
+    # Fallback to standard library if defusedxml is not available
+    import xml.etree.ElementTree as ET
+    DefusedXMLParseError = ET.ParseError
+    safe_fromstring = ET.fromstring
+    XML_Element = ET.Element
+    DEFUSEDXML_AVAILABLE = False
+    logger.warning("defusedxml not available, using standard XML parser (less secure)")
 
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -57,16 +80,42 @@ class Config:
     run_id: Optional[str]
 
 
+def normalize_url(url: str) -> str:
+    """Normalize URL by encoding non-ASCII characters in path and query components."""
+    parsed = urlparse(url)
+    # Encode non-ASCII characters in path segments (preserve slashes)
+    path_parts = parsed.path.split("/")
+    encoded_path = "/".join(quote(part, safe="") for part in path_parts)
+    # Encode non-ASCII characters in query string
+    if parsed.query:
+        # Parse query string and re-encode it properly (parse_qs returns lists)
+        query_dict = parse_qs(parsed.query, keep_blank_values=True)
+        encoded_query = urlencode(query_dict, doseq=True)
+    else:
+        encoded_query = ""
+    # Reconstruct URL with encoded components
+    normalized = urlunparse((
+        parsed.scheme,
+        parsed.netloc,  # netloc should already be ASCII (IDN is handled by DNS)
+        encoded_path,
+        parsed.params,
+        encoded_query,
+        parsed.fragment,
+    ))
+    return normalized
+
+
 def _open_http_request(url: str, user_agent: str, timeout: int):
     """Shared helper to open an HTTP request. Returns response object or None on error."""
-    headers = {"User-Agent": user_agent, "Accept": "*/*"}
-    req = Request(url, headers=headers)
+    # Normalize URL to handle non-ASCII characters
+    normalized_url = normalize_url(url)
+    headers = {"User-Agent": user_agent}
+    req = Request(normalized_url, headers=headers)
     opener = build_opener(HTTPHandler(), HTTPSHandler())
     try:
         return opener.open(req, timeout=timeout)
     except (HTTPError, URLError) as e:
-        sys.stderr.write(f"Warning: failed to fetch {url}: {e}\n")
-        sys.stderr.flush()
+        logger.warning(f"Failed to fetch {url}: {e}")
         return None
 
 
@@ -80,8 +129,7 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
             body = resp.read()
             return body, ctype
     except (IOError, OSError) as e:
-        sys.stderr.write(f"Warning: failed to read response from {url}: {e}\n")
-        sys.stderr.flush()
+        logger.warning(f"Failed to read response from {url}: {e}")
         return None, None
 
 
@@ -102,8 +150,7 @@ def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str
                     total += len(chunk)
         return True, total
     except (HTTPError, URLError, OSError) as e:
-        sys.stderr.write(f"Warning: failed to download {url} to {out_path}: {e}\n")
-        sys.stderr.flush()
+        logger.warning(f"Failed to download {url} to {out_path}: {e}")
         return False, 0
 
 
@@ -114,9 +161,49 @@ def sanitize_filename(name: str) -> str:
     return name or "untitled"
 
 
+def validate_and_normalize_output_dir(path: str) -> str:
+    """Validate and normalize output directory path to prevent path traversal attacks."""
+    if not path or not path.strip():
+        raise ValueError("Output directory path cannot be empty")
+    
+    # Use pathlib for better path handling
+    path_obj = Path(path)
+    
+    # Resolve the path (normalizes .. and . components, resolves symlinks)
+    try:
+        resolved = path_obj.resolve()
+    except (OSError, RuntimeError) as e:
+        raise ValueError(f"Invalid output directory path: {path} ({e})")
+    
+    # Check for forbidden system directories
+    forbidden_prefixes = (Path("/etc"), Path("/usr"), Path("/bin"), Path("/sbin"), 
+                         Path("/var"), Path("/sys"), Path("/proc"), Path("/dev"), 
+                         Path("/root"), Path("/home"))
+    resolved_parts = resolved.parts
+    for forbidden in forbidden_prefixes:
+        forbidden_parts = forbidden.resolve().parts
+        # Check if resolved path starts with forbidden path parts
+        if len(resolved_parts) >= len(forbidden_parts):
+            if resolved_parts[:len(forbidden_parts)] == forbidden_parts:
+                raise ValueError(f"Output directory cannot be in system directories: {path}")
+    
+    # For relative paths, ensure they don't escape the current working directory
+    # This prevents path traversal attacks like ../../../etc/passwd
+    cwd = Path.cwd().resolve()
+    try:
+        # Check if resolved path is within CWD (for relative paths)
+        resolved.relative_to(cwd)
+    except ValueError:
+        # Path is outside CWD - allow but warn (user might want to write to another location)
+        logger.warning(f"Output directory is outside current working directory: {resolved}")
+    
+    # Return as string (normalized)
+    return str(resolved)
+
+
 def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
     if override:
-        return override
+        return validate_and_normalize_output_dir(override)
     parsed = urlparse(rss_url)
     base = parsed.netloc or "feed"
     # include a short hash of the full URL to disambiguate same host feeds
@@ -124,9 +211,10 @@ def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
     return f"output_rss_{sanitize_filename(base)}_{h}"
 
 
-def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[ET.Element]]:
+def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[XML_Element]]:
     # Return (feed_title, item_elements)
-    root = ET.fromstring(xml_bytes)
+    # Use defusedxml for secure parsing (protects against XML bombs, external entity attacks, etc.)
+    root = safe_fromstring(xml_bytes)
     channel = root.find("channel")
     if channel is None:
         # some feeds use namespaces; attempt generic search
@@ -145,8 +233,8 @@ def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[ET.Element]]:
     return title, items
 
 
-def find_transcript_urls(item: ET.Element) -> List[Tuple[str, Optional[str]]]:
-    # Returns list of (url, type)
+def find_transcript_urls(item: XML_Element, base_url: str) -> List[Tuple[str, Optional[str]]]:
+    # Returns list of (url, type) with relative URLs resolved against base_url
     candidates: List[Tuple[str, Optional[str]]] = []
 
     # podcast:transcript (Podcasting 2.0)
@@ -156,12 +244,16 @@ def find_transcript_urls(item: ET.Element) -> List[Tuple[str, Optional[str]]]:
             url_attr = el.attrib.get("url") or el.attrib.get("href")
             if url_attr:
                 t = el.attrib.get("type")
-                candidates.append((url_attr.strip(), (t.strip() if t else None)))
+                # Resolve relative URLs against base_url
+                resolved_url = urljoin(base_url, url_attr.strip())
+                candidates.append((resolved_url, (t.strip() if t else None)))
 
     # Some feeds use <transcript> without namespace
     for el in item.findall("transcript"):
         if el.text and el.text.strip():
-            candidates.append((el.text.strip(), None))
+            # Resolve relative URLs against base_url
+            resolved_url = urljoin(base_url, el.text.strip())
+            candidates.append((resolved_url, None))
 
     # Deduplicate preserving order
     seen = set()
@@ -175,13 +267,15 @@ def find_transcript_urls(item: ET.Element) -> List[Tuple[str, Optional[str]]]:
     return unique
 
 
-def find_enclosure_media(item: ET.Element) -> Optional[Tuple[str, Optional[str]]]:
-    # Look for <enclosure url="..." type="audio/mpeg"/>
+def find_enclosure_media(item: XML_Element, base_url: str) -> Optional[Tuple[str, Optional[str]]]:
+    # Look for <enclosure url="..." type="audio/mpeg"/> and resolve relative URLs
     for el in item.iter():
         if isinstance(el.tag, str) and el.tag.lower().endswith("enclosure"):
             url_attr = el.attrib.get("url")
             if url_attr:
-                return url_attr.strip(), (el.attrib.get("type") or None)
+                # Resolve relative URLs against base_url
+                resolved_url = urljoin(base_url, url_attr.strip())
+                return resolved_url, (el.attrib.get("type") or None)
     return None
 
 
@@ -280,13 +374,12 @@ def validate_args(args: argparse.Namespace) -> None:
     if args.num_speakers <= 0:
         errors.append(f"--num-speakers must be positive, got: {args.num_speakers}")
     
-    # Validate output-dir (if provided)
+    # Validate output-dir (if provided) - check for path traversal
     if args.output_dir:
-        parent_dir = os.path.dirname(os.path.abspath(args.output_dir)) or os.getcwd()
-        if not os.path.exists(parent_dir):
-            errors.append(f"--output-dir parent directory does not exist: {parent_dir}")
-        elif not os.path.isdir(parent_dir):
-            errors.append(f"--output-dir parent path is not a directory: {parent_dir}")
+        try:
+            validate_and_normalize_output_dir(args.output_dir)
+        except ValueError as e:
+            errors.append(str(e))
     
     if errors:
         raise ValueError("Invalid input parameters:\n  " + "\n  ".join(errors))
@@ -317,8 +410,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     try:
         args = parse_args(argv)
     except ValueError as e:
-        sys.stderr.write(f"Error: {e}\n")
-        sys.stderr.flush()
+        logger.error(f"Error: {e}")
         return 1
 
     cfg = Config(
@@ -328,7 +420,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         user_agent=args.user_agent,
         timeout=max(MIN_TIMEOUT_SECONDS, args.timeout),
         delay_ms=max(0, args.delay_ms),
-        prefer_types=list(args.prefer_type or []),
+        prefer_types=args.prefer_type,
         transcribe_missing=bool(args.transcribe_missing),
         whisper_model=str(args.whisper_model or "base"),
         screenplay=bool(args.screenplay),
@@ -353,51 +445,42 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     effective_output_dir = os.path.join(cfg.output_dir, f"run_{run_suffix}") if run_suffix else cfg.output_dir
 
     try:
-        sys.stderr.write(
-            "Starting podcast transcript scrape\n"
-            f"  rss: {cfg.rss_url}\n"
-            f"  output_dir: {effective_output_dir}\n"
-            f"  max_episodes: {cfg.max_episodes or 'all'}\n"
-        )
-        sys.stderr.flush()
+        logger.info("Starting podcast transcript scrape")
+        logger.info(f"  rss: {cfg.rss_url}")
+        logger.info(f"  output_dir: {effective_output_dir}")
+        logger.info(f"  max_episodes: {cfg.max_episodes or 'all'}")
     except (IOError, OSError) as e:
-        sys.stderr.write(f"Warning: failed to write startup message: {e}\n")
-        sys.stderr.flush()
+        logger.warning(f"Failed to write startup message: {e}")
 
     rss_bytes, rss_ctype = http_get(cfg.rss_url, cfg.user_agent, cfg.timeout)
     if not rss_bytes:
-        sys.stderr.write("Failed to fetch RSS feed.\n")
+        logger.error("Failed to fetch RSS feed.")
         return 1
 
     try:
         feed_title, items = parse_rss_items(rss_bytes)
-    except (ET.ParseError, ValueError) as e:
-        sys.stderr.write(f"Failed to parse RSS XML: {e}\n")
+    except (DefusedXMLParseError, ValueError) as e:
+        logger.error(f"Failed to parse RSS XML: {e}")
         return 1
 
     total_items = len(items)
     if cfg.max_episodes is not None:
         items = items[: cfg.max_episodes]
 
-    sys.stderr.write(f"Episodes to process: {len(items)} of {total_items}\n")
-    sys.stderr.flush()
+    logger.info(f"Episodes to process: {len(items)} of {total_items}")
 
     # Load Whisper model once if transcription is enabled
     whisper_model = None
     if cfg.transcribe_missing:
         try:
             import whisper  # type: ignore
-            sys.stderr.write(f"Loading Whisper model ({cfg.whisper_model})...\n")
-            sys.stderr.flush()
+            logger.info(f"Loading Whisper model ({cfg.whisper_model})...")
             whisper_model = whisper.load_model(cfg.whisper_model)
-            sys.stderr.write("Whisper model loaded successfully.\n")
-            sys.stderr.flush()
+            logger.info("Whisper model loaded successfully.")
         except ImportError:
-            sys.stderr.write("Warning: openai-whisper not installed. Install with: pip install openai-whisper && brew install ffmpeg\n")
-            sys.stderr.flush()
+            logger.warning("openai-whisper not installed. Install with: pip install openai-whisper && brew install ffmpeg")
         except (RuntimeError, OSError) as e:
-            sys.stderr.write(f"Warning: failed to load Whisper model: {e}\n")
-            sys.stderr.flush()
+            logger.warning(f"Failed to load Whisper model: {e}")
 
     # Create temp directory once if transcription is enabled
     temp_dir = None
@@ -411,20 +494,18 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         ep_title = (title_el.text.strip() if title_el is not None and title_el.text else f"episode_{idx}")
         ep_title_safe = sanitize_filename(ep_title)
 
-        candidates = find_transcript_urls(item)
+        candidates = find_transcript_urls(item, cfg.rss_url)
         chosen = choose_transcript_url(candidates, cfg.prefer_types)
 
         if not chosen:
             # fallback to enclosure media if requested
             if cfg.transcribe_missing:
-                media = find_enclosure_media(item)
+                media = find_enclosure_media(item, cfg.rss_url)
                 if not media:
-                    sys.stderr.write(f"[{idx}] no transcript or enclosure for: {ep_title}\n")
-                    sys.stderr.flush()
+                    logger.info(f"[{idx}] no transcript or enclosure for: {ep_title}")
                     continue
                 media_url, media_type = media
-                sys.stderr.write(f"[{idx}] no transcript; downloading media for Whisper: {ep_title}\n")
-                sys.stderr.flush()
+                logger.info(f"[{idx}] no transcript; downloading media for Whisper: {ep_title}")
 
                 # derive extension from media type or URL
                 ext = ".bin"
@@ -453,34 +534,28 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                 ok, total_bytes = http_download_to_file(media_url, cfg.user_agent, cfg.timeout, temp_media)
                 dl_elapsed = time.time() - dl_start
                 if not ok:
-                    sys.stderr.write("    failed to download media for transcription\n")
-                    sys.stderr.flush()
+                    logger.warning("    failed to download media for transcription")
                     continue
                 try:
                     mb = total_bytes / BYTES_PER_MB
-                    sys.stderr.write(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s\n")
-                    sys.stderr.flush()
+                    logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
                 except (ValueError, ZeroDivisionError, TypeError) as e:
-                    sys.stderr.write(f"    Warning: failed to format download size: {e}\n")
-                    sys.stderr.flush()
+                    logger.warning(f"    failed to format download size: {e}")
 
                 # Use pre-loaded Whisper model
                 if whisper_model is None:
-                    sys.stderr.write("    Skipping transcription: Whisper model not available\n")
-                    sys.stderr.flush()
+                    logger.warning("    Skipping transcription: Whisper model not available")
                     # Clean up temp file
                     try:
                         os.remove(temp_media)
                     except OSError as e:
-                        sys.stderr.write(f"    Warning: failed to remove temp media file {temp_media}: {e}\n")
-                        sys.stderr.flush()
+                        logger.warning(f"    failed to remove temp media file {temp_media}: {e}")
                     if cfg.delay_ms:
                         time.sleep(cfg.delay_ms / MS_TO_SECONDS)
                     continue
 
                 try:
-                    sys.stderr.write(f"    transcribing with Whisper ({cfg.whisper_model})...\n")
-                    sys.stderr.flush()
+                    logger.info(f"    transcribing with Whisper ({cfg.whisper_model})...")
                     # Transcribe in English using pre-loaded model
                     tc_start = time.time()
                     result = whisper_model.transcribe(temp_media, task="transcribe", language="en")
@@ -495,8 +570,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                             if formatted.strip():
                                 text = formatted
                         except (ValueError, KeyError, TypeError) as e:
-                            sys.stderr.write(f"    Warning: failed to format as screenplay, using plain transcript: {e}\n")
-                            sys.stderr.flush()
+                            logger.warning(f"    failed to format as screenplay, using plain transcript: {e}")
                     if not text:
                         raise RuntimeError("empty transcription")
                     # Include run identifier in filename for easy comparison across runs
@@ -505,34 +579,28 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                     out_path = os.path.join(effective_output_dir, out_name)
                     write_file(out_path, text.encode("utf-8"))
                     saved += 1
-                    sys.stderr.write(f"    saved transcript: {out_path} (transcribed in {tc_elapsed:.1f}s)\n")
-                    sys.stderr.flush()
+                    logger.info(f"    saved transcript: {out_path} (transcribed in {tc_elapsed:.1f}s)")
                 except (RuntimeError, OSError) as e:
-                    sys.stderr.write(f"    Whisper transcription failed: {e}\n")
-                    sys.stderr.flush()
+                    logger.error(f"    Whisper transcription failed: {e}")
                 finally:
                     # best-effort cleanup of temp media
                     try:
                         os.remove(temp_media)
                     except OSError as e:
-                        sys.stderr.write(f"    Warning: failed to remove temp media file {temp_media}: {e}\n")
-                        sys.stderr.flush()
+                        logger.warning(f"    failed to remove temp media file {temp_media}: {e}")
                 if cfg.delay_ms:
                     time.sleep(cfg.delay_ms / 1000.0)
                 continue
             else:
-                sys.stderr.write(f"[{idx}] no transcript for: {ep_title}\n")
-                sys.stderr.flush()
+                logger.info(f"[{idx}] no transcript for: {ep_title}")
                 continue
 
         t_url, t_type = chosen
-        sys.stderr.write(f"[{idx}] downloading transcript: {ep_title} -> {t_url}\n")
-        sys.stderr.flush()
+        logger.info(f"[{idx}] downloading transcript: {ep_title} -> {t_url}")
 
         data, ctype = http_get(t_url, cfg.user_agent, cfg.timeout)
         if not data:
-            sys.stderr.write(f"    failed to download transcript\n")
-            sys.stderr.flush()
+            logger.warning(f"    failed to download transcript")
             continue
 
         # decide extension
@@ -570,11 +638,9 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         try:
             write_file(out_path, data)
             saved += 1
-            sys.stderr.write(f"    saved: {out_path}\n")
-            sys.stderr.flush()
+            logger.info(f"    saved: {out_path}")
         except (IOError, OSError) as e:
-            sys.stderr.write(f"    failed to write file: {e}\n")
-            sys.stderr.flush()
+            logger.error(f"    failed to write file: {e}")
 
         if cfg.delay_ms:
             time.sleep(cfg.delay_ms / 1000.0)
@@ -583,14 +649,11 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     if temp_dir and os.path.exists(temp_dir):
         try:
             shutil.rmtree(temp_dir)
-            sys.stderr.write(f"Cleaned up temp directory: {temp_dir}\n")
-            sys.stderr.flush()
+            logger.info(f"Cleaned up temp directory: {temp_dir}")
         except OSError as e:
-            sys.stderr.write(f"Warning: failed to remove temp directory {temp_dir}: {e}\n")
-            sys.stderr.flush()
+            logger.warning(f"Failed to remove temp directory {temp_dir}: {e}")
 
-    sys.stderr.write(f"Done. transcripts_saved={saved} in {effective_output_dir}\n")
-    sys.stderr.flush()
+    logger.info(f"Done. transcripts_saved={saved} in {effective_output_dir}")
     return 0
 
 
