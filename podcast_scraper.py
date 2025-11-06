@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import os
 import re
+import shutil
 import sys
 import time
 import xml.etree.ElementTree as ET
@@ -18,6 +19,25 @@ DEFAULT_USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/119.0 Safari/537.36"
 )
+
+# Constants
+DOWNLOAD_CHUNK_SIZE = 1024 * 256  # 256KB chunks for file downloads
+URL_HASH_LENGTH = 8  # Length of hash suffix in output directory names
+DEFAULT_TIMEOUT_SECONDS = 20  # Default HTTP request timeout
+DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25  # Default gap between speakers for screenplay formatting
+DEFAULT_NUM_SPEAKERS = 2  # Default number of speakers for screenplay formatting
+MIN_TIMEOUT_SECONDS = 1  # Minimum allowed timeout value
+MIN_NUM_SPEAKERS = 1  # Minimum number of speakers
+TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"  # Format for auto-generated run IDs
+EPISODE_NUMBER_FORMAT_WIDTH = 4  # Width for episode number formatting (e.g., 0001)
+BYTES_PER_MB = 1024 * 1024  # Bytes in a megabyte
+MS_TO_SECONDS = 1000.0  # Milliseconds to seconds conversion factor
+TEMP_DIR_NAME = ".tmp_media"  # Name of temporary directory for media files
+
+# Precompiled regex patterns for performance
+RE_NEWLINES_TABS = re.compile(r"[\r\n\t]")  # Match newlines and tabs
+RE_MULTIPLE_WHITESPACE = re.compile(r"\s+")  # Match multiple whitespace characters
+RE_NON_FILENAME_CHARS = re.compile(r"[^\w\- .]")  # Match characters not allowed in filenames
 
 @dataclass
 class Config:
@@ -37,43 +57,60 @@ class Config:
     run_id: Optional[str]
 
 
-def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], Optional[str]]:
+def _open_http_request(url: str, user_agent: str, timeout: int):
+    """Shared helper to open an HTTP request. Returns response object or None on error."""
     headers = {"User-Agent": user_agent, "Accept": "*/*"}
     req = Request(url, headers=headers)
     opener = build_opener(HTTPHandler(), HTTPSHandler())
     try:
-        with opener.open(req, timeout=timeout) as resp:
+        return opener.open(req, timeout=timeout)
+    except (HTTPError, URLError) as e:
+        sys.stderr.write(f"Warning: failed to fetch {url}: {e}\n")
+        sys.stderr.flush()
+        return None
+
+
+def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], Optional[str]]:
+    resp = _open_http_request(url, user_agent, timeout)
+    if resp is None:
+        return None, None
+    try:
+        with resp:
             ctype = resp.headers.get("Content-Type", "")
             body = resp.read()
             return body, ctype
-    except (HTTPError, URLError):
+    except (IOError, OSError) as e:
+        sys.stderr.write(f"Warning: failed to read response from {url}: {e}\n")
+        sys.stderr.flush()
         return None, None
 
 
 def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str) -> Tuple[bool, int]:
-    headers = {"User-Agent": user_agent, "Accept": "*/*"}
-    req = Request(url, headers=headers)
-    opener = build_opener(HTTPHandler(), HTTPSHandler())
+    resp = _open_http_request(url, user_agent, timeout)
+    if resp is None:
+        return False, 0
     try:
-        with opener.open(req, timeout=timeout) as resp:
+        with resp:
             os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
             with open(out_path, "wb") as f:
                 total = 0
                 while True:
-                    chunk = resp.read(1024 * 256)  # 256KB
+                    chunk = resp.read(DOWNLOAD_CHUNK_SIZE)
                     if not chunk:
                         break
                     f.write(chunk)
                     total += len(chunk)
         return True, total
-    except (HTTPError, URLError, OSError):
+    except (HTTPError, URLError, OSError) as e:
+        sys.stderr.write(f"Warning: failed to download {url} to {out_path}: {e}\n")
+        sys.stderr.flush()
         return False, 0
 
 
 def sanitize_filename(name: str) -> str:
-    name = re.sub(r"[\r\n\t]", " ", name)
-    name = re.sub(r"\s+", " ", name).strip()
-    name = re.sub(r"[^\w\- .]", "_", name)
+    name = RE_NEWLINES_TABS.sub(" ", name)
+    name = RE_MULTIPLE_WHITESPACE.sub(" ", name).strip()
+    name = RE_NON_FILENAME_CHARS.sub("_", name)
     return name or "untitled"
 
 
@@ -83,7 +120,7 @@ def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
     parsed = urlparse(rss_url)
     base = parsed.netloc or "feed"
     # include a short hash of the full URL to disambiguate same host feeds
-    h = hashlib.sha1(rss_url.encode("utf-8")).hexdigest()[:8]
+    h = hashlib.sha1(rss_url.encode("utf-8")).hexdigest()[:URL_HASH_LENGTH]
     return f"output_rss_{sanitize_filename(base)}_{h}"
 
 
@@ -178,7 +215,7 @@ def _format_screenplay_from_segments(segments: List[dict], num_speakers: int, sp
         start = float(s.get("start") or 0.0)
         end = float(s.get("end") or start)
         if prev_end is not None and start - prev_end > gap_s:
-            current_speaker_idx = (current_speaker_idx + 1) % max(1, num_speakers)
+            current_speaker_idx = (current_speaker_idx + 1) % max(MIN_NUM_SPEAKERS, num_speakers)
         prev_end = end
         if lines and lines[-1][0] == current_speaker_idx:
             # merge with previous same speaker line
@@ -201,6 +238,60 @@ def write_file(path: str, data: bytes) -> None:
         f.write(data)
 
 
+def validate_args(args: argparse.Namespace) -> None:
+    """Validate input parameters and raise ValueError with descriptive message if invalid."""
+    errors: List[str] = []
+    
+    # Validate RSS URL
+    if not args.rss or not args.rss.strip():
+        errors.append("RSS URL is required")
+    else:
+        parsed = urlparse(args.rss)
+        if not parsed.scheme or parsed.scheme not in ("http", "https"):
+            errors.append(f"RSS URL must be http or https: {args.rss}")
+        if not parsed.netloc:
+            errors.append(f"RSS URL must have a valid hostname: {args.rss}")
+    
+    # Validate max-episodes
+    if args.max_episodes is not None and args.max_episodes <= 0:
+        errors.append(f"--max-episodes must be positive, got: {args.max_episodes}")
+    
+    # Validate timeout
+    if args.timeout <= 0:
+        errors.append(f"--timeout must be positive, got: {args.timeout}")
+    
+    # Validate delay-ms
+    if args.delay_ms < 0:
+        errors.append(f"--delay-ms must be non-negative, got: {args.delay_ms}")
+    
+    # Validate whisper-model
+    valid_models = (
+        "tiny", "base", "small", "medium", "large", "large-v2", "large-v3",
+        "tiny.en", "base.en", "small.en", "medium.en", "large.en"
+    )
+    if args.transcribe_missing and args.whisper_model not in valid_models:
+        errors.append(f"--whisper-model must be one of {valid_models}, got: {args.whisper_model}")
+    
+    # Validate screenplay-gap
+    if args.screenplay_gap <= 0:
+        errors.append(f"--screenplay-gap must be positive, got: {args.screenplay_gap}")
+    
+    # Validate num-speakers
+    if args.num_speakers <= 0:
+        errors.append(f"--num-speakers must be positive, got: {args.num_speakers}")
+    
+    # Validate output-dir (if provided)
+    if args.output_dir:
+        parent_dir = os.path.dirname(os.path.abspath(args.output_dir)) or os.getcwd()
+        if not os.path.exists(parent_dir):
+            errors.append(f"--output-dir parent directory does not exist: {parent_dir}")
+        elif not os.path.isdir(parent_dir):
+            errors.append(f"--output-dir parent path is not a directory: {parent_dir}")
+    
+    if errors:
+        raise ValueError("Invalid input parameters:\n  " + "\n  ".join(errors))
+
+
 def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Download podcast episode transcripts from an RSS feed.")
     parser.add_argument("rss", help="Podcast RSS feed URL")
@@ -208,34 +299,41 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser.add_argument("--max-episodes", type=int, default=None, help="Maximum number of episodes to process")
     parser.add_argument("--prefer-type", action="append", default=[], help="Preferred transcript types or extensions (repeatable), e.g. text/plain, .vtt, .srt")
     parser.add_argument("--user-agent", default=DEFAULT_USER_AGENT, help="User-Agent header")
-    parser.add_argument("--timeout", type=int, default=20, help="Request timeout in seconds")
+    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_SECONDS, help="Request timeout in seconds")
     parser.add_argument("--delay-ms", type=int, default=0, help="Delay between requests (ms)")
     parser.add_argument("--transcribe-missing", action="store_true", help="Use Whisper to transcribe when no transcript is provided")
-    parser.add_argument("--whisper-model", default="base", help="Whisper model to use (e.g., tiny, base, small, medium)")
+    parser.add_argument("--whisper-model", default="base", help="Whisper model to use (e.g., tiny, base, small, medium, large, or tiny.en, base.en, small.en, medium.en, large.en for English-only)")
     parser.add_argument("--screenplay", action="store_true", help="Format Whisper transcript as screenplay with speaker turns")
-    parser.add_argument("--screenplay-gap", type=float, default=1.25, help="Gap (seconds) to trigger speaker change when formatting screenplay")
-    parser.add_argument("--num-speakers", type=int, default=2, help="Number of speakers to alternate between when formatting screenplay")
+    parser.add_argument("--screenplay-gap", type=float, default=DEFAULT_SCREENPLAY_GAP_SECONDS, help="Gap (seconds) to trigger speaker change when formatting screenplay")
+    parser.add_argument("--num-speakers", type=int, default=DEFAULT_NUM_SPEAKERS, help="Number of speakers to alternate between when formatting screenplay")
     parser.add_argument("--speaker-names", default="", help="Comma-separated speaker names to use instead of SPEAKER 1..N")
     parser.add_argument("--run-id", default=None, help="Optional run identifier to create a unique subfolder under the output directory; use 'auto' for timestamp")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    validate_args(args)
+    return args
 
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
-    args = parse_args(argv)
+    try:
+        args = parse_args(argv)
+    except ValueError as e:
+        sys.stderr.write(f"Error: {e}\n")
+        sys.stderr.flush()
+        return 1
 
     cfg = Config(
         rss_url=args.rss,
         output_dir=derive_output_dir(args.rss, args.output_dir),
         max_episodes=(args.max_episodes if args.max_episodes and args.max_episodes > 0 else None),
         user_agent=args.user_agent,
-        timeout=max(1, args.timeout),
+        timeout=max(MIN_TIMEOUT_SECONDS, args.timeout),
         delay_ms=max(0, args.delay_ms),
         prefer_types=list(args.prefer_type or []),
         transcribe_missing=bool(args.transcribe_missing),
         whisper_model=str(args.whisper_model or "base"),
         screenplay=bool(args.screenplay),
         screenplay_gap_s=float(args.screenplay_gap),
-        screenplay_num_speakers=max(1, int(args.num_speakers)),
+        screenplay_num_speakers=max(MIN_NUM_SPEAKERS, int(args.num_speakers)),
         screenplay_speaker_names=[s.strip() for s in (args.speaker_names or "").split(",") if s.strip()],
         run_id=(str(args.run_id) if args.run_id else None),
     )
@@ -243,7 +341,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     # Resolve effective output directory (with optional run subfolder)
     run_suffix: Optional[str] = None
     if cfg.run_id:
-        run_suffix = time.strftime("%Y%m%d-%H%M%S") if cfg.run_id.lower() == "auto" else sanitize_filename(cfg.run_id)
+        run_suffix = time.strftime(TIMESTAMP_FORMAT) if cfg.run_id.lower() == "auto" else sanitize_filename(cfg.run_id)
         # Append Whisper model name if using transcription
         if cfg.transcribe_missing:
             model_part = sanitize_filename(cfg.whisper_model)
@@ -262,8 +360,9 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             f"  max_episodes: {cfg.max_episodes or 'all'}\n"
         )
         sys.stderr.flush()
-    except Exception:
-        pass
+    except (IOError, OSError) as e:
+        sys.stderr.write(f"Warning: failed to write startup message: {e}\n")
+        sys.stderr.flush()
 
     rss_bytes, rss_ctype = http_get(cfg.rss_url, cfg.user_agent, cfg.timeout)
     if not rss_bytes:
@@ -272,7 +371,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     try:
         feed_title, items = parse_rss_items(rss_bytes)
-    except Exception as e:
+    except (ET.ParseError, ValueError) as e:
         sys.stderr.write(f"Failed to parse RSS XML: {e}\n")
         return 1
 
@@ -282,6 +381,29 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     sys.stderr.write(f"Episodes to process: {len(items)} of {total_items}\n")
     sys.stderr.flush()
+
+    # Load Whisper model once if transcription is enabled
+    whisper_model = None
+    if cfg.transcribe_missing:
+        try:
+            import whisper  # type: ignore
+            sys.stderr.write(f"Loading Whisper model ({cfg.whisper_model})...\n")
+            sys.stderr.flush()
+            whisper_model = whisper.load_model(cfg.whisper_model)
+            sys.stderr.write("Whisper model loaded successfully.\n")
+            sys.stderr.flush()
+        except ImportError:
+            sys.stderr.write("Warning: openai-whisper not installed. Install with: pip install openai-whisper && brew install ffmpeg\n")
+            sys.stderr.flush()
+        except (RuntimeError, OSError) as e:
+            sys.stderr.write(f"Warning: failed to load Whisper model: {e}\n")
+            sys.stderr.flush()
+
+    # Create temp directory once if transcription is enabled
+    temp_dir = None
+    if cfg.transcribe_missing:
+        temp_dir = os.path.join(effective_output_dir, TEMP_DIR_NAME)
+        os.makedirs(temp_dir, exist_ok=True)
 
     saved = 0
     for idx, item in enumerate(items, start=1):
@@ -304,8 +426,6 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                 sys.stderr.write(f"[{idx}] no transcript; downloading media for Whisper: {ep_title}\n")
                 sys.stderr.flush()
 
-                temp_dir = os.path.join(effective_output_dir, ".tmp_media")
-                os.makedirs(temp_dir, exist_ok=True)
                 # derive extension from media type or URL
                 ext = ".bin"
                 if media_type and "/" in media_type:
@@ -327,7 +447,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                             ext = cand
                             break
 
-                temp_media = os.path.join(temp_dir, f"{idx:04d}_{ep_title_safe}{ext}")
+                ep_num_str = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d}"  # Using EPISODE_NUMBER_FORMAT_WIDTH (4)
+                temp_media = os.path.join(temp_dir, f"{ep_num_str}_{ep_title_safe}{ext}")
                 dl_start = time.time()
                 ok, total_bytes = http_download_to_file(media_url, cfg.user_agent, cfg.timeout, temp_media)
                 dl_elapsed = time.time() - dl_start
@@ -336,22 +457,33 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                     sys.stderr.flush()
                     continue
                 try:
-                    mb = total_bytes / (1024 * 1024)
+                    mb = total_bytes / BYTES_PER_MB
                     sys.stderr.write(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s\n")
                     sys.stderr.flush()
-                except Exception:
-                    pass
+                except (ValueError, ZeroDivisionError, TypeError) as e:
+                    sys.stderr.write(f"    Warning: failed to format download size: {e}\n")
+                    sys.stderr.flush()
 
-                # Try local Whisper
+                # Use pre-loaded Whisper model
+                if whisper_model is None:
+                    sys.stderr.write("    Skipping transcription: Whisper model not available\n")
+                    sys.stderr.flush()
+                    # Clean up temp file
+                    try:
+                        os.remove(temp_media)
+                    except OSError as e:
+                        sys.stderr.write(f"    Warning: failed to remove temp media file {temp_media}: {e}\n")
+                        sys.stderr.flush()
+                    if cfg.delay_ms:
+                        time.sleep(cfg.delay_ms / MS_TO_SECONDS)
+                    continue
+
                 try:
-                    import whisper  # type: ignore
-
                     sys.stderr.write(f"    transcribing with Whisper ({cfg.whisper_model})...\n")
                     sys.stderr.flush()
-                    model = whisper.load_model(cfg.whisper_model)
-                    # Force English output; set task to translate if language unknown for English output
+                    # Transcribe in English using pre-loaded model
                     tc_start = time.time()
-                    result = model.transcribe(temp_media, task="translate", language="en")
+                    result = whisper_model.transcribe(temp_media, task="transcribe", language="en")
                     tc_elapsed = time.time() - tc_start
                     text = (result.get("text") or "").strip()
                     # Optionally format as screenplay using segments
@@ -362,28 +494,29 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                             )
                             if formatted.strip():
                                 text = formatted
-                        except Exception:
-                            pass
+                        except (ValueError, KeyError, TypeError) as e:
+                            sys.stderr.write(f"    Warning: failed to format as screenplay, using plain transcript: {e}\n")
+                            sys.stderr.flush()
                     if not text:
                         raise RuntimeError("empty transcription")
                     # Include run identifier in filename for easy comparison across runs
                     run_tag = f"_{run_suffix}" if run_suffix else ""
-                    out_name = f"{idx:04d} - {ep_title_safe}{run_tag}.txt"
+                    out_name = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {ep_title_safe}{run_tag}.txt"
                     out_path = os.path.join(effective_output_dir, out_name)
                     write_file(out_path, text.encode("utf-8"))
                     saved += 1
                     sys.stderr.write(f"    saved transcript: {out_path} (transcribed in {tc_elapsed:.1f}s)\n")
                     sys.stderr.flush()
-                except Exception as e:
-                    sys.stderr.write(f"    Whisper transcription failed or not installed: {e}\n")
-                    sys.stderr.write("    Install with: pip install openai-whisper && brew install ffmpeg\n")
+                except (RuntimeError, OSError) as e:
+                    sys.stderr.write(f"    Whisper transcription failed: {e}\n")
                     sys.stderr.flush()
                 finally:
                     # best-effort cleanup of temp media
                     try:
                         os.remove(temp_media)
-                    except Exception:
-                        pass
+                    except OSError as e:
+                        sys.stderr.write(f"    Warning: failed to remove temp media file {temp_media}: {e}\n")
+                        sys.stderr.flush()
                 if cfg.delay_ms:
                     time.sleep(cfg.delay_ms / 1000.0)
                 continue
@@ -432,19 +565,29 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
         # Include run identifier in filename for easy comparison across runs
         run_tag = f"_{run_suffix}" if run_suffix else ""
-        out_name = f"{idx:04d} - {ep_title_safe}{run_tag}{ext}"
+        out_name = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {ep_title_safe}{run_tag}{ext}"
         out_path = os.path.join(effective_output_dir, out_name)
         try:
             write_file(out_path, data)
             saved += 1
             sys.stderr.write(f"    saved: {out_path}\n")
             sys.stderr.flush()
-        except Exception as e:
+        except (IOError, OSError) as e:
             sys.stderr.write(f"    failed to write file: {e}\n")
             sys.stderr.flush()
 
         if cfg.delay_ms:
             time.sleep(cfg.delay_ms / 1000.0)
+
+    # Clean up temp directory if it was created
+    if temp_dir and os.path.exists(temp_dir):
+        try:
+            shutil.rmtree(temp_dir)
+            sys.stderr.write(f"Cleaned up temp directory: {temp_dir}\n")
+            sys.stderr.flush()
+        except OSError as e:
+            sys.stderr.write(f"Warning: failed to remove temp directory {temp_dir}: {e}\n")
+            sys.stderr.flush()
 
     sys.stderr.write(f"Done. transcripts_saved={saved} in {effective_output_dir}\n")
     sys.stderr.flush()
