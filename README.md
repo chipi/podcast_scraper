@@ -56,6 +56,12 @@ python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --s
 # Keep results from different runs separate (avoid overwrite)
 python3 podcast_scraper.py https://example.com/feed.xml --run-id auto
 python3 podcast_scraper.py https://example.com/feed.xml --run-id vtt_vs_plain
+
+# When using Whisper, model name is automatically added to run folder
+python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --whisper-model base
+# Creates: output_rss_.../run_whisper_base/
+# Or with explicit run-id: output_rss_.../run_my_experiment_whisper_base/
+# Filenames also include run identifier: "0001 - Episode Title_whisper_base.txt"
 ```
 
 ## Options

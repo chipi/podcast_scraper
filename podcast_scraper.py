@@ -244,6 +244,14 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     run_suffix: Optional[str] = None
     if cfg.run_id:
         run_suffix = time.strftime("%Y%m%d-%H%M%S") if cfg.run_id.lower() == "auto" else sanitize_filename(cfg.run_id)
+        # Append Whisper model name if using transcription
+        if cfg.transcribe_missing:
+            model_part = sanitize_filename(cfg.whisper_model)
+            run_suffix = f"{run_suffix}_whisper_{model_part}" if run_suffix else f"whisper_{model_part}"
+    elif cfg.transcribe_missing:
+        # Auto-create run-id with model if Whisper is used but no run-id specified
+        model_part = sanitize_filename(cfg.whisper_model)
+        run_suffix = f"whisper_{model_part}"
     effective_output_dir = os.path.join(cfg.output_dir, f"run_{run_suffix}") if run_suffix else cfg.output_dir
 
     try:
@@ -358,7 +366,9 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                             pass
                     if not text:
                         raise RuntimeError("empty transcription")
-                    out_name = f"{idx:04d} - {ep_title_safe}.txt"
+                    # Include run identifier in filename for easy comparison across runs
+                    run_tag = f"_{run_suffix}" if run_suffix else ""
+                    out_name = f"{idx:04d} - {ep_title_safe}{run_tag}.txt"
                     out_path = os.path.join(effective_output_dir, out_name)
                     write_file(out_path, text.encode("utf-8"))
                     saved += 1
@@ -420,7 +430,9 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                         ext = cand
                         break
 
-        out_name = f"{idx:04d} - {ep_title_safe}{ext}"
+        # Include run identifier in filename for easy comparison across runs
+        run_tag = f"_{run_suffix}" if run_suffix else ""
+        out_name = f"{idx:04d} - {ep_title_safe}{run_tag}{ext}"
         out_path = os.path.join(effective_output_dir, out_name)
         try:
             write_file(out_path, data)
