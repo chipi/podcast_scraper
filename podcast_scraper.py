@@ -10,8 +10,10 @@ import shutil
 import sys
 import time
 import warnings
+from platformdirs import PlatformDirs
 
 import requests
+from requests.utils import requote_uri
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -80,15 +82,10 @@ BYTES_PER_MB = 1024 * 1024  # Bytes in a megabyte
 MS_TO_SECONDS = 1000.0  # Milliseconds to seconds conversion factor
 TEMP_DIR_NAME = ".tmp_media"  # Name of temporary directory for media files
 
-# Precompiled regex patterns for performance
-RE_NEWLINES_TABS = re.compile(r"[\r\n\t]")  # Match newlines and tabs
-RE_MULTIPLE_WHITESPACE = re.compile(r"\s+")  # Match multiple whitespace characters
-RE_NON_FILENAME_CHARS = re.compile(r"[^\w\- .]")  # Match characters not allowed in filenames
-
 @dataclass
 class Config:
     rss_url: str
-    output_dir: Optional[str]
+    output_dir: str
     max_episodes: Optional[int]
     user_agent: str
     timeout: int
@@ -102,118 +99,14 @@ class Config:
     screenplay_speaker_names: List[str]
     run_id: Optional[str]
 
+# Precompiled regex patterns for performance
+RE_NEWLINES_TABS = re.compile(r"[\r\n\t]")  # Match newlines and tabs
+RE_MULTIPLE_WHITESPACE = re.compile(r"\s+")  # Match multiple whitespace characters
+RE_NON_FILENAME_CHARS = re.compile(r"[^\w\- .]")  # Match characters not allowed in filenames
 
 def normalize_url(url: str) -> str:
-    """Normalize URL by encoding non-ASCII characters in path and query components."""
-    parsed = urlparse(url)
-    # Encode non-ASCII characters in path segments (preserve slashes)
-    path_parts = parsed.path.split("/")
-    encoded_path = "/".join(quote(part, safe="") for part in path_parts)
-    # Encode non-ASCII characters in query string
-    if parsed.query:
-        # Parse query string and re-encode it properly (parse_qs returns lists)
-        query_dict = parse_qs(parsed.query, keep_blank_values=True)
-        encoded_query = urlencode(query_dict, doseq=True)
-    else:
-        encoded_query = ""
-    # Reconstruct URL with encoded components
-    normalized = urlunparse((
-        parsed.scheme,
-        parsed.netloc,  # netloc should already be ASCII (IDN is handled by DNS)
-        encoded_path,
-        parsed.params,
-        encoded_query,
-        parsed.fragment,
-    ))
-    return normalized
-
-
-def _open_http_request(url: str, user_agent: str, timeout: int, stream: bool = False):
-    """Shared helper to open an HTTP request. Returns response object or None on error."""
-    normalized_url = normalize_url(url)
-    headers = {"User-Agent": user_agent}
-    try:
-        resp = REQUEST_SESSION.get(normalized_url, headers=headers, timeout=timeout, stream=stream)
-        resp.raise_for_status()
-        return resp
-    except requests.RequestException as e:
-        logger.warning(f"Failed to fetch {url}: {e}")
-        return None
-
-
-def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], Optional[str]]:
-    resp = _open_http_request(url, user_agent, timeout, stream=True)
-    if resp is None:
-        return None, None
-    try:
-        ctype = resp.headers.get("Content-Type", "")
-        content_length = resp.headers.get("Content-Length")
-        try:
-            total_size = int(content_length) if content_length else None
-        except ValueError:
-            total_size = None
-
-        body_parts = []
-        with tqdm(
-            total=total_size,
-            unit="B",
-            unit_scale=True,
-            unit_divisor=1024,
-            desc="Downloading",
-            disable=not TQDM_AVAILABLE,
-        ) as pbar:
-            for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
-                if not chunk:
-                    continue
-                body_parts.append(chunk)
-                pbar.update(len(chunk))
-
-        body = b"".join(body_parts)
-        return body, ctype
-    except (requests.RequestException, OSError) as e:
-        logger.warning(f"Failed to read response from {url}: {e}")
-        return None, None
-    finally:
-        resp.close()
-
-
-def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str) -> Tuple[bool, int]:
-    resp = _open_http_request(url, user_agent, timeout, stream=True)
-    if resp is None:
-        return False, 0
-    try:
-        content_length = resp.headers.get("Content-Length")
-        try:
-            total_size = int(content_length) if content_length else None
-        except ValueError:
-            total_size = None
-
-        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-        filename = os.path.basename(out_path) or os.path.basename(urlparse(url).path)
-
-        with open(out_path, "wb") as f:
-            total = 0
-            with tqdm(
-                total=total_size,
-                unit="B",
-                unit_scale=True,
-                unit_divisor=1024,
-                desc=f"Downloading {filename}" if filename else "Downloading",
-                disable=not TQDM_AVAILABLE,
-            ) as pbar:
-                for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
-                    if not chunk:
-                        continue
-                    f.write(chunk)
-                    chunk_size = len(chunk)
-                    total += chunk_size
-                    pbar.update(chunk_size)
-        return True, total
-    except (requests.RequestException, OSError) as e:
-        logger.warning(f"Failed to download {url} to {out_path}: {e}")
-        return False, 0
-    finally:
-        resp.close()
+    """Normalize URLs while preserving already-encoded segments."""
+    return requote_uri(url)
 
 
 def sanitize_filename(name: str) -> str:
@@ -237,29 +130,21 @@ def validate_and_normalize_output_dir(path: str) -> str:
     except (OSError, RuntimeError) as e:
         raise ValueError(f"Invalid output directory path: {path} ({e})")
     
-    # Check for forbidden system directories
-    forbidden_prefixes = (Path("/etc"), Path("/usr"), Path("/bin"), Path("/sbin"), 
-                         Path("/var"), Path("/sys"), Path("/proc"), Path("/dev"), 
-                         Path("/root"), Path("/home"))
-    resolved_parts = resolved.parts
-    for forbidden in forbidden_prefixes:
-        forbidden_parts = forbidden.resolve().parts
-        # Check if resolved path starts with forbidden path parts
-        if len(resolved_parts) >= len(forbidden_parts):
-            if resolved_parts[:len(forbidden_parts)] == forbidden_parts:
-                raise ValueError(f"Output directory cannot be in system directories: {path}")
-    
-    # For relative paths, ensure they don't escape the current working directory
-    # This prevents path traversal attacks like ../../../etc/passwd
-    cwd = Path.cwd().resolve()
-    try:
-        # Check if resolved path is within CWD (for relative paths)
-        resolved.relative_to(cwd)
-    except ValueError:
-        # Path is outside CWD - allow but warn (user might want to write to another location)
-        logger.warning(f"Output directory is outside current working directory: {resolved}")
-    
-    # Return as string (normalized)
+    app_dirs = PlatformDirs("podcast_scraper", ensure_exists=False)
+    safe_roots = {
+        Path.cwd().resolve(),
+        Path.home().resolve(),
+        Path(app_dirs.user_data_dir).resolve(),
+        Path(app_dirs.user_cache_dir).resolve(),
+    }
+
+    if any(resolved == root or resolved.is_relative_to(root) for root in safe_roots):
+        return str(resolved)
+
+    logger.warning(
+        "Output directory %s is outside recommended locations (home or app data).",
+        resolved,
+    )
     return str(resolved)
 
 
@@ -391,13 +276,13 @@ def choose_transcript_url(candidates: List[Tuple[str, Optional[str]]], prefer_ty
         return None
     if not prefer_types:
         return candidates[0]
-    # Try to match preferred types in order (substring match on type or URL extension)
-    lowered = [(u, (t.lower() if t else None)) for (u, t) in candidates]
+    lowered = [(u, t.lower() if t else None) for (u, t) in candidates]
     for pref in prefer_types:
         p = pref.lower().strip()
-        for (u, t) in lowered:
-            if (t and p in t) or u.lower().endswith(p):
-                return (u, t)
+        for idx, (u, t_lower) in enumerate(lowered):
+            orig_url, orig_type = candidates[idx]
+            if (t_lower and p in t_lower) or orig_url.lower().endswith(p):
+                return orig_url, orig_type
     return candidates[0]
 
 def _format_screenplay_from_segments(segments: List[dict], num_speakers: int, speaker_names: List[str], gap_s: float) -> str:
@@ -539,8 +424,10 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
 
         parser.set_defaults(**defaults_updates)
         args = parser.parse_args(argv)
+        if not args.rss:
+            raise ValueError("RSS URL is required (provide in config as 'rss' or via CLI)")
     else:
-        args = initial_args
+        args = parser.parse_args(argv)
 
     validate_args(args)
     return args
@@ -669,6 +556,92 @@ def transcribe_with_whisper(whisper_model, temp_media: str, cfg: Config) -> Tupl
     return result, tc_elapsed
 
 
+def _open_http_request(url: str, user_agent: str, timeout: int, stream: bool = False):
+    """Shared helper to execute HTTP GET requests with consistent error handling."""
+    normalized_url = normalize_url(url)
+    headers = {"User-Agent": user_agent}
+    try:
+        resp = REQUEST_SESSION.get(normalized_url, headers=headers, timeout=timeout, stream=stream)
+        resp.raise_for_status()
+        return resp
+    except requests.RequestException as exc:
+        logger.warning("Failed to fetch %s: %s", url, exc)
+        return None
+
+
+def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], Optional[str]]:
+    resp = _open_http_request(url, user_agent, timeout, stream=True)
+    if resp is None:
+        return None, None
+    try:
+        ctype = resp.headers.get("Content-Type", "")
+        content_length = resp.headers.get("Content-Length")
+        try:
+            total_size = int(content_length) if content_length else None
+        except (TypeError, ValueError):
+            total_size = None
+
+        body_parts: List[bytes] = []
+        with tqdm(
+            total=total_size,
+            unit="B",
+            unit_scale=True,
+            unit_divisor=1024,
+            desc="Downloading",
+            disable=not TQDM_AVAILABLE,
+        ) as pbar:
+            for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
+                if not chunk:
+                    continue
+                body_parts.append(chunk)
+                pbar.update(len(chunk))
+
+        return b"".join(body_parts), ctype
+    except (requests.RequestException, OSError) as exc:
+        logger.warning("Failed to read response from %s: %s", url, exc)
+        return None, None
+    finally:
+        resp.close()
+
+
+def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str) -> Tuple[bool, int]:
+    resp = _open_http_request(url, user_agent, timeout, stream=True)
+    if resp is None:
+        return False, 0
+    try:
+        content_length = resp.headers.get("Content-Length")
+        try:
+            total_size = int(content_length) if content_length else None
+        except (TypeError, ValueError):
+            total_size = None
+
+        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+        filename = os.path.basename(out_path) or os.path.basename(urlparse(url).path)
+
+        total_bytes = 0
+        with open(out_path, "wb") as f, tqdm(
+            total=total_size,
+            unit="B",
+            unit_scale=True,
+            unit_divisor=1024,
+            desc=f"Downloading {filename}" if filename else "Downloading",
+            disable=not TQDM_AVAILABLE,
+        ) as pbar:
+            for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
+                if not chunk:
+                    continue
+                f.write(chunk)
+                chunk_size = len(chunk)
+                total_bytes += chunk_size
+                pbar.update(chunk_size)
+        return True, total_bytes
+    except (requests.RequestException, OSError) as exc:
+        logger.warning("Failed to download %s to %s: %s", url, out_path, exc)
+        return False, 0
+    finally:
+        resp.close()
+
+
 def download_and_transcribe_media(
     item: XML_Element,
     idx: int,
@@ -679,9 +652,10 @@ def download_and_transcribe_media(
     temp_dir: str,
     effective_output_dir: str,
     run_suffix: Optional[str],
+    feed_base_url: str,
 ) -> bool:
     """Download media and transcribe with Whisper. Returns True if successful."""
-    media = find_enclosure_media(item, cfg.rss_url)
+    media = find_enclosure_media(item, feed_base_url)
     if not media:
         logger.info(f"[{idx}] no transcript or enclosure for: {ep_title}")
         return False
@@ -764,7 +738,7 @@ def process_transcript_download(
     logger.info(f"[{idx}] downloading transcript: {ep_title} -> {transcript_url}")
 
     data, ctype = http_get(transcript_url, cfg.user_agent, cfg.timeout)
-    if not data:
+    if data is None:
         logger.warning(f"    failed to download transcript")
         return False
 
@@ -792,18 +766,28 @@ def process_episode(
     temp_dir: Optional[str],
     effective_output_dir: str,
     run_suffix: Optional[str],
+    feed_base_url: str,
 ) -> bool:
     """Process a single episode. Returns True if transcript was saved."""
     ep_title, ep_title_safe = extract_episode_title(item, idx)
 
-    candidates = find_transcript_urls(item, cfg.rss_url)
+    candidates = find_transcript_urls(item, feed_base_url)
     chosen = choose_transcript_url(candidates, cfg.prefer_types)
 
     if not chosen:
         # fallback to enclosure media if requested
         if cfg.transcribe_missing and temp_dir:
             success = download_and_transcribe_media(
-                item, idx, ep_title, ep_title_safe, cfg, whisper_model, temp_dir, effective_output_dir, run_suffix
+                item,
+                idx,
+                ep_title,
+                ep_title_safe,
+                cfg,
+                whisper_model,
+                temp_dir,
+                effective_output_dir,
+                run_suffix,
+                feed_base_url,
             )
             if cfg.delay_ms:
                 time.sleep(cfg.delay_ms / MS_TO_SECONDS)
@@ -821,18 +805,23 @@ def process_episode(
     return success
 
 
-def fetch_and_parse_rss(cfg: Config) -> Tuple[str, List[XML_Element]]:
-    """Fetch and parse RSS feed. Returns (feed_title, items)."""
-    rss_bytes, rss_ctype = http_get(cfg.rss_url, cfg.user_agent, cfg.timeout)
-    if not rss_bytes:
+def fetch_and_parse_rss(cfg: Config) -> Tuple[str, List[XML_Element], str]:
+    """Fetch and parse RSS feed. Returns (feed_title, items, feed_base_url)."""
+    resp = _open_http_request(cfg.rss_url, cfg.user_agent, cfg.timeout, stream=False)
+    if resp is None:
         raise ValueError("Failed to fetch RSS feed.")
-    
+    try:
+        rss_bytes = resp.content
+        feed_base_url = resp.url or cfg.rss_url
+    finally:
+        resp.close()
+
     try:
         feed_title, items = parse_rss_items(rss_bytes)
     except (DefusedXMLParseError, ValueError) as e:
         raise ValueError(f"Failed to parse RSS XML: {e}") from e
-    
-    return feed_title, items
+
+    return feed_title, items, feed_base_url
 
 
 def setup_output_directory(cfg: Config) -> Tuple[str, Optional[str]]:
@@ -889,7 +878,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     # Fetch and parse RSS feed
     try:
-        feed_title, items = fetch_and_parse_rss(cfg)
+        feed_title, items, feed_base_url = fetch_and_parse_rss(cfg)
     except ValueError as e:
         logger.error(f"{e}")
         return 1
@@ -911,7 +900,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     saved = 0
     for idx, item in enumerate(items, start=1):
-        if process_episode(item, idx, cfg, whisper_model, temp_dir, effective_output_dir, run_suffix):
+        if process_episode(item, idx, cfg, whisper_model, temp_dir, effective_output_dir, run_suffix, feed_base_url):
             saved += 1
 
     # Clean up temp directory if it was created

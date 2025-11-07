@@ -541,7 +541,7 @@ class TestProcessEpisode(unittest.TestCase):
             run_id=None,
         )
         
-        result = podcast_scraper.process_episode(item, 1, cfg, None, None, TEST_OUTPUT_DIR, None)
+        result = podcast_scraper.process_episode(item, 1, cfg, None, None, TEST_OUTPUT_DIR, None, TEST_FEED_URL)
         self.assertTrue(result)
         mock_process.assert_called_once()
 
@@ -576,7 +576,7 @@ class TestProcessEpisode(unittest.TestCase):
         )
         
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = podcast_scraper.process_episode(item, 1, cfg, Mock(), tmpdir, TEST_OUTPUT_DIR, None)
+            result = podcast_scraper.process_episode(item, 1, cfg, Mock(), tmpdir, TEST_OUTPUT_DIR, None, TEST_FEED_URL)
             self.assertTrue(result)
             mock_transcribe.assert_called_once()
 

@@ -3,4 +3,5 @@ defusedxml>=0.7.1
 tqdm>=4.66.0
 PyYAML>=6.0
 requests>=2.31.0
+platformdirs>=3.11.0
 
