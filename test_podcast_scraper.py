@@ -5,6 +5,7 @@ import json
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 import xml.etree.ElementTree as ET
 
@@ -611,6 +612,231 @@ class TestFormatScreenplay(unittest.TestCase):
         self.assertIn("Speaker1", result)
         self.assertIn("Speaker2", result)
         self.assertIn("Hello", result)
+
+
+class MockHTTPResponse:
+    """Simple mock for HTTP responses used in integration-style tests."""
+
+    def __init__(self, *, content=b"", url="", headers=None, chunks=None):
+        self.content = content
+        self.url = url
+        self.headers = headers or {}
+        self._chunks = chunks if chunks is not None else [content]
+
+    def raise_for_status(self):
+        return None
+
+    def iter_content(self, chunk_size=1):
+        for chunk in self._chunks:
+            yield chunk
+
+    def close(self):
+        return None
+
+
+class TestIntegrationMain(unittest.TestCase):
+    """Higher-level integration tests using mocked HTTP responses."""
+
+    def _mock_http_map(self, mapping):
+        """Return side effect function for _open_http_request using mapping dict."""
+
+        def _side_effect(url, user_agent, timeout, stream=False):
+            normalized = podcast_scraper.normalize_url(url)
+            resp = mapping.get(normalized)
+            if resp is None:
+                raise AssertionError(f"Unexpected HTTP request: {normalized}")
+            return resp
+
+        return _side_effect
+
+    def test_integration_main_downloads_transcript(self):
+        rss_url = "https://example.com/feed.xml"
+        transcript_url = "https://example.com/ep1.txt"
+        rss_xml = f"""<?xml version='1.0'?>
+<rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Integration Feed</title>
+    <item>
+      <title>Episode 1</title>
+      <podcast:transcript url="{transcript_url}" type="text/plain" />
+    </item>
+  </channel>
+</rss>
+""".strip()
+        transcript_text = "Episode 1 transcript"
+        responses = {
+            podcast_scraper.normalize_url(rss_url): MockHTTPResponse(
+                content=rss_xml.encode("utf-8"),
+                url=rss_url,
+                headers={"Content-Type": "application/rss+xml"},
+            ),
+            podcast_scraper.normalize_url(transcript_url): MockHTTPResponse(
+                url=transcript_url,
+                headers={
+                    "Content-Type": "text/plain",
+                    "Content-Length": str(len(transcript_text.encode("utf-8"))),
+                },
+                chunks=[transcript_text.encode("utf-8")],
+            ),
+        }
+
+        with patch("podcast_scraper._open_http_request", side_effect=self._mock_http_map(responses)):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                exit_code = podcast_scraper.main([rss_url, "--output-dir", tmpdir])
+                self.assertEqual(exit_code, 0)
+                expected_path = os.path.join(tmpdir, "0001 - Episode 1.txt")
+                self.assertTrue(os.path.exists(expected_path))
+                with open(expected_path, "r", encoding="utf-8") as fh:
+                    self.assertEqual(fh.read().strip(), transcript_text)
+
+    def test_integration_main_whisper_fallback(self):
+        rss_url = "https://example.com/feed.xml"
+        media_url = "https://example.com/ep1.mp3"
+        rss_xml = f"""<?xml version='1.0'?>
+<rss>
+  <channel>
+    <title>Integration Feed</title>
+    <item>
+      <title>Episode 1</title>
+      <enclosure url="{media_url}" type="audio/mpeg" />
+    </item>
+  </channel>
+</rss>
+""".strip()
+        media_bytes = b"FAKE AUDIO DATA"
+        responses = {
+            podcast_scraper.normalize_url(rss_url): MockHTTPResponse(
+                content=rss_xml.encode("utf-8"),
+                url=rss_url,
+                headers={"Content-Type": "application/rss+xml"},
+            ),
+            podcast_scraper.normalize_url(media_url): MockHTTPResponse(
+                url=media_url,
+                headers={"Content-Type": "audio/mpeg", "Content-Length": str(len(media_bytes))},
+                chunks=[media_bytes],
+            ),
+        }
+
+        mock_model = object()
+        transcribed_text = "Hello from Whisper"
+
+        with patch("podcast_scraper._open_http_request", side_effect=self._mock_http_map(responses)):
+            with patch("podcast_scraper.load_whisper_model", return_value=mock_model) as mock_load:
+                with patch(
+                    "podcast_scraper.transcribe_with_whisper",
+                    return_value=({"text": transcribed_text}, 1.0),
+                ) as mock_transcribe:
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        exit_code = podcast_scraper.main([
+                            rss_url,
+                            "--output-dir",
+                            tmpdir,
+                            "--transcribe-missing",
+                            "--run-id",
+                            "testrun",
+                        ])
+                        self.assertEqual(exit_code, 0)
+                        mock_load.assert_called_once()
+                        mock_transcribe.assert_called_once()
+                        effective_dir = Path(tmpdir).resolve() / "run_testrun_whisper_base"
+                        out_path = effective_dir / "0001 - Episode 1_testrun_whisper_base.txt"
+                        self.assertTrue(out_path.exists())
+                        self.assertEqual(out_path.read_text(encoding="utf-8").strip(), transcribed_text)
+
+    def test_path_traversal_attempt_normalized(self):
+        rss_url = "https://example.com/feed.xml"
+        transcript_url = "https://example.com/ep1.txt"
+        rss_xml = f"""<?xml version='1.0'?>
+<rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Integration Feed</title>
+    <item>
+      <title>Episode 1</title>
+      <podcast:transcript url="{transcript_url}" type="text/plain" />
+    </item>
+  </channel>
+</rss>
+""".strip()
+        transcript_text = "Episode 1 transcript"
+        responses = {
+            podcast_scraper.normalize_url(rss_url): MockHTTPResponse(
+                content=rss_xml.encode("utf-8"),
+                url=rss_url,
+            ),
+            podcast_scraper.normalize_url(transcript_url): MockHTTPResponse(
+                url=transcript_url,
+                headers={"Content-Type": "text/plain"},
+                chunks=[transcript_text.encode("utf-8")],
+            ),
+        }
+
+        with patch("podcast_scraper._open_http_request", side_effect=self._mock_http_map(responses)):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                malicious = os.path.join(tmpdir, "..", "danger", "..", "final")
+                exit_code = podcast_scraper.main([rss_url, "--output-dir", malicious])
+                self.assertEqual(exit_code, 0)
+                effective_dir = Path(malicious).expanduser().resolve()
+                out_path = effective_dir / "0001 - Episode 1.txt"
+                self.assertTrue(out_path.exists())
+                self.assertNotIn("..", str(out_path))
+
+    def test_config_override_precedence_integration(self):
+        rss_url = "https://example.com/feed.xml"
+        transcript_url = "https://example.com/ep1.txt"
+        rss_xml = f"""<?xml version='1.0'?>
+<rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Integration Feed</title>
+    <item>
+      <title>Episode 1</title>
+      <podcast:transcript url="{transcript_url}" type="text/plain" />
+    </item>
+  </channel>
+</rss>
+""".strip()
+        transcript_text = "Episode 1 transcript"
+        responses = {
+            podcast_scraper.normalize_url(rss_url): MockHTTPResponse(
+                content=rss_xml.encode("utf-8"),
+                url=rss_url,
+            ),
+            podcast_scraper.normalize_url(transcript_url): MockHTTPResponse(
+                url=transcript_url,
+                headers={"Content-Type": "text/plain"},
+                chunks=[transcript_text.encode("utf-8")],
+            ),
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg_path = os.path.join(tmpdir, "config.json")
+            config_data = {
+                "rss": rss_url,
+                "timeout": 60,
+                "log_level": "WARNING",
+            }
+            with open(cfg_path, "w", encoding="utf-8") as fh:
+                json.dump(config_data, fh)
+
+            observed_timeouts = []
+
+            def tracking_open(url, user_agent, timeout, stream=False):
+                observed_timeouts.append(timeout)
+                return self._mock_http_map(responses)(url, user_agent, timeout, stream)
+
+            with patch("podcast_scraper._open_http_request", side_effect=tracking_open):
+                with patch("podcast_scraper.apply_log_level") as mock_apply:
+                    exit_code = podcast_scraper.main([
+                        "--config",
+                        cfg_path,
+                        "--timeout",
+                        "10",
+                        "--log-level",
+                        "DEBUG",
+                    ])
+                    self.assertEqual(exit_code, 0)
+                    self.assertTrue(observed_timeouts)
+                    self.assertTrue(all(timeout == 10 for timeout in observed_timeouts))
+                    mock_apply.assert_called_with("DEBUG")
 
 
 if __name__ == "__main__":
