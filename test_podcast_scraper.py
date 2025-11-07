@@ -5,16 +5,11 @@ import json
 import os
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import Mock, patch
-import xml.etree.ElementTree as ET
 
-try:
-    import yaml  # type: ignore
-
-    HAS_YAML = True
-except ImportError:  # pragma: no cover - depends on optional dependency
-    HAS_YAML = False
+import yaml  # type: ignore
 
 # Import the module to test
 import podcast_scraper
@@ -499,7 +494,6 @@ class TestConfigFileSupport(unittest.TestCase):
             args = podcast_scraper.parse_args(["--config", cfg_path])
             self.assertEqual(args.log_level, "DEBUG")
 
-    @unittest.skipUnless(HAS_YAML, "PyYAML not installed")
     def test_yaml_config_applied(self):
         """YAML config files should be parsed when PyYAML is available."""
         with tempfile.TemporaryDirectory() as tmpdir:

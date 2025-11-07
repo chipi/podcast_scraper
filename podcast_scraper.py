@@ -10,26 +10,41 @@ import shutil
 import sys
 import time
 import warnings
-from platformdirs import PlatformDirs
-
-import requests
-from requests.utils import requote_uri
-
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qs, quote, urlencode, urljoin, urlparse, urlunparse
 
+from platformdirs import PlatformDirs
+
+import requests
 from defusedxml.ElementTree import ParseError as DefusedXMLParseError, fromstring as safe_fromstring
 from pydantic import BaseModel, ValidationError, field_validator
-
+from requests.utils import requote_uri
 from tqdm import tqdm
-
-import xml.etree.ElementTree as ET
 
 __version__ = "1.0.0"
 
+# Constants
+BYTES_PER_MB = 1024 * 1024  # Bytes in a megabyte
 DEFAULT_LOG_LEVEL = "INFO"
+DEFAULT_NUM_SPEAKERS = 2  # Default number of speakers for screenplay formatting
+DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25  # Default gap between speakers for screenplay formatting
+DEFAULT_TIMEOUT_SECONDS = 20  # Default HTTP request timeout
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/119.0 Safari/537.36"
+)
+DOWNLOAD_CHUNK_SIZE = 1024 * 256  # 256KB chunks for file downloads
+EPISODE_NUMBER_FORMAT_WIDTH = 4  # Width for episode number formatting (e.g., 0001)
+MIN_NUM_SPEAKERS = 1  # Minimum number of speakers
+MIN_TIMEOUT_SECONDS = 1  # Minimum allowed timeout value
+MS_TO_SECONDS = 1000.0  # Milliseconds to seconds conversion factor
+TEMP_DIR_NAME = ".tmp_media"  # Name of temporary directory for media files
+TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"  # Format for auto-generated run IDs
+URL_HASH_LENGTH = 8  # Length of hash suffix in output directory names
 
 # Set up logging to stderr
 logging.basicConfig(
@@ -37,6 +52,7 @@ logging.basicConfig(
     format="%(message)s",
     stream=sys.stderr,
 )
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
@@ -61,25 +77,7 @@ REQUEST_SESSION = requests.Session()
 
 XML_Element = ET.Element
 
-DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/119.0 Safari/537.36"
-)
-
-# Constants
-DOWNLOAD_CHUNK_SIZE = 1024 * 256  # 256KB chunks for file downloads
-URL_HASH_LENGTH = 8  # Length of hash suffix in output directory names
-DEFAULT_TIMEOUT_SECONDS = 20  # Default HTTP request timeout
-DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25  # Default gap between speakers for screenplay formatting
-DEFAULT_NUM_SPEAKERS = 2  # Default number of speakers for screenplay formatting
-MIN_TIMEOUT_SECONDS = 1  # Minimum allowed timeout value
-MIN_NUM_SPEAKERS = 1  # Minimum number of speakers
-TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"  # Format for auto-generated run IDs
-EPISODE_NUMBER_FORMAT_WIDTH = 4  # Width for episode number formatting (e.g., 0001)
-BYTES_PER_MB = 1024 * 1024  # Bytes in a megabyte
-MS_TO_SECONDS = 1000.0  # Milliseconds to seconds conversion factor
-TEMP_DIR_NAME = ".tmp_media"  # Name of temporary directory for media files
+DEFAULT_USER_AGENT_OVERRIDE_WARNED = False
 
 
 @dataclass
@@ -432,66 +430,6 @@ def validate_args(args: argparse.Namespace) -> None:
     
     if errors:
         raise ValueError("Invalid input parameters:\n  " + "\n  ".join(errors))
-
-
-CONFIG_FIELD_TYPES: Dict[str, type] = {
-    "rss": str,
-    "output_dir": str,
-    "max_episodes": int,
-    "user_agent": str,
-    "timeout": int,
-    "delay_ms": int,
-    "transcribe_missing": bool,
-    "whisper_model": str,
-    "screenplay": bool,
-    "screenplay_gap": float,
-    "num_speakers": int,
-    "run_id": str,
-}
-
-_BOOL_TRUE = {"true", "yes", "1", "on"}
-_BOOL_FALSE = {"false", "no", "0", "off"}
-
-
-def _coerce_config_field(key: str, value: Any) -> Any:
-    expected = CONFIG_FIELD_TYPES[key]
-    if value is None:
-        return None
-    if expected is str:
-        if isinstance(value, str):
-            return value
-        return str(value)
-    if expected is int:
-        if isinstance(value, int):
-            return value
-        if isinstance(value, float) and value.is_integer():
-            return int(value)
-        if isinstance(value, str):
-            try:
-                return int(value.strip())
-            except ValueError as exc:
-                raise ValueError(f"Config field '{key}' must be an integer") from exc
-        raise ValueError(f"Config field '{key}' must be an integer")
-    if expected is float:
-        if isinstance(value, (int, float)):
-            return float(value)
-        if isinstance(value, str):
-            try:
-                return float(value.strip())
-            except ValueError as exc:
-                raise ValueError(f"Config field '{key}' must be a number") from exc
-        raise ValueError(f"Config field '{key}' must be a number")
-    if expected is bool:
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, str):
-            lowered = value.strip().lower()
-            if lowered in _BOOL_TRUE:
-                return True
-            if lowered in _BOOL_FALSE:
-                return False
-        raise ValueError(f"Config field '{key}' must be a boolean")
-    raise ValueError(f"Unsupported config field '{key}'")
 
 
 def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
