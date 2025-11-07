@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 """Tests for podcast_scraper.py"""
 
+import json
 import os
 import tempfile
 import unittest
-from unittest.mock import Mock, MagicMock, patch, mock_open
+from unittest.mock import Mock, patch
 import xml.etree.ElementTree as ET
+
+try:
+    import yaml  # type: ignore
+
+    HAS_YAML = True
+except ImportError:  # pragma: no cover - depends on optional dependency
+    HAS_YAML = False
 
 # Import the module to test
 import podcast_scraper
@@ -417,6 +425,87 @@ class TestWriteFile(unittest.TestCase):
         finally:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
+
+
+class TestConfigFileSupport(unittest.TestCase):
+    """Tests for configuration file loading."""
+
+    def test_json_config_applied(self):
+        """Config values should populate defaults when CLI flags are absent."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg_path = os.path.join(tmpdir, "config.json")
+            config_data = {
+                "rss": TEST_FEED_URL,
+                "timeout": 45,
+                "transcribe_missing": True,
+                "prefer_type": ["text/vtt", ".srt"],
+            }
+            with open(cfg_path, "w", encoding="utf-8") as fh:
+                json.dump(config_data, fh)
+
+            args = podcast_scraper.parse_args(["--config", cfg_path])
+            self.assertEqual(args.timeout, 45)
+            self.assertTrue(args.transcribe_missing)
+            self.assertEqual(args.prefer_type, ["text/vtt", ".srt"])
+            self.assertEqual(args.rss, TEST_FEED_URL)
+
+    def test_cli_overrides_config(self):
+        """Command line arguments should override config defaults."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg_path = os.path.join(tmpdir, "config.json")
+            config_data = {
+                "rss": TEST_FEED_URL,
+                "timeout": 99,
+                "run_id": "from-config",
+            }
+            with open(cfg_path, "w", encoding="utf-8") as fh:
+                json.dump(config_data, fh)
+
+            args = podcast_scraper.parse_args([
+                "--config",
+                cfg_path,
+                "--timeout",
+                "10",
+                TEST_FEED_URL,
+            ])
+            self.assertEqual(args.timeout, 10)
+            self.assertEqual(args.run_id, "from-config")
+
+    def test_unknown_config_key_raises(self):
+        """Unknown config entries should raise a ValueError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg_path = os.path.join(tmpdir, "config.json")
+            config_data = {
+                "not_a_real_option": True,
+            }
+            with open(cfg_path, "w", encoding="utf-8") as fh:
+                json.dump(config_data, fh)
+
+            with self.assertRaises(ValueError):
+                podcast_scraper.parse_args(["--config", cfg_path, TEST_FEED_URL])
+
+    @unittest.skipUnless(HAS_YAML, "PyYAML not installed")
+    def test_yaml_config_applied(self):
+        """YAML config files should be parsed when PyYAML is available."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg_path = os.path.join(tmpdir, "config.yaml")
+            config_text = """
+rss: https://example.com/feed.yaml
+timeout: 55
+prefer_type:
+  - text/plain
+speaker_names:
+  - Host
+  - Guest
+""".strip()
+            with open(cfg_path, "w", encoding="utf-8") as fh:
+                fh.write(config_text)
+
+            args = podcast_scraper.parse_args(["--config", cfg_path])
+            self.assertEqual(args.timeout, 55)
+            self.assertEqual(args.prefer_type, ["text/plain"])
+            self.assertEqual(args.speaker_names, "Host,Guest")
+            self.assertEqual(args.rss, "https://example.com/feed.yaml")
 
 
 class TestProcessEpisode(unittest.TestCase):

@@ -18,6 +18,39 @@ Single-file CLI to download episode transcripts from a podcast RSS feed.
 python3 podcast_scraper.py <rss_url> [options]
 ```
 
+### Configuration file
+
+Common options can be stored in a JSON or YAML file and loaded with `--config`.
+Values from the command line still override the configuration file. When the
+config includes an `rss` entry, the positional argument may be omitted.
+
+```bash
+python3 podcast_scraper.py --config config.json
+```
+
+Example `config.json` (see `config.example.json` in the repo):
+
+```json
+{
+  "timeout": 45,
+  "transcribe_missing": true,
+  "prefer_type": ["text/vtt", ".srt"],
+  "run_id": "experiment"
+}
+```
+
+Example `config.yaml` (see `config.example.yaml`; PyYAML is included in `requirements.txt`):
+
+```yaml
+timeout: 30
+transcribe_missing: true
+prefer_type:
+  - text/vtt
+speaker_names:
+  - Host
+  - Guest
+```
+
 ### Virtual environment (recommended)
 
 Create and use a project-local virtual environment with the one dependency:

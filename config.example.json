@@ -1,4 +1,5 @@
 {
+  "rss": "https://example.com/feed.json",
   "timeout": 45,
   "transcribe_missing": true,
   "run_id": "example_run",

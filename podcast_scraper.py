@@ -2,20 +2,21 @@
 
 import argparse
 import hashlib
+import json
 import logging
 import os
 import re
 import shutil
 import sys
-import threading
 import time
 import warnings
+
+import requests
+
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
-from urllib.error import HTTPError, URLError
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qs, quote, urlencode, urljoin, urlparse, urlunparse
-from urllib.request import Request, build_opener, HTTPSHandler, HTTPHandler
 
 try:
     from tqdm import tqdm
@@ -42,6 +43,8 @@ logging.basicConfig(
     stream=sys.stderr,
 )
 logger = logging.getLogger(__name__)
+
+REQUEST_SESSION = requests.Session()
 
 try:
     from defusedxml.ElementTree import ParseError as DefusedXMLParseError
@@ -125,89 +128,92 @@ def normalize_url(url: str) -> str:
     return normalized
 
 
-def _open_http_request(url: str, user_agent: str, timeout: int):
+def _open_http_request(url: str, user_agent: str, timeout: int, stream: bool = False):
     """Shared helper to open an HTTP request. Returns response object or None on error."""
-    # Normalize URL to handle non-ASCII characters
     normalized_url = normalize_url(url)
     headers = {"User-Agent": user_agent}
-    req = Request(normalized_url, headers=headers)
-    opener = build_opener(HTTPHandler(), HTTPSHandler())
     try:
-        return opener.open(req, timeout=timeout)
-    except (HTTPError, URLError) as e:
+        resp = REQUEST_SESSION.get(normalized_url, headers=headers, timeout=timeout, stream=stream)
+        resp.raise_for_status()
+        return resp
+    except requests.RequestException as e:
         logger.warning(f"Failed to fetch {url}: {e}")
         return None
 
 
 def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], Optional[str]]:
-    resp = _open_http_request(url, user_agent, timeout)
+    resp = _open_http_request(url, user_agent, timeout, stream=True)
     if resp is None:
         return None, None
     try:
-        with resp:
-            ctype = resp.headers.get("Content-Type", "")
-            # Get content length if available
-            content_length = resp.headers.get("Content-Length")
+        ctype = resp.headers.get("Content-Type", "")
+        content_length = resp.headers.get("Content-Length")
+        try:
             total_size = int(content_length) if content_length else None
-            
-            body_parts = []
+        except ValueError:
+            total_size = None
+
+        body_parts = []
+        with tqdm(
+            total=total_size,
+            unit="B",
+            unit_scale=True,
+            unit_divisor=1024,
+            desc="Downloading",
+            disable=not TQDM_AVAILABLE,
+        ) as pbar:
+            for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
+                if not chunk:
+                    continue
+                body_parts.append(chunk)
+                pbar.update(len(chunk))
+
+        body = b"".join(body_parts)
+        return body, ctype
+    except (requests.RequestException, OSError) as e:
+        logger.warning(f"Failed to read response from {url}: {e}")
+        return None, None
+    finally:
+        resp.close()
+
+
+def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str) -> Tuple[bool, int]:
+    resp = _open_http_request(url, user_agent, timeout, stream=True)
+    if resp is None:
+        return False, 0
+    try:
+        content_length = resp.headers.get("Content-Length")
+        try:
+            total_size = int(content_length) if content_length else None
+        except ValueError:
+            total_size = None
+
+        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+        filename = os.path.basename(out_path) or os.path.basename(urlparse(url).path)
+
+        with open(out_path, "wb") as f:
+            total = 0
             with tqdm(
                 total=total_size,
                 unit="B",
                 unit_scale=True,
                 unit_divisor=1024,
-                desc="Downloading",
+                desc=f"Downloading {filename}" if filename else "Downloading",
                 disable=not TQDM_AVAILABLE,
             ) as pbar:
-                while True:
-                    chunk = resp.read(DOWNLOAD_CHUNK_SIZE)
+                for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
                     if not chunk:
-                        break
-                    body_parts.append(chunk)
-                    pbar.update(len(chunk))
-            
-            body = b"".join(body_parts)
-            return body, ctype
-    except (IOError, OSError) as e:
-        logger.warning(f"Failed to read response from {url}: {e}")
-        return None, None
-
-
-def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str) -> Tuple[bool, int]:
-    resp = _open_http_request(url, user_agent, timeout)
-    if resp is None:
-        return False, 0
-    try:
-        with resp:
-            # Get content length if available
-            content_length = resp.headers.get("Content-Length")
-            total_size = int(content_length) if content_length else None
-            
-            os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-            filename = os.path.basename(out_path)
-            
-            with open(out_path, "wb") as f:
-                total = 0
-                with tqdm(
-                    total=total_size,
-                    unit="B",
-                    unit_scale=True,
-                    unit_divisor=1024,
-                    desc=f"Downloading {filename}",
-                    disable=not TQDM_AVAILABLE,
-                ) as pbar:
-                    while True:
-                        chunk = resp.read(DOWNLOAD_CHUNK_SIZE)
-                        if not chunk:
-                            break
-                        f.write(chunk)
-                        chunk_size = len(chunk)
-                        total += chunk_size
-                        pbar.update(chunk_size)
+                        continue
+                    f.write(chunk)
+                    chunk_size = len(chunk)
+                    total += chunk_size
+                    pbar.update(chunk_size)
         return True, total
-    except (HTTPError, URLError, OSError) as e:
+    except (requests.RequestException, OSError) as e:
         logger.warning(f"Failed to download {url} to {out_path}: {e}")
         return False, 0
+    finally:
+        resp.close()
 
 
 def sanitize_filename(name: str) -> str:
@@ -265,6 +271,51 @@ def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
     # include a short hash of the full URL to disambiguate same host feeds
     h = hashlib.sha1(rss_url.encode("utf-8")).hexdigest()[:URL_HASH_LENGTH]
     return f"output_rss_{sanitize_filename(base)}_{h}"
+
+
+def load_config_file(path: str) -> Dict[str, Any]:
+    """Load JSON or YAML configuration file and return a dictionary."""
+    if not path:
+        raise ValueError("Config path cannot be empty")
+
+    cfg_path = Path(path).expanduser()
+    try:
+        resolved = cfg_path.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ValueError(f"Invalid config path: {path} ({exc})") from exc
+
+    if not resolved.exists():
+        raise ValueError(f"Config file not found: {resolved}")
+
+    suffix = resolved.suffix.lower()
+    try:
+        text = resolved.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ValueError(f"Failed to read config file {resolved}: {exc}") from exc
+
+    if suffix == ".json":
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Invalid JSON config file {resolved}: {exc}") from exc
+    elif suffix in (".yaml", ".yml"):
+        try:
+            import yaml  # type: ignore
+        except ImportError as exc:
+            raise ValueError(
+                "YAML config requires PyYAML; install with 'pip install pyyaml'."
+            ) from exc
+        try:
+            data = yaml.safe_load(text)
+        except yaml.YAMLError as exc:  # type: ignore[attr-defined]
+            raise ValueError(f"Invalid YAML config file {resolved}: {exc}") from exc
+    else:
+        raise ValueError(f"Unsupported config file type: {resolved.suffix}")
+
+    if not isinstance(data, dict):
+        raise ValueError("Config file must contain a mapping/object at the top level")
+
+    return data
 
 
 def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[XML_Element]]:
@@ -443,7 +494,8 @@ def validate_args(args: argparse.Namespace) -> None:
 
 def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Download podcast episode transcripts from an RSS feed.")
-    parser.add_argument("rss", help="Podcast RSS feed URL")
+    parser.add_argument("--config", default=None, help="Path to configuration file (JSON or YAML)")
+    parser.add_argument("rss", nargs="?", default=None, help="Podcast RSS feed URL")
     parser.add_argument("--output-dir", default=None, help="Output directory (default: output_rss_<host>_<hash>)")
     parser.add_argument("--max-episodes", type=int, default=None, help="Maximum number of episodes to process")
     parser.add_argument("--prefer-type", action="append", default=[], help="Preferred transcript types or extensions (repeatable), e.g. text/plain, .vtt, .srt")
@@ -457,7 +509,39 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser.add_argument("--num-speakers", type=int, default=DEFAULT_NUM_SPEAKERS, help="Number of speakers to alternate between when formatting screenplay")
     parser.add_argument("--speaker-names", default="", help="Comma-separated speaker names to use instead of SPEAKER 1..N")
     parser.add_argument("--run-id", default=None, help="Optional run identifier to create a unique subfolder under the output directory; use 'auto' for timestamp")
-    args = parser.parse_args(argv)
+    # Parse once to check for config file, then re-parse with config defaults if needed
+    initial_args, _ = parser.parse_known_args(argv)
+
+    config_data: Dict[str, Any] = {}
+    if initial_args.config:
+        config_data = load_config_file(initial_args.config)
+        valid_dests = {action.dest for action in parser._actions if action.dest}
+        unknown_keys = [key for key in config_data.keys() if key not in valid_dests]
+        if unknown_keys:
+            raise ValueError(
+                "Unknown config option(s): " + ", ".join(sorted(unknown_keys))
+            )
+
+        # Normalize specific values before applying as defaults
+        defaults_updates: Dict[str, Any] = {}
+        for key, value in config_data.items():
+            if key == "prefer_type":
+                if isinstance(value, str):
+                    defaults_updates[key] = [value]
+                elif isinstance(value, list):
+                    defaults_updates[key] = list(value)
+                else:
+                    raise ValueError("Config field 'prefer_type' must be a string or list of strings")
+            elif key == "speaker_names" and isinstance(value, list):
+                defaults_updates[key] = ",".join(str(v) for v in value)
+            else:
+                defaults_updates[key] = value
+
+        parser.set_defaults(**defaults_updates)
+        args = parser.parse_args(argv)
+    else:
+        args = initial_args
+
     validate_args(args)
     return args
 
