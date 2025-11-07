@@ -15,30 +15,16 @@ from platformdirs import PlatformDirs
 import requests
 from requests.utils import requote_uri
 
-__version__ = "1.0.0"
-
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qs, quote, urlencode, urljoin, urlparse, urlunparse
 
-try:
-    from tqdm import tqdm
-    TQDM_AVAILABLE = True
-except ImportError:
-    TQDM_AVAILABLE = False
-    # Fallback: create a no-op progress bar class
-    class tqdm:
-        def __init__(self, *args, **kwargs):
-            pass
-        def __enter__(self):
-            return self
-        def __exit__(self, *args):
-            pass
-        def update(self, n=1):
-            pass
-        def close(self):
-            pass
+from pydantic import BaseModel, ValidationError, field_validator
+
+from tqdm import tqdm
+
+__version__ = "1.0.0"
 
 # Set up logging to stderr
 logging.basicConfig(
@@ -84,6 +70,7 @@ BYTES_PER_MB = 1024 * 1024  # Bytes in a megabyte
 MS_TO_SECONDS = 1000.0  # Milliseconds to seconds conversion factor
 TEMP_DIR_NAME = ".tmp_media"  # Name of temporary directory for media files
 
+
 @dataclass
 class Config:
     rss_url: str
@@ -100,6 +87,45 @@ class Config:
     screenplay_num_speakers: int
     screenplay_speaker_names: List[str]
     run_id: Optional[str]
+
+
+class ConfigFileModel(BaseModel):
+    rss: Optional[str] = None
+    output_dir: Optional[str] = None
+    max_episodes: Optional[int] = None
+    user_agent: Optional[str] = None
+    timeout: Optional[int] = None
+    delay_ms: Optional[int] = None
+    prefer_type: Optional[List[str]] = None
+    transcribe_missing: Optional[bool] = None
+    whisper_model: Optional[str] = None
+    screenplay: Optional[bool] = None
+    screenplay_gap: Optional[float] = None
+    num_speakers: Optional[int] = None
+    speaker_names: Optional[List[str]] = None
+    run_id: Optional[str] = None
+
+    @field_validator("prefer_type", mode="before")
+    @classmethod
+    def _coerce_prefer_type(cls, value: Any) -> Optional[List[str]]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, list):
+            return [str(item) for item in value]
+        raise TypeError("prefer_type must be a string or list of strings")
+
+    @field_validator("speaker_names", mode="before")
+    @classmethod
+    def _coerce_speaker_names(cls, value: Any) -> Optional[List[str]]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return [name.strip() for name in value.split(",") if name.strip()]
+        if isinstance(value, list):
+            return [str(item) for item in value]
+        raise TypeError("speaker_names must be a string or list of strings")
 
 # Precompiled regex patterns for performance
 RE_NEWLINES_TABS = re.compile(r"[\r\n\t]")  # Match newlines and tabs
@@ -124,7 +150,7 @@ def validate_and_normalize_output_dir(path: str) -> str:
         raise ValueError("Output directory path cannot be empty")
     
     # Use pathlib for better path handling
-    path_obj = Path(path)
+    path_obj = Path(path).expanduser()
     
     # Resolve the path (normalizes .. and . components, resolves symlinks)
     try:
@@ -360,15 +386,18 @@ def validate_args(args: argparse.Namespace) -> None:
     if args.transcribe_missing and args.whisper_model not in valid_models:
         errors.append(f"--whisper-model must be one of {valid_models}, got: {args.whisper_model}")
     
-    # Validate screenplay-gap
-    if args.screenplay_gap <= 0:
-        errors.append(f"--screenplay-gap must be positive, got: {args.screenplay_gap}")
+    # Validate screenplay speakers
+    if args.screenplay:
+        if args.num_speakers < MIN_NUM_SPEAKERS:
+            errors.append(f"--num-speakers must be at least {MIN_NUM_SPEAKERS}, got: {args.num_speakers}")
     
-    # Validate num-speakers
-    if args.num_speakers <= 0:
-        errors.append(f"--num-speakers must be positive, got: {args.num_speakers}")
+    # Validate speaker names
+    if args.speaker_names:
+        names = [n.strip() for n in args.speaker_names.split(",") if n.strip()]
+        if len(names) < MIN_NUM_SPEAKERS:
+            errors.append("At least two speaker names required when specifying --speaker-names")
     
-    # Validate output-dir (if provided) - check for path traversal
+    # Validate output directory if provided
     if args.output_dir:
         try:
             validate_and_normalize_output_dir(args.output_dir)
@@ -377,6 +406,66 @@ def validate_args(args: argparse.Namespace) -> None:
     
     if errors:
         raise ValueError("Invalid input parameters:\n  " + "\n  ".join(errors))
+
+
+CONFIG_FIELD_TYPES: Dict[str, type] = {
+    "rss": str,
+    "output_dir": str,
+    "max_episodes": int,
+    "user_agent": str,
+    "timeout": int,
+    "delay_ms": int,
+    "transcribe_missing": bool,
+    "whisper_model": str,
+    "screenplay": bool,
+    "screenplay_gap": float,
+    "num_speakers": int,
+    "run_id": str,
+}
+
+_BOOL_TRUE = {"true", "yes", "1", "on"}
+_BOOL_FALSE = {"false", "no", "0", "off"}
+
+
+def _coerce_config_field(key: str, value: Any) -> Any:
+    expected = CONFIG_FIELD_TYPES[key]
+    if value is None:
+        return None
+    if expected is str:
+        if isinstance(value, str):
+            return value
+        return str(value)
+    if expected is int:
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float) and value.is_integer():
+            return int(value)
+        if isinstance(value, str):
+            try:
+                return int(value.strip())
+            except ValueError as exc:
+                raise ValueError(f"Config field '{key}' must be an integer") from exc
+        raise ValueError(f"Config field '{key}' must be an integer")
+    if expected is float:
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value.strip())
+            except ValueError as exc:
+                raise ValueError(f"Config field '{key}' must be a number") from exc
+        raise ValueError(f"Config field '{key}' must be a number")
+    if expected is bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in _BOOL_TRUE:
+                return True
+            if lowered in _BOOL_FALSE:
+                return False
+        raise ValueError(f"Config field '{key}' must be a boolean")
+    raise ValueError(f"Unsupported config field '{key}'")
 
 
 def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
@@ -400,7 +489,6 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     # Parse once to check for config file, then re-parse with config defaults if needed
     initial_args, _ = parser.parse_known_args(argv)
 
-    config_data: Dict[str, Any] = {}
     if initial_args.version:
         print(f"podcast_scraper {__version__}")
         raise SystemExit(0)
@@ -414,20 +502,20 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
                 "Unknown config option(s): " + ", ".join(sorted(unknown_keys))
             )
 
-        # Normalize specific values before applying as defaults
-        defaults_updates: Dict[str, Any] = {}
-        for key, value in config_data.items():
-            if key == "prefer_type":
-                if isinstance(value, str):
-                    defaults_updates[key] = [value]
-                elif isinstance(value, list):
-                    defaults_updates[key] = list(value)
-                else:
-                    raise ValueError("Config field 'prefer_type' must be a string or list of strings")
-            elif key == "speaker_names" and isinstance(value, list):
-                defaults_updates[key] = ",".join(str(v) for v in value)
-            else:
-                defaults_updates[key] = value
+        try:
+            config_model = ConfigFileModel.model_validate(config_data)
+        except ValidationError as exc:
+            raise ValueError(f"Invalid configuration: {exc}") from exc
+
+        defaults_updates: Dict[str, Any] = config_model.model_dump(exclude_none=True)
+
+        prefer_list = defaults_updates.pop("prefer_type", None)
+        if prefer_list is not None:
+            defaults_updates["prefer_type"] = prefer_list
+
+        speaker_list = defaults_updates.pop("speaker_names", None)
+        if speaker_list is not None:
+            defaults_updates["speaker_names"] = ",".join(speaker_list)
 
         parser.set_defaults(**defaults_updates)
         args = parser.parse_args(argv)
@@ -544,7 +632,6 @@ def transcribe_with_whisper(whisper_model, temp_media: str, cfg: Config) -> Tupl
         total=None,
         desc="Transcribing",
         unit="",
-        disable=not TQDM_AVAILABLE,
         ncols=80,
         bar_format="{desc}: {elapsed}",
         leave=False,
@@ -601,7 +688,6 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
             unit_scale=True,
             unit_divisor=1024,
             desc="Downloading",
-            disable=not TQDM_AVAILABLE,
         ) as pbar:
             for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
                 if not chunk:
@@ -638,7 +724,6 @@ def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str
             unit_scale=True,
             unit_divisor=1024,
             desc=f"Downloading {filename}" if filename else "Downloading",
-            disable=not TQDM_AVAILABLE,
         ) as pbar:
             for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
                 if not chunk:
