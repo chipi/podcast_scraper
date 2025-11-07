@@ -1,12 +1,16 @@
 # Podcast Scraper
 
-Single-file CLI to download episode transcripts from a podcast RSS feed.
+Command-line tool that downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Progress logging, configurable run folders, screenplay formatting, and JSON/YAML configuration files make it easy to collect, compare, and archive podcast transcripts.
 
 ## Requirements
 
-- Python 3.8+
-- No external dependencies (uses Python standard library)
-  - Optional: `openai-whisper` and `ffmpeg` for fallback transcription
+- Python 3.10+
+- `requests`
+- `tqdm`
+- `defusedxml`
+- `platformdirs`
+- `PyYAML` (for YAML config support)
+- Optional: `openai-whisper` and `ffmpeg` when using Whisper fallback transcription
 
 ## File
 
@@ -106,7 +110,7 @@ python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --w
 - `--timeout` (int): Request timeout in seconds (default: 20)
 - `--delay-ms` (int): Delay between requests in milliseconds
 - `--transcribe-missing`: Use Whisper to transcribe when no transcript is provided
-- `--whisper-model` (str): Whisper model (e.g., `tiny`, `base`, `small`, `medium`)
+- `--whisper-model` (str): Whisper model (one of `tiny`, `base`, `small`, `medium`, `large`, `large-v2`, `large-v3`, `tiny.en`, `base.en`, `small.en`, `medium.en`, `large.en`)
 - `--screenplay`: Format Whisper transcript as screenplay with speaker turns
 - `--screenplay-gap` (float): Gap (seconds) to trigger speaker change (default: 1.25)
 - `--num-speakers` (int): Number of speakers to alternate between (default: 2)
