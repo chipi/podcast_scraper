@@ -1,0 +1,515 @@
+#!/usr/bin/env python3
+"""Tests for podcast_scraper.py"""
+
+import os
+import tempfile
+import unittest
+from unittest.mock import Mock, MagicMock, patch, mock_open
+import xml.etree.ElementTree as ET
+
+# Import the module to test
+import podcast_scraper
+
+# Test constants
+TEST_BASE_URL = "https://example.com"
+TEST_FEED_URL = "https://example.com/feed.xml"
+TEST_PATH = "/path"
+TEST_FULL_URL = f"{TEST_BASE_URL}{TEST_PATH}"
+TEST_TRANSCRIPT_URL = f"{TEST_BASE_URL}/transcript.vtt"
+TEST_TRANSCRIPT_URL_SRT = f"{TEST_BASE_URL}/transcript.srt"
+TEST_MEDIA_URL = f"{TEST_BASE_URL}/episode.mp3"
+TEST_RELATIVE_TRANSCRIPT = "transcripts/ep1.vtt"
+TEST_RELATIVE_MEDIA = "episodes/ep1.mp3"
+TEST_EPISODE_TITLE = "Episode Title"
+TEST_EPISODE_TITLE_SPECIAL = "Episode: Title/With\\Special*Chars?"
+TEST_FEED_TITLE = "Test Feed"
+TEST_OUTPUT_DIR = "output"
+TEST_CUSTOM_OUTPUT_DIR = "my_output"
+TEST_RUN_ID = "test_run"
+TEST_MEDIA_TYPE_MP3 = "audio/mpeg"
+TEST_MEDIA_TYPE_M4A = "audio/m4a"
+TEST_TRANSCRIPT_TYPE_VTT = "text/vtt"
+TEST_TRANSCRIPT_TYPE_SRT = "text/srt"
+TEST_CONTENT_TYPE_VTT = "text/vtt"
+TEST_CONTENT_TYPE_SRT = "text/srt"
+
+
+class TestNormalizeURL(unittest.TestCase):
+    """Tests for normalize_url function."""
+
+    def test_simple_url(self):
+        """Test normalizing a simple URL."""
+        url = TEST_FULL_URL
+        result = podcast_scraper.normalize_url(url)
+        self.assertEqual(result, url)
+
+    def test_url_with_non_ascii(self):
+        """Test normalizing URL with non-ASCII characters."""
+        url = f"{TEST_FULL_URL}/тест"
+        result = podcast_scraper.normalize_url(url)
+        self.assertIn("%D1%82%D0%B5%D1%81%D1%82", result)
+
+    def test_url_with_query(self):
+        """Test normalizing URL with query parameters."""
+        url = f"{TEST_FULL_URL}?param=value&other=тест"
+        result = podcast_scraper.normalize_url(url)
+        self.assertIn("param=value", result)
+        self.assertIn("%D1%82%D0%B5%D1%81%D1%82", result)
+
+    def test_relative_url(self):
+        """Test normalizing a relative URL."""
+        url = "/path/to/resource"
+        result = podcast_scraper.normalize_url(url)
+        self.assertEqual(result, url)
+
+
+class TestSanitizeFilename(unittest.TestCase):
+    """Tests for sanitize_filename function."""
+
+    def test_simple_filename(self):
+        """Test sanitizing a simple filename."""
+        name = "episode_title"
+        result = podcast_scraper.sanitize_filename(name)
+        self.assertEqual(result, "episode_title")
+
+    def test_filename_with_special_chars(self):
+        """Test sanitizing filename with special characters."""
+        name = TEST_EPISODE_TITLE_SPECIAL
+        result = podcast_scraper.sanitize_filename(name)
+        self.assertNotIn(":", result)
+        self.assertNotIn("/", result)
+        self.assertNotIn("\\", result)
+        self.assertNotIn("*", result)
+        self.assertNotIn("?", result)
+
+    def test_filename_with_whitespace(self):
+        """Test sanitizing filename with whitespace."""
+        name = f"  {TEST_EPISODE_TITLE}   "
+        result = podcast_scraper.sanitize_filename(name)
+        self.assertEqual(result, TEST_EPISODE_TITLE)
+
+    def test_empty_filename(self):
+        """Test sanitizing empty filename."""
+        name = ""
+        result = podcast_scraper.sanitize_filename(name)
+        self.assertEqual(result, "untitled")
+
+
+class TestValidateAndNormalizeOutputDir(unittest.TestCase):
+    """Tests for validate_and_normalize_output_dir function."""
+
+    def test_valid_relative_path(self):
+        """Test validating a valid relative path."""
+        path = TEST_OUTPUT_DIR
+        result = podcast_scraper.validate_and_normalize_output_dir(path)
+        self.assertIsInstance(result, str)
+        self.assertIn(TEST_OUTPUT_DIR, result)
+
+    def test_path_traversal_attempt(self):
+        """Test that path traversal attempts are handled."""
+        path = "../../etc/passwd"
+        result = podcast_scraper.validate_and_normalize_output_dir(path)
+        # Should normalize but not allow traversal
+        self.assertIsInstance(result, str)
+
+    def test_absolute_path(self):
+        """Test validating an absolute path."""
+        # Use a path in the current working directory to avoid system directory restrictions
+        test_path = os.path.join(os.getcwd(), "test_output")
+        try:
+            result = podcast_scraper.validate_and_normalize_output_dir(test_path)
+            self.assertIsInstance(result, str)
+            self.assertIn("test_output", result)
+        finally:
+            # Clean up if directory was created
+            if os.path.exists(test_path) and os.path.isdir(test_path):
+                try:
+                    os.rmdir(test_path)
+                except OSError:
+                    pass
+
+
+class TestDeriveOutputDir(unittest.TestCase):
+    """Tests for derive_output_dir function."""
+
+    def test_default_output_dir(self):
+        """Test deriving default output directory from RSS URL."""
+        rss_url = TEST_FEED_URL
+        result = podcast_scraper.derive_output_dir(rss_url, None)
+        self.assertIn("output_rss", result)
+        self.assertIn("example.com", result)
+
+    def test_custom_output_dir(self):
+        """Test using custom output directory."""
+        rss_url = TEST_FEED_URL
+        custom = TEST_CUSTOM_OUTPUT_DIR
+        result = podcast_scraper.derive_output_dir(rss_url, custom)
+        # Result is normalized to absolute path
+        self.assertIn(TEST_CUSTOM_OUTPUT_DIR, result)
+
+
+class TestParseRSSItems(unittest.TestCase):
+    """Tests for parse_rss_items function."""
+
+    def test_parse_simple_rss(self):
+        """Test parsing a simple RSS feed."""
+        xml_bytes = f"""<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <title>{TEST_FEED_TITLE}</title>
+                <item>
+                    <title>Episode 1</title>
+                </item>
+                <item>
+                    <title>Episode 2</title>
+                </item>
+            </channel>
+        </rss>""".encode()
+        title, items = podcast_scraper.parse_rss_items(xml_bytes)
+        self.assertEqual(title, TEST_FEED_TITLE)
+        self.assertEqual(len(items), 2)
+
+    def test_parse_rss_with_namespace(self):
+        """Test parsing RSS feed with namespace."""
+        xml_bytes = f"""<?xml version="1.0"?>
+        <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+            <channel>
+                <title>{TEST_FEED_TITLE}</title>
+                <item>
+                    <title>Episode 1</title>
+                </item>
+            </channel>
+        </rss>""".encode()
+        title, items = podcast_scraper.parse_rss_items(xml_bytes)
+        self.assertEqual(title, TEST_FEED_TITLE)
+        self.assertEqual(len(items), 1)
+
+
+class TestFindTranscriptURLs(unittest.TestCase):
+    """Tests for find_transcript_urls function."""
+
+    def test_find_podcast_transcript(self):
+        """Test finding podcast:transcript URLs."""
+        item = ET.Element("item")
+        transcript = ET.SubElement(item, "podcast:transcript")
+        transcript.set("url", TEST_TRANSCRIPT_URL)
+        transcript.set("type", TEST_TRANSCRIPT_TYPE_VTT)
+        
+        base_url = TEST_FEED_URL
+        result = podcast_scraper.find_transcript_urls(item, base_url)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][0], TEST_TRANSCRIPT_URL)
+        self.assertEqual(result[0][1], TEST_TRANSCRIPT_TYPE_VTT)
+
+    def test_find_relative_transcript_url(self):
+        """Test finding relative transcript URLs."""
+        item = ET.Element("item")
+        transcript = ET.SubElement(item, "transcript")
+        transcript.text = TEST_RELATIVE_TRANSCRIPT
+        
+        base_url = TEST_FEED_URL
+        result = podcast_scraper.find_transcript_urls(item, base_url)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][0], f"{TEST_BASE_URL}/{TEST_RELATIVE_TRANSCRIPT}")
+
+    def test_find_multiple_transcripts(self):
+        """Test finding multiple transcript URLs."""
+        item = ET.Element("item")
+        transcript1 = ET.SubElement(item, "podcast:transcript")
+        transcript1.set("url", TEST_TRANSCRIPT_URL)
+        transcript2 = ET.SubElement(item, "podcast:transcript")
+        transcript2.set("url", TEST_TRANSCRIPT_URL_SRT)
+        
+        base_url = TEST_FEED_URL
+        result = podcast_scraper.find_transcript_urls(item, base_url)
+        self.assertEqual(len(result), 2)
+
+
+class TestFindEnclosureMedia(unittest.TestCase):
+    """Tests for find_enclosure_media function."""
+
+    def test_find_enclosure(self):
+        """Test finding enclosure media."""
+        item = ET.Element("item")
+        enclosure = ET.SubElement(item, "enclosure")
+        enclosure.set("url", TEST_MEDIA_URL)
+        enclosure.set("type", TEST_MEDIA_TYPE_MP3)
+        
+        base_url = TEST_FEED_URL
+        result = podcast_scraper.find_enclosure_media(item, base_url)
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], TEST_MEDIA_URL)
+        self.assertEqual(result[1], TEST_MEDIA_TYPE_MP3)
+
+    def test_find_relative_enclosure_url(self):
+        """Test finding relative enclosure URLs."""
+        item = ET.Element("item")
+        enclosure = ET.SubElement(item, "enclosure")
+        enclosure.set("url", TEST_RELATIVE_MEDIA)
+        enclosure.set("type", TEST_MEDIA_TYPE_MP3)
+        
+        base_url = TEST_FEED_URL
+        result = podcast_scraper.find_enclosure_media(item, base_url)
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], f"{TEST_BASE_URL}/{TEST_RELATIVE_MEDIA}")
+
+    def test_no_enclosure(self):
+        """Test when no enclosure is found."""
+        item = ET.Element("item")
+        base_url = TEST_FEED_URL
+        result = podcast_scraper.find_enclosure_media(item, base_url)
+        self.assertIsNone(result)
+
+
+class TestChooseTranscriptURL(unittest.TestCase):
+    """Tests for choose_transcript_url function."""
+
+    def test_choose_first_when_no_preference(self):
+        """Test choosing first URL when no preference specified."""
+        candidates = [
+            (TEST_TRANSCRIPT_URL, TEST_TRANSCRIPT_TYPE_VTT),
+            (TEST_TRANSCRIPT_URL_SRT, TEST_TRANSCRIPT_TYPE_SRT),
+        ]
+        result = podcast_scraper.choose_transcript_url(candidates, [])
+        self.assertEqual(result, candidates[0])
+
+    def test_choose_by_preference(self):
+        """Test choosing URL by preferred type."""
+        candidates = [
+            (TEST_TRANSCRIPT_URL, TEST_TRANSCRIPT_TYPE_VTT),
+            (TEST_TRANSCRIPT_URL_SRT, TEST_TRANSCRIPT_TYPE_SRT),
+        ]
+        result = podcast_scraper.choose_transcript_url(candidates, [TEST_TRANSCRIPT_TYPE_SRT])
+        self.assertEqual(result, candidates[1])
+
+    def test_empty_candidates(self):
+        """Test with empty candidates list."""
+        result = podcast_scraper.choose_transcript_url([], [])
+        self.assertIsNone(result)
+
+
+class TestExtractEpisodeTitle(unittest.TestCase):
+    """Tests for extract_episode_title function."""
+
+    def test_extract_title(self):
+        """Test extracting episode title."""
+        item = ET.Element("item")
+        title = ET.SubElement(item, "title")
+        title.text = TEST_EPISODE_TITLE
+        
+        result_title, result_safe = podcast_scraper.extract_episode_title(item, 1)
+        self.assertEqual(result_title, TEST_EPISODE_TITLE)
+        # sanitize_filename preserves spaces, only replaces special chars
+        self.assertEqual(result_safe, TEST_EPISODE_TITLE)
+
+    def test_fallback_to_episode_number(self):
+        """Test fallback to episode number when no title."""
+        item = ET.Element("item")
+        result_title, result_safe = podcast_scraper.extract_episode_title(item, 5)
+        self.assertEqual(result_title, "episode_5")
+        self.assertEqual(result_safe, "episode_5")
+
+
+class TestDeriveMediaExtension(unittest.TestCase):
+    """Tests for derive_media_extension function."""
+
+    def test_derive_from_media_type(self):
+        """Test deriving extension from media type."""
+        result = podcast_scraper.derive_media_extension(TEST_MEDIA_TYPE_MP3, f"{TEST_BASE_URL}/audio")
+        self.assertEqual(result, ".mp3")
+
+    def test_derive_from_url(self):
+        """Test deriving extension from URL."""
+        result = podcast_scraper.derive_media_extension(None, TEST_MEDIA_URL)
+        self.assertEqual(result, ".mp3")
+
+    def test_default_extension(self):
+        """Test default extension when type and URL don't match."""
+        result = podcast_scraper.derive_media_extension(None, f"{TEST_BASE_URL}/audio")
+        self.assertEqual(result, ".bin")
+
+
+class TestDeriveTranscriptExtension(unittest.TestCase):
+    """Tests for derive_transcript_extension function."""
+
+    def test_derive_from_transcript_type(self):
+        """Test deriving extension from transcript type."""
+        result = podcast_scraper.derive_transcript_extension(TEST_TRANSCRIPT_TYPE_VTT, None, f"{TEST_BASE_URL}/transcript")
+        self.assertEqual(result, ".vtt")
+
+    def test_derive_from_content_type(self):
+        """Test deriving extension from content type."""
+        result = podcast_scraper.derive_transcript_extension(None, TEST_CONTENT_TYPE_VTT, f"{TEST_BASE_URL}/transcript")
+        self.assertEqual(result, ".vtt")
+
+    def test_derive_from_url(self):
+        """Test deriving extension from URL."""
+        result = podcast_scraper.derive_transcript_extension(None, None, TEST_TRANSCRIPT_URL_SRT)
+        self.assertEqual(result, ".srt")
+
+    def test_default_extension(self):
+        """Test default extension."""
+        result = podcast_scraper.derive_transcript_extension(None, None, f"{TEST_BASE_URL}/transcript")
+        self.assertEqual(result, ".txt")
+
+
+class TestSetupOutputDirectory(unittest.TestCase):
+    """Tests for setup_output_directory function."""
+
+    def test_with_run_id(self):
+        """Test setting up output directory with run ID."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=TEST_OUTPUT_DIR,
+            max_episodes=None,
+            user_agent="test",
+            timeout=30,
+            delay_ms=0,
+            prefer_types=[],
+            transcribe_missing=False,
+            whisper_model="base",
+            screenplay=False,
+            screenplay_gap_s=2.0,
+            screenplay_num_speakers=2,
+            screenplay_speaker_names=[],
+            run_id=TEST_RUN_ID,
+        )
+        output_dir, run_suffix = podcast_scraper.setup_output_directory(cfg)
+        self.assertIn(f"run_{TEST_RUN_ID}", output_dir)
+        self.assertEqual(run_suffix, TEST_RUN_ID)
+
+    def test_with_whisper_auto_run_id(self):
+        """Test setting up output directory with Whisper auto run ID."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=TEST_OUTPUT_DIR,
+            max_episodes=None,
+            user_agent="test",
+            timeout=30,
+            delay_ms=0,
+            prefer_types=[],
+            transcribe_missing=True,
+            whisper_model="base",
+            screenplay=False,
+            screenplay_gap_s=2.0,
+            screenplay_num_speakers=2,
+            screenplay_speaker_names=[],
+            run_id=None,
+        )
+        output_dir, run_suffix = podcast_scraper.setup_output_directory(cfg)
+        self.assertIn("whisper_base", run_suffix or "")
+
+
+class TestWriteFile(unittest.TestCase):
+    """Tests for write_file function."""
+
+    def test_write_file(self):
+        """Test writing a file."""
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp_path = tmp.name
+        
+        try:
+            data = b"test content"
+            podcast_scraper.write_file(tmp_path, data)
+            self.assertTrue(os.path.exists(tmp_path))
+            with open(tmp_path, "rb") as f:
+                self.assertEqual(f.read(), data)
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+
+class TestProcessEpisode(unittest.TestCase):
+    """Tests for process_episode function."""
+
+    @patch("podcast_scraper.find_transcript_urls")
+    @patch("podcast_scraper.choose_transcript_url")
+    @patch("podcast_scraper.process_transcript_download")
+    def test_process_episode_with_transcript(self, mock_process, mock_choose, mock_find):
+        """Test processing episode with transcript."""
+        item = ET.Element("item")
+        title = ET.SubElement(item, "title")
+        title.text = "Episode 1"
+        
+        mock_find.return_value = [(TEST_TRANSCRIPT_URL, TEST_TRANSCRIPT_TYPE_VTT)]
+        mock_choose.return_value = (TEST_TRANSCRIPT_URL, TEST_TRANSCRIPT_TYPE_VTT)
+        mock_process.return_value = True
+        
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=TEST_OUTPUT_DIR,
+            max_episodes=None,
+            user_agent="test",
+            timeout=30,
+            delay_ms=0,
+            prefer_types=[],
+            transcribe_missing=False,
+            whisper_model="base",
+            screenplay=False,
+            screenplay_gap_s=2.0,
+            screenplay_num_speakers=2,
+            screenplay_speaker_names=[],
+            run_id=None,
+        )
+        
+        result = podcast_scraper.process_episode(item, 1, cfg, None, None, TEST_OUTPUT_DIR, None)
+        self.assertTrue(result)
+        mock_process.assert_called_once()
+
+    @patch("podcast_scraper.find_transcript_urls")
+    @patch("podcast_scraper.choose_transcript_url")
+    @patch("podcast_scraper.download_and_transcribe_media")
+    def test_process_episode_with_whisper(self, mock_transcribe, mock_choose, mock_find):
+        """Test processing episode with Whisper transcription."""
+        item = ET.Element("item")
+        title = ET.SubElement(item, "title")
+        title.text = "Episode 1"
+        
+        mock_find.return_value = []
+        mock_choose.return_value = None
+        mock_transcribe.return_value = True
+        
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=TEST_OUTPUT_DIR,
+            max_episodes=None,
+            user_agent="test",
+            timeout=30,
+            delay_ms=0,
+            prefer_types=[],
+            transcribe_missing=True,
+            whisper_model="base",
+            screenplay=False,
+            screenplay_gap_s=2.0,
+            screenplay_num_speakers=2,
+            screenplay_speaker_names=[],
+            run_id=None,
+        )
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = podcast_scraper.process_episode(item, 1, cfg, Mock(), tmpdir, TEST_OUTPUT_DIR, None)
+            self.assertTrue(result)
+            mock_transcribe.assert_called_once()
+
+
+class TestFormatScreenplay(unittest.TestCase):
+    """Tests for _format_screenplay_from_segments function."""
+
+    def test_format_screenplay(self):
+        """Test formatting screenplay from segments."""
+        segments = [
+            {"start": 0.0, "end": 5.0, "text": "Hello, this is speaker one."},
+            {"start": 6.0, "end": 10.0, "text": "And this is speaker two."},
+            {"start": 15.0, "end": 20.0, "text": "Speaker one again."},
+        ]
+        result = podcast_scraper._format_screenplay_from_segments(
+            segments, 2, ["Speaker1", "Speaker2"], 2.0
+        )
+        self.assertIn("Speaker1", result)
+        self.assertIn("Speaker2", result)
+        self.assertIn("Hello", result)
+
+
+if __name__ == "__main__":
+    unittest.main()
+

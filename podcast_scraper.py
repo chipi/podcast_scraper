@@ -7,13 +7,33 @@ import os
 import re
 import shutil
 import sys
+import threading
 import time
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, quote, urlencode, urljoin, urlparse, urlunparse
 from urllib.request import Request, build_opener, HTTPSHandler, HTTPHandler
+
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+    # Fallback: create a no-op progress bar class
+    class tqdm:
+        def __init__(self, *args, **kwargs):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def update(self, n=1):
+            pass
+        def close(self):
+            pass
 
 # Set up logging to stderr
 logging.basicConfig(
@@ -126,7 +146,27 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
     try:
         with resp:
             ctype = resp.headers.get("Content-Type", "")
-            body = resp.read()
+            # Get content length if available
+            content_length = resp.headers.get("Content-Length")
+            total_size = int(content_length) if content_length else None
+            
+            body_parts = []
+            with tqdm(
+                total=total_size,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+                desc="Downloading",
+                disable=not TQDM_AVAILABLE,
+            ) as pbar:
+                while True:
+                    chunk = resp.read(DOWNLOAD_CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    body_parts.append(chunk)
+                    pbar.update(len(chunk))
+            
+            body = b"".join(body_parts)
             return body, ctype
     except (IOError, OSError) as e:
         logger.warning(f"Failed to read response from {url}: {e}")
@@ -139,15 +179,31 @@ def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str
         return False, 0
     try:
         with resp:
+            # Get content length if available
+            content_length = resp.headers.get("Content-Length")
+            total_size = int(content_length) if content_length else None
+            
             os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+            filename = os.path.basename(out_path)
+            
             with open(out_path, "wb") as f:
                 total = 0
-                while True:
-                    chunk = resp.read(DOWNLOAD_CHUNK_SIZE)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-                    total += len(chunk)
+                with tqdm(
+                    total=total_size,
+                    unit="B",
+                    unit_scale=True,
+                    unit_divisor=1024,
+                    desc=f"Downloading {filename}",
+                    disable=not TQDM_AVAILABLE,
+                ) as pbar:
+                    while True:
+                        chunk = resp.read(DOWNLOAD_CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        chunk_size = len(chunk)
+                        total += chunk_size
+                        pbar.update(chunk_size)
         return True, total
     except (HTTPError, URLError, OSError) as e:
         logger.warning(f"Failed to download {url} to {out_path}: {e}")
@@ -406,6 +462,312 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     return args
 
 
+def load_whisper_model(cfg: Config):
+    """Load Whisper model if transcription is enabled. Returns model or None."""
+    if not cfg.transcribe_missing:
+        return None
+    try:
+        import whisper  # type: ignore
+        logger.info(f"Loading Whisper model ({cfg.whisper_model})...")
+        model = whisper.load_model(cfg.whisper_model)
+        logger.info("Whisper model loaded successfully.")
+        # If running on CPU, let the user know FP16 won't be used so they see the message before transcription starts.
+        device = getattr(model, "device", None)
+        device_type = getattr(device, "type", None)
+        is_cpu_device = device_type == "cpu"
+        setattr(model, "_is_cpu_device", is_cpu_device)
+        if is_cpu_device:
+            logger.info("Whisper is running on CPU; FP16 is unavailable so FP32 will be used.")
+        return model
+    except ImportError:
+        logger.warning("openai-whisper not installed. Install with: pip install openai-whisper && brew install ffmpeg")
+        return None
+    except (RuntimeError, OSError) as e:
+        logger.warning(f"Failed to load Whisper model: {e}")
+        return None
+
+
+def extract_episode_title(item: XML_Element, idx: int) -> Tuple[str, str]:
+    """Extract episode title from RSS item. Returns (title, sanitized_title)."""
+    title_el = item.find("title") or next((e for e in item.iter() if e.tag.endswith("title")), None)
+    ep_title = (title_el.text.strip() if title_el is not None and title_el.text else f"episode_{idx}")
+    ep_title_safe = sanitize_filename(ep_title)
+    return ep_title, ep_title_safe
+
+
+def derive_media_extension(media_type: Optional[str], media_url: str) -> str:
+    """Derive file extension from media type or URL. Returns extension with leading dot."""
+    ext = ".bin"
+    if media_type and "/" in media_type:
+        ext_guess = media_type.split("/", 1)[1].lower()
+        if ext_guess in ("mpeg", "mp3"):
+            ext = ".mp3"
+        elif ext_guess in ("m4a", "mp4", "aac"):
+            ext = ".m4a"
+        elif ext_guess in ("ogg", "oga"):
+            ext = ".ogg"
+        elif ext_guess in ("wav",):
+            ext = ".wav"
+        elif ext_guess in ("webm",):
+            ext = ".webm"
+    else:
+        low = media_url.lower()
+        for cand in (".mp3", ".m4a", ".mp4", ".aac", ".ogg", ".wav", ".webm"):
+            if low.endswith(cand):
+                ext = cand
+                break
+    return ext
+
+
+def derive_transcript_extension(transcript_type: Optional[str], content_type: Optional[str], transcript_url: str) -> str:
+    """Derive file extension from transcript type, content type, or URL. Returns extension with leading dot."""
+    ext = ".txt"
+    if transcript_type:
+        if "vtt" in transcript_type.lower():
+            ext = ".vtt"
+        elif "srt" in transcript_type.lower():
+            ext = ".srt"
+        elif "json" in transcript_type.lower():
+            ext = ".json"
+        elif "html" in transcript_type.lower():
+            ext = ".html"
+    else:
+        # infer from content-type header or URL
+        if content_type and "vtt" in content_type.lower():
+            ext = ".vtt"
+        elif content_type and "srt" in content_type.lower():
+            ext = ".srt"
+        elif content_type and "json" in content_type.lower():
+            ext = ".json"
+        elif content_type and "html" in content_type.lower():
+            ext = ".html"
+        else:
+            low = transcript_url.lower()
+            for cand in (".vtt", ".srt", ".json", ".html", ".txt"):
+                if low.endswith(cand):
+                    ext = cand
+                    break
+    return ext
+
+
+def transcribe_with_whisper(whisper_model, temp_media: str, cfg: Config) -> Tuple[dict, float]:
+    """Transcribe audio/video file using Whisper. Returns (transcription_result_dict, elapsed_seconds)."""
+    logger.info(f"    transcribing with Whisper ({cfg.whisper_model})...")
+    tc_start = time.time()
+    # Show simple progress indicator for transcription (indeterminate since Whisper doesn't expose progress)
+    # Use a simple format without bar animation to avoid duplicate displays
+    with tqdm(
+        total=None,
+        desc="Transcribing",
+        unit="",
+        disable=not TQDM_AVAILABLE,
+        ncols=80,
+        bar_format="{desc}: {elapsed}",
+        leave=False,
+        dynamic_ncols=False,
+        miniters=1,
+        mininterval=0.5,
+    ) as pbar:
+        suppress_fp16_warning = getattr(whisper_model, "_is_cpu_device", False)
+        if suppress_fp16_warning:
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="FP16 is not supported on CPU",
+                    category=UserWarning,
+                )
+                result = whisper_model.transcribe(temp_media, task="transcribe", language="en", verbose=False)
+        else:
+            result = whisper_model.transcribe(temp_media, task="transcribe", language="en", verbose=False)
+        # Update once to show completion
+        pbar.update(1)
+    tc_elapsed = time.time() - tc_start
+    return result, tc_elapsed
+
+
+def download_and_transcribe_media(
+    item: XML_Element,
+    idx: int,
+    ep_title: str,
+    ep_title_safe: str,
+    cfg: Config,
+    whisper_model,
+    temp_dir: str,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+) -> bool:
+    """Download media and transcribe with Whisper. Returns True if successful."""
+    media = find_enclosure_media(item, cfg.rss_url)
+    if not media:
+        logger.info(f"[{idx}] no transcript or enclosure for: {ep_title}")
+        return False
+    
+    media_url, media_type = media
+    logger.info(f"[{idx}] no transcript; downloading media for Whisper: {ep_title}")
+
+    # Derive extension from media type or URL
+    ext = derive_media_extension(media_type, media_url)
+
+    ep_num_str = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d}"
+    temp_media = os.path.join(temp_dir, f"{ep_num_str}_{ep_title_safe}{ext}")
+    dl_start = time.time()
+    ok, total_bytes = http_download_to_file(media_url, cfg.user_agent, cfg.timeout, temp_media)
+    dl_elapsed = time.time() - dl_start
+    if not ok:
+        logger.warning("    failed to download media for transcription")
+        return False
+    
+    try:
+        mb = total_bytes / BYTES_PER_MB
+        logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
+    except (ValueError, ZeroDivisionError, TypeError) as e:
+        logger.warning(f"    failed to format download size: {e}")
+
+    # Use pre-loaded Whisper model
+    if whisper_model is None:
+        logger.warning("    Skipping transcription: Whisper model not available")
+        # Clean up temp file
+        try:
+            os.remove(temp_media)
+        except OSError as e:
+            logger.warning(f"    failed to remove temp media file {temp_media}: {e}")
+        return False
+
+    try:
+        result, tc_elapsed = transcribe_with_whisper(whisper_model, temp_media, cfg)
+        text = (result.get("text") or "").strip()
+        # Optionally format as screenplay using segments
+        if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
+            try:
+                formatted = _format_screenplay_from_segments(
+                    result["segments"], cfg.screenplay_num_speakers, cfg.screenplay_speaker_names, cfg.screenplay_gap_s
+                )
+                if formatted.strip():
+                    text = formatted
+            except (ValueError, KeyError, TypeError) as e:
+                logger.warning(f"    failed to format as screenplay, using plain transcript: {e}")
+        if not text:
+            raise RuntimeError("empty transcription")
+        # Include run identifier in filename for easy comparison across runs
+        run_tag = f"_{run_suffix}" if run_suffix else ""
+        out_name = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {ep_title_safe}{run_tag}.txt"
+        out_path = os.path.join(effective_output_dir, out_name)
+        write_file(out_path, text.encode("utf-8"))
+        logger.info(f"    saved transcript: {out_path} (transcribed in {tc_elapsed:.1f}s)")
+        return True
+    except (RuntimeError, OSError) as e:
+        logger.error(f"    Whisper transcription failed: {e}")
+        return False
+    finally:
+        # best-effort cleanup of temp media
+        try:
+            os.remove(temp_media)
+        except OSError as e:
+            logger.warning(f"    failed to remove temp media file {temp_media}: {e}")
+
+
+def process_transcript_download(
+    transcript_url: str,
+    transcript_type: Optional[str],
+    idx: int,
+    ep_title: str,
+    ep_title_safe: str,
+    cfg: Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+) -> bool:
+    """Download and save transcript. Returns True if successful."""
+    logger.info(f"[{idx}] downloading transcript: {ep_title} -> {transcript_url}")
+
+    data, ctype = http_get(transcript_url, cfg.user_agent, cfg.timeout)
+    if not data:
+        logger.warning(f"    failed to download transcript")
+        return False
+
+    # Decide extension
+    ext = derive_transcript_extension(transcript_type, ctype, transcript_url)
+
+    # Include run identifier in filename for easy comparison across runs
+    run_tag = f"_{run_suffix}" if run_suffix else ""
+    out_name = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {ep_title_safe}{run_tag}{ext}"
+    out_path = os.path.join(effective_output_dir, out_name)
+    try:
+        write_file(out_path, data)
+        logger.info(f"    saved: {out_path}")
+        return True
+    except (IOError, OSError) as e:
+        logger.error(f"    failed to write file: {e}")
+        return False
+
+
+def process_episode(
+    item: XML_Element,
+    idx: int,
+    cfg: Config,
+    whisper_model,
+    temp_dir: Optional[str],
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+) -> bool:
+    """Process a single episode. Returns True if transcript was saved."""
+    ep_title, ep_title_safe = extract_episode_title(item, idx)
+
+    candidates = find_transcript_urls(item, cfg.rss_url)
+    chosen = choose_transcript_url(candidates, cfg.prefer_types)
+
+    if not chosen:
+        # fallback to enclosure media if requested
+        if cfg.transcribe_missing and temp_dir:
+            success = download_and_transcribe_media(
+                item, idx, ep_title, ep_title_safe, cfg, whisper_model, temp_dir, effective_output_dir, run_suffix
+            )
+            if cfg.delay_ms:
+                time.sleep(cfg.delay_ms / MS_TO_SECONDS)
+            return success
+        else:
+            logger.info(f"[{idx}] no transcript for: {ep_title}")
+            return False
+
+    t_url, t_type = chosen
+    success = process_transcript_download(
+        t_url, t_type, idx, ep_title, ep_title_safe, cfg, effective_output_dir, run_suffix
+    )
+    if cfg.delay_ms:
+        time.sleep(cfg.delay_ms / MS_TO_SECONDS)
+    return success
+
+
+def fetch_and_parse_rss(cfg: Config) -> Tuple[str, List[XML_Element]]:
+    """Fetch and parse RSS feed. Returns (feed_title, items)."""
+    rss_bytes, rss_ctype = http_get(cfg.rss_url, cfg.user_agent, cfg.timeout)
+    if not rss_bytes:
+        raise ValueError("Failed to fetch RSS feed.")
+    
+    try:
+        feed_title, items = parse_rss_items(rss_bytes)
+    except (DefusedXMLParseError, ValueError) as e:
+        raise ValueError(f"Failed to parse RSS XML: {e}") from e
+    
+    return feed_title, items
+
+
+def setup_output_directory(cfg: Config) -> Tuple[str, Optional[str]]:
+    """Setup output directory with run suffix. Returns (effective_output_dir, run_suffix)."""
+    run_suffix: Optional[str] = None
+    if cfg.run_id:
+        run_suffix = time.strftime(TIMESTAMP_FORMAT) if cfg.run_id.lower() == "auto" else sanitize_filename(cfg.run_id)
+        # Append Whisper model name if using transcription
+        if cfg.transcribe_missing:
+            model_part = sanitize_filename(cfg.whisper_model)
+            run_suffix = f"{run_suffix}_whisper_{model_part}" if run_suffix else f"whisper_{model_part}"
+    elif cfg.transcribe_missing:
+        # Auto-create run-id with model if Whisper is used but no run-id specified
+        model_part = sanitize_filename(cfg.whisper_model)
+        run_suffix = f"whisper_{model_part}"
+    effective_output_dir = os.path.join(cfg.output_dir, f"run_{run_suffix}") if run_suffix else cfg.output_dir
+    return effective_output_dir, run_suffix
+
+
 def main(argv: Optional[Iterable[str]] = None) -> int:
     try:
         args = parse_args(argv)
@@ -430,19 +792,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         run_id=(str(args.run_id) if args.run_id else None),
     )
 
-    # Resolve effective output directory (with optional run subfolder)
-    run_suffix: Optional[str] = None
-    if cfg.run_id:
-        run_suffix = time.strftime(TIMESTAMP_FORMAT) if cfg.run_id.lower() == "auto" else sanitize_filename(cfg.run_id)
-        # Append Whisper model name if using transcription
-        if cfg.transcribe_missing:
-            model_part = sanitize_filename(cfg.whisper_model)
-            run_suffix = f"{run_suffix}_whisper_{model_part}" if run_suffix else f"whisper_{model_part}"
-    elif cfg.transcribe_missing:
-        # Auto-create run-id with model if Whisper is used but no run-id specified
-        model_part = sanitize_filename(cfg.whisper_model)
-        run_suffix = f"whisper_{model_part}"
-    effective_output_dir = os.path.join(cfg.output_dir, f"run_{run_suffix}") if run_suffix else cfg.output_dir
+    # Setup output directory
+    effective_output_dir, run_suffix = setup_output_directory(cfg)
 
     try:
         logger.info("Starting podcast transcript scrape")
@@ -452,15 +803,11 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     except (IOError, OSError) as e:
         logger.warning(f"Failed to write startup message: {e}")
 
-    rss_bytes, rss_ctype = http_get(cfg.rss_url, cfg.user_agent, cfg.timeout)
-    if not rss_bytes:
-        logger.error("Failed to fetch RSS feed.")
-        return 1
-
+    # Fetch and parse RSS feed
     try:
-        feed_title, items = parse_rss_items(rss_bytes)
-    except (DefusedXMLParseError, ValueError) as e:
-        logger.error(f"Failed to parse RSS XML: {e}")
+        feed_title, items = fetch_and_parse_rss(cfg)
+    except ValueError as e:
+        logger.error(f"{e}")
         return 1
 
     total_items = len(items)
@@ -470,17 +817,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     logger.info(f"Episodes to process: {len(items)} of {total_items}")
 
     # Load Whisper model once if transcription is enabled
-    whisper_model = None
-    if cfg.transcribe_missing:
-        try:
-            import whisper  # type: ignore
-            logger.info(f"Loading Whisper model ({cfg.whisper_model})...")
-            whisper_model = whisper.load_model(cfg.whisper_model)
-            logger.info("Whisper model loaded successfully.")
-        except ImportError:
-            logger.warning("openai-whisper not installed. Install with: pip install openai-whisper && brew install ffmpeg")
-        except (RuntimeError, OSError) as e:
-            logger.warning(f"Failed to load Whisper model: {e}")
+    whisper_model = load_whisper_model(cfg)
 
     # Create temp directory once if transcription is enabled
     temp_dir = None
@@ -490,160 +827,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     saved = 0
     for idx, item in enumerate(items, start=1):
-        title_el = item.find("title") or next((e for e in item.iter() if e.tag.endswith("title")), None)
-        ep_title = (title_el.text.strip() if title_el is not None and title_el.text else f"episode_{idx}")
-        ep_title_safe = sanitize_filename(ep_title)
-
-        candidates = find_transcript_urls(item, cfg.rss_url)
-        chosen = choose_transcript_url(candidates, cfg.prefer_types)
-
-        if not chosen:
-            # fallback to enclosure media if requested
-            if cfg.transcribe_missing:
-                media = find_enclosure_media(item, cfg.rss_url)
-                if not media:
-                    logger.info(f"[{idx}] no transcript or enclosure for: {ep_title}")
-                    continue
-                media_url, media_type = media
-                logger.info(f"[{idx}] no transcript; downloading media for Whisper: {ep_title}")
-
-                # derive extension from media type or URL
-                ext = ".bin"
-                if media_type and "/" in media_type:
-                    ext_guess = media_type.split("/", 1)[1].lower()
-                    if ext_guess in ("mpeg", "mp3"):
-                        ext = ".mp3"
-                    elif ext_guess in ("m4a", "mp4", "aac"):
-                        ext = ".m4a"
-                    elif ext_guess in ("ogg", "oga"):
-                        ext = ".ogg"
-                    elif ext_guess in ("wav",):
-                        ext = ".wav"
-                    elif ext_guess in ("webm",):
-                        ext = ".webm"
-                else:
-                    low = media_url.lower()
-                    for cand in (".mp3", ".m4a", ".mp4", ".aac", ".ogg", ".wav", ".webm"):
-                        if low.endswith(cand):
-                            ext = cand
-                            break
-
-                ep_num_str = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d}"  # Using EPISODE_NUMBER_FORMAT_WIDTH (4)
-                temp_media = os.path.join(temp_dir, f"{ep_num_str}_{ep_title_safe}{ext}")
-                dl_start = time.time()
-                ok, total_bytes = http_download_to_file(media_url, cfg.user_agent, cfg.timeout, temp_media)
-                dl_elapsed = time.time() - dl_start
-                if not ok:
-                    logger.warning("    failed to download media for transcription")
-                    continue
-                try:
-                    mb = total_bytes / BYTES_PER_MB
-                    logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
-                except (ValueError, ZeroDivisionError, TypeError) as e:
-                    logger.warning(f"    failed to format download size: {e}")
-
-                # Use pre-loaded Whisper model
-                if whisper_model is None:
-                    logger.warning("    Skipping transcription: Whisper model not available")
-                    # Clean up temp file
-                    try:
-                        os.remove(temp_media)
-                    except OSError as e:
-                        logger.warning(f"    failed to remove temp media file {temp_media}: {e}")
-                    if cfg.delay_ms:
-                        time.sleep(cfg.delay_ms / MS_TO_SECONDS)
-                    continue
-
-                try:
-                    logger.info(f"    transcribing with Whisper ({cfg.whisper_model})...")
-                    # Transcribe in English using pre-loaded model
-                    tc_start = time.time()
-                    result = whisper_model.transcribe(temp_media, task="transcribe", language="en")
-                    tc_elapsed = time.time() - tc_start
-                    text = (result.get("text") or "").strip()
-                    # Optionally format as screenplay using segments
-                    if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
-                        try:
-                            formatted = _format_screenplay_from_segments(
-                                result["segments"], cfg.screenplay_num_speakers, cfg.screenplay_speaker_names, cfg.screenplay_gap_s
-                            )
-                            if formatted.strip():
-                                text = formatted
-                        except (ValueError, KeyError, TypeError) as e:
-                            logger.warning(f"    failed to format as screenplay, using plain transcript: {e}")
-                    if not text:
-                        raise RuntimeError("empty transcription")
-                    # Include run identifier in filename for easy comparison across runs
-                    run_tag = f"_{run_suffix}" if run_suffix else ""
-                    out_name = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {ep_title_safe}{run_tag}.txt"
-                    out_path = os.path.join(effective_output_dir, out_name)
-                    write_file(out_path, text.encode("utf-8"))
-                    saved += 1
-                    logger.info(f"    saved transcript: {out_path} (transcribed in {tc_elapsed:.1f}s)")
-                except (RuntimeError, OSError) as e:
-                    logger.error(f"    Whisper transcription failed: {e}")
-                finally:
-                    # best-effort cleanup of temp media
-                    try:
-                        os.remove(temp_media)
-                    except OSError as e:
-                        logger.warning(f"    failed to remove temp media file {temp_media}: {e}")
-                if cfg.delay_ms:
-                    time.sleep(cfg.delay_ms / 1000.0)
-                continue
-            else:
-                logger.info(f"[{idx}] no transcript for: {ep_title}")
-                continue
-
-        t_url, t_type = chosen
-        logger.info(f"[{idx}] downloading transcript: {ep_title} -> {t_url}")
-
-        data, ctype = http_get(t_url, cfg.user_agent, cfg.timeout)
-        if not data:
-            logger.warning(f"    failed to download transcript")
-            continue
-
-        # decide extension
-        ext = ".txt"
-        if t_type:
-            if "vtt" in t_type.lower():
-                ext = ".vtt"
-            elif "srt" in t_type.lower():
-                ext = ".srt"
-            elif "json" in t_type.lower():
-                ext = ".json"
-            elif "html" in t_type.lower():
-                ext = ".html"
-        else:
-            # infer from content-type header or URL
-            if ctype and "vtt" in ctype.lower():
-                ext = ".vtt"
-            elif ctype and "srt" in ctype.lower():
-                ext = ".srt"
-            elif ctype and "json" in ctype.lower():
-                ext = ".json"
-            elif ctype and "html" in ctype.lower():
-                ext = ".html"
-            else:
-                low = t_url.lower()
-                for cand in (".vtt", ".srt", ".json", ".html", ".txt"):
-                    if low.endswith(cand):
-                        ext = cand
-                        break
-
-        # Include run identifier in filename for easy comparison across runs
-        run_tag = f"_{run_suffix}" if run_suffix else ""
-        out_name = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {ep_title_safe}{run_tag}{ext}"
-        out_path = os.path.join(effective_output_dir, out_name)
-        try:
-            write_file(out_path, data)
+        if process_episode(item, idx, cfg, whisper_model, temp_dir, effective_output_dir, run_suffix):
             saved += 1
-            logger.info(f"    saved: {out_path}")
-        except (IOError, OSError) as e:
-            logger.error(f"    failed to write file: {e}")
-
-        if cfg.delay_ms:
-            time.sleep(cfg.delay_ms / 1000.0)
 
     # Clean up temp directory if it was created
     if temp_dir and os.path.exists(temp_dir):
