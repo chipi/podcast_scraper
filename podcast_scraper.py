@@ -20,35 +20,46 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qs, quote, urlencode, urljoin, urlparse, urlunparse
 
+from defusedxml.ElementTree import ParseError as DefusedXMLParseError, fromstring as safe_fromstring
 from pydantic import BaseModel, ValidationError, field_validator
 
 from tqdm import tqdm
 
+import xml.etree.ElementTree as ET
+
 __version__ = "1.0.0"
+
+DEFAULT_LOG_LEVEL = "INFO"
 
 # Set up logging to stderr
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, DEFAULT_LOG_LEVEL, logging.INFO),
     format="%(message)s",
     stream=sys.stderr,
 )
 logger = logging.getLogger(__name__)
 
+
+def resolve_log_level(level: str) -> int:
+    if level is None:
+        raise ValueError("Log level cannot be None")
+    numeric_level = getattr(logging, str(level).upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError(f"Invalid log level: {level}")
+    return numeric_level
+
+
+def apply_log_level(level: str) -> None:
+    numeric_level = resolve_log_level(level)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(numeric_level)
+    for handler in root_logger.handlers:
+        handler.setLevel(numeric_level)
+    logger.setLevel(numeric_level)
+
 REQUEST_SESSION = requests.Session()
 
-try:
-    from defusedxml.ElementTree import ParseError as DefusedXMLParseError
-    from defusedxml.ElementTree import Element, fromstring as safe_fromstring
-    XML_Element = Element
-    DEFUSEDXML_AVAILABLE = True
-except ImportError:
-    # Fallback to standard library if defusedxml is not available
-    import xml.etree.ElementTree as ET
-    DefusedXMLParseError = ET.ParseError
-    safe_fromstring = ET.fromstring
-    XML_Element = ET.Element
-    DEFUSEDXML_AVAILABLE = False
-    logger.warning("defusedxml not available, using standard XML parser (less secure)")
+XML_Element = ET.Element
 
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -87,6 +98,7 @@ class Config:
     screenplay_num_speakers: int
     screenplay_speaker_names: List[str]
     run_id: Optional[str]
+    log_level: str = DEFAULT_LOG_LEVEL
 
 
 class ConfigFileModel(BaseModel):
@@ -104,6 +116,7 @@ class ConfigFileModel(BaseModel):
     num_speakers: Optional[int] = None
     speaker_names: Optional[List[str]] = None
     run_id: Optional[str] = None
+    log_level: Optional[str] = None
 
     @field_validator("prefer_type", mode="before")
     @classmethod
@@ -126,6 +139,13 @@ class ConfigFileModel(BaseModel):
         if isinstance(value, list):
             return [str(item) for item in value]
         raise TypeError("speaker_names must be a string or list of strings")
+
+    @field_validator("log_level", mode="before")
+    @classmethod
+    def _normalize_log_level(cls, value: Any) -> Optional[str]:
+        if value is None:
+            return None
+        return str(value).upper()
 
 # Precompiled regex patterns for performance
 RE_NEWLINES_TABS = re.compile(r"[\r\n\t]")  # Match newlines and tabs
@@ -231,7 +251,7 @@ def load_config_file(path: str) -> Dict[str, Any]:
     return data
 
 
-def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[XML_Element]]:
+def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[ET.Element]]:
     # Return (feed_title, item_elements)
     # Use defusedxml for secure parsing (protects against XML bombs, external entity attacks, etc.)
     root = safe_fromstring(xml_bytes)
@@ -253,7 +273,7 @@ def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[XML_Element]]:
     return title, items
 
 
-def find_transcript_urls(item: XML_Element, base_url: str) -> List[Tuple[str, Optional[str]]]:
+def find_transcript_urls(item: ET.Element, base_url: str) -> List[Tuple[str, Optional[str]]]:
     # Returns list of (url, type) with relative URLs resolved against base_url
     candidates: List[Tuple[str, Optional[str]]] = []
 
@@ -287,7 +307,7 @@ def find_transcript_urls(item: XML_Element, base_url: str) -> List[Tuple[str, Op
     return unique
 
 
-def find_enclosure_media(item: XML_Element, base_url: str) -> Optional[Tuple[str, Optional[str]]]:
+def find_enclosure_media(item: ET.Element, base_url: str) -> Optional[Tuple[str, Optional[str]]]:
     # Look for <enclosure url="..." type="audio/mpeg"/> and resolve relative URLs
     for el in item.iter():
         if isinstance(el.tag, str) and el.tag.lower().endswith("enclosure"):
@@ -396,7 +416,13 @@ def validate_args(args: argparse.Namespace) -> None:
         names = [n.strip() for n in args.speaker_names.split(",") if n.strip()]
         if len(names) < MIN_NUM_SPEAKERS:
             errors.append("At least two speaker names required when specifying --speaker-names")
-    
+
+    # Validate log level
+    try:
+        resolve_log_level(args.log_level)
+    except ValueError as exc:
+        errors.append(str(exc))
+
     # Validate output directory if provided
     if args.output_dir:
         try:
@@ -486,6 +512,7 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser.add_argument("--speaker-names", default="", help="Comma-separated speaker names to use instead of SPEAKER 1..N")
     parser.add_argument("--run-id", default=None, help="Optional run identifier to create a unique subfolder under the output directory; use 'auto' for timestamp")
     parser.add_argument("--version", action="store_true", help="Show program version and exit")
+    parser.add_argument("--log-level", default=DEFAULT_LOG_LEVEL, type=str.upper, help="Logging level (e.g., DEBUG, INFO, WARNING, ERROR)")
     # Parse once to check for config file, then re-parse with config defaults if needed
     initial_args, _ = parser.parse_known_args(argv)
 
@@ -559,7 +586,7 @@ def load_whisper_model(cfg: Config):
         return None
 
 
-def extract_episode_title(item: XML_Element, idx: int) -> Tuple[str, str]:
+def extract_episode_title(item: ET.Element, idx: int) -> Tuple[str, str]:
     """Extract episode title from RSS item. Returns (title, sanitized_title)."""
     title_el = item.find("title") or next((e for e in item.iter() if e.tag.endswith("title")), None)
     ep_title = (title_el.text.strip() if title_el is not None and title_el.text else f"episode_{idx}")
@@ -741,7 +768,7 @@ def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str
 
 
 def download_and_transcribe_media(
-    item: XML_Element,
+    item: ET.Element,
     idx: int,
     ep_title: str,
     ep_title_safe: str,
@@ -857,7 +884,7 @@ def process_transcript_download(
 
 
 def process_episode(
-    item: XML_Element,
+    item: ET.Element,
     idx: int,
     cfg: Config,
     whisper_model,
@@ -903,7 +930,7 @@ def process_episode(
     return success
 
 
-def fetch_and_parse_rss(cfg: Config) -> Tuple[str, List[XML_Element], str]:
+def fetch_and_parse_rss(cfg: Config) -> Tuple[str, List[ET.Element], str]:
     """Fetch and parse RSS feed. Returns (feed_title, items, feed_base_url)."""
     resp = _open_http_request(cfg.rss_url, cfg.user_agent, cfg.timeout, stream=False)
     if resp is None:
@@ -946,6 +973,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         logger.error(f"Error: {e}")
         return 1
 
+    apply_log_level(args.log_level)
+
     cfg = Config(
         rss_url=args.rss,
         output_dir=derive_output_dir(args.rss, args.output_dir),
@@ -961,6 +990,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         screenplay_num_speakers=max(MIN_NUM_SPEAKERS, int(args.num_speakers)),
         screenplay_speaker_names=[s.strip() for s in (args.speaker_names or "").split(",") if s.strip()],
         run_id=(str(args.run_id) if args.run_id else None),
+        log_level=args.log_level,
     )
 
     # Setup output directory
@@ -971,6 +1001,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         logger.info(f"  rss: {cfg.rss_url}")
         logger.info(f"  output_dir: {effective_output_dir}")
         logger.info(f"  max_episodes: {cfg.max_episodes or 'all'}")
+        logger.info(f"  log_level: {cfg.log_level}")
     except (IOError, OSError) as e:
         logger.warning(f"Failed to write startup message: {e}")
 

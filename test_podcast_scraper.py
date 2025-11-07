@@ -484,6 +484,20 @@ class TestConfigFileSupport(unittest.TestCase):
             with self.assertRaises(ValueError):
                 podcast_scraper.parse_args(["--config", cfg_path, TEST_FEED_URL])
 
+    def test_log_level_from_config(self):
+        """Log level should be applied from configuration files."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg_path = os.path.join(tmpdir, "config.json")
+            config_data = {
+                "rss": TEST_FEED_URL,
+                "log_level": "debug",
+            }
+            with open(cfg_path, "w", encoding="utf-8") as fh:
+                json.dump(config_data, fh)
+
+            args = podcast_scraper.parse_args(["--config", cfg_path])
+            self.assertEqual(args.log_level, "DEBUG")
+
     @unittest.skipUnless(HAS_YAML, "PyYAML not installed")
     def test_yaml_config_applied(self):
         """YAML config files should be parsed when PyYAML is available."""
