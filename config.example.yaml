@@ -1,0 +1,14 @@
+# Example podcast scraper configuration
+# Values specified here are used as defaults unless overridden on the CLI.
+
+rss: https://example.com/feed.xml
+output_dir: output_podcast_example
+max_episodes: 10
+transcribe_missing: true
+whisper_model: base
+delay_ms: 250
+screenplay: true
+speaker_names:
+  - Host
+  - Guest
+run_id: experiment

@@ -1,0 +1,7 @@
+{
+  "timeout": 45,
+  "transcribe_missing": true,
+  "run_id": "example_run",
+  "speaker_names": ["Host", "Guest"],
+  "screenplay": true
+}
