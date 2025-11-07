@@ -15,6 +15,8 @@ from platformdirs import PlatformDirs
 import requests
 from requests.utils import requote_uri
 
+__version__ = "1.0.0"
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -394,10 +396,15 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser.add_argument("--num-speakers", type=int, default=DEFAULT_NUM_SPEAKERS, help="Number of speakers to alternate between when formatting screenplay")
     parser.add_argument("--speaker-names", default="", help="Comma-separated speaker names to use instead of SPEAKER 1..N")
     parser.add_argument("--run-id", default=None, help="Optional run identifier to create a unique subfolder under the output directory; use 'auto' for timestamp")
+    parser.add_argument("--version", action="store_true", help="Show program version and exit")
     # Parse once to check for config file, then re-parse with config defaults if needed
     initial_args, _ = parser.parse_known_args(argv)
 
     config_data: Dict[str, Any] = {}
+    if initial_args.version:
+        print(f"podcast_scraper {__version__}")
+        raise SystemExit(0)
+
     if initial_args.config:
         config_data = load_config_file(initial_args.config)
         valid_dests = {action.dest for action in parser._actions if action.dest}
@@ -426,8 +433,14 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         args = parser.parse_args(argv)
         if not args.rss:
             raise ValueError("RSS URL is required (provide in config as 'rss' or via CLI)")
+        if args.version:
+            print(f"podcast_scraper {__version__}")
+            raise SystemExit(0)
     else:
         args = parser.parse_args(argv)
+        if args.version:
+            print(f"podcast_scraper {__version__}")
+            raise SystemExit(0)
 
     validate_args(args)
     return args
