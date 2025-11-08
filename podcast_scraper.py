@@ -757,7 +757,7 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
             unit_scale=True,
             unit_divisor=1024,
             desc="Downloading",
-            leave=False,
+            leave=True,
         ) as pbar:
             for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
                 if not chunk:
@@ -794,7 +794,7 @@ def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str
             unit_scale=True,
             unit_divisor=1024,
             desc=f"Downloading {filename}" if filename else "Downloading",
-            leave=False,
+            leave=True,
         ) as pbar:
             for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
                 if not chunk:
