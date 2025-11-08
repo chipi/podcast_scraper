@@ -8,9 +8,11 @@ import os
 import re
 import shutil
 import sys
+import threading
 import time
 import warnings
 import xml.etree.ElementTree as ET
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -37,12 +39,14 @@ DEFAULT_USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/119.0 Safari/537.36"
 )
+DEFAULT_WORKERS = max(1, min(8, os.cpu_count() or 4))
 DOWNLOAD_CHUNK_SIZE = 1024 * 256  # 256KB chunks for file downloads
 EPISODE_NUMBER_FORMAT_WIDTH = 4  # Width for episode number formatting (e.g., 0001)
 MIN_NUM_SPEAKERS = 1  # Minimum number of speakers
 MIN_TIMEOUT_SECONDS = 1  # Minimum allowed timeout value
 MS_TO_SECONDS = 1000.0  # Milliseconds to seconds conversion factor
 TEMP_DIR_NAME = ".tmp_media"  # Name of temporary directory for media files
+TEMP_MEDIA_TITLE_MAX_CHARS = 28  # Max characters from sanitized title used in temp media filename
 TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"  # Format for auto-generated run IDs
 URL_HASH_LENGTH = 8  # Length of hash suffix in output directory names
 
@@ -97,6 +101,15 @@ class Config:
     screenplay_speaker_names: List[str]
     run_id: Optional[str]
     log_level: str = DEFAULT_LOG_LEVEL
+    workers: int = DEFAULT_WORKERS
+
+
+@dataclass
+class TranscriptionJob:
+    idx: int
+    ep_title: str
+    ep_title_safe: str
+    temp_media: str
 
 
 class ConfigFileModel(BaseModel):
@@ -115,6 +128,7 @@ class ConfigFileModel(BaseModel):
     speaker_names: Optional[List[str]] = None
     run_id: Optional[str] = None
     log_level: Optional[str] = None
+    workers: Optional[int] = None
 
     @field_validator("prefer_type", mode="before")
     @classmethod
@@ -144,6 +158,30 @@ class ConfigFileModel(BaseModel):
         if value is None:
             return None
         return str(value).upper()
+
+    @field_validator("workers", mode="before")
+    @classmethod
+    def _coerce_workers(cls, value: Any) -> Optional[int]:
+        return cls._coerce_positive_int(value, "workers")
+
+    @staticmethod
+    def _coerce_positive_int(value: Any, field_name: str) -> Optional[int]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return None
+            try:
+                coerced = int(value)
+            except ValueError as exc:
+                raise ValueError(f"{field_name} must be an integer") from exc
+            value = coerced
+        if not isinstance(value, int):
+            raise TypeError(f"{field_name} must be an integer")
+        if value < 1:
+            raise ValueError(f"{field_name} must be at least 1")
+        return value
 
 # Precompiled regex patterns for performance
 RE_NEWLINES_TABS = re.compile(r"[\r\n\t]")  # Match newlines and tabs
@@ -415,11 +453,9 @@ def validate_args(args: argparse.Namespace) -> None:
         if len(names) < MIN_NUM_SPEAKERS:
             errors.append("At least two speaker names required when specifying --speaker-names")
 
-    # Validate log level
-    try:
-        resolve_log_level(args.log_level)
-    except ValueError as exc:
-        errors.append(str(exc))
+    # Validate worker count
+    if args.workers < 1:
+        errors.append("--workers must be at least 1")
 
     # Validate output directory if provided
     if args.output_dir:
@@ -451,6 +487,8 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser.add_argument("--run-id", default=None, help="Optional run identifier to create a unique subfolder under the output directory; use 'auto' for timestamp")
     parser.add_argument("--version", action="store_true", help="Show program version and exit")
     parser.add_argument("--log-level", default=DEFAULT_LOG_LEVEL, type=str.upper, help="Logging level (e.g., DEBUG, INFO, WARNING, ERROR)")
+    parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS, help="Number of concurrent worker threads (default: based on CPU cores)")
+
     # Parse once to check for config file, then re-parse with config defaults if needed
     initial_args, _ = parser.parse_known_args(argv)
 
@@ -653,6 +691,7 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
             unit_scale=True,
             unit_divisor=1024,
             desc="Downloading",
+            leave=False,
         ) as pbar:
             for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
                 if not chunk:
@@ -689,6 +728,7 @@ def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str
             unit_scale=True,
             unit_divisor=1024,
             desc=f"Downloading {filename}" if filename else "Downloading",
+            leave=False,
         ) as pbar:
             for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
                 if not chunk:
@@ -705,24 +745,21 @@ def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str
         resp.close()
 
 
-def download_and_transcribe_media(
+def download_media_for_transcription(
     item: ET.Element,
     idx: int,
     ep_title: str,
     ep_title_safe: str,
     cfg: Config,
-    whisper_model,
     temp_dir: str,
-    effective_output_dir: str,
-    run_suffix: Optional[str],
     feed_base_url: str,
-) -> bool:
-    """Download media and transcribe with Whisper. Returns True if successful."""
+) -> Optional[TranscriptionJob]:
+    """Download enclosure media for Whisper transcription. Returns a TranscriptionJob."""
     media = find_enclosure_media(item, feed_base_url)
     if not media:
         logger.info(f"[{idx}] no transcript or enclosure for: {ep_title}")
-        return False
-    
+        return None
+
     media_url, media_type = media
     logger.info(f"[{idx}] no transcript; downloading media for Whisper: {ep_title}")
 
@@ -730,24 +767,37 @@ def download_and_transcribe_media(
     ext = derive_media_extension(media_type, media_url)
 
     ep_num_str = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d}"
-    temp_media = os.path.join(temp_dir, f"{ep_num_str}_{ep_title_safe}{ext}")
+    short_title = ep_title_safe[:TEMP_MEDIA_TITLE_MAX_CHARS]
+    title_hash_input = f"{media_url}|{idx}|{cfg.rss_url}"
+    title_hash = hashlib.sha1(title_hash_input.encode("utf-8")).hexdigest()[:6]
+    temp_media = os.path.join(temp_dir, f"{ep_num_str}_{short_title}_{title_hash}{ext}")
     dl_start = time.time()
     ok, total_bytes = http_download_to_file(media_url, cfg.user_agent, cfg.timeout, temp_media)
     dl_elapsed = time.time() - dl_start
     if not ok:
         logger.warning("    failed to download media for transcription")
-        return False
-    
+        return None
+
     try:
         mb = total_bytes / BYTES_PER_MB
         logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
     except (ValueError, ZeroDivisionError, TypeError) as e:
         logger.warning(f"    failed to format download size: {e}")
+    return TranscriptionJob(idx=idx, ep_title=ep_title, ep_title_safe=ep_title_safe, temp_media=temp_media)
 
-    # Use pre-loaded Whisper model
+
+def transcribe_media_to_text(
+    job: TranscriptionJob,
+    cfg: Config,
+    whisper_model,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    whisper_lock: Optional[threading.Lock],
+) -> bool:
+    """Run Whisper transcription on downloaded media and save the transcript."""
+    temp_media = job.temp_media
     if whisper_model is None:
         logger.warning("    Skipping transcription: Whisper model not available")
-        # Clean up temp file
         try:
             os.remove(temp_media)
         except OSError as e:
@@ -755,9 +805,12 @@ def download_and_transcribe_media(
         return False
 
     try:
-        result, tc_elapsed = transcribe_with_whisper(whisper_model, temp_media, cfg)
+        if whisper_lock:
+            with whisper_lock:
+                result, tc_elapsed = transcribe_with_whisper(whisper_model, temp_media, cfg)
+        else:
+            result, tc_elapsed = transcribe_with_whisper(whisper_model, temp_media, cfg)
         text = (result.get("text") or "").strip()
-        # Optionally format as screenplay using segments
         if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
             try:
                 formatted = _format_screenplay_from_segments(
@@ -769,9 +822,8 @@ def download_and_transcribe_media(
                 logger.warning(f"    failed to format as screenplay, using plain transcript: {e}")
         if not text:
             raise RuntimeError("empty transcription")
-        # Include run identifier in filename for easy comparison across runs
         run_tag = f"_{run_suffix}" if run_suffix else ""
-        out_name = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {ep_title_safe}{run_tag}.txt"
+        out_name = f"{job.idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {job.ep_title_safe}{run_tag}.txt"
         out_path = os.path.join(effective_output_dir, out_name)
         write_file(out_path, text.encode("utf-8"))
         logger.info(f"    saved transcript: {out_path} (transcribed in {tc_elapsed:.1f}s)")
@@ -780,7 +832,6 @@ def download_and_transcribe_media(
         logger.error(f"    Whisper transcription failed: {e}")
         return False
     finally:
-        # best-effort cleanup of temp media
         try:
             os.remove(temp_media)
         except OSError as e:
@@ -821,51 +872,56 @@ def process_transcript_download(
         return False
 
 
-def process_episode(
+def process_episode_download(
     item: ET.Element,
     idx: int,
     cfg: Config,
-    whisper_model,
     temp_dir: Optional[str],
     effective_output_dir: str,
     run_suffix: Optional[str],
     feed_base_url: str,
+    transcription_jobs: List[TranscriptionJob],
+    transcription_jobs_lock: Optional[threading.Lock],
 ) -> bool:
-    """Process a single episode. Returns True if transcript was saved."""
+    """Download transcript or media for a single episode. Returns True if transcript saved."""
     ep_title, ep_title_safe = extract_episode_title(item, idx)
 
     candidates = find_transcript_urls(item, feed_base_url)
     chosen = choose_transcript_url(candidates, cfg.prefer_types)
 
-    if not chosen:
-        # fallback to enclosure media if requested
-        if cfg.transcribe_missing and temp_dir:
-            success = download_and_transcribe_media(
-                item,
-                idx,
-                ep_title,
-                ep_title_safe,
-                cfg,
-                whisper_model,
-                temp_dir,
-                effective_output_dir,
-                run_suffix,
-                feed_base_url,
-            )
+    if chosen:
+        t_url, t_type = chosen
+        success = process_transcript_download(
+            t_url, t_type, idx, ep_title, ep_title_safe, cfg, effective_output_dir, run_suffix
+        )
+        if success and cfg.delay_ms:
+            time.sleep(cfg.delay_ms / MS_TO_SECONDS)
+        return success
+
+    if cfg.transcribe_missing and temp_dir:
+        job = download_media_for_transcription(
+            item,
+            idx,
+            ep_title,
+            ep_title_safe,
+            cfg,
+            temp_dir,
+            feed_base_url,
+        )
+        if job:
+            if transcription_jobs_lock:
+                with transcription_jobs_lock:
+                    transcription_jobs.append(job)
+            else:
+                transcription_jobs.append(job)
             if cfg.delay_ms:
                 time.sleep(cfg.delay_ms / MS_TO_SECONDS)
-            return success
-        else:
-            logger.info(f"[{idx}] no transcript for: {ep_title}")
-            return False
+        return False
 
-    t_url, t_type = chosen
-    success = process_transcript_download(
-        t_url, t_type, idx, ep_title, ep_title_safe, cfg, effective_output_dir, run_suffix
-    )
+    logger.info(f"[{idx}] no transcript for: {ep_title}")
     if cfg.delay_ms:
         time.sleep(cfg.delay_ms / MS_TO_SECONDS)
-    return success
+    return False
 
 
 def fetch_and_parse_rss(cfg: Config) -> Tuple[str, List[ET.Element], str]:
@@ -929,57 +985,134 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         screenplay_speaker_names=[s.strip() for s in (args.speaker_names or "").split(",") if s.strip()],
         run_id=(str(args.run_id) if args.run_id else None),
         log_level=args.log_level,
+        workers=max(1, int(args.workers)),
     )
 
-    # Setup output directory
-    effective_output_dir, run_suffix = setup_output_directory(cfg)
-
     try:
-        logger.info("Starting podcast transcript scrape")
-        logger.info(f"  rss: {cfg.rss_url}")
-        logger.info(f"  output_dir: {effective_output_dir}")
-        logger.info(f"  max_episodes: {cfg.max_episodes or 'all'}")
-        logger.info(f"  log_level: {cfg.log_level}")
-    except (IOError, OSError) as e:
-        logger.warning(f"Failed to write startup message: {e}")
+        # Setup output directory
+        effective_output_dir, run_suffix = setup_output_directory(cfg)
 
-    # Fetch and parse RSS feed
-    try:
-        feed_title, items, feed_base_url = fetch_and_parse_rss(cfg)
-    except ValueError as e:
-        logger.error(f"{e}")
-        return 1
-
-    total_items = len(items)
-    if cfg.max_episodes is not None:
-        items = items[: cfg.max_episodes]
-
-    logger.info(f"Episodes to process: {len(items)} of {total_items}")
-
-    # Load Whisper model once if transcription is enabled
-    whisper_model = load_whisper_model(cfg)
-
-    # Create temp directory once if transcription is enabled
-    temp_dir = None
-    if cfg.transcribe_missing:
-        temp_dir = os.path.join(effective_output_dir, TEMP_DIR_NAME)
-        os.makedirs(temp_dir, exist_ok=True)
-
-    saved = 0
-    for idx, item in enumerate(items, start=1):
-        if process_episode(item, idx, cfg, whisper_model, temp_dir, effective_output_dir, run_suffix, feed_base_url):
-            saved += 1
-
-    # Clean up temp directory if it was created
-    if temp_dir and os.path.exists(temp_dir):
         try:
-            shutil.rmtree(temp_dir)
-            logger.info(f"Cleaned up temp directory: {temp_dir}")
-        except OSError as e:
-            logger.warning(f"Failed to remove temp directory {temp_dir}: {e}")
+            logger.info("Starting podcast transcript scrape")
+            logger.info(f"  rss: {cfg.rss_url}")
+            logger.info(f"  output_dir: {effective_output_dir}")
+            logger.info(f"  max_episodes: {cfg.max_episodes or 'all'}")
+            logger.info(f"  log_level: {cfg.log_level}")
+            logger.info(f"  workers: {cfg.workers}")
+        except (IOError, OSError) as e:
+            logger.warning(f"Failed to write startup message: {e}")
 
-    logger.info(f"Done. transcripts_saved={saved} in {effective_output_dir}")
-    return 0
+        # Fetch and parse RSS feed
+        try:
+            feed_title, items, feed_base_url = fetch_and_parse_rss(cfg)
+        except ValueError as e:
+            logger.error(f"{e}")
+            return 1
+
+        total_items = len(items)
+        if cfg.max_episodes is not None:
+            items = items[: cfg.max_episodes]
+
+        logger.info(f"Episodes to process: {len(items)} of {total_items}")
+
+        # Load Whisper model once if transcription is enabled
+        whisper_model = load_whisper_model(cfg)
+
+        # Create temp directory once if transcription is enabled
+        temp_dir = None
+        if cfg.transcribe_missing:
+            temp_dir = os.path.join(effective_output_dir, TEMP_DIR_NAME)
+            os.makedirs(temp_dir, exist_ok=True)
+
+        transcription_jobs: List[TranscriptionJob] = []
+        transcription_jobs_lock = threading.Lock() if cfg.workers > 1 else None
+
+        saved = 0
+        download_args = [
+            (
+                item,
+                idx,
+                cfg,
+                temp_dir,
+                effective_output_dir,
+                run_suffix,
+                feed_base_url,
+                transcription_jobs,
+                transcription_jobs_lock,
+            )
+            for idx, item in enumerate(items, start=1)
+        ]
+
+        if not download_args:
+            saved = 0
+        elif cfg.workers <= 1 or len(download_args) == 1:
+            for args in download_args:
+                try:
+                    if process_episode_download(*args):
+                        saved += 1
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.error(f"[{args[1]}] episode processing raised an unexpected error: {exc}")
+        else:
+            with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
+                future_map = {
+                    executor.submit(process_episode_download, *args): args[1] for args in download_args
+                }
+                for future in as_completed(future_map):
+                    idx = future_map[future]
+                    try:
+                        if future.result():
+                            saved += 1
+                    except Exception as exc:  # pragma: no cover - unexpected
+                        logger.error(f"[{idx}] episode processing raised an unexpected error: {exc}")
+
+        # Phase 2: transcription after all downloads complete
+        whisper_lock: Optional[threading.Lock] = None
+        if cfg.transcribe_missing and cfg.workers > 1:
+            whisper_lock = threading.Lock()
+
+        if transcription_jobs and cfg.transcribe_missing:
+            logger.info(f"Starting Whisper transcription for {len(transcription_jobs)} episodes")
+            if cfg.workers <= 1 or len(transcription_jobs) == 1:
+                for job in transcription_jobs:
+                    try:
+                        if transcribe_media_to_text(job, cfg, whisper_model, run_suffix, effective_output_dir, whisper_lock):
+                            saved += 1
+                    except Exception as exc:  # pragma: no cover - defensive
+                        logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
+            else:
+                with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
+                    future_map = {
+                        executor.submit(
+                            transcribe_media_to_text,
+                            job,
+                            cfg,
+                            whisper_model,
+                            run_suffix,
+                            effective_output_dir,
+                            whisper_lock,
+                        ): job.idx
+                        for job in transcription_jobs
+                    }
+                    for future in as_completed(future_map):
+                        idx = future_map[future]
+                        try:
+                            if future.result():
+                                saved += 1
+                        except Exception as exc:  # pragma: no cover - unexpected
+                            logger.error(f"[{idx}] transcription raised an unexpected error: {exc}")
+
+        # Clean up temp directory if it was created
+        if temp_dir and os.path.exists(temp_dir):
+            try:
+                shutil.rmtree(temp_dir)
+                logger.info(f"Cleaned up temp directory: {temp_dir}")
+            except OSError as e:
+                logger.warning(f"Failed to remove temp directory {temp_dir}: {e}")
+
+        logger.info(f"Done. transcripts_saved={saved} in {effective_output_dir}")
+        return 0
+    except Exception:
+        raise
 
 
 if __name__ == "__main__":
