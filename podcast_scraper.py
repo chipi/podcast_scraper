@@ -22,7 +22,7 @@ from platformdirs import PlatformDirs
 
 import requests
 from defusedxml.ElementTree import ParseError as DefusedXMLParseError, fromstring as safe_fromstring
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from requests.utils import requote_uri
 from tqdm import tqdm
 
@@ -93,26 +93,6 @@ def truncate_whisper_title(title: str, *, for_log: bool) -> str:
 
 
 @dataclass
-class Config:
-    rss_url: str
-    output_dir: str
-    max_episodes: Optional[int]
-    user_agent: str
-    timeout: int
-    delay_ms: int
-    prefer_types: List[str]
-    transcribe_missing: bool
-    whisper_model: str
-    screenplay: bool
-    screenplay_gap_s: float
-    screenplay_num_speakers: int
-    screenplay_speaker_names: List[str]
-    run_id: Optional[str]
-    log_level: str = DEFAULT_LOG_LEVEL
-    workers: int = DEFAULT_WORKERS
-
-
-@dataclass
 class TranscriptionJob:
     idx: int
     ep_title: str
@@ -120,76 +100,159 @@ class TranscriptionJob:
     temp_media: str
 
 
-class ConfigFileModel(BaseModel):
-    rss: Optional[str] = None
-    output_dir: Optional[str] = None
-    max_episodes: Optional[int] = None
-    user_agent: Optional[str] = None
-    timeout: Optional[int] = None
-    delay_ms: Optional[int] = None
-    prefer_type: Optional[List[str]] = None
-    transcribe_missing: Optional[bool] = None
-    whisper_model: Optional[str] = None
-    screenplay: Optional[bool] = None
-    screenplay_gap: Optional[float] = None
-    num_speakers: Optional[int] = None
-    speaker_names: Optional[List[str]] = None
-    run_id: Optional[str] = None
-    log_level: Optional[str] = None
-    workers: Optional[int] = None
+class Config(BaseModel):
+    rss_url: Optional[str] = Field(default=None, alias="rss")
+    output_dir: Optional[str] = Field(default=None, alias="output_dir")
+    max_episodes: Optional[int] = Field(default=None, alias="max_episodes")
+    user_agent: str = Field(default=DEFAULT_USER_AGENT, alias="user_agent")
+    timeout: int = Field(default=DEFAULT_TIMEOUT_SECONDS, alias="timeout")
+    delay_ms: int = Field(default=0, alias="delay_ms")
+    prefer_types: List[str] = Field(default_factory=list, alias="prefer_type")
+    transcribe_missing: bool = Field(default=False, alias="transcribe_missing")
+    whisper_model: str = Field(default="base", alias="whisper_model")
+    screenplay: bool = Field(default=False, alias="screenplay")
+    screenplay_gap_s: float = Field(default=DEFAULT_SCREENPLAY_GAP_SECONDS, alias="screenplay_gap")
+    screenplay_num_speakers: int = Field(default=DEFAULT_NUM_SPEAKERS, alias="num_speakers")
+    screenplay_speaker_names: List[str] = Field(default_factory=list, alias="speaker_names")
+    run_id: Optional[str] = Field(default=None, alias="run_id")
+    log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="log_level")
+    workers: int = Field(default=DEFAULT_WORKERS, alias="workers")
 
-    @field_validator("prefer_type", mode="before")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    @field_validator("rss_url", mode="before")
     @classmethod
-    def _coerce_prefer_type(cls, value: Any) -> Optional[List[str]]:
+    def _strip_rss(cls, value: Any) -> Optional[str]:
         if value is None:
             return None
-        if isinstance(value, str):
-            return [value]
-        if isinstance(value, list):
-            return [str(item) for item in value]
-        raise TypeError("prefer_type must be a string or list of strings")
+        value = str(value).strip()
+        return value or None
 
-    @field_validator("speaker_names", mode="before")
+    @field_validator("output_dir", mode="before")
     @classmethod
-    def _coerce_speaker_names(cls, value: Any) -> Optional[List[str]]:
+    def _strip_output_dir(cls, value: Any) -> Optional[str]:
         if value is None:
             return None
-        if isinstance(value, str):
-            return [name.strip() for name in value.split(",") if name.strip()]
-        if isinstance(value, list):
-            return [str(item) for item in value]
-        raise TypeError("speaker_names must be a string or list of strings")
+        value = str(value).strip()
+        return value or None
+
+    @field_validator("user_agent", "whisper_model", mode="before")
+    @classmethod
+    def _coerce_string(cls, value: Any) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
 
     @field_validator("log_level", mode="before")
     @classmethod
-    def _normalize_log_level(cls, value: Any) -> Optional[str]:
+    def _normalize_log_level(cls, value: Any) -> str:
+        if value is None:
+            return DEFAULT_LOG_LEVEL
+        return str(value).strip().upper() or DEFAULT_LOG_LEVEL
+
+    @field_validator("run_id", mode="before")
+    @classmethod
+    def _strip_run_id(cls, value: Any) -> Optional[str]:
         if value is None:
             return None
-        return str(value).upper()
+        value = str(value).strip()
+        return value or None
+
+    @field_validator("max_episodes", mode="before")
+    @classmethod
+    def _coerce_max_episodes(cls, value: Any) -> Optional[int]:
+        if value is None or value == "":
+            return None
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("max_episodes must be an integer") from exc
+        return parsed if parsed > 0 else None
+
+    @field_validator("timeout", mode="before")
+    @classmethod
+    def _ensure_timeout(cls, value: Any) -> int:
+        if value is None or value == "":
+            return DEFAULT_TIMEOUT_SECONDS
+        try:
+            timeout = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("timeout must be an integer") from exc
+        return max(MIN_TIMEOUT_SECONDS, timeout)
+
+    @field_validator("delay_ms", mode="before")
+    @classmethod
+    def _ensure_delay_ms(cls, value: Any) -> int:
+        if value is None or value == "":
+            return 0
+        try:
+            delay = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("delay_ms must be an integer") from exc
+        if delay < 0:
+            raise ValueError("delay_ms must be non-negative")
+        return delay
+
+    @field_validator("prefer_types", mode="before")
+    @classmethod
+    def _coerce_prefer_types(cls, value: Any) -> List[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value.strip()] if value.strip() else []
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        raise TypeError("prefer_types must be a string or list of strings")
+
+    @field_validator("screenplay_speaker_names", mode="before")
+    @classmethod
+    def _coerce_speaker_names(cls, value: Any) -> List[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [name.strip() for name in value.split(",") if name.strip()]
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        raise TypeError("speaker_names must be a string or list of strings")
+
+    @field_validator("screenplay_gap_s", mode="before")
+    @classmethod
+    def _ensure_screenplay_gap(cls, value: Any) -> float:
+        if value is None or value == "":
+            return DEFAULT_SCREENPLAY_GAP_SECONDS
+        try:
+            gap = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("screenplay_gap must be a number") from exc
+        if gap <= 0:
+            raise ValueError("screenplay_gap must be positive")
+        return gap
+
+    @field_validator("screenplay_num_speakers", mode="before")
+    @classmethod
+    def _ensure_num_speakers(cls, value: Any) -> int:
+        if value is None or value == "":
+            return DEFAULT_NUM_SPEAKERS
+        try:
+            speakers = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("num_speakers must be an integer") from exc
+        if speakers < MIN_NUM_SPEAKERS:
+            raise ValueError(f"num_speakers must be at least {MIN_NUM_SPEAKERS}")
+        return speakers
 
     @field_validator("workers", mode="before")
     @classmethod
-    def _coerce_workers(cls, value: Any) -> Optional[int]:
-        return cls._coerce_positive_int(value, "workers")
-
-    @staticmethod
-    def _coerce_positive_int(value: Any, field_name: str) -> Optional[int]:
-        if value is None:
-            return None
-        if isinstance(value, str):
-            value = value.strip()
-            if not value:
-                return None
-            try:
-                coerced = int(value)
-            except ValueError as exc:
-                raise ValueError(f"{field_name} must be an integer") from exc
-            value = coerced
-        if not isinstance(value, int):
-            raise TypeError(f"{field_name} must be an integer")
-        if value < 1:
-            raise ValueError(f"{field_name} must be at least 1")
-        return value
+    def _ensure_workers(cls, value: Any) -> int:
+        if value is None or value == "":
+            return DEFAULT_WORKERS
+        try:
+            workers = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("workers must be an integer") from exc
+        if workers < 1:
+            raise ValueError("workers must be at least 1")
+        return workers
 
 # Precompiled regex patterns for performance
 RE_NEWLINES_TABS = re.compile(r"[\r\n\t]")  # Match newlines and tabs
@@ -514,18 +577,17 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
             )
 
         try:
-            config_model = ConfigFileModel.model_validate(config_data)
+            config_model = Config.model_validate(config_data)
         except ValidationError as exc:
             raise ValueError(f"Invalid configuration: {exc}") from exc
 
-        defaults_updates: Dict[str, Any] = config_model.model_dump(exclude_none=True)
+        defaults_updates: Dict[str, Any] = config_model.model_dump(
+            exclude_none=True,
+            by_alias=True,
+        )
 
-        prefer_list = defaults_updates.pop("prefer_type", None)
-        if prefer_list is not None:
-            defaults_updates["prefer_type"] = prefer_list
-
-        speaker_list = defaults_updates.pop("speaker_names", None)
-        if speaker_list is not None:
+        speaker_list = defaults_updates.get("speaker_names")
+        if isinstance(speaker_list, list):
             defaults_updates["speaker_names"] = ",".join(speaker_list)
 
         parser.set_defaults(**defaults_updates)
@@ -976,26 +1038,32 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         logger.error(f"Error: {e}")
         return 1
 
-    apply_log_level(args.log_level)
+    speaker_names_list = [s.strip() for s in (args.speaker_names or "").split(",") if s.strip()]
+    config_payload = {
+        "rss_url": args.rss,
+        "output_dir": derive_output_dir(args.rss, args.output_dir),
+        "max_episodes": args.max_episodes,
+        "user_agent": args.user_agent,
+        "timeout": args.timeout,
+        "delay_ms": args.delay_ms,
+        "prefer_types": args.prefer_type,
+        "transcribe_missing": args.transcribe_missing,
+        "whisper_model": args.whisper_model,
+        "screenplay": args.screenplay,
+        "screenplay_gap_s": args.screenplay_gap,
+        "screenplay_num_speakers": args.num_speakers,
+        "screenplay_speaker_names": speaker_names_list,
+        "run_id": args.run_id,
+        "log_level": args.log_level,
+        "workers": args.workers,
+    }
+    try:
+        cfg = Config.model_validate(config_payload)
+    except ValidationError as exc:
+        logger.error(f"Invalid configuration: {exc}")
+        return 1
 
-    cfg = Config(
-        rss_url=args.rss,
-        output_dir=derive_output_dir(args.rss, args.output_dir),
-        max_episodes=(args.max_episodes if args.max_episodes and args.max_episodes > 0 else None),
-        user_agent=args.user_agent,
-        timeout=max(MIN_TIMEOUT_SECONDS, args.timeout),
-        delay_ms=max(0, args.delay_ms),
-        prefer_types=args.prefer_type,
-        transcribe_missing=bool(args.transcribe_missing),
-        whisper_model=str(args.whisper_model or "base"),
-        screenplay=bool(args.screenplay),
-        screenplay_gap_s=float(args.screenplay_gap),
-        screenplay_num_speakers=max(MIN_NUM_SPEAKERS, int(args.num_speakers)),
-        screenplay_speaker_names=[s.strip() for s in (args.speaker_names or "").split(",") if s.strip()],
-        run_id=(str(args.run_id) if args.run_id else None),
-        log_level=args.log_level,
-        workers=max(1, int(args.workers)),
-    )
+    apply_log_level(cfg.log_level)
 
     try:
         # Setup output directory
