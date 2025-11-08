@@ -83,6 +83,14 @@ REQUEST_SESSION = requests.Session()
 XML_Element = ET.Element
 
 
+def should_log_download_summary() -> bool:
+    """Return True when we should emit explicit download summaries (e.g., non-interactive stderr)."""
+    try:
+        return not sys.stderr.isatty()
+    except AttributeError:  # pragma: no cover - very old Python
+        return True
+
+
 def truncate_whisper_title(title: str, *, for_log: bool) -> str:
     """Truncate episode titles consistently for Whisper filenames and logs."""
     if len(title) <= WHISPER_TITLE_MAX_CHARS:
@@ -665,34 +673,22 @@ def derive_media_extension(media_type: Optional[str], media_url: str) -> str:
 
 
 def derive_transcript_extension(transcript_type: Optional[str], content_type: Optional[str], transcript_url: str) -> str:
-    """Derive file extension from transcript type, content type, or URL. Returns extension with leading dot."""
-    ext = ".txt"
-    if transcript_type:
-        if "vtt" in transcript_type.lower():
-            ext = ".vtt"
-        elif "srt" in transcript_type.lower():
-            ext = ".srt"
-        elif "json" in transcript_type.lower():
-            ext = ".json"
-        elif "html" in transcript_type.lower():
-            ext = ".html"
-    else:
-        # infer from content-type header or URL
-        if content_type and "vtt" in content_type.lower():
-            ext = ".vtt"
-        elif content_type and "srt" in content_type.lower():
-            ext = ".srt"
-        elif content_type and "json" in content_type.lower():
-            ext = ".json"
-        elif content_type and "html" in content_type.lower():
-            ext = ".html"
-        else:
-            low = transcript_url.lower()
-            for cand in (".vtt", ".srt", ".json", ".html", ".txt"):
-                if low.endswith(cand):
-                    ext = cand
-                    break
-    return ext
+    """Derive file extension from transcript type, content type, or URL."""
+
+    def _match_extension(candidate: Optional[str]) -> Optional[str]:
+        if not candidate:
+            return None
+        low = candidate.lower()
+        for token in ("vtt", "srt", "json", "html"):
+            if token in low or low.endswith(f".{token}"):
+                return f".{token}"
+        return None
+
+    for candidate in (transcript_type, content_type, transcript_url):
+        ext = _match_extension(candidate)
+        if ext:
+            return ext
+    return ".txt"
 
 
 def transcribe_with_whisper(whisper_model, temp_media: str, cfg: Config) -> Tuple[dict, float]:
@@ -832,7 +828,7 @@ def download_media_for_transcription(
 
     media_url, media_type = media
     display_title = truncate_whisper_title(ep_title, for_log=True)
-    logger.info(f"[{idx}] no transcript; downloading media for Whisper: {display_title}")
+    logger.info(f"[{idx}] no transcript; downloading media: {display_title}")
 
     # Derive extension from media type or URL
     ext = derive_media_extension(media_type, media_url)
@@ -846,14 +842,15 @@ def download_media_for_transcription(
     ok, total_bytes = http_download_to_file(media_url, cfg.user_agent, cfg.timeout, temp_media)
     dl_elapsed = time.time() - dl_start
     if not ok:
-        logger.warning("    failed to download media for transcription")
+        logger.warning("    failed to download media")
         return None
 
-    try:
-        mb = total_bytes / BYTES_PER_MB
-        logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
-    except (ValueError, ZeroDivisionError, TypeError) as e:
-        logger.warning(f"    failed to format download size: {e}")
+    if should_log_download_summary():
+        try:
+            mb = total_bytes / BYTES_PER_MB
+            logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
+        except (ValueError, ZeroDivisionError, TypeError) as e:
+            logger.warning(f"    failed to format download size: {e}")
     return TranscriptionJob(idx=idx, ep_title=ep_title, ep_title_safe=ep_title_safe, temp_media=temp_media)
 
 
@@ -863,7 +860,6 @@ def transcribe_media_to_text(
     whisper_model,
     run_suffix: Optional[str],
     effective_output_dir: str,
-    whisper_lock: Optional[threading.Lock],
 ) -> bool:
     """Run Whisper transcription on downloaded media and save the transcript."""
     temp_media = job.temp_media
@@ -876,11 +872,7 @@ def transcribe_media_to_text(
         return False
 
     try:
-        if whisper_lock:
-            with whisper_lock:
-                result, tc_elapsed = transcribe_with_whisper(whisper_model, temp_media, cfg)
-        else:
-            result, tc_elapsed = transcribe_with_whisper(whisper_model, temp_media, cfg)
+        result, tc_elapsed = transcribe_with_whisper(whisper_model, temp_media, cfg)
         text = (result.get("text") or "").strip()
         if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
             try:
@@ -894,7 +886,8 @@ def transcribe_media_to_text(
         if not text:
             raise RuntimeError("empty transcription")
         run_tag = f"_{run_suffix}" if run_suffix else ""
-        out_name = f"{job.idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {job.ep_title_safe}{run_tag}.txt"
+        safe_title = truncate_whisper_title(job.ep_title_safe, for_log=False)
+        out_name = f"{job.idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {safe_title}{run_tag}.txt"
         out_path = os.path.join(effective_output_dir, out_name)
         write_file(out_path, text.encode("utf-8"))
         logger.info(f"    saved transcript: {out_path} (transcribed in {tc_elapsed:.1f}s)")
@@ -1143,40 +1136,16 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                         logger.error(f"[{idx}] episode processing raised an unexpected error: {exc}")
 
         # Phase 2: transcription after all downloads complete
-        whisper_lock: Optional[threading.Lock] = None
-        if cfg.transcribe_missing and cfg.workers > 1:
-            whisper_lock = threading.Lock()
-
         if transcription_jobs and cfg.transcribe_missing:
             logger.info(f"Starting Whisper transcription for {len(transcription_jobs)} episodes")
-            if cfg.workers <= 1 or len(transcription_jobs) == 1:
-                for job in transcription_jobs:
-                    try:
-                        if transcribe_media_to_text(job, cfg, whisper_model, run_suffix, effective_output_dir, whisper_lock):
-                            saved += 1
-                    except Exception as exc:  # pragma: no cover - defensive
-                        logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
-            else:
-                with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
-                    future_map = {
-                        executor.submit(
-                            transcribe_media_to_text,
-                            job,
-                            cfg,
-                            whisper_model,
-                            run_suffix,
-                            effective_output_dir,
-                            whisper_lock,
-                        ): job.idx
-                        for job in transcription_jobs
-                    }
-                    for future in as_completed(future_map):
-                        idx = future_map[future]
-                        try:
-                            if future.result():
-                                saved += 1
-                        except Exception as exc:  # pragma: no cover - unexpected
-                            logger.error(f"[{idx}] transcription raised an unexpected error: {exc}")
+            # Whisper's reference Python implementation is not thread-safe, so transcriptions
+            # are processed sequentially even when downloads used multiple workers.
+            for job in transcription_jobs:
+                try:
+                    if transcribe_media_to_text(job, cfg, whisper_model, run_suffix, effective_output_dir):
+                        saved += 1
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
 
         # Clean up temp directory if it was created
         if temp_dir and os.path.exists(temp_dir):
