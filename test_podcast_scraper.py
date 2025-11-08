@@ -377,6 +377,8 @@ class TestSetupOutputDirectory(unittest.TestCase):
             screenplay_num_speakers=2,
             screenplay_speaker_names=[],
             run_id=TEST_RUN_ID,
+            skip_existing=False,
+            clean_output=False,
         )
         output_dir, run_suffix = podcast_scraper.setup_output_directory(cfg)
         self.assertIn(f"run_{TEST_RUN_ID}", output_dir)
@@ -399,6 +401,8 @@ class TestSetupOutputDirectory(unittest.TestCase):
             screenplay_num_speakers=2,
             screenplay_speaker_names=[],
             run_id=None,
+            skip_existing=False,
+            clean_output=False,
         )
         output_dir, run_suffix = podcast_scraper.setup_output_directory(cfg)
         self.assertIn("whisper_base", run_suffix or "")
@@ -423,6 +427,97 @@ class TestWriteFile(unittest.TestCase):
                 os.remove(tmp_path)
 
 
+class TestSkipExisting(unittest.TestCase):
+    """Tests for skip-existing resume behaviour."""
+
+    def _make_config(self, **overrides):
+        defaults = dict(
+            rss_url=TEST_FEED_URL,
+            output_dir=".",
+            max_episodes=None,
+            user_agent="test-agent",
+            timeout=30,
+            delay_ms=0,
+            prefer_types=[],
+            transcribe_missing=True,
+            whisper_model="base",
+            screenplay=False,
+            screenplay_gap_s=1.0,
+            screenplay_num_speakers=2,
+            screenplay_speaker_names=[],
+            run_id=None,
+            log_level="INFO",
+            workers=1,
+            skip_existing=True,
+            clean_output=False,
+        )
+        defaults.update(overrides)
+        return podcast_scraper.Config(**defaults)
+
+    def test_process_transcript_download_skips_existing_file(self):
+        """Existing transcript files are not re-downloaded when --skip-existing is in effect."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ep_title = "Episode 1"
+            ep_title_safe = podcast_scraper.sanitize_filename(ep_title)
+            existing_path = os.path.join(tmpdir, f"0001 - {ep_title_safe}.txt")
+            with open(existing_path, "wb") as fh:
+                fh.write(b"original")
+
+            cfg = self._make_config(output_dir=tmpdir, transcribe_missing=False)
+
+            with patch("podcast_scraper.http_get") as mock_http_get:
+                result = podcast_scraper.process_transcript_download(
+                    f"{TEST_BASE_URL}/ep1.txt",
+                    "text/plain",
+                    1,
+                    ep_title,
+                    ep_title_safe,
+                    cfg,
+                    tmpdir,
+                    None,
+                )
+
+            self.assertFalse(result)
+            mock_http_get.assert_not_called()
+
+    def test_download_media_skips_when_whisper_output_exists(self):
+        """Whisper download step is skipped if final transcript already exists."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            temp_dir = os.path.join(tmpdir, ".tmp_media")
+            os.makedirs(temp_dir, exist_ok=True)
+            ep_title = "Episode 2"
+            ep_title_safe = podcast_scraper.sanitize_filename(ep_title)
+
+            final_path = podcast_scraper.build_whisper_output_path(1, ep_title_safe, None, tmpdir)
+            with open(final_path, "wb") as fh:
+                fh.write(b"existing transcript")
+
+            cfg = self._make_config(output_dir=tmpdir)
+
+            item = ET.Element("item")
+            ET.SubElement(
+                item,
+                "enclosure",
+                attrib={"url": TEST_MEDIA_URL, "type": TEST_MEDIA_TYPE_MP3},
+            )
+
+            with patch("podcast_scraper.http_download_to_file") as mock_download:
+                job = podcast_scraper.download_media_for_transcription(
+                    item,
+                    1,
+                    ep_title,
+                    ep_title_safe,
+                    cfg,
+                    temp_dir,
+                    TEST_FEED_URL,
+                    tmpdir,
+                    None,
+                )
+
+            self.assertIsNone(job)
+            mock_download.assert_not_called()
+
+
 class TestConfigFileSupport(unittest.TestCase):
     """Tests for configuration file loading."""
 
@@ -435,6 +530,7 @@ class TestConfigFileSupport(unittest.TestCase):
                 "timeout": 45,
                 "transcribe_missing": True,
                 "prefer_type": ["text/vtt", ".srt"],
+                "skip_existing": True,
             }
             with open(cfg_path, "w", encoding="utf-8") as fh:
                 json.dump(config_data, fh)
@@ -443,6 +539,7 @@ class TestConfigFileSupport(unittest.TestCase):
             self.assertEqual(args.timeout, 45)
             self.assertTrue(args.transcribe_missing)
             self.assertEqual(args.prefer_type, ["text/vtt", ".srt"])
+            self.assertTrue(args.skip_existing)
             self.assertEqual(args.rss, TEST_FEED_URL)
 
     def test_cli_overrides_config(self):
@@ -506,6 +603,7 @@ prefer_type:
 speaker_names:
   - Host
   - Guest
+skip_existing: true
 """.strip()
             with open(cfg_path, "w", encoding="utf-8") as fh:
                 fh.write(config_text)
@@ -515,6 +613,15 @@ speaker_names:
             self.assertEqual(args.prefer_type, ["text/plain"])
             self.assertEqual(args.speaker_names, "Host,Guest")
             self.assertEqual(args.rss, "https://example.com/feed.yaml")
+            self.assertTrue(args.skip_existing)
+
+    def test_skip_existing_and_clean_output_flags(self):
+        """CLI flags are parsed for resume/reset behaviour."""
+        args = podcast_scraper.parse_args(
+            [TEST_FEED_URL, "--skip-existing", "--clean-output"]
+        )
+        self.assertTrue(args.skip_existing)
+        self.assertTrue(args.clean_output)
 
 
 class TestFormatScreenplay(unittest.TestCase):

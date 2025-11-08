@@ -100,6 +100,23 @@ def truncate_whisper_title(title: str, *, for_log: bool) -> str:
     return title[:WHISPER_TITLE_MAX_CHARS]
 
 
+def build_whisper_output_name(idx: int, ep_title_safe: str, run_suffix: Optional[str]) -> str:
+    """Return the final transcript filename for Whisper output."""
+    run_tag = f"_{run_suffix}" if run_suffix else ""
+    safe_title = truncate_whisper_title(ep_title_safe, for_log=False)
+    return f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {safe_title}{run_tag}.txt"
+
+
+def build_whisper_output_path(
+    idx: int,
+    ep_title_safe: str,
+    run_suffix: Optional[str],
+    output_dir: str,
+) -> str:
+    """Return the absolute output path for a Whisper transcript."""
+    return os.path.join(output_dir, build_whisper_output_name(idx, ep_title_safe, run_suffix))
+
+
 @dataclass
 class TranscriptionJob:
     idx: int
@@ -125,6 +142,8 @@ class Config(BaseModel):
     run_id: Optional[str] = Field(default=None, alias="run_id")
     log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="log_level")
     workers: int = Field(default=DEFAULT_WORKERS, alias="workers")
+    skip_existing: bool = Field(default=False, alias="skip_existing")
+    clean_output: bool = Field(default=False, alias="clean_output")
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
@@ -564,6 +583,8 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser.add_argument("--num-speakers", type=int, default=DEFAULT_NUM_SPEAKERS, help="Number of speakers to alternate between when formatting screenplay")
     parser.add_argument("--speaker-names", default="", help="Comma-separated speaker names to use instead of SPEAKER 1..N")
     parser.add_argument("--run-id", default=None, help="Optional run identifier to create a unique subfolder under the output directory; use 'auto' for timestamp")
+    parser.add_argument("--skip-existing", action="store_true", help="Skip downloading/transcribing episodes whose output files already exist")
+    parser.add_argument("--clean-output", action="store_true", help="Remove the output directory (or run folder) before processing")
     parser.add_argument("--version", action="store_true", help="Show program version and exit")
     parser.add_argument("--log-level", default=DEFAULT_LOG_LEVEL, type=str.upper, help="Logging level (e.g., DEBUG, INFO, WARNING, ERROR)")
     parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS, help="Number of concurrent worker threads (default: based on CPU cores)")
@@ -819,8 +840,15 @@ def download_media_for_transcription(
     cfg: Config,
     temp_dir: str,
     feed_base_url: str,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
 ) -> Optional[TranscriptionJob]:
     """Download enclosure media for Whisper transcription. Returns a TranscriptionJob."""
+    final_out_path = build_whisper_output_path(idx, ep_title_safe, run_suffix, effective_output_dir)
+    if cfg.skip_existing and os.path.exists(final_out_path):
+        logger.info(f"[{idx}] transcript already exists; skipping (--skip-existing): {final_out_path}")
+        return None
+
     media = find_enclosure_media(item, feed_base_url)
     if not media:
         logger.info(f"[{idx}] no transcript or enclosure for: {ep_title}")
@@ -871,6 +899,15 @@ def transcribe_media_to_text(
             logger.warning(f"    failed to remove temp media file {temp_media}: {e}")
         return False
 
+    out_path = build_whisper_output_path(job.idx, job.ep_title_safe, run_suffix, effective_output_dir)
+    if cfg.skip_existing and os.path.exists(out_path):
+        logger.info(f"    transcript already exists, skipping (--skip-existing): {out_path}")
+        try:
+            os.remove(temp_media)
+        except OSError as e:
+            logger.warning(f"    failed to remove temp media file {temp_media}: {e}")
+        return False
+
     try:
         result, tc_elapsed = transcribe_with_whisper(whisper_model, temp_media, cfg)
         text = (result.get("text") or "").strip()
@@ -885,10 +922,6 @@ def transcribe_media_to_text(
                 logger.warning(f"    failed to format as screenplay, using plain transcript: {e}")
         if not text:
             raise RuntimeError("empty transcription")
-        run_tag = f"_{run_suffix}" if run_suffix else ""
-        safe_title = truncate_whisper_title(job.ep_title_safe, for_log=False)
-        out_name = f"{job.idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {safe_title}{run_tag}.txt"
-        out_path = os.path.join(effective_output_dir, out_name)
         write_file(out_path, text.encode("utf-8"))
         logger.info(f"    saved transcript: {out_path} (transcribed in {tc_elapsed:.1f}s)")
         return True
@@ -913,6 +946,15 @@ def process_transcript_download(
     run_suffix: Optional[str],
 ) -> bool:
     """Download and save transcript. Returns True if successful."""
+    run_tag = f"_{run_suffix}" if run_suffix else ""
+    base_name = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {ep_title_safe}{run_tag}"
+    if cfg.skip_existing:
+        existing_matches = list(Path(effective_output_dir).glob(f"{base_name}*"))
+        for candidate in existing_matches:
+            if candidate.is_file():
+                logger.info(f"    transcript already exists, skipping (--skip-existing): {candidate}")
+                return False
+
     logger.info(f"[{idx}] downloading transcript: {ep_title} -> {transcript_url}")
 
     data, ctype = http_get(transcript_url, cfg.user_agent, cfg.timeout)
@@ -924,9 +966,11 @@ def process_transcript_download(
     ext = derive_transcript_extension(transcript_type, ctype, transcript_url)
 
     # Include run identifier in filename for easy comparison across runs
-    run_tag = f"_{run_suffix}" if run_suffix else ""
-    out_name = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {ep_title_safe}{run_tag}{ext}"
+    out_name = f"{base_name}{ext}"
     out_path = os.path.join(effective_output_dir, out_name)
+    if cfg.skip_existing and os.path.exists(out_path):
+        logger.info(f"    transcript already exists, skipping (--skip-existing): {out_path}")
+        return False
     try:
         write_file(out_path, data)
         logger.info(f"    saved: {out_path}")
@@ -971,6 +1015,8 @@ def process_episode_download(
             cfg,
             temp_dir,
             feed_base_url,
+            effective_output_dir,
+            run_suffix,
         )
         if job:
             if transcription_jobs_lock:
@@ -1049,6 +1095,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         "run_id": args.run_id,
         "log_level": args.log_level,
         "workers": args.workers,
+        "skip_existing": args.skip_existing,
+        "clean_output": args.clean_output,
     }
     try:
         cfg = Config.model_validate(config_payload)
@@ -1062,6 +1110,17 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         # Setup output directory
         effective_output_dir, run_suffix = setup_output_directory(cfg)
 
+        if cfg.clean_output:
+            try:
+                if os.path.exists(effective_output_dir):
+                    shutil.rmtree(effective_output_dir)
+                    logger.info(f"Removed existing output directory (--clean-output): {effective_output_dir}")
+            except OSError as e:
+                logger.error(f"Failed to clean output directory {effective_output_dir}: {e}")
+                return 1
+
+        os.makedirs(effective_output_dir, exist_ok=True)
+
         try:
             logger.info("Starting podcast transcript scrape")
             logger.info(f"  rss: {cfg.rss_url}")
@@ -1069,6 +1128,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             logger.info(f"  max_episodes: {cfg.max_episodes or 'all'}")
             logger.info(f"  log_level: {cfg.log_level}")
             logger.info(f"  workers: {cfg.workers}")
+            logger.info(f"  skip_existing: {cfg.skip_existing}")
+            logger.info(f"  clean_output: {cfg.clean_output}")
         except (IOError, OSError) as e:
             logger.warning(f"Failed to write startup message: {e}")
 

@@ -127,6 +127,9 @@ python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --w
 # Creates: output_rss_.../run_whisper_base/
 # Or with explicit run-id: output_rss_.../run_my_experiment_whisper_base/
 # Filenames also include run identifier: "0001 - Episode Title_whisper_base.txt"
+
+# Resume a run, skipping already-downloaded transcripts
+python3 podcast_scraper.py https://example.com/feed.xml --skip-existing
 ```
 
 ## Options
@@ -144,6 +147,8 @@ python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --w
 - `--num-speakers` (int): Number of speakers to alternate between (default: 2)
 - `--speaker-names` (str): Comma-separated names to label speakers
 - `--run-id` (str): Create a subfolder under output dir for this run; use `auto` to timestamp
+- `--skip-existing`: Skip episodes whose transcript output already exists (resume capability)
+- `--clean-output`: Remove the target output directory/run folder before processing (fresh start)
 
 ## Notes
 
@@ -153,4 +158,5 @@ python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --w
 - Whisper transcription is optional. If you want this feature within the venv:
   - `bash setup_venv.sh` (installs `openai-whisper` into `.venv`)
   - `brew install ffmpeg` (macOS) or install ffmpeg for your OS
+- Combine `--skip-existing` to resume long runs and `--clean-output` to force a fresh transcription/output pass.
 
