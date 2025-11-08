@@ -68,6 +68,34 @@ source .venv/bin/activate
 .venv/bin/python podcast_scraper.py <rss_url> [options]
 ```
 
+### Docker
+
+You can run the scraper in an isolated container. Build the image from the project root:
+
+```bash
+docker build -t podcast-scraper -f podcast_scraper/Dockerfile podcast_scraper
+```
+
+Run the container, mounting a host directory so transcripts persist outside the container:
+
+```bash
+mkdir -p output_docker
+docker run --rm \
+  -v "$(pwd)/output_docker:/app/output" \
+  podcast-scraper \
+  https://example.com/feed.xml --output-dir /app/output
+```
+
+Configuration files can be mounted in the same way:
+
+```bash
+docker run --rm \
+  -v "$(pwd)/output_docker:/app/output" \
+  -v "$(pwd)/podcast_scraper/config.lenny.yaml:/app/config.yaml:ro" \
+  podcast-scraper \
+  --config /app/config.yaml --output-dir /app/output
+```
+
 ### Examples
 
 ```bash
