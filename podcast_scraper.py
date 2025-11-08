@@ -39,6 +39,7 @@ DEFAULT_USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/119.0 Safari/537.36"
 )
+DEFAULT_USER_AGENT_OVERRIDE_WARNED = False
 DEFAULT_WORKERS = max(1, min(8, os.cpu_count() or 4))
 DOWNLOAD_CHUNK_SIZE = 1024 * 256  # 256KB chunks for file downloads
 EPISODE_NUMBER_FORMAT_WIDTH = 4  # Width for episode number formatting (e.g., 0001)
@@ -46,9 +47,9 @@ MIN_NUM_SPEAKERS = 1  # Minimum number of speakers
 MIN_TIMEOUT_SECONDS = 1  # Minimum allowed timeout value
 MS_TO_SECONDS = 1000.0  # Milliseconds to seconds conversion factor
 TEMP_DIR_NAME = ".tmp_media"  # Name of temporary directory for media files
-TEMP_MEDIA_TITLE_MAX_CHARS = 28  # Max characters from sanitized title used in temp media filename
 TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"  # Format for auto-generated run IDs
 URL_HASH_LENGTH = 8  # Length of hash suffix in output directory names
+WHISPER_TITLE_MAX_CHARS = 32  # Max characters used when referencing episode titles for Whisper processing
 
 # Set up logging to stderr
 logging.basicConfig(
@@ -81,7 +82,14 @@ REQUEST_SESSION = requests.Session()
 
 XML_Element = ET.Element
 
-DEFAULT_USER_AGENT_OVERRIDE_WARNED = False
+
+def truncate_whisper_title(title: str, *, for_log: bool) -> str:
+    """Truncate episode titles consistently for Whisper filenames and logs."""
+    if len(title) <= WHISPER_TITLE_MAX_CHARS:
+        return title
+    if for_log and WHISPER_TITLE_MAX_CHARS > 1:
+        return f"{title[: WHISPER_TITLE_MAX_CHARS - 1]}…"
+    return title[:WHISPER_TITLE_MAX_CHARS]
 
 
 @dataclass
@@ -761,13 +769,14 @@ def download_media_for_transcription(
         return None
 
     media_url, media_type = media
-    logger.info(f"[{idx}] no transcript; downloading media for Whisper: {ep_title}")
+    display_title = truncate_whisper_title(ep_title, for_log=True)
+    logger.info(f"[{idx}] no transcript; downloading media for Whisper: {display_title}")
 
     # Derive extension from media type or URL
     ext = derive_media_extension(media_type, media_url)
 
     ep_num_str = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d}"
-    short_title = ep_title_safe[:TEMP_MEDIA_TITLE_MAX_CHARS]
+    short_title = truncate_whisper_title(ep_title_safe, for_log=False)
     title_hash_input = f"{media_url}|{idx}|{cfg.rss_url}"
     title_hash = hashlib.sha1(title_hash_input.encode("utf-8")).hexdigest()[:6]
     temp_media = os.path.join(temp_dir, f"{ep_num_str}_{short_title}_{title_hash}{ext}")
