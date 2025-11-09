@@ -13,7 +13,7 @@ import threading
 import time
 import warnings
 import xml.etree.ElementTree as ET
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -28,6 +28,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from requests.utils import requote_uri
 from tqdm import tqdm
 from urllib3.util.retry import Retry
+import yaml
 
 __version__ = "1.0.0"
 
@@ -44,7 +45,6 @@ DEFAULT_USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/119.0 Safari/537.36"
 )
-DEFAULT_USER_AGENT_OVERRIDE_WARNED = False
 DEFAULT_WORKERS = max(1, min(8, os.cpu_count() or 4))
 DOWNLOAD_CHUNK_SIZE = 1024 * 256  # 256KB chunks for file downloads
 EPISODE_NUMBER_FORMAT_WIDTH = 4  # Width for episode number formatting (e.g., 0001)
@@ -237,6 +237,27 @@ class Config(BaseModel):
         if value is None:
             return ""
         return str(value).strip()
+
+    @field_validator("whisper_model", mode="after")
+    @classmethod
+    def _validate_whisper_model(cls, value: str) -> str:
+        valid_models = (
+            "tiny",
+            "base",
+            "small",
+            "medium",
+            "large",
+            "large-v2",
+            "large-v3",
+            "tiny.en",
+            "base.en",
+            "small.en",
+            "medium.en",
+            "large.en",
+        )
+        if value and value not in valid_models:
+            raise ValueError(f"whisper_model must be one of {valid_models}, got: {value}")
+        return value
 
     @field_validator("log_level", mode="before")
     @classmethod
@@ -434,12 +455,6 @@ def load_config_file(path: str) -> Dict[str, Any]:
         except json.JSONDecodeError as exc:
             raise ValueError(f"Invalid JSON config file {resolved}: {exc}") from exc
     elif suffix in (".yaml", ".yml"):
-        try:
-            import yaml  # type: ignore
-        except ImportError as exc:
-            raise ValueError(
-                "YAML config requires PyYAML; install with 'pip install pyyaml'."
-            ) from exc
         try:
             data = yaml.safe_load(text)
         except yaml.YAMLError as exc:  # type: ignore[attr-defined]
@@ -692,14 +707,8 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         args = parser.parse_args(argv)
         if not args.rss:
             raise ValueError("RSS URL is required (provide in config as 'rss' or via CLI)")
-        if args.version:
-            print(f"podcast_scraper {__version__}")
-            raise SystemExit(0)
     else:
         args = parser.parse_args(argv)
-        if args.version:
-            print(f"podcast_scraper {__version__}")
-            raise SystemExit(0)
 
     validate_args(args)
     return args
@@ -1023,15 +1032,6 @@ def transcribe_media_to_text(
             logger.warning(f"    failed to remove temp media file {temp_media}: {e}")
         return False
 
-    out_path = build_whisper_output_path(job.idx, job.ep_title_safe, run_suffix, effective_output_dir)
-    if cfg.skip_existing and os.path.exists(out_path):
-        logger.info(f"    transcript already exists, skipping (--skip-existing): {out_path}")
-        try:
-            os.remove(temp_media)
-        except OSError as e:
-            logger.warning(f"    failed to remove temp media file {temp_media}: {e}")
-        return False
-
     try:
         result, tc_elapsed = transcribe_with_whisper(whisper_model, temp_media, cfg)
         text = (result.get("text") or "").strip()
@@ -1046,6 +1046,7 @@ def transcribe_media_to_text(
                 logger.warning(f"    failed to format as screenplay, using plain transcript: {e}")
         if not text:
             raise RuntimeError("empty transcription")
+        out_path = build_whisper_output_path(job.idx, job.ep_title_safe, run_suffix, effective_output_dir)
         write_file(out_path, text.encode("utf-8"))
         logger.info(f"    saved transcript: {out_path} (transcribed in {tc_elapsed:.1f}s)")
         return True
@@ -1240,135 +1241,137 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     apply_log_level(cfg.log_level)
 
-    try:
-        # Setup output directory
-        effective_output_dir, run_suffix = setup_output_directory(cfg)
+    # Setup output directory
+    effective_output_dir, run_suffix = setup_output_directory(cfg)
 
-        if cfg.clean_output and cfg.dry_run:
+    if cfg.clean_output and cfg.dry_run:
+        if os.path.exists(effective_output_dir):
+            logger.info(
+                f"Dry-run: would remove existing output directory (--clean-output): {effective_output_dir}"
+            )
+    elif cfg.clean_output:
+        try:
             if os.path.exists(effective_output_dir):
-                logger.info(
-                    f"Dry-run: would remove existing output directory (--clean-output): {effective_output_dir}"
-                )
-        elif cfg.clean_output:
-            try:
-                if os.path.exists(effective_output_dir):
-                    shutil.rmtree(effective_output_dir)
-                    logger.info(f"Removed existing output directory (--clean-output): {effective_output_dir}")
-            except OSError as e:
-                logger.error(f"Failed to clean output directory {effective_output_dir}: {e}")
-                return 1
-
-        if cfg.dry_run:
-            logger.info(f"Dry-run: not creating output directory {effective_output_dir}")
-        else:
-            os.makedirs(effective_output_dir, exist_ok=True)
-
-        try:
-            logger.info("Starting podcast transcript scrape")
-            logger.info(f"  rss: {cfg.rss_url}")
-            logger.info(f"  output_dir: {effective_output_dir}")
-            logger.info(f"  max_episodes: {cfg.max_episodes or 'all'}")
-            logger.info(f"  log_level: {cfg.log_level}")
-            logger.info(f"  workers: {cfg.workers}")
-            logger.info(f"  skip_existing: {cfg.skip_existing}")
-            logger.info(f"  clean_output: {cfg.clean_output}")
-            logger.info(f"  dry_run: {cfg.dry_run}")
-        except (IOError, OSError) as e:
-            logger.warning(f"Failed to write startup message: {e}")
-
-        # Fetch and parse RSS feed
-        try:
-            feed_title, items, feed_base_url = fetch_and_parse_rss(cfg)
-        except ValueError as e:
-            logger.error(f"{e}")
+                shutil.rmtree(effective_output_dir)
+                logger.info(f"Removed existing output directory (--clean-output): {effective_output_dir}")
+        except OSError as e:
+            logger.error(f"Failed to clean output directory {effective_output_dir}: {e}")
             return 1
 
-        total_items = len(items)
-        if cfg.max_episodes is not None:
-            items = items[: cfg.max_episodes]
+    if cfg.dry_run:
+        logger.info(f"Dry-run: not creating output directory {effective_output_dir}")
+    else:
+        os.makedirs(effective_output_dir, exist_ok=True)
 
-        logger.info(f"Episodes to process: {len(items)} of {total_items}")
+    try:
+        logger.info("Starting podcast transcript scrape")
+        logger.info(f"  rss: {cfg.rss_url}")
+        logger.info(f"  output_dir: {effective_output_dir}")
+        logger.info(f"  max_episodes: {cfg.max_episodes or 'all'}")
+        logger.info(f"  log_level: {cfg.log_level}")
+        logger.info(f"  workers: {cfg.workers}")
+        logger.info(f"  skip_existing: {cfg.skip_existing}")
+        logger.info(f"  clean_output: {cfg.clean_output}")
+        logger.info(f"  dry_run: {cfg.dry_run}")
+    except (IOError, OSError) as e:
+        logger.warning(f"Failed to write startup message: {e}")
 
-        # Load Whisper model once if transcription is enabled
-        whisper_model = None
-        if cfg.transcribe_missing and not cfg.dry_run:
-            whisper_model = load_whisper_model(cfg)
+    # Fetch and parse RSS feed
+    try:
+        feed_title, items, feed_base_url = fetch_and_parse_rss(cfg)
+    except ValueError as e:
+        logger.error(f"{e}")
+        return 1
 
-        # Create temp directory once if transcription is enabled
-        temp_dir = None
-        if cfg.transcribe_missing:
-            temp_dir = os.path.join(effective_output_dir, TEMP_DIR_NAME)
-            if not cfg.dry_run:
-                os.makedirs(temp_dir, exist_ok=True)
+    total_items = len(items)
+    if cfg.max_episodes is not None:
+        items = items[: cfg.max_episodes]
 
-        transcription_jobs: List[TranscriptionJob] = []
-        transcription_jobs_lock = threading.Lock() if cfg.workers > 1 else None
+    logger.info(f"Episodes to process: {len(items)} of {total_items}")
 
+    # Load Whisper model once if transcription is enabled
+    whisper_model = None
+    if cfg.transcribe_missing and not cfg.dry_run:
+        whisper_model = load_whisper_model(cfg)
+
+    # Create temp directory once if transcription is enabled
+    temp_dir = None
+    if cfg.transcribe_missing:
+        temp_dir = os.path.join(effective_output_dir, TEMP_DIR_NAME)
+        if not cfg.dry_run:
+            os.makedirs(temp_dir, exist_ok=True)
+
+    transcription_jobs: List[TranscriptionJob] = []
+    transcription_jobs_lock = threading.Lock() if cfg.workers > 1 else None
+    saved_counter_lock = threading.Lock() if cfg.workers > 1 else None
+
+    saved = 0
+    download_args = [
+        (
+            item,
+            idx,
+            cfg,
+            temp_dir,
+            effective_output_dir,
+            run_suffix,
+            feed_base_url,
+            transcription_jobs,
+            transcription_jobs_lock,
+        )
+        for idx, item in enumerate(items, start=1)
+    ]
+
+    if not download_args:
         saved = 0
-        download_args = [
-            (
-                item,
-                idx,
-                cfg,
-                temp_dir,
-                effective_output_dir,
-                run_suffix,
-                feed_base_url,
-                transcription_jobs,
-                transcription_jobs_lock,
-            )
-            for idx, item in enumerate(items, start=1)
-        ]
-
-        if not download_args:
-            saved = 0
-        elif cfg.workers <= 1 or len(download_args) == 1:
-            for args in download_args:
-                try:
-                    if process_episode_download(*args):
-                        saved += 1
-                except Exception as exc:  # pragma: no cover - defensive
-                    logger.error(f"[{args[1]}] episode processing raised an unexpected error: {exc}")
-        else:
-            with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
-                future_map = {
-                    executor.submit(process_episode_download, *args): args[1] for args in download_args
-                }
-                for future in as_completed(future_map):
-                    idx = future_map[future]
-                    try:
-                        if future.result():
-                            saved += 1
-                    except Exception as exc:  # pragma: no cover - unexpected
-                        logger.error(f"[{idx}] episode processing raised an unexpected error: {exc}")
-
-        # Phase 2: transcription after all downloads complete
-        if transcription_jobs and cfg.transcribe_missing and not cfg.dry_run:
-            logger.info(f"Starting Whisper transcription for {len(transcription_jobs)} episodes")
-            # Whisper's reference Python implementation is not thread-safe, so transcriptions
-            # are processed sequentially even when downloads used multiple workers.
-            for job in transcription_jobs:
-                try:
-                    if transcribe_media_to_text(job, cfg, whisper_model, run_suffix, effective_output_dir):
-                        saved += 1
-                except Exception as exc:  # pragma: no cover - defensive
-                    logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
-
-        # Clean up temp directory if it was created
-        if temp_dir and os.path.exists(temp_dir):
+    elif cfg.workers <= 1 or len(download_args) == 1:
+        for args in download_args:
             try:
-                shutil.rmtree(temp_dir)
-                logger.info(f"Cleaned up temp directory: {temp_dir}")
-            except OSError as e:
-                logger.warning(f"Failed to remove temp directory {temp_dir}: {e}")
+                if process_episode_download(*args):
+                    saved += 1
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.error(f"[{args[1]}] episode processing raised an unexpected error: {exc}")
+    else:
+        with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
+            future_map = {
+                executor.submit(process_episode_download, *args): args[1] for args in download_args
+            }
+            for future in as_completed(future_map):
+                idx = future_map[future]
+                try:
+                    if future.result():
+                        if saved_counter_lock:
+                            with saved_counter_lock:
+                                saved += 1
+                        else:
+                            saved += 1
+                except Exception as exc:  # pragma: no cover - unexpected
+                    logger.error(f"[{idx}] episode processing raised an unexpected error: {exc}")
 
-        if cfg.dry_run:
-            logger.info(f"Dry run complete. transcripts_planned={saved} in {effective_output_dir}")
-        else:
-            logger.info(f"Done. transcripts_saved={saved} in {effective_output_dir}")
-        return 0
-    except Exception:
-        raise
+    # Phase 2: transcription after all downloads complete
+    if transcription_jobs and cfg.transcribe_missing and not cfg.dry_run:
+        logger.info(f"Starting Whisper transcription for {len(transcription_jobs)} episodes")
+        # Whisper's reference Python implementation is not thread-safe, so transcriptions
+        # are processed sequentially even when downloads used multiple workers.
+        for job in transcription_jobs:
+            try:
+                if transcribe_media_to_text(job, cfg, whisper_model, run_suffix, effective_output_dir):
+                    saved += 1
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
+
+    # Clean up temp directory if it was created
+    if temp_dir and os.path.exists(temp_dir):
+        try:
+            shutil.rmtree(temp_dir)
+            logger.info(f"Cleaned up temp directory: {temp_dir}")
+        except OSError as e:
+            logger.warning(f"Failed to remove temp directory {temp_dir}: {e}")
+
+    if cfg.dry_run:
+        logger.info(f"Dry run complete. transcripts_planned={saved} in {effective_output_dir}")
+    else:
+        logger.info(f"Done. transcripts_saved={saved} in {effective_output_dir}")
+    return 0
 
 
 if __name__ == "__main__":
