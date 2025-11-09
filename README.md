@@ -1,6 +1,6 @@
 # Podcast Scraper
 
-Command-line tool that downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Progress logging, configurable run folders, screenplay formatting, and JSON/YAML configuration files make it easy to collect, compare, and archive podcast transcripts.
+Command-line tool that downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Multi-threaded downloads, resumable/cleanable output directories, progress bars, configurable run folders, screenplay formatting, and JSON/YAML configuration files make it easy to collect, compare, and archive podcast transcripts.
 
 ## Requirements
 
@@ -9,6 +9,7 @@ Command-line tool that downloads transcripts for every episode in a podcast RSS 
 - `tqdm`
 - `defusedxml`
 - `platformdirs`
+- `pydantic`
 - `PyYAML` (for YAML config support)
 - Optional: `openai-whisper` and `ffmpeg` when using Whisper fallback transcription
 
@@ -39,7 +40,9 @@ Example `config.json` (see `config.example.json` in the repo):
   "timeout": 45,
   "transcribe_missing": true,
   "prefer_type": ["text/vtt", ".srt"],
-  "run_id": "experiment"
+  "run_id": "experiment",
+  "workers": 4,
+  "skip_existing": true
 }
 ```
 
@@ -53,6 +56,8 @@ prefer_type:
 speaker_names:
   - Host
   - Guest
+workers: 6
+skip_existing: true
 ```
 
 ### Virtual environment (recommended)
@@ -105,6 +110,9 @@ python3 podcast_scraper.py https://example.com/feed.xml
 # Limit number of episodes and add a small delay between requests
 python3 podcast_scraper.py https://example.com/feed.xml --max-episodes 50 --delay-ms 200
 
+# Use multiple download workers (parallelizes media fetching)
+python3 podcast_scraper.py https://example.com/feed.xml --workers 8
+
 # Prefer specific transcript formats (Podcasting 2.0: text/plain, WebVTT, SRT)
 python3 podcast_scraper.py https://example.com/feed.xml --prefer-type text/plain --prefer-type .vtt
 
@@ -147,6 +155,7 @@ python3 podcast_scraper.py https://example.com/feed.xml --skip-existing
 - `--num-speakers` (int): Number of speakers to alternate between (default: 2)
 - `--speaker-names` (str): Comma-separated names to label speakers
 - `--run-id` (str): Create a subfolder under output dir for this run; use `auto` to timestamp
+- `--workers` (int): Number of concurrent download workers (default: 4, Whisper transcription remains sequential)
 - `--skip-existing`: Skip episodes whose transcript output already exists (resume capability)
 - `--clean-output`: Remove the target output directory/run folder before processing (fresh start)
 
@@ -154,9 +163,10 @@ python3 podcast_scraper.py https://example.com/feed.xml --skip-existing
 
 - The scraper detects transcript links via Podcasting 2.0 `podcast:transcript` or `<transcript>` tags.
 - If a feed does not expose transcript URLs, those episodes are skipped.
-- Progress is printed to stderr; saved filenames are logged as they are written.
+- Progress is printed to stderr; per-item progress bars stay visible after completion while detailed logs go to stdout.
 - Whisper transcription is optional. If you want this feature within the venv:
   - `bash setup_venv.sh` (installs `openai-whisper` into `.venv`)
   - `brew install ffmpeg` (macOS) or install ffmpeg for your OS
+- Downloads run in parallel using a worker pool, while Whisper transcription is processed sequentially because the reference implementation is not thread-safe.
 - Combine `--skip-existing` to resume long runs and `--clean-output` to force a fresh transcription/output pass.
 

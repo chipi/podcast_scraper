@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import atexit
 import hashlib
 import json
 import logging
@@ -78,7 +79,33 @@ def apply_log_level(level: str) -> None:
         handler.setLevel(numeric_level)
     logger.setLevel(numeric_level)
 
-REQUEST_SESSION = requests.Session()
+_THREAD_LOCAL = threading.local()
+_SESSION_REGISTRY: List[requests.Session] = []
+_SESSION_REGISTRY_LOCK = threading.Lock()
+
+
+def _get_thread_request_session() -> requests.Session:
+    """Return a thread-local Session so concurrent workers don't share state."""
+    session = getattr(_THREAD_LOCAL, "session", None)
+    if session is None:
+        session = requests.Session()
+        setattr(_THREAD_LOCAL, "session", session)
+        with _SESSION_REGISTRY_LOCK:
+            _SESSION_REGISTRY.append(session)
+    return session
+
+
+def _close_all_sessions() -> None:
+    with _SESSION_REGISTRY_LOCK:
+        for session in _SESSION_REGISTRY:
+            try:
+                session.close()
+            except Exception:  # pragma: no cover - best effort cleanup
+                pass
+        _SESSION_REGISTRY.clear()
+
+
+atexit.register(_close_all_sessions)
 
 XML_Element = ET.Element
 
@@ -751,7 +778,8 @@ def _open_http_request(url: str, user_agent: str, timeout: int, stream: bool = F
     normalized_url = normalize_url(url)
     headers = {"User-Agent": user_agent}
     try:
-        resp = REQUEST_SESSION.get(normalized_url, headers=headers, timeout=timeout, stream=stream)
+        session = _get_thread_request_session()
+        resp = session.get(normalized_url, headers=headers, timeout=timeout, stream=stream)
         resp.raise_for_status()
         return resp
     except requests.RequestException as exc:

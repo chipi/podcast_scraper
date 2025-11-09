@@ -592,7 +592,7 @@ class TestConfigFileSupport(unittest.TestCase):
             self.assertEqual(args.log_level, "DEBUG")
 
     def test_yaml_config_applied(self):
-        """YAML config files should be parsed when PyYAML is available."""
+        """YAML config files are parsed via PyYAML."""
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg_path = os.path.join(tmpdir, "config.yaml")
             config_text = """
