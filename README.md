@@ -174,4 +174,5 @@ python3 podcast_scraper.py https://example.com/feed.xml --skip-existing
   - `bash setup_venv.sh` (installs `openai-whisper` into `.venv`)
   - `brew install ffmpeg` (macOS) or install ffmpeg for your OS
 - Downloads run in parallel using a worker pool, while Whisper transcription is processed sequentially because the reference implementation is not thread-safe.
+- HTTP requests include automatic retries with exponential backoff for transient failures (5 attempts; applies to 429/5xx codes, connects, and reads).
 - Combine `--skip-existing` to resume long runs and `--clean-output` to force a fresh transcription/output pass. Use `--dry-run` to inspect what would happen before launching a full run.

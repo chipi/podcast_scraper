@@ -9,7 +9,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import yaml  # type: ignore
+import requests
+import yaml
 
 # Import the module to test
 import podcast_scraper
@@ -36,6 +37,34 @@ TEST_TRANSCRIPT_TYPE_VTT = "text/vtt"
 TEST_TRANSCRIPT_TYPE_SRT = "text/srt"
 TEST_CONTENT_TYPE_VTT = "text/vtt"
 TEST_CONTENT_TYPE_SRT = "text/srt"
+
+
+class TestHTTPSessionConfiguration(unittest.TestCase):
+    """Tests for HTTP session retry configuration."""
+
+    def test_configure_http_session_mounts_retry_adapters(self):
+        session = requests.Session()
+        try:
+            podcast_scraper._configure_http_session(session)
+            https_adapter = session.get_adapter("https://")
+            http_adapter = session.get_adapter("http://")
+
+            self.assertIsInstance(https_adapter, requests.adapters.HTTPAdapter)
+            self.assertIsInstance(http_adapter, requests.adapters.HTTPAdapter)
+
+            https_retry = https_adapter.max_retries
+            http_retry = http_adapter.max_retries
+
+            self.assertEqual(https_retry.total, podcast_scraper.DEFAULT_HTTP_RETRY_TOTAL)
+            self.assertEqual(http_retry.total, podcast_scraper.DEFAULT_HTTP_RETRY_TOTAL)
+            self.assertEqual(https_retry.backoff_factor, podcast_scraper.DEFAULT_HTTP_BACKOFF_FACTOR)
+            self.assertEqual(http_retry.backoff_factor, podcast_scraper.DEFAULT_HTTP_BACKOFF_FACTOR)
+            self.assertEqual(https_retry.allowed_methods, podcast_scraper.HTTP_RETRY_ALLOWED_METHODS)
+            self.assertEqual(http_retry.allowed_methods, podcast_scraper.HTTP_RETRY_ALLOWED_METHODS)
+            self.assertEqual(set(https_retry.status_forcelist), set(podcast_scraper.HTTP_RETRY_STATUS_CODES))
+            self.assertEqual(set(http_retry.status_forcelist), set(podcast_scraper.HTTP_RETRY_STATUS_CODES))
+        finally:
+            session.close()
 
 
 class TestNormalizeURL(unittest.TestCase):

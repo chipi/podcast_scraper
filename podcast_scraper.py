@@ -22,15 +22,19 @@ from urllib.parse import parse_qs, quote, urlencode, urljoin, urlparse, urlunpar
 from platformdirs import PlatformDirs
 
 import requests
+from requests.adapters import HTTPAdapter
 from defusedxml.ElementTree import ParseError as DefusedXMLParseError, fromstring as safe_fromstring
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from requests.utils import requote_uri
 from tqdm import tqdm
+from urllib3.util.retry import Retry
 
 __version__ = "1.0.0"
 
 # Constants
 BYTES_PER_MB = 1024 * 1024  # Bytes in a megabyte
+DEFAULT_HTTP_BACKOFF_FACTOR = 0.5
+DEFAULT_HTTP_RETRY_TOTAL = 5
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_NUM_SPEAKERS = 2  # Default number of speakers for screenplay formatting
 DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25  # Default gap between speakers for screenplay formatting
@@ -44,6 +48,8 @@ DEFAULT_USER_AGENT_OVERRIDE_WARNED = False
 DEFAULT_WORKERS = max(1, min(8, os.cpu_count() or 4))
 DOWNLOAD_CHUNK_SIZE = 1024 * 256  # 256KB chunks for file downloads
 EPISODE_NUMBER_FORMAT_WIDTH = 4  # Width for episode number formatting (e.g., 0001)
+HTTP_RETRY_ALLOWED_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+HTTP_RETRY_STATUS_CODES = (429, 500, 502, 503, 504)
 MIN_NUM_SPEAKERS = 1  # Minimum number of speakers
 MIN_TIMEOUT_SECONDS = 1  # Minimum allowed timeout value
 MS_TO_SECONDS = 1000.0  # Milliseconds to seconds conversion factor
@@ -84,11 +90,45 @@ _SESSION_REGISTRY: List[requests.Session] = []
 _SESSION_REGISTRY_LOCK = threading.Lock()
 
 
+def _configure_http_session(session: requests.Session) -> None:
+    """Attach retry-enabled HTTP adapters to a session."""
+    class LoggingRetry(Retry):
+        def increment(self, method=None, url=None, *args, **kwargs):
+            new_retry = super().increment(method=method, url=url, *args, **kwargs)
+            attempt = (new_retry.total - new_retry.remaining) + 1 if new_retry.total is not None else "?"
+            reason = kwargs.get("error") or kwargs.get("response")
+            logger.warning(
+                "Retrying HTTP request (attempt %s/%s) %s %s due to %s",
+                attempt,
+                new_retry.total,
+                method or "",
+                url or "",
+                reason,
+            )
+            return new_retry
+
+    retry = LoggingRetry(
+        total=DEFAULT_HTTP_RETRY_TOTAL,
+        read=DEFAULT_HTTP_RETRY_TOTAL,
+        connect=DEFAULT_HTTP_RETRY_TOTAL,
+        status=DEFAULT_HTTP_RETRY_TOTAL,
+        backoff_factor=DEFAULT_HTTP_BACKOFF_FACTOR,
+        status_forcelist=HTTP_RETRY_STATUS_CODES,
+        allowed_methods=HTTP_RETRY_ALLOWED_METHODS,
+        raise_on_status=False,
+    )
+    http_adapter = HTTPAdapter(max_retries=retry)
+    https_adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", http_adapter)
+    session.mount("https://", https_adapter)
+
+
 def _get_thread_request_session() -> requests.Session:
     """Return a thread-local Session so concurrent workers don't share state."""
     session = getattr(_THREAD_LOCAL, "session", None)
     if session is None:
         session = requests.Session()
+        _configure_http_session(session)
         setattr(_THREAD_LOCAL, "session", session)
         with _SESSION_REGISTRY_LOCK:
             _SESSION_REGISTRY.append(session)
