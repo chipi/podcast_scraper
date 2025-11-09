@@ -1,6 +1,6 @@
 # Podcast Scraper
 
-Command-line tool that downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Multi-threaded downloads, resumable/cleanable output directories, progress bars, configurable run folders, screenplay formatting, and JSON/YAML configuration files make it easy to collect, compare, and archive podcast transcripts.
+Command-line tool that downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Multi-threaded downloads, resumable/cleanable output directories, dry-run previews, progress bars, configurable run folders, screenplay formatting, and JSON/YAML configuration files make it easy to collect, compare, and archive podcast transcripts.
 
 ## Requirements
 
@@ -42,7 +42,8 @@ Example `config.json` (see `config.example.json` in the repo):
   "prefer_type": ["text/vtt", ".srt"],
   "run_id": "experiment",
   "workers": 4,
-  "skip_existing": true
+  "skip_existing": true,
+  "dry_run": false
 }
 ```
 
@@ -58,6 +59,7 @@ speaker_names:
   - Guest
 workers: 6
 skip_existing: true
+dry_run: false
 ```
 
 ### Virtual environment (recommended)
@@ -116,6 +118,9 @@ python3 podcast_scraper.py https://example.com/feed.xml --workers 8
 # Prefer specific transcript formats (Podcasting 2.0: text/plain, WebVTT, SRT)
 python3 podcast_scraper.py https://example.com/feed.xml --prefer-type text/plain --prefer-type .vtt
 
+# Preview a run without saving files
+python3 podcast_scraper.py https://example.com/feed.xml --dry-run
+
 # Custom output directory
 python3 podcast_scraper.py https://example.com/feed.xml --output-dir ./my_transcripts
 
@@ -158,6 +163,7 @@ python3 podcast_scraper.py https://example.com/feed.xml --skip-existing
 - `--workers` (int): Number of concurrent download workers (default: 4, Whisper transcription remains sequential)
 - `--skip-existing`: Skip episodes whose transcript output already exists (resume capability)
 - `--clean-output`: Remove the target output directory/run folder before processing (fresh start)
+- `--dry-run`: Print planned downloads/transcriptions without writing files
 
 ## Notes
 
@@ -168,5 +174,4 @@ python3 podcast_scraper.py https://example.com/feed.xml --skip-existing
   - `bash setup_venv.sh` (installs `openai-whisper` into `.venv`)
   - `brew install ffmpeg` (macOS) or install ffmpeg for your OS
 - Downloads run in parallel using a worker pool, while Whisper transcription is processed sequentially because the reference implementation is not thread-safe.
-- Combine `--skip-existing` to resume long runs and `--clean-output` to force a fresh transcription/output pass.
-
+- Combine `--skip-existing` to resume long runs and `--clean-output` to force a fresh transcription/output pass. Use `--dry-run` to inspect what would happen before launching a full run.

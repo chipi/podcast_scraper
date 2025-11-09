@@ -351,6 +351,12 @@ class TestDeriveTranscriptExtension(unittest.TestCase):
         result = podcast_scraper.derive_transcript_extension(None, None, TEST_TRANSCRIPT_URL_SRT)
         self.assertEqual(result, ".srt")
 
+    def test_url_with_query_keeps_extension(self):
+        """URL query parameters should not override file extension."""
+        url = f"{TEST_TRANSCRIPT_URL}?alt=json"
+        result = podcast_scraper.derive_transcript_extension(None, None, url)
+        self.assertEqual(result, ".vtt")
+
     def test_default_extension(self):
         """Test default extension."""
         result = podcast_scraper.derive_transcript_extension(None, None, f"{TEST_BASE_URL}/transcript")
@@ -531,6 +537,7 @@ class TestConfigFileSupport(unittest.TestCase):
                 "transcribe_missing": True,
                 "prefer_type": ["text/vtt", ".srt"],
                 "skip_existing": True,
+                "dry_run": True,
             }
             with open(cfg_path, "w", encoding="utf-8") as fh:
                 json.dump(config_data, fh)
@@ -540,6 +547,7 @@ class TestConfigFileSupport(unittest.TestCase):
             self.assertTrue(args.transcribe_missing)
             self.assertEqual(args.prefer_type, ["text/vtt", ".srt"])
             self.assertTrue(args.skip_existing)
+            self.assertTrue(args.dry_run)
             self.assertEqual(args.rss, TEST_FEED_URL)
 
     def test_cli_overrides_config(self):
@@ -604,6 +612,7 @@ speaker_names:
   - Host
   - Guest
 skip_existing: true
+dry_run: true
 """.strip()
             with open(cfg_path, "w", encoding="utf-8") as fh:
                 fh.write(config_text)
@@ -614,14 +623,16 @@ skip_existing: true
             self.assertEqual(args.speaker_names, "Host,Guest")
             self.assertEqual(args.rss, "https://example.com/feed.yaml")
             self.assertTrue(args.skip_existing)
+            self.assertTrue(args.dry_run)
 
     def test_skip_existing_and_clean_output_flags(self):
         """CLI flags are parsed for resume/reset behaviour."""
         args = podcast_scraper.parse_args(
-            [TEST_FEED_URL, "--skip-existing", "--clean-output"]
+            [TEST_FEED_URL, "--skip-existing", "--clean-output", "--dry-run"]
         )
         self.assertTrue(args.skip_existing)
         self.assertTrue(args.clean_output)
+        self.assertTrue(args.dry_run)
 
 
 class TestFormatScreenplay(unittest.TestCase):
@@ -865,6 +876,53 @@ class TestIntegrationMain(unittest.TestCase):
                     self.assertTrue(observed_timeouts)
                     self.assertTrue(all(timeout == 10 for timeout in observed_timeouts))
                     mock_apply.assert_called_with("DEBUG")
+
+    def test_dry_run_skips_downloads(self):
+        rss_url = "https://example.com/feed.xml"
+        transcript_url = "https://example.com/ep1.txt"
+        rss_xml = f"""<?xml version='1.0'?>
+<rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Integration Feed</title>
+    <item>
+      <title>Episode 1</title>
+      <podcast:transcript url="{transcript_url}" type="text/plain" />
+    </item>
+  </channel>
+</rss>
+""".strip()
+        transcript_text = "Episode 1 transcript"
+        responses = {
+            podcast_scraper.normalize_url(rss_url): MockHTTPResponse(
+                content=rss_xml.encode("utf-8"),
+                url=rss_url,
+                headers={"Content-Type": "application/rss+xml"},
+            ),
+            podcast_scraper.normalize_url(transcript_url): MockHTTPResponse(
+                url=transcript_url,
+                headers={
+                    "Content-Type": "text/plain",
+                    "Content-Length": str(len(transcript_text.encode("utf-8"))),
+                },
+                chunks=[transcript_text.encode("utf-8")],
+            ),
+        }
+
+        with patch("podcast_scraper._open_http_request", side_effect=self._mock_http_map(responses)):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                expected_path = os.path.join(tmpdir, "0001 - Episode 1.txt")
+                with self.assertLogs(podcast_scraper.logger, level="INFO") as log_ctx:
+                    exit_code = podcast_scraper.main([
+                        rss_url,
+                        "--output-dir",
+                        tmpdir,
+                        "--dry-run",
+                    ])
+                self.assertEqual(exit_code, 0)
+                self.assertFalse(os.path.exists(expected_path))
+                log_text = "\n".join(log_ctx.output)
+                self.assertIn("Dry run complete", log_text)
+                self.assertIn("would save as", log_text)
 
 
 if __name__ == "__main__":
