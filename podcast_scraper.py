@@ -813,9 +813,10 @@ def derive_transcript_extension(transcript_type: Optional[str], content_type: Op
             if ext:
                 return ext
 
-        # MIME types like text/vtt or application/json+vtt
+        # MIME types like text/vtt; charset=utf-8 or application/json+vtt
         if "/" in low:
             subtype = low.split("/", 1)[1]
+            subtype = subtype.split(";", 1)[0].strip()
             for token in tokens:
                 if subtype == token or subtype.endswith(f"+{token}"):
                     return f".{token}"
@@ -1368,7 +1369,13 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             logger.warning(f"Failed to remove temp directory {temp_dir}: {e}")
 
     if cfg.dry_run:
-        logger.info(f"Dry run complete. transcripts_planned={saved} in {effective_output_dir}")
+        planned_downloads = saved
+        planned_transcriptions = len(transcription_jobs) if cfg.transcribe_missing else 0
+        planned_total = planned_downloads + planned_transcriptions
+        logger.info(
+            f"Dry run complete. transcripts_planned={planned_total} "
+            f"(direct={planned_downloads}, whisper={planned_transcriptions}) in {effective_output_dir}"
+        )
     else:
         logger.info(f"Done. transcripts_saved={saved} in {effective_output_dir}")
     return 0

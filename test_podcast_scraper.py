@@ -950,7 +950,7 @@ class TestIntegrationMain(unittest.TestCase):
                 self.assertEqual(exit_code, 0)
                 self.assertFalse(os.path.exists(expected_path))
                 log_text = "\n".join(log_ctx.output)
-                self.assertIn("Dry run complete", log_text)
+                self.assertIn("Dry run complete. transcripts_planned=1 (direct=1, whisper=0)", log_text)
                 self.assertIn("would save as", log_text)
 
 
