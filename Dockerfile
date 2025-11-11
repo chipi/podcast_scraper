@@ -15,5 +15,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-ENTRYPOINT ["python", "podcast_scraper.py"]
+ENTRYPOINT ["python", "-m", "podcast_scraper.cli"]
 
