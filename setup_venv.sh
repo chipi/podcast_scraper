@@ -10,5 +10,6 @@ python3 -m venv "$VENV_DIR"
 
 echo "Venv created at: $VENV_DIR"
 echo "To activate: source $VENV_DIR/bin/activate"
-echo "To run: $VENV_DIR/bin/python -m podcast_scraper.cli <rss_url> [options]"
+echo "To run: (cd \"$PROJECT_DIR/..\" && $VENV_DIR/bin/python -m podcast_scraper.cli <rss_url> [options])"
+echo "     or: PYTHONPATH=\"$PROJECT_DIR/..\" $VENV_DIR/bin/python -m podcast_scraper.cli <rss_url> [options]"
 

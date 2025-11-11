@@ -29,6 +29,11 @@ Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. I
 
 ### CLI
 
+> **Tip:** When running from a local clone, execute the command from the
+> repository's parent directory or export `PYTHONPATH` to point to that parent,
+> e.g. `PYTHONPATH=$(pwd)/.. python -m podcast_scraper.cli …` when invoked from
+> the project root.
+
 ```bash
 python3 -m podcast_scraper.cli <rss_url> [options]
 ```
