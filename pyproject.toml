@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=65"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "podcast-scraper"
+version = "2.0.0"
+description = "Download podcast transcripts from RSS feeds with optional Whisper fallback"
+readme = "README.md"
+authors = [{name = "Podcast Scraper Maintainers"}]
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+  "requests>=2.31.0",
+  "tqdm>=4.66.0",
+  "defusedxml>=0.7.1",
+  "platformdirs>=3.11.0",
+  "pydantic>=2.6.0",
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+whisper = [
+  "openai-whisper>=20231117",
+]
+
+dynamic = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["podcast_scraper"]
