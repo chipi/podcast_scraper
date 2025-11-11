@@ -11,21 +11,20 @@ Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. I
 - `platformdirs`
 - `pydantic`
 - `PyYAML` (for YAML config support)
-- Optional: `openai-whisper` and `ffmpeg` when using Whisper fallback transcription
+- `openai-whisper`
+- `ffmpeg` (required by Whisper)
 
 ## Installation
 
-From the repository root:
+Install the package (with Whisper support) from the repository root:
 
 ```bash
-# core dependencies
 pip install -e .
-
-# include Whisper extras (optional)
-pip install -e .[whisper]
 ```
 
-When using a virtual environment, activate it first (see below) and run the same commands.
+Ensure `ffmpeg` is available on your system (e.g., `brew install ffmpeg` on macOS).
+
+When using a virtual environment, activate it first (see below) and run the same command.
 
 ## Project Layout
 
@@ -129,13 +128,13 @@ dry_run: false
 bash setup_venv.sh
 source .venv/bin/activate
 
-# install project into the virtual environment
-pip install -e .[whisper]
+# install project into the virtual environment (includes Whisper)
+pip install -e .
 
 python -m podcast_scraper.cli <rss_url> [options]
 ```
 
-(If Whisper is not required, omit `[whisper]`.)
+(If Whisper is not needed—for example, in constrained environments—install manually via `pip install -e . --config-settings editable_mode=compat` after removing the dependency from `pyproject.toml`.)
 
 ### Docker
 

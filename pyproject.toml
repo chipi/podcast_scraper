@@ -17,14 +17,8 @@ dependencies = [
   "platformdirs>=3.11.0",
   "pydantic>=2.6.0",
   "PyYAML>=6.0",
-]
-
-[project.optional-dependencies]
-whisper = [
   "openai-whisper>=20231117",
 ]
-
-dynamic = []
 
 [tool.setuptools.packages.find]
 where = ["."]

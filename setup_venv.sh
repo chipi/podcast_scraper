@@ -13,6 +13,6 @@ cat <<'INSTRUCTIONS'
 Venv created.
 To activate: source podcast_scraper/.venv/bin/activate
 To run CLI: python -m podcast_scraper.cli <rss_url> [options]
-(Optional) With Whisper extras: pip install podcast-scraper[whisper]
+Ensure ffmpeg is installed (e.g. brew install ffmpeg).
 INSTRUCTIONS
 
