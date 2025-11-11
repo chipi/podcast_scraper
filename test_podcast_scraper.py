@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 
 import requests
 import yaml
+from platformdirs import user_cache_dir, user_data_dir
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -176,6 +177,27 @@ class TestValidateAndNormalizeOutputDir(unittest.TestCase):
                 except OSError:
                     pass
 
+    def test_platformdirs_user_locations_do_not_warn(self):
+        """Paths under platformdirs user data/cache locations should not warn."""
+        candidates = {
+            user_data_dir("podcast_scraper"),
+            user_data_dir("podcast-scraper"),
+            user_cache_dir("podcast_scraper"),
+            user_cache_dir("podcast-scraper"),
+        }
+        for candidate in {c for c in candidates if c}:
+            with self.subTest(candidate=candidate):
+                with patch.object(filesystem.logger, "warning") as mock_warning:
+                    result = filesystem.validate_and_normalize_output_dir(candidate)
+                self.assertIsInstance(result, str)
+                resolved_result = Path(result).resolve()
+                resolved_candidate = Path(candidate).expanduser().resolve()
+                self.assertTrue(
+                    resolved_result == resolved_candidate
+                    or resolved_result.is_relative_to(resolved_candidate)
+                )
+                mock_warning.assert_not_called()
+
 
 class TestDeriveOutputDir(unittest.TestCase):
     """Tests for derive_output_dir function."""
@@ -186,6 +208,7 @@ class TestDeriveOutputDir(unittest.TestCase):
         result = filesystem.derive_output_dir(rss_url, None)
         self.assertIn("output_rss", result)
         self.assertIn("example.com", result)
+        self.assertEqual(result, "output_rss_example.com_6904f1c4")
 
     def test_custom_output_dir(self):
         """Test using custom output directory."""

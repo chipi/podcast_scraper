@@ -343,9 +343,7 @@ def process_episode_download(
             run_suffix,
         )
         if job:
-            if cfg.dry_run:
-                transcription_jobs.append(job)
-            elif transcription_jobs_lock:
+            if transcription_jobs_lock:
                 with transcription_jobs_lock:
                     transcription_jobs.append(job)
             else:

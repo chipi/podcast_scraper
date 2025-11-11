@@ -5,6 +5,7 @@ from __future__ import annotations
 import atexit
 import logging
 import os
+import sys
 import threading
 from typing import List, Optional, Tuple
 
@@ -32,7 +33,7 @@ _SESSION_REGISTRY_LOCK = threading.Lock()
 def should_log_download_summary() -> bool:
     """Return True when explicit download summaries should be emitted."""
     try:
-        return not os.isatty(2)
+        return not sys.stderr.isatty()
     except AttributeError:  # pragma: no cover - very old Python
         return True
 

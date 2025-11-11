@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Optional, Tuple
 from urllib.parse import urlparse
 
+from platformdirs import user_cache_dir, user_data_dir
+
 from . import config
 
 logger = logging.getLogger(__name__)
@@ -19,6 +21,30 @@ TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
 URL_HASH_LENGTH = 8
 WHISPER_TITLE_MAX_CHARS = 32
 EPISODE_NUMBER_FORMAT_WIDTH = 4
+_PLATFORMDIR_APP_NAMES = ("podcast_scraper", "podcast-scraper", "Podcast Scraper")
+
+
+def _platformdirs_safe_roots() -> set[Path]:
+    """Return resolved platformdirs locations considered safe for outputs."""
+
+    roots: set[Path] = set()
+    for getter in (user_data_dir, user_cache_dir):
+        for app_name in _PLATFORMDIR_APP_NAMES:
+            try:
+                location = getter(app_name)
+            except Exception:
+                continue
+            if not location:
+                continue
+            try:
+                resolved = Path(location).expanduser().resolve()
+            except (OSError, RuntimeError):
+                continue
+            roots.add(resolved)
+    return roots
+
+
+_PLATFORMDIR_SAFE_ROOTS = _platformdirs_safe_roots()
 
 
 def sanitize_filename(name: str) -> str:
@@ -37,7 +63,7 @@ def sanitize_filename(name: str) -> str:
 
 def write_file(path: str, data: bytes) -> None:
     """Persist arbitrary bytes to disk, creating parent directories as needed."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "wb") as handle:
         handle.write(data)
 
@@ -53,7 +79,7 @@ def validate_and_normalize_output_dir(path: str) -> str:
     except (OSError, RuntimeError) as exc:
         raise ValueError(f"Invalid output directory path: {path} ({exc})")
 
-    safe_roots = {Path.cwd().resolve(), Path.home().resolve()}
+    safe_roots = {Path.cwd().resolve(), Path.home().resolve(), *_PLATFORMDIR_SAFE_ROOTS}
     if any(resolved == root or resolved.is_relative_to(root) for root in safe_roots):
         return str(resolved)
 
@@ -70,7 +96,7 @@ def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
     parsed = urlparse(rss_url)
     base = parsed.netloc or "feed"
     safe_base = sanitize_filename(base)
-    digest = hashlib.sha256(rss_url.encode("utf-8")).hexdigest()
+    digest = hashlib.sha1(rss_url.encode("utf-8")).hexdigest()
     return f"output_rss_{safe_base}_{digest[:URL_HASH_LENGTH]}"
 
 
