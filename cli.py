@@ -5,13 +5,16 @@ from __future__ import annotations
 import argparse
 import logging
 from contextlib import contextmanager
-from typing import Any, ContextManager, Dict, Iterable, Iterator, List, Optional, Callable, Tuple
+from typing import TYPE_CHECKING, Any, ContextManager, Dict, Iterable, Iterator, List, Optional, Callable, Tuple
 from urllib.parse import urlparse
 
 import yaml
 from pydantic import ValidationError
 
 from . import config, filesystem, progress, workflow
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    import tqdm
 
 __version__ = "2.0.0"
 
