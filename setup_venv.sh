@@ -10,5 +10,5 @@ python3 -m venv "$VENV_DIR"
 
 echo "Venv created at: $VENV_DIR"
 echo "To activate: source $VENV_DIR/bin/activate"
-echo "To run: $VENV_DIR/bin/python $PROJECT_DIR/podcast_scraper.py <rss_url> [options]"
+echo "To run: $VENV_DIR/bin/python -m podcast_scraper.cli <rss_url> [options]"
 

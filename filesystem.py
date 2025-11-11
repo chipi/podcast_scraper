@@ -1,0 +1,134 @@
+"""Filesystem utilities for podcast_scraper."""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+import os
+import time
+from pathlib import Path
+from typing import Optional, Tuple
+from urllib.parse import urlparse
+
+from . import config
+
+logger = logging.getLogger(__name__)
+
+TEMP_DIR_NAME = ".tmp_media"
+TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
+URL_HASH_LENGTH = 8
+WHISPER_TITLE_MAX_CHARS = 32
+EPISODE_NUMBER_FORMAT_WIDTH = 4
+
+
+def sanitize_filename(name: str) -> str:
+    """Sanitize strings for safe filename usage."""
+    cleaned = name.replace("\r", " ").replace("\n", " ").replace("\t", " ")
+    cleaned = " ".join(cleaned.split())
+    safe_chars = []
+    for ch in cleaned:
+        if ch.isalnum() or ch in {"_", "-", " ", "."}:
+            safe_chars.append(ch)
+        else:
+            safe_chars.append("_")
+    safe = "".join(safe_chars).strip()
+    return safe or "untitled"
+
+
+def write_file(path: str, data: bytes) -> None:
+    """Persist arbitrary bytes to disk, creating parent directories as needed."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "wb") as handle:
+        handle.write(data)
+
+
+def validate_and_normalize_output_dir(path: str) -> str:
+    """Validate an output directory path and return an absolute, normalized version."""
+    if not path or not path.strip():
+        raise ValueError("Output directory path cannot be empty")
+
+    path_obj = Path(path).expanduser()
+    try:
+        resolved = path_obj.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ValueError(f"Invalid output directory path: {path} ({exc})")
+
+    safe_roots = {Path.cwd().resolve(), Path.home().resolve()}
+    if any(resolved == root or resolved.is_relative_to(root) for root in safe_roots):
+        return str(resolved)
+
+    logger.warning(
+        f"Output directory {resolved} is outside recommended locations (home or app data)."
+    )
+    return str(resolved)
+
+
+def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
+    """Compute the default output directory for an RSS feed."""
+    if override:
+        return validate_and_normalize_output_dir(override)
+    parsed = urlparse(rss_url)
+    base = parsed.netloc or "feed"
+    safe_base = sanitize_filename(base)
+    digest = hashlib.sha256(rss_url.encode("utf-8")).hexdigest()
+    return f"output_rss_{safe_base}_{digest[:URL_HASH_LENGTH]}"
+
+
+def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str]]:
+    """Derive the effective output directory and run suffix for a configuration."""
+    run_suffix: Optional[str] = None
+    if cfg.run_id:
+        run_suffix = (
+            time.strftime(TIMESTAMP_FORMAT)
+            if cfg.run_id.lower() == "auto"
+            else sanitize_filename(cfg.run_id)
+        )
+        if cfg.transcribe_missing:
+            model_part = sanitize_filename(cfg.whisper_model)
+            run_suffix = f"{run_suffix}_whisper_{model_part}" if run_suffix else f"whisper_{model_part}"
+    elif cfg.transcribe_missing:
+        model_part = sanitize_filename(cfg.whisper_model)
+        run_suffix = f"whisper_{model_part}"
+
+    effective_output_dir = (
+        os.path.join(cfg.output_dir, f"run_{run_suffix}") if run_suffix else cfg.output_dir
+    )
+    return effective_output_dir, run_suffix
+
+
+def truncate_whisper_title(title: str, *, for_log: bool, max_len: int = WHISPER_TITLE_MAX_CHARS) -> str:
+    """Shorten episode titles so that Whisper filenames and logs remain manageable."""
+    if len(title) <= max_len:
+        return title
+    if for_log and max_len > 1:
+        return f"{title[: max_len - 1]}…"
+    return title[:max_len]
+
+
+def build_whisper_output_name(idx: int, ep_title_safe: str, run_suffix: Optional[str]) -> str:
+    """Construct the filename for a Whisper transcript, including run suffix if present."""
+    run_tag = f"_{run_suffix}" if run_suffix else ""
+    safe_title = truncate_whisper_title(ep_title_safe, for_log=False)
+    return f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {safe_title}{run_tag}.txt"
+
+
+def build_whisper_output_path(idx: int, ep_title_safe: str, run_suffix: Optional[str], output_dir: str) -> str:
+    """Return the full path where a Whisper transcript should be stored."""
+    return os.path.join(output_dir, build_whisper_output_name(idx, ep_title_safe, run_suffix))
+
+
+__all__ = [
+    "TEMP_DIR_NAME",
+    "TIMESTAMP_FORMAT",
+    "URL_HASH_LENGTH",
+    "WHISPER_TITLE_MAX_CHARS",
+    "EPISODE_NUMBER_FORMAT_WIDTH",
+    "sanitize_filename",
+    "write_file",
+    "validate_and_normalize_output_dir",
+    "derive_output_dir",
+    "setup_output_directory",
+    "truncate_whisper_title",
+    "build_whisper_output_name",
+    "build_whisper_output_path",
+]

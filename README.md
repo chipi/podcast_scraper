@@ -1,6 +1,6 @@
 # Podcast Scraper
 
-Command-line tool that downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Multi-threaded downloads, resumable/cleanable output directories, dry-run previews, progress bars, configurable run folders, screenplay formatting, and JSON/YAML configuration files make it easy to collect, compare, and archive podcast transcripts.
+Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Multi-threaded downloads, resumable/cleanable output directories, dry-run previews, progress bars, configurable run folders, screenplay formatting, and JSON/YAML configuration files make it easy to collect, compare, and archive podcast transcripts.
 
 ## Requirements
 
@@ -13,30 +13,72 @@ Command-line tool that downloads transcripts for every episode in a podcast RSS 
 - `PyYAML` (for YAML config support)
 - Optional: `openai-whisper` and `ffmpeg` when using Whisper fallback transcription
 
-## File
+## Project Layout
 
-- `podcast_scraper.py` — CLI entry point and implementation
+- `podcast_scraper/cli.py` — command-line entry point
+- `podcast_scraper/workflow.py` — high-level orchestration (`run_pipeline`)
+- `podcast_scraper/config.py` — configuration models and file loader
+- `podcast_scraper/downloader.py` — resilient HTTP helpers (`fetch_url`, `http_get`, `http_download_to_file`)
+- `podcast_scraper/filesystem.py` — filesystem utilities and output-directory helpers
+- `podcast_scraper/rss_parser.py` — RSS parsing helpers that build `RssFeed`/`Episode`
+- `podcast_scraper/episode_processor.py` — transcript downloads and Whisper fallbacks
+- `podcast_scraper/whisper.py` — Whisper integration
+- `podcast_scraper/progress.py` — pluggable progress reporting interface
 
 ## Usage
 
-```bash
-python3 podcast_scraper.py <rss_url> [options]
-```
-
-### Configuration file
-
-Common options can be stored in a JSON or YAML file and loaded with `--config`.
-Values from the command line still override the configuration file. When the
-config includes an `rss` entry, the positional argument may be omitted.
+### CLI
 
 ```bash
-python3 podcast_scraper.py --config config.json
+python3 -m podcast_scraper.cli <rss_url> [options]
 ```
 
-Example `config.json` (see `config.example.json` in the repo):
+Examples:
 
+```bash
+# Process all episodes and save transcripts to an auto-named folder
+python3 -m podcast_scraper.cli https://example.com/feed.xml
+
+# Limit episodes and add delay between requests
+python3 -m podcast_scraper.cli https://example.com/feed.xml --max-episodes 50 --delay-ms 200
+
+# Use multiple download workers
+python3 -m podcast_scraper.cli https://example.com/feed.xml --workers 8
+
+# Prefer specific transcript formats
+python3 -m podcast_scraper.cli https://example.com/feed.xml --prefer-type text/plain --prefer-type .vtt
+
+# Preview without writing files
+python3 -m podcast_scraper.cli https://example.com/feed.xml --dry-run
+
+# Custom output directory
+python3 -m podcast_scraper.cli https://example.com/feed.xml --output-dir ./my_transcripts
+
+# Whisper fallback when no transcript exists
+python3 -m podcast_scraper.cli https://example.com/feed.xml --transcribe-missing --whisper-model base
+
+# Screenplay formatting
+python3 -m podcast_scraper.cli https://example.com/feed.xml --transcribe-missing --screenplay \
+  --num-speakers 2 --speaker-names "Host,Guest" --screenplay-gap 1.5
+
+# Separate runs
+python3 -m podcast_scraper.cli https://example.com/feed.xml --run-id auto
+python3 -m podcast_scraper.cli https://example.com/feed.xml --run-id vtt_vs_plain
+
+# Resume skip-existing
+python3 -m podcast_scraper.cli https://example.com/feed.xml --skip-existing
+```
+
+### Configuration Files
+
+```bash
+python3 -m podcast_scraper.cli --config config.json
+```
+
+`config.json`
 ```json
 {
+  "rss": "https://example.com/feed.xml",
   "timeout": 45,
   "transcribe_missing": true,
   "prefer_type": ["text/vtt", ".srt"],
@@ -47,9 +89,9 @@ Example `config.json` (see `config.example.json` in the repo):
 }
 ```
 
-Example `config.yaml` (see `config.example.yaml`; PyYAML is included in `requirements.txt`):
-
+`config.yaml`
 ```yaml
+rss: https://example.com/feed.xml
 timeout: 30
 transcribe_missing: true
 prefer_type:
@@ -62,117 +104,83 @@ skip_existing: true
 dry_run: false
 ```
 
-### Virtual environment (recommended)
-
-Create and use a project-local virtual environment with the one dependency:
+### Virtual Environment
 
 ```bash
 bash setup_venv.sh
-# activate if you prefer
+# activate if needed
 source .venv/bin/activate
 
 # run without activating
-.venv/bin/python podcast_scraper.py <rss_url> [options]
+.venv/bin/python -m podcast_scraper.cli <rss_url> [options]
 ```
 
 ### Docker
 
-You can run the scraper in an isolated container. Build the image from the project root:
-
 ```bash
 docker build -t podcast-scraper -f podcast_scraper/Dockerfile podcast_scraper
-```
 
-Run the container, mounting a host directory so transcripts persist outside the container:
-
-```bash
-mkdir -p output_docker
 docker run --rm \
   -v "$(pwd)/output_docker:/app/output" \
   podcast-scraper \
   https://example.com/feed.xml --output-dir /app/output
 ```
 
-Configuration files can be mounted in the same way:
+Mount configuration:
 
 ```bash
 docker run --rm \
   -v "$(pwd)/output_docker:/app/output" \
-  -v "$(pwd)/podcast_scraper/config.lenny.yaml:/app/config.yaml:ro" \
+  -v "$(pwd)/podcast_scraper/config.yaml:/app/config.yaml:ro" \
   podcast-scraper \
   --config /app/config.yaml --output-dir /app/output
 ```
 
-### Examples
+## Python API
 
-```bash
-# Basic: process all episodes and save transcripts to auto-named folder
-python3 podcast_scraper.py https://example.com/feed.xml
+The top-level package exposes a minimal stable API:
 
-# Limit number of episodes and add a small delay between requests
-python3 podcast_scraper.py https://example.com/feed.xml --max-episodes 50 --delay-ms 200
+```python
+import podcast_scraper
 
-# Use multiple download workers (parallelizes media fetching)
-python3 podcast_scraper.py https://example.com/feed.xml --workers 8
-
-# Prefer specific transcript formats (Podcasting 2.0: text/plain, WebVTT, SRT)
-python3 podcast_scraper.py https://example.com/feed.xml --prefer-type text/plain --prefer-type .vtt
-
-# Preview a run without saving files
-python3 podcast_scraper.py https://example.com/feed.xml --dry-run
-
-# Custom output directory
-python3 podcast_scraper.py https://example.com/feed.xml --output-dir ./my_transcripts
-
-# Transcribe with Whisper when episodes have no transcript
-python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --whisper-model base
-
-# Screenplay-style formatting (alternate speakers by pause gaps)
-python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --screenplay \
-  --num-speakers 2 --speaker-names "Host,Guest" --screenplay-gap 1.5
-
-# Keep results from different runs separate (avoid overwrite)
-python3 podcast_scraper.py https://example.com/feed.xml --run-id auto
-python3 podcast_scraper.py https://example.com/feed.xml --run-id vtt_vs_plain
-
-# When using Whisper, model name is automatically added to run folder
-python3 podcast_scraper.py https://example.com/feed.xml --transcribe-missing --whisper-model base
-# Creates: output_rss_.../run_whisper_base/
-# Or with explicit run-id: output_rss_.../run_my_experiment_whisper_base/
-# Filenames also include run identifier: "0001 - Episode Title_whisper_base.txt"
-
-# Resume a run, skipping already-downloaded transcripts
-python3 podcast_scraper.py https://example.com/feed.xml --skip-existing
+cfg = podcast_scraper.Config(rss="https://example.com/feed.xml", output_dir="./out")
+podcast_scraper.run_pipeline(cfg)
 ```
 
-## Options
+Utilities:
+
+- `podcast_scraper.load_config_file(path)` — parse JSON/YAML configuration
+- `podcast_scraper.run_pipeline(cfg)` — run the full download/transcription pipeline
+- `podcast_scraper.cli.main(argv)` — CLI entry point (also accessible via `python -m podcast_scraper.cli`)
+
+Advanced helpers remain accessible in submodules (`podcast_scraper.downloader.fetch_url`, `podcast_scraper.filesystem.setup_output_directory`, etc.) but the public API documented above is stable.
+
+## Options Summary
 
 - `--output-dir` (path): Output directory (default: `output_rss_<host>_<hash>`)
-- `--max-episodes` (int): Maximum number of episodes to process
-- `--prefer-type` (repeatable): Preferred transcript MIME types or extensions (e.g., `text/plain`, `.vtt`, `.srt`)
+- `--max-episodes` (int): Maximum episodes to process
+- `--prefer-type` (repeatable): Preferred transcript MIME types/extensions
 - `--user-agent` (str): User-Agent header
 - `--timeout` (int): Request timeout in seconds (default: 20)
 - `--delay-ms` (int): Delay between requests in milliseconds
-- `--transcribe-missing`: Use Whisper to transcribe when no transcript is provided
-- `--whisper-model` (str): Whisper model (one of `tiny`, `base`, `small`, `medium`, `large`, `large-v2`, `large-v3`, `tiny.en`, `base.en`, `small.en`, `medium.en`, `large.en`)
-- `--screenplay`: Format Whisper transcript as screenplay with speaker turns
-- `--screenplay-gap` (float): Gap (seconds) to trigger speaker change (default: 1.25)
-- `--num-speakers` (int): Number of speakers to alternate between (default: 2)
-- `--speaker-names` (str): Comma-separated names to label speakers
-- `--run-id` (str): Create a subfolder under output dir for this run; use `auto` to timestamp
-- `--workers` (int): Number of concurrent download workers (default: 4, Whisper transcription remains sequential)
-- `--skip-existing`: Skip episodes whose transcript output already exists (resume capability)
-- `--clean-output`: Remove the target output directory/run folder before processing (fresh start)
-- `--dry-run`: Print planned downloads/transcriptions without writing files
+- `--transcribe-missing`: Use Whisper when no transcript is provided
+- `--whisper-model` (str): Whisper model (`tiny`, `base`, `small`, `medium`, `large`, `large-v2`, `large-v3`, `tiny.en`, `base.en`, `small.en`, `medium.en`, `large.en`)
+- `--screenplay`: Format Whisper transcript as screenplay
+- `--screenplay-gap` (float): Gap (seconds) to trigger speaker change
+- `--num-speakers` (int): Number of speakers to alternate between
+- `--speaker.names` (str): Comma-separated speaker names
+- `--run-id` (str): Subfolder/run identifier (`auto` to timestamp)
+- `--workers` (int): Concurrent download workers (default derives from CPU count)
+- `--skip-existing`: Skip episodes with existing output
+- `--clean-output`: Remove output directory/run folder before processing
+- `--dry-run`: Log planned work without writing files
 
 ## Notes
 
-- The scraper detects transcript links via Podcasting 2.0 `podcast:transcript` or `<transcript>` tags.
-- If a feed does not expose transcript URLs, those episodes are skipped.
-- Progress is printed to stderr; per-item progress bars stay visible after completion while detailed logs go to stdout.
-- Whisper transcription is optional. If you want this feature within the venv:
-  - `bash setup_venv.sh` (installs `openai-whisper` into `.venv`)
-  - `brew install ffmpeg` (macOS) or install ffmpeg for your OS
-- Downloads run in parallel using a worker pool, while Whisper transcription is processed sequentially because the reference implementation is not thread-safe.
-- HTTP requests include automatic retries with exponential backoff for transient failures (5 attempts; applies to 429/5xx codes, connects, and reads).
-- Combine `--skip-existing` to resume long runs and `--clean-output` to force a fresh transcription/output pass. Use `--dry-run` to inspect what would happen before launching a full run.
+- Transcript links are detected via Podcasting 2.0 `podcast:transcript` tags or `<transcript>` elements.
+- Episodes without transcripts are skipped unless `--transcribe-missing` is enabled.
+- Progress integrates with `tqdm` by default; packages embedding the library can override via `podcast_scraper.set_progress_factory`.
+- Whisper transcription requires `openai-whisper` and `ffmpeg`.
+- Downloads run in parallel (with configurable worker count); Whisper transcription remains sequential.
+- Automatic retries handle transient HTTP failures (429/5xx, connect/read errors).
+- Combine `--skip-existing` to resume long runs, `--clean-output` for fresh runs, and `--dry-run` to inspect planned work.
