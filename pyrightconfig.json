@@ -1,9 +1,0 @@
-{
-  "include": ["."],
-  "extraPaths": ["."],
-  "executionEnvironments": [
-    {
-      "root": "."
-    }
-  ]
-}
