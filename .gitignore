@@ -9,3 +9,4 @@ examples.txt
 .coverage
 /dist/
 .vscode/
+site/
