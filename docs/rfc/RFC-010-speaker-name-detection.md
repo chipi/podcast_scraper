@@ -21,7 +21,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
 
 ## Constraints & Assumptions
 
-- Operate primarily on English text (`en_core_web_sm` by default); other languages deferred.
+- Primary language controlled by configuration (default `"en"`). spaCy model selection is driven by the language setting with `en_core_web_sm` as the default.
 - spaCy must be an optional dependency that is installable via existing packaging flow.
 - CLI overrides (`--speaker-names`) take precedence over auto-detection.
 - Default fallback remains `["Host", "Guest"]` when extraction fails.
@@ -30,12 +30,15 @@ Automating speaker name extraction improves UX, increases transcript quality, an
 ## Design & Implementation
 
 1. **Dependency & Configuration**
-   - Add spaCy to runtime dependencies and expose a configurable model name (`cfg.ner_model`, default `en_core_web_sm`).
-   - CLI gains `--ner-model` flag; config supports `ner_model` and `auto_speakers` toggle (default `true`).
+   - Add spaCy to runtime dependencies and expose configurable model selection driven by language:
+     - `cfg.language` (default `"en"`) governing both Whisper transcription language and NER pipeline.
+     - `cfg.ner_model` optional override; default model derived from language (e.g., `"en_core_web_sm"`).
+   - CLI gains `--language` (reused by Whisper) and `--ner-model` flags; config supports `language`, `ner_model`, and `auto_speakers` toggle (default `true`).
+   - Maintain compatibility with existing Whisper language handling; ensure screenplay formatter respects detected language.
 
 2. **Extraction Pipeline**
    - **Step order**: episode title → episode description → feed title/description (for host inference).
-   - Parse PERSON entities via spaCy NER.
+   - Parse PERSON entities via spaCy NER using the configured language/model pair.
    - Maintain two buckets:
      - **Hosts**: recurring names detected across feed-level metadata/episodes.
      - **Guests**: per-episode PERSON names minus identified hosts.
@@ -46,7 +49,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
 
 4. **Integration Points**
    - Extend `models.Episode` or attach metadata with detected guest list.
-   - Whisper transcription: when screenplay formatting is enabled, inject `speaker_names` derived from detection unless CLI overrides exist.
+   - Whisper transcription: when screenplay formatting is enabled, inject `speaker_names` derived from detection unless CLI overrides exist; align transcription language with the configured feed language to preserve accent/locale expectations.
    - Logging/metadata: emit info-level summaries of detected speaker lists for visibility.
 
 5. **Failure Modes**
@@ -64,6 +67,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
 
 - `auto_speakers` (bool, default `true`): master switch for automatic detection.
 - `cache_detected_hosts` (bool, default `true`): toggles host memoization. Document benchmarking plan in RFC to compare runtime.
+- `language_override_enabled` (bool, default `false`): allows experimenting with alternative language auto-detection strategies before making them default.
 
 ## Testing Strategy
 
@@ -93,4 +97,5 @@ Automating speaker name extraction improves UX, increases transcript quality, an
 - spaCy documentation: <https://spacy.io/usage/models>
 - Whisper screenplay formatting logic: `podcast_scraper/whisper.py`
 - Existing RFCs: `docs/rfc/RFC-005-whisper-integration.md`, `docs/rfc/RFC-006-screenplay-formatting.md`
+- Language handling reference: `podcast_scraper/config.py` (existing Whisper language options)
 
