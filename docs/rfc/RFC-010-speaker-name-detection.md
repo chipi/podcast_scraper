@@ -1,0 +1,96 @@
+# RFC-010: Automatic Speaker Name Detection
+
+- **Status**: Draft
+- **Authors**: GPT-5 Codex
+- **Stakeholders**: Maintainers, Whisper integration owners, CLI users
+- **Related PRDs**: `docs/prd/PRD-001-transcript-pipeline.md`, `docs/prd/PRD-002-whisper-fallback.md`
+
+## Abstract
+
+Introduce automatic speaker name detection so Whisper transcriptions can label voices with real host/guest names without requiring manual CLI configuration. The feature relies on spaCy-powered named entity recognition (NER) to extract PERSON entities from RSS metadata (title, description, feed details) and feeds those names into the screenplay formatter and logging pipeline.
+
+## Problem Statement
+
+Currently transcripts default to `Host` / `Guest` unless the user provides `--speaker-names`. That manual step:
+
+- Requires feed-specific knowledge
+- Breaks when episodes have unique guests
+- Adds friction when running at scale or embedding the pipeline
+
+Automating speaker name extraction improves UX, increases transcript quality, and aligns with the product goal of frictionless transcript generation.
+
+## Constraints & Assumptions
+
+- Operate primarily on English text (`en_core_web_sm` by default); other languages deferred.
+- spaCy must be an optional dependency that is installable via existing packaging flow.
+- CLI overrides (`--speaker-names`) take precedence over auto-detection.
+- Default fallback remains `["Host", "Guest"]` when extraction fails.
+- Whisper transcription or screenplay formatting must still work without spaCy (e.g., when dependency missing).
+
+## Design & Implementation
+
+1. **Dependency & Configuration**
+   - Add spaCy to runtime dependencies and expose a configurable model name (`cfg.ner_model`, default `en_core_web_sm`).
+   - CLI gains `--ner-model` flag; config supports `ner_model` and `auto_speakers` toggle (default `true`).
+
+2. **Extraction Pipeline**
+   - **Step order**: episode title → episode description → feed title/description (for host inference).
+   - Parse PERSON entities via spaCy NER.
+   - Maintain two buckets:
+     - **Hosts**: recurring names detected across feed-level metadata/episodes.
+     - **Guests**: per-episode PERSON names minus identified hosts.
+
+3. **Caching Strategy**
+   - Introduce a feature flag (`cfg.cache_detected_hosts`) controlling whether host detection is memoized across episodes within a run.
+   - Provide both code paths (cached vs. per-episode) to allow benchmarking; default can start with caching enabled.
+
+4. **Integration Points**
+   - Extend `models.Episode` or attach metadata with detected guest list.
+   - Whisper transcription: when screenplay formatting is enabled, inject `speaker_names` derived from detection unless CLI overrides exist.
+   - Logging/metadata: emit info-level summaries of detected speaker lists for visibility.
+
+5. **Failure Modes**
+   - If spaCy model missing: warn once and fall back to defaults.
+   - If NER returns >N names, cap at configured limit (default 4) to avoid noise.
+
+## Heuristics
+
+- Treat PERSON entities found in feed-level metadata as hosts (up to a configurable max).
+- For episodes, subtract the host set; remaining names become guests sorted by appearance order.
+- If zero guests detected, preserve host-only labels (`Host`, `Co-Host`, etc.).
+- Allow manual host list override in config (`known_hosts`) to bias classification.
+
+## Feature Flags & Experiments
+
+- `auto_speakers` (bool, default `true`): master switch for automatic detection.
+- `cache_detected_hosts` (bool, default `true`): toggles host memoization. Document benchmarking plan in RFC to compare runtime.
+
+## Testing Strategy
+
+- Unit tests with synthetic RSS samples covering:
+  - Title-only detection (`"Alice interviews Bob"`).
+  - Description-rich detection (multiple guest names).
+  - Feed-level host inference.
+  - CLI override precedence.
+  - spaCy missing/disabled scenarios.
+- Integration smoke test ensuring Whisper screenplay uses detected names end-to-end (gated to skip when spaCy unavailable).
+
+## Rollout Plan
+
+1. Land RFC + implementation behind configuration defaults.
+2. Update README/config docs to describe new options.
+3. Release minor version noting new dependency.
+4. Collect user feedback, adjust heuristics or caching default.
+
+## Open Questions
+
+- Should we persist detected names into output metadata (e.g., JSON sidecar) for downstream tools?
+- Do we need language detection to select an alternate spaCy model automatically?
+- What is the acceptable performance impact for large feeds (e.g., 500 episodes)?
+
+## References
+
+- spaCy documentation: <https://spacy.io/usage/models>
+- Whisper screenplay formatting logic: `podcast_scraper/whisper.py`
+- Existing RFCs: `docs/rfc/RFC-005-whisper-integration.md`, `docs/rfc/RFC-006-screenplay-formatting.md`
+
