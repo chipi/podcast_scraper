@@ -2,6 +2,16 @@
 
 Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Multi-threaded downloads, resumable/cleanable output directories, dry-run previews, progress bars, configurable run folders, screenplay formatting, and JSON/YAML configuration files make it easy to collect, compare, and archive podcast transcripts.
 
+## Documentation
+
+- Live site: [https://chipi.github.io/podcast_scraper/](https://chipi.github.io/podcast_scraper/) — Architecture overview, PRDs, RFCs, and API guides.
+- Local preview:
+  ```bash
+  pip install -r docs/requirements.txt
+  mkdocs serve
+  ```
+  Visit [http://localhost:8000](http://localhost:8000) and edit files under `docs/` to see live updates.
+
 ## Requirements
 
 - Python 3.10+
