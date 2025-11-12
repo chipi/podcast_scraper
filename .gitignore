@@ -1,3 +1,4 @@
+podcast_scraper.egg-info/
 .venv/
 output_*/
 *.pyc

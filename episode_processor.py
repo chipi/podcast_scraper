@@ -18,6 +18,21 @@ from .rss_parser import choose_transcript_url
 logger = logging.getLogger(__name__)
 
 MS_TO_SECONDS = 1000.0
+DEFAULT_MEDIA_EXTENSION = ".bin"
+MEDIA_TYPE_EXTENSION_MAP = {
+    "mpeg": ".mp3",
+    "mp3": ".mp3",
+    "m4a": ".m4a",
+    "mp4": ".m4a",
+    "aac": ".m4a",
+    "ogg": ".ogg",
+    "oga": ".ogg",
+    "wav": ".wav",
+    "webm": ".webm",
+}
+MEDIA_URL_EXTENSION_FALLBACKS = (".mp3", ".m4a", ".mp4", ".aac", ".ogg", ".wav", ".webm")
+TRANSCRIPT_EXTENSION_TOKENS = ("vtt", "srt", "json", "html")
+TITLE_HASH_PREFIX_LENGTH = 6
 
 
 def derive_media_extension(media_type: Optional[str], media_url: str) -> str:
@@ -30,25 +45,16 @@ def derive_media_extension(media_type: Optional[str], media_url: str) -> str:
     Returns:
         File extension with leading dot (e.g., '.mp3')
     """
-    ext = ".bin"
+    ext = DEFAULT_MEDIA_EXTENSION
     if media_type and "/" in media_type:
         ext_guess = media_type.split("/", 1)[1].lower()
-        if ext_guess in ("mpeg", "mp3"):
-            ext = ".mp3"
-        elif ext_guess in ("m4a", "mp4", "aac"):
-            ext = ".m4a"
-        elif ext_guess in ("ogg", "oga"):
-            ext = ".ogg"
-        elif ext_guess in ("wav",):
-            ext = ".wav"
-        elif ext_guess in ("webm",):
-            ext = ".webm"
-    else:
-        low = media_url.lower()
-        for cand in (".mp3", ".m4a", ".mp4", ".aac", ".ogg", ".wav", ".webm"):
-            if low.endswith(cand):
-                ext = cand
-                break
+        mapped_ext = MEDIA_TYPE_EXTENSION_MAP.get(ext_guess)
+        if mapped_ext:
+            return mapped_ext
+    low = media_url.lower()
+    for cand in MEDIA_URL_EXTENSION_FALLBACKS:
+        if low.endswith(cand):
+            return cand
     return ext
 
 
@@ -68,10 +74,8 @@ def derive_transcript_extension(transcript_type: Optional[str], content_type: Op
             return None
         low = candidate.lower()
 
-        tokens = ("vtt", "srt", "json", "html")
-
         def _match_path(path: str) -> Optional[str]:
-            for token in tokens:
+            for token in TRANSCRIPT_EXTENSION_TOKENS:
                 if path.endswith(f".{token}"):
                     return f".{token}"
             return None
@@ -101,7 +105,7 @@ def derive_transcript_extension(transcript_type: Optional[str], content_type: Op
         if "/" in low:
             subtype = low.split("/", 1)[1]
             subtype = subtype.split(";", 1)[0].strip()
-            for token in tokens:
+            for token in TRANSCRIPT_EXTENSION_TOKENS:
                 if subtype == token or subtype.endswith(f"+{token}"):
                     return f".{token}"
             return None
@@ -141,6 +145,7 @@ def download_media_for_transcription(
         return None
 
     if not episode.media_url:
+        logger.debug("[%s] Episode missing media_url; cannot schedule transcription", episode.idx)
         logger.info(f"[{episode.idx}] no transcript or enclosure for: {episode.title}")
         return None
 
@@ -156,7 +161,7 @@ def download_media_for_transcription(
     ep_num_str = f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d}"
     short_title = filesystem.truncate_whisper_title(episode.title_safe, for_log=False)
     title_hash_input = f"{episode.media_url}|{episode.idx}|{cfg.rss_url}"
-    title_hash = hashlib.sha1(title_hash_input.encode("utf-8")).hexdigest()[:6]
+    title_hash = hashlib.sha1(title_hash_input.encode("utf-8")).hexdigest()[:TITLE_HASH_PREFIX_LENGTH]
     temp_media = os.path.join(temp_dir, f"{ep_num_str}_{short_title}_{title_hash}{ext}")
 
     dl_start = time.time()
@@ -276,6 +281,12 @@ def process_transcript_download(
         logger.info(f"    [dry-run] would save as: {out_path}")
         return True
 
+    logger.debug(
+        "[%s] Downloading transcript from %s (planned extension=%s)",
+        episode.idx,
+        transcript_url,
+        planned_ext,
+    )
     logger.info(f"[{episode.idx}] downloading transcript: {episode.title} -> {transcript_url}")
 
     data, ctype = downloader.http_get(transcript_url, cfg.user_agent, cfg.timeout)
@@ -327,6 +338,13 @@ def process_episode_download(
 
     if chosen:
         t_url, t_type = chosen
+        logger.debug(
+            "[%s] Selected transcript candidate %s (type=%s) from %s options",
+            episode.idx,
+            t_url,
+            t_type,
+            len(episode.transcript_urls),
+        )
         success = process_transcript_download(
             episode, t_url, t_type, cfg, effective_output_dir, run_suffix
         )
@@ -335,6 +353,7 @@ def process_episode_download(
         return success
 
     if cfg.transcribe_missing and temp_dir:
+        logger.debug("[%s] No transcript; enqueueing Whisper transcription", episode.idx)
         job = download_media_for_transcription(
             episode,
             cfg,
@@ -348,6 +367,7 @@ def process_episode_download(
                     transcription_jobs.append(job)
             else:
                 transcription_jobs.append(job)
+            logger.debug("[%s] Added transcription job (queue size=%s)", episode.idx, len(transcription_jobs))
             if cfg.delay_ms:
                 time.sleep(cfg.delay_ms / MS_TO_SECONDS)
         return False
@@ -356,4 +376,3 @@ def process_episode_download(
     if cfg.delay_ms:
         time.sleep(cfg.delay_ms / MS_TO_SECONDS)
     return False
-
