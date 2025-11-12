@@ -5,8 +5,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
 import yaml
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_NUM_SPEAKERS = 2
@@ -201,7 +201,9 @@ class Config(BaseModel):
         return workers
 
 
-def load_config_file(path: str) -> Dict[str, Any]:
+def load_config_file(
+    path: str,
+) -> Dict[str, Any]:  # noqa: C901 - file parsing handles multiple formats
     """Load JSON or YAML configuration file and return a dictionary."""
     if not path:
         raise ValueError("Config path cannot be empty")
@@ -238,4 +240,3 @@ def load_config_file(path: str) -> Dict[str, Any]:
         raise ValueError("Config file must contain a mapping/object at the top level")
 
     return data
-

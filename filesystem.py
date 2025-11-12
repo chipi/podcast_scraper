@@ -32,7 +32,7 @@ def _platformdirs_safe_roots() -> set[Path]:
         for app_name in _PLATFORMDIR_APP_NAMES:
             try:
                 location = getter(app_name)
-            except Exception:
+            except Exception:  # nosec B112 - fall back to next candidate on failure
                 continue
             if not location:
                 continue
@@ -96,7 +96,7 @@ def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
     parsed = urlparse(rss_url)
     base = parsed.netloc or "feed"
     safe_base = sanitize_filename(base)
-    digest = hashlib.sha1(rss_url.encode("utf-8")).hexdigest()
+    digest = hashlib.sha1(rss_url.encode("utf-8")).hexdigest()  # nosec B324 - deterministic naming
     return f"output_rss_{safe_base}_{digest[:URL_HASH_LENGTH]}"
 
 
@@ -111,18 +111,26 @@ def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str]]:
         )
         if cfg.transcribe_missing:
             model_part = sanitize_filename(cfg.whisper_model)
-            run_suffix = f"{run_suffix}_whisper_{model_part}" if run_suffix else f"whisper_{model_part}"
+            run_suffix = (
+                f"{run_suffix}_whisper_{model_part}" if run_suffix else f"whisper_{model_part}"
+            )
     elif cfg.transcribe_missing:
         model_part = sanitize_filename(cfg.whisper_model)
         run_suffix = f"whisper_{model_part}"
 
+    output_dir = cfg.output_dir
+    if output_dir is None:
+        raise ValueError("Configuration output_dir must be defined before running the pipeline")
+
     effective_output_dir = (
-        os.path.join(cfg.output_dir, f"run_{run_suffix}") if run_suffix else cfg.output_dir
+        os.path.join(output_dir, f"run_{run_suffix}") if run_suffix else output_dir
     )
     return effective_output_dir, run_suffix
 
 
-def truncate_whisper_title(title: str, *, for_log: bool, max_len: int = WHISPER_TITLE_MAX_CHARS) -> str:
+def truncate_whisper_title(
+    title: str, *, for_log: bool, max_len: int = WHISPER_TITLE_MAX_CHARS
+) -> str:
     """Shorten episode titles so that Whisper filenames and logs remain manageable."""
     if len(title) <= max_len:
         return title
@@ -138,7 +146,9 @@ def build_whisper_output_name(idx: int, ep_title_safe: str, run_suffix: Optional
     return f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - {safe_title}{run_tag}.txt"
 
 
-def build_whisper_output_path(idx: int, ep_title_safe: str, run_suffix: Optional[str], output_dir: str) -> str:
+def build_whisper_output_path(
+    idx: int, ep_title_safe: str, run_suffix: Optional[str], output_dir: str
+) -> str:
     """Return the full path where a Whisper transcript should be stored."""
     return os.path.join(output_dir, build_whisper_output_name(idx, ep_title_safe, run_suffix))
 

@@ -41,6 +41,9 @@ markdown_extensions:
 plugins:
   - search
 extra:
+  version:
+    provider: manual
+    label: v2.0.0
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/chipi

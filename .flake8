@@ -1,0 +1,16 @@
+[flake8]
+max-line-length = 100
+max-complexity = 25
+extend-ignore = E203,W503,E402
+exclude =
+    build,
+    dist,
+    docs,
+    __pycache__,
+    .venv,
+per-file-ignores =
+    __init__.py:F401
+    config.py:C901
+    episode_processor.py:C901
+    workflow.py:C901
+    test_podcast_scraper.py:F401

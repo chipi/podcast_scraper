@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 import threading
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, cast
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -15,6 +15,7 @@ from requests.utils import requote_uri
 from urllib3.util.retry import Retry
 
 from . import progress
+from .progress import ProgressReporter
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ def normalize_url(url: str) -> str:
         logger.debug("Normalized URL %s -> %s", url, normalized)
     else:
         logger.debug("URL %s did not require normalization", url)
-    return normalized
+    return cast(str, normalized)
 
 
 def _configure_http_session(session: requests.Session) -> None:
@@ -97,7 +98,7 @@ def _close_all_sessions() -> None:
         for session in _SESSION_REGISTRY:
             try:
                 session.close()
-            except Exception:  # pragma: no cover - best effort cleanup
+            except Exception:  # pragma: no cover - best effort cleanup  # nosec B110
                 pass
         _SESSION_REGISTRY.clear()
 
@@ -105,7 +106,9 @@ def _close_all_sessions() -> None:
 atexit.register(_close_all_sessions)
 
 
-def _open_http_request(url: str, user_agent: str, timeout: int, *, stream: bool = False) -> Optional[requests.Response]:
+def _open_http_request(
+    url: str, user_agent: str, timeout: int, *, stream: bool = False
+) -> Optional[requests.Response]:
     """Execute an HTTP GET request and return the response if successful."""
     normalized_url = normalize_url(url)
     headers = {"User-Agent": user_agent}
@@ -132,7 +135,9 @@ def _open_http_request(url: str, user_agent: str, timeout: int, *, stream: bool 
         return None
 
 
-def fetch_url(url: str, user_agent: str, timeout: int, *, stream: bool = False) -> Optional[requests.Response]:
+def fetch_url(
+    url: str, user_agent: str, timeout: int, *, stream: bool = False
+) -> Optional[requests.Response]:
     """Public wrapper around the retry-enabled HTTP GET logic."""
 
     return _open_http_request(url, user_agent, timeout, stream=stream)
@@ -165,7 +170,7 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
                 if not chunk:
                     continue
                 body_parts.append(chunk)
-                reporter.update(len(chunk))
+                cast(ProgressReporter, reporter).update(len(chunk))
 
         return b"".join(body_parts), ctype
     except (requests.RequestException, OSError) as exc:
@@ -175,7 +180,9 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
         resp.close()
 
 
-def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str) -> Tuple[bool, int]:
+def http_download_to_file(
+    url: str, user_agent: str, timeout: int, out_path: str
+) -> Tuple[bool, int]:
     """Download content directly to a file path."""
     resp = fetch_url(url, user_agent, timeout, stream=True)
     if resp is None:
@@ -200,17 +207,20 @@ def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str
         )
 
         total_bytes = 0
-        with open(out_path, "wb") as f, progress.progress_context(
-            total_size,
-            f"Downloading {filename}" if filename else "Downloading",
-        ) as reporter:
+        with (
+            open(out_path, "wb") as f,
+            progress.progress_context(
+                total_size,
+                f"Downloading {filename}" if filename else "Downloading",
+            ) as reporter,
+        ):
             for chunk in resp.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
                 if not chunk:
                     continue
                 f.write(chunk)
                 chunk_size = len(chunk)
                 total_bytes += chunk_size
-                reporter.update(chunk_size)
+                cast(ProgressReporter, reporter).update(chunk_size)
         logger.debug("Finished downloading %s (%s bytes written)", url, total_bytes)
         return True, total_bytes
     except (requests.RequestException, OSError) as exc:

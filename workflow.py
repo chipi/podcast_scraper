@@ -7,7 +7,7 @@ import os
 import shutil
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from . import config, filesystem, models, progress, whisper
 from .episode_processor import process_episode_download, transcribe_media_to_text
@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 def apply_log_level(level: str) -> None:
     """Apply logging level to root logger and all handlers.
-    
+
     Args:
         level: Log level string (e.g., 'DEBUG', 'INFO', 'WARNING')
-        
+
     Raises:
         ValueError: If log level is invalid
     """
@@ -41,22 +41,22 @@ def apply_log_level(level: str) -> None:
     logger.setLevel(numeric_level)
 
 
-def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
+def run_pipeline(cfg: config.Config) -> Tuple[int, str]:  # noqa: C901 - orchestrates full pipeline
     """Execute the main podcast scraping pipeline.
-    
+
     This orchestrates the entire workflow:
     1. Setup output directory
     2. Fetch and parse RSS feed
     3. Process episodes (download transcripts or media for transcription)
     4. Transcribe media files using Whisper if needed
     5. Clean up temporary files
-    
+
     Args:
         cfg: Configuration object with all settings
-        
+
     Returns:
         Tuple of (count, summary_message) where count is number of transcripts saved/planned
-        
+
     Raises:
         RuntimeError: If output directory cleanup fails
         ValueError: If RSS fetch or parse fails
@@ -67,15 +67,21 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     if cfg.clean_output and cfg.dry_run:
         if os.path.exists(effective_output_dir):
             logger.info(
-                f"Dry-run: would remove existing output directory (--clean-output): {effective_output_dir}"
+                "Dry-run: would remove existing output directory (--clean-output): %s",
+                effective_output_dir,
             )
     elif cfg.clean_output:
         try:
             if os.path.exists(effective_output_dir):
                 shutil.rmtree(effective_output_dir)
-                logger.info(f"Removed existing output directory (--clean-output): {effective_output_dir}")
+                logger.info(
+                    "Removed existing output directory (--clean-output): %s",
+                    effective_output_dir,
+                )
         except OSError as exc:
-            raise RuntimeError(f"Failed to clean output directory {effective_output_dir}: {exc}") from exc
+            raise RuntimeError(
+                f"Failed to clean output directory {effective_output_dir}: {exc}"
+            ) from exc
 
     if cfg.dry_run:
         logger.info(f"Dry-run: not creating output directory {effective_output_dir}")
@@ -83,9 +89,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         os.makedirs(effective_output_dir, exist_ok=True)
 
     feed = fetch_and_parse_rss(cfg)
-    logger.debug(
-        "Fetched RSS feed title=%s (%s items)", feed.title, len(feed.items)
-    )
+    logger.debug("Fetched RSS feed title=%s (%s items)", feed.title, len(feed.items))
 
     items = feed.items
     total_items = len(items)
@@ -95,7 +99,10 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     logger.info(f"Episodes to process: {len(items)} of {total_items}")
 
     # Create Episode objects from RSS items
-    episodes = [create_episode_from_item(item, idx, feed.base_url) for idx, item in enumerate(items, start=1)]
+    episodes = [
+        create_episode_from_item(item, idx, feed.base_url)
+        for idx, item in enumerate(items, start=1)
+    ]
     logger.debug("Materialized %s episode objects", len(episodes))
 
     whisper_model = None
@@ -138,7 +145,8 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     else:
         with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
             future_map = {
-                executor.submit(process_episode_download, *args): args[0].idx for args in download_args
+                executor.submit(process_episode_download, *args): args[0].idx
+                for args in download_args
             }
             for future in as_completed(future_map):
                 idx = future_map[future]
@@ -159,7 +167,9 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         with progress.progress_context(total_jobs, "Whisper transcription") as reporter:
             jobs_processed = 0
             for job in transcription_jobs:
-                if transcribe_media_to_text(job, cfg, whisper_model, run_suffix, effective_output_dir):
+                if transcribe_media_to_text(
+                    job, cfg, whisper_model, run_suffix, effective_output_dir
+                ):
                     saved += 1
                 reporter.update(1)
                 jobs_processed += 1
@@ -187,9 +197,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             planned_downloads,
             planned_transcriptions,
         )
-        summary = (
-            f"Dry run complete. transcripts_planned={planned_total} "
-            f"(direct={planned_downloads}, whisper={planned_transcriptions}) in {effective_output_dir}"
+        summary = "Dry run complete. transcripts_planned=%s (direct=%s, whisper=%s) in %s" % (
+            planned_total,
+            planned_downloads,
+            planned_transcriptions,
+            effective_output_dir,
         )
         logger.info(summary)
         return planned_total, summary

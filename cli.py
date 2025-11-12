@@ -5,10 +5,19 @@ from __future__ import annotations
 import argparse
 import logging
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, ContextManager, Dict, Iterable, Iterator, List, Optional, Callable, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+)
 from urllib.parse import urlparse
 
-import yaml
 from pydantic import ValidationError
 
 from . import config, filesystem, progress, workflow
@@ -23,6 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class _TqdmProgress:
     """Simple adapter that exposes tqdm's update interface."""
+
     def __init__(self, bar: "tqdm.tqdm") -> None:
         self._bar = bar
 
@@ -60,7 +70,7 @@ def _tqdm_progress(total: Optional[int], description: str) -> Iterator[_TqdmProg
         yield _TqdmProgress(bar)
 
 
-def validate_args(args: argparse.Namespace) -> None:
+def validate_args(args: argparse.Namespace) -> None:  # noqa: C901 - CLI validation is consolidated
     """Validate parsed CLI arguments and raise ValueError when invalid."""
     errors: List[str] = []
 
@@ -101,7 +111,9 @@ def validate_args(args: argparse.Namespace) -> None:
         errors.append(f"--whisper-model must be one of {valid_models}, got: {args.whisper_model}")
 
     if args.screenplay and args.num_speakers < config.MIN_NUM_SPEAKERS:
-        errors.append(f"--num-speakers must be at least {config.MIN_NUM_SPEAKERS}, got: {args.num_speakers}")
+        errors.append(
+            f"--num-speakers must be at least {config.MIN_NUM_SPEAKERS}, got: {args.num_speakers}"
+        )
 
     if args.speaker_names:
         names = [n.strip() for n in args.speaker_names.split(",") if n.strip()]
@@ -121,30 +133,84 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("Invalid input parameters:\n  " + "\n  ".join(errors))
 
 
-def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse CLI arguments, optionally merging configuration file defaults."""
-    parser = argparse.ArgumentParser(description="Download podcast episode transcripts from an RSS feed.")
+    parser = argparse.ArgumentParser(
+        description="Download podcast episode transcripts from an RSS feed."
+    )
     parser.add_argument("--config", default=None, help="Path to configuration file (JSON or YAML)")
     parser.add_argument("rss", nargs="?", default=None, help="Podcast RSS feed URL")
-    parser.add_argument("--output-dir", default=None, help="Output directory (default: output_rss_<host>_<hash>)")
-    parser.add_argument("--max-episodes", type=int, default=None, help="Maximum number of episodes to process")
-    parser.add_argument("--prefer-type", action="append", default=[], help="Preferred transcript types or extensions (repeatable)")
+    parser.add_argument(
+        "--output-dir", default=None, help="Output directory (default: output_rss_<host>_<hash>)"
+    )
+    parser.add_argument(
+        "--max-episodes", type=int, default=None, help="Maximum number of episodes to process"
+    )
+    parser.add_argument(
+        "--prefer-type",
+        action="append",
+        default=[],
+        help="Preferred transcript types or extensions (repeatable)",
+    )
     parser.add_argument("--user-agent", default=config.DEFAULT_USER_AGENT, help="User-Agent header")
-    parser.add_argument("--timeout", type=int, default=config.DEFAULT_TIMEOUT_SECONDS, help="Request timeout in seconds")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=config.DEFAULT_TIMEOUT_SECONDS,
+        help="Request timeout in seconds",
+    )
     parser.add_argument("--delay-ms", type=int, default=0, help="Delay between requests (ms)")
-    parser.add_argument("--transcribe-missing", action="store_true", help="Use Whisper when no transcript is provided")
+    parser.add_argument(
+        "--transcribe-missing",
+        action="store_true",
+        help="Use Whisper when no transcript is provided",
+    )
     parser.add_argument("--whisper-model", default="base", help="Whisper model to use")
-    parser.add_argument("--screenplay", action="store_true", help="Format Whisper transcript as screenplay")
-    parser.add_argument("--screenplay-gap", type=float, default=config.DEFAULT_SCREENPLAY_GAP_SECONDS, help="Gap (seconds) to trigger speaker change")
-    parser.add_argument("--num-speakers", type=int, default=config.DEFAULT_NUM_SPEAKERS, help="Number of speakers to alternate between")
-    parser.add_argument("--speaker-names", default="", help="Comma-separated speaker names to use instead of SPEAKER 1..N")
-    parser.add_argument("--run-id", default=None, help="Optional run identifier; use 'auto' for timestamp")
-    parser.add_argument("--skip-existing", action="store_true", help="Skip episodes whose output already exists")
-    parser.add_argument("--clean-output", action="store_true", help="Remove the output directory before processing")
-    parser.add_argument("--dry-run", action="store_true", help="Show planned work without saving files")
+    parser.add_argument(
+        "--screenplay", action="store_true", help="Format Whisper transcript as screenplay"
+    )
+    parser.add_argument(
+        "--screenplay-gap",
+        type=float,
+        default=config.DEFAULT_SCREENPLAY_GAP_SECONDS,
+        help="Gap (seconds) to trigger speaker change",
+    )
+    parser.add_argument(
+        "--num-speakers",
+        type=int,
+        default=config.DEFAULT_NUM_SPEAKERS,
+        help="Number of speakers to alternate between",
+    )
+    parser.add_argument(
+        "--speaker-names",
+        default="",
+        help="Comma-separated speaker names to use instead of SPEAKER 1..N",
+    )
+    parser.add_argument(
+        "--run-id", default=None, help="Optional run identifier; use 'auto' for timestamp"
+    )
+    parser.add_argument(
+        "--skip-existing", action="store_true", help="Skip episodes whose output already exists"
+    )
+    parser.add_argument(
+        "--clean-output", action="store_true", help="Remove the output directory before processing"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show planned work without saving files"
+    )
     parser.add_argument("--version", action="store_true", help="Show program version and exit")
-    parser.add_argument("--log-level", default=config.DEFAULT_LOG_LEVEL, type=str.upper, help="Logging level (e.g., DEBUG, INFO)")
-    parser.add_argument("--workers", type=int, default=config.DEFAULT_WORKERS, help="Number of concurrent download workers")
+    parser.add_argument(
+        "--log-level",
+        default=config.DEFAULT_LOG_LEVEL,
+        type=str.upper,
+        help="Logging level (e.g., DEBUG, INFO)",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=config.DEFAULT_WORKERS,
+        help="Number of concurrent download workers",
+    )
 
     initial_args, _ = parser.parse_known_args(argv)
 
@@ -212,7 +278,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:
 
 
 def main(
-    argv: Optional[Iterable[str]] = None,
+    argv: Optional[Sequence[str]] = None,
     *,
     apply_log_level_fn: Optional[Callable[[str], None]] = None,
     run_pipeline_fn: Optional[Callable[[config.Config], Tuple[int, str]]] = None,
