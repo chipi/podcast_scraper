@@ -8,7 +8,7 @@ import sys
 import time
 import warnings
 from types import ModuleType
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, cast
 
 from . import config, progress
 
@@ -36,7 +36,9 @@ def format_screenplay_from_segments(
         start = float(segment.get("start") or 0.0)
         end = float(segment.get("end") or start)
         if prev_end is not None and start - prev_end > gap_s:
-            current_speaker_idx = (current_speaker_idx + 1) % max(config.MIN_NUM_SPEAKERS, num_speakers)
+            current_speaker_idx = (current_speaker_idx + 1) % max(
+                config.MIN_NUM_SPEAKERS, num_speakers
+            )
         prev_end = end
         if lines and lines[-1][0] == current_speaker_idx:
             lines[-1] = (lines[-1][0], lines[-1][1] + (" " if lines[-1][1] else "") + text)
@@ -83,7 +85,11 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
             "Whisper model details: device=%s dtype=%s num_params=%s",
             device,
             dtype,
-            getattr(model, "num_parameters", lambda: "n/a")() if callable(getattr(model, "num_parameters", None)) else getattr(model, "num_parameters", "n/a"),
+            (
+                getattr(model, "num_parameters", lambda: "n/a")()
+                if callable(getattr(model, "num_parameters", None))
+                else getattr(model, "num_parameters", "n/a")
+            ),
         )
         is_cpu_device = device_type == "cpu"
         setattr(model, "_is_cpu_device", is_cpu_device)
@@ -94,7 +100,8 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
         return model
     except ImportError:
         logger.warning(
-            "openai-whisper not installed. Install with: pip install openai-whisper && brew install ffmpeg"
+            "openai-whisper not installed. Install with: "
+            "pip install openai-whisper && brew install ffmpeg"
         )
         return None
     except (RuntimeError, OSError) as exc:
@@ -102,7 +109,9 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
         return None
 
 
-def transcribe_with_whisper(whisper_model: Any, temp_media: str, cfg: config.Config) -> Tuple[dict, float]:
+def transcribe_with_whisper(
+    whisper_model: Any, temp_media: str, cfg: config.Config
+) -> Tuple[dict, float]:
     logger.info(f"    transcribing with Whisper ({cfg.whisper_model})...")
     start = time.time()
     with progress.progress_context(None, "Transcribing") as reporter:
@@ -120,10 +129,14 @@ def transcribe_with_whisper(whisper_model: Any, temp_media: str, cfg: config.Con
                     message="FP16 is not supported on CPU",
                     category=UserWarning,
                 )
-                result = whisper_model.transcribe(temp_media, task="transcribe", language="en", verbose=False)
+                result = whisper_model.transcribe(
+                    temp_media, task="transcribe", language="en", verbose=False
+                )
         else:
-            result = whisper_model.transcribe(temp_media, task="transcribe", language="en", verbose=False)
-        reporter.update(1)
+            result = whisper_model.transcribe(
+                temp_media, task="transcribe", language="en", verbose=False
+            )
+        cast(progress.ProgressReporter, reporter).update(1)
     elapsed = time.time() - start
     segments = result.get("segments")
     logger.debug(

@@ -1,6 +1,7 @@
 site_name: Podcast Scraper Docs
 site_description: Architecture, PRDs, and RFCs for the podcast_scraper project
 site_url: https://chipi.github.io/podcast_scraper/
+site_version: 2.0.0
 repo_url: https://github.com/chipi/podcast_scraper
 repo_name: chipi/podcast_scraper
 docs_dir: docs

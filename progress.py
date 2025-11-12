@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Callable, ContextManager, Optional, Protocol
+from typing import Callable, ContextManager, Iterator, Optional, Protocol, cast
 
 
 class ProgressReporter(Protocol):
     """Minimal interface for progress callbacks."""
 
-    def update(self, advance: int) -> None:
-        ...
+    def update(self, advance: int) -> None: ...
 
 
 ProgressFactory = Callable[[Optional[int], str], ContextManager[ProgressReporter]]
@@ -20,7 +19,7 @@ class _NoopProgress:
 
 
 @contextmanager
-def _noop_progress(total: Optional[int], description: str) -> ContextManager[ProgressReporter]:
+def _noop_progress(total: Optional[int], description: str) -> Iterator[ProgressReporter]:
     yield _NoopProgress()
 
 
@@ -35,7 +34,7 @@ def set_progress_factory(factory: Optional[ProgressFactory]) -> None:
 
 
 @contextmanager
-def progress_context(total: Optional[int], description: str) -> ContextManager[ProgressReporter]:
+def progress_context(total: Optional[int], description: str) -> Iterator[ProgressReporter]:
     """Return a context manager yielding the active progress reporter."""
 
     factory = _progress_factory or _noop_progress
@@ -44,7 +43,7 @@ def progress_context(total: Optional[int], description: str) -> ContextManager[P
 
 
 # Backwards compatibility: old public API name
-progress = progress_context
+progress = cast(Callable[[Optional[int], str], ContextManager[ProgressReporter]], progress_context)
 
 
 __all__ = [

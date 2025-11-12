@@ -20,20 +20,50 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: |
+          requirements.txt
+          pyproject.toml
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 pytest
+        pip install \
+          black \
+          isort \
+          flake8 \
+          pytest \
+          pytest-cov \
+          mypy \
+          bandit \
+          pip-audit \
+          build
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -e .
+    - name: Check formatting
+      run: |
+        black --check .
+        isort --check-only .
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
+    - name: Type check with mypy
       run: |
-        pytest
+        mypy .
+    - name: Run security scan with bandit
+      run: |
+        bandit -r podcast_scraper
+    - name: Audit dependencies
+      run: |
+        pip-audit
+    - name: Test with pytest and coverage
+      run: |
+        pytest --cov=podcast_scraper --cov-report=term-missing
+    - name: Build distribution
+      run: |
+        python -m build

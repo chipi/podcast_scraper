@@ -1,18 +1,8 @@
 #!/usr/bin/env python3
 """Tests for podcast_scraper package."""
 
-import json
 import os
 import sys
-import tempfile
-import unittest
-import xml.etree.ElementTree as ET
-from pathlib import Path
-from unittest.mock import Mock, patch
-
-import requests
-import yaml
-from platformdirs import user_cache_dir, user_data_dir
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -20,16 +10,25 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+import json
+import tempfile
+import unittest
+import xml.etree.ElementTree as ET  # nosec B405 - tests construct safe XML elements
+from pathlib import Path
+from unittest.mock import patch
+
+import requests
+from platformdirs import user_cache_dir, user_data_dir
+
 import podcast_scraper
 import podcast_scraper.cli as cli
-from podcast_scraper import downloader
-from podcast_scraper import whisper
-from podcast_scraper import filesystem
-from podcast_scraper import rss_parser
-from podcast_scraper import episode_processor
-from podcast_scraper import workflow
-from podcast_scraper import config as ps_config
-from podcast_scraper import models
+from podcast_scraper import (
+    downloader,
+    episode_processor,
+    filesystem,
+    models,
+    rss_parser,
+)
 
 # Test constants
 TEST_BASE_URL = "https://example.com"
@@ -77,8 +76,12 @@ class TestHTTPSessionConfiguration(unittest.TestCase):
             self.assertEqual(http_retry.backoff_factor, downloader.DEFAULT_HTTP_BACKOFF_FACTOR)
             self.assertEqual(https_retry.allowed_methods, downloader.HTTP_RETRY_ALLOWED_METHODS)
             self.assertEqual(http_retry.allowed_methods, downloader.HTTP_RETRY_ALLOWED_METHODS)
-            self.assertEqual(set(https_retry.status_forcelist), set(downloader.HTTP_RETRY_STATUS_CODES))
-            self.assertEqual(set(http_retry.status_forcelist), set(downloader.HTTP_RETRY_STATUS_CODES))
+            self.assertEqual(
+                set(https_retry.status_forcelist), set(downloader.HTTP_RETRY_STATUS_CODES)
+            )
+            self.assertEqual(
+                set(http_retry.status_forcelist), set(downloader.HTTP_RETRY_STATUS_CODES)
+            )
         finally:
             session.close()
 
@@ -265,7 +268,7 @@ class TestFindTranscriptURLs(unittest.TestCase):
         transcript = ET.SubElement(item, "podcast:transcript")
         transcript.set("url", TEST_TRANSCRIPT_URL)
         transcript.set("type", TEST_TRANSCRIPT_TYPE_VTT)
-        
+
         base_url = TEST_FEED_URL
         result = rss_parser.find_transcript_urls(item, base_url)
         self.assertEqual(len(result), 1)
@@ -277,7 +280,7 @@ class TestFindTranscriptURLs(unittest.TestCase):
         item = ET.Element("item")
         transcript = ET.SubElement(item, "transcript")
         transcript.text = TEST_RELATIVE_TRANSCRIPT
-        
+
         base_url = TEST_FEED_URL
         result = rss_parser.find_transcript_urls(item, base_url)
         self.assertEqual(len(result), 1)
@@ -290,7 +293,7 @@ class TestFindTranscriptURLs(unittest.TestCase):
         transcript1.set("url", TEST_TRANSCRIPT_URL)
         transcript2 = ET.SubElement(item, "podcast:transcript")
         transcript2.set("url", TEST_TRANSCRIPT_URL_SRT)
-        
+
         base_url = TEST_FEED_URL
         result = rss_parser.find_transcript_urls(item, base_url)
         self.assertEqual(len(result), 2)
@@ -305,7 +308,7 @@ class TestFindEnclosureMedia(unittest.TestCase):
         enclosure = ET.SubElement(item, "enclosure")
         enclosure.set("url", TEST_MEDIA_URL)
         enclosure.set("type", TEST_MEDIA_TYPE_MP3)
-        
+
         base_url = TEST_FEED_URL
         result = rss_parser.find_enclosure_media(item, base_url)
         self.assertIsNotNone(result)
@@ -318,7 +321,7 @@ class TestFindEnclosureMedia(unittest.TestCase):
         enclosure = ET.SubElement(item, "enclosure")
         enclosure.set("url", TEST_RELATIVE_MEDIA)
         enclosure.set("type", TEST_MEDIA_TYPE_MP3)
-        
+
         base_url = TEST_FEED_URL
         result = rss_parser.find_enclosure_media(item, base_url)
         self.assertIsNotNone(result)
@@ -367,7 +370,7 @@ class TestExtractEpisodeTitle(unittest.TestCase):
         item = ET.Element("item")
         title = ET.SubElement(item, "title")
         title.text = TEST_EPISODE_TITLE
-        
+
         result_title, result_safe = rss_parser.extract_episode_title(item, 1)
         self.assertEqual(result_title, TEST_EPISODE_TITLE)
         # sanitize_filename preserves spaces, only replaces special chars
@@ -386,7 +389,9 @@ class TestDeriveMediaExtension(unittest.TestCase):
 
     def test_derive_from_media_type(self):
         """Test deriving extension from media type."""
-        result = episode_processor.derive_media_extension(TEST_MEDIA_TYPE_MP3, f"{TEST_BASE_URL}/audio")
+        result = episode_processor.derive_media_extension(
+            TEST_MEDIA_TYPE_MP3, f"{TEST_BASE_URL}/audio"
+        )
         self.assertEqual(result, ".mp3")
 
     def test_derive_from_url(self):
@@ -405,12 +410,16 @@ class TestDeriveTranscriptExtension(unittest.TestCase):
 
     def test_derive_from_transcript_type(self):
         """Test deriving extension from transcript type."""
-        result = episode_processor.derive_transcript_extension(TEST_TRANSCRIPT_TYPE_VTT, None, f"{TEST_BASE_URL}/transcript")
+        result = episode_processor.derive_transcript_extension(
+            TEST_TRANSCRIPT_TYPE_VTT, None, f"{TEST_BASE_URL}/transcript"
+        )
         self.assertEqual(result, ".vtt")
 
     def test_derive_from_content_type(self):
         """Test deriving extension from content type."""
-        result = episode_processor.derive_transcript_extension(None, TEST_CONTENT_TYPE_VTT, f"{TEST_BASE_URL}/transcript")
+        result = episode_processor.derive_transcript_extension(
+            None, TEST_CONTENT_TYPE_VTT, f"{TEST_BASE_URL}/transcript"
+        )
         self.assertEqual(result, ".vtt")
 
     def test_derive_from_url(self):
@@ -426,7 +435,9 @@ class TestDeriveTranscriptExtension(unittest.TestCase):
 
     def test_default_extension(self):
         """Test default extension."""
-        result = episode_processor.derive_transcript_extension(None, None, f"{TEST_BASE_URL}/transcript")
+        result = episode_processor.derive_transcript_extension(
+            None, None, f"{TEST_BASE_URL}/transcript"
+        )
         self.assertEqual(result, ".txt")
 
 
@@ -488,7 +499,7 @@ class TestWriteFile(unittest.TestCase):
         """Test writing a file."""
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp_path = tmp.name
-        
+
         try:
             data = b"test content"
             filesystem.write_file(tmp_path, data)
@@ -646,13 +657,15 @@ class TestConfigFileSupport(unittest.TestCase):
             with open(cfg_path, "w", encoding="utf-8") as fh:
                 json.dump(config_data, fh)
 
-            args = cli.parse_args([
-                "--config",
-                cfg_path,
-                "--timeout",
-                "10",
-                TEST_FEED_URL,
-            ])
+            args = cli.parse_args(
+                [
+                    "--config",
+                    cfg_path,
+                    "--timeout",
+                    "10",
+                    TEST_FEED_URL,
+                ]
+            )
             self.assertEqual(args.timeout, 10)
             self.assertEqual(args.run_id, "from-config")
 
@@ -711,9 +724,7 @@ dry_run: true
 
     def test_skip_existing_and_clean_output_flags(self):
         """CLI flags are parsed for resume/reset behaviour."""
-        args = cli.parse_args(
-            [TEST_FEED_URL, "--skip-existing", "--clean-output", "--dry-run"]
-        )
+        args = cli.parse_args([TEST_FEED_URL, "--skip-existing", "--clean-output", "--dry-run"])
         self.assertTrue(args.skip_existing)
         self.assertTrue(args.clean_output)
         self.assertTrue(args.dry_run)
@@ -846,27 +857,33 @@ class TestIntegrationMain(unittest.TestCase):
 
         http_mock = self._mock_http_map(responses)
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
-            with patch("podcast_scraper.whisper.load_whisper_model", return_value=mock_model) as mock_load:
+            with patch(
+                "podcast_scraper.whisper.load_whisper_model", return_value=mock_model
+            ) as mock_load:
                 with patch(
                     "podcast_scraper.whisper.transcribe_with_whisper",
                     return_value=({"text": transcribed_text}, 1.0),
                 ) as mock_transcribe:
                     with tempfile.TemporaryDirectory() as tmpdir:
-                        exit_code = cli.main([
-                            rss_url,
-                            "--output-dir",
-                            tmpdir,
-                            "--transcribe-missing",
-                            "--run-id",
-                            "testrun",
-                        ])
+                        exit_code = cli.main(
+                            [
+                                rss_url,
+                                "--output-dir",
+                                tmpdir,
+                                "--transcribe-missing",
+                                "--run-id",
+                                "testrun",
+                            ]
+                        )
                         self.assertEqual(exit_code, 0)
                         mock_load.assert_called_once()
                         mock_transcribe.assert_called_once()
                         effective_dir = Path(tmpdir).resolve() / "run_testrun_whisper_base"
                         out_path = effective_dir / "0001 - Episode 1_testrun_whisper_base.txt"
                         self.assertTrue(out_path.exists())
-                        self.assertEqual(out_path.read_text(encoding="utf-8").strip(), transcribed_text)
+                        self.assertEqual(
+                            out_path.read_text(encoding="utf-8").strip(), transcribed_text
+                        )
 
     def test_path_traversal_attempt_normalized(self):
         rss_url = "https://example.com/feed.xml"
@@ -949,17 +966,18 @@ class TestIntegrationMain(unittest.TestCase):
                 observed_timeouts.append(timeout)
                 return self._mock_http_map(responses)(url, user_agent, timeout, stream)
 
-            http_mock = self._mock_http_map(responses)
             with patch("podcast_scraper.downloader.fetch_url", side_effect=tracking_open):
                 with patch("podcast_scraper.workflow.apply_log_level") as mock_apply:
-                    exit_code = cli.main([
-                        "--config",
-                        cfg_path,
-                        "--timeout",
-                        "10",
-                        "--log-level",
-                        "DEBUG",
-                    ])
+                    exit_code = cli.main(
+                        [
+                            "--config",
+                            cfg_path,
+                            "--timeout",
+                            "10",
+                            "--log-level",
+                            "DEBUG",
+                        ]
+                    )
                     self.assertEqual(exit_code, 0)
                     self.assertTrue(observed_timeouts)
                     self.assertTrue(all(timeout == 10 for timeout in observed_timeouts))
@@ -1001,20 +1019,24 @@ class TestIntegrationMain(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tmpdir:
                 expected_path = os.path.join(tmpdir, "0001 - Episode 1.txt")
                 import logging
+
                 with self.assertLogs(logging.getLogger("podcast_scraper"), level="INFO") as log_ctx:
-                    exit_code = cli.main([
-                        rss_url,
-                        "--output-dir",
-                        tmpdir,
-                        "--dry-run",
-                    ])
+                    exit_code = cli.main(
+                        [
+                            rss_url,
+                            "--output-dir",
+                            tmpdir,
+                            "--dry-run",
+                        ]
+                    )
                 self.assertEqual(exit_code, 0)
                 self.assertFalse(os.path.exists(expected_path))
                 log_text = "\n".join(log_ctx.output)
-                self.assertIn("Dry run complete. transcripts_planned=1 (direct=1, whisper=0)", log_text)
+                self.assertIn(
+                    "Dry run complete. transcripts_planned=1 (direct=1, whisper=0)", log_text
+                )
                 self.assertIn("would save as", log_text)
 
 
 if __name__ == "__main__":
     unittest.main()
-

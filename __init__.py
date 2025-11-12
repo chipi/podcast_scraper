@@ -7,7 +7,7 @@ This package provides a simple API for downloading podcast transcripts:
 
 Example:
     >>> import podcast_scraper
-    >>> 
+    >>>
     >>> config = podcast_scraper.Config(
     ...     rss_url="https://example.com/feed.xml",
     ...     output_dir="./transcripts",
