@@ -20,6 +20,20 @@ DEFAULT_USER_AGENT = (
 DEFAULT_WORKERS = max(1, min(8, os.cpu_count() or 4))
 MIN_NUM_SPEAKERS = 1
 MIN_TIMEOUT_SECONDS = 1
+VALID_WHISPER_MODELS = (
+    "tiny",
+    "base",
+    "small",
+    "medium",
+    "large",
+    "large-v2",
+    "large-v3",
+    "tiny.en",
+    "base.en",
+    "small.en",
+    "medium.en",
+    "large.en",
+)
 
 
 class Config(BaseModel):
@@ -71,22 +85,8 @@ class Config(BaseModel):
     @field_validator("whisper_model", mode="after")
     @classmethod
     def _validate_whisper_model(cls, value: str) -> str:
-        valid_models = (
-            "tiny",
-            "base",
-            "small",
-            "medium",
-            "large",
-            "large-v2",
-            "large-v3",
-            "tiny.en",
-            "base.en",
-            "small.en",
-            "medium.en",
-            "large.en",
-        )
-        if value and value not in valid_models:
-            raise ValueError(f"whisper_model must be one of {valid_models}, got: {value}")
+        if value and value not in VALID_WHISPER_MODELS:
+            raise ValueError(f"whisper_model must be one of {VALID_WHISPER_MODELS}, got: {value}")
         return value
 
     @field_validator("log_level", mode="before")

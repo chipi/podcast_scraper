@@ -78,10 +78,19 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
         logger.info("Whisper model loaded successfully.")
         device = getattr(model, "device", None)
         device_type = getattr(device, "type", None)
+        dtype = getattr(model, "dtype", None)
+        logger.debug(
+            "Whisper model details: device=%s dtype=%s num_params=%s",
+            device,
+            dtype,
+            getattr(model, "num_parameters", lambda: "n/a")() if callable(getattr(model, "num_parameters", None)) else getattr(model, "num_parameters", "n/a"),
+        )
         is_cpu_device = device_type == "cpu"
         setattr(model, "_is_cpu_device", is_cpu_device)
         if is_cpu_device:
             logger.info("Whisper is running on CPU; FP16 is unavailable so FP32 will be used.")
+        else:
+            logger.debug("Whisper model is using accelerator device type=%s", device_type)
         return model
     except ImportError:
         logger.warning(
@@ -98,6 +107,12 @@ def transcribe_with_whisper(whisper_model: Any, temp_media: str, cfg: config.Con
     start = time.time()
     with progress.progress_context(None, "Transcribing") as reporter:
         suppress_fp16_warning = getattr(whisper_model, "_is_cpu_device", False)
+        logger.debug(
+            "Invoking Whisper transcription: media=%s suppress_fp16_warning=%s dtype=%s",
+            temp_media,
+            suppress_fp16_warning,
+            getattr(whisper_model, "dtype", None),
+        )
         if suppress_fp16_warning:
             with warnings.catch_warnings():
                 warnings.filterwarnings(
@@ -109,7 +124,15 @@ def transcribe_with_whisper(whisper_model: Any, temp_media: str, cfg: config.Con
         else:
             result = whisper_model.transcribe(temp_media, task="transcribe", language="en", verbose=False)
         reporter.update(1)
-    return result, time.time() - start
+    elapsed = time.time() - start
+    segments = result.get("segments")
+    logger.debug(
+        "Whisper transcription finished in %.2fs (segments=%s text_chars=%s)",
+        elapsed,
+        len(segments) if isinstance(segments, list) else "n/a",
+        len(result.get("text") or ""),
+    )
+    return result, elapsed
 
 
 __all__ = [

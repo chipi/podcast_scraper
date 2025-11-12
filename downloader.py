@@ -40,7 +40,12 @@ def should_log_download_summary() -> bool:
 
 def normalize_url(url: str) -> str:
     """Normalize URLs while preserving already-encoded segments."""
-    return requote_uri(url)
+    normalized = requote_uri(url)
+    if normalized != url:
+        logger.debug("Normalized URL %s -> %s", url, normalized)
+    else:
+        logger.debug("URL %s did not require normalization", url)
+    return normalized
 
 
 def _configure_http_session(session: requests.Session) -> None:
@@ -70,6 +75,7 @@ def _configure_http_session(session: requests.Session) -> None:
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
+    logger.debug("Configured HTTP session %s with retry-enabled adapters", hex(id(session)))
 
 
 def _get_thread_request_session() -> requests.Session:
@@ -80,6 +86,9 @@ def _get_thread_request_session() -> requests.Session:
         setattr(_THREAD_LOCAL, "session", session)
         with _SESSION_REGISTRY_LOCK:
             _SESSION_REGISTRY.append(session)
+        logger.debug("Created new thread-local HTTP session %s", hex(id(session)))
+    else:
+        logger.debug("Reusing thread-local HTTP session %s", hex(id(session)))
     return session
 
 
@@ -102,8 +111,21 @@ def _open_http_request(url: str, user_agent: str, timeout: int, *, stream: bool 
     headers = {"User-Agent": user_agent}
     try:
         session = _get_thread_request_session()
+        logger.debug(
+            "Opening HTTP connection to %s (timeout=%s, stream=%s) via session %s",
+            normalized_url,
+            timeout,
+            stream,
+            hex(id(session)),
+        )
         resp = session.get(normalized_url, headers=headers, timeout=timeout, stream=stream)
         resp.raise_for_status()
+        logger.debug(
+            "HTTP request to %s succeeded with status %s and Content-Length=%s",
+            normalized_url,
+            resp.status_code,
+            resp.headers.get("Content-Length"),
+        )
         return resp
     except requests.RequestException as exc:
         logger.warning(f"Failed to fetch {url}: {exc}")
@@ -120,6 +142,7 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
     """Fetch a URL and return its content and Content-Type header."""
     resp = fetch_url(url, user_agent, timeout, stream=True)
     if resp is None:
+        logger.debug("No response received for %s", url)
         return None, None
     try:
         ctype = resp.headers.get("Content-Type", "")
@@ -128,6 +151,13 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
             total_size = int(content_length) if content_length else None
         except (TypeError, ValueError):
             total_size = None
+
+        logger.debug(
+            "Reading response body from %s (content-type=%s, content-length=%s)",
+            url,
+            ctype,
+            content_length,
+        )
 
         body_parts: List[bytes] = []
         with progress.progress_context(total_size, "Downloading") as reporter:
@@ -149,6 +179,7 @@ def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str
     """Download content directly to a file path."""
     resp = fetch_url(url, user_agent, timeout, stream=True)
     if resp is None:
+        logger.debug("No response received for %s; skipping download", url)
         return False, 0
     try:
         content_length = resp.headers.get("Content-Length")
@@ -159,6 +190,14 @@ def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str
 
         os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
         filename = os.path.basename(out_path) or os.path.basename(url)
+
+        logger.debug(
+            "Streaming download from %s to %s (content-length=%s, chunk-size=%s)",
+            url,
+            out_path,
+            content_length,
+            DOWNLOAD_CHUNK_SIZE,
+        )
 
         total_bytes = 0
         with open(out_path, "wb") as f, progress.progress_context(
@@ -172,6 +211,7 @@ def http_download_to_file(url: str, user_agent: str, timeout: int, out_path: str
                 chunk_size = len(chunk)
                 total_bytes += chunk_size
                 reporter.update(chunk_size)
+        logger.debug("Finished downloading %s (%s bytes written)", url, total_bytes)
         return True, total_bytes
     except (requests.RequestException, OSError) as exc:
         logger.warning(f"Failed to download {url} to {out_path}: {exc}")
