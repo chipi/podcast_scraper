@@ -29,9 +29,15 @@ def apply_log_level(level: str) -> None:
     if not isinstance(numeric_level, int):
         raise ValueError(f"Invalid log level: {level}")
     root_logger = logging.getLogger()
-    root_logger.setLevel(numeric_level)
-    for handler in root_logger.handlers:
-        handler.setLevel(numeric_level)
+    if not root_logger.handlers:
+        logging.basicConfig(
+            level=numeric_level,
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        )
+    else:
+        root_logger.setLevel(numeric_level)
+        for handler in root_logger.handlers:
+            handler.setLevel(numeric_level)
     logger.setLevel(numeric_level)
 
 

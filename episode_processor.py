@@ -376,5 +376,3 @@ def process_episode_download(
     if cfg.delay_ms:
         time.sleep(cfg.delay_ms / MS_TO_SECONDS)
     return False
-
-},{

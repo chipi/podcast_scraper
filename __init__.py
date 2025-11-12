@@ -23,9 +23,16 @@ CLI Usage:
 
 from __future__ import annotations
 
-from . import cli
 from .config import Config, load_config_file
 from .workflow import run_pipeline
 
 __all__ = ["Config", "load_config_file", "run_pipeline", "cli"]
 __version__ = "2.0.0"
+
+
+def __getattr__(name: str):
+    if name == "cli":
+        from . import cli as _cli  # type: ignore
+
+        return _cli
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

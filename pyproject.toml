@@ -20,6 +20,6 @@ dependencies = [
   "openai-whisper>=20231117",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["podcast_scraper"]
+[tool.setuptools]
+packages = ["podcast_scraper"]
+package-dir = {podcast_scraper = "."}
