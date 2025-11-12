@@ -7,9 +7,8 @@ import logging
 import os
 import threading
 import time
-import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from urllib.parse import urlparse
 
 from . import config, downloader, filesystem, models, whisper
@@ -37,11 +36,11 @@ TITLE_HASH_PREFIX_LENGTH = 6
 
 def derive_media_extension(media_type: Optional[str], media_url: str) -> str:
     """Derive file extension for media file based on MIME type or URL.
-    
+
     Args:
         media_type: MIME type of the media
         media_url: URL of the media file
-        
+
     Returns:
         File extension with leading dot (e.g., '.mp3')
     """
@@ -58,17 +57,20 @@ def derive_media_extension(media_type: Optional[str], media_url: str) -> str:
     return ext
 
 
-def derive_transcript_extension(transcript_type: Optional[str], content_type: Optional[str], transcript_url: str) -> str:
+def derive_transcript_extension(
+    transcript_type: Optional[str], content_type: Optional[str], transcript_url: str
+) -> str:  # noqa: C901 - intentionally verbose heuristics
     """Derive file extension for transcript based on type, content-type, or URL.
-    
+
     Args:
         transcript_type: Declared transcript type
         content_type: HTTP Content-Type header
         transcript_url: URL of the transcript
-        
+
     Returns:
         File extension with leading dot (e.g., '.vtt')
     """
+
     def _match_extension(candidate: Optional[str]) -> Optional[str]:
         if not candidate:
             return None
@@ -127,21 +129,28 @@ def download_media_for_transcription(
     run_suffix: Optional[str],
 ) -> Optional[models.TranscriptionJob]:
     """Download media file for Whisper transcription.
-    
+
     Args:
         episode: Episode object with metadata
         cfg: Configuration object
         temp_dir: Temporary directory for downloads
         effective_output_dir: Output directory path
         run_suffix: Optional suffix for output filename
-        
+
     Returns:
         TranscriptionJob object or None if skipped/failed
     """
-    final_out_path = filesystem.build_whisper_output_path(episode.idx, episode.title_safe, run_suffix, effective_output_dir)
+    final_out_path = filesystem.build_whisper_output_path(
+        episode.idx, episode.title_safe, run_suffix, effective_output_dir
+    )
     if cfg.skip_existing and os.path.exists(final_out_path):
         prefix = "[dry-run] " if cfg.dry_run else ""
-        logger.info(f"[{episode.idx}] {prefix}transcript already exists; skipping (--skip-existing): {final_out_path}")
+        logger.info(
+            "[%s] %stranscript already exists; skipping (--skip-existing): %s",
+            episode.idx,
+            prefix,
+            final_out_path,
+        )
         return None
 
     if not episode.media_url:
@@ -151,9 +160,16 @@ def download_media_for_transcription(
 
     display_title = filesystem.truncate_whisper_title(episode.title, for_log=True)
     if cfg.dry_run:
-        logger.info(f"[{episode.idx}] (dry-run) would download media for Whisper: {display_title} -> {episode.media_url}")
+        logger.info(
+            "[%s] (dry-run) would download media for Whisper: %s -> %s",
+            episode.idx,
+            display_title,
+            episode.media_url,
+        )
         logger.info(f"    [dry-run] Whisper output would be: {final_out_path}")
-        return models.TranscriptionJob(idx=episode.idx, ep_title=episode.title, ep_title_safe=episode.title_safe, temp_media="")
+        return models.TranscriptionJob(
+            idx=episode.idx, ep_title=episode.title, ep_title_safe=episode.title_safe, temp_media=""
+        )
     else:
         logger.info(f"[{episode.idx}] no transcript; downloading media: {display_title}")
 
@@ -161,11 +177,15 @@ def download_media_for_transcription(
     ep_num_str = f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d}"
     short_title = filesystem.truncate_whisper_title(episode.title_safe, for_log=False)
     title_hash_input = f"{episode.media_url}|{episode.idx}|{cfg.rss_url}"
-    title_hash = hashlib.sha1(title_hash_input.encode("utf-8")).hexdigest()[:TITLE_HASH_PREFIX_LENGTH]
+    title_hash = hashlib.sha1(  # nosec B324 - used only for stable filenames
+        title_hash_input.encode("utf-8")
+    ).hexdigest()[:TITLE_HASH_PREFIX_LENGTH]
     temp_media = os.path.join(temp_dir, f"{ep_num_str}_{short_title}_{title_hash}{ext}")
 
     dl_start = time.time()
-    ok, total_bytes = downloader.http_download_to_file(episode.media_url, cfg.user_agent, cfg.timeout, temp_media)
+    ok, total_bytes = downloader.http_download_to_file(
+        episode.media_url, cfg.user_agent, cfg.timeout, temp_media
+    )
     dl_elapsed = time.time() - dl_start
     if not ok:
         logger.warning("    failed to download media")
@@ -177,10 +197,15 @@ def download_media_for_transcription(
             logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
         except (ValueError, ZeroDivisionError, TypeError) as exc:
             logger.warning(f"    failed to format download size: {exc}")
-    return models.TranscriptionJob(idx=episode.idx, ep_title=episode.title, ep_title_safe=episode.title_safe, temp_media=temp_media)
+    return models.TranscriptionJob(
+        idx=episode.idx,
+        ep_title=episode.title,
+        ep_title_safe=episode.title_safe,
+        temp_media=temp_media,
+    )
 
 
-def transcribe_media_to_text(
+def transcribe_media_to_text(  # noqa: C901 - orchestrates Whisper transcription
     job: models.TranscriptionJob,
     cfg: config.Config,
     whisper_model,
@@ -188,19 +213,21 @@ def transcribe_media_to_text(
     effective_output_dir: str,
 ) -> bool:
     """Transcribe media file using Whisper and save result.
-    
+
     Args:
         job: TranscriptionJob with media file path
         cfg: Configuration object
         whisper_model: Loaded Whisper model
         run_suffix: Optional suffix for output filename
         effective_output_dir: Output directory path
-        
+
     Returns:
         True if transcription succeeded, False otherwise
     """
     if cfg.dry_run:
-        final_path = filesystem.build_whisper_output_path(job.idx, job.ep_title_safe, run_suffix, effective_output_dir)
+        final_path = filesystem.build_whisper_output_path(
+            job.idx, job.ep_title_safe, run_suffix, effective_output_dir
+        )
         logger.info(f"[{job.idx}] (dry-run) would transcribe media -> {final_path}")
         return True
 
@@ -219,7 +246,10 @@ def transcribe_media_to_text(
         if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
             try:
                 formatted = whisper.format_screenplay_from_segments(
-                    result["segments"], cfg.screenplay_num_speakers, cfg.screenplay_speaker_names, cfg.screenplay_gap_s
+                    result["segments"],
+                    cfg.screenplay_num_speakers,
+                    cfg.screenplay_speaker_names,
+                    cfg.screenplay_gap_s,
                 )
                 if formatted.strip():
                     text = formatted
@@ -227,7 +257,9 @@ def transcribe_media_to_text(
                 logger.warning(f"    failed to format as screenplay, using plain transcript: {exc}")
         if not text:
             raise RuntimeError("empty transcription")
-        out_path = filesystem.build_whisper_output_path(job.idx, job.ep_title_safe, run_suffix, effective_output_dir)
+        out_path = filesystem.build_whisper_output_path(
+            job.idx, job.ep_title_safe, run_suffix, effective_output_dir
+        )
         filesystem.write_file(out_path, text.encode("utf-8"))
         logger.info(f"    saved transcript: {out_path} (transcribed in {tc_elapsed:.1f}s)")
         return True
@@ -250,7 +282,7 @@ def process_transcript_download(
     run_suffix: Optional[str],
 ) -> bool:
     """Download and save a transcript file.
-    
+
     Args:
         episode: Episode object with metadata
         transcript_url: URL of the transcript
@@ -258,18 +290,24 @@ def process_transcript_download(
         cfg: Configuration object
         effective_output_dir: Output directory path
         run_suffix: Optional suffix for output filename
-        
+
     Returns:
         True if transcript was downloaded and saved, False otherwise
     """
     run_tag = f"_{run_suffix}" if run_suffix else ""
-    base_name = f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
+    base_name = (
+        f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
+    )
     if cfg.skip_existing:
         existing_matches = list(Path(effective_output_dir).glob(f"{base_name}*"))
         for candidate in existing_matches:
             if candidate.is_file():
                 prefix = "[dry-run] " if cfg.dry_run else ""
-                logger.info(f"    {prefix}transcript already exists, skipping (--skip-existing): {candidate}")
+                logger.info(
+                    "    %stranscript already exists, skipping (--skip-existing): %s",
+                    prefix,
+                    candidate,
+                )
                 return False
 
     planned_ext = derive_transcript_extension(transcript_type, None, transcript_url)
@@ -277,7 +315,12 @@ def process_transcript_download(
     out_path = os.path.join(effective_output_dir, out_name)
 
     if cfg.dry_run:
-        logger.info(f"[{episode.idx}] (dry-run) transcript available: {episode.title} -> {transcript_url}")
+        logger.info(
+            "[%s] (dry-run) transcript available: %s -> %s",
+            episode.idx,
+            episode.title,
+            transcript_url,
+        )
         logger.info(f"    [dry-run] would save as: {out_path}")
         return True
 
@@ -321,7 +364,7 @@ def process_episode_download(
     transcription_jobs_lock: Optional[threading.Lock],
 ) -> bool:
     """Process a single episode: download transcript or prepare for Whisper transcription.
-    
+
     Args:
         episode: Episode object with metadata and URLs
         cfg: Configuration object
@@ -330,7 +373,7 @@ def process_episode_download(
         run_suffix: Optional suffix for output filename
         transcription_jobs: List to append TranscriptionJob objects to
         transcription_jobs_lock: Lock for thread-safe access to transcription_jobs
-        
+
     Returns:
         True if transcript was downloaded, False otherwise
     """
@@ -367,7 +410,9 @@ def process_episode_download(
                     transcription_jobs.append(job)
             else:
                 transcription_jobs.append(job)
-            logger.debug("[%s] Added transcription job (queue size=%s)", episode.idx, len(transcription_jobs))
+            logger.debug(
+                "[%s] Added transcription job (queue size=%s)", episode.idx, len(transcription_jobs)
+            )
             if cfg.delay_ms:
                 time.sleep(cfg.delay_ms / MS_TO_SECONDS)
         return False
