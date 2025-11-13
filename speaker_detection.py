@@ -8,7 +8,10 @@ import subprocess  # nosec B404 - subprocess is needed for spaCy model download
 import sys
 from typing import Any, List, Optional, Set, Tuple
 
-import spacy
+try:
+    import spacy
+except ImportError:
+    spacy = None  # type: ignore[assignment, misc]
 
 from . import config
 
@@ -47,6 +50,10 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
     Returns:
         Loaded spaCy nlp object or None if download/load fails
     """
+    if spacy is None:
+        logger.debug("spaCy not available, cannot load model")
+        return None
+
     # Validate model name to prevent command injection
     if not _validate_model_name(model_name):
         logger.error("Invalid spaCy model name: %s (contains invalid characters)", model_name)
@@ -91,6 +98,10 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
 
 def _get_ner_model(cfg: config.Config) -> Optional[Any]:
     """Get the appropriate spaCy NER model based on configuration."""
+    if spacy is None:
+        logger.debug("spaCy not available, cannot load NER model")
+        return None
+
     if not cfg.auto_speakers:
         return None
 
