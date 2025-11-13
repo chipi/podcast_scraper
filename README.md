@@ -38,7 +38,7 @@ Install the package from the repository root:
 pip install -e .
 ```
 
-**Note:** After installation, download the spaCy language model for speaker detection:
+**Note:** spaCy language models are automatically downloaded when needed (similar to Whisper models). The default English model (`en_core_web_sm`) will be downloaded automatically on first use. You can also manually download models if needed:
 
 ```bash
 python -m spacy download en_core_web_sm
@@ -242,7 +242,7 @@ Advanced helpers remain accessible in submodules (`podcast_scraper.downloader.fe
 - Episodes without transcripts are skipped unless `--transcribe-missing` is enabled.
 - **Automatic speaker detection**: When enabled (`--auto-speakers`, default), speaker names are automatically extracted from episode metadata using Named Entity Recognition (NER). Manual `--speaker-names` always takes precedence.
 - **Language-aware processing**: The `--language` flag controls both Whisper model selection (preferring `.en` variants for English) and NER model selection.
-- **spaCy models**: After installing the package, download the appropriate spaCy language model (e.g., `python -m spacy download en_core_web_sm` for English).
+       - **spaCy models**: Language models are automatically downloaded when needed (similar to Whisper). The default model (`en_core_web_sm` for English) will be downloaded on first use. You can also manually download models if needed.
 - Progress integrates with `tqdm` by default; packages embedding the library can override via `podcast_scraper.set_progress_factory`.
 - Whisper transcription requires `ffmpeg` to be installed on your system.
 - Downloads run in parallel (with configurable worker count); Whisper transcription remains sequential.

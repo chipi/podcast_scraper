@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import subprocess
+import sys
 from typing import Any, List, Optional, Set, Tuple
 
 import spacy
@@ -16,25 +18,53 @@ DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
 
 
 def _load_spacy_model(model_name: str) -> Optional[Any]:
-    """Load spaCy model.
+    """Load spaCy model, automatically downloading if missing.
+
+    Similar to Whisper's automatic model download, this function will attempt
+    to download the model if it's not found locally.
 
     Args:
         model_name: Name of the spaCy model to load (e.g., 'en_core_web_sm')
 
     Returns:
-        Loaded spaCy nlp object or None if model not found
+        Loaded spaCy nlp object or None if download/load fails
     """
     try:
         nlp = spacy.load(model_name)
         logger.debug("Loaded spaCy model: %s", model_name)
         return nlp
     except OSError:
-        logger.warning(
-            "spaCy model '%s' not found. Install with: python -m spacy download %s",
-            model_name,
-            model_name,
-        )
-        return None
+        logger.info("spaCy model '%s' not found locally, attempting to download...", model_name)
+        try:
+            # Use subprocess to call 'python -m spacy download' (most reliable method)
+            # This ensures we use the same Python interpreter and environment
+            result = subprocess.run(
+                [sys.executable, "-m", "spacy", "download", model_name],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            logger.info("Successfully downloaded spaCy model: %s", model_name)
+            # Now try loading again
+            nlp = spacy.load(model_name)
+            logger.debug("Loaded spaCy model after download: %s", model_name)
+            return nlp
+        except subprocess.CalledProcessError as exc:
+            logger.error(
+                "Failed to download spaCy model '%s': %s. Output: %s",
+                model_name,
+                exc,
+                exc.stderr or exc.stdout or "",
+            )
+            logger.warning(
+                "You can manually install with: python -m spacy download %s", model_name
+            )
+            return None
+        except OSError as exc:
+            logger.error(
+                "Failed to load spaCy model '%s' after download attempt: %s", model_name, exc
+            )
+            return None
 
 
 def _get_ner_model(cfg: config.Config) -> Optional[Any]:
