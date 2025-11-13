@@ -30,7 +30,7 @@ from .config import Config, load_config_file
 from .workflow import run_pipeline
 
 __all__ = ["Config", "load_config_file", "run_pipeline", "cli"]
-__version__ = "2.0.1"
+__version__ = "2.1.0"
 
 
 def __getattr__(name: str):
