@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
 
-from . import config, downloader, filesystem, models, whisper
+from . import config, downloader, filesystem, models, whisper_integration as whisper
 from .rss_parser import choose_transcript_url
 
 logger = logging.getLogger(__name__)
@@ -234,8 +234,17 @@ def transcribe_media_to_text(  # noqa: C901 - orchestrates Whisper transcription
         return True
 
     temp_media = job.temp_media
+
+    # Log detected speaker names (hosts + guests) before transcription
+    if job.detected_speaker_names:
+        speaker_names_display = ", ".join(job.detected_speaker_names)
+        logger.info("    Speaker names for transcription: %s", speaker_names_display)
+
     if whisper_model is None:
-        logger.warning("    Skipping transcription: Whisper model not available")
+        logger.warning(
+            "    Skipping transcription: Whisper model not available (requested: %s)",
+            cfg.whisper_model,
+        )
         try:
             os.remove(temp_media)
         except OSError as exc:
@@ -246,12 +255,8 @@ def transcribe_media_to_text(  # noqa: C901 - orchestrates Whisper transcription
         result, tc_elapsed = whisper.transcribe_with_whisper(whisper_model, temp_media, cfg)
         text = (result.get("text") or "").strip()
         if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
-            # Use detected speaker names if manual override not provided
-            speaker_names = (
-                cfg.screenplay_speaker_names
-                if cfg.screenplay_speaker_names
-                else (job.detected_speaker_names or [])
-            )
+            # Use detected speaker names (manual names are already used as fallback in workflow)
+            speaker_names = job.detected_speaker_names or []
             try:
                 formatted = whisper.format_screenplay_from_segments(
                     result["segments"],

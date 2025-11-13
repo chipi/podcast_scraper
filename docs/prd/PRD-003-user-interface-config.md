@@ -31,7 +31,7 @@ Define how operators interact with the podcast scraper via CLI flags and configu
 - *As Integrator Iris, I can call `podcast_scraper.Config` + `podcast_scraper.run_pipeline` directly in Python with the same semantics.*
 - *As any user, I can enable automatic speaker name detection (`--auto-speakers`) without manually specifying names for each episode (RFC-010).*
 - *As any user, I can configure the podcast language (`--language`) to optimize both Whisper transcription and speaker name detection.*
-- *As any user, I can override automatic speaker detection with manual names (`--speaker-names`) when needed.*
+- *As any user, I can provide manual speaker names (`--speaker-names`) as fallback when automatic detection fails.*
 
 ## Functional Requirements
 - **FR1**: CLI must validate inputs (RSS URL, numeric ranges, Whisper model choices) and surface actionable error messages.
@@ -46,7 +46,7 @@ Define how operators interact with the podcast scraper via CLI flags and configu
 - **FR10**: Support `--auto-speakers` flag (default `true`) to enable/disable automatic speaker name detection via NER (RFC-010).
 - **FR11**: Support `--ner-model` flag for advanced users to override default spaCy model selection (RFC-010).
 - **FR12**: Support `--cache-detected-hosts` flag (default `true`) to control host detection memoization (RFC-010).
-- **FR13**: Maintain precedence: manual `--speaker-names` override > automatic detection > default `["Host", "Guest"]`.
+- **FR13**: Maintain fallback chain: automatic detection > manual `--speaker-names` fallback (when detection fails) > default `["Host", "Guest"]`.
 
 ## Success Metrics
 - CLI onboarding: a new user can run the default command with only an RSS URL and receive useful output/logging.
@@ -75,5 +75,10 @@ This PRD integrates with RFC-010 (Automatic Speaker Name Detection) to provide n
 - **Automatic Speaker Detection**: The `--auto-speakers` flag (default `true`) enables/disables automatic extraction of speaker names from episode metadata. Config file supports `auto_speakers` boolean field.
 - **NER Model Override**: Advanced users can specify `--ner-model` to override default spaCy model selection (e.g., `en_core_web_sm`). Config file supports `ner_model` field.
 - **Caching Control**: The `--cache-detected-hosts` flag (default `true`) controls whether host detection is memoized across episodes. Config file supports `cache_detected_hosts` boolean field.
-- **Precedence Rules**: Manual `--speaker-names` always takes precedence over automatic detection. Automatic detection only activates when `--auto-speakers` is enabled and no manual names are provided.
+- **Precedence Rules**: 
+  - Automatic detection runs first when `--auto-speakers` is enabled.
+  - Manual `--speaker-names` are ONLY used as fallback when automatic detection fails (not as override).
+  - Manual names format: first item = host, second item = guest (e.g., `["Lenny", "Guest"]`).
+  - When guest detection fails: keep detected hosts (if any) + use manual guest name as fallback.
+  - If detection succeeds, manual names are ignored; if detection fails, manual names are used as fallback.
 - **Validation**: CLI validates language codes, NER model names, and ensures speaker name lists meet minimum requirements.

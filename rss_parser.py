@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import logging
+import re
 import xml.etree.ElementTree as ET  # nosec B405 - parsing handled via defusedxml safe APIs
+from html import unescape
+from html.parser import HTMLParser
 from typing import List, Optional, Tuple
 from urllib.parse import urljoin
 
@@ -14,14 +17,14 @@ from . import config, downloader, filesystem, models
 logger = logging.getLogger(__name__)
 
 
-def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[ET.Element]]:
-    """Parse RSS XML and extract channel title and items.
+def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[str], List[ET.Element]]:
+    """Parse RSS XML and extract channel title, authors, and items.
 
     Args:
         xml_bytes: Raw RSS feed XML content
 
     Returns:
-        Tuple of (channel_title, list_of_items)
+        Tuple of (channel_title, list_of_authors, list_of_items)
     """
     root = safe_fromstring(xml_bytes)
     channel = root.find("channel")
@@ -30,18 +33,51 @@ def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[ET.Element]]:
             (e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("channel")), None
         )
     title = ""
+    authors: List[str] = []
     if channel is not None:
         t = channel.find("title") or next(
             (e for e in channel.iter() if isinstance(e.tag, str) and e.tag.endswith("title")), None
         )
         if t is not None and t.text:
             title = t.text.strip()
+
+        # Extract author tags from channel (top-level only)
+        # RSS 2.0: <author> (should be only one at channel level)
+        # iTunes: <itunes:author> and <itunes:owner> (can help confirm host)
+        # Note: We only look at direct children of channel, not nested elements
+
+        # RSS 2.0 author (channel-level only, should be single)
+        author_elem = channel.find("author")
+        if author_elem is not None and author_elem.text:
+            author_text = author_elem.text.strip()
+            if author_text:
+                authors.append(author_text)
+
+        # iTunes author (channel-level only)
+        itunes_author_elem = channel.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}author")
+        if itunes_author_elem is not None and itunes_author_elem.text:
+            itunes_author_text = itunes_author_elem.text.strip()
+            if itunes_author_text and itunes_author_text not in authors:
+                authors.append(itunes_author_text)
+
+        # iTunes owner (channel-level only, can help confirm host)
+        # Format: <itunes:owner><itunes:name>Name</itunes:name></itunes:owner>
+        itunes_owner_elem = channel.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}owner")
+        if itunes_owner_elem is not None:
+            itunes_owner_name_elem = itunes_owner_elem.find(
+                "{http://www.itunes.com/dtds/podcast-1.0.dtd}name"
+            )
+            if itunes_owner_name_elem is not None and itunes_owner_name_elem.text:
+                itunes_owner_text = itunes_owner_name_elem.text.strip()
+                if itunes_owner_text and itunes_owner_text not in authors:
+                    authors.append(itunes_owner_text)
+
         items = list(channel.findall("item"))
         if not items:
             items = [e for e in channel if isinstance(e.tag, str) and e.tag.endswith("item")]
     else:
         items = [e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("item")]
-    return title, items
+    return title, authors, items
 
 
 def find_transcript_urls(item: ET.Element, base_url: str) -> List[Tuple[str, Optional[str]]]:
@@ -144,20 +180,96 @@ def extract_episode_title(item: ET.Element, idx: int) -> Tuple[str, str]:
     return ep_title, ep_title_safe
 
 
+class _HTMLStripper(HTMLParser):
+    """Simple HTML tag stripper that preserves spacing between text segments."""
+
+    def __init__(self):
+        super().__init__()
+        self.text_parts = []
+        self.last_was_tag = False
+
+    def handle_data(self, data):
+        """Handle text data between tags."""
+        if data.strip():  # Only add non-empty text
+            self.text_parts.append(data.strip())
+            self.last_was_tag = False
+
+    def handle_starttag(self, tag, attrs):
+        """Handle opening tags - add space if previous was tag."""
+        if self.last_was_tag and self.text_parts:
+            # Ensure space between tags that might have had text between them
+            pass
+        self.last_was_tag = True
+
+    def handle_endtag(self, tag):
+        """Handle closing tags - mark that we just saw a tag."""
+        self.last_was_tag = True
+
+    def get_text(self):
+        """Join text parts with single spaces."""
+        return " ".join(self.text_parts)
+
+
+def _strip_html(text: str) -> str:
+    """Strip HTML tags from text and decode HTML entities, preserving spacing.
+
+    This function sanitizes HTML content by:
+    1. Decoding HTML entities (&amp; -> &, &lt; -> <, etc.)
+    2. Stripping HTML tags while preserving spacing between text segments
+    3. Normalizing whitespace (multiple spaces -> single space)
+
+    Args:
+        text: Text potentially containing HTML
+
+    Returns:
+        Plain text with HTML tags removed, entities decoded, and proper spacing preserved
+    """
+    if not text:
+        return ""
+
+    # First decode HTML entities (e.g., &amp; -> &, &lt; -> <)
+    text = unescape(text)
+
+    # Strip HTML tags using parser that preserves spacing
+    stripper = _HTMLStripper()
+    try:
+        stripper.feed(text)
+        cleaned = stripper.get_text()
+    except Exception:
+        # Fallback: simple regex-based stripping if parser fails
+        # Remove HTML tags but preserve spacing
+        cleaned = re.sub(r"<[^>]+>", " ", text)  # Replace tags with space
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+    # Normalize whitespace: multiple spaces/newlines/tabs -> single space
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+    return cleaned
+
+
 def extract_episode_description(item: ET.Element) -> Optional[str]:
-    """Extract episode description from RSS item.
+    """Extract episode description from RSS item and strip HTML.
 
     Args:
         item: RSS item element
 
     Returns:
-        Description text or None if not found
+        Description text with HTML stripped, or None if not found
     """
     desc_el = item.find("description") or next(
         (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("description")), None
     )
-    if desc_el is not None and desc_el.text:
-        return desc_el.text.strip()
+    if desc_el is not None:
+        # Get text content - RSS descriptions often contain HTML
+        desc_text = desc_el.text or ""
+        # Also check for CDATA or nested text content
+        if not desc_text and desc_el.itertext():
+            desc_text = "".join(desc_el.itertext())
+
+        if desc_text:
+            # Strip HTML tags before returning
+            cleaned = _strip_html(desc_text.strip())
+            return cleaned if cleaned else None
     return None
 
 
@@ -213,8 +325,10 @@ def fetch_and_parse_rss(cfg: config.Config) -> models.RssFeed:
         resp.close()
 
     try:
-        feed_title, items = parse_rss_items(rss_bytes)
+        feed_title, feed_authors, items = parse_rss_items(rss_bytes)
     except (DefusedXMLParseError, ValueError) as exc:
         raise ValueError(f"Failed to parse RSS XML: {exc}") from exc
 
-    return models.RssFeed(title=feed_title, items=items, base_url=feed_base_url)
+    return models.RssFeed(
+        title=feed_title, authors=feed_authors, items=items, base_url=feed_base_url
+    )

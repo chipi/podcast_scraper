@@ -50,6 +50,6 @@ When Whisper is used to fill missing transcripts, some users prefer dialog-forma
 - Future enhancements (e.g., custom templates) can extend this RFC while maintaining backward compatibility.
 
 ## References
-- Source: `podcast_scraper/whisper.py` (`format_screenplay_from_segments`)
+- Source: `podcast_scraper/whisper_integration.py` (`format_screenplay_from_segments`)
 - CLI configuration: `docs/rfc/RFC-007-cli-interface.md`
 - Configuration schema: `docs/rfc/RFC-008-config-model.md`

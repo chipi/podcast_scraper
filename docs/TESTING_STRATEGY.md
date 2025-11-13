@@ -96,7 +96,7 @@ The testing strategy follows a three-tier pyramid:
   - HTTP retry logic (unit test with mocked responses)
   - Transcript type preference ordering
 
-#### Whisper Integration (`whisper.py`)
+#### Whisper Integration (`whisper_integration.py`)
 
 - **RFC-005**: Mock Whisper library, loading paths, error handling
 - **RFC-006**: Screenplay formatting with synthetic segments
@@ -393,7 +393,7 @@ pytest --run-whisper-e2e
 - [ ] Run suffix generation
 - [ ] Path validation
 
-### `whisper.py`
+### `whisper_integration.py`
 
 - [ ] Model loading
 - [ ] Transcription invocation

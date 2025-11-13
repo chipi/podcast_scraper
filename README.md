@@ -57,7 +57,7 @@ When using a virtual environment, activate it first (see below) and run the same
 - `podcast_scraper/filesystem.py` — filesystem utilities and output-directory helpers
 - `podcast_scraper/rss_parser.py` — RSS parsing helpers that build `RssFeed`/`Episode`
 - `podcast_scraper/episode_processor.py` — transcript downloads and Whisper fallbacks
-- `podcast_scraper/whisper.py` — Whisper integration
+- `podcast_scraper/whisper_integration.py` — Whisper integration
 - `podcast_scraper/speaker_detection.py` — automatic speaker name detection using NER
 - `podcast_scraper/progress.py` — pluggable progress reporting interface
 

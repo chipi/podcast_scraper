@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET  # nosec B405 - used only for typing references
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 
@@ -12,6 +12,7 @@ class RssFeed:
     title: str
     items: List[ET.Element]
     base_url: str
+    authors: List[str] = field(default_factory=list)
 
 
 @dataclass

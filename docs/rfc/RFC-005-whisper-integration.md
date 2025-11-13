@@ -18,7 +18,7 @@ Whisper brings heavyweight dependencies and variable runtime characteristics (CP
 
 ## Design & Implementation
 1. **Model loading**
-   - `whisper.load_whisper_model(cfg)` attempts to import third-party `whisper` lazily via `_import_third_party_whisper` to avoid conflicts with the local module name.
+   - `whisper_integration.load_whisper_model(cfg)` imports the third-party `whisper` library from the `openai-whisper` package.
    - Validates requested model against `Config.VALID_WHISPER_MODELS`.
    - Logs model/device details; annotates model with `_is_cpu_device` to suppress FP16 warnings when necessary.
 2. **Transcription execution**
@@ -50,6 +50,6 @@ Whisper brings heavyweight dependencies and variable runtime characteristics (CP
 - Operators can monitor elapsed times per episode to tune model selection.
 
 ## References
-- Source: `podcast_scraper/whisper.py`
+- Source: `podcast_scraper/whisper_integration.py`
 - Episode-level integration: `docs/rfc/RFC-003-transcript-downloads.md`
 - Orchestrator: `docs/rfc/RFC-001-workflow-orchestration.md`
