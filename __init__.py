@@ -1,3 +1,6 @@
+# This project is intended for personal, non-commercial use only.
+# See README and docs/legal.md for details.
+
 """Podcast Scraper - Download podcast transcripts from RSS feeds.
 
 This package provides a simple API for downloading podcast transcripts:
@@ -27,7 +30,7 @@ from .config import Config, load_config_file
 from .workflow import run_pipeline
 
 __all__ = ["Config", "load_config_file", "run_pipeline", "cli"]
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 
 def __getattr__(name: str):

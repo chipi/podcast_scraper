@@ -1,17 +1,23 @@
 # Podcast Scraper
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Personal Use Only](https://img.shields.io/badge/Use-Personal%20Only-orange)](docs/legal.md)
 
-Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Multi-threaded downloads, resumable/cleanable output directories, dry-run previews, progress bars, configurable run folders, screenplay formatting, and JSON/YAML configuration files make it easy to collect, compare, and archive podcast transcripts.
+Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Features include automatic speaker name detection using Named Entity Recognition (NER), language-aware Whisper model selection, multi-threaded downloads, resumable/cleanable output directories, dry-run previews, progress bars, configurable run folders, screenplay formatting, and JSON/YAML configuration files.
+
+> **⚠️ Important:** This project is intended for **personal, non-commercial use only**. All downloaded content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate Use](docs/legal.md) for details.
 
 ## Documentation
 
 - Live site: [https://chipi.github.io/podcast_scraper/](https://chipi.github.io/podcast_scraper/) — Architecture overview, PRDs, RFCs, and API guides.
+
 - Local preview:
+
   ```bash
   pip install -r docs/requirements.txt
   mkdocs serve
   ```
+
   Visit [http://localhost:8000](http://localhost:8000) and edit files under `docs/` to see live updates.
 
 ## Requirements
@@ -23,20 +29,27 @@ Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. I
 - `platformdirs`
 - `pydantic`
 - `PyYAML` (for YAML config support)
-- `openai-whisper`
+- `spacy` (for automatic speaker name detection)
+- `openai-whisper` (for Whisper transcription)
 - `ffmpeg` (required by Whisper)
 
 ## Installation
 
-Install the package (with Whisper support) from the repository root:
+Install the package from the repository root:
 
 ```bash
 pip install -e .
 ```
 
-Ensure `ffmpeg` is available on your system (e.g., `brew install ffmpeg` on macOS).
+**Note:** spaCy language models are automatically downloaded when needed (similar to Whisper models). The default English model (`en_core_web_sm`) will be downloaded automatically on first use. You can also manually download models if needed:
 
-When using a virtual environment, activate it first (see below) and run the same command.
+```bash
+python -m spacy download en_core_web_sm
+```
+
+For Whisper transcription, ensure `ffmpeg` is available on your system (e.g., `brew install ffmpeg` on macOS).
+
+When using a virtual environment, activate it first (see below) and run the same commands.
 
 ## Project Layout
 
@@ -47,10 +60,13 @@ When using a virtual environment, activate it first (see below) and run the same
 - `podcast_scraper/filesystem.py` — filesystem utilities and output-directory helpers
 - `podcast_scraper/rss_parser.py` — RSS parsing helpers that build `RssFeed`/`Episode`
 - `podcast_scraper/episode_processor.py` — transcript downloads and Whisper fallbacks
-- `podcast_scraper/whisper.py` — Whisper integration
+- `podcast_scraper/whisper_integration.py` — Whisper integration
+- `podcast_scraper/speaker_detection.py` — automatic speaker name detection using NER
 - `podcast_scraper/progress.py` — pluggable progress reporting interface
 
 ## Usage
+
+> **Note:** All downloaded content must remain local to your device. Do not share, upload, or redistribute podcast transcripts, audio files, or other copyrighted material obtained using this tool.
 
 ### CLI
 
@@ -85,9 +101,17 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml --output-dir ./my_tr
 # Whisper fallback when no transcript exists
 python3 -m podcast_scraper.cli https://example.com/feed.xml --transcribe-missing --whisper-model base
 
-# Screenplay formatting
+# Screenplay formatting with automatic speaker detection
+python3 -m podcast_scraper.cli https://example.com/feed.xml --transcribe-missing --screenplay \
+  --num-speakers 2 --screenplay-gap 1.5
+
+# Screenplay formatting with manual speaker names (overrides auto-detection)
 python3 -m podcast_scraper.cli https://example.com/feed.xml --transcribe-missing --screenplay \
   --num-speakers 2 --speaker-names "Host,Guest" --screenplay-gap 1.5
+
+# Language-aware transcription (non-English)
+python3 -m podcast_scraper.cli https://example.com/feed.xml --transcribe-missing \
+  --language fr --whisper-model base
 
 # Separate runs
 python3 -m podcast_scraper.cli https://example.com/feed.xml --run-id auto
@@ -126,7 +150,9 @@ timeout: 30
 transcribe_missing: true
 prefer_type:
   - text/vtt
-speaker_names:
+language: en
+auto_speakers: true
+speaker_names:  # Optional: manual override (takes precedence over auto-detection)
   - Host
   - Guest
 workers: 6
@@ -140,13 +166,14 @@ dry_run: false
 bash setup_venv.sh
 source .venv/bin/activate
 
-# install project into the virtual environment (includes Whisper)
+# install project into the virtual environment
 pip install -e .
+
+# spaCy models are downloaded automatically when needed
+# (or manually: python -m spacy download en_core_web_sm)
 
 python -m podcast_scraper.cli <rss_url> [options]
 ```
-
-(If Whisper is not needed—for example, in constrained environments—install manually via `pip install -e . --config-settings editable_mode=compat` after removing the dependency from `pyproject.toml`.)
 
 ### Docker
 
@@ -201,7 +228,13 @@ Advanced helpers remain accessible in submodules (`podcast_scraper.downloader.fe
 - `--screenplay`: Format Whisper transcript as screenplay
 - `--screenplay-gap` (float): Gap (seconds) to trigger speaker change
 - `--num-speakers` (int): Number of speakers to alternate between
-- `--speaker.names` (str): Comma-separated speaker names
+- `--speaker-names` (str): Comma-separated speaker names (manual override, takes precedence over auto-detection)
+- `--language` (str): Language for transcription and NER (default: `en`)
+- `--ner-model` (str): spaCy NER model to use (default: derived from language, e.g., `en_core_web_sm` for English)
+- `--auto-speakers`: Enable automatic speaker name detection (default: `true`)
+- `--no-auto-speakers`: Disable automatic speaker name detection
+- `--cache-detected-hosts`: Cache detected hosts across episodes (default: `true`)
+- `--no-cache-detected-hosts`: Disable caching of detected hosts
 - `--run-id` (str): Subfolder/run identifier (`auto` to timestamp)
 - `--workers` (int): Concurrent download workers (default derives from CPU count)
 - `--skip-existing`: Skip episodes with existing output
@@ -212,12 +245,47 @@ Advanced helpers remain accessible in submodules (`podcast_scraper.downloader.fe
 
 - Transcript links are detected via Podcasting 2.0 `podcast:transcript` tags or `<transcript>` elements.
 - Episodes without transcripts are skipped unless `--transcribe-missing` is enabled.
+- **Automatic speaker detection**: When enabled (`--auto-speakers`, default), speaker names are automatically extracted from episode metadata using Named Entity Recognition (NER). Manual `--speaker-names` always takes precedence.
+- **Language-aware processing**: The `--language` flag controls both Whisper model selection (preferring `.en` variants for English) and NER model selection.
+- **spaCy models**: Language models are automatically downloaded when needed (similar to Whisper). The default model (`en_core_web_sm` for English) will be downloaded on first use. You can also manually download models if needed.
 - Progress integrates with `tqdm` by default; packages embedding the library can override via `podcast_scraper.set_progress_factory`.
-- Whisper transcription requires `openai-whisper` and `ffmpeg`.
+- Whisper transcription requires `ffmpeg` to be installed on your system.
 - Downloads run in parallel (with configurable worker count); Whisper transcription remains sequential.
 - Automatic retries handle transient HTTP failures (429/5xx, connect/read errors).
 - Combine `--skip-existing` to resume long runs, `--clean-output` for fresh runs, and `--dry-run` to inspect planned work.
 
+## Project Intent & Fair Use Notice
+
+This project is intended solely for personal, non-commercial use.
+
+It provides tools for downloading, organizing, and analyzing publicly available podcast metadata and audio only for private research, experimentation, and personal study.
+
+This project does not host, republish, or redistribute any copyrighted podcast content, including:
+
+- full transcripts
+
+- full show notes
+
+- audio files
+
+- images or artwork
+
+All copyrighted material obtained with the tools in this repository must remain local to the user and must not be shared, uploaded, or made publicly accessible.
+
+Users are responsible for ensuring compliance with:
+
+- copyright law,
+
+- RSS feed terms,
+
+- podcast platform policies.
+
+This software is provided for educational and personal-use purposes only and is not intended to power a public dataset, index, or any commercial service without explicit permission from rights holders.
+
+For complete details, see [Legal Notice & Appropriate Use](docs/legal.md).
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+**Important:** The MIT license applies only to the source code in this repository. It does not grant any rights to redistribute or publicly share any third-party podcast content retrieved or processed using this software. See [Legal Notice & Appropriate Use](docs/legal.md) for more information.
