@@ -1,8 +1,11 @@
 # Podcast Scraper
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Personal Use Only](https://img.shields.io/badge/Use-Personal%20Only-orange)](docs/legal.md)
 
 Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Features include automatic speaker name detection using Named Entity Recognition (NER), language-aware Whisper model selection, multi-threaded downloads, resumable/cleanable output directories, dry-run previews, progress bars, configurable run folders, screenplay formatting, and JSON/YAML configuration files.
+
+> **⚠️ Important:** This project is intended for **personal, non-commercial use only**. All downloaded content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate Use](docs/legal.md) for details.
 
 ## Documentation
 
@@ -62,6 +65,8 @@ When using a virtual environment, activate it first (see below) and run the same
 - `podcast_scraper/progress.py` — pluggable progress reporting interface
 
 ## Usage
+
+> **Note:** All downloaded content must remain local to your device. Do not share, upload, or redistribute podcast transcripts, audio files, or other copyrighted material obtained using this tool.
 
 ### CLI
 
@@ -249,6 +254,38 @@ Advanced helpers remain accessible in submodules (`podcast_scraper.downloader.fe
 - Automatic retries handle transient HTTP failures (429/5xx, connect/read errors).
 - Combine `--skip-existing` to resume long runs, `--clean-output` for fresh runs, and `--dry-run` to inspect planned work.
 
+## Project Intent & Fair Use Notice
+
+This project is intended solely for personal, non-commercial use.
+
+It provides tools for downloading, organizing, and analyzing publicly available podcast metadata and audio only for private research, experimentation, and personal study.
+
+This project does not host, republish, or redistribute any copyrighted podcast content, including:
+
+- full transcripts
+
+- full show notes
+
+- audio files
+
+- images or artwork
+
+All copyrighted material obtained with the tools in this repository must remain local to the user and must not be shared, uploaded, or made publicly accessible.
+
+Users are responsible for ensuring compliance with:
+
+- copyright law,
+
+- RSS feed terms,
+
+- podcast platform policies.
+
+This software is provided for educational and personal-use purposes only and is not intended to power a public dataset, index, or any commercial service without explicit permission from rights holders.
+
+For complete details, see [Legal Notice & Appropriate Use](docs/legal.md).
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+**Important:** The MIT license applies only to the source code in this repository. It does not grant any rights to redistribute or publicly share any third-party podcast content retrieved or processed using this software. See [Legal Notice & Appropriate Use](docs/legal.md) for more information.

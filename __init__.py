@@ -1,3 +1,6 @@
+# This project is intended for personal, non-commercial use only.
+# See README and docs/legal.md for details.
+
 """Podcast Scraper - Download podcast transcripts from RSS feeds.
 
 This package provides a simple API for downloading podcast transcripts:
