@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any, List, Optional, Set, Tuple
 
+import spacy
+
 from . import config
 
 logger = logging.getLogger(__name__)
@@ -14,23 +16,24 @@ DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
 
 
 def _load_spacy_model(model_name: str) -> Optional[Any]:
-    """Load spaCy model with graceful fallback."""
-    try:
-        import spacy
+    """Load spaCy model.
 
-        try:
-            nlp = spacy.load(model_name)
-            logger.debug("Loaded spaCy model: %s", model_name)
-            return nlp
-        except OSError:
-            logger.warning(
-                "spaCy model '%s' not found. Install with: python -m spacy download %s",
-                model_name,
-                model_name,
-            )
-            return None
-    except ImportError:
-        logger.warning("spaCy not installed. Install with: pip install spacy")
+    Args:
+        model_name: Name of the spaCy model to load (e.g., 'en_core_web_sm')
+
+    Returns:
+        Loaded spaCy nlp object or None if model not found
+    """
+    try:
+        nlp = spacy.load(model_name)
+        logger.debug("Loaded spaCy model: %s", model_name)
+        return nlp
+    except OSError:
+        logger.warning(
+            "spaCy model '%s' not found. Install with: python -m spacy download %s",
+            model_name,
+            model_name,
+        )
         return None
 
 
@@ -113,7 +116,7 @@ def detect_speaker_names(
 
     nlp = _get_ner_model(cfg)
     if not nlp:
-        logger.debug("spaCy model unavailable, using default speaker names")
+        logger.debug("spaCy model not available, using default speaker names")
         return DEFAULT_SPEAKER_NAMES.copy(), set()
 
     # Detect hosts from feed metadata or use cached/known hosts
@@ -150,7 +153,9 @@ def detect_speaker_names(
 
     # If no guests detected, use host-only labels
     if not guests and hosts:
-        speaker_names = [f"Host {i+1}" if i > 0 else "Host" for i in range(min(len(hosts), max_names))]
+        speaker_names = [
+            f"Host {i+1}" if i > 0 else "Host" for i in range(min(len(hosts), max_names))
+        ]
     elif not all_names:
         # Fallback to defaults
         speaker_names = DEFAULT_SPEAKER_NAMES.copy()
@@ -172,4 +177,3 @@ def detect_speaker_names(
 
 
 __all__ = ["detect_speaker_names", "DEFAULT_SPEAKER_NAMES"]
-

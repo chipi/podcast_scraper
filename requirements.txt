@@ -6,4 +6,5 @@ requests>=2.31.0
 platformdirs>=3.11.0
 pydantic>=2.6.0
 types-PyYAML>=6.0.12
+spacy>=3.7.0
 
