@@ -11,7 +11,6 @@ from typing import List, Tuple
 
 from . import config, filesystem, models, progress, speaker_detection, whisper
 from .episode_processor import (
-    download_media_for_transcription,
     process_episode_download,
     transcribe_media_to_text,
 )

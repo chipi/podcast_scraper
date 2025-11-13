@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-import subprocess
+import re
+import subprocess  # nosec B404 - subprocess is needed for spaCy model download
 import sys
 from typing import Any, List, Optional, Set, Tuple
 
@@ -15,6 +16,23 @@ logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
 DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
+
+# Valid spaCy model names contain only alphanumeric, underscore, hyphen, and dot
+_VALID_MODEL_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_.-]+$")
+
+
+def _validate_model_name(model_name: str) -> bool:
+    """Validate spaCy model name to prevent command injection.
+
+    Args:
+        model_name: Model name to validate
+
+    Returns:
+        True if valid, False otherwise
+    """
+    if not model_name or len(model_name) > 100:  # Reasonable length limit
+        return False
+    return bool(_VALID_MODEL_NAME_PATTERN.match(model_name))
 
 
 def _load_spacy_model(model_name: str) -> Optional[Any]:
@@ -29,6 +47,11 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
     Returns:
         Loaded spaCy nlp object or None if download/load fails
     """
+    # Validate model name to prevent command injection
+    if not _validate_model_name(model_name):
+        logger.error("Invalid spaCy model name: %s (contains invalid characters)", model_name)
+        return None
+
     try:
         nlp = spacy.load(model_name)
         logger.debug("Loaded spaCy model: %s", model_name)
@@ -38,7 +61,8 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
         try:
             # Use subprocess to call 'python -m spacy download' (most reliable method)
             # This ensures we use the same Python interpreter and environment
-            result = subprocess.run(
+            # Model name is validated above to prevent command injection
+            subprocess.run(  # nosec B603 - model_name is validated above
                 [sys.executable, "-m", "spacy", "download", model_name],
                 capture_output=True,
                 text=True,
@@ -56,9 +80,7 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
                 exc,
                 exc.stderr or exc.stdout or "",
             )
-            logger.warning(
-                "You can manually install with: python -m spacy download %s", model_name
-            )
+            logger.warning("You can manually install with: python -m spacy download %s", model_name)
             return None
         except OSError as exc:
             logger.error(
