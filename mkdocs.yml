@@ -12,6 +12,7 @@ nav:
       - PRD-001 Transcript Acquisition Pipeline: prd/PRD-001-transcript-pipeline.md
       - PRD-002 Whisper Fallback Transcription: prd/PRD-002-whisper-fallback.md
       - PRD-003 User Interfaces & Configuration: prd/PRD-003-user-interface-config.md
+      - PRD-004 Per-Episode Metadata Generation: prd/PRD-004-metadata-generation.md
   - RFCs:
       - RFC-001 Workflow Orchestration: rfc/RFC-001-workflow-orchestration.md
       - RFC-002 RSS Parsing & Episode Modeling: rfc/RFC-002-rss-parsing.md
@@ -23,6 +24,7 @@ nav:
       - RFC-008 Configuration Model & Validation: rfc/RFC-008-config-model.md
       - RFC-009 Progress Reporting Integration: rfc/RFC-009-progress-integration.md
       - RFC-010 Automatic Speaker Name Detection: rfc/RFC-010-speaker-name-detection.md
+      - RFC-011 Per-Episode Metadata Generation: rfc/RFC-011-metadata-generation.md
   - Guides:
       - API Comparison (v1 → v2): API_COMPARISON.md
       - API Migration Guide: API_MIGRATION_GUIDE.md
