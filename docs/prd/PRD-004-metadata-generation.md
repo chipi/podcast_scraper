@@ -11,6 +11,7 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 - **Search and discovery**: Finding episodes by guest names, topics, dates
 - **Analytics**: Understanding feed patterns, guest frequency, publication schedules
 - **Integration**: Enabling other tools to consume structured episode data
+- **Database ingestion**: Loading metadata directly into databases (PostgreSQL, MongoDB, Elasticsearch, ClickHouse) without transformation code
 - **Archival**: Preserving complete episode context alongside transcripts
 - **Future features**: Episode categorization, recommendation systems, summarization (PRD-005)
 
@@ -20,6 +21,7 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 - Capture comprehensive feed and episode information in a machine-readable format
 - Integrate with existing pipeline without disrupting current workflows
 - Enable downstream tools to consume episode metadata programmatically
+- **Database-friendly format**: Design schema for direct ingestion into PostgreSQL (JSONB), MongoDB, Elasticsearch, and ClickHouse without transformation code
 - Preserve metadata alongside transcripts for complete episode records
 
 ## Non-Goals
@@ -42,18 +44,21 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 - *As Researcher Riley, I can consume structured metadata JSON to analyze patterns across multiple podcast feeds.*
 - *As Developer Devin, I can integrate episode metadata into my application without parsing RSS feeds directly.*
 - *As Analyst Alex, I can aggregate metadata from multiple runs to understand feed evolution over time.*
+- *As Database Developer Dana, I can load metadata JSON files directly into PostgreSQL JSONB columns, MongoDB collections, Elasticsearch indices, or ClickHouse tables without writing transformation code.*
 - *As any operator, I can opt-in to metadata generation via configuration flag.*
-- *As any operator, I can choose JSON or YAML format based on my preference.*
+- *As any operator, I can choose JSON or YAML format based on my preference (JSON recommended for database ingestion).*
 
 ## Functional Requirements
 
 ### FR1: Metadata Generation Control
+
 - **FR1.1**: Add `generate_metadata` config field (default `false` for backwards compatibility)
 - **FR1.2**: Add `--generate-metadata` CLI flag
 - **FR1.3**: Add `metadata_format` config field (`"json"` or `"yaml"`, default `"json"`)
 - **FR1.4**: Metadata generation respects `--dry-run` mode (logs planned metadata without writing files)
 
 ### FR2: Feed-Level Metadata
+
 - **FR2.1**: Capture feed title
 - **FR2.2**: Capture feed URL
 - **FR2.3**: Capture feed description (if available)
@@ -63,6 +68,7 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 - **FR2.7**: Capture feed last updated date (if available)
 
 ### FR3: Episode-Level Metadata
+
 - **FR3.1**: Capture episode title
 - **FR3.2**: Capture episode description/summary (HTML-stripped)
 - **FR3.3**: Capture episode published date (parsed and normalized)
@@ -73,6 +79,7 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 - **FR3.8**: Capture episode image/artwork URL (if available)
 
 ### FR4: Content Metadata
+
 - **FR4.1**: Capture transcript URLs with types/formats (from Podcasting 2.0 tags)
 - **FR4.2**: Capture media URL (enclosure)
 - **FR4.3**: Capture media type/MIME type
@@ -83,6 +90,7 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 - **FR4.8**: Capture transcript file path (relative to output directory)
 
 ### FR5: Processing Metadata
+
 - **FR5.1**: Capture processing timestamp (ISO 8601 format)
 - **FR5.2**: Capture output directory path
 - **FR5.3**: Capture run ID (if applicable)
@@ -90,19 +98,28 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 - **FR5.5**: Capture schema version for future compatibility
 
 ### FR6: File Storage
+
 - **FR6.1**: Store metadata files in same directory as transcripts (by default)
 - **FR6.2**: Use naming convention: `<episode_number> - <title>.metadata.json` or `.metadata.yaml`
 - **FR6.3**: Respect `--skip-existing` semantics (skip metadata generation if file exists)
 - **FR6.4**: Support optional separate `metadata/` subdirectory (configurable)
 
 ### FR7: Schema & Format
+
 - **FR7.1**: Define JSON Schema for metadata structure
-- **FR7.2**: Support JSON format (machine-readable, default)
+- **FR7.2**: Support JSON format (machine-readable, default, database-friendly)
 - **FR7.3**: Support YAML format (human-readable, optional)
 - **FR7.4**: Include schema version field for future evolution
 - **FR7.5**: Validate metadata structure before writing
+- **FR7.6**: Use database-friendly conventions:
+  - Field names in `snake_case` (compatible with SQL and NoSQL databases)
+  - Date/time fields as ISO 8601 strings (not datetime objects)
+  - Consistent data types across all fields
+  - Arrays for multi-value fields (hosts, guests, transcript URLs)
+  - Nested objects for logical grouping (feed, episode, content, processing)
 
 ### FR8: Integration Points
+
 - **FR8.1**: Generate metadata during episode processing workflow
 - **FR8.2**: Integrate with RFC-010 speaker detection (populate host/guest names)
 - **FR8.3**: Integrate with RFC-004 filesystem layout (use same output directory structure)
@@ -115,6 +132,7 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 - Metadata schema validates successfully for all generated files
 - Zero impact on existing transcript download/transcription workflows when disabled
 - Metadata files consumable by standard JSON/YAML parsers
+- **Database ingestion**: Metadata files can be loaded directly into PostgreSQL JSONB, MongoDB, Elasticsearch, and ClickHouse without transformation code
 - Processing time increase <5% when metadata generation enabled
 
 ## Dependencies
@@ -128,24 +146,40 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 ## Design Considerations
 
 ### Format Selection
+
 - **JSON**: Machine-readable, widely supported, smaller file size
 - **YAML**: Human-readable, easier to edit manually, larger file size
 - **Decision**: Support both, default to JSON for performance
 
 ### Storage Location
+
 - **Same directory as transcripts**: Simple, keeps related files together
 - **Separate `metadata/` subdirectory**: Cleaner separation, easier to exclude from searches
 - **Decision**: Default to same directory, allow configurable subdirectory
 
 ### Optional vs Required
+
 - **Opt-in (default `false`)**: Backwards compatible, doesn't affect existing users
 - **Opt-out (default `true`)**: More useful by default, but changes behavior
 - **Decision**: Opt-in for backwards compatibility
 
 ### Schema Versioning
+
 - **Version field**: Enables future schema evolution without breaking consumers
 - **Semantic versioning**: Major.minor.patch format
 - **Decision**: Start with version `1.0.0`, increment major for breaking changes
+
+### Database Integration Design
+
+- **Unified JSON format**: Single JSON schema works across all target databases (PostgreSQL, MongoDB, Elasticsearch, ClickHouse) without format variations
+- **Database-friendly conventions**: Schema design ensures direct ingestion capability (see RFC-011 for technical details)
+- **No transformation required**: Metadata files can be loaded directly into target databases without custom code
+
+## Database Integration
+
+Metadata files are designed to be directly loadable into common databases (PostgreSQL, MongoDB, Elasticsearch, ClickHouse) without transformation code. The unified JSON format with `snake_case` field names and ISO 8601 date serialization ensures compatibility across all target databases.
+
+For detailed technical examples and database-specific loading instructions, see RFC-011.
 
 ## Open Questions
 
@@ -153,6 +187,7 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 - Should metadata be generated for episodes without transcripts? (Decision: Yes, metadata is independent of transcript availability)
 - How to handle metadata updates for existing episodes? (Decision: Regenerate on each run, use `--skip-existing` to prevent overwrites)
 - Should metadata include checksums/hashes? (Future consideration)
+- Do we need database-specific format variations? (Decision: No, unified JSON with snake_case and ISO 8601 dates works universally)
 
 ## Related Work
 
@@ -170,4 +205,3 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 - [ ] Tests cover metadata generation, validation, format options
 - [ ] Documentation updated (README, config examples)
 - [ ] Schema versioning strategy documented
-
