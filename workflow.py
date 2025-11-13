@@ -7,11 +7,21 @@ import os
 import shutil
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-from . import config, filesystem, models, progress, whisper
-from .episode_processor import process_episode_download, transcribe_media_to_text
-from .rss_parser import create_episode_from_item, fetch_and_parse_rss
+from . import (
+    config,
+    filesystem,
+    models,
+    progress,
+    speaker_detection,
+    whisper_integration as whisper,
+)
+from .episode_processor import (
+    process_episode_download,
+    transcribe_media_to_text,
+)
+from .rss_parser import create_episode_from_item, extract_episode_description, fetch_and_parse_rss
 
 logger = logging.getLogger(__name__)
 
@@ -105,10 +115,86 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:  # noqa: C901 - orchest
     ]
     logger.debug("Materialized %s episode objects", len(episodes))
 
+    # Detect hosts from feed metadata if auto_speakers is enabled
+    # Note: Host detection works in dry-run mode (no media download/transcription needed)
+    cached_hosts: set[str] = set()
+    heuristics: Optional[Dict[str, Any]] = None
+    if cfg.auto_speakers and cfg.cache_detected_hosts:
+        # Extract feed description if available
+        feed_description = None  # TODO: Extract from feed XML if needed
+        # Detect hosts: prefer RSS author tags, fall back to NER
+        nlp = speaker_detection.get_ner_model(cfg) if not feed.authors else None
+        feed_hosts = speaker_detection.detect_hosts_from_feed(
+            feed_title=feed.title,
+            feed_description=feed_description,
+            feed_authors=feed.authors if feed.authors else None,
+            nlp=nlp,
+        )
+
+        # Validate hosts with first episode: hosts should appear in first episode too
+        # Skip validation if hosts came from author tags (they're already reliable)
+        if feed_hosts and episodes and not feed.authors:
+            # Only validate if we used NER (not author tags)
+            first_episode = episodes[0]
+            first_episode_description = extract_episode_description(first_episode.item)
+            if nlp:
+                first_episode_persons: Set[str] = set()
+                title_persons = speaker_detection.extract_person_entities(first_episode.title, nlp)
+                first_episode_persons.update(name for name, _ in title_persons)
+                if first_episode_description:
+                    desc_persons = speaker_detection.extract_person_entities(
+                        first_episode_description, nlp
+                    )
+                    first_episode_persons.update(name for name, _ in desc_persons)
+                # Only keep hosts that also appear in first episode (validation)
+                validated_hosts = feed_hosts & first_episode_persons
+                if validated_hosts != feed_hosts:
+                    logger.debug(
+                        "Host validation: %d hosts from feed, %d validated with first episode",
+                        len(feed_hosts),
+                        len(validated_hosts),
+                    )
+                    if validated_hosts:
+                        logger.info(
+                            "Validated hosts (appear in feed and first episode): %s",
+                            list(validated_hosts),
+                        )
+                    if feed_hosts - validated_hosts:
+                        logger.debug(
+                            "Hosts from feed not found in first episode (discarded): %s",
+                            list(feed_hosts - validated_hosts),
+                        )
+                cached_hosts = validated_hosts
+            else:
+                cached_hosts = feed_hosts
+        else:
+            # If hosts came from author tags, use them directly (no validation needed)
+            cached_hosts = feed_hosts
+
+        if cached_hosts:
+            source = "RSS author tags" if feed.authors else "feed metadata (NER)"
+            logger.info("=" * 60)
+            logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
+            logger.info("=" * 60)
+        elif cfg.auto_speakers:
+            logger.info("No hosts detected from feed metadata")
+
+        # Analyze patterns from first few episodes to extract heuristics
+        if cfg.auto_speakers and episodes:
+            nlp = speaker_detection.get_ner_model(cfg)
+            if nlp:
+                heuristics = speaker_detection.analyze_episode_patterns(
+                    episodes, nlp, cached_hosts, sample_size=5
+                )
+                if heuristics.get("title_position_preference"):
+                    logger.debug(
+                        "Pattern analysis: guest names typically appear at %s of title",
+                        heuristics["title_position_preference"],
+                    )
+
     whisper_model = None
     if cfg.transcribe_missing and not cfg.dry_run:
         whisper_model = whisper.load_whisper_model(cfg)
-        logger.debug("Whisper model loaded: %s", bool(whisper_model))
 
     temp_dir = None
     if cfg.transcribe_missing:
@@ -122,30 +208,121 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:  # noqa: C901 - orchest
     saved_counter_lock = threading.Lock() if cfg.workers > 1 else None
 
     saved = 0
-    download_args = [
-        (
-            episode,
-            cfg,
-            temp_dir,
-            effective_output_dir,
-            run_suffix,
-            transcription_jobs,
-            transcription_jobs_lock,
+    # Prepare download args with detected speaker names for each episode
+    download_args = []
+    for episode in episodes:
+        detected_speaker_names = None
+        # Detect guests for all episodes when auto_speakers is enabled
+        # (not just when transcribing, so we can log guests even for transcript downloads)
+        # Note: Guest detection works in dry-run mode (no media download/transcription needed)
+        if cfg.auto_speakers:
+            # Always log episode info
+            logger.info("Episode %d: %s", episode.idx, episode.title)
+
+            # Extract episode description for NER (limited to first 20 chars)
+            episode_description = extract_episode_description(episode.item)
+            # Detect speaker names from episode title and first 20 chars of description
+            # Guests are detected from episode title and description snippet
+            detected_speakers, detected_hosts_set, detection_succeeded = (
+                speaker_detection.detect_speaker_names(
+                    episode_title=episode.title,
+                    episode_description=episode_description,
+                    cfg=cfg,
+                    cached_hosts=cached_hosts if cfg.cache_detected_hosts else None,
+                    heuristics=heuristics,
+                )
+            )
+
+            # Use manual guest name as fallback ONLY if detection failed
+            # Manual names: first item = host, second item = guest
+            if (
+                not detection_succeeded
+                and cfg.screenplay_speaker_names
+                and len(cfg.screenplay_speaker_names) >= 2
+            ):
+                # Keep detected hosts, only use manual guest fallback
+                manual_host = cfg.screenplay_speaker_names[0]
+                manual_guest = cfg.screenplay_speaker_names[1]
+
+                # Use detected hosts if available, otherwise use manual host
+                if detected_hosts_set:
+                    fallback_names = list(detected_hosts_set) + [manual_guest]
+                    logger.info(
+                        "  → Guest detection failed, using manual guest fallback: %s (hosts: %s)",
+                        manual_guest,
+                        ", ".join(detected_hosts_set),
+                    )
+                else:
+                    # No hosts detected either, use both manual names
+                    fallback_names = [manual_host, manual_guest]
+                    logger.info(
+                        "  → Detection failed, using manual fallback: %s, %s",
+                        manual_host,
+                        manual_guest,
+                    )
+                detected_speaker_names = fallback_names
+            elif detection_succeeded:
+                detected_speaker_names = detected_speakers
+            # Note: Guest logging happens inside detect_speaker_names()
+            # Note: We don't update cached_hosts here because hosts are only
+            # detected from feed metadata, not from episodes
+        elif cfg.screenplay_speaker_names:
+            # If auto_speakers is disabled, use manual names directly
+            detected_speaker_names = cfg.screenplay_speaker_names
+        download_args.append(
+            (
+                episode,
+                cfg,
+                temp_dir,
+                effective_output_dir,
+                run_suffix,
+                transcription_jobs,
+                transcription_jobs_lock,
+                detected_speaker_names,
+            )
         )
-        for episode in episodes
-    ]
 
     if not download_args:
         saved = 0
     elif cfg.workers <= 1 or len(download_args) == 1:
         for args in download_args:
-            if process_episode_download(*args):
+            (
+                episode,
+                cfg_arg,
+                temp_dir_arg,
+                output_dir_arg,
+                run_suffix_arg,
+                jobs_arg,
+                lock_arg,
+                detected_names,
+            ) = args
+            # Update transcription job with detected names if created
+            if process_episode_download(
+                episode,
+                cfg_arg,
+                temp_dir_arg,
+                output_dir_arg,
+                run_suffix_arg,
+                jobs_arg,
+                lock_arg,
+                detected_names,
+            ):
                 saved += 1
-                logger.debug("Episode %s yielded transcript (saved=%s)", args[0].idx, saved)
+                logger.debug("Episode %s yielded transcript (saved=%s)", episode.idx, saved)
     else:
         with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
             future_map = {
-                executor.submit(process_episode_download, *args): args[0].idx
+                executor.submit(
+                    process_episode_download,
+                    args[0],
+                    args[1],
+                    args[2],
+                    args[3],
+                    args[4],
+                    args[5],
+                    args[6],
+                    args[7],
+                ): args[0].idx
                 for args in download_args
             }
             for future in as_completed(future_map):

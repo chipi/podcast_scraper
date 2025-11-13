@@ -67,8 +67,29 @@ Provide an optional fallback path that transcribes podcast audio with OpenAI Whi
 
 This PRD integrates with RFC-010 (Automatic Speaker Name Detection) to enhance Whisper transcription:
 
-- **Automatic Speaker Detection**: When enabled, speaker names are extracted from episode titles, descriptions, and feed metadata using spaCy NER, eliminating the need for manual `--speaker-names` configuration.
+- **Automatic Speaker Detection**: When enabled, speaker names are automatically detected:
+  - **Hosts**: 
+    - **Preferred**: Extracted from RSS author tags (channel-level only):
+      - RSS 2.0 `<author>` tag (channel-level, single author).
+      - iTunes `<itunes:author>` tag (channel-level, can confirm host).
+      - iTunes `<itunes:owner><itunes:name>` tag (channel-level, can confirm host).
+      - Multiple sources are collected together to confirm/validate hosts.
+      - Most reliable source as they explicitly specify the podcast host(s).
+    - **Fallback**: If no author tags exist, extracted from feed-level metadata (feed title/description) using spaCy NER and validated by checking they also appear in the first episode.
+  - **Guests**: Extracted from episode-specific metadata (episode title and first 20 characters of description) using spaCy NER, never from feed metadata.
+    - Descriptions are limited to first 20 characters to focus on the most relevant part (often contains guest name).
+    - All extracted names are sanitized (removes parentheses, punctuation, etc.) and deduplicated case-insensitively.
+    - Pattern-based fallback extracts names from segments after separators (`|`, `—`, `–`) when NER fails.
+  - This eliminates the need for manual `--speaker-names` configuration while ensuring accurate host/guest distinction.
 - **Language Configuration**: The `--language` flag controls both Whisper model selection (preferring English-only `.en` variants when language is "en") and NER model selection (e.g., `en_core_web_sm` for English).
 - **Model Selection**: For English podcasts, automatically prefer `.en` Whisper models (`base.en`, `small.en`, etc.) which perform better than multilingual variants.
-- **Fallback Behavior**: If NER fails or spaCy is unavailable, fall back to default `["Host", "Guest"]` labels. Manual `--speaker-names` override always takes precedence.
+- **Fallback Behavior**: 
+  - If NER fails or spaCy is unavailable, fall back to default `["Host", "Guest"]` labels.
+  - **Manual Speaker Names Fallback**: Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails:
+    - Manual names format: first item = host, second item = guest (e.g., `["Lenny", "Guest"]`).
+    - When guest detection fails for an episode:
+      - If hosts were detected: keep detected hosts + use manual guest name (second item) as fallback.
+      - If no hosts detected: use both manual names (host + guest).
+    - Manual names never override successful detection; they only activate when detection fails.
+    - This ensures detected hosts are preserved while allowing manual guest fallback per episode when needed.
 - **Metadata Integration**: Detected speaker names are stored in episode metadata documents (per PRD-004) for downstream use cases.

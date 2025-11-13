@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
 
-from . import config, downloader, filesystem, models, whisper
+from . import config, downloader, filesystem, models, whisper_integration as whisper
 from .rss_parser import choose_transcript_url
 
 logger = logging.getLogger(__name__)
@@ -127,6 +127,7 @@ def download_media_for_transcription(
     temp_dir: str,
     effective_output_dir: str,
     run_suffix: Optional[str],
+    detected_speaker_names: Optional[List[str]] = None,
 ) -> Optional[models.TranscriptionJob]:
     """Download media file for Whisper transcription.
 
@@ -202,6 +203,7 @@ def download_media_for_transcription(
         ep_title=episode.title,
         ep_title_safe=episode.title_safe,
         temp_media=temp_media,
+        detected_speaker_names=detected_speaker_names,
     )
 
 
@@ -232,8 +234,17 @@ def transcribe_media_to_text(  # noqa: C901 - orchestrates Whisper transcription
         return True
 
     temp_media = job.temp_media
+
+    # Log detected speaker names (hosts + guests) before transcription
+    if job.detected_speaker_names:
+        speaker_names_display = ", ".join(job.detected_speaker_names)
+        logger.info("    Speaker names for transcription: %s", speaker_names_display)
+
     if whisper_model is None:
-        logger.warning("    Skipping transcription: Whisper model not available")
+        logger.warning(
+            "    Skipping transcription: Whisper model not available (requested: %s)",
+            cfg.whisper_model,
+        )
         try:
             os.remove(temp_media)
         except OSError as exc:
@@ -244,11 +255,13 @@ def transcribe_media_to_text(  # noqa: C901 - orchestrates Whisper transcription
         result, tc_elapsed = whisper.transcribe_with_whisper(whisper_model, temp_media, cfg)
         text = (result.get("text") or "").strip()
         if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
+            # Use detected speaker names (manual names are already used as fallback in workflow)
+            speaker_names = job.detected_speaker_names or []
             try:
                 formatted = whisper.format_screenplay_from_segments(
                     result["segments"],
                     cfg.screenplay_num_speakers,
-                    cfg.screenplay_speaker_names,
+                    speaker_names,
                     cfg.screenplay_gap_s,
                 )
                 if formatted.strip():
@@ -362,6 +375,7 @@ def process_episode_download(
     run_suffix: Optional[str],
     transcription_jobs: List[models.TranscriptionJob],
     transcription_jobs_lock: Optional[threading.Lock],
+    detected_speaker_names: Optional[List[str]] = None,
 ) -> bool:
     """Process a single episode: download transcript or prepare for Whisper transcription.
 
@@ -403,6 +417,7 @@ def process_episode_download(
             temp_dir,
             effective_output_dir,
             run_suffix,
+            detected_speaker_names=detected_speaker_names,
         )
         if job:
             if transcription_jobs_lock:

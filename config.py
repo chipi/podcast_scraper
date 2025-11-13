@@ -18,6 +18,9 @@ DEFAULT_USER_AGENT = (
     "Chrome/119.0 Safari/537.36"
 )
 DEFAULT_WORKERS = max(1, min(8, os.cpu_count() or 4))
+DEFAULT_LANGUAGE = "en"
+DEFAULT_NER_MODEL = "en_core_web_sm"
+DEFAULT_MAX_DETECTED_NAMES = 4
 MIN_NUM_SPEAKERS = 1
 MIN_TIMEOUT_SECONDS = 1
 VALID_WHISPER_MODELS = (
@@ -56,6 +59,10 @@ class Config(BaseModel):
     skip_existing: bool = Field(default=False, alias="skip_existing")
     clean_output: bool = Field(default=False, alias="clean_output")
     dry_run: bool = Field(default=False, alias="dry_run")
+    language: str = Field(default=DEFAULT_LANGUAGE, alias="language")
+    ner_model: Optional[str] = Field(default=None, alias="ner_model")
+    auto_speakers: bool = Field(default=True, alias="auto_speakers")
+    cache_detected_hosts: bool = Field(default=True, alias="cache_detected_hosts")
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True, frozen=True)
 
@@ -75,7 +82,7 @@ class Config(BaseModel):
         value = str(value).strip()
         return value or None
 
-    @field_validator("user_agent", "whisper_model", mode="before")
+    @field_validator("user_agent", "whisper_model", "language", mode="before")
     @classmethod
     def _coerce_string(cls, value: Any) -> str:
         if value is None:
@@ -199,6 +206,22 @@ class Config(BaseModel):
         if workers < 1:
             raise ValueError("workers must be at least 1")
         return workers
+
+    @field_validator("language", mode="after")
+    @classmethod
+    def _normalize_language(cls, value: str) -> str:
+        """Normalize language code to lowercase."""
+        if not value:
+            return DEFAULT_LANGUAGE
+        return value.lower().strip() or DEFAULT_LANGUAGE
+
+    @field_validator("ner_model", mode="before")
+    @classmethod
+    def _coerce_ner_model(cls, value: Any) -> Optional[str]:
+        """Coerce NER model to string or None."""
+        if value is None or value == "":
+            return None
+        return str(value).strip() or None
 
 
 def load_config_file(
