@@ -6,9 +6,11 @@
 - **Related PRD**: `docs/prd/PRD-001-transcript-pipeline.md`
 
 ## Abstract
+
 Define how `workflow.run_pipeline` coordinates the transcript acquisition pipeline, including concurrency, run lifecycle, and interaction with episode processors.
 
 ## Problem Statement
+
 We need a central orchestrator that translates a validated `Config` into concrete actions: preparing output directories, pulling RSS content, delegating episode work, and finalizing runs. Without a well-defined workflow contract, modules would duplicate logic and be difficult to reason about.
 
 ## Constraints & Assumptions

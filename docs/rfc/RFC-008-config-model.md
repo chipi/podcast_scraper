@@ -6,9 +6,11 @@
 - **Related PRDs**: `docs/prd/PRD-001-transcript-pipeline.md`, `docs/prd/PRD-002-whisper-fallback.md`, `docs/prd/PRD-003-user-interface-config.md`
 
 ## Abstract
+
 Outline the design of the immutable Pydantic `Config` model, including field normalization, validation rules, and serialization behavior that underpins both CLI and Python API usage.
 
 ## Problem Statement
+
 Multiple modules need consistent configuration data with guarantees around types, ranges, and normalization (e.g., trimmed strings, positive integers). A central schema ensures downstream logic can assume invariants without duplicating validation.
 
 ## Constraints & Assumptions

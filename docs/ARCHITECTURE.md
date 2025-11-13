@@ -1,11 +1,13 @@
 # Podcast Scraper Architecture
 
 ## Goals and Scope
+
 - Provide a resilient pipeline that collects podcast episode transcripts from RSS feeds and fills gaps via Whisper transcription.
 - Offer both CLI and Python APIs with a single configuration surface (`Config`) and deterministic filesystem layout.
 - Keep the public surface area small (`Config`, `load_config_file`, `run_pipeline`, `cli.main`) while exposing well-factored submodules for advanced use.
 
 ## High-Level Flow
+
 1. **Entry**: `podcast_scraper.cli.main` parses CLI args (optionally merging JSON/YAML configs) into a validated `Config` object and applies global logging preferences.
 2. **Run orchestration**: `workflow.run_pipeline` coordinates the end-to-end job: output setup, RSS acquisition, episode materialization, transcript download, optional Whisper transcription, and cleanup.
 3. **Episode handling**: For each `Episode`, `episode_processor.process_episode_download` either saves an existing transcript or enqueues media for Whisper.
@@ -14,6 +16,7 @@
 6. **Progress/UI**: All long-running operations report progress through the pluggable factory in `progress.py`, defaulting to `tqdm` in the CLI.
 
 ## Module Responsibilities
+
 - `cli.py`: Parse/validate CLI arguments, integrate config files, set up progress reporting, trigger `run_pipeline`.
 - `config.py`: Immutable Pydantic model representing all runtime options; JSON/YAML loader with strict validation and normalization helpers. Includes language configuration, NER settings, and speaker detection flags (RFC-010).
 - `workflow.py`: Pipeline coordinator that orchestrates directory prep, RSS parsing, download concurrency, Whisper lifecycle, speaker detection coordination, and cleanup.
@@ -27,6 +30,7 @@
 - `models.py`: Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob`) shared across modules. May be extended to include detected speaker metadata.
 
 ## Key Design Decisions
+
 - **Typed, immutable configuration**: `Config` is a frozen Pydantic model, ensuring every module receives canonicalized values (e.g., normalized URLs, integer coercions, validated Whisper models). This centralizes validation and guards downstream logic.
 - **Resilient HTTP interactions**: A per-thread `requests.Session` with exponential backoff retry (`LoggingRetry`) handles transient network issues while logging retries for observability.
 - **Concurrent transcript pulls**: Transcript downloads are parallelized via `ThreadPoolExecutor`, guarded with locks when mutating shared counters/job queues. Whisper remains sequential to avoid GPU/CPU thrashing and to keep the UX predictable.
@@ -39,6 +43,7 @@
 - **Host/guest distinction**: NER distinguishes recurring hosts (from feed-level metadata) from episode-specific guests, enabling accurate speaker labeling in Whisper screenplay output.
 
 ## Constraints and Assumptions
+
 - Python 3.10+ with third-party packages: `requests`, `tqdm`, `defusedxml`, `platformdirs`, `pydantic`, `PyYAML`, and optionally `openai-whisper` + `ffmpeg` when transcription is required, and `spacy` when automatic speaker detection is enabled (RFC-010).
 - Network-facing operations assume well-formed HTTPS endpoints; malformed feeds raise early during parsing to avoid partial state.
 - Whisper transcription supports multiple languages via `language` configuration, with English (`"en"`) as the default. Model selection automatically prefers `.en` variants for English content. Transcription remains sequential by design; concurrent transcription is intentionally out of scope due to typical hardware limits.
@@ -46,6 +51,7 @@
 - Output directories must live in safe roots (cwd, user home, or platform data/cache dirs); other locations trigger warnings for operator review.
 
 ## Data and File Layout
+
 - `models.Episode` encapsulates the RSS item, chosen transcript URLs, and media enclosure metadata, keeping parsing concerns separate from processing. May be extended to include detected speaker names (RFC-010).
 - Transcript filenames follow `<####> - <episode_title>[ _<run_suffix>].<ext>` with extensions inferred from declared types, HTTP headers, or URL heuristics.
 - Whisper output names append the Whisper model/run identifier to differentiate multiple experimental runs inside the same base directory. Screenplay formatting uses detected speaker names when available.
@@ -53,12 +59,14 @@
 - Episode metadata documents (per PRD-004/RFC-011) store detected speaker names, feed information, and other episode details alongside transcripts for downstream use cases.
 
 ## Error Handling and Resilience
+
 - RSS and HTTP failures raise `ValueError` early with descriptive messages; CLI wraps these in exit codes for scripting.
 - Transcript/Media downloads log warnings rather than hard-fail the pipeline, allowing other episodes to proceed.
 - Filesystem operations sanitize user-provided paths, emit warnings when outside trusted roots, and handle I/O errors gracefully.
 - Unexpected exceptions inside worker futures are caught and logged without terminating the executor loop.
 
 ## Extensibility Points
+
 - **Configuration**: Extend `Config` (and CLI) when introducing new features; validation rules keep downstream logic defensive. Language and NER configuration (RFC-010) demonstrate this pattern.
 - **Progress**: Replace `progress.set_progress_factory` to integrate with custom UIs or disable progress output entirely.
 - **Download strategy**: `downloader` centralizes HTTP behavior—alternate adapters or auth strategies can be injected by decorating `fetch_url`/`http_get`.
@@ -68,6 +76,7 @@
 - **Language support**: Language configuration drives both Whisper and NER model selection, enabling multi-language support through consistent configuration. New languages can be added by extending model selection logic and spaCy model support.
 
 ## Testing Notes
+
 - `test_podcast_scraper.py` acts as an integration-focused suite, simulating CLI usage, error cases, transcript selection heuristics, and Whisper fallbacks via mocks. This keeps the public API stable and documents expected behaviors for future refactors.
 - Speaker detection tests (RFC-010) should cover NER extraction scenarios, host/guest distinction, fallback behavior when spaCy is unavailable, and integration with Whisper screenplay formatting.
 - See `docs/TESTING_STRATEGY.md` for comprehensive testing requirements, patterns, and infrastructure.
