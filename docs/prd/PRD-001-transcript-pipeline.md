@@ -57,3 +57,12 @@ Create a resilient pipeline that ingests a podcast RSS feed, locates published t
 ## Open Questions
 - Should we support filtering by publish date or keyword in addition to `--max-episodes`? (Future consideration.)
 - Do we need per-episode metadata exports (JSON summaries) alongside transcripts? Not in scope for v1.
+
+## RFC-010 Integration
+
+While PRD-001 focuses on transcript downloads, RFC-010 (Automatic Speaker Name Detection) enhances the pipeline by:
+
+- **Metadata Extraction**: During RSS parsing, episode metadata (titles, descriptions) is analyzed to extract speaker names, enriching the episode data model.
+- **Metadata Storage**: Detected speaker names are stored alongside transcripts in metadata documents (per PRD-004), enabling downstream search and analysis.
+- **Transparent Operation**: Speaker name detection runs automatically during episode processing without affecting transcript download workflows.
+- **Language Awareness**: The `--language` configuration affects both NER extraction and future Whisper transcription, ensuring consistent language handling across the pipeline.

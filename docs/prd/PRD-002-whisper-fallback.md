@@ -27,6 +27,8 @@ Provide an optional fallback path that transcribes podcast audio with OpenAI Whi
 - *As Creator Casey, I can specify which Whisper model to use (e.g., `base`, `small`) based on latency/quality requirements.*
 - *As any operator, I can see when media is downloaded, how large it is, and how long transcription takes.*
 - *As any operator, I can format transcriptions as screenplay-style dialog with consistent speaker labeling.*
+- *As any operator, I can have speaker names automatically detected from episode metadata without manual configuration (RFC-010).*
+- *As any operator, I can specify the podcast language to optimize Whisper model selection (English vs multilingual) and improve transcription accuracy.*
 
 ## Functional Requirements
 - **FR1**: Flag-controlled activation (`--transcribe-missing`) with model selection via `--whisper-model` (validated against supported list).
@@ -37,6 +39,10 @@ Provide an optional fallback path that transcribes podcast audio with OpenAI Whi
 - **FR6**: Support screenplay formatting via `--screenplay`, `--num-speakers`, `--speaker-names`, and `--screenplay-gap`.
 - **FR7**: Respect `--dry-run` behavior (log planned downloads/transcriptions without touching disk).
 - **FR8**: Append run suffixes indicating Whisper usage (e.g., `_whisper_base`) to distinguish outputs.
+- **FR9**: Automatically detect speaker names from episode metadata using Named Entity Recognition (RFC-010) when `--auto-speakers` is enabled (default).
+- **FR10**: Use detected speaker names in screenplay formatting unless manually overridden via `--speaker-names`.
+- **FR11**: Support language configuration (`--language`) that drives both Whisper model selection (preferring `.en` variants for English) and NER model selection.
+- **FR12**: Pass language parameter to Whisper transcription API to improve accuracy for non-English content.
 
 ## Success Metrics
 - When enabled, 100% of episodes produce a transcript file (download or Whisper).
@@ -46,6 +52,7 @@ Provide an optional fallback path that transcribes podcast audio with OpenAI Whi
 ## Dependencies
 - Media download reliability and naming conventions from `docs/rfc/RFC-004-filesystem-layout.md`.
 - Whisper loading/transcription mechanics in `docs/rfc/RFC-005-whisper-integration.md` and screenplay formatting in `docs/rfc/RFC-006-screenplay-formatting.md`.
+- Automatic speaker name detection via Named Entity Recognition in `docs/rfc/RFC-010-speaker-name-detection.md`.
 
 ## Release Checklist
 - [ ] README documents environment setup for Whisper (`openai-whisper`, `ffmpeg`).
@@ -55,3 +62,13 @@ Provide an optional fallback path that transcribes podcast audio with OpenAI Whi
 ## Open Questions
 - Should we allow per-episode inclusion/exclusion lists for Whisper (e.g., metadata filters)? Deferred.
 - Do we need GPU auto-detection to warn users about potential performance impacts? Nice-to-have, not in scope.
+
+## RFC-010 Integration
+
+This PRD integrates with RFC-010 (Automatic Speaker Name Detection) to enhance Whisper transcription:
+
+- **Automatic Speaker Detection**: When enabled, speaker names are extracted from episode titles, descriptions, and feed metadata using spaCy NER, eliminating the need for manual `--speaker-names` configuration.
+- **Language Configuration**: The `--language` flag controls both Whisper model selection (preferring English-only `.en` variants when language is "en") and NER model selection (e.g., `en_core_web_sm` for English).
+- **Model Selection**: For English podcasts, automatically prefer `.en` Whisper models (`base.en`, `small.en`, etc.) which perform better than multilingual variants.
+- **Fallback Behavior**: If NER fails or spaCy is unavailable, fall back to default `["Host", "Guest"]` labels. Manual `--speaker-names` override always takes precedence.
+- **Metadata Integration**: Detected speaker names are stored in episode metadata documents (per PRD-004) for downstream use cases.

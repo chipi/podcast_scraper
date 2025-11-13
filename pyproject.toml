@@ -8,7 +8,7 @@ version = "2.0.0"
 description = "Download podcast transcripts from RSS feeds with optional Whisper fallback"
 readme = "README.md"
 authors = [{name = "Podcast Scraper Maintainers"}]
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
   "requests>=2.31.0",
