@@ -36,23 +36,36 @@ Automating speaker name extraction improves UX, increases transcript quality, an
    - CLI gains `--language` (reused by Whisper) and `--ner-model` flags; config supports `language`, `ner_model`, and `auto_speakers` toggle (default `true`).
    - Maintain compatibility with existing Whisper language handling; ensure screenplay formatter respects detected language.
 
-2. **Extraction Pipeline**
+2. **Whisper Model Selection Based on Language**
+   - Per [Whisper documentation](https://github.com/openai/whisper), English-only models (`.en` variants) exist for `tiny`, `base`, `small`, and `medium` sizes and perform better for English-only applications, especially for `tiny.en` and `base.en`.
+   - **Model selection logic**:
+     - When `cfg.language` is `"en"` or `"English"`:
+       - If user specifies `whisper_model` as `tiny`, `base`, `small`, or `medium`, automatically prefer the `.en` variant (e.g., `base` → `base.en`).
+       - For `large` and `turbo` models, no `.en` variant exists; use multilingual versions as-is.
+     - When `cfg.language` is any other language:
+       - Always use multilingual models (no `.en` suffix), regardless of model size.
+     - This selection happens transparently in `whisper.load_whisper_model()`; users can still explicitly request `.en` models via `--whisper-model base.en` if desired.
+   - **Language parameter propagation**:
+     - The `cfg.language` value is passed to `whisper_model.transcribe()` as the `language` parameter, enabling proper language-specific transcription and improving accuracy for non-English content.
+     - Default behavior (when language not specified) remains English (`"en"`) for backwards compatibility.
+
+3. **Extraction Pipeline**
    - **Step order**: episode title → episode description → feed title/description (for host inference).
    - Parse PERSON entities via spaCy NER using the configured language/model pair.
    - Maintain two buckets:
      - **Hosts**: recurring names detected across feed-level metadata/episodes.
      - **Guests**: per-episode PERSON names minus identified hosts.
 
-3. **Caching Strategy**
+4. **Caching Strategy**
    - Introduce a feature flag (`cfg.cache_detected_hosts`) controlling whether host detection is memoized across episodes within a run.
    - Provide both code paths (cached vs. per-episode) to allow benchmarking; default can start with caching enabled.
 
-4. **Integration Points**
+5. **Integration Points**
    - Extend `models.Episode` or attach metadata with detected guest list.
    - Whisper transcription: when screenplay formatting is enabled, inject `speaker_names` derived from detection unless CLI overrides exist; align transcription language with the configured feed language to preserve accent/locale expectations.
    - Logging/metadata: emit info-level summaries of detected speaker lists for visibility.
 
-5. **Failure Modes**
+6. **Failure Modes**
    - If spaCy model missing: warn once and fall back to defaults.
    - If NER returns >N names, cap at configured limit (default 4) to avoid noise.
 
@@ -95,7 +108,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
 ## References
 
 - spaCy documentation: <https://spacy.io/usage/models>
+- Whisper GitHub repository: <https://github.com/openai/whisper> (model selection and language support)
 - Whisper screenplay formatting logic: `podcast_scraper/whisper.py`
 - Existing RFCs: `docs/rfc/RFC-005-whisper-integration.md`, `docs/rfc/RFC-006-screenplay-formatting.md`
 - Language handling reference: `podcast_scraper/config.py` (existing Whisper language options)
-
