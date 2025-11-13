@@ -10,7 +10,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Tuple
 
 from . import config, filesystem, models, progress, speaker_detection, whisper
-from .episode_processor import download_media_for_transcription, process_episode_download, transcribe_media_to_text
+from .episode_processor import (
+    download_media_for_transcription,
+    process_episode_download,
+    transcribe_media_to_text,
+)
 from .rss_parser import create_episode_from_item, extract_episode_description, fetch_and_parse_rss
 
 logger = logging.getLogger(__name__)
@@ -175,10 +179,26 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:  # noqa: C901 - orchest
         saved = 0
     elif cfg.workers <= 1 or len(download_args) == 1:
         for args in download_args:
-            episode, cfg_arg, temp_dir_arg, output_dir_arg, run_suffix_arg, jobs_arg, lock_arg, detected_names = args
+            (
+                episode,
+                cfg_arg,
+                temp_dir_arg,
+                output_dir_arg,
+                run_suffix_arg,
+                jobs_arg,
+                lock_arg,
+                detected_names,
+            ) = args
             # Update transcription job with detected names if created
             if process_episode_download(
-                episode, cfg_arg, temp_dir_arg, output_dir_arg, run_suffix_arg, jobs_arg, lock_arg, detected_names
+                episode,
+                cfg_arg,
+                temp_dir_arg,
+                output_dir_arg,
+                run_suffix_arg,
+                jobs_arg,
+                lock_arg,
+                detected_names,
             ):
                 saved += 1
                 logger.debug("Episode %s yielded transcript (saved=%s)", episode.idx, saved)

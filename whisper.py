@@ -81,11 +81,17 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
             # If user specified a base model without .en, prefer the .en variant
             if model_name in ("tiny", "base", "small", "medium"):
                 model_name = f"{model_name}.en"
-                logger.debug("Language is English, preferring %s over %s", model_name, cfg.whisper_model)
+                logger.debug(
+                    "Language is English, preferring %s over %s", model_name, cfg.whisper_model
+                )
         else:
             # For non-English, ensure we use multilingual models (no .en suffix)
             if model_name.endswith(".en"):
-                logger.debug("Language is %s, using multilingual model instead of %s", cfg.language, model_name)
+                logger.debug(
+                    "Language is %s, using multilingual model instead of %s",
+                    cfg.language,
+                    model_name,
+                )
                 model_name = model_name[:-3]  # Remove .en suffix
         logger.info(f"Loading Whisper model ({model_name})...")
         model = whisper_lib.load_model(model_name)
