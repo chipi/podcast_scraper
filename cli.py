@@ -25,7 +25,7 @@ from . import config, filesystem, progress, workflow
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import tqdm
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 _LOGGER = logging.getLogger(__name__)
 
