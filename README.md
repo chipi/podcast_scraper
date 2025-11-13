@@ -1,5 +1,7 @@
 # Podcast Scraper
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Multi-threaded downloads, resumable/cleanable output directories, dry-run previews, progress bars, configurable run folders, screenplay formatting, and JSON/YAML configuration files make it easy to collect, compare, and archive podcast transcripts.
 
 ## Documentation
@@ -215,3 +217,7 @@ Advanced helpers remain accessible in submodules (`podcast_scraper.downloader.fe
 - Downloads run in parallel (with configurable worker count); Whisper transcription remains sequential.
 - Automatic retries handle transient HTTP failures (429/5xx, connect/read errors).
 - Combine `--skip-existing` to resume long runs, `--clean-output` for fresh runs, and `--dry-run` to inspect planned work.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
