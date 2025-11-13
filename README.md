@@ -164,8 +164,8 @@ source .venv/bin/activate
 # install project into the virtual environment
 pip install -e .
 
-# download spaCy language model
-python -m spacy download en_core_web_sm
+# spaCy models are downloaded automatically when needed
+# (or manually: python -m spacy download en_core_web_sm)
 
 python -m podcast_scraper.cli <rss_url> [options]
 ```
