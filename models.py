@@ -35,3 +35,4 @@ class TranscriptionJob:
     ep_title: str
     ep_title_safe: str
     temp_media: str
+    detected_speaker_names: Optional[List[str]] = None

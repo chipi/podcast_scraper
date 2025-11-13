@@ -18,6 +18,7 @@ dependencies = [
   "pydantic>=2.6.0",
   "PyYAML>=6.0",
   "openai-whisper>=20231117",
+  "spacy>=3.7.0",
 ]
 
 [tool.setuptools]

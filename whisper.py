@@ -75,8 +75,20 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
         return None
     try:
         whisper_lib = _import_third_party_whisper()
-        logger.info(f"Loading Whisper model ({cfg.whisper_model})...")
-        model = whisper_lib.load_model(cfg.whisper_model)
+        # Language-aware model selection: prefer .en variants for English
+        model_name = cfg.whisper_model
+        if cfg.language in ("en", "english"):
+            # If user specified a base model without .en, prefer the .en variant
+            if model_name in ("tiny", "base", "small", "medium"):
+                model_name = f"{model_name}.en"
+                logger.debug("Language is English, preferring %s over %s", model_name, cfg.whisper_model)
+        else:
+            # For non-English, ensure we use multilingual models (no .en suffix)
+            if model_name.endswith(".en"):
+                logger.debug("Language is %s, using multilingual model instead of %s", cfg.language, model_name)
+                model_name = model_name[:-3]  # Remove .en suffix
+        logger.info(f"Loading Whisper model ({model_name})...")
+        model = whisper_lib.load_model(model_name)
         logger.info("Whisper model loaded successfully.")
         device = getattr(model, "device", None)
         device_type = getattr(device, "type", None)
@@ -122,6 +134,9 @@ def transcribe_with_whisper(
             suppress_fp16_warning,
             getattr(whisper_model, "dtype", None),
         )
+        # Use configured language, defaulting to "en" for backwards compatibility
+        language = cfg.language if cfg.language else "en"
+        logger.debug("Transcribing with language=%s", language)
         if suppress_fp16_warning:
             with warnings.catch_warnings():
                 warnings.filterwarnings(
@@ -130,11 +145,11 @@ def transcribe_with_whisper(
                     category=UserWarning,
                 )
                 result = whisper_model.transcribe(
-                    temp_media, task="transcribe", language="en", verbose=False
+                    temp_media, task="transcribe", language=language, verbose=False
                 )
         else:
             result = whisper_model.transcribe(
-                temp_media, task="transcribe", language="en", verbose=False
+                temp_media, task="transcribe", language=language, verbose=False
             )
         cast(progress.ProgressReporter, reporter).update(1)
     elapsed = time.time() - start

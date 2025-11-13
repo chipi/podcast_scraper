@@ -127,6 +127,7 @@ def download_media_for_transcription(
     temp_dir: str,
     effective_output_dir: str,
     run_suffix: Optional[str],
+    detected_speaker_names: Optional[List[str]] = None,
 ) -> Optional[models.TranscriptionJob]:
     """Download media file for Whisper transcription.
 
@@ -202,6 +203,7 @@ def download_media_for_transcription(
         ep_title=episode.title,
         ep_title_safe=episode.title_safe,
         temp_media=temp_media,
+        detected_speaker_names=detected_speaker_names,
     )
 
 
@@ -244,11 +246,17 @@ def transcribe_media_to_text(  # noqa: C901 - orchestrates Whisper transcription
         result, tc_elapsed = whisper.transcribe_with_whisper(whisper_model, temp_media, cfg)
         text = (result.get("text") or "").strip()
         if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
+            # Use detected speaker names if manual override not provided
+            speaker_names = (
+                cfg.screenplay_speaker_names
+                if cfg.screenplay_speaker_names
+                else (job.detected_speaker_names or [])
+            )
             try:
                 formatted = whisper.format_screenplay_from_segments(
                     result["segments"],
                     cfg.screenplay_num_speakers,
-                    cfg.screenplay_speaker_names,
+                    speaker_names,
                     cfg.screenplay_gap_s,
                 )
                 if formatted.strip():
@@ -362,6 +370,7 @@ def process_episode_download(
     run_suffix: Optional[str],
     transcription_jobs: List[models.TranscriptionJob],
     transcription_jobs_lock: Optional[threading.Lock],
+    detected_speaker_names: Optional[List[str]] = None,
 ) -> bool:
     """Process a single episode: download transcript or prepare for Whisper transcription.
 
@@ -403,6 +412,7 @@ def process_episode_download(
             temp_dir,
             effective_output_dir,
             run_suffix,
+            detected_speaker_names=detected_speaker_names,
         )
         if job:
             if transcription_jobs_lock:

@@ -9,9 +9,9 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Tuple
 
-from . import config, filesystem, models, progress, whisper
-from .episode_processor import process_episode_download, transcribe_media_to_text
-from .rss_parser import create_episode_from_item, fetch_and_parse_rss
+from . import config, filesystem, models, progress, speaker_detection, whisper
+from .episode_processor import download_media_for_transcription, process_episode_download, transcribe_media_to_text
+from .rss_parser import create_episode_from_item, extract_episode_description, fetch_and_parse_rss
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +105,21 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:  # noqa: C901 - orchest
     ]
     logger.debug("Materialized %s episode objects", len(episodes))
 
+    # Detect hosts from feed metadata if auto_speakers is enabled
+    cached_hosts: set[str] = set()
+    if cfg.auto_speakers and cfg.cache_detected_hosts:
+        feed_description = None  # Could extract from feed if needed
+        detected_speakers, detected_hosts = speaker_detection.detect_speaker_names(
+            episode_title=feed.title or "",
+            episode_description=feed_description,
+            feed_title=feed.title,
+            feed_description=feed_description,
+            cfg=cfg,
+        )
+        cached_hosts = detected_hosts
+        if cached_hosts:
+            logger.info("Detected hosts from feed metadata: %s", list(cached_hosts))
+
     whisper_model = None
     if cfg.transcribe_missing and not cfg.dry_run:
         whisper_model = whisper.load_whisper_model(cfg)
@@ -122,30 +137,65 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:  # noqa: C901 - orchest
     saved_counter_lock = threading.Lock() if cfg.workers > 1 else None
 
     saved = 0
-    download_args = [
-        (
-            episode,
-            cfg,
-            temp_dir,
-            effective_output_dir,
-            run_suffix,
-            transcription_jobs,
-            transcription_jobs_lock,
+    # Prepare download args with detected speaker names for each episode
+    download_args = []
+    for episode in episodes:
+        detected_speaker_names = None
+        if cfg.auto_speakers and cfg.transcribe_missing:
+            # Extract episode description for NER
+            episode_description = extract_episode_description(episode.item)
+            # Detect speaker names (only if manual override not provided)
+            if not cfg.screenplay_speaker_names:
+                detected_speakers, episode_hosts = speaker_detection.detect_speaker_names(
+                    episode_title=episode.title,
+                    episode_description=episode_description,
+                    feed_title=feed.title,
+                    feed_description=None,
+                    cfg=cfg,
+                    cached_hosts=cached_hosts if cfg.cache_detected_hosts else None,
+                )
+                detected_speaker_names = detected_speakers
+                # Update cached hosts if caching is enabled
+                if cfg.cache_detected_hosts:
+                    cached_hosts.update(episode_hosts)
+        download_args.append(
+            (
+                episode,
+                cfg,
+                temp_dir,
+                effective_output_dir,
+                run_suffix,
+                transcription_jobs,
+                transcription_jobs_lock,
+                detected_speaker_names,
+            )
         )
-        for episode in episodes
-    ]
 
     if not download_args:
         saved = 0
     elif cfg.workers <= 1 or len(download_args) == 1:
         for args in download_args:
-            if process_episode_download(*args):
+            episode, cfg_arg, temp_dir_arg, output_dir_arg, run_suffix_arg, jobs_arg, lock_arg, detected_names = args
+            # Update transcription job with detected names if created
+            if process_episode_download(
+                episode, cfg_arg, temp_dir_arg, output_dir_arg, run_suffix_arg, jobs_arg, lock_arg, detected_names
+            ):
                 saved += 1
-                logger.debug("Episode %s yielded transcript (saved=%s)", args[0].idx, saved)
+                logger.debug("Episode %s yielded transcript (saved=%s)", episode.idx, saved)
     else:
         with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
             future_map = {
-                executor.submit(process_episode_download, *args): args[0].idx
+                executor.submit(
+                    process_episode_download,
+                    args[0],
+                    args[1],
+                    args[2],
+                    args[3],
+                    args[4],
+                    args[5],
+                    args[6],
+                    args[7],
+                ): args[0].idx
                 for args in download_args
             }
             for future in as_completed(future_map):

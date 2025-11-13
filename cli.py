@@ -211,6 +211,40 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         default=config.DEFAULT_WORKERS,
         help="Number of concurrent download workers",
     )
+    parser.add_argument(
+        "--language",
+        default=config.DEFAULT_LANGUAGE,
+        help="Language for transcription and NER (default: en)",
+    )
+    parser.add_argument(
+        "--ner-model",
+        default=None,
+        help="spaCy NER model to use (default: derived from language)",
+    )
+    parser.add_argument(
+        "--auto-speakers",
+        action="store_true",
+        default=True,
+        help="Enable automatic speaker name detection (default: True)",
+    )
+    parser.add_argument(
+        "--no-auto-speakers",
+        dest="auto_speakers",
+        action="store_false",
+        help="Disable automatic speaker name detection",
+    )
+    parser.add_argument(
+        "--cache-detected-hosts",
+        action="store_true",
+        default=True,
+        help="Cache detected hosts across episodes (default: True)",
+    )
+    parser.add_argument(
+        "--no-cache-detected-hosts",
+        dest="cache_detected_hosts",
+        action="store_false",
+        help="Disable caching of detected hosts",
+    )
 
     initial_args, _ = parser.parse_known_args(argv)
 

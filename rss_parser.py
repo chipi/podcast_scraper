@@ -144,6 +144,23 @@ def extract_episode_title(item: ET.Element, idx: int) -> Tuple[str, str]:
     return ep_title, ep_title_safe
 
 
+def extract_episode_description(item: ET.Element) -> Optional[str]:
+    """Extract episode description from RSS item.
+
+    Args:
+        item: RSS item element
+
+    Returns:
+        Description text or None if not found
+    """
+    desc_el = item.find("description") or next(
+        (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("description")), None
+    )
+    if desc_el is not None and desc_el.text:
+        return desc_el.text.strip()
+    return None
+
+
 def create_episode_from_item(item: ET.Element, idx: int, feed_base_url: str) -> models.Episode:
     """Create an Episode object from an RSS item.
 
