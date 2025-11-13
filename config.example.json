@@ -3,6 +3,9 @@
   "timeout": 45,
   "transcribe_missing": true,
   "run_id": "example_run",
+  "language": "en",
+  "auto_speakers": true,
+  "cache_detected_hosts": true,
   "speaker_names": ["Host", "Guest"],
   "screenplay": true
 }

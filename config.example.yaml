@@ -7,7 +7,11 @@ max_episodes: 10
 transcribe_missing: true
 whisper_model: base
 delay_ms: 250
+language: en
+auto_speakers: true
+cache_detected_hosts: true
 screenplay: true
+# Optional: manual speaker names override (takes precedence over auto-detection)
 speaker_names:
   - Host
   - Guest
