@@ -1,25 +1,19 @@
-# RFC-012: Testing Strategy
+# Testing Strategy
 
-- **Status**: Draft
-- **Authors**: GPT-5 Codex
-- **Stakeholders**: Maintainers, contributors, CI/CD pipeline owners
-- **Related PRDs**: `docs/prd/PRD-001-transcript-pipeline.md`, `docs/prd/PRD-002-whisper-fallback.md`, `docs/prd/PRD-003-user-interface-config.md`
-- **Related Issues**: #14 (E2E testing), #16 (Library API E2E tests)
+## Overview
 
-## Abstract
-
-Define a comprehensive testing strategy that ensures reliability, maintainability, and confidence in the podcast scraper codebase. This RFC consolidates testing approaches across all modules, establishes test infrastructure requirements, and outlines CI/CD integration patterns.
+This document defines a comprehensive testing strategy that ensures reliability, maintainability, and confidence in the podcast scraper codebase. It consolidates testing approaches across all modules, establishes test infrastructure requirements, and outlines CI/CD integration patterns.
 
 ## Problem Statement
 
-Testing requirements and strategies are currently scattered across individual RFCs, making it difficult to:
+Testing requirements and strategies were previously scattered across individual RFCs, making it difficult to:
 - Understand the overall testing approach
 - Ensure consistent testing patterns across modules
 - Plan new test infrastructure
 - Onboard new contributors to testing practices
 - Track testing coverage and requirements
 
-A unified testing strategy document provides a single source of truth for all testing decisions and requirements.
+This unified testing strategy document provides a single source of truth for all testing decisions and requirements.
 
 ## Test Pyramid
 

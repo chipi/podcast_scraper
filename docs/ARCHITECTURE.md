@@ -70,3 +70,4 @@
 ## Testing Notes
 - `test_podcast_scraper.py` acts as an integration-focused suite, simulating CLI usage, error cases, transcript selection heuristics, and Whisper fallbacks via mocks. This keeps the public API stable and documents expected behaviors for future refactors.
 - Speaker detection tests (RFC-010) should cover NER extraction scenarios, host/guest distinction, fallback behavior when spaCy is unavailable, and integration with Whisper screenplay formatting.
+- See `docs/TESTING_STRATEGY.md` for comprehensive testing requirements, patterns, and infrastructure.

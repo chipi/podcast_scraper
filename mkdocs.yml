@@ -7,6 +7,7 @@ docs_dir: docs
 nav:
   - Home: index.md
   - Architecture: ARCHITECTURE.md
+  - Testing Strategy: TESTING_STRATEGY.md
   - Product Requirements:
       - PRD-001 Transcript Acquisition Pipeline: prd/PRD-001-transcript-pipeline.md
       - PRD-002 Whisper Fallback Transcription: prd/PRD-002-whisper-fallback.md
@@ -22,7 +23,6 @@ nav:
       - RFC-008 Configuration Model & Validation: rfc/RFC-008-config-model.md
       - RFC-009 Progress Reporting Integration: rfc/RFC-009-progress-integration.md
       - RFC-010 Automatic Speaker Name Detection: rfc/RFC-010-speaker-name-detection.md
-      - RFC-012 Testing Strategy: rfc/RFC-012-testing-strategy.md
   - Guides:
       - API Comparison (v1 → v2): API_COMPARISON.md
       - API Migration Guide: API_MIGRATION_GUIDE.md
