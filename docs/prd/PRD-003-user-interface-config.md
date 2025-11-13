@@ -29,6 +29,9 @@ Define how operators interact with the podcast scraper via CLI flags and configu
 - *As Automation Alex, I can maintain a JSON/YAML config file checked into version control and use `--config` to load it.*
 - *As a user, I can request version info (`--version`) and set log level verbosity per run.*
 - *As Integrator Iris, I can call `podcast_scraper.Config` + `podcast_scraper.run_pipeline` directly in Python with the same semantics.*
+- *As any user, I can enable automatic speaker name detection (`--auto-speakers`) without manually specifying names for each episode (RFC-010).*
+- *As any user, I can configure the podcast language (`--language`) to optimize both Whisper transcription and speaker name detection.*
+- *As any user, I can override automatic speaker detection with manual names (`--speaker-names`) when needed.*
 
 ## Functional Requirements
 - **FR1**: CLI must validate inputs (RSS URL, numeric ranges, Whisper model choices) and surface actionable error messages.
@@ -39,6 +42,11 @@ Define how operators interact with the podcast scraper via CLI flags and configu
 - **FR6**: Provide `--dry-run`, `--skip-existing`, `--clean-output`, `--workers`, and other operational flags documented in README.
 - **FR7**: Ensure exit codes communicate success (0) vs. validation or runtime failures (1).
 - **FR8**: Export Python API surface (`Config`, `load_config_file`, `run_pipeline`, `cli.main`) from `podcast_scraper.__init__`.
+- **FR9**: Support `--language` flag (default `"en"`) that configures both Whisper transcription language and NER model selection (RFC-010).
+- **FR10**: Support `--auto-speakers` flag (default `true`) to enable/disable automatic speaker name detection via NER (RFC-010).
+- **FR11**: Support `--ner-model` flag for advanced users to override default spaCy model selection (RFC-010).
+- **FR12**: Support `--cache-detected-hosts` flag (default `true`) to control host detection memoization (RFC-010).
+- **FR13**: Maintain precedence: manual `--speaker-names` override > automatic detection > default `["Host", "Guest"]`.
 
 ## Success Metrics
 - CLI onboarding: a new user can run the default command with only an RSS URL and receive useful output/logging.
@@ -48,6 +56,7 @@ Define how operators interact with the podcast scraper via CLI flags and configu
 ## Dependencies
 - Validation and configuration logic described in `docs/rfc/RFC-007-cli-interface.md` and `docs/rfc/RFC-008-config-model.md`.
 - Progress abstraction detailed in `docs/rfc/RFC-009-progress-integration.md`.
+- Automatic speaker name detection and language configuration in `docs/rfc/RFC-010-speaker-name-detection.md`.
 
 ## Release Checklist
 - [ ] CLI help text audited and examples verified in README.
@@ -57,3 +66,14 @@ Define how operators interact with the podcast scraper via CLI flags and configu
 ## Open Questions
 - Should we support environment variable substitution in config files? Not currently planned.
 - Do we need subcommands for future expansion (e.g., `inspect`, `clean`)? Monitor user feedback.
+
+## RFC-010 Integration
+
+This PRD integrates with RFC-010 (Automatic Speaker Name Detection) to provide new configuration options:
+
+- **Language Configuration**: The `--language` flag (default `"en"`) controls both Whisper model selection and NER model selection. Config file supports `language` field.
+- **Automatic Speaker Detection**: The `--auto-speakers` flag (default `true`) enables/disables automatic extraction of speaker names from episode metadata. Config file supports `auto_speakers` boolean field.
+- **NER Model Override**: Advanced users can specify `--ner-model` to override default spaCy model selection (e.g., `en_core_web_sm`). Config file supports `ner_model` field.
+- **Caching Control**: The `--cache-detected-hosts` flag (default `true`) controls whether host detection is memoized across episodes. Config file supports `cache_detected_hosts` boolean field.
+- **Precedence Rules**: Manual `--speaker-names` always takes precedence over automatic detection. Automatic detection only activates when `--auto-speakers` is enabled and no manual names are provided.
+- **Validation**: CLI validates language codes, NER model names, and ensures speaker name lists meet minimum requirements.
