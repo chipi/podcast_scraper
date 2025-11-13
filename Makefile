@@ -1,7 +1,7 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
-.PHONY: help init format format-check lint type security security-bandit security-audit test coverage docs build ci clean
+.PHONY: help init format format-check lint lint-markdown type security security-bandit security-audit test coverage docs build ci clean
 
 help:
 	@echo "Common developer commands:"
@@ -9,6 +9,7 @@ help:
 	@echo "  make format          Apply formatting with black + isort"
 	@echo "  make format-check    Check formatting without modifying files"
 	@echo "  make lint            Run flake8 linting"
+	@echo "  make lint-markdown   Run markdownlint on markdown files"
 	@echo "  make type            Run mypy type checks"
 	@echo "  make security        Run bandit & pip-audit security scans"
 	@echo "  make test            Run pytest with coverage"
@@ -44,6 +45,10 @@ lint:
 	flake8 --config .flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 	flake8 --config .flake8 . --count --exit-zero --statistics
 
+lint-markdown:
+	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
+	markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore site
+
 type:
 	mypy --config-file pyproject.toml .
 
@@ -67,7 +72,7 @@ coverage: test
 build:
 	$(PYTHON) -m build
 
-ci: format-check lint type security test docs build
+ci: format-check lint lint-markdown type security test docs build
 
 clean:
 	rm -rf build dist *.egg-info .mypy_cache .pytest_cache .coverage site

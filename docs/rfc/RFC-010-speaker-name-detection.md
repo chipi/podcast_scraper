@@ -22,12 +22,12 @@ Automating speaker name extraction improves UX, increases transcript quality, an
 ## Constraints & Assumptions
 
 - Primary language controlled by configuration (default `"en"`). spaCy model selection is driven by the language setting with `en_core_web_sm` as the default.
-- spaCy must be an optional dependency that is installable via existing packaging flow.
+- spaCy is a required dependency for speaker detection functionality.
 - Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails (not as override).
 - Manual names format: first item = host, second item = guest (e.g., `["Lenny", "Guest"]`).
 - When guest detection fails: keep detected hosts (if any) + use manual guest name as fallback.
 - Default fallback remains `["Host", "Guest"]` when extraction fails and no manual names are provided.
-- Whisper transcription or screenplay formatting must still work without spaCy (e.g., when dependency missing).
+- Whisper transcription and screenplay formatting work independently of speaker detection; detected names enhance screenplay output when available.
 
 ## Design & Implementation
 
@@ -67,35 +67,38 @@ Automating speaker name extraction improves UX, increases transcript quality, an
        - Validate detected hosts by checking if they also appear in the first episode's title/description.
        - Only hosts that appear in both feed metadata AND first episode are kept (validation step).
      - Hosts are cached and reused across all episodes in a run.
-  - **Guest Detection** (episode-level only):
-    - Extract PERSON entities from episode title and first 20 characters of episode description.
-    - Descriptions are limited to first 20 characters to focus on the most relevant part (often contains guest name).
-    - Guests are episode-specific and should NEVER be extracted from feed metadata.
-    - Remove any detected hosts from the episode persons list to get pure guests.
-    - Each episode's guests are detected independently.
-    - **Name Sanitization**: All extracted person names are sanitized to remove non-letter characters:
-      - Parentheses and their contents: `"John (Smith)"` → `"John"`
-      - Trailing punctuation: `"John,"` → `"John"`
-      - Leading punctuation
-      - Non-letter characters except spaces, hyphens, and apostrophes
-      - Whitespace normalization (multiple spaces → single space)
-    - **Deduplication**: Names are deduplicated case-insensitively to avoid duplicates like `"John"` and `"john"`.
-    - **Pattern-based Fallback**: If NER fails to detect entities, a pattern-based fallback extracts names from segments after common separators (`|`, `—`, `–`, ` - `):
-      - Splits title on separators and extracts the last segment
-      - Matches pattern: 2-3 words, each starting with capital letter
-      - Filters out common non-name phrases (e.g., "Guest", "Host", "Interview")
-      - Adds candidates with lower confidence (0.7) compared to NER-based detection (1.0)
+   - **Guest Detection** (episode-level only):
+     - Extract PERSON entities from episode title and first 20 characters of episode description.
+     - Descriptions are limited to first 20 characters to focus on the most relevant part (often contains guest name).
+     - Guests are episode-specific and should NEVER be extracted from feed metadata.
+     - Remove any detected hosts from the episode persons list to get pure guests.
+     - Each episode's guests are detected independently.
+     - **Name Sanitization**: All extracted person names are sanitized to remove non-letter characters:
+       - Parentheses and their contents: `"John (Smith)"` → `"John"`
+       - Trailing punctuation: `"John,"` → `"John"`
+       - Leading punctuation
+       - Non-letter characters except spaces, hyphens, and apostrophes
+       - Whitespace normalization (multiple spaces → single space)
+     - **Deduplication**: Names are deduplicated case-insensitively to avoid duplicates like `"John"` and `"john"`.
+     - **Pattern-based Fallback**: If NER fails to detect entities, a pattern-based fallback extracts names from segments after common separators (`|`, `—`, `–`, ` - `):
+       - Splits title on separators and extracts the last segment
+       - Matches pattern: 2-3 words, each starting with capital letter
+       - Filters out common non-name phrases (e.g., "Guest", "Host", "Interview")
+       - Adds candidates with lower confidence (0.7) compared to NER-based detection (1.0)
 
 4. **Caching Strategy**
+
    - Introduce a feature flag (`cfg.cache_detected_hosts`) controlling whether host detection is memoized across episodes within a run.
    - Provide both code paths (cached vs. per-episode) to allow benchmarking; default can start with caching enabled.
 
 5. **Integration Points**
+
    - Extend `models.Episode` or attach metadata with detected guest list.
    - Whisper transcription: when screenplay formatting is enabled, inject `speaker_names` derived from detection unless CLI overrides exist; align transcription language with the configured feed language to preserve accent/locale expectations.
    - Logging/metadata: emit info-level summaries of detected speaker lists for visibility.
 
 6. **Failure Modes**
+
    - If spaCy model missing: warn once and fall back to defaults.
    - If NER returns >N names, cap at configured limit (default 4) to avoid noise.
 
@@ -171,6 +174,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
 ## Implementation Details
 
 ### Name Sanitization
+
 - All extracted person names are sanitized using `_sanitize_person_name()`:
   - Removes parentheses and their contents: `"John (Smith)"` → `"John"`
   - Removes trailing punctuation: `"John,"` → `"John"`
@@ -180,10 +184,12 @@ Automating speaker name extraction improves UX, increases transcript quality, an
   - Validates: must be at least 2 characters and contain at least one letter
 
 ### Deduplication
+
 - Names are deduplicated case-insensitively using `seen_sanitized_names` set
 - Prevents duplicates like `"John"` and `"john"` from appearing in candidate list
 
 ### Pattern-based Fallback
+
 - When NER fails to detect PERSON entities (e.g., spaCy misclassifies as ORG), a pattern-based fallback:
   1. Splits title on common separators (`|`, `—`, `–`, ` - `)
   2. Extracts the last segment (often contains guest name)
@@ -193,6 +199,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
   6. Logs at DEBUG level: `"Pattern-based fallback: extracted 'Name' from last segment 'Segment'"`
 
 ### Description Limiting
+
 - Episode descriptions are limited to first 20 characters before NER processing
 - Focuses on the most relevant part (often contains guest name at the start)
 - Reduces noise from longer descriptions and improves processing speed

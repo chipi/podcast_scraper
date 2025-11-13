@@ -241,7 +241,7 @@ The testing strategy follows a three-tier pyramid:
 - **HTTP Requests**: `unittest.mock.patch` with `MockHTTPResponse` fixtures
 - **Whisper Library**: Mock `whisper.load_model()` and `whisper.transcribe()`
 - **File System**: `tempfile.TemporaryDirectory` for isolated test runs
-- **spaCy**: Mock NER extraction for unit tests; optional real spaCy for integration
+- **spaCy**: Mock NER extraction for unit tests; real spaCy required for integration tests (spaCy is a required dependency)
 
 ### Test Fixtures
 
