@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Personal Use Only](https://img.shields.io/badge/Use-Personal%20Only-orange)](docs/legal.md)
 
-Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Features include automatic speaker name detection using Named Entity Recognition (NER), language-aware Whisper model selection, multi-threaded downloads, resumable/cleanable output directories, dry-run previews, progress bars, configurable run folders, screenplay formatting, and JSON/YAML configuration files.
+Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Features include automatic speaker name detection using Named Entity Recognition (NER), language-aware Whisper model selection, multi-threaded downloads, resumable/cleanable output directories, dry-run previews, progress bars, configurable run folders, screenplay formatting, per-episode metadata document generation (JSON/YAML), and JSON/YAML configuration files.
 
 > **⚠️ Important:** This project is intended for **personal, non-commercial use only**. All downloaded content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate Use](docs/legal.md) for details.
 
@@ -62,6 +62,7 @@ When using a virtual environment, activate it first (see below) and run the same
 - `podcast_scraper/episode_processor.py` — transcript downloads and Whisper fallbacks
 - `podcast_scraper/whisper_integration.py` — Whisper integration
 - `podcast_scraper/speaker_detection.py` — automatic speaker name detection using NER
+- `podcast_scraper/metadata.py` — metadata document generation
 - `podcast_scraper/progress.py` — pluggable progress reporting interface
 
 ## Usage
@@ -119,6 +120,15 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml --run-id vtt_vs_plai
 
 # Resume skip-existing
 python3 -m podcast_scraper.cli https://example.com/feed.xml --skip-existing
+
+# Generate metadata documents alongside transcripts
+python3 -m podcast_scraper.cli https://example.com/feed.xml --generate-metadata
+
+# Generate metadata in YAML format
+python3 -m podcast_scraper.cli https://example.com/feed.xml --generate-metadata --metadata-format yaml
+
+# Store metadata in separate subdirectory
+python3 -m podcast_scraper.cli https://example.com/feed.xml --generate-metadata --metadata-subdirectory metadata
 ```
 
 ### Configuration Files
@@ -143,7 +153,9 @@ python3 -m podcast_scraper.cli --config config.json
   "run_id": "experiment",
   "workers": 4,
   "skip_existing": true,
-  "dry_run": false
+  "dry_run": false,
+  "generate_metadata": true,
+  "metadata_format": "json"
 }
 ```
 
@@ -163,6 +175,9 @@ speaker_names:  # Optional: manual override (takes precedence over auto-detectio
 workers: 6
 skip_existing: true
 dry_run: false
+generate_metadata: true  # Generate metadata documents alongside transcripts
+metadata_format: json  # json or yaml
+metadata_subdirectory: null  # Optional: store metadata in subdirectory
 ```
 
 ### Virtual Environment
@@ -240,6 +255,9 @@ Advanced helpers remain accessible in submodules (`podcast_scraper.downloader.fe
 - `--no-auto-speakers`: Disable automatic speaker name detection
 - `--cache-detected-hosts`: Cache detected hosts across episodes (default: `true`)
 - `--no-cache-detected-hosts`: Disable caching of detected hosts
+- `--generate-metadata`: Generate metadata documents alongside transcripts
+- `--metadata-format` (str): Format for metadata files (`json` or `yaml`, default: `json`)
+- `--metadata-subdirectory` (str): Store metadata files in subdirectory (default: same as transcripts)
 - `--run-id` (str): Subfolder/run identifier (`auto` to timestamp)
 - `--workers` (int): Concurrent download workers (default derives from CPU count)
 - `--skip-existing`: Skip episodes with existing output
@@ -253,6 +271,7 @@ Advanced helpers remain accessible in submodules (`podcast_scraper.downloader.fe
 - **Automatic speaker detection**: When enabled (`--auto-speakers`, default), speaker names are automatically extracted from episode metadata using Named Entity Recognition (NER). Manual `--speaker-names` always takes precedence.
 - **Language-aware processing**: The `--language` flag controls both Whisper model selection (preferring `.en` variants for English) and NER model selection.
 - **spaCy models**: Language models are automatically downloaded when needed (similar to Whisper). The default model (`en_core_web_sm` for English) will be downloaded on first use. You can also manually download models if needed.
+- **Metadata generation**: When enabled (`--generate-metadata`), generates comprehensive metadata documents (JSON/YAML) for each episode containing feed-level and episode-level information, detected speaker names, transcript sources, and processing metadata. Metadata files are database-friendly (snake_case fields, ISO 8601 dates) and can be directly loaded into PostgreSQL, MongoDB, Elasticsearch, or ClickHouse.
 - Progress integrates with `tqdm` by default; packages embedding the library can override via `podcast_scraper.set_progress_factory`.
 - Whisper transcription requires `ffmpeg` to be installed on your system.
 - Downloads run in parallel (with configurable worker count); Whisper transcription remains sequential.

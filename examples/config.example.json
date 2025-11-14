@@ -8,7 +8,7 @@
   "cache_detected_hosts": true,
   "speaker_names": ["Host", "Guest"],
   "screenplay": true,
-  "generate_metadata": false,
+  "generate_metadata": true,
   "metadata_format": "json",
   "metadata_subdirectory": null
 }

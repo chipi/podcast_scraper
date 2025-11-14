@@ -17,6 +17,6 @@ speaker_names:
   - Guest
 run_id: experiment
 dry_run: false
-generate_metadata: false  # Generate metadata documents alongside transcripts
-metadata_format: json  # json or yaml
+generate_metadata: true  # Generate metadata documents alongside transcripts
+metadata_format: json  # json or yaml (json recommended for database ingestion)
 metadata_subdirectory: null  # Optional subdirectory for metadata files (null = same as transcripts)
