@@ -690,12 +690,16 @@ def _process_transcription_jobs(
     Returns:
         Number of transcripts saved from transcription
     """
-    if not transcription_resources.transcription_jobs or not cfg.transcribe_missing or cfg.dry_run:
+    if not transcription_resources.transcription_jobs or not cfg.transcribe_missing:
         return 0
 
     saved = 0
     total_jobs = len(transcription_resources.transcription_jobs)
-    logger.info(f"Starting Whisper transcription for {total_jobs} episodes")
+    if cfg.dry_run:
+        logger.info(f"Dry-run: would transcribe {total_jobs} episodes with Whisper")
+    else:
+        logger.info(f"Starting Whisper transcription for {total_jobs} episodes")
+
     with progress.progress_context(total_jobs, "Whisper transcription") as reporter:
         jobs_processed = 0
         for job in transcription_resources.transcription_jobs:

@@ -556,7 +556,7 @@ def generate_episode_metadata(
     # Handle dry-run mode
     if cfg.dry_run:
         logger.info(
-            "[%s] Dry-run: would generate metadata file: %s",
+            "[%s] (dry-run) would generate metadata file: %s",
             episode.idx,
             metadata_path,
         )

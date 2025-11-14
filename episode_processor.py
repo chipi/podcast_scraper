@@ -498,7 +498,7 @@ def process_transcript_download(
             transcript_url,
         )
         logger.info(f"    [dry-run] would save as: {out_path}")
-        return True, out_path, None
+        return True, out_path, "direct_download"
 
     logger.info(f"[{episode.idx}] downloading transcript: {episode.title} -> {transcript_url}")
 
