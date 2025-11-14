@@ -430,8 +430,81 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "skip_existing": args.skip_existing,
         "clean_output": args.clean_output,
         "dry_run": args.dry_run,
+        "language": args.language,
+        "ner_model": args.ner_model,
+        "auto_speakers": args.auto_speakers,
+        "cache_detected_hosts": args.cache_detected_hosts,
+        "generate_metadata": args.generate_metadata,
+        "metadata_format": args.metadata_format,
+        "metadata_subdirectory": args.metadata_subdirectory,
     }
     return config.Config.model_validate(payload)
+
+
+def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
+    """Log all configuration values in a structured format.
+    
+    Args:
+        cfg: Configuration object
+        logger: Logger instance to use
+    """
+    logger.info("=" * 80)
+    logger.info("Configuration")
+    logger.info("=" * 80)
+    
+    # Core settings
+    logger.info("Core Settings:")
+    logger.info(f"  RSS URL: {cfg.rss_url}")
+    logger.info(f"  Output Directory: {cfg.output_dir}")
+    logger.info(f"  Max Episodes: {cfg.max_episodes or 'all'}")
+    logger.info(f"  Workers: {cfg.workers}")
+    logger.info(f"  Log Level: {cfg.log_level}")
+    logger.info(f"  Run ID: {cfg.run_id or 'none'}")
+    
+    # HTTP settings
+    logger.info("HTTP Settings:")
+    logger.info(f"  Timeout: {cfg.timeout}s")
+    logger.info(f"  Delay: {cfg.delay_ms}ms")
+    logger.info(f"  User-Agent: {cfg.user_agent[:50]}..." if len(cfg.user_agent) > 50 else f"  User-Agent: {cfg.user_agent}")
+    logger.info(f"  Prefer Types: {cfg.prefer_types if cfg.prefer_types else 'none'}")
+    
+    # Transcription settings
+    logger.info("Transcription Settings:")
+    logger.info(f"  Transcribe Missing: {cfg.transcribe_missing}")
+    if cfg.transcribe_missing:
+        logger.info(f"  Whisper Model: {cfg.whisper_model}")
+        logger.info(f"  Screenplay Format: {cfg.screenplay}")
+        if cfg.screenplay:
+            logger.info(f"  Screenplay Gap: {cfg.screenplay_gap_s}s")
+            logger.info(f"  Number of Speakers: {cfg.screenplay_num_speakers}")
+            if cfg.screenplay_speaker_names:
+                logger.info(f"  Speaker Names: {', '.join(cfg.screenplay_speaker_names)}")
+    
+    # Speaker detection settings
+    logger.info("Speaker Detection Settings:")
+    logger.info(f"  Auto Speakers: {cfg.auto_speakers}")
+    logger.info(f"  Language: {cfg.language}")
+    if cfg.ner_model:
+        logger.info(f"  NER Model: {cfg.ner_model}")
+    logger.info(f"  Cache Detected Hosts: {cfg.cache_detected_hosts}")
+    
+    # Metadata settings
+    logger.info("Metadata Settings:")
+    logger.info(f"  Generate Metadata: {cfg.generate_metadata}")
+    if cfg.generate_metadata:
+        logger.info(f"  Metadata Format: {cfg.metadata_format}")
+        if cfg.metadata_subdirectory:
+            logger.info(f"  Metadata Subdirectory: {cfg.metadata_subdirectory}")
+        else:
+            logger.info(f"  Metadata Subdirectory: same as transcripts")
+    
+    # Processing options
+    logger.info("Processing Options:")
+    logger.info(f"  Skip Existing: {cfg.skip_existing}")
+    logger.info(f"  Clean Output: {cfg.clean_output}")
+    logger.info(f"  Dry Run: {cfg.dry_run}")
+    
+    logger.info("=" * 80)
 
 
 def main(
@@ -464,14 +537,7 @@ def main(
     apply_log_level_fn(cfg.log_level)
 
     log.info("Starting podcast transcript scrape")
-    log.info(f"  rss: {cfg.rss_url}")
-    log.info(f"  output_dir: {cfg.output_dir}")
-    log.info(f"  max_episodes: {cfg.max_episodes or 'all'}")
-    log.info(f"  log_level: {cfg.log_level}")
-    log.info(f"  workers: {cfg.workers}")
-    log.info(f"  skip_existing: {cfg.skip_existing}")
-    log.info(f"  clean_output: {cfg.clean_output}")
-    log.info(f"  dry_run: {cfg.dry_run}")
+    _log_configuration(cfg, log)
 
     try:
         _, summary = run_pipeline_fn(cfg)
