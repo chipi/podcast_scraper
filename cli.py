@@ -443,7 +443,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:
 
 def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
     """Log all configuration values in a structured format.
-    
+
     Args:
         cfg: Configuration object
         logger: Logger instance to use
@@ -451,7 +451,7 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
     logger.info("=" * 80)
     logger.info("Configuration")
     logger.info("=" * 80)
-    
+
     # Core settings
     logger.info("Core Settings:")
     logger.info(f"  RSS URL: {cfg.rss_url}")
@@ -460,14 +460,18 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
     logger.info(f"  Workers: {cfg.workers}")
     logger.info(f"  Log Level: {cfg.log_level}")
     logger.info(f"  Run ID: {cfg.run_id or 'none'}")
-    
+
     # HTTP settings
     logger.info("HTTP Settings:")
     logger.info(f"  Timeout: {cfg.timeout}s")
     logger.info(f"  Delay: {cfg.delay_ms}ms")
-    logger.info(f"  User-Agent: {cfg.user_agent[:50]}..." if len(cfg.user_agent) > 50 else f"  User-Agent: {cfg.user_agent}")
+    logger.info(
+        f"  User-Agent: {cfg.user_agent[:50]}..."
+        if len(cfg.user_agent) > 50
+        else f"  User-Agent: {cfg.user_agent}"
+    )
     logger.info(f"  Prefer Types: {cfg.prefer_types if cfg.prefer_types else 'none'}")
-    
+
     # Transcription settings
     logger.info("Transcription Settings:")
     logger.info(f"  Transcribe Missing: {cfg.transcribe_missing}")
@@ -479,7 +483,7 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
             logger.info(f"  Number of Speakers: {cfg.screenplay_num_speakers}")
             if cfg.screenplay_speaker_names:
                 logger.info(f"  Speaker Names: {', '.join(cfg.screenplay_speaker_names)}")
-    
+
     # Speaker detection settings
     logger.info("Speaker Detection Settings:")
     logger.info(f"  Auto Speakers: {cfg.auto_speakers}")
@@ -487,7 +491,7 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
     if cfg.ner_model:
         logger.info(f"  NER Model: {cfg.ner_model}")
     logger.info(f"  Cache Detected Hosts: {cfg.cache_detected_hosts}")
-    
+
     # Metadata settings
     logger.info("Metadata Settings:")
     logger.info(f"  Generate Metadata: {cfg.generate_metadata}")
@@ -497,13 +501,13 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
             logger.info(f"  Metadata Subdirectory: {cfg.metadata_subdirectory}")
         else:
             logger.info(f"  Metadata Subdirectory: same as transcripts")
-    
+
     # Processing options
     logger.info("Processing Options:")
     logger.info(f"  Skip Existing: {cfg.skip_existing}")
     logger.info(f"  Clean Output: {cfg.clean_output}")
     logger.info(f"  Dry Run: {cfg.dry_run}")
-    
+
     logger.info("=" * 80)
 
 
