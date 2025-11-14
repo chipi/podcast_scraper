@@ -103,9 +103,9 @@ This PRD addresses issue #17 by providing automated summarization capabilities t
 
 ### FR7: Resource Management
 
-- **FR7.1**: Support `summary_device` config field (`"cuda"`, `"cpu"`, or `None` for auto-detection)
+- **FR7.1**: Support `summary_device` config field (`"cuda"`, `"mps"`, `"cpu"`, or `None` for auto-detection)
 - **FR7.2**: Add `--summary-device` CLI flag
-- **FR7.3**: Auto-detect GPU availability and select appropriate device
+- **FR7.3**: Auto-detect GPU availability and select appropriate device (MPS for Apple Silicon, CUDA for NVIDIA)
 - **FR7.4**: Optimize memory usage for GPU and CPU inference
 - **FR7.5**: Support model caching to avoid re-downloading on subsequent runs
 - **FR7.6**: Support `summary_cache_dir` config field for custom model cache location
@@ -151,6 +151,22 @@ This PRD addresses issue #17 by providing automated summarization capabilities t
 - PRD-001: Transcript Acquisition Pipeline (transcript availability)
 - PRD-002: Whisper Fallback Transcription (Whisper-generated transcripts)
 
+## Constraints & Assumptions
+
+- Summarization must be opt-in (default `false`) for backwards compatibility
+- **Hardware Constraint**: Must run on Apple M4 Pro with 48 GB RAM (primary development/testing platform)
+  - Models must be selected and optimized to work within this memory constraint
+  - Apple Silicon uses Metal Performance Shaders (MPS) backend for PyTorch, not CUDA
+  - While 48 GB RAM is generous, memory efficiency is still important for concurrent operations
+  - Model selection should prioritize models that fit comfortably in available memory
+- Local models are preferred over API-based solutions for privacy and cost reasons
+- Summaries are stored in metadata documents (PRD-004/RFC-011 structure)
+- Transcripts can be long (5000-20000+ words); models must handle long inputs efficiently
+- Users may have limited GPU memory; CPU fallback must be supported
+- Model downloads should be cached and reusable across runs
+- Summarization should not block transcript processing; can be async or sequential
+- Quality should be reasonable but may be lower than premium API services
+
 ## Design Considerations
 
 ### Provider Selection
@@ -168,15 +184,18 @@ This PRD addresses issue #17 by providing automated summarization capabilities t
 ### Model Selection
 
 - **BART Models** (recommended for local):
-  - `facebook/bart-large-cnn`: Best quality, ~2GB GPU memory
-  - `facebook/bart-base`: Smaller, faster, ~500MB GPU memory
-  - `sshleifer/distilbart-cnn-12-6`: Fastest, lower memory
+  - `facebook/bart-large-cnn`: Best quality, ~2GB memory (compatible with M4 Pro 48GB)
+  - `facebook/bart-base`: Smaller, faster, ~500MB memory (recommended for M4 Pro)
+  - `sshleifer/distilbart-cnn-12-6`: Fastest, lower memory (~300MB, ideal for M4 Pro)
 
 - **T5 Models** (alternative):
-  - `google/flan-t5-large`: Instruction-tuned, good for structured outputs
-  - `google/flan-t5-base`: Smaller alternative
+  - `google/flan-t5-large`: Instruction-tuned, good for structured outputs (~3GB memory, may be tight on M4 Pro)
+  - `google/flan-t5-base`: Smaller alternative (~1GB memory, compatible with M4 Pro)
 
-- **Auto-Selection**: Automatically select model based on available resources (GPU → CPU)
+- **Auto-Selection**: Automatically select model based on available resources
+  - **Apple Silicon (M4 Pro)**: Prefer models optimized for MPS backend (bart-base or distilbart recommended)
+  - **Memory-aware**: Select models that fit comfortably within 48GB RAM, leaving headroom for other operations
+  - **Fallback**: If GPU/MPS unavailable, fall back to CPU-optimized models
 
 ### Quality vs. Performance Trade-offs
 

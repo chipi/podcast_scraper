@@ -30,6 +30,12 @@ Local transformer models address these concerns by running entirely on-device, p
 ## Constraints & Assumptions
 
 - Summarization must be opt-in (default `false`) for backwards compatibility
+- **Hardware Constraint**: Must run on Apple M4 Pro with 48 GB RAM (primary development/testing platform)
+  - Models must be selected and optimized to work within this memory constraint
+  - Apple Silicon uses Metal Performance Shaders (MPS) backend for PyTorch, not CUDA
+  - While 48 GB RAM is generous, memory efficiency is still important for concurrent operations
+  - Model selection should prioritize models that fit comfortably in available memory (e.g., bart-base ~500MB, distilbart ~300MB)
+  - Must support MPS backend for GPU acceleration on Apple Silicon
 - Local models are preferred over API-based solutions for privacy and cost reasons
 - Summaries are stored in metadata documents (PRD-004/RFC-011 structure)
 - Transcripts can be long (5000-20000+ words); models must handle long inputs efficiently
@@ -51,7 +57,7 @@ summary_model: Optional[str] = None  # Model identifier (e.g., "facebook/bart-la
 summary_max_length: int = 150  # Max tokens for summary
 summary_min_length: int = 30  # Min tokens for summary
 summary_max_takeaways: int = 10  # Maximum number of key takeaways
-summary_device: Optional[str] = None  # "cuda", "cpu", or None for auto-detection
+summary_device: Optional[str] = None  # "cuda", "mps", "cpu", or None for auto-detection
 summary_batch_size: int = 1  # Batch size for processing (1 = sequential)
 summary_chunk_size: Optional[int] = None  # Chunk size for long transcripts (None = no chunking)
 summary_cache_dir: Optional[str] = None  # Custom cache directory for models
@@ -64,7 +70,7 @@ Add CLI flags:
 - `--summary-model`: Model identifier (e.g., `facebook/bart-large-cnn`)
 - `--summary-max-length`: Maximum summary length in tokens
 - `--summary-max-takeaways`: Maximum number of key takeaways
-- `--summary-device`: Force device (`cuda`, `cpu`, or `auto`)
+- `--summary-device`: Force device (`cuda`, `mps`, `cpu`, or `auto` for auto-detection)
 - `--summary-chunk-size`: Chunk size for long transcripts (default: model max length)
 
 ### 2. Local Transformer Integration
@@ -109,21 +115,32 @@ Recommended models for summarization:
 
 ```python
 DEFAULT_SUMMARY_MODELS = {
-    "default": "facebook/bart-large-cnn",  # Best quality
-    "fast": "sshleifer/distilbart-cnn-12-6",  # Faster, lower memory
-    "small": "facebook/bart-base",  # Smallest, lowest memory
+    "default": "facebook/bart-large-cnn",  # Best quality (~2GB memory)
+    "fast": "sshleifer/distilbart-cnn-12-6",  # Faster, lower memory (~300MB)
+    "small": "facebook/bart-base",  # Smallest, lowest memory (~500MB, recommended for M4 Pro)
 }
 
 def select_summary_model(cfg: Config) -> str:
-    """Select summary model based on configuration."""
+    """Select summary model based on configuration and available resources.
+    
+    Optimized for Apple M4 Pro with 48GB RAM:
+    - Prefers bart-base or distilbart for memory efficiency
+    - Supports MPS backend for GPU acceleration on Apple Silicon
+    """
     if cfg.summary_model:
         return cfg.summary_model
     
     # Auto-select based on available resources
-    if torch.cuda.is_available():
+    # For Apple Silicon (M4 Pro), prefer memory-efficient models
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        # M4 Pro: Use bart-base for good balance of quality and memory (~500MB)
+        return DEFAULT_SUMMARY_MODELS["small"]
+    elif torch.cuda.is_available():
+        # NVIDIA GPU: Can use larger models
         return DEFAULT_SUMMARY_MODELS["default"]
     else:
-        return DEFAULT_SUMMARY_MODELS["fast"]  # CPU-friendly
+        # CPU: Use fastest, lowest memory model
+        return DEFAULT_SUMMARY_MODELS["fast"]
 ```
 
 #### 2.3 Model Loading and Caching
@@ -173,12 +190,21 @@ class SummaryModel:
         self._load_model()
     
     def _detect_device(self, device: Optional[str]) -> str:
-        """Detect and return appropriate device."""
+        """Detect and return appropriate device.
+        
+        Supports CUDA (NVIDIA), MPS (Apple Silicon), and CPU fallback.
+        """
         if device:
             return device
         
+        # Check for Apple Silicon MPS backend first (M4 Pro)
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"
+        
+        # Check for CUDA (NVIDIA GPUs)
         if torch.cuda.is_available():
             return "cuda"
+        
         return "cpu"
     
     def _load_model(self) -> None:
@@ -202,11 +228,20 @@ class SummaryModel:
             self.model = self.model.to(self.device)
             
             # Create pipeline for easy inference
+            # Map device to pipeline device parameter:
+            # - "cuda" -> 0 (first CUDA device)
+            # - "mps" -> "mps" (Apple Silicon)
+            # - "cpu" -> -1 (CPU)
+            pipeline_device = (
+                0 if self.device == "cuda"
+                else "mps" if self.device == "mps"
+                else -1
+            )
             self.pipeline = pipeline(
                 "summarization",
                 model=self.model,
                 tokenizer=self.tokenizer,
-                device=0 if self.device == "cuda" else -1,
+                device=pipeline_device,
             )
             
             logger.info(f"Successfully loaded model: {self.model_name}")
@@ -462,7 +497,10 @@ def extract_then_summarize(
 
 ```python
 def optimize_model_memory(model: SummaryModel) -> None:
-    """Optimize model for memory efficiency."""
+    """Optimize model for memory efficiency.
+    
+    Supports both CUDA (NVIDIA) and MPS (Apple Silicon) backends.
+    """
     if model.device == "cuda":
         # Enable gradient checkpointing (trades compute for memory)
         if hasattr(model.model, "gradient_checkpointing_enable"):
@@ -473,6 +511,19 @@ def optimize_model_memory(model: SummaryModel) -> None:
         
         # Clear cache
         torch.cuda.empty_cache()
+    elif model.device == "mps":
+        # Apple Silicon MPS backend
+        # MPS supports FP16 natively, but may have different optimizations
+        # For M4 Pro with 48GB, memory is less constrained, but still optimize
+        if hasattr(model.model, "gradient_checkpointing_enable"):
+            model.model.gradient_checkpointing_enable()
+        
+        # MPS may benefit from FP16, but test performance impact
+        # model.model = model.model.half()  # Test if needed
+        
+        # Clear MPS cache if available
+        if hasattr(torch.mps, "empty_cache"):
+            torch.mps.empty_cache()
 ```
 
 **CPU Memory Considerations**:
@@ -509,8 +560,12 @@ def unload_model(model: SummaryModel) -> None:
     model.tokenizer = None
     model.pipeline = None
     
+    # Clear device-specific cache
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        if hasattr(torch.mps, "empty_cache"):
+            torch.mps.empty_cache()
 ```
 
 #### 2.6 Prompt Engineering for Takeaways
@@ -668,10 +723,13 @@ def safe_summarize(
     """
     try:
         return model.summarize(text, max_length=max_length)
-    except torch.cuda.OutOfMemoryError:
-        logger.error("GPU out of memory during summarization")
-        # Fallback: use CPU or smaller model
-        return ""
+    except (torch.cuda.OutOfMemoryError, RuntimeError) as e:
+        # Handle both CUDA and MPS out-of-memory errors
+        if "out of memory" in str(e).lower() or "mps" in str(e).lower():
+            logger.error(f"Device out of memory during summarization ({model.device}): {e}")
+            # Fallback: use CPU or smaller model
+            return ""
+        raise
     except Exception as e:
         logger.error(f"Summarization error: {e}")
         return ""
@@ -736,11 +794,12 @@ def safe_summarize(
 
 ## Open Questions
 
-- Should we support multiple local models with quality/speed tradeoffs?
-- How to handle very long transcripts (>20k words)? Chunking strategy?
-- Should summaries be cached to avoid regeneration?
-- Do we need GPU detection and automatic model selection?
-- Should we support model fine-tuning for podcast-specific summarization?
+- Should we support multiple local models with quality/speed tradeoffs? (Decision: Yes, with auto-selection based on hardware)
+- How to handle very long transcripts (>20k words)? Chunking strategy? (Decision: Chunking with sliding window)
+- Should summaries be cached to avoid regeneration? (Decision: No, regenerate on each run, use `--skip-existing` to prevent overwrites)
+- Do we need GPU detection and automatic model selection? (Decision: Yes, with MPS support for Apple Silicon)
+- Should we support model fine-tuning for podcast-specific summarization? (Future consideration)
+- **Apple Silicon Optimization**: What's the best model size/configuration for M4 Pro 48GB? (Decision: bart-base recommended, distilbart for speed)
 
 ## References
 
