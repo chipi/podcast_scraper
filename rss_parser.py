@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import xml.etree.ElementTree as ET  # nosec B405 - parsing handled via defusedxml safe APIs
+from datetime import datetime
 from html import unescape
 from html.parser import HTMLParser
 from typing import List, Optional, Tuple
@@ -15,6 +16,15 @@ from defusedxml.ElementTree import ParseError as DefusedXMLParseError, fromstrin
 from . import config, downloader, filesystem, models
 
 logger = logging.getLogger(__name__)
+
+# Time conversion constants
+SECONDS_PER_MINUTE = 60
+SECONDS_PER_HOUR = 3600
+
+# Duration parsing constants
+DURATION_PARTS_HHMMSS = 3
+DURATION_PARTS_MMSS = 2
+DURATION_PARTS_SS = 1
 
 
 def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[str], List[ET.Element]]:
@@ -245,6 +255,247 @@ def _strip_html(text: str) -> str:
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
     return cleaned
+
+
+def extract_feed_metadata(
+    xml_bytes: bytes, base_url: str
+) -> tuple[Optional[str], Optional[str], Optional[datetime]]:
+    """Extract additional feed-level metadata from RSS XML.
+
+    Args:
+        xml_bytes: Raw RSS feed XML content
+        base_url: Base URL for resolving relative URLs
+
+    Returns:
+        Tuple of (description, image_url, last_updated) where each may be None
+    """
+    root = safe_fromstring(xml_bytes)
+    channel = root.find("channel")
+    if channel is None:
+        channel = next(
+            (e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("channel")), None
+        )
+
+    if channel is None:
+        return None, None, None
+
+    description = None
+    desc_elem = channel.find("description") or next(
+        (e for e in channel.iter() if isinstance(e.tag, str) and e.tag.endswith("description")),
+        None,
+    )
+    if desc_elem is not None and desc_elem.text:
+        description = _strip_html(desc_elem.text.strip())
+
+    image_url = None
+    # RSS 2.0 image
+    image_elem = channel.find("image")
+    if image_elem is not None:
+        url_elem = image_elem.find("url")
+        if url_elem is not None and url_elem.text:
+            image_url = urljoin(base_url, url_elem.text.strip())
+    # iTunes image
+    if not image_url:
+        itunes_image_elem = channel.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}image")
+        if itunes_image_elem is not None:
+            href = itunes_image_elem.attrib.get("href")
+            if href:
+                image_url = urljoin(base_url, href.strip())
+
+    last_updated = None
+    # RSS 2.0 lastBuildDate
+    last_build_elem = channel.find("lastBuildDate")
+    if last_build_elem is not None and last_build_elem.text:
+        try:
+            from email.utils import parsedate_to_datetime
+
+            date_tuple = parsedate_to_datetime(last_build_elem.text.strip())
+            if date_tuple:
+                last_updated = date_tuple
+        except Exception:  # nosec B110 - intentional fallback for date parsing
+            pass
+    # Atom updated
+    if not last_updated:
+        atom_updated_elem = channel.find("{http://www.w3.org/2005/Atom}updated")
+        if atom_updated_elem is not None and atom_updated_elem.text:
+            try:
+                from datetime import datetime
+
+                last_updated = datetime.fromisoformat(
+                    atom_updated_elem.text.strip().replace("Z", "+00:00")
+                )
+            except Exception:  # nosec B110 - intentional fallback for date parsing
+                pass
+
+    return description, image_url, last_updated
+
+
+def _extract_duration_seconds(item: ET.Element) -> Optional[int]:
+    """Extract episode duration in seconds from iTunes duration element.
+
+    Args:
+        item: RSS item element
+
+    Returns:
+        Duration in seconds, or None if not found or invalid
+    """
+    itunes_duration_elem = item.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}duration")
+    if itunes_duration_elem is None or not itunes_duration_elem.text:
+        return None
+
+    duration_str = itunes_duration_elem.text.strip()
+    try:
+        parts = duration_str.split(":")
+        if len(parts) == DURATION_PARTS_HHMMSS:  # HH:MM:SS
+            hours, minutes, seconds = map(int, parts)
+            return hours * SECONDS_PER_HOUR + minutes * SECONDS_PER_MINUTE + seconds
+        elif len(parts) == DURATION_PARTS_MMSS:  # MM:SS
+            minutes, seconds = map(int, parts)
+            return minutes * SECONDS_PER_MINUTE + seconds
+        elif len(parts) == DURATION_PARTS_SS:  # SS
+            return int(parts[0])
+    except (ValueError, IndexError):
+        pass
+    return None
+
+
+def _extract_episode_number(item: ET.Element) -> Optional[int]:
+    """Extract episode number from iTunes episode element.
+
+    Args:
+        item: RSS item element
+
+    Returns:
+        Episode number, or None if not found or invalid
+    """
+    itunes_episode_elem = item.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}episode")
+    if itunes_episode_elem is None or not itunes_episode_elem.text:
+        return None
+
+    try:
+        return int(itunes_episode_elem.text.strip())
+    except ValueError:
+        return None
+
+
+def _extract_image_url(item: ET.Element, base_url: str) -> Optional[str]:
+    """Extract episode image URL from iTunes image element.
+
+    Args:
+        item: RSS item element
+        base_url: Base URL for resolving relative URLs
+
+    Returns:
+        Image URL, or None if not found
+    """
+    itunes_image_elem = item.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}image")
+    if itunes_image_elem is None:
+        return None
+
+    href = itunes_image_elem.attrib.get("href")
+    if href:
+        return urljoin(base_url, href.strip())
+    return None
+
+
+def extract_episode_metadata(
+    item: ET.Element, base_url: str
+) -> tuple[
+    Optional[str], Optional[str], Optional[str], Optional[int], Optional[int], Optional[str]
+]:
+    """Extract additional episode-level metadata from RSS item.
+
+    Args:
+        item: RSS item element
+        base_url: Base URL for resolving relative URLs
+
+    Returns:
+        Tuple of (description, guid, link, duration_seconds, episode_number, image_url)
+        where each may be None
+    """
+    description = None
+    desc_elem = (
+        item.find("description")
+        or item.find("summary")
+        or next(
+            (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("description")),
+            None,
+        )
+    )
+    if desc_elem is None:
+        desc_elem = next(
+            (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("summary")), None
+        )
+    if desc_elem is not None and desc_elem.text:
+        description = _strip_html(desc_elem.text.strip())
+
+    guid = None
+    guid_elem = item.find("guid")
+    if guid_elem is not None:
+        guid = guid_elem.text.strip() if guid_elem.text else None
+        # Some feeds use guid as attribute
+        if not guid:
+            guid = guid_elem.attrib.get("isPermaLink")
+            if guid == "false" and guid_elem.text:
+                guid = guid_elem.text.strip()
+
+    link = None
+    link_elem = item.find("link")
+    if link_elem is not None:
+        if link_elem.text:
+            link = urljoin(base_url, link_elem.text.strip())
+        else:
+            href = link_elem.attrib.get("href")
+            if href:
+                link = urljoin(base_url, href.strip())
+
+    duration_seconds = _extract_duration_seconds(item)
+    episode_number = _extract_episode_number(item)
+    image_url = _extract_image_url(item, base_url)
+
+    return description, guid, link, duration_seconds, episode_number, image_url
+
+
+def extract_episode_published_date(item: ET.Element) -> Optional[datetime]:
+    """Extract published date from RSS item.
+
+    Args:
+        item: RSS item element
+
+    Returns:
+        Parsed datetime object or None if not available
+    """
+    from datetime import datetime
+
+    # RSS 2.0 pubDate
+    pub_date_elem = item.find("pubDate")
+    if pub_date_elem is not None and pub_date_elem.text:
+        try:
+            from email.utils import parsedate_to_datetime
+
+            date_tuple = parsedate_to_datetime(pub_date_elem.text.strip())
+            if date_tuple:
+                return date_tuple
+        except Exception:  # nosec B110 - intentional fallback for date parsing
+            pass
+
+    # Atom published
+    atom_published_elem = item.find("{http://www.w3.org/2005/Atom}published")
+    if atom_published_elem is not None and atom_published_elem.text:
+        try:
+            return datetime.fromisoformat(atom_published_elem.text.strip().replace("Z", "+00:00"))
+        except Exception:  # nosec B110 - intentional fallback for date parsing
+            pass
+
+    # Atom updated (fallback)
+    atom_updated_elem = item.find("{http://www.w3.org/2005/Atom}updated")
+    if atom_updated_elem is not None and atom_updated_elem.text:
+        try:
+            return datetime.fromisoformat(atom_updated_elem.text.strip().replace("Z", "+00:00"))
+        except Exception:  # nosec B110 - intentional fallback for date parsing
+            pass
+
+    return None
 
 
 def extract_episode_description(item: ET.Element) -> Optional[str]:

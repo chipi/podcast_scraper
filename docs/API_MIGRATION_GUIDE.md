@@ -9,12 +9,14 @@ Version 2.0 refactors the monolithic v1.0 into a clean modular architecture with
 ### Modular Architecture with Minimal Public API
 
 **Before (v1.0):** Monolithic `podcast_scraper.py` file
+
 - Single ~800-line file
 - All functionality in one module
 - No formal public API
 - Difficult to test and maintain
 
 **After (v2.0):** 8 focused modules with 4 public exports ⭐
+
 ```python
 __all__ = ["Config", "load_config_file", "run_pipeline", "cli"]
 ```
@@ -90,4 +92,3 @@ episode = models.Episode(...)
 
 - README: [https://github.com/chipi/podcast_scraper/blob/main/README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md)
 - Full documentation site (architecture, PRDs, RFCs, guides): [https://chipi.github.io/podcast_scraper/](https://chipi.github.io/podcast_scraper/)
-

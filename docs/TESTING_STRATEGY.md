@@ -252,7 +252,7 @@ The testing strategy follows a three-tier pyramid:
 
 ### Test Organization
 
-- **Current**: `test_podcast_scraper.py` (integration-focused suite)
+- **Current**: `tests/test_podcast_scraper.py` (integration-focused suite)
 - **Future**: Consider splitting into:
   - `tests/unit/` - Unit tests per module
   - `tests/integration/` - Integration tests
@@ -446,7 +446,7 @@ pytest --run-whisper-e2e
 
 ## References
 
-- Current test suite: `test_podcast_scraper.py`
+- Current test suite: `tests/test_podcast_scraper.py`
 - CI workflow: `.github/workflows/python-app.yml`
 - Related RFCs: RFC-001 through RFC-010 (individual testing strategies)
 - Related Issues: #14 (E2E testing), #16 (Library API E2E tests)

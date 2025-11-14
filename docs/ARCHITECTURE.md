@@ -16,6 +16,41 @@
 6. **Metadata generation** (PRD-004/RFC-011): When enabled, per-episode metadata documents are generated alongside transcripts, capturing feed-level and episode-level information, detected speaker names, and processing metadata in JSON/YAML format.
 7. **Progress/UI**: All long-running operations report progress through the pluggable factory in `progress.py`, defaulting to `tqdm` in the CLI.
 
+### Pipeline Flow Diagram
+
+```mermaid
+flowchart TD
+    Start([CLI Entry]) --> Parse[Parse CLI Args & Config Files]
+    Parse --> Validate[Validate & Normalize Config]
+    Validate --> Setup[Setup Output Directory]
+    Setup --> FetchRSS[Fetch & Parse RSS Feed]
+    FetchRSS --> ExtractEpisodes[Extract Episode Metadata]
+    ExtractEpisodes --> DetectSpeakers{Speaker Detection<br/>Enabled?}
+    DetectSpeakers -->|Yes| ExtractHosts[Extract Host Names<br/>RSS Author Tags]
+    ExtractHosts --> ExtractGuests[Extract Guest Names<br/>NER from Episodes]
+    DetectSpeakers -->|No| ProcessEpisodes[Process Episodes]
+    ExtractGuests --> ProcessEpisodes
+    ProcessEpisodes --> CheckTranscript{Transcript<br/>Available?}
+    CheckTranscript -->|Yes| DownloadTranscript[Download Transcript<br/>Concurrent]
+    CheckTranscript -->|No| QueueWhisper[Queue for Whisper]
+    DownloadTranscript --> SaveTranscript[Save Transcript File]
+    QueueWhisper --> DownloadMedia[Download Media File]
+    DownloadMedia --> Transcribe[Whisper Transcription<br/>Sequential]
+    Transcribe --> FormatScreenplay[Format with Speaker Names]
+    FormatScreenplay --> SaveTranscript
+    SaveTranscript --> GenerateMetadata{Metadata<br/>Generation?}
+    GenerateMetadata -->|Yes| CreateMetadata[Generate Metadata JSON/YAML]
+    GenerateMetadata -->|No| Cleanup
+    CreateMetadata --> Cleanup[Cleanup Temp Files]
+    Cleanup --> End([Complete])
+    
+    style Start fill:#e1f5ff
+    style End fill:#d4edda
+    style ProcessEpisodes fill:#fff3cd
+    style Transcribe fill:#f8d7da
+    style GenerateMetadata fill:#d1ecf1
+```
+
 ## Module Responsibilities
 
 - `cli.py`: Parse/validate CLI arguments, integrate config files, set up progress reporting, trigger `run_pipeline`.
@@ -31,6 +66,62 @@
 - `models.py`: Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob`) shared across modules. May be extended to include detected speaker metadata.
 - `metadata.py` (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, and processing metadata in structured JSON/YAML format. Opt-in feature for backwards compatibility.
 
+### Module Dependencies Diagram
+
+```mermaid
+graph TB
+    subgraph "Public API"
+        CLI[cli.py]
+        Config[config.py]
+        Workflow[workflow.py]
+    end
+    
+    subgraph "Core Processing"
+        RSSParser[rss_parser.py]
+        EpisodeProc[episode_processor.py]
+        Downloader[downloader.py]
+    end
+    
+    subgraph "Support Modules"
+        Filesystem[filesystem.py]
+        Models[models.py]
+        Progress[progress.py]
+    end
+    
+    subgraph "Optional Features"
+        Whisper[whisper_integration.py]
+        SpeakerDetect[speaker_detection.py]
+        Metadata[metadata.py]
+    end
+    
+    CLI --> Config
+    CLI --> Workflow
+    CLI --> Progress
+    Workflow --> RSSParser
+    Workflow --> EpisodeProc
+    Workflow --> Downloader
+    Workflow --> Whisper
+    Workflow --> SpeakerDetect
+    Workflow --> Metadata
+    Workflow --> Filesystem
+    Workflow --> Models
+    Workflow --> Progress
+    EpisodeProc --> Downloader
+    EpisodeProc --> Filesystem
+    EpisodeProc --> Whisper
+    EpisodeProc --> Models
+    RSSParser --> Models
+    Whisper --> SpeakerDetect
+    Metadata --> Models
+    SpeakerDetect --> Models
+    
+    style CLI fill:#e1f5ff
+    style Config fill:#fff3cd
+    style Workflow fill:#d1ecf1
+    style Whisper fill:#f8d7da
+    style SpeakerDetect fill:#d4edda
+```
+
 ## Key Design Decisions
 
 - **Typed, immutable configuration**: `Config` is a frozen Pydantic model, ensuring every module receives canonicalized values (e.g., normalized URLs, integer coercions, validated Whisper models). This centralizes validation and guards downstream logic.
@@ -44,6 +135,72 @@
 - **Automatic speaker detection** (RFC-010): Named Entity Recognition extracts speaker names from episode metadata transparently. Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails, not as override. spaCy is a required dependency for speaker detection.
 - **Host/guest distinction**: Host detection prioritizes RSS author tags (channel-level only) as the most reliable source, falling back to NER extraction from feed metadata when author tags are unavailable. Guests are always detected from episode-specific metadata using NER, ensuring accurate speaker labeling in Whisper screenplay output.
 
+### Episode Processing Flow
+
+```mermaid
+flowchart LR
+    Episode[Episode Object] --> CheckSkip{Skip<br/>Existing?}
+    CheckSkip -->|Yes| CheckExists{File<br/>Exists?}
+    CheckExists -->|Yes| Skip[Skip Episode]
+    CheckExists -->|No| CheckTranscript
+    CheckSkip -->|No| CheckTranscript{Transcript<br/>URL?}
+    CheckTranscript -->|Yes| Download[Download Transcript<br/>ThreadPoolExecutor]
+    CheckTranscript -->|No| CheckWhisper{Whisper<br/>Enabled?}
+    CheckWhisper -->|No| Skip
+    CheckWhisper -->|Yes| QueueJob[Create TranscriptionJob]
+    Download --> SaveFile[Save to Filesystem]
+    QueueJob --> WaitQueue[Wait in Queue]
+    WaitQueue --> ProcessSeq[Process Sequentially]
+    ProcessSeq --> DownloadMedia[Download Media]
+    DownloadMedia --> Transcribe[Whisper Transcribe]
+    Transcribe --> Format[Format Screenplay<br/>with Speakers]
+    Format --> SaveFile
+    SaveFile --> Metadata{Generate<br/>Metadata?}
+    Metadata -->|Yes| WriteMeta[Write Metadata File]
+    Metadata -->|No| Complete[Complete]
+    WriteMeta --> Complete
+    Skip --> Complete
+    
+    style Episode fill:#e1f5ff
+    style Download fill:#fff3cd
+    style Transcribe fill:#f8d7da
+    style Complete fill:#d4edda
+```
+
+### Speaker Detection Flow
+
+```mermaid
+flowchart TD
+    Start([Episode Processing]) --> CheckEnabled{Speaker Detection<br/>Enabled?}
+    CheckEnabled -->|No| UseDefaults[Use Default Names<br/>Host, Guest]
+    CheckEnabled -->|Yes| ExtractHosts[Extract Host Names]
+    ExtractHosts --> CheckRSSAuthor{RSS Author<br/>Tags Exist?}
+    CheckRSSAuthor -->|Yes| ParseRSS[Parse RSS Author Tags<br/>channel-level]
+    CheckRSSAuthor -->|No| ExtractFeedNER[NER from Feed Metadata]
+    ParseRSS --> HostNames[Host Names Found]
+    ExtractFeedNER --> HostNames
+    HostNames --> ExtractGuests[Extract Guest Names]
+    ExtractGuests --> EpisodeNER[NER from Episode<br/>Title & Description]
+    EpisodeNER --> FilterPersons[Filter PERSON Entities]
+    FilterPersons --> RemoveHosts[Remove Host Names<br/>from Guest List]
+    RemoveHosts --> GuestNames[Guest Names Found]
+    GuestNames --> CheckSuccess{Names<br/>Found?}
+    CheckSuccess -->|Yes| UseDetected[Use Detected Names]
+    CheckSuccess -->|No| CheckManual{Manual Names<br/>Provided?}
+    CheckManual -->|Yes| UseManual[Use Manual Names]
+    CheckManual -->|No| UseDefaults
+    UseDetected --> FormatScreenplay[Format Whisper Output]
+    UseManual --> FormatScreenplay
+    UseDefaults --> FormatScreenplay
+    FormatScreenplay --> End([Continue Processing])
+    
+    style Start fill:#e1f5ff
+    style ExtractHosts fill:#fff3cd
+    style ExtractGuests fill:#d1ecf1
+    style FormatScreenplay fill:#d4edda
+    style End fill:#d4edda
+```
+
 ## Constraints and Assumptions
 
 - Python 3.10+ with third-party packages: `requests`, `tqdm`, `defusedxml`, `platformdirs`, `pydantic`, `PyYAML`, `spacy` (required for speaker detection), and optionally `openai-whisper` + `ffmpeg` when transcription is required.
@@ -52,6 +209,27 @@
 - Speaker name detection via NER (RFC-010) requires spaCy. When automatic detection fails, the system falls back to manual speaker names (if provided) or default `["Host", "Guest"]` labels.
 - Output directories must live in safe roots (cwd, user home, or platform data/cache dirs); other locations trigger warnings for operator review.
 
+### Configuration Flow
+
+```mermaid
+flowchart TD
+    Input[CLI Args + Config Files] --> Merge[Merge Sources]
+    Merge --> Validate[Pydantic Validation]
+    Validate --> Normalize[Normalize Values]
+    Normalize --> Config[Immutable Config Object]
+    Config --> Workflow[workflow.run_pipeline]
+    Config --> EpisodeProc[episode_processor]
+    Config --> RSSParser[rss_parser]
+    Config --> Downloader[downloader]
+    Config --> Whisper[whisper_integration]
+    Config --> SpeakerDetect[speaker_detection]
+    Config --> Metadata[metadata]
+    
+    style Input fill:#e1f5ff
+    style Config fill:#fff3cd
+    style Validate fill:#f8d7da
+```
+
 ## Data and File Layout
 
 - `models.Episode` encapsulates the RSS item, chosen transcript URLs, and media enclosure metadata, keeping parsing concerns separate from processing. May be extended to include detected speaker names (RFC-010).
@@ -59,6 +237,31 @@
 - Whisper output names append the Whisper model/run identifier to differentiate multiple experimental runs inside the same base directory. Screenplay formatting uses detected speaker names when available.
 - Temporary media downloads land in `<output>/ .tmp_media/` and always get cleaned up (best effort) after transcription completes.
 - Episode metadata documents (per PRD-004/RFC-011) are generated when `generate_metadata` is enabled, storing detected speaker names, feed information, transcript sources, and other episode details alongside transcripts in JSON/YAML format for downstream use cases.
+
+### Filesystem Layout
+
+```mermaid
+graph TD
+    Root[output_rss_hostname_hash/] --> RunDir{Run ID<br/>Specified?}
+    RunDir -->|Yes| RunSubdir[run_id/]
+    RunDir -->|No| BaseDir[Base Directory]
+    RunSubdir --> Episodes[Episode Files]
+    BaseDir --> Episodes
+    Episodes --> Transcript1["0001 - Episode Title.txt"]
+    Episodes --> Transcript2["0002 - Episode Title.txt"]
+    Episodes --> WhisperDir{Whisper<br/>Used?}
+    WhisperDir -->|Yes| WhisperSubdir[whisper_model_run/]
+    WhisperSubdir --> WhisperFiles["0001 - Episode Title_whisper_base.txt"]
+    Episodes --> Metadata{Metadata<br/>Enabled?}
+    Metadata -->|Yes| MetaFiles["0001 - Episode Title.json<br/>0001 - Episode Title.yaml"]
+    Root --> TempDir[.tmp_media/]
+    TempDir --> TempFiles[Temporary Media Files<br/>Cleaned Up After Use]
+    
+    style Root fill:#e1f5ff
+    style Episodes fill:#fff3cd
+    style TempDir fill:#f8d7da
+    style Metadata fill:#d1ecf1
+```
 
 ## Error Handling and Resilience
 
@@ -80,7 +283,7 @@
 
 ## Testing Notes
 
-- `test_podcast_scraper.py` acts as an integration-focused suite, simulating CLI usage, error cases, transcript selection heuristics, and Whisper fallbacks via mocks. This keeps the public API stable and documents expected behaviors for future refactors.
+- `tests/test_podcast_scraper.py` acts as an integration-focused suite, simulating CLI usage, error cases, transcript selection heuristics, and Whisper fallbacks via mocks. This keeps the public API stable and documents expected behaviors for future refactors.
 - Speaker detection tests (RFC-010) should cover RSS author tag extraction, NER extraction scenarios, host/guest distinction, manual fallback behavior, and integration with Whisper screenplay formatting.
 - Metadata generation tests (PRD-004/RFC-011) should cover JSON/YAML output formats, schema validation, file naming conventions, and integration with the episode processing pipeline.
 - See `docs/TESTING_STRATEGY.md` for comprehensive testing requirements, patterns, and infrastructure.

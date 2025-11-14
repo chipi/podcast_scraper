@@ -6,6 +6,7 @@ import logging
 import re
 import subprocess  # nosec B404 - subprocess is needed for spaCy model download
 import sys
+import threading
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import spacy
@@ -14,11 +15,52 @@ from . import config
 
 logger = logging.getLogger(__name__)
 
+# Module-level cache for loaded spaCy models (keyed by model name)
+# This avoids reloading the same model multiple times during a single run
+_spacy_model_cache: Dict[str, Any] = {}
+_spacy_model_cache_lock = threading.Lock()
+
 # Default speaker names when detection fails
 DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
 
 # Valid spaCy model names contain only alphanumeric, underscore, hyphen, and dot
 _VALID_MODEL_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_.-]+$")
+
+# Model validation constants
+MAX_MODEL_NAME_LENGTH = 100
+
+# Name validation constants
+MIN_NAME_LENGTH = 2
+MIN_RAW_NAME_LENGTH = 2
+MIN_SEGMENT_LENGTH = 2
+
+# Confidence score constants
+DEFAULT_CONFIDENCE_SCORE = 1.0
+PATTERN_BASED_CONFIDENCE_SCORE = 0.7
+MAX_HEURISTIC_SCORE = 1.0
+
+# Pattern analysis constants
+DEFAULT_SAMPLE_SIZE = 5
+DESCRIPTION_SNIPPET_LENGTH = 20
+CONTEXT_WINDOW_SIZE = 20
+PREFIX_WORDS_COUNT = 3
+SUFFIX_WORDS_COUNT = 3
+MIN_PREFIX_SUFFIX_COUNT = 2
+TOP_PREFIXES_SUFFIXES_COUNT = 5
+
+# Position threshold constants
+START_POSITION_THRESHOLD = 0.3  # 30% of title length
+END_POSITION_THRESHOLD = 0.7  # 70% of title length
+POSITION_CONSISTENCY_THRESHOLD = 0.6  # 60% consistency required
+
+# Scoring constants
+POSITION_SCORE_BONUS = 0.3
+PREFIX_SUFFIX_SCORE_BONUS = 0.2
+OVERLAP_SCORE_BONUS = 0.5
+COMBINED_SCORE_DIVISOR = 2.0
+
+# Minimum speakers constant
+MIN_SPEAKERS_REQUIRED = 2
 
 
 def _validate_model_name(model_name: str) -> bool:
@@ -30,7 +72,7 @@ def _validate_model_name(model_name: str) -> bool:
     Returns:
         True if valid, False otherwise
     """
-    if not model_name or len(model_name) > 100:  # Reasonable length limit
+    if not model_name or len(model_name) > MAX_MODEL_NAME_LENGTH:
         return False
     return bool(_VALID_MODEL_NAME_PATTERN.match(model_name))
 
@@ -90,7 +132,17 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
 
 
 def get_ner_model(cfg: config.Config) -> Optional[Any]:
-    """Get the appropriate spaCy NER model based on configuration."""
+    """Get the appropriate spaCy NER model based on configuration.
+
+    Models are cached at module level to avoid expensive reloads on every episode.
+    Thread-safe caching ensures safe concurrent access.
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        Loaded spaCy nlp object or None if model unavailable
+    """
     if not cfg.auto_speakers:
         return None
 
@@ -105,7 +157,22 @@ def get_ner_model(cfg: config.Config) -> Optional[Any]:
             logger.debug("No default NER model for language '%s', skipping detection", cfg.language)
             return None
 
-    return _load_spacy_model(model_name)
+    # Check cache first (thread-safe)
+    with _spacy_model_cache_lock:
+        if model_name in _spacy_model_cache:
+            logger.debug("Using cached spaCy model: %s", model_name)
+            return _spacy_model_cache[model_name]
+
+    # Load model if not in cache
+    nlp = _load_spacy_model(model_name)
+
+    # Cache the loaded model (thread-safe)
+    if nlp is not None:
+        with _spacy_model_cache_lock:
+            _spacy_model_cache[model_name] = nlp
+            logger.debug("Cached spaCy model: %s", model_name)
+
+    return nlp
 
 
 def _sanitize_person_name(name: str) -> Optional[str]:
@@ -148,8 +215,8 @@ def _sanitize_person_name(name: str) -> Optional[str]:
     # Normalize whitespace (multiple spaces -> single space)
     name = re.sub(r"\s+", " ", name).strip()
 
-    # Validate: must have at least one letter and be at least 2 characters
-    if not name or len(name) < 2:
+    # Validate: must have at least one letter and be at least MIN_NAME_LENGTH characters
+    if not name or len(name) < MIN_NAME_LENGTH:
         return None
 
     # Must contain at least one letter (not just numbers or punctuation)
@@ -157,6 +224,200 @@ def _sanitize_person_name(name: str) -> Optional[str]:
         return None
 
     return name
+
+
+def _validate_person_entity(raw_name: str) -> bool:
+    """Validate that a raw entity name is likely a person.
+
+    Args:
+        raw_name: Raw entity name from NER
+
+    Returns:
+        True if valid person entity, False otherwise
+    """
+    if not raw_name or len(raw_name) < MIN_RAW_NAME_LENGTH:
+        return False
+    # Filter out pure numbers and HTML-like patterns
+    if re.match(r"^\d+$", raw_name) or re.search(r"[<>]", raw_name):
+        return False
+    return True
+
+
+def _extract_confidence_score(ent: Any) -> float:
+    """Extract confidence score from spaCy entity.
+
+    Args:
+        ent: spaCy entity object
+
+    Returns:
+        Confidence score (defaults to DEFAULT_CONFIDENCE_SCORE if not available)
+    """
+    if hasattr(ent, "score"):
+        return float(ent.score)
+    elif hasattr(ent, "_") and hasattr(ent._, "score"):
+        return float(ent._.score)
+    return DEFAULT_CONFIDENCE_SCORE
+
+
+def _extract_entities_from_doc(
+    doc: Any, seen_raw_names: Set[str], seen_sanitized_names: Set[str]
+) -> List[Tuple[str, float]]:
+    """Extract PERSON entities from a spaCy document.
+
+    Args:
+        doc: spaCy document object
+        seen_raw_names: Set of already seen raw names (for deduplication)
+        seen_sanitized_names: Set of already seen sanitized names (for deduplication)
+
+    Returns:
+        List of (sanitized_name, confidence_score) tuples
+    """
+    persons = []
+    for ent in doc.ents:
+        if ent.label_ != "PERSON":
+            continue
+
+        raw_name = ent.text.strip()
+
+        # Skip if already seen
+        if raw_name in seen_raw_names:
+            continue
+
+        # Validate entity
+        if not _validate_person_entity(raw_name):
+            continue
+
+        # Sanitize the name
+        sanitized_name = _sanitize_person_name(raw_name)
+        if not sanitized_name:
+            continue
+
+        # Deduplicate based on sanitized name (case-insensitive)
+        sanitized_lower = sanitized_name.lower()
+        if sanitized_lower in seen_sanitized_names:
+            continue
+
+        # Track both raw and sanitized names
+        seen_raw_names.add(raw_name)
+        seen_sanitized_names.add(sanitized_lower)
+
+        # Get confidence score
+        confidence = _extract_confidence_score(ent)
+        persons.append((sanitized_name, confidence))
+
+    return persons
+
+
+def _split_text_on_separators(text: str) -> Tuple[List[str], Optional[str]]:
+    """Split text on common separators used in episode titles.
+
+    Args:
+        text: Text to split
+
+    Returns:
+        Tuple of (segments_list, last_segment)
+    """
+    separators = ["|", "—", "–", " - "]
+    segments = [text]
+    last_segment = None
+
+    # Split on first separator found
+    for sep in separators:
+        if sep in text:
+            segments = [s.strip() for s in text.split(sep)]
+            last_segment = segments[-1] if segments else None
+            break
+
+    return segments, last_segment
+
+
+def _extract_entities_from_segments(
+    segments: List[str],
+    nlp: Any,
+    seen_raw_names: Set[str],
+    seen_sanitized_names: Set[str],
+) -> List[Tuple[str, float]]:
+    """Extract PERSON entities from text segments, prioritizing last segment.
+
+    Args:
+        segments: List of text segments
+        nlp: spaCy NLP model
+        seen_raw_names: Set of already seen raw names
+        seen_sanitized_names: Set of already seen sanitized names
+
+    Returns:
+        List of (sanitized_name, confidence_score) tuples
+    """
+    persons = []
+    # Process segments in reverse order to prioritize last segment
+    for segment in reversed(segments):
+        if not segment or len(segment) < MIN_SEGMENT_LENGTH:
+            continue
+
+        segment_doc = nlp(segment)
+        segment_persons = _extract_entities_from_doc(
+            segment_doc, seen_raw_names, seen_sanitized_names
+        )
+        persons.extend(segment_persons)
+
+        # If we found entities in a segment, stop checking other segments
+        # This ensures we get the guest name from the last segment
+        if persons:
+            break
+
+    return persons
+
+
+def _pattern_based_fallback(
+    last_segment: str, seen_sanitized_names: Set[str]
+) -> Optional[Tuple[str, float]]:
+    """Pattern-based fallback for name extraction when NER fails.
+
+    Args:
+        last_segment: Last segment of text (often contains guest name)
+        seen_sanitized_names: Set of already seen sanitized names
+
+    Returns:
+        Tuple of (sanitized_name, confidence_score) or None
+    """
+    if not last_segment:
+        return None
+
+    # Pattern: 2-3 words, each starting with capital letter
+    # Examples: "Dylan Field", "Mary Jane Watson", "John Smith"
+    name_pattern = r"^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}$"
+    if not re.match(name_pattern, last_segment):
+        return None
+
+    # Check if it's not a common non-name phrase
+    common_phrases = {
+        "guest",
+        "host",
+        "episode",
+        "title",
+        "interview",
+        "conversation",
+    }
+    last_segment_lower = last_segment.lower()
+    if any(phrase in last_segment_lower for phrase in common_phrases):
+        return None
+
+    # Sanitize and add as candidate
+    sanitized_name = _sanitize_person_name(last_segment)
+    if not sanitized_name:
+        return None
+
+    sanitized_lower = sanitized_name.lower()
+    if sanitized_lower in seen_sanitized_names:
+        return None
+
+    # Lower confidence since it's pattern-based, not NER
+    logger.debug(
+        "Pattern-based fallback: extracted '%s' from last segment '%s'",
+        sanitized_name,
+        last_segment,
+    )
+    return (sanitized_name, PATTERN_BASED_CONFIDENCE_SCORE)
 
 
 def extract_person_entities(text: str, nlp: Any) -> List[Tuple[str, float]]:
@@ -181,151 +442,27 @@ def extract_person_entities(text: str, nlp: Any) -> List[Tuple[str, float]]:
         return []
 
     try:
+        seen_raw_names: Set[str] = set()  # Track raw names to avoid duplicates
+        seen_sanitized_names: Set[str] = set()  # Track sanitized names for deduplication
+
         # First, try NER on the full text
         doc = nlp(text)
-        persons = []
-        seen_raw_names = set()  # Track raw names to avoid duplicates
-        seen_sanitized_names = set()  # Track sanitized names for deduplication
-
-        for ent in doc.ents:
-            if ent.label_ == "PERSON":
-                raw_name = ent.text.strip()
-
-                # Skip if already seen (raw name deduplication)
-                if raw_name in seen_raw_names:
-                    continue
-
-                # Filter out obvious non-person entities (very short names, pure numbers, etc.)
-                if not raw_name or len(raw_name) < 2:
-                    continue
-
-                # Filter out pure numbers and HTML-like patterns
-                if re.match(r"^\d+$", raw_name) or re.search(r"[<>]", raw_name):
-                    continue
-
-                # Sanitize the name
-                sanitized_name = _sanitize_person_name(raw_name)
-                if not sanitized_name:
-                    continue
-
-                # Deduplicate based on sanitized name (case-insensitive)
-                sanitized_lower = sanitized_name.lower()
-                if sanitized_lower in seen_sanitized_names:
-                    continue
-
-                # Track both raw and sanitized names
-                seen_raw_names.add(raw_name)
-                seen_sanitized_names.add(sanitized_lower)
-
-                # Try to get confidence score if available (spaCy transformer models)
-                confidence = 1.0
-                if hasattr(ent, "score"):
-                    confidence = float(ent.score)
-                elif hasattr(ent._, "score"):
-                    confidence = float(ent._.score)
-
-                persons.append((sanitized_name, confidence))
+        persons = _extract_entities_from_doc(doc, seen_raw_names, seen_sanitized_names)
 
         # Fallback: if no entities found, try splitting on common separators
-        # This handles cases like "Title | Guest Name" where NER fails on full text
         if not persons:
-            # Common separators used in episode titles: pipe, em dash, en dash
-            separators = ["|", "—", "–", " - "]
-            segments = [text]
-            last_segment = None
+            segments, last_segment = _split_text_on_separators(text)
+            persons = _extract_entities_from_segments(
+                segments, nlp, seen_raw_names, seen_sanitized_names
+            )
 
-            # Split on first separator found
-            for sep in separators:
-                if sep in text:
-                    segments = [s.strip() for s in text.split(sep)]
-                    last_segment = segments[-1] if segments else None
-                    break
-
-            # Try NER on each segment, prioritizing the last one (often contains guest name)
-            # Process segments in reverse order to prioritize last segment
-            for segment in reversed(segments):
-                if not segment or len(segment) < 2:
-                    continue
-
-                segment_doc = nlp(segment)
-                for ent in segment_doc.ents:
-                    if ent.label_ == "PERSON":
-                        raw_name = ent.text.strip()
-
-                        # Skip if already seen
-                        if raw_name in seen_raw_names:
-                            continue
-
-                        # Filter out obvious non-person entities
-                        if not raw_name or len(raw_name) < 2:
-                            continue
-
-                        if re.match(r"^\d+$", raw_name) or re.search(r"[<>]", raw_name):
-                            continue
-
-                        # Sanitize the name
-                        sanitized_name = _sanitize_person_name(raw_name)
-                        if not sanitized_name:
-                            continue
-
-                        # Deduplicate
-                        sanitized_lower = sanitized_name.lower()
-                        if sanitized_lower in seen_sanitized_names:
-                            continue
-
-                        seen_raw_names.add(raw_name)
-                        seen_sanitized_names.add(sanitized_lower)
-
-                        # Get confidence score
-                        confidence = 1.0
-                        if hasattr(ent, "score"):
-                            confidence = float(ent.score)
-                        elif hasattr(ent._, "score"):
-                            confidence = float(ent._.score)
-
-                        persons.append((sanitized_name, confidence))
-
-                        # If we found entities in a segment, prioritize it
-                        # (don't check earlier segments)
-                        # This ensures we get the guest name from the last segment
-                        if persons:
-                            break
-
-                # If we found entities, stop checking other segments
-                if persons:
-                    break
-
-            # Pattern-based fallback: if still no entities and we have a last segment,
-            # check if it looks like a person name (2-3 words, properly capitalized)
+            # Pattern-based fallback: if still no entities
             if not persons and last_segment:
-                # Pattern: 2-3 words, each starting with capital letter
-                # Examples: "Dylan Field", "Mary Jane Watson", "John Smith"
-                name_pattern = r"^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}$"
-                if re.match(name_pattern, last_segment):
-                    # Check if it's not a common non-name phrase
-                    common_phrases = {
-                        "guest",
-                        "host",
-                        "episode",
-                        "title",
-                        "interview",
-                        "conversation",
-                    }
-                    last_segment_lower = last_segment.lower()
-                    if not any(phrase in last_segment_lower for phrase in common_phrases):
-                        # Sanitize and add as candidate
-                        sanitized_name = _sanitize_person_name(last_segment)
-                        if sanitized_name:
-                            sanitized_lower = sanitized_name.lower()
-                            if sanitized_lower not in seen_sanitized_names:
-                                seen_sanitized_names.add(sanitized_lower)
-                                # Lower confidence since it's pattern-based, not NER
-                                persons.append((sanitized_name, 0.7))
-                                logger.debug(
-                                    "Pattern-based fallback: extracted '%s' from last segment '%s'",
-                                    sanitized_name,
-                                    last_segment,
-                                )
+                pattern_result = _pattern_based_fallback(last_segment, seen_sanitized_names)
+                if pattern_result:
+                    sanitized_name, confidence = pattern_result
+                    seen_sanitized_names.add(sanitized_name.lower())
+                    persons.append((sanitized_name, confidence))
 
         return persons
     except Exception as exc:
@@ -393,21 +530,133 @@ def detect_hosts_from_feed(
     return hosts
 
 
+def _analyze_title_position(guest_name: str, title: str) -> Optional[str]:
+    """Analyze where a guest name appears in the title.
+
+    Args:
+        guest_name: Guest name to find
+        title: Episode title
+
+    Returns:
+        Position preference: "start", "end", "middle", or None
+    """
+    guest_lower = guest_name.lower()
+    title_lower = title.lower()
+
+    if guest_lower not in title_lower:
+        return None
+
+    idx = title_lower.find(guest_lower)
+    title_len = len(title)
+
+    # Determine position: start (first START_POSITION_THRESHOLD%),
+    # end (last END_POSITION_THRESHOLD%), or middle
+    if idx < title_len * START_POSITION_THRESHOLD:
+        return "start"
+    elif idx > title_len * END_POSITION_THRESHOLD:
+        return "end"
+    else:
+        return "middle"
+
+
+def _extract_prefix_suffix(guest_name: str, title: str) -> Tuple[Optional[str], Optional[str]]:
+    """Extract prefix and suffix context around guest name in title.
+
+    Args:
+        guest_name: Guest name to find context for
+        title: Episode title
+
+    Returns:
+        Tuple of (prefix_text, suffix_text)
+    """
+    guest_lower = guest_name.lower()
+    title_lower = title.lower()
+
+    if guest_lower not in title_lower:
+        return None, None
+
+    idx = title_lower.find(guest_lower)
+    prefix_text = None
+    suffix_text = None
+
+    # Extract prefix
+    if idx > 0:
+        prefix_start = max(0, idx - CONTEXT_WINDOW_SIZE)
+        prefix_raw = title[prefix_start:idx].strip().lower()
+        # Extract last few words as prefix
+        prefix_words = prefix_raw.split()[-PREFIX_WORDS_COUNT:]
+        if prefix_words:
+            prefix_text = " ".join(prefix_words)
+
+    # Extract suffix
+    if idx + len(guest_name) < len(title):
+        suffix_end = min(len(title), idx + len(guest_name) + CONTEXT_WINDOW_SIZE)
+        suffix_raw = title[idx + len(guest_name) : suffix_end].strip().lower()
+        # Extract first few words as suffix
+        suffix_words = suffix_raw.split()[:SUFFIX_WORDS_COUNT]
+        if suffix_words:
+            suffix_text = " ".join(suffix_words)
+
+    return prefix_text, suffix_text
+
+
+def _find_common_patterns(
+    patterns: List[str], min_count: int = MIN_PREFIX_SUFFIX_COUNT
+) -> List[str]:
+    """Find common patterns that appear at least min_count times.
+
+    Args:
+        patterns: List of pattern strings
+        min_count: Minimum count threshold
+
+    Returns:
+        List of common patterns
+    """
+    if not patterns:
+        return []
+
+    from collections import Counter
+
+    pattern_counts = Counter(patterns)
+    return [p for p, count in pattern_counts.items() if count >= min_count]
+
+
+def _determine_title_position_preference(title_positions: List[str]) -> Optional[str]:
+    """Determine the most common title position preference.
+
+    Args:
+        title_positions: List of position strings ("start", "end", "middle")
+
+    Returns:
+        Most common position if consistent enough, None otherwise
+    """
+    if not title_positions:
+        return None
+
+    from collections import Counter
+
+    position_counts = Counter(title_positions)
+    most_common = position_counts.most_common(1)[0]
+    if most_common[1] >= len(title_positions) * POSITION_CONSISTENCY_THRESHOLD:
+        return most_common[0]
+    return None
+
+
 def analyze_episode_patterns(
     episodes: List[Any],
     nlp: Any,
     cached_hosts: Set[str],
-    sample_size: int = 5,
+    sample_size: int = DEFAULT_SAMPLE_SIZE,
 ) -> Dict[str, Any]:
     """Analyze patterns from sample episodes to extract heuristics for guest selection.
 
-    Analyzes episode titles and first 20 characters of descriptions.
+    Analyzes episode titles and first DESCRIPTION_SNIPPET_LENGTH characters of descriptions.
 
     Args:
         episodes: List of Episode objects to analyze
         nlp: spaCy NLP model
         cached_hosts: Set of detected host names to filter out
-        sample_size: Number of episodes to sample (default 5)
+        sample_size: Number of episodes to sample (default DEFAULT_SAMPLE_SIZE)
 
     Returns:
         Dictionary with heuristics:
@@ -415,8 +664,6 @@ def analyze_episode_patterns(
         - common_prefixes: List of common prefixes before guest names
         - common_suffixes: List of common suffixes after guest names
     """
-    from .rss_parser import extract_episode_description
-
     if not episodes or not nlp:
         return {}
 
@@ -427,18 +674,8 @@ def analyze_episode_patterns(
 
     for episode in sample_episodes:
         title = episode.title
-        description = (
-            extract_episode_description(episode.item) if hasattr(episode, "item") else None
-        )
-
-        # Limit description to first 20 characters
-        description_snippet = description[:20].strip() if description else None
-
-        # Extract persons from title and description snippet
+        # Extract persons from title
         title_persons = extract_person_entities(title, nlp)
-        description_persons = (
-            extract_person_entities(description_snippet, nlp) if description_snippet else []
-        )
 
         # Filter out hosts from title persons
         title_guests = [name for name, _ in title_persons if name not in cached_hosts]
@@ -446,69 +683,31 @@ def analyze_episode_patterns(
         if not title_guests:
             continue
 
-        # Find position of guest name in title
+        # Analyze each guest name
         for guest_name in title_guests:
-            guest_lower = guest_name.lower()
-            title_lower = title.lower()
+            # Analyze position
+            position = _analyze_title_position(guest_name, title)
+            if position:
+                title_positions.append(position)
 
-            if guest_lower in title_lower:
-                idx = title_lower.find(guest_lower)
-                title_len = len(title)
-
-                # Determine position: start (first 30%), end (last 30%), or middle
-                if idx < title_len * 0.3:
-                    title_positions.append("start")
-                elif idx > title_len * 0.7:
-                    title_positions.append("end")
-                else:
-                    title_positions.append("middle")
-
-                # Extract context around guest name (prefixes/suffixes)
-                if idx > 0:
-                    prefix_start = max(0, idx - 20)
-                    prefix_text = title[prefix_start:idx].strip().lower()
-                    # Extract last few words as prefix
-                    prefix_words = prefix_text.split()[-3:]
-                    if prefix_words:
-                        prefixes.append(" ".join(prefix_words))
-
-                if idx + len(guest_name) < len(title):
-                    suffix_end = min(len(title), idx + len(guest_name) + 20)
-                    suffix_text = title[idx + len(guest_name) : suffix_end].strip().lower()
-                    # Extract first few words as suffix
-                    suffix_words = suffix_text.split()[:3]
-                    if suffix_words:
-                        suffixes.append(" ".join(suffix_words))
+            # Extract prefix/suffix
+            prefix, suffix = _extract_prefix_suffix(guest_name, title)
+            if prefix:
+                prefixes.append(prefix)
+            if suffix:
+                suffixes.append(suffix)
 
     # Determine most common title position
-    title_position_preference = None
-    if title_positions:
-        from collections import Counter
+    title_position_preference = _determine_title_position_preference(title_positions)
 
-        position_counts = Counter(title_positions)
-        most_common = position_counts.most_common(1)[0]
-        if most_common[1] >= len(title_positions) * 0.6:  # At least 60% consistency
-            title_position_preference = most_common[0]
-
-    # Find common prefixes/suffixes (appear in at least 2 episodes)
-    common_prefixes = []
-    common_suffixes = []
-    if prefixes:
-        from collections import Counter
-
-        prefix_counts = Counter(prefixes)
-        common_prefixes = [p for p, count in prefix_counts.items() if count >= 2]
-
-    if suffixes:
-        from collections import Counter
-
-        suffix_counts = Counter(suffixes)
-        common_suffixes = [s for s, count in suffix_counts.items() if count >= 2]
+    # Find common prefixes/suffixes
+    common_prefixes = _find_common_patterns(prefixes)[:TOP_PREFIXES_SUFFIXES_COUNT]
+    common_suffixes = _find_common_patterns(suffixes)[:TOP_PREFIXES_SUFFIXES_COUNT]
 
     heuristics = {
         "title_position_preference": title_position_preference,
-        "common_prefixes": common_prefixes[:5],  # Top 5
-        "common_suffixes": common_suffixes[:5],  # Top 5
+        "common_prefixes": common_prefixes,
+        "common_suffixes": common_suffixes,
     }
 
     logger.debug(
@@ -530,11 +729,12 @@ def detect_speaker_names(
 
     IMPORTANT: Host names should be detected separately using detect_hosts_from_feed()
     and passed via cached_hosts or known_hosts. This function ONLY extracts guests
-    from episode title and first 20 characters of description.
+    from episode title and first DESCRIPTION_SNIPPET_LENGTH characters of description.
 
     Args:
         episode_title: Episode title (required for guest detection)
-        episode_description: Episode description (only first 20 chars used for guest detection)
+        episode_description: Episode description (only first
+            DESCRIPTION_SNIPPET_LENGTH chars used for guest detection)
         cfg: Configuration object
         known_hosts: Manually specified host names (optional)
         cached_hosts: Previously detected hosts to reuse (optional)
@@ -563,15 +763,16 @@ def detect_speaker_names(
     # Note: We intentionally do NOT detect hosts from episode title/description
     # Hosts should only come from feed-level metadata
 
-    # Extract PERSON entities from episode title and first 20 chars of description
+    # Extract PERSON entities from episode title and first
+    # DESCRIPTION_SNIPPET_LENGTH chars of description
     # These are guests, not hosts
     # Extract with confidence scores
     title_persons_with_scores = extract_person_entities(episode_title, nlp)
 
-    # Limit description to first 20 characters for guest detection
+    # Limit description to first DESCRIPTION_SNIPPET_LENGTH characters for guest detection
     description_snippet = None
     if episode_description:
-        description_snippet = episode_description[:20].strip()
+        description_snippet = episode_description[:DESCRIPTION_SNIPPET_LENGTH].strip()
         if not description_snippet:
             description_snippet = None
 
@@ -587,64 +788,124 @@ def detect_speaker_names(
         (name, score) for name, score in description_persons_with_scores if name not in hosts
     ]
 
-    # Build guest candidates with combined confidence (overlap bonus + heuristics)
-    # Names appearing in both title and description get higher priority
-    # Heuristics add position-based scoring
-    guest_candidates = {}  # name -> (confidence, appears_in_both, heuristic_score)
+    # Build guest candidates with confidence scores and heuristics
+    guest_candidates = _build_guest_candidates(
+        title_guests_with_scores, description_guests_with_scores, episode_title, heuristics
+    )
 
-    # Calculate heuristic scores based on position patterns
-    def calculate_heuristic_score(
-        name: str, title: str, heuristics: Optional[Dict[str, Any]]
-    ) -> float:
-        """Calculate heuristic score based on position patterns."""
-        if not heuristics:
-            return 0.0
+    # Select best guest based on combined scores
+    selected_guest, selected_confidence, selected_has_overlap, selected_heuristic_score = (
+        _select_best_guest(guest_candidates)
+    )
 
-        score = 0.0
-        name_lower = name.lower()
-        title_lower = title.lower()
+    # Collect all guest names for logging
+    all_guest_names = list(guest_candidates.keys())
 
-        if name_lower not in title_lower:
-            return score
+    # Log guest detection results
+    _log_guest_detection(
+        selected_guest,
+        selected_confidence,
+        selected_has_overlap,
+        selected_heuristic_score,
+        all_guest_names,
+        title_persons_with_scores,
+        description_persons_with_scores,
+    )
 
-        idx = title_lower.find(name_lower)
-        title_len = len(title)
+    # Build final speaker names list
+    guests = [selected_guest] if selected_guest else []
+    speaker_names, detection_succeeded = _build_speaker_names_list(
+        hosts, guests, cfg.screenplay_num_speakers
+    )
 
-        # Position-based scoring
-        title_pos_pref = heuristics.get("title_position_preference")
-        if title_pos_pref:
-            if title_pos_pref == "start" and idx < title_len * 0.3:
-                score += 0.3
-            elif title_pos_pref == "end" and idx > title_len * 0.7:
-                score += 0.3
-            elif title_pos_pref == "middle" and 0.3 <= (idx / title_len) <= 0.7:
-                score += 0.3
+    # Return hosts set (hosts are passed in, not detected here)
+    return speaker_names, hosts, detection_succeeded
 
-        # Prefix/suffix pattern matching
-        common_prefixes = heuristics.get("common_prefixes", [])
-        common_suffixes = heuristics.get("common_suffixes", [])
 
-        if idx > 0:
-            prefix_start = max(0, idx - 20)
-            prefix_text = title[prefix_start:idx].strip().lower()
-            for prefix in common_prefixes:
-                if prefix in prefix_text:
-                    score += 0.2
-                    break
+def _calculate_heuristic_score(
+    name: str, title: str, heuristics: Optional[Dict[str, Any]]
+) -> float:
+    """Calculate heuristic score based on position patterns.
 
-        if idx + len(name) < len(title):
-            suffix_end = min(len(title), idx + len(name) + 20)
-            suffix_text = title[idx + len(name) : suffix_end].strip().lower()
-            for suffix in common_suffixes:
-                if suffix in suffix_text:
-                    score += 0.2
-                    break
+    Args:
+        name: Guest name to score
+        title: Episode title
+        heuristics: Pattern-based heuristics dictionary
 
-        return min(score, 1.0)  # Cap at 1.0
+    Returns:
+        Heuristic score (0.0 to MAX_HEURISTIC_SCORE)
+    """
+    if not heuristics:
+        return 0.0
+
+    score = 0.0
+    name_lower = name.lower()
+    title_lower = title.lower()
+
+    if name_lower not in title_lower:
+        return score
+
+    idx = title_lower.find(name_lower)
+    title_len = len(title)
+
+    # Position-based scoring
+    title_pos_pref = heuristics.get("title_position_preference")
+    if title_pos_pref:
+        if title_pos_pref == "start" and idx < title_len * START_POSITION_THRESHOLD:
+            score += POSITION_SCORE_BONUS
+        elif title_pos_pref == "end" and idx > title_len * END_POSITION_THRESHOLD:
+            score += POSITION_SCORE_BONUS
+        elif (
+            title_pos_pref == "middle"
+            and START_POSITION_THRESHOLD <= (idx / title_len) <= END_POSITION_THRESHOLD
+        ):
+            score += POSITION_SCORE_BONUS
+
+    # Prefix/suffix pattern matching
+    common_prefixes = heuristics.get("common_prefixes", [])
+    common_suffixes = heuristics.get("common_suffixes", [])
+
+    if idx > 0:
+        prefix_start = max(0, idx - CONTEXT_WINDOW_SIZE)
+        prefix_text = title[prefix_start:idx].strip().lower()
+        for prefix in common_prefixes:
+            if prefix in prefix_text:
+                score += PREFIX_SUFFIX_SCORE_BONUS
+                break
+
+    if idx + len(name) < len(title):
+        suffix_end = min(len(title), idx + len(name) + CONTEXT_WINDOW_SIZE)
+        suffix_text = title[idx + len(name) : suffix_end].strip().lower()
+        for suffix in common_suffixes:
+            if suffix in suffix_text:
+                score += PREFIX_SUFFIX_SCORE_BONUS
+                break
+
+    return min(score, MAX_HEURISTIC_SCORE)
+
+
+def _build_guest_candidates(
+    title_guests_with_scores: List[Tuple[str, float]],
+    description_guests_with_scores: List[Tuple[str, float]],
+    episode_title: str,
+    heuristics: Optional[Dict[str, Any]],
+) -> Dict[str, Tuple[float, bool, float]]:
+    """Build guest candidates dictionary with confidence scores and heuristics.
+
+    Args:
+        title_guests_with_scores: List of (name, score) from title
+        description_guests_with_scores: List of (name, score) from description
+        episode_title: Episode title for heuristic scoring
+        heuristics: Pattern-based heuristics
+
+    Returns:
+        Dictionary mapping name -> (confidence, appears_in_both, heuristic_score)
+    """
+    guest_candidates: Dict[str, Tuple[float, bool, float]] = {}
 
     # Process title guests
     for name, score in title_guests_with_scores:
-        heuristic_score = calculate_heuristic_score(name, episode_title, heuristics)
+        heuristic_score = _calculate_heuristic_score(name, episode_title, heuristics)
         guest_candidates[name] = (score, False, heuristic_score)
 
     # Process description guests (check for overlap)
@@ -652,12 +913,25 @@ def detect_speaker_names(
         if name in guest_candidates:
             # Overlap found: boost confidence by averaging and mark as appearing in both
             title_score, _, heuristic_score = guest_candidates[name]
-            combined_score = (title_score + score) / 2.0
+            combined_score = (title_score + score) / COMBINED_SCORE_DIVISOR
             guest_candidates[name] = (combined_score, True, heuristic_score)
         else:
             guest_candidates[name] = (score, False, 0.0)
 
-    # Select guest with highest combined score (overlap + confidence + heuristics)
+    return guest_candidates
+
+
+def _select_best_guest(
+    guest_candidates: Dict[str, Tuple[float, bool, float]],
+) -> Tuple[Optional[str], float, bool, float]:
+    """Select the guest with the highest combined score.
+
+    Args:
+        guest_candidates: Dictionary mapping name -> (confidence, appears_in_both, heuristic_score)
+
+    Returns:
+        Tuple of (selected_guest, confidence, has_overlap, heuristic_score)
+    """
     selected_guest = None
     selected_confidence = 0.0
     selected_has_overlap = False
@@ -665,7 +939,9 @@ def detect_speaker_names(
 
     for name, (confidence, has_overlap, heuristic_score) in guest_candidates.items():
         # Combined score: overlap bonus + confidence + heuristics
-        combined_score = confidence + (0.5 if has_overlap else 0.0) + heuristic_score
+        combined_score = (
+            confidence + (OVERLAP_SCORE_BONUS if has_overlap else 0.0) + heuristic_score
+        )
 
         if not selected_guest:
             selected_guest = name
@@ -676,7 +952,7 @@ def detect_speaker_names(
             # Calculate current selected guest's combined score
             current_combined = (
                 selected_confidence
-                + (0.5 if selected_has_overlap else 0.0)
+                + (OVERLAP_SCORE_BONUS if selected_has_overlap else 0.0)
                 + selected_heuristic_score
             )
 
@@ -686,8 +962,29 @@ def detect_speaker_names(
                 selected_has_overlap = has_overlap
                 selected_heuristic_score = heuristic_score
 
-    # Log selection details
-    all_guest_names = list(guest_candidates.keys())
+    return selected_guest, selected_confidence, selected_has_overlap, selected_heuristic_score
+
+
+def _log_guest_detection(
+    selected_guest: Optional[str],
+    selected_confidence: float,
+    selected_has_overlap: bool,
+    selected_heuristic_score: float,
+    all_guest_names: List[str],
+    title_persons_with_scores: List[Tuple[str, float]],
+    description_persons_with_scores: List[Tuple[str, float]],
+) -> None:
+    """Log guest detection results.
+
+    Args:
+        selected_guest: Selected guest name (if any)
+        selected_confidence: Confidence score of selected guest
+        selected_has_overlap: Whether guest appears in both title and description
+        selected_heuristic_score: Heuristic score of selected guest
+        all_guest_names: All candidate guest names
+        title_persons_with_scores: Persons found in title
+        description_persons_with_scores: Persons found in description
+    """
     if selected_guest:
         if len(all_guest_names) > 1:
             overlap_info = " (overlap)" if selected_has_overlap else ""
@@ -705,46 +1002,40 @@ def detect_speaker_names(
                 len(all_guest_names),
                 ", ".join(all_guest_names),
             )
-
-    # Use single selected guest (or empty list if none)
-    guests = [selected_guest] if selected_guest else []
-
-    # Log guests clearly (always log, even if empty)
-    if guests:
         # Always log the selected guest at INFO level
         logger.info("  → Guest: %s", selected_guest)
-        # Selection details already logged above at DEBUG level
     elif title_persons_with_scores or description_persons_with_scores:
         # All persons were hosts (filtered out)
         logger.info("  → Guest: (none - all detected persons are hosts)")
     else:
         logger.info("  → Guest: (none detected in episode title/description)")
 
-    # Cap total names at configured limit
-    max_names = config.DEFAULT_MAX_DETECTED_NAMES
-    all_names = list(hosts) + guests
-    if len(all_names) > max_names:
-        # Prioritize hosts, then guests
-        capped_names = list(hosts)[:max_names] + guests[: max_names - len(hosts)]
-        logger.debug(
-            "Capped detected names from %d to %d (max=%d)",
-            len(all_names),
-            len(capped_names),
-            max_names,
-        )
-        all_names = capped_names
 
-    # Build speaker names list: hosts + guests
+def _build_speaker_names_list(
+    hosts: Set[str],
+    guests: List[str],
+    max_names: int,
+) -> Tuple[List[str], bool]:
+    """Build final speaker names list from hosts and guests.
+
+    Args:
+        hosts: Set of host names
+        guests: List of guest names
+        max_names: Maximum number of names to return
+
+    Returns:
+        Tuple of (speaker_names_list, detection_succeeded)
+    """
     # Detection succeeded if we have real names (hosts or guests), not defaults
     detection_succeeded = bool(hosts or guests)
 
     if not guests and hosts:
-        # Hosts detected but no guests - use host-only labels
-        speaker_names = [
-            f"Host {i+1}" if i > 0 else "Host" for i in range(min(len(hosts), max_names))
-        ]
-        logger.debug("  → Using host-only labels: %s", speaker_names)
-    elif not all_names:
+        # Hosts detected but no guests - use actual host names
+        # Convert set to sorted list for deterministic ordering
+        host_list = sorted(list(hosts))[:max_names]
+        speaker_names = host_list
+        logger.debug("  → Using detected host names: %s", speaker_names)
+    elif not hosts and not guests:
         # No hosts AND no guests detected - detection failed
         logger.info("  → Detection failed: no hosts or guests found")
         speaker_names = DEFAULT_SPEAKER_NAMES.copy()
@@ -752,15 +1043,26 @@ def detect_speaker_names(
     else:
         # Combine hosts and guests, prioritizing hosts
         speaker_names = list(hosts)[:max_names] + guests[: max_names - len(hosts)]
-        if len(speaker_names) < 2:
-            # Ensure at least 2 speakers for screenplay formatting
+        if len(speaker_names) < MIN_SPEAKERS_REQUIRED:
+            # Ensure at least MIN_SPEAKERS_REQUIRED speakers for screenplay formatting
             logger.debug(
-                "  → Only %d speaker(s) detected, extending with defaults to ensure 2+ speakers",
+                "  → Only %d speaker(s) detected, extending with defaults to ensure %d+ speakers",
                 len(speaker_names),
+                MIN_SPEAKERS_REQUIRED,
             )
             speaker_names.extend(DEFAULT_SPEAKER_NAMES[len(speaker_names) :])
 
-    return speaker_names[:max_names], hosts, detection_succeeded
+    return speaker_names[:max_names], detection_succeeded
+
+
+def clear_spacy_model_cache() -> None:
+    """Clear the module-level spaCy model cache.
+
+    Useful for testing or when you want to force reload models.
+    """
+    with _spacy_model_cache_lock:
+        _spacy_model_cache.clear()
+        logger.debug("Cleared spaCy model cache")
 
 
 __all__ = [
@@ -768,5 +1070,6 @@ __all__ = [
     "detect_hosts_from_feed",
     "get_ner_model",
     "extract_person_entities",
+    "clear_spacy_model_cache",
     "DEFAULT_SPEAKER_NAMES",
 ]

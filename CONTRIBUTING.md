@@ -26,6 +26,7 @@ make ci
 ```
 
 This command executes the same steps as the GitHub Actions workflow:
+
 - `black`/`isort` formatting checks
 - `flake8` linting
 - `mypy` type checking
