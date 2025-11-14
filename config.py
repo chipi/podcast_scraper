@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -38,6 +38,10 @@ VALID_WHISPER_MODELS = (
     "large.en",
 )
 
+VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+MAX_RUN_ID_LENGTH = 100
+MAX_METADATA_SUBDIRECTORY_LENGTH = 255
+
 
 class Config(BaseModel):
     rss_url: Optional[str] = Field(default=None, alias="rss")
@@ -63,6 +67,9 @@ class Config(BaseModel):
     ner_model: Optional[str] = Field(default=None, alias="ner_model")
     auto_speakers: bool = Field(default=True, alias="auto_speakers")
     cache_detected_hosts: bool = Field(default=True, alias="cache_detected_hosts")
+    generate_metadata: bool = Field(default=False, alias="generate_metadata")
+    metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
+    metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True, frozen=True)
 
@@ -82,12 +89,30 @@ class Config(BaseModel):
         value = str(value).strip()
         return value or None
 
-    @field_validator("user_agent", "whisper_model", "language", mode="before")
+    @field_validator("whisper_model", "language", mode="before")
     @classmethod
     def _coerce_string(cls, value: Any) -> str:
         if value is None:
             return ""
         return str(value).strip()
+
+    @field_validator("user_agent", mode="before")
+    @classmethod
+    def _coerce_user_agent(cls, value: Any) -> str:
+        if value is None:
+            return DEFAULT_USER_AGENT
+        value_str = str(value).strip()
+        if not value_str:
+            return DEFAULT_USER_AGENT
+        return value_str
+
+    @field_validator("user_agent", mode="after")
+    @classmethod
+    def _validate_user_agent(cls, value: str) -> str:
+        """Validate user agent is not empty."""
+        if not value:
+            return DEFAULT_USER_AGENT
+        return value
 
     @field_validator("whisper_model", mode="after")
     @classmethod
@@ -103,6 +128,14 @@ class Config(BaseModel):
             return DEFAULT_LOG_LEVEL
         return str(value).strip().upper() or DEFAULT_LOG_LEVEL
 
+    @field_validator("log_level", mode="after")
+    @classmethod
+    def _validate_log_level(cls, value: str) -> str:
+        """Validate log level is one of the valid levels."""
+        if value not in VALID_LOG_LEVELS:
+            raise ValueError(f"log_level must be one of {VALID_LOG_LEVELS}, got: {value}")
+        return value
+
     @field_validator("run_id", mode="before")
     @classmethod
     def _strip_run_id(cls, value: Any) -> Optional[str]:
@@ -110,6 +143,23 @@ class Config(BaseModel):
             return None
         value = str(value).strip()
         return value or None
+
+    @field_validator("run_id", mode="after")
+    @classmethod
+    def _validate_run_id(cls, value: Optional[str]) -> Optional[str]:
+        """Validate run_id length and characters."""
+        if value is None:
+            return None
+        if len(value) > MAX_RUN_ID_LENGTH:
+            raise ValueError(
+                f"run_id must be at most {MAX_RUN_ID_LENGTH} characters, got {len(value)}"
+            )
+        # Check for invalid characters (path separators, control characters)
+        if "/" in value or "\\" in value:
+            raise ValueError("run_id cannot contain path separators (/, \\)")
+        if any(ord(c) < 32 for c in value):  # Control characters
+            raise ValueError("run_id cannot contain control characters")
+        return value
 
     @field_validator("max_episodes", mode="before")
     @classmethod
@@ -222,6 +272,55 @@ class Config(BaseModel):
         if value is None or value == "":
             return None
         return str(value).strip() or None
+
+    @field_validator("metadata_format", mode="before")
+    @classmethod
+    def _validate_metadata_format(cls, value: Any) -> Literal["json", "yaml"]:
+        """Validate metadata format."""
+        if value is None or value == "":
+            return "json"
+        value_str = str(value).strip().lower()
+        if value_str not in ("json", "yaml"):
+            raise ValueError("metadata_format must be 'json' or 'yaml'")
+        return value_str  # type: ignore[return-value]
+
+    @field_validator("metadata_subdirectory", mode="before")
+    @classmethod
+    def _strip_metadata_subdirectory(cls, value: Any) -> Optional[str]:
+        """Strip and validate metadata subdirectory."""
+        if value is None or value == "":
+            return None
+        value_str = str(value).strip()
+        return value_str or None
+
+    @field_validator("metadata_subdirectory", mode="after")
+    @classmethod
+    def _validate_metadata_subdirectory(cls, value: Optional[str]) -> Optional[str]:
+        """Validate metadata subdirectory is a valid directory name."""
+        if value is None:
+            return None
+        if not value:
+            raise ValueError("metadata_subdirectory cannot be empty if provided")
+        if len(value) > MAX_METADATA_SUBDIRECTORY_LENGTH:
+            raise ValueError(
+                f"metadata_subdirectory must be at most "
+                f"{MAX_METADATA_SUBDIRECTORY_LENGTH} characters, got {len(value)}"
+            )
+        # Check for invalid path separators (absolute paths or parent directory references)
+        if value.startswith("/") or value.startswith("\\"):
+            raise ValueError("metadata_subdirectory cannot be an absolute path")
+        if ".." in value:
+            raise ValueError(
+                "metadata_subdirectory cannot contain '..' (parent directory references)"
+            )
+        # Check for invalid characters
+        invalid_chars = set(value) & set(
+            "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+            "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
+        )
+        if invalid_chars:
+            raise ValueError("metadata_subdirectory cannot contain control characters")
+        return value
 
 
 def load_config_file(

@@ -11,9 +11,12 @@ language: en
 auto_speakers: true
 cache_detected_hosts: true
 screenplay: true
-# Optional: manual speaker names override (takes precedence over auto-detection)
+# Optional: manual speaker names fallback (used only if auto-detection fails)
 speaker_names:
   - Host
   - Guest
 run_id: experiment
 dry_run: false
+generate_metadata: false  # Generate metadata documents alongside transcripts
+metadata_format: json  # json or yaml
+metadata_subdirectory: null  # Optional subdirectory for metadata files (null = same as transcripts)

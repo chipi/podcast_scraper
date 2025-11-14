@@ -110,38 +110,6 @@ ner_model: "en_core_web_sm"       # spaCy model name
 cache_detected_hosts: true        # Cache host detection
 ```
 
-## Changes
-
-### Files Changed
-
-**New Files:**
-
-- `speaker_detection.py` - NER-based speaker detection implementation
-- `docs/prd/PRD-004-metadata-generation.md` - Metadata generation PRD
-- `docs/rfc/RFC-011-metadata-generation.md` - Metadata generation RFC
-- `.markdownlint.json` - Markdown linting configuration
-
-**Modified Files:**
-
-- `rss_parser.py` - Author tag extraction, HTML stripping
-- `workflow.py` - Speaker detection integration
-- `episode_processor.py` - Use detected speaker names
-- `config.py` - New configuration fields
-- `models.py` - Added authors field
-- `whisper.py` → `whisper_integration.py` - Renamed to avoid conflicts
-- `test_podcast_scraper.py` - Comprehensive tests for speaker detection
-- `docs/ARCHITECTURE.md` - Updated architecture documentation
-- `docs/TESTING_STRATEGY.md` - Updated testing requirements
-- `.github/workflows/python-app.yml` - Aligned with `make ci`
-- `.flake8` - Added complexity ignores
-
-### Statistics
-
-- 20+ files changed
-- 2,000+ lines added (speaker detection implementation)
-- 766 lines (RFC-011 metadata generation design)
-- 240+ lines (comprehensive test coverage)
-
 ## Related Issues
 
 - Closes #21: Implement NER as per RFC-010

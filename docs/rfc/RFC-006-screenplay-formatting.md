@@ -6,17 +6,21 @@
 - **Related PRD**: `docs/prd/PRD-002-whisper-fallback.md`
 
 ## Abstract
+
 Describe the algorithm that converts Whisper transcription segments into screenplay-style dialog with speaker attribution, including configuration hooks and formatting guarantees.
 
 ## Problem Statement
+
 When Whisper is used to fill missing transcripts, some users prefer dialog-formatted output with alternating speaker labels. We must provide deterministic formatting driven by user-configurable speaker settings and silence gaps.
 
 ## Constraints & Assumptions
+
 - Whisper segment data includes `start`, `end`, and `text` fields; we operate on the sorted list of segments.
 - Users may supply explicit speaker names or fall back to enumerated labels (`SPEAKER 1`, etc.).
 - Formatting should remain optional and degrade gracefully if segments are missing metadata.
 
 ## Design & Implementation
+
 1. **Segment normalization**
    - Sort segments by `start` time, defaulting missing values to `0.0`.
    - Skip empty or whitespace-only segments.
@@ -33,23 +37,28 @@ When Whisper is used to fill missing transcripts, some users prefer dialog-forma
    - When formatting fails (invalid input), fall back to plain Whisper text to avoid data loss.
 
 ## Key Decisions
+
 - **Gap-based alternation** rather than lexical cues keeps implementation simple and deterministic.
 - **Speaker count minimum** ensures at least two speakers when screenplay mode is enabled, aligning with CLI validation.
 - **Graceful fallback** prioritizes delivering usable transcripts even when formatting inputs are malformed.
 
 ## Alternatives Considered
+
 - **Speaker diarization**: Not implemented due to complexity and external dependencies.
 - **Timestamps in output**: Deferred; could be added as optional metadata in future iterations.
 
 ## Testing Strategy
+
 - Unit tests feed synthetic segment lists to validate gap handling, speaker rotation, and aggregation.
 - Integration tests toggle screenplay flags to confirm CLI wiring and fallback behavior.
 
 ## Rollout & Monitoring
+
 - Logging warns when formatting fails and plain text is used instead.
 - Future enhancements (e.g., custom templates) can extend this RFC while maintaining backward compatibility.
 
 ## References
+
 - Source: `podcast_scraper/whisper_integration.py` (`format_screenplay_from_segments`)
 - CLI configuration: `docs/rfc/RFC-007-cli-interface.md`
 - Configuration schema: `docs/rfc/RFC-008-config-model.md`

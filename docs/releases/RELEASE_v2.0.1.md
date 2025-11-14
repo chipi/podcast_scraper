@@ -30,7 +30,7 @@ v2.0.1 is a patch release that adds comprehensive legal notices and usage clarif
 
 ### Package Updates
 
-- **__init__.py**: Added header comment with legal notice
+- ****init**.py**: Added header comment with legal notice
 - **mkdocs.yml**: Added Legal Notice to documentation navigation (as last item)
 
 ## Key Points
@@ -40,22 +40,6 @@ v2.0.1 is a patch release that adds comprehensive legal notices and usage clarif
 3. **Intended Use**: Personal, non-commercial use only
 4. **User Responsibility**: Users must ensure compliance with copyright law, RSS feed terms, and platform policies
 5. **No Redistribution**: All downloaded content must remain local and cannot be shared or redistributed
-
-## Changes
-
-### Files Changed
-
-- `LICENSE` - Added legal notice note
-- `README.md` - Added legal notices and usage clarifications
-- `__init__.py` - Added header comment with legal notice
-- `docs/legal.md` - Created comprehensive legal notice document (new file)
-- `mkdocs.yml` - Added Legal Notice to documentation navigation
-- `pyproject.toml` - Version bumped to 2.0.1
-
-### Statistics
-
-- 6 files changed
-- 188 insertions(+), 15 deletions(-)
 
 ## Related Issues
 
@@ -73,4 +57,3 @@ No code changes in this release - only documentation and legal notices added. No
 ## Contributors
 
 - Marko Dragoljevic (@chipi)
-

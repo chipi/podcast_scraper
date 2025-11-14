@@ -25,9 +25,15 @@ from . import config, filesystem, progress, workflow
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import tqdm
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 
 _LOGGER = logging.getLogger(__name__)
+
+# Progress bar constants
+TQDM_NCOLS = 80
+TQDM_MIN_INTERVAL = 0.5
+TQDM_MIN_ITERS = 1
+BYTES_PER_KB = 1024
 
 
 class _TqdmProgress:
@@ -51,10 +57,10 @@ def _tqdm_progress(total: Optional[int], description: str) -> Iterator[_TqdmProg
             total=None,
             unit="",
             leave=False,
-            miniters=1,
-            mininterval=0.5,
+            miniters=TQDM_MIN_ITERS,
+            mininterval=TQDM_MIN_INTERVAL,
             bar_format="{desc}: {elapsed}",
-            ncols=80,
+            ncols=TQDM_NCOLS,
             dynamic_ncols=False,
         )
     else:
@@ -62,7 +68,7 @@ def _tqdm_progress(total: Optional[int], description: str) -> Iterator[_TqdmProg
             total=total,
             unit="B",
             unit_scale=True,
-            unit_divisor=1024,
+            unit_divisor=BYTES_PER_KB,
             leave=True,
         )
 
@@ -70,29 +76,31 @@ def _tqdm_progress(total: Optional[int], description: str) -> Iterator[_TqdmProg
         yield _TqdmProgress(bar)
 
 
-def validate_args(args: argparse.Namespace) -> None:  # noqa: C901 - CLI validation is consolidated
-    """Validate parsed CLI arguments and raise ValueError when invalid."""
-    errors: List[str] = []
+def _validate_rss_url(rss_value: str, errors: List[str]) -> None:
+    """Validate RSS URL format.
 
-    rss_value = (args.rss or "").strip()
+    Args:
+        rss_value: RSS URL string
+        errors: List to append validation errors to
+    """
     if not rss_value:
         errors.append("RSS URL is required")
-    else:
-        parsed_obj = urlparse(rss_value)
-        if parsed_obj.scheme not in ("http", "https"):
-            errors.append(f"RSS URL must be http or https: {rss_value}")
-        if not parsed_obj.netloc:
-            errors.append(f"RSS URL must have a valid hostname: {rss_value}")
+        return
 
-    if args.max_episodes is not None and args.max_episodes <= 0:
-        errors.append(f"--max-episodes must be positive, got: {args.max_episodes}")
+    parsed_obj = urlparse(rss_value)
+    if parsed_obj.scheme not in ("http", "https"):
+        errors.append(f"RSS URL must be http or https: {rss_value}")
+    if not parsed_obj.netloc:
+        errors.append(f"RSS URL must have a valid hostname: {rss_value}")
 
-    if args.timeout <= 0:
-        errors.append(f"--timeout must be positive, got: {args.timeout}")
 
-    if args.delay_ms < 0:
-        errors.append(f"--delay-ms must be non-negative, got: {args.delay_ms}")
+def _validate_whisper_config(args: argparse.Namespace, errors: List[str]) -> None:
+    """Validate Whisper-related configuration.
 
+    Args:
+        args: Parsed arguments
+        errors: List to append validation errors to
+    """
     valid_models = (
         "tiny",
         "base",
@@ -110,6 +118,14 @@ def validate_args(args: argparse.Namespace) -> None:  # noqa: C901 - CLI validat
     if args.transcribe_missing and args.whisper_model not in valid_models:
         errors.append(f"--whisper-model must be one of {valid_models}, got: {args.whisper_model}")
 
+
+def _validate_speaker_config(args: argparse.Namespace, errors: List[str]) -> None:
+    """Validate speaker-related configuration.
+
+    Args:
+        args: Parsed arguments
+        errors: List to append validation errors to
+    """
     if args.screenplay and args.num_speakers < config.MIN_NUM_SPEAKERS:
         errors.append(
             f"--num-speakers must be at least {config.MIN_NUM_SPEAKERS}, got: {args.num_speakers}"
@@ -120,9 +136,42 @@ def validate_args(args: argparse.Namespace) -> None:  # noqa: C901 - CLI validat
         if len(names) < config.MIN_NUM_SPEAKERS:
             errors.append("At least two speaker names required when specifying --speaker-names")
 
+
+def _validate_workers_config(args: argparse.Namespace, errors: List[str]) -> None:
+    """Validate workers configuration.
+
+    Args:
+        args: Parsed arguments
+        errors: List to append validation errors to
+    """
     if args.workers < 1:
         errors.append("--workers must be at least 1")
 
+
+def validate_args(args: argparse.Namespace) -> None:
+    """Validate parsed CLI arguments and raise ValueError when invalid."""
+    errors: List[str] = []
+
+    # Validate RSS URL
+    rss_value = (args.rss or "").strip()
+    _validate_rss_url(rss_value, errors)
+
+    # Validate numeric arguments
+    if args.max_episodes is not None and args.max_episodes <= 0:
+        errors.append(f"--max-episodes must be positive, got: {args.max_episodes}")
+
+    if args.timeout <= 0:
+        errors.append(f"--timeout must be positive, got: {args.timeout}")
+
+    if args.delay_ms < 0:
+        errors.append(f"--delay-ms must be non-negative, got: {args.delay_ms}")
+
+    # Validate feature-specific configs
+    _validate_whisper_config(args, errors)
+    _validate_speaker_config(args, errors)
+    _validate_workers_config(args, errors)
+
+    # Validate output directory
     if args.output_dir:
         try:
             filesystem.validate_and_normalize_output_dir(args.output_dir)
@@ -133,11 +182,12 @@ def validate_args(args: argparse.Namespace) -> None:  # noqa: C901 - CLI validat
         raise ValueError("Invalid input parameters:\n  " + "\n  ".join(errors))
 
 
-def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
-    """Parse CLI arguments, optionally merging configuration file defaults."""
-    parser = argparse.ArgumentParser(
-        description="Download podcast episode transcripts from an RSS feed."
-    )
+def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add common arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
     parser.add_argument("--config", default=None, help="Path to configuration file (JSON or YAML)")
     parser.add_argument("rss", nargs="?", default=None, help="Podcast RSS feed URL")
     parser.add_argument(
@@ -160,6 +210,39 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Request timeout in seconds",
     )
     parser.add_argument("--delay-ms", type=int, default=0, help="Delay between requests (ms)")
+    parser.add_argument(
+        "--run-id", default=None, help="Optional run identifier; use 'auto' for timestamp"
+    )
+    parser.add_argument(
+        "--skip-existing", action="store_true", help="Skip episodes whose output already exists"
+    )
+    parser.add_argument(
+        "--clean-output", action="store_true", help="Remove the output directory before processing"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show planned work without saving files"
+    )
+    parser.add_argument("--version", action="store_true", help="Show program version and exit")
+    parser.add_argument(
+        "--log-level",
+        default=config.DEFAULT_LOG_LEVEL,
+        type=str.upper,
+        help="Logging level (e.g., DEBUG, INFO)",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=config.DEFAULT_WORKERS,
+        help="Number of concurrent download workers",
+    )
+
+
+def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add transcription-related arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
     parser.add_argument(
         "--transcribe-missing",
         action="store_true",
@@ -186,31 +269,38 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         default="",
         help="Comma-separated speaker names to use instead of SPEAKER 1..N",
     )
+
+
+def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add metadata-related arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
     parser.add_argument(
-        "--run-id", default=None, help="Optional run identifier; use 'auto' for timestamp"
+        "--generate-metadata",
+        action="store_true",
+        help="Generate metadata documents alongside transcripts",
     )
     parser.add_argument(
-        "--skip-existing", action="store_true", help="Skip episodes whose output already exists"
+        "--metadata-format",
+        choices=["json", "yaml"],
+        default="json",
+        help="Format for metadata files (default: json)",
     )
     parser.add_argument(
-        "--clean-output", action="store_true", help="Remove the output directory before processing"
+        "--metadata-subdirectory",
+        default=None,
+        help="Store metadata files in subdirectory (default: same as transcripts)",
     )
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Show planned work without saving files"
-    )
-    parser.add_argument("--version", action="store_true", help="Show program version and exit")
-    parser.add_argument(
-        "--log-level",
-        default=config.DEFAULT_LOG_LEVEL,
-        type=str.upper,
-        help="Logging level (e.g., DEBUG, INFO)",
-    )
-    parser.add_argument(
-        "--workers",
-        type=int,
-        default=config.DEFAULT_WORKERS,
-        help="Number of concurrent download workers",
-    )
+
+
+def _add_speaker_detection_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add speaker detection-related arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
     parser.add_argument(
         "--language",
         default=config.DEFAULT_LANGUAGE,
@@ -246,6 +336,62 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Disable caching of detected hosts",
     )
 
+
+def _load_and_merge_config(
+    parser: argparse.ArgumentParser, config_path: str, argv: Optional[Sequence[str]]
+) -> argparse.Namespace:
+    """Load configuration file and merge with CLI arguments.
+
+    Args:
+        parser: Argument parser
+        config_path: Path to configuration file
+        argv: Command-line arguments
+
+    Returns:
+        Parsed arguments with config merged
+
+    Raises:
+        ValueError: If config is invalid or RSS URL is missing
+    """
+    config_data = config.load_config_file(config_path)
+    valid_dests = {action.dest for action in parser._actions if action.dest}
+    unknown_keys = [key for key in config_data.keys() if key not in valid_dests]
+    if unknown_keys:
+        raise ValueError("Unknown config option(s): " + ", ".join(sorted(unknown_keys)))
+
+    try:
+        config_model = config.Config.model_validate(config_data)
+    except ValidationError as exc:
+        raise ValueError(f"Invalid configuration: {exc}") from exc
+
+    defaults_updates: Dict[str, Any] = config_model.model_dump(
+        exclude_none=True,
+        by_alias=True,
+    )
+
+    speaker_list = defaults_updates.get("speaker_names")
+    if isinstance(speaker_list, list):
+        defaults_updates["speaker_names"] = ",".join(speaker_list)
+
+    parser.set_defaults(**defaults_updates)
+    args = parser.parse_args(argv)
+    if not args.rss:
+        raise ValueError("RSS URL is required (provide in config as 'rss' or via CLI)")
+    return args
+
+
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse CLI arguments, optionally merging configuration file defaults."""
+    parser = argparse.ArgumentParser(
+        description="Download podcast episode transcripts from an RSS feed."
+    )
+
+    # Add argument groups
+    _add_common_arguments(parser)
+    _add_transcription_arguments(parser)
+    _add_metadata_arguments(parser)
+    _add_speaker_detection_arguments(parser)
+
     initial_args, _ = parser.parse_known_args(argv)
 
     if initial_args.version:
@@ -253,30 +399,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         raise SystemExit(0)
 
     if initial_args.config:
-        config_data = config.load_config_file(initial_args.config)
-        valid_dests = {action.dest for action in parser._actions if action.dest}
-        unknown_keys = [key for key in config_data.keys() if key not in valid_dests]
-        if unknown_keys:
-            raise ValueError("Unknown config option(s): " + ", ".join(sorted(unknown_keys)))
-
-        try:
-            config_model = config.Config.model_validate(config_data)
-        except ValidationError as exc:
-            raise ValueError(f"Invalid configuration: {exc}") from exc
-
-        defaults_updates: Dict[str, Any] = config_model.model_dump(
-            exclude_none=True,
-            by_alias=True,
-        )
-
-        speaker_list = defaults_updates.get("speaker_names")
-        if isinstance(speaker_list, list):
-            defaults_updates["speaker_names"] = ",".join(speaker_list)
-
-        parser.set_defaults(**defaults_updates)
-        args = parser.parse_args(argv)
-        if not args.rss:
-            raise ValueError("RSS URL is required (provide in config as 'rss' or via CLI)")
+        args = _load_and_merge_config(parser, initial_args.config, argv)
     else:
         args = parser.parse_args(argv)
 

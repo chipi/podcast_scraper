@@ -49,11 +49,13 @@ __all__ = [
 **Easy Migration**: Tests were updated in ~30 replacements
 
 **Before:**
+
 ```python
 from podcast_scraper import sanitize_filename
 ```
 
 **After:**
+
 ```python
 from podcast_scraper.filesystem import sanitize_filename
 ```
@@ -132,6 +134,7 @@ from podcast_scraper.filesystem import sanitize_filename
 ### 🎯 Best Practice
 
 Treat `podcast_scraper` as a **black box pipeline**:
+
 - Input: `Config`
 - Process: `run_pipeline()`
 - Output: `(count, summary)`
@@ -141,6 +144,7 @@ Treat `podcast_scraper` as a **black box pipeline**:
 ## Conclusion
 
 The ultra-minimal API (Option 1) provides:
+
 - ✅ Simplest possible interface
 - ✅ Maximum flexibility for future changes
 - ✅ Clear communication of package purpose
@@ -152,4 +156,3 @@ The ultra-minimal API (Option 1) provides:
 ---
 
 _For additional context (architecture, PRDs, RFCs), visit the full documentation site at [https://chipi.github.io/podcast_scraper/](https://chipi.github.io/podcast_scraper/)._
-

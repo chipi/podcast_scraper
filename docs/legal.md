@@ -87,4 +87,3 @@ This project exists for educational purposes, research, and personal experimenta
 It is **not** intended to bypass licensing restrictions or facilitate unauthorized redistribution of copyrighted works.
 
 If you are unsure whether a specific use is allowed, seek legal advice or request permission from the content owner.
-

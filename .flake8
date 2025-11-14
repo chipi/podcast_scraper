@@ -13,4 +13,6 @@ per-file-ignores =
     config.py:C901
     episode_processor.py:C901
     workflow.py:C901
+    speaker_detection.py:C901
+    whisper_integration.py:C901
     test_podcast_scraper.py:F401

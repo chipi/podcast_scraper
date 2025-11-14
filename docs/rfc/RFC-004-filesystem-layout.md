@@ -6,17 +6,21 @@
 - **Related PRDs**: `docs/prd/PRD-001-transcript-pipeline.md`, `docs/prd/PRD-002-whisper-fallback.md`
 
 ## Abstract
+
 Define the rules governing output directories, filename sanitization, temporary storage, and run suffix semantics to guarantee deterministic, safe, and resumable filesystem interactions.
 
 ## Problem Statement
+
 Without consistent naming and directory policies, transcript archives become hard to diff, risk clobbering existing data, and may interact poorly with user environments. The system requires cross-platform-safe filenames, predictable run folders, and cleanup of temporary artifacts.
 
 ## Constraints & Assumptions
+
 - Target environments include macOS, Linux, and Windows; filenames must avoid reserved characters.
 - Users may override output directories, but we encourage safe locations (home directory, platform data/cache roots).
 - Whisper fallback stores intermediate media files that must be cleaned up to conserve disk.
 
 ## Design & Implementation
+
 1. **Base output directory**
    - Default: `output_rss_<sanitized_host>_<hash>` where hash is first 8 chars of SHA-1 of the RSS URL.
    - `filesystem.derive_output_dir` handles overrides, invoking validation.
@@ -36,23 +40,28 @@ Without consistent naming and directory policies, transcript archives become har
    - Best-effort removal of temp directories even on errors (warnings if removal fails).
 
 ## Key Decisions
+
 - **Hash-based directory suffix** avoids collisions between feeds hosted on same domain but different paths.
 - **Suffix semantics** provide provenance (run ID, Whisper model) within output directories without complicating base naming.
 - **Sanitization policy** prioritizes readability while remaining filesystem-safe across OSes.
 
 ## Alternatives Considered
+
 - **Timestamped root directories**: Rejected in favor of deterministic names; use `--run-id auto` when unique runs are desired.
 - **Per-episode subdirectories**: Rejected to keep archives flat and easy to diff.
 
 ## Testing Strategy
+
 - Unit tests cover sanitization edge cases and output derivation logic.
 - Integration tests ensure `--clean-output`, `--skip-existing`, and Whisper workflows interact correctly with directory management.
 
 ## Rollout & Monitoring
+
 - Warnings emitted when users choose "unsafe" directories (outside recommended roots) for observability.
 - Future enhancements (checksums, subdirectory partitioning) can extend this RFC with backward compatibility.
 
 ## References
+
 - Source: `podcast_scraper/filesystem.py`
 - Orchestrator usage: `docs/rfc/RFC-001-workflow-orchestration.md`
 - Whisper specifics: `docs/rfc/RFC-005-whisper-integration.md`

@@ -41,7 +41,7 @@ COPY . .
 RUN pip install --no-cache-dir .
 
 RUN mkdir -p /opt/podcast_scraper/examples \
-    && cp config.example.* /opt/podcast_scraper/examples/
+    && cp examples/config.example.* /opt/podcast_scraper/examples/
 
 RUN mkdir -p /app
 

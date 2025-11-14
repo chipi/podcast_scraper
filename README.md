@@ -123,6 +123,11 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml --skip-existing
 
 ### Configuration Files
 
+Example configuration files are available in the `examples/` directory:
+
+- `examples/config.example.json` - JSON format example
+- `examples/config.example.yaml` - YAML format example
+
 ```bash
 python3 -m podcast_scraper.cli --config config.json
 ```

@@ -207,13 +207,84 @@ def download_media_for_transcription(
     )
 
 
-def transcribe_media_to_text(  # noqa: C901 - orchestrates Whisper transcription
+def _format_transcript_if_needed(
+    result: dict, cfg: config.Config, detected_speaker_names: Optional[List[str]]
+) -> str:
+    """Format transcript as screenplay if configured.
+
+    Args:
+        result: Whisper transcription result dictionary
+        cfg: Configuration object
+        detected_speaker_names: List of detected speaker names
+
+    Returns:
+        Formatted transcript text (screenplay or plain)
+    """
+    text = (result.get("text") or "").strip()
+    if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
+        # Use detected speaker names (manual names are already used as fallback in workflow)
+        speaker_names = detected_speaker_names or []
+        try:
+            formatted = whisper.format_screenplay_from_segments(
+                result["segments"],
+                cfg.screenplay_num_speakers,
+                speaker_names,
+                cfg.screenplay_gap_s,
+            )
+            if formatted.strip():
+                text = formatted
+        except (ValueError, KeyError, TypeError) as exc:
+            logger.warning(f"    failed to format as screenplay, using plain transcript: {exc}")
+    return text
+
+
+def _save_transcript_file(
+    text: str, job: models.TranscriptionJob, run_suffix: Optional[str], effective_output_dir: str
+) -> str:
+    """Save transcript text to file.
+
+    Args:
+        text: Transcript text to save
+        job: TranscriptionJob object
+        run_suffix: Optional run suffix
+        effective_output_dir: Output directory path
+
+    Returns:
+        Relative path to saved transcript file
+
+    Raises:
+        RuntimeError: If text is empty
+        OSError: If file writing fails
+    """
+    if not text:
+        raise RuntimeError("empty transcription")
+    out_path = filesystem.build_whisper_output_path(
+        job.idx, job.ep_title_safe, run_suffix, effective_output_dir
+    )
+    filesystem.write_file(out_path, text.encode("utf-8"))
+    rel_path = os.path.relpath(out_path, effective_output_dir)
+    return rel_path
+
+
+def _cleanup_temp_media(temp_media: str) -> None:
+    """Clean up temporary media file.
+
+    Args:
+        temp_media: Path to temporary media file
+    """
+    try:
+        os.remove(temp_media)
+    except OSError as exc:
+        logger.warning(f"    failed to remove temp media file {temp_media}: {exc}")
+
+
+def transcribe_media_to_text(
     job: models.TranscriptionJob,
     cfg: config.Config,
     whisper_model,
     run_suffix: Optional[str],
     effective_output_dir: str,
-) -> bool:
+) -> tuple[bool, Optional[str]]:
     """Transcribe media file using Whisper and save result.
 
     Args:
@@ -224,14 +295,16 @@ def transcribe_media_to_text(  # noqa: C901 - orchestrates Whisper transcription
         effective_output_dir: Output directory path
 
     Returns:
-        True if transcription succeeded, False otherwise
+        Tuple of (success: bool, transcript_file_path: Optional[str])
+        transcript_file_path is relative to effective_output_dir
     """
     if cfg.dry_run:
         final_path = filesystem.build_whisper_output_path(
             job.idx, job.ep_title_safe, run_suffix, effective_output_dir
         )
         logger.info(f"[{job.idx}] (dry-run) would transcribe media -> {final_path}")
-        return True
+        rel_path = os.path.relpath(final_path, effective_output_dir)
+        return True, rel_path
 
     temp_media = job.temp_media
 
@@ -245,45 +318,144 @@ def transcribe_media_to_text(  # noqa: C901 - orchestrates Whisper transcription
             "    Skipping transcription: Whisper model not available (requested: %s)",
             cfg.whisper_model,
         )
-        try:
-            os.remove(temp_media)
-        except OSError as exc:
-            logger.warning(f"    failed to remove temp media file {temp_media}: {exc}")
-        return False
+        _cleanup_temp_media(temp_media)
+        return False, None
 
     try:
         result, tc_elapsed = whisper.transcribe_with_whisper(whisper_model, temp_media, cfg)
-        text = (result.get("text") or "").strip()
-        if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
-            # Use detected speaker names (manual names are already used as fallback in workflow)
-            speaker_names = job.detected_speaker_names or []
-            try:
-                formatted = whisper.format_screenplay_from_segments(
-                    result["segments"],
-                    cfg.screenplay_num_speakers,
-                    speaker_names,
-                    cfg.screenplay_gap_s,
-                )
-                if formatted.strip():
-                    text = formatted
-            except (ValueError, KeyError, TypeError) as exc:
-                logger.warning(f"    failed to format as screenplay, using plain transcript: {exc}")
-        if not text:
-            raise RuntimeError("empty transcription")
-        out_path = filesystem.build_whisper_output_path(
-            job.idx, job.ep_title_safe, run_suffix, effective_output_dir
-        )
-        filesystem.write_file(out_path, text.encode("utf-8"))
-        logger.info(f"    saved transcript: {out_path} (transcribed in {tc_elapsed:.1f}s)")
-        return True
+        text = _format_transcript_if_needed(result, cfg, job.detected_speaker_names)
+        rel_path = _save_transcript_file(text, job, run_suffix, effective_output_dir)
+        logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")
+        return True, rel_path
     except (RuntimeError, OSError) as exc:
         logger.error(f"    Whisper transcription failed: {exc}")
-        return False
+        return False, None
     finally:
-        try:
-            os.remove(temp_media)
-        except OSError as exc:
-            logger.warning(f"    failed to remove temp media file {temp_media}: {exc}")
+        _cleanup_temp_media(temp_media)
+
+
+def _determine_output_path(
+    episode: models.Episode,
+    transcript_url: str,
+    transcript_type: Optional[str],
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    planned_ext: str,
+) -> str:
+    """Determine output path for transcript file.
+
+    Args:
+        episode: Episode object
+        transcript_url: Transcript URL
+        transcript_type: Transcript type
+        effective_output_dir: Output directory path
+        run_suffix: Optional run suffix
+        planned_ext: Planned file extension
+
+    Returns:
+        Full path to output file
+    """
+    run_tag = f"_{run_suffix}" if run_suffix else ""
+    base_name = (
+        f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
+    )
+    out_name = f"{base_name}{planned_ext}"
+    return os.path.join(effective_output_dir, out_name)
+
+
+def _check_existing_transcript(
+    episode: models.Episode,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    cfg: config.Config,
+) -> bool:
+    """Check if transcript already exists and should be skipped.
+
+    Args:
+        episode: Episode object
+        effective_output_dir: Output directory path
+        run_suffix: Optional run suffix
+        cfg: Configuration object
+
+    Returns:
+        True if transcript exists and should be skipped, False otherwise
+    """
+    if not cfg.skip_existing:
+        return False
+
+    run_tag = f"_{run_suffix}" if run_suffix else ""
+    base_name = (
+        f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
+    )
+    existing_matches = list(Path(effective_output_dir).glob(f"{base_name}*"))
+    for candidate in existing_matches:
+        if candidate.is_file():
+            prefix = "[dry-run] " if cfg.dry_run else ""
+            logger.info(
+                "    %stranscript already exists, skipping (--skip-existing): %s",
+                prefix,
+                candidate,
+            )
+            return True
+    return False
+
+
+def _fetch_transcript_content(
+    transcript_url: str, cfg: config.Config
+) -> Optional[tuple[bytes, Optional[str]]]:
+    """Fetch transcript content from URL.
+
+    Args:
+        transcript_url: URL of the transcript
+        cfg: Configuration object
+
+    Returns:
+        Tuple of (data, content_type) or None if download fails
+    """
+    logger.debug(
+        "[%s] Downloading transcript from %s",
+        transcript_url,
+        transcript_url,
+    )
+    data, ctype = downloader.http_get(transcript_url, cfg.user_agent, cfg.timeout)
+    if data is None:
+        logger.warning("    failed to download transcript")
+        return None
+    return (data, ctype)
+
+
+def _write_transcript_file(
+    data: bytes,
+    out_path: str,
+    cfg: config.Config,
+    episode: models.Episode,
+    effective_output_dir: str,
+) -> Optional[str]:
+    """Write transcript data to file.
+
+    Args:
+        data: Transcript data bytes
+        out_path: Output file path
+        cfg: Configuration object
+        episode: Episode object
+        effective_output_dir: Output directory path
+
+    Returns:
+        Relative path to saved file, or None if writing fails
+    """
+    if cfg.skip_existing and os.path.exists(out_path):
+        logger.info(f"    transcript already exists, skipping (--skip-existing): {out_path}")
+        return None
+
+    try:
+        filesystem.write_file(out_path, data)
+        logger.info(f"    saved: {out_path}")
+        # Return relative path from output_dir
+        rel_path = os.path.relpath(out_path, effective_output_dir)
+        return rel_path
+    except (IOError, OSError) as exc:
+        logger.error(f"    failed to write file: {exc}")
+        return None
 
 
 def process_transcript_download(
@@ -293,7 +465,7 @@ def process_transcript_download(
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],
-) -> bool:
+) -> tuple[bool, Optional[str], Optional[str]]:
     """Download and save a transcript file.
 
     Args:
@@ -305,27 +477,18 @@ def process_transcript_download(
         run_suffix: Optional suffix for output filename
 
     Returns:
-        True if transcript was downloaded and saved, False otherwise
+        Tuple of (success: bool, transcript_file_path: Optional[str],
+        transcript_source: Optional[str])
+        transcript_source is "direct_download" or None
     """
-    run_tag = f"_{run_suffix}" if run_suffix else ""
-    base_name = (
-        f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
-    )
-    if cfg.skip_existing:
-        existing_matches = list(Path(effective_output_dir).glob(f"{base_name}*"))
-        for candidate in existing_matches:
-            if candidate.is_file():
-                prefix = "[dry-run] " if cfg.dry_run else ""
-                logger.info(
-                    "    %stranscript already exists, skipping (--skip-existing): %s",
-                    prefix,
-                    candidate,
-                )
-                return False
+    # Check if transcript already exists
+    if _check_existing_transcript(episode, effective_output_dir, run_suffix, cfg):
+        return False, None, None
 
     planned_ext = derive_transcript_extension(transcript_type, None, transcript_url)
-    out_name = f"{base_name}{planned_ext}"
-    out_path = os.path.join(effective_output_dir, out_name)
+    out_path = _determine_output_path(
+        episode, transcript_url, transcript_type, effective_output_dir, run_suffix, planned_ext
+    )
 
     if cfg.dry_run:
         logger.info(
@@ -335,36 +498,29 @@ def process_transcript_download(
             transcript_url,
         )
         logger.info(f"    [dry-run] would save as: {out_path}")
-        return True
+        return True, out_path, None
 
-    logger.debug(
-        "[%s] Downloading transcript from %s (planned extension=%s)",
-        episode.idx,
-        transcript_url,
-        planned_ext,
-    )
     logger.info(f"[{episode.idx}] downloading transcript: {episode.title} -> {transcript_url}")
 
-    data, ctype = downloader.http_get(transcript_url, cfg.user_agent, cfg.timeout)
-    if data is None:
-        logger.warning("    failed to download transcript")
-        return False
+    # Fetch transcript content
+    fetch_result = _fetch_transcript_content(transcript_url, cfg)
+    if fetch_result is None:
+        return False, None, None
+    data, ctype = fetch_result
 
+    # Determine final extension (may differ from planned)
     ext = derive_transcript_extension(transcript_type, ctype, transcript_url)
     if ext != planned_ext:
-        out_name = f"{base_name}{ext}"
-        out_path = os.path.join(effective_output_dir, out_name)
+        out_path = _determine_output_path(
+            episode, transcript_url, transcript_type, effective_output_dir, run_suffix, ext
+        )
 
-    if cfg.skip_existing and os.path.exists(out_path):
-        logger.info(f"    transcript already exists, skipping (--skip-existing): {out_path}")
-        return False
-    try:
-        filesystem.write_file(out_path, data)
-        logger.info(f"    saved: {out_path}")
-        return True
-    except (IOError, OSError) as exc:
-        logger.error(f"    failed to write file: {exc}")
-        return False
+    # Write transcript file
+    rel_path = _write_transcript_file(data, out_path, cfg, episode, effective_output_dir)
+    if rel_path is None:
+        return False, None, None
+
+    return True, rel_path, "direct_download"
 
 
 def process_episode_download(
@@ -376,7 +532,7 @@ def process_episode_download(
     transcription_jobs: List[models.TranscriptionJob],
     transcription_jobs_lock: Optional[threading.Lock],
     detected_speaker_names: Optional[List[str]] = None,
-) -> bool:
+) -> tuple[bool, Optional[str], Optional[str]]:
     """Process a single episode: download transcript or prepare for Whisper transcription.
 
     Args:
@@ -389,7 +545,9 @@ def process_episode_download(
         transcription_jobs_lock: Lock for thread-safe access to transcription_jobs
 
     Returns:
-        True if transcript was downloaded, False otherwise
+        Tuple of (success: bool, transcript_file_path: Optional[str],
+        transcript_source: Optional[str])
+        transcript_source is "direct_download" or "whisper_transcription" or None
     """
     chosen = choose_transcript_url(episode.transcript_urls, cfg.prefer_types)
 
@@ -402,12 +560,12 @@ def process_episode_download(
             t_type,
             len(episode.transcript_urls),
         )
-        success = process_transcript_download(
+        success, transcript_path, transcript_source = process_transcript_download(
             episode, t_url, t_type, cfg, effective_output_dir, run_suffix
         )
         if success and cfg.delay_ms:
             time.sleep(cfg.delay_ms / MS_TO_SECONDS)
-        return success
+        return success, transcript_path, transcript_source
 
     if cfg.transcribe_missing and temp_dir:
         logger.debug("[%s] No transcript; enqueueing Whisper transcription", episode.idx)
@@ -430,9 +588,9 @@ def process_episode_download(
             )
             if cfg.delay_ms:
                 time.sleep(cfg.delay_ms / MS_TO_SECONDS)
-        return False
+        return False, None, None
 
     logger.info(f"[{episode.idx}] no transcript for: {episode.title}")
     if cfg.delay_ms:
         time.sleep(cfg.delay_ms / MS_TO_SECONDS)
-    return False
+    return False, None, None
