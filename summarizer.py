@@ -1131,7 +1131,9 @@ def summarize_long_text(
     if model.tokenizer:
         chunk_sizes_tokens = [
             len(
-                model.tokenizer.encode(chunk, add_special_tokens=False)  # type: ignore[attr-defined]
+                model.tokenizer.encode(  # type: ignore[attr-defined]
+                    chunk, add_special_tokens=False
+                )
             )
             for chunk in chunks
         ]
@@ -1212,8 +1214,11 @@ def summarize_long_text(
     final_chars = len(final_summary)
     final_words = len(final_summary.split())
     if model.tokenizer:
-        # type: ignore[attr-defined]
-        final_tokens = len(model.tokenizer.encode(final_summary, add_special_tokens=False))
+        final_tokens = len(
+            model.tokenizer.encode(  # type: ignore[attr-defined]
+                final_summary, add_special_tokens=False
+            )
+        )
     else:
         final_tokens = final_chars // CHARS_PER_TOKEN_ESTIMATE
 
@@ -1496,8 +1501,11 @@ def _combine_summaries_reduce(
     combined_chars = len(combined_text)
     combined_words = len(combined_text.split())
     if model.tokenizer:
-        # type: ignore[attr-defined]
-        combined_tokens = len(model.tokenizer.encode(combined_text, add_special_tokens=False))
+        combined_tokens = len(
+            model.tokenizer.encode(  # type: ignore[attr-defined]
+                combined_text, add_special_tokens=False
+            )
+        )
     else:
         combined_tokens = combined_chars // CHARS_PER_TOKEN_ESTIMATE
 
@@ -1821,8 +1829,11 @@ def _combine_summaries_mini_map_reduce(
         # Validate chunk sizes to ensure they don't exceed model limit
         max_chunk_tokens = 0
         for i, chunk in enumerate(mini_chunks, 1):
-            # type: ignore[attr-defined]
-            chunk_tokens = len(model.tokenizer.encode(chunk, add_special_tokens=False))
+            chunk_tokens = len(
+                model.tokenizer.encode(  # type: ignore[attr-defined]
+                    chunk, add_special_tokens=False
+                )
+            )
             max_chunk_tokens = max(max_chunk_tokens, chunk_tokens)
             if chunk_tokens > model_max:
                 logger.error(
@@ -1902,8 +1913,9 @@ def _combine_summaries_mini_map_reduce(
         current_words = len(current_text.split())
         if model.tokenizer:
             current_tokens = len(
-                # type: ignore[attr-defined]
-                model.tokenizer.encode(current_text, add_special_tokens=False)
+                model.tokenizer.encode(  # type: ignore[attr-defined]
+                    current_text, add_special_tokens=False
+                )
             )
         else:
             current_tokens = current_chars // CHARS_PER_TOKEN_ESTIMATE
