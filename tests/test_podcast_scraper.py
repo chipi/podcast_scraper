@@ -12,21 +12,17 @@ if PROJECT_ROOT not in sys.path:
 
 import argparse
 import json
-
-# Import shared test utilities from conftest
-# Note: pytest automatically loads conftest.py, but we need explicit imports for unittest
-import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET  # nosec B405 - tests construct safe XML elements
 from pathlib import Path
 from unittest.mock import patch
 
-import podcast_scraper.cli as cli
 import requests
 from platformdirs import user_cache_dir, user_data_dir
 
 import podcast_scraper
+import podcast_scraper.cli as cli
 from podcast_scraper import (
     config,
     downloader,

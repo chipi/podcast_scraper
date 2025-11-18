@@ -13,16 +13,15 @@ if PROJECT_ROOT not in sys.path:
 # Import shared test utilities from conftest
 # Note: pytest automatically loads conftest.py, but we need explicit imports for unittest
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import podcast_scraper.cli as cli
 import requests
 
 import podcast_scraper
+import podcast_scraper.cli as cli
 from podcast_scraper import downloader
 
 # Add tests directory to path for conftest import
