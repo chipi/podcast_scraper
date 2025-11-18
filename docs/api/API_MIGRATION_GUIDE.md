@@ -87,6 +87,23 @@ episode = models.Episode(...)
 
 - **v1.0.0**: Monolithic `podcast_scraper.py` (~800 lines)
 - **v2.0.0**: Modular architecture (8 modules) with minimal API (4 exports) ⭐
+- **v2.3.0**: Added service API (`service.run`, `service.run_from_config_file`) and API versioning
+
+## API Versioning
+
+The API follows semantic versioning tied to the module version:
+
+- **API Version**: `podcast_scraper.__api_version__` (same as `__version__`)
+- **Major version changes**: Breaking API changes (see migration guide)
+- **Minor version changes**: New features, backward compatible
+- **Patch version changes**: Bug fixes, backward compatible
+
+```python
+import podcast_scraper
+
+# Check API version
+api_version = podcast_scraper.__api_version__  # "2.3.0"
+```
 
 ## Support
 

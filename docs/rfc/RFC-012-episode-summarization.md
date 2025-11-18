@@ -115,9 +115,9 @@ Recommended models for summarization:
 
 ```python
 DEFAULT_SUMMARY_MODELS = {
-    "default": "facebook/bart-large-cnn",  # Best quality (~2GB memory)
-    "fast": "sshleifer/distilbart-cnn-12-6",  # Faster, lower memory (~300MB)
-    "small": "facebook/bart-base",  # Smallest, lowest memory (~500MB, recommended for M4 Pro)
+    "bart-large": "facebook/bart-large-cnn",  # BART-large (best quality ~2GB memory)
+    "bart-small": "facebook/bart-base",  # BART-base (smallest, lowest memory ~500MB, recommended for M4 Pro)
+    "fast": "sshleifer/distilbart-cnn-12-6",  # DistilBART (faster, lower memory ~300MB)
 }
 
 def select_summary_model(cfg: Config) -> str:
@@ -133,11 +133,11 @@ def select_summary_model(cfg: Config) -> str:
     # Auto-select based on available resources
     # For Apple Silicon (M4 Pro), prefer memory-efficient models
     if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        # M4 Pro: Use bart-base for good balance of quality and memory (~500MB)
-        return DEFAULT_SUMMARY_MODELS["small"]
+        # M4 Pro: Use LED-base for long documents (16k tokens, no chunking needed)
+        return DEFAULT_SUMMARY_MODELS["long-fast"]
     elif torch.cuda.is_available():
-        # NVIDIA GPU: Can use larger models
-        return DEFAULT_SUMMARY_MODELS["default"]
+        # NVIDIA GPU: Use LED-large for best quality (16k tokens, no chunking needed)
+        return DEFAULT_SUMMARY_MODELS["long"]
     else:
         # CPU: Use fastest, lowest memory model
         return DEFAULT_SUMMARY_MODELS["fast"]
@@ -408,7 +408,7 @@ def summarize_long_text(
         chunk_summaries.append(summary)
     
     # Combine chunk summaries
-    combined_text = " ".join(chunk_summaries)
+    combined_text = "\n\n".join(chunk_summaries)
     
     # Final summary of combined summaries
     final_summary = model.summarize(combined_text, max_length=max_length)
@@ -449,7 +449,7 @@ def hierarchical_summarize(
         paragraph_summaries.append(para_summary)
     
     # Combine and summarize again
-    combined = " ".join(paragraph_summaries)
+    combined = "\n\n".join(paragraph_summaries)
     return model.summarize(combined, max_length=max_length)
 ```
 

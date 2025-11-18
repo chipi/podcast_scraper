@@ -125,6 +125,51 @@ The testing strategy follows a three-tier pyramid:
   - spaCy missing/disabled scenarios
   - Name capping when too many detected
 
+#### Summarization (`summarizer.py`) - RFC-012
+
+- **RFC-012**: Local transformer model integration, summary generation with map-reduce strategy
+- **Test Cases**:
+  - Model selection (explicit, auto-detection for MPS/CUDA/CPU)
+  - Model loading and initialization on different devices
+  - **Model integration tests** (marked as `@pytest.mark.slow` and `@pytest.mark.integration`):
+    - Verify all models in `DEFAULT_SUMMARY_MODELS` can be loaded when configured
+    - Test each model individually: `default`, `fast`, `small`, `pegasus`, `pegasus-xsum`, `long`, `long-fast`
+    - Catch dependency issues (e.g., missing protobuf for PEGASUS models)
+    - Verify model and tokenizer are properly initialized
+    - Test model unloading after loading
+  - **Map-reduce strategy**:
+    - Map phase: chunking (word-based and token-based), chunk summarization
+    - Reduce phase decision logic: single abstractive (≤800 tokens), mini map-reduce (800-4000 tokens), extractive (>4000 tokens)
+    - Mini map-reduce: re-chunking combined summaries into 3-5 sections (650 words each), second map phase (summarize each section), final abstractive reduce
+    - Extractive fallback behavior for extremely large combined summaries
+  - Summary generation with various text lengths
+  - Key takeaways extraction
+  - Text chunking for long transcripts
+  - Safe summarization error handling (OOM, missing dependencies)
+  - Memory optimization (CUDA/MPS)
+  - Model unloading and cleanup
+  - Integration with metadata generation pipeline
+
+#### Service API (`service.py`)
+
+- **Public API**: Service interface for daemon/non-interactive use
+- **Test Cases**:
+  - `ServiceResult` dataclass (success/failure states, attributes)
+  - `service.run()` with valid Config (success path)
+  - `service.run()` with logging configuration
+  - `service.run()` exception handling (returns failed ServiceResult)
+  - `service.run_from_config_file()` with JSON config
+  - `service.run_from_config_file()` with YAML config
+  - `service.run_from_config_file()` with missing file (returns failed ServiceResult)
+  - `service.run_from_config_file()` with invalid config (returns failed ServiceResult)
+  - `service.run_from_config_file()` with Path objects
+  - `service.main()` CLI entry point (success/failure exit codes)
+  - `service.main()` version flag handling
+  - `service.main()` missing config argument handling
+  - Service API importability via `__getattr__`
+  - ServiceResult equality and string representation
+  - Integration with public API (`Config`, `load_config_file`, `run_pipeline`)
+
 ### 2. Integration Tests
 
 #### CLI Integration (`cli.py` + `workflow.py`)
@@ -414,6 +459,37 @@ pytest --run-whisper-e2e
 - [ ] Factory registration
 - [ ] Progress updates
 - [ ] Context manager behavior
+
+### `summarizer.py` (RFC-012)
+
+- [x] Model selection logic (explicit, auto-detection for MPS/CUDA/CPU)
+- [x] Model loading and initialization
+- [x] **Model integration tests** (all models in `DEFAULT_SUMMARY_MODELS` can be loaded)
+- [ ] Summary generation
+- [ ] Key takeaways generation
+- [x] Text chunking for long transcripts
+- [ ] Safe summarization with error handling
+- [ ] Memory optimization (CUDA/MPS)
+- [x] Model unloading
+- [ ] Integration with metadata generation
+
+### `service.py` (Public API)
+
+- [x] `ServiceResult` dataclass (success/failure states, attributes)
+- [x] `service.run()` with valid Config (success path)
+- [x] `service.run()` with logging configuration
+- [x] `service.run()` exception handling (returns failed ServiceResult)
+- [x] `service.run_from_config_file()` with JSON config
+- [x] `service.run_from_config_file()` with YAML config
+- [x] `service.run_from_config_file()` with missing file (returns failed ServiceResult)
+- [x] `service.run_from_config_file()` with invalid config (returns failed ServiceResult)
+- [x] `service.run_from_config_file()` with Path objects
+- [x] `service.main()` CLI entry point (success/failure exit codes)
+- [x] `service.main()` version flag handling
+- [x] `service.main()` missing config argument handling
+- [x] Service API importability via `__getattr__`
+- [x] ServiceResult equality and string representation
+- [x] Integration with public API (`Config`, `load_config_file`, `run_pipeline`)
 
 ## Future Testing Enhancements
 

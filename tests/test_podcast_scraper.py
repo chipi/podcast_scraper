@@ -12,10 +12,6 @@ if PROJECT_ROOT not in sys.path:
 
 import argparse
 import json
-
-# Import shared test utilities from conftest
-# Note: pytest automatically loads conftest.py, but we need explicit imports for unittest
-import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET  # nosec B405 - tests construct safe XML elements

@@ -95,8 +95,19 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
         return None
 
     try:
-        nlp = spacy.load(model_name)
-        logger.debug("Loaded spaCy model: %s", model_name)
+        # Load only NER component to reduce memory usage
+        # Disable parser, tagger, and lemmatizer since we only need NER
+        # This can reduce memory usage by 30-50% for most models
+        try:
+            nlp = spacy.load(model_name, disable=["parser", "tagger", "lemmatizer"])
+            logger.debug("Loaded spaCy model (NER only): %s", model_name)
+        except (ValueError, KeyError):
+            # Some models may not support disabling components, fall back to full load
+            logger.debug(
+                "Model %s doesn't support component disabling, loading full pipeline", model_name
+            )
+            nlp = spacy.load(model_name)
+            logger.debug("Loaded spaCy model (full pipeline): %s", model_name)
         return nlp
     except OSError:
         logger.info("spaCy model '%s' not found locally, attempting to download...", model_name)
@@ -111,9 +122,14 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
                 check=True,
             )
             logger.info("Successfully downloaded spaCy model: %s", model_name)
-            # Now try loading again
-            nlp = spacy.load(model_name)
-            logger.debug("Loaded spaCy model after download: %s", model_name)
+            # Now try loading again with disabled components for memory efficiency
+            try:
+                nlp = spacy.load(model_name, disable=["parser", "tagger", "lemmatizer"])
+                logger.debug("Loaded spaCy model (NER only) after download: %s", model_name)
+            except (ValueError, KeyError):
+                # Fall back to full pipeline if component disabling not supported
+                nlp = spacy.load(model_name)
+                logger.debug("Loaded spaCy model (full pipeline) after download: %s", model_name)
             return nlp
         except subprocess.CalledProcessError as exc:
             logger.error(

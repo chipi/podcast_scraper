@@ -128,6 +128,7 @@ def download_media_for_transcription(
     effective_output_dir: str,
     run_suffix: Optional[str],
     detected_speaker_names: Optional[List[str]] = None,
+    pipeline_metrics=None,
 ) -> Optional[models.TranscriptionJob]:
     """Download media file for Whisper transcription.
 
@@ -145,6 +146,22 @@ def download_media_for_transcription(
         episode.idx, episode.title_safe, run_suffix, effective_output_dir
     )
     if cfg.skip_existing and os.path.exists(final_out_path):
+        # If generate_summaries is enabled, still return a job so transcript path can be used
+        # for summarization (even though we won't re-transcribe)
+        if cfg.generate_summaries:
+            logger.debug(
+                "[%s] Transcript exists, but will use for summarization: %s",
+                episode.idx,
+                final_out_path,
+            )
+            # Return a job with empty temp_media since we won't download/transcribe
+            return models.TranscriptionJob(
+                idx=episode.idx,
+                ep_title=episode.title,
+                ep_title_safe=episode.title_safe,
+                temp_media="",  # Empty since we're reusing existing transcript
+                detected_speaker_names=detected_speaker_names,
+            )
         prefix = "[dry-run] " if cfg.dry_run else ""
         logger.info(
             "[%s] %stranscript already exists; skipping (--skip-existing): %s",
@@ -183,21 +200,72 @@ def download_media_for_transcription(
     ).hexdigest()[:TITLE_HASH_PREFIX_LENGTH]
     temp_media = os.path.join(temp_dir, f"{ep_num_str}_{short_title}_{title_hash}{ext}")
 
-    dl_start = time.time()
-    ok, total_bytes = downloader.http_download_to_file(
-        episode.media_url, cfg.user_agent, cfg.timeout, temp_media
-    )
-    dl_elapsed = time.time() - dl_start
-    if not ok:
-        logger.warning("    failed to download media")
-        return None
-
-    if downloader.should_log_download_summary():
+    # Check if media file already exists and reuse it if configured
+    total_bytes = 0
+    dl_elapsed = 0.0
+    if cfg.reuse_media and os.path.exists(temp_media):
+        logger.info(f"    reusing existing media file: {temp_media}")
+        # Verify file size is reasonable (not empty or corrupted)
         try:
-            mb = total_bytes / downloader.BYTES_PER_MB
-            logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
-        except (ValueError, ZeroDivisionError, TypeError) as exc:
-            logger.warning(f"    failed to format download size: {exc}")
+            file_size = os.path.getsize(temp_media)
+            if file_size > 0:
+                total_bytes = file_size
+                logger.debug(f"    media file size: {file_size} bytes")
+            else:
+                logger.warning(f"    media file is empty, re-downloading: {temp_media}")
+                # File exists but is empty, re-download
+                dl_start = time.time()
+                ok, total_bytes = downloader.http_download_to_file(
+                    episode.media_url, cfg.user_agent, cfg.timeout, temp_media
+                )
+                dl_elapsed = time.time() - dl_start
+                if not ok:
+                    logger.warning("    failed to download media")
+                    return None
+                if downloader.should_log_download_summary():
+                    try:
+                        mb = total_bytes / downloader.BYTES_PER_MB
+                        logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
+                    except (ValueError, ZeroDivisionError, TypeError) as exc:
+                        logger.warning(f"    failed to format download size: {exc}")
+        except OSError as exc:
+            logger.warning(f"    error checking media file, re-downloading: {exc}")
+            dl_start = time.time()
+            ok, total_bytes = downloader.http_download_to_file(
+                episode.media_url, cfg.user_agent, cfg.timeout, temp_media
+            )
+            dl_elapsed = time.time() - dl_start
+            if not ok:
+                logger.warning("    failed to download media")
+                return None
+            if downloader.should_log_download_summary():
+                try:
+                    mb = total_bytes / downloader.BYTES_PER_MB
+                    logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
+                except (ValueError, ZeroDivisionError, TypeError) as exc:
+                    logger.warning(f"    failed to format download size: {exc}")
+    else:
+        # Download media file
+        dl_start = time.time()
+        ok, total_bytes = downloader.http_download_to_file(
+            episode.media_url, cfg.user_agent, cfg.timeout, temp_media
+        )
+        dl_elapsed = time.time() - dl_start
+        if not ok:
+            logger.warning("    failed to download media")
+            return None
+
+        if downloader.should_log_download_summary():
+            try:
+                mb = total_bytes / downloader.BYTES_PER_MB
+                logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
+            except (ValueError, ZeroDivisionError, TypeError) as exc:
+                logger.warning(f"    failed to format download size: {exc}")
+
+    # Record download time if metrics available and download actually happened
+    if pipeline_metrics is not None and dl_elapsed > 0:
+        pipeline_metrics.record_download_media_time(dl_elapsed)
+
     return models.TranscriptionJob(
         idx=episode.idx,
         ep_title=episode.title,
@@ -266,12 +334,18 @@ def _save_transcript_file(
     return rel_path
 
 
-def _cleanup_temp_media(temp_media: str) -> None:
+def _cleanup_temp_media(temp_media: str, cfg: Optional[config.Config] = None) -> None:
     """Clean up temporary media file.
 
     Args:
         temp_media: Path to temporary media file
+        cfg: Configuration object (optional, for reuse_media check)
     """
+    # Skip cleanup if reuse_media is enabled
+    if cfg and cfg.reuse_media:
+        logger.debug(f"    keeping media file for reuse: {temp_media}")
+        return
+
     try:
         os.remove(temp_media)
     except OSError as exc:
@@ -284,7 +358,8 @@ def transcribe_media_to_text(
     whisper_model,
     run_suffix: Optional[str],
     effective_output_dir: str,
-) -> tuple[bool, Optional[str]]:
+    pipeline_metrics=None,
+) -> tuple[bool, Optional[str], int]:
     """Transcribe media file using Whisper and save result.
 
     Args:
@@ -295,8 +370,9 @@ def transcribe_media_to_text(
         effective_output_dir: Output directory path
 
     Returns:
-        Tuple of (success: bool, transcript_file_path: Optional[str])
+        Tuple of (success: bool, transcript_file_path: Optional[str], bytes_downloaded: int)
         transcript_file_path is relative to effective_output_dir
+        bytes_downloaded is the size of the media file downloaded (if any)
     """
     if cfg.dry_run:
         final_path = filesystem.build_whisper_output_path(
@@ -304,9 +380,23 @@ def transcribe_media_to_text(
         )
         logger.info(f"[{job.idx}] (dry-run) would transcribe media -> {final_path}")
         rel_path = os.path.relpath(final_path, effective_output_dir)
-        return True, rel_path
+        return True, rel_path, 0
 
     temp_media = job.temp_media
+    final_out_path = filesystem.build_whisper_output_path(
+        job.idx, job.ep_title_safe, run_suffix, effective_output_dir
+    )
+
+    # If temp_media is empty and transcript exists, we're reusing existing transcript
+    # (happens when skip_existing=True and generate_summaries=True)
+    if not temp_media and cfg.skip_existing and os.path.exists(final_out_path):
+        rel_path = os.path.relpath(final_out_path, effective_output_dir)
+        logger.debug(
+            "[%s] Reusing existing Whisper transcript for summarization: %s",
+            job.idx,
+            rel_path,
+        )
+        return True, rel_path, 0
 
     # Log detected speaker names (hosts + guests) before transcription
     if job.detected_speaker_names:
@@ -318,20 +408,33 @@ def transcribe_media_to_text(
             "    Skipping transcription: Whisper model not available (requested: %s)",
             cfg.whisper_model,
         )
-        _cleanup_temp_media(temp_media)
-        return False, None
+        _cleanup_temp_media(temp_media, cfg)
+        return False, None, 0
+
+    # Get bytes downloaded (media file size)
+    bytes_downloaded = 0
+    if temp_media and os.path.exists(temp_media):
+        try:
+            bytes_downloaded = os.path.getsize(temp_media)
+        except OSError:
+            pass
 
     try:
         result, tc_elapsed = whisper.transcribe_with_whisper(whisper_model, temp_media, cfg)
         text = _format_transcript_if_needed(result, cfg, job.detected_speaker_names)
         rel_path = _save_transcript_file(text, job, run_suffix, effective_output_dir)
         logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")
-        return True, rel_path
+
+        # Record transcription time if metrics available
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_transcribe_time(tc_elapsed)
+
+        return True, rel_path, bytes_downloaded
     except (RuntimeError, OSError) as exc:
         logger.error(f"    Whisper transcription failed: {exc}")
-        return False, None
+        return False, None, bytes_downloaded
     finally:
-        _cleanup_temp_media(temp_media)
+        _cleanup_temp_media(temp_media, cfg)
 
 
 def _determine_output_path(
@@ -465,7 +568,7 @@ def process_transcript_download(
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],
-) -> tuple[bool, Optional[str], Optional[str]]:
+) -> tuple[bool, Optional[str], Optional[str], int]:
     """Download and save a transcript file.
 
     Args:
@@ -478,12 +581,31 @@ def process_transcript_download(
 
     Returns:
         Tuple of (success: bool, transcript_file_path: Optional[str],
-        transcript_source: Optional[str])
+        transcript_source: Optional[str], bytes_downloaded: int)
         transcript_source is "direct_download" or None
     """
     # Check if transcript already exists
+    # If skip_existing is True but generate_summaries is enabled, still return transcript path
+    # so summaries can be generated even when transcript exists
     if _check_existing_transcript(episode, effective_output_dir, run_suffix, cfg):
-        return False, None, None
+        if cfg.generate_summaries:
+            # Find existing transcript file to return its path for summarization
+            run_tag = f"_{run_suffix}" if run_suffix else ""
+            base_name = (
+                f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} "
+                f"- {episode.title_safe}{run_tag}"
+            )
+            existing_matches = list(Path(effective_output_dir).glob(f"{base_name}*"))
+            for candidate in existing_matches:
+                if candidate.is_file():
+                    rel_path = os.path.relpath(str(candidate), effective_output_dir)
+                    logger.debug(
+                        "[%s] Transcript exists, but will use for summarization: %s",
+                        episode.idx,
+                        rel_path,
+                    )
+                    return False, rel_path, "direct_download", 0
+        return False, None, None, 0
 
     planned_ext = derive_transcript_extension(transcript_type, None, transcript_url)
     out_path = _determine_output_path(
@@ -498,15 +620,16 @@ def process_transcript_download(
             transcript_url,
         )
         logger.info(f"    [dry-run] would save as: {out_path}")
-        return True, out_path, "direct_download"
+        return True, out_path, "direct_download", 0
 
     logger.info(f"[{episode.idx}] downloading transcript: {episode.title} -> {transcript_url}")
 
     # Fetch transcript content
     fetch_result = _fetch_transcript_content(transcript_url, cfg)
     if fetch_result is None:
-        return False, None, None
+        return False, None, None, 0
     data, ctype = fetch_result
+    bytes_downloaded = len(data) if data else 0
 
     # Determine final extension (may differ from planned)
     ext = derive_transcript_extension(transcript_type, ctype, transcript_url)
@@ -516,11 +639,11 @@ def process_transcript_download(
         )
 
     # Write transcript file
-    rel_path = _write_transcript_file(data, out_path, cfg, episode, effective_output_dir)
-    if rel_path is None:
-        return False, None, None
+    rel_path_result = _write_transcript_file(data, out_path, cfg, episode, effective_output_dir)
+    if rel_path_result is None:
+        return False, None, None, bytes_downloaded
 
-    return True, rel_path, "direct_download"
+    return True, rel_path_result, "direct_download", bytes_downloaded
 
 
 def process_episode_download(
@@ -532,7 +655,8 @@ def process_episode_download(
     transcription_jobs: List[models.TranscriptionJob],
     transcription_jobs_lock: Optional[threading.Lock],
     detected_speaker_names: Optional[List[str]] = None,
-) -> tuple[bool, Optional[str], Optional[str]]:
+    pipeline_metrics=None,
+) -> tuple[bool, Optional[str], Optional[str], int]:
     """Process a single episode: download transcript or prepare for Whisper transcription.
 
     Args:
@@ -546,7 +670,7 @@ def process_episode_download(
 
     Returns:
         Tuple of (success: bool, transcript_file_path: Optional[str],
-        transcript_source: Optional[str])
+        transcript_source: Optional[str], bytes_downloaded: int)
         transcript_source is "direct_download" or "whisper_transcription" or None
     """
     chosen = choose_transcript_url(episode.transcript_urls, cfg.prefer_types)
@@ -560,12 +684,12 @@ def process_episode_download(
             t_type,
             len(episode.transcript_urls),
         )
-        success, transcript_path, transcript_source = process_transcript_download(
+        success, transcript_path, transcript_source, bytes_downloaded = process_transcript_download(
             episode, t_url, t_type, cfg, effective_output_dir, run_suffix
         )
         if success and cfg.delay_ms:
             time.sleep(cfg.delay_ms / MS_TO_SECONDS)
-        return success, transcript_path, transcript_source
+        return success, transcript_path, transcript_source, bytes_downloaded
 
     if cfg.transcribe_missing and temp_dir:
         logger.debug("[%s] No transcript; enqueueing Whisper transcription", episode.idx)
@@ -576,6 +700,7 @@ def process_episode_download(
             effective_output_dir,
             run_suffix,
             detected_speaker_names=detected_speaker_names,
+            pipeline_metrics=pipeline_metrics,
         )
         if job:
             if transcription_jobs_lock:
@@ -588,9 +713,9 @@ def process_episode_download(
             )
             if cfg.delay_ms:
                 time.sleep(cfg.delay_ms / MS_TO_SECONDS)
-        return False, None, None
+        return False, None, None, 0
 
     logger.info(f"[{episode.idx}] no transcript for: {episode.title}")
     if cfg.delay_ms:
         time.sleep(cfg.delay_ms / MS_TO_SECONDS)
-    return False, None, None
+    return False, None, None, 0

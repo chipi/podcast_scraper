@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 from contextlib import contextmanager
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -25,7 +26,7 @@ from . import config, filesystem, progress, workflow
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import tqdm
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -182,6 +183,30 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("Invalid input parameters:\n  " + "\n  ".join(errors))
 
 
+def _add_cache_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add cache management arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
+    cache_group = parser.add_argument_group("Cache Management")
+    cache_group.add_argument(
+        "--cache-info",
+        action="store_true",
+        help="Show Hugging Face model cache information and exit",
+    )
+    cache_group.add_argument(
+        "--prune-cache",
+        action="store_true",
+        help="Remove all cached transformer models to free disk space",
+    )
+    cache_group.add_argument(
+        "--cache-dir",
+        default=None,
+        help="Custom cache directory for transformer models (default: ~/.cache/huggingface/hub)",
+    )
+
+
 def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     """Add common arguments to parser.
 
@@ -217,12 +242,22 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         "--skip-existing", action="store_true", help="Skip episodes whose output already exists"
     )
     parser.add_argument(
+        "--reuse-media",
+        action="store_true",
+        help="Reuse existing media files instead of re-downloading (for faster testing)",
+    )
+    parser.add_argument(
         "--clean-output", action="store_true", help="Remove the output directory before processing"
     )
     parser.add_argument(
         "--dry-run", action="store_true", help="Show planned work without saving files"
     )
     parser.add_argument("--version", action="store_true", help="Show program version and exit")
+    parser.add_argument(
+        "--log-file",
+        default=None,
+        help="Path to log file (logs will be written to both console and file)",
+    )
     parser.add_argument(
         "--log-level",
         default=config.DEFAULT_LOG_LEVEL,
@@ -337,6 +372,72 @@ def _add_speaker_detection_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add summarization-related arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
+    parser.add_argument(
+        "--generate-summaries",
+        action="store_true",
+        help="Generate summaries for episodes",
+    )
+    parser.add_argument(
+        "--summary-provider",
+        choices=["local", "openai", "anthropic"],
+        default="local",
+        help="Summary provider to use (default: local)",
+    )
+    parser.add_argument(
+        "--summary-model",
+        default=None,
+        help="Model identifier for local summarization (e.g., facebook/bart-large-cnn)",
+    )
+    parser.add_argument(
+        "--summary-max-length",
+        type=int,
+        default=config.DEFAULT_SUMMARY_MAX_LENGTH,
+        help=f"Maximum summary length in tokens (default: {config.DEFAULT_SUMMARY_MAX_LENGTH})",
+    )
+    parser.add_argument(
+        "--summary-min-length",
+        type=int,
+        default=config.DEFAULT_SUMMARY_MIN_LENGTH,
+        help=f"Minimum summary length in tokens (default: {config.DEFAULT_SUMMARY_MIN_LENGTH})",
+    )
+    parser.add_argument(
+        "--summary-device",
+        choices=["cuda", "mps", "cpu", "auto"],
+        default=None,
+        help="Device for summarization (cuda/mps/cpu/auto, default: auto-detect)",
+    )
+    parser.add_argument(
+        "--summary-chunk-size",
+        type=int,
+        default=None,
+        help="Chunk size for long transcripts in tokens (default: model max length)",
+    )
+    parser.add_argument(
+        "--summary-prompt",
+        type=str,
+        default=None,
+        help="Custom prompt/instruction to guide summarization (default: built-in prompt)",
+    )
+    parser.add_argument(
+        "--save-cleaned-transcript",
+        action="store_true",
+        default=True,
+        help="Save cleaned transcript to separate file (default: True)",
+    )
+    parser.add_argument(
+        "--no-save-cleaned-transcript",
+        dest="save_cleaned_transcript",
+        action="store_false",
+        help="Don't save cleaned transcript to separate file",
+    )
+
+
 def _load_and_merge_config(
     parser: argparse.ArgumentParser, config_path: str, argv: Optional[Sequence[str]]
 ) -> argparse.Namespace:
@@ -391,6 +492,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     _add_transcription_arguments(parser)
     _add_metadata_arguments(parser)
     _add_speaker_detection_arguments(parser)
+    _add_summarization_arguments(parser)
+    _add_cache_arguments(parser)
 
     initial_args, _ = parser.parse_known_args(argv)
 
@@ -426,8 +529,10 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "screenplay_speaker_names": speaker_names_list,
         "run_id": args.run_id,
         "log_level": args.log_level,
+        "log_file": args.log_file,
         "workers": args.workers,
         "skip_existing": args.skip_existing,
+        "reuse_media": args.reuse_media,
         "clean_output": args.clean_output,
         "dry_run": args.dry_run,
         "language": args.language,
@@ -437,6 +542,17 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "generate_metadata": args.generate_metadata,
         "metadata_format": args.metadata_format,
         "metadata_subdirectory": args.metadata_subdirectory,
+        "generate_summaries": args.generate_summaries,
+        "summary_provider": args.summary_provider,
+        "summary_model": args.summary_model,
+        "summary_max_length": args.summary_max_length,
+        "summary_min_length": args.summary_min_length,
+        "summary_device": args.summary_device,
+        "summary_batch_size": config.DEFAULT_SUMMARY_BATCH_SIZE,  # Not exposed in CLI yet
+        "summary_chunk_size": args.summary_chunk_size,
+        "summary_cache_dir": None,  # Not exposed in CLI yet
+        "summary_prompt": args.summary_prompt,
+        "save_cleaned_transcript": args.save_cleaned_transcript,
     }
     return config.Config.model_validate(payload)
 
@@ -459,6 +575,7 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
     logger.info(f"  Max Episodes: {cfg.max_episodes or 'all'}")
     logger.info(f"  Workers: {cfg.workers}")
     logger.info(f"  Log Level: {cfg.log_level}")
+    logger.info(f"  Log File: {cfg.log_file or 'console only'}")
     logger.info(f"  Run ID: {cfg.run_id or 'none'}")
 
     # HTTP settings
@@ -500,11 +617,30 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
         if cfg.metadata_subdirectory:
             logger.info(f"  Metadata Subdirectory: {cfg.metadata_subdirectory}")
         else:
-            logger.info(f"  Metadata Subdirectory: same as transcripts")
+            logger.info("  Metadata Subdirectory: same as transcripts")
+
+    # Summarization settings
+    logger.info("Summarization Settings:")
+    logger.info(f"  Generate Summaries: {cfg.generate_summaries}")
+    if cfg.generate_summaries:
+        logger.info(f"  Summary Provider: {cfg.summary_provider}")
+        if cfg.summary_provider == "local":
+            if cfg.summary_model:
+                logger.info(f"  Summary Model: {cfg.summary_model}")
+            else:
+                logger.info("  Summary Model: auto-selected")
+            logger.info(f"  Summary Device: {cfg.summary_device or 'auto-detect'}")
+            if cfg.summary_chunk_size:
+                logger.info(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
+        logger.info(f"  Summary Max Length: {cfg.summary_max_length} tokens")
+        logger.info(f"  Summary Min Length: {cfg.summary_min_length} tokens")
+        if cfg.summary_prompt:
+            logger.info(f"  Summary Prompt: {cfg.summary_prompt[:80]}...")
 
     # Processing options
     logger.info("Processing Options:")
     logger.info(f"  Skip Existing: {cfg.skip_existing}")
+    logger.info(f"  Reuse Media: {cfg.reuse_media}")
     logger.info(f"  Clean Output: {cfg.clean_output}")
     logger.info(f"  Dry Run: {cfg.dry_run}")
 
@@ -514,7 +650,7 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
 def main(
     argv: Optional[Sequence[str]] = None,
     *,
-    apply_log_level_fn: Optional[Callable[[str], None]] = None,
+    apply_log_level_fn: Optional[Callable[[str, Optional[str]], None]] = None,
     run_pipeline_fn: Optional[Callable[[config.Config], Tuple[int, str]]] = None,
     logger: Optional[logging.Logger] = None,
 ) -> int:
@@ -532,13 +668,48 @@ def main(
         log.error(f"Error: {exc}")
         return 1
 
+    # Handle cache management commands
+    if args.cache_info or args.prune_cache:
+        try:
+            from . import summarizer
+
+            cache_dir = args.cache_dir or None
+            if args.cache_info:
+                cache_size = summarizer.get_cache_size(cache_dir)
+                size_str = summarizer.format_cache_size(cache_size)
+                cache_path = (
+                    Path(cache_dir)
+                    if cache_dir
+                    else (
+                        summarizer.HF_CACHE_DIR
+                        if summarizer.HF_CACHE_DIR.exists()
+                        else summarizer.HF_CACHE_DIR_LEGACY
+                    )
+                )
+                log.info("Hugging Face Model Cache Information:")
+                log.info(f"  Cache directory: {cache_path}")
+                log.info(f"  Total size: {size_str}")
+                if cache_size == 0:
+                    log.info("  Cache is empty")
+                return 0
+            elif args.prune_cache:
+                deleted = summarizer.prune_cache(cache_dir, dry_run=False)
+                log.info(f"Pruned {deleted} files from cache")
+                return 0
+        except ImportError:
+            log.error("Cache management requires transformers library")
+            return 1
+        except Exception as exc:
+            log.error(f"Cache operation failed: {exc}")
+            return 1
+
     try:
         cfg = _build_config(args)
     except ValidationError as exc:
         log.error(f"Invalid configuration: {exc}")
         return 1
 
-    apply_log_level_fn(cfg.log_level)
+    apply_log_level_fn(cfg.log_level, cfg.log_file)
 
     log.info("Starting podcast transcript scrape")
     _log_configuration(cfg, log)

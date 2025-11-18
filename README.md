@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Personal Use Only](https://img.shields.io/badge/Use-Personal%20Only-orange)](docs/legal.md)
 
-Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Features include automatic speaker name detection using Named Entity Recognition (NER), language-aware Whisper model selection, multi-threaded downloads, resumable/cleanable output directories, dry-run previews, progress bars, configurable run folders, screenplay formatting, per-episode metadata document generation (JSON/YAML), and JSON/YAML configuration files.
+Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, resumes partially completed runs, and can fall back to Whisper transcription when an episode has no published transcript. Features include automatic speaker name detection using Named Entity Recognition (NER), language-aware Whisper model selection, multi-threaded downloads, resumable/cleanable output directories, dry-run previews, progress bars, configurable run folders, screenplay formatting, per-episode metadata document generation (JSON/YAML), episode summarization with local transformer models, and JSON/YAML configuration files.
 
 > **⚠️ Important:** This project is intended for **personal, non-commercial use only**. All downloaded content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate Use](docs/legal.md) for details.
 
@@ -20,6 +20,8 @@ Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. I
 
   Visit [http://localhost:8000](http://localhost:8000) and edit files under `docs/` to see live updates.
 
+  > **Note:** The documentation site is built to `.build/site/` directory. Build artifacts are organized in `.build/` to keep the root directory clean.
+
 ## Requirements
 
 - Python 3.10+
@@ -32,6 +34,9 @@ Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. I
 - `spacy` (for automatic speaker name detection)
 - `openai-whisper` (for Whisper transcription)
 - `ffmpeg` (required by Whisper)
+- `torch` (for episode summarization, optional)
+- `transformers` (for episode summarization, optional)
+- `protobuf` (required for PEGASUS models, optional)
 
 ## Installation
 
@@ -53,7 +58,8 @@ When using a virtual environment, activate it first (see below) and run the same
 
 ## Project Layout
 
-- `podcast_scraper/cli.py` — command-line entry point
+- `podcast_scraper/cli.py` — command-line entry point (interactive use)
+- `podcast_scraper/service.py` — service API (daemon/non-interactive use)
 - `podcast_scraper/workflow.py` — high-level orchestration (`run_pipeline`)
 - `podcast_scraper/config.py` — configuration models and file loader
 - `podcast_scraper/downloader.py` — resilient HTTP helpers (`fetch_url`, `http_get`, `http_download_to_file`)
@@ -63,6 +69,7 @@ When using a virtual environment, activate it first (see below) and run the same
 - `podcast_scraper/whisper_integration.py` — Whisper integration
 - `podcast_scraper/speaker_detection.py` — automatic speaker name detection using NER
 - `podcast_scraper/metadata.py` — metadata document generation
+- `podcast_scraper/summarizer.py` — episode summarization using local transformer models
 - `podcast_scraper/progress.py` — pluggable progress reporting interface
 
 ## Usage
@@ -121,6 +128,12 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml --run-id vtt_vs_plai
 # Resume skip-existing
 python3 -m podcast_scraper.cli https://example.com/feed.xml --skip-existing
 
+# Reuse existing media files (skip re-downloading for faster testing)
+python3 -m podcast_scraper.cli https://example.com/feed.xml --reuse-media --transcribe-missing
+
+# Test summarization with existing transcripts (skip download/transcription, generate summaries)
+python3 -m podcast_scraper.cli https://example.com/feed.xml --skip-existing --generate-metadata --generate-summaries
+
 # Generate metadata documents alongside transcripts
 python3 -m podcast_scraper.cli https://example.com/feed.xml --generate-metadata
 
@@ -129,7 +142,61 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml --generate-metadata 
 
 # Store metadata in separate subdirectory
 python3 -m podcast_scraper.cli https://example.com/feed.xml --generate-metadata --metadata-subdirectory metadata
+
+# Generate summaries for episodes (uses hybrid BART→LED by default)
+python3 -m podcast_scraper.cli https://example.com/feed.xml --generate-metadata --generate-summaries
+
+# Generate summaries with custom model and settings
+python3 -m podcast_scraper.cli https://example.com/feed.xml --generate-metadata --generate-summaries \
+  --summary-model bart-large --summary-reduce-model long-fast --summary-max-length 200
+
+# Generate summaries with GPU acceleration (CUDA/MPS)
+python3 -m podcast_scraper.cli https://example.com/feed.xml --generate-metadata --generate-summaries \
+  --summary-device mps  # Use MPS for Apple Silicon, or 'cuda' for NVIDIA GPUs
+
+# Check transformer model cache size and location
+python3 -m podcast_scraper.cli --cache-info
+
+# Prune transformer model cache to free disk space
+python3 -m podcast_scraper.cli --prune-cache
+
+# Run as a service/daemon (config file only, no user interaction)
+python3 -m podcast_scraper.service --config config.yaml
 ```
+
+### Service Mode
+
+The service API (`podcast_scraper.service`) is optimized for non-interactive use, such as running as a daemon or service:
+
+- **Config file only**: Works exclusively with configuration files (no CLI arguments)
+- **Structured results**: Returns `ServiceResult` with success status and error messages
+- **Exit codes**: Returns 0 for success, 1 for failure (suitable for process managers)
+- **No user interaction**: Designed for automation and process management tools
+
+**Use cases:**
+
+- Running as a systemd service
+- Managed by supervisor
+- Scheduled execution (cron + service mode)
+- CI/CD pipelines
+- Automated workflows
+
+**Example service usage:**
+
+```python
+from podcast_scraper import service
+
+# Run from config file
+result = service.run_from_config_file("config.yaml")
+if result.success:
+    print(f"Processed {result.episodes_processed} episodes")
+    print(f"Summary: {result.summary}")
+else:
+    print(f"Error: {result.error}")
+    sys.exit(1)
+```
+
+See `examples/supervisor.conf.example` and `examples/systemd.service.example` for process manager configuration examples.
 
 ### Configuration Files
 
@@ -153,9 +220,16 @@ python3 -m podcast_scraper.cli --config config.json
   "run_id": "experiment",
   "workers": 4,
   "skip_existing": true,
+  "reuse_media": false,
   "dry_run": false,
   "generate_metadata": true,
-  "metadata_format": "json"
+  "metadata_format": "json",
+  "generate_summaries": true,
+  "summary_provider": "local",
+  "summary_model": "facebook/bart-base",
+  "summary_max_length": 150,
+  "summary_max_takeaways": 10,
+  "summary_cache_dir": null
 }
 ```
 
@@ -174,16 +248,27 @@ speaker_names:  # Optional: manual override (takes precedence over auto-detectio
   - Guest
 workers: 6
 skip_existing: true
+reuse_media: false  # Reuse existing media files instead of re-downloading (for faster testing)
 dry_run: false
 generate_metadata: true  # Generate metadata documents alongside transcripts
 metadata_format: json  # json or yaml
 metadata_subdirectory: null  # Optional: store metadata in subdirectory
+generate_summaries: true  # Generate summaries (requires torch/transformers)
+summary_provider: local  # local, openai, or anthropic (only 'local' currently implemented)
+summary_model: null  # Optional: MAP model (defaults to bart-large for chunk summaries)
+summary_reduce_model: null  # Optional: REDUCE model (defaults to long-fast/LED for final combine)
+summary_max_length: 160  # Maximum summary length in tokens (default: 160)
+summary_min_length: 60  # Minimum summary length in tokens (default: 60)
+summary_chunk_size: null  # Optional: token chunk size (defaults to 2048)
+summary_device: null  # Optional: cuda, mps, cpu, or null for auto-detection
+summary_cache_dir: null  # Optional: custom cache directory for transformer models (default: ~/.cache/huggingface/hub)
+save_cleaned_transcript: true  # Save cleaned transcript to .cleaned.txt file (default: true)
 ```
 
 ### Virtual Environment
 
 ```bash
-bash setup_venv.sh
+bash scripts/setup_venv.sh
 source .venv/bin/activate
 
 # install project into the virtual environment
@@ -197,24 +282,24 @@ python -m podcast_scraper.cli <rss_url> [options]
 
 ### Docker
 
+The Docker image uses the service API, which requires a configuration file:
+
 ```bash
-docker build -t podcast-scraper -f podcast_scraper/Dockerfile podcast_scraper
+docker build -t podcast-scraper -f docker/Dockerfile .
 
 docker run --rm \
   -v "$(pwd)/output_docker:/app/output" \
+  -v "$(pwd)/config.yaml:/app/config.yaml:ro" \
   podcast-scraper \
-  https://example.com/feed.xml --output-dir /app/output
+  --config /app/config.yaml
 ```
 
-Mount configuration:
+The service API is optimized for non-interactive use and provides structured exit codes:
 
-```bash
-docker run --rm \
-  -v "$(pwd)/output_docker:/app/output" \
-  -v "$(pwd)/podcast_scraper/config.yaml:/app/config.yaml:ro" \
-  podcast-scraper \
-  --config /app/config.yaml --output-dir /app/output
-```
+- `0`: Success
+- `1`: Error (configuration or runtime)
+
+**Note:** The service API only accepts configuration files (no CLI arguments). Ensure your `config.yaml` includes all necessary settings like `rss_url` and `output_dir`.
 
 ## Python API
 
@@ -243,6 +328,8 @@ Advanced helpers remain accessible in submodules (`podcast_scraper.downloader.fe
 - `--user-agent` (str): User-Agent header
 - `--timeout` (int): Request timeout in seconds (default: 20)
 - `--delay-ms` (int): Delay between requests in milliseconds
+- `--log-file` (path): Path to log file (logs written to both console and file)
+- `--log-level` (str): Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`, default: `INFO`)
 - `--transcribe-missing`: Use Whisper when no transcript is provided
 - `--whisper-model` (str): Whisper model (`tiny`, `base`, `small`, `medium`, `large`, `large-v2`, `large-v3`, `tiny.en`, `base.en`, `small.en`, `medium.en`, `large.en`)
 - `--screenplay`: Format Whisper transcript as screenplay
@@ -258,9 +345,24 @@ Advanced helpers remain accessible in submodules (`podcast_scraper.downloader.fe
 - `--generate-metadata`: Generate metadata documents alongside transcripts
 - `--metadata-format` (str): Format for metadata files (`json` or `yaml`, default: `json`)
 - `--metadata-subdirectory` (str): Store metadata files in subdirectory (default: same as transcripts)
+- `--generate-summaries`: Generate summaries for episodes (requires `torch` and `transformers`)
+- `--summary-provider` (str): Summary provider (`local`, `openai`, `anthropic`, default: `local`)
+- `--summary-model` (str): MAP model for chunk summarization (default: `bart-large`, fast and efficient)
+- `--summary-reduce-model` (str): REDUCE model for final combine (default: `long-fast`/LED, accurate and long-context)
+- `--summary-max-length` (int): Maximum summary length in tokens (default: 160)
+- `--summary-min-length` (int): Minimum summary length in tokens (default: 60)
+- `--summary-device` (str): Device for summarization (`cuda`, `mps`, `cpu`, `auto`, default: auto-detect)
+- `--summary-chunk-size` (int): Chunk size for long transcripts in tokens (default: 2048)
+- `--save-cleaned-transcript`: Save cleaned transcript to .cleaned.txt file (default: enabled)
+- `--no-save-cleaned-transcript`: Don't save cleaned transcript
+- `--summary-cache-dir` (str): Custom cache directory for transformer models (default: `~/.cache/huggingface/hub`)
+- `--cache-info`: Show Hugging Face model cache information and exit
+- `--prune-cache`: Remove all cached transformer models to free disk space
+- `--cache-dir` (str): Custom cache directory for transformer models (alias for `--summary-cache-dir`)
 - `--run-id` (str): Subfolder/run identifier (`auto` to timestamp)
 - `--workers` (int): Concurrent download workers (default derives from CPU count)
-- `--skip-existing`: Skip episodes with existing output
+- `--skip-existing`: Skip episodes with existing output (transcripts/metadata). When combined with `--generate-summaries`, still generates summaries from existing transcripts.
+- `--reuse-media`: Reuse existing media files instead of re-downloading (for faster testing). Media files are kept after transcription instead of being deleted.
 - `--clean-output`: Remove output directory/run folder before processing
 - `--dry-run`: Log planned work without writing files
 
@@ -272,11 +374,14 @@ Advanced helpers remain accessible in submodules (`podcast_scraper.downloader.fe
 - **Language-aware processing**: The `--language` flag controls both Whisper model selection (preferring `.en` variants for English) and NER model selection.
 - **spaCy models**: Language models are automatically downloaded when needed (similar to Whisper). The default model (`en_core_web_sm` for English) will be downloaded on first use. You can also manually download models if needed.
 - **Metadata generation**: When enabled (`--generate-metadata`), generates comprehensive metadata documents (JSON/YAML) for each episode containing feed-level and episode-level information, detected speaker names, transcript sources, and processing metadata. Metadata files are database-friendly (snake_case fields, ISO 8601 dates) and can be directly loaded into PostgreSQL, MongoDB, Elasticsearch, or ClickHouse.
+- **Episode summarization**: When enabled (`--generate-summaries`), generates concise summaries from episode transcripts using a hybrid map-reduce strategy with local transformer models. **Default configuration uses BART-large for MAP** (fast, efficient chunk summarization) and **LED (long-fast) for REDUCE** (accurate, long-context final combine). This hybrid approach is widely used in production systems. The map phase chunks long transcripts and summarizes each chunk. The reduce phase intelligently combines summaries: single-pass abstractive (≤800 tokens), mini map-reduce (800-4000 tokens, fully abstractive with re-chunking), or extractive selection (>4000 tokens). The mini map-reduce approach re-chunks combined summaries into 3-5 sections (650 words each), summarizes each section, then performs a final abstractive reduce. Summaries are stored in metadata documents and include model information, word count, and generation timestamp. Requires `torch` and `transformers` dependencies. Supports GPU acceleration via CUDA (NVIDIA) or MPS (Apple Silicon). Both MAP and REDUCE models are configurable via `--summary-model` and `--summary-reduce-model`. Transformer models are automatically cached locally (default: `~/.cache/huggingface/hub/`) and reused across runs. Use `--cache-info` to check cache size and `--prune-cache` to free disk space.
 - Progress integrates with `tqdm` by default; packages embedding the library can override via `podcast_scraper.set_progress_factory`.
 - Whisper transcription requires `ffmpeg` to be installed on your system.
 - Downloads run in parallel (with configurable worker count); Whisper transcription remains sequential.
 - Automatic retries handle transient HTTP failures (429/5xx, connect/read errors).
 - Combine `--skip-existing` to resume long runs, `--clean-output` for fresh runs, and `--dry-run` to inspect planned work.
+- Use `--reuse-media` to skip re-downloading media files during testing (files are kept in `.tmp_media` directory).
+- When testing summarization, combine `--skip-existing` with `--generate-summaries` to reuse existing transcripts and generate summaries without re-downloading or re-transcribing.
 
 ## Project Intent & Fair Use Notice
 

@@ -13,7 +13,6 @@ if PROJECT_ROOT not in sys.path:
 # Import shared test utilities from conftest
 # Note: pytest automatically loads conftest.py, but we need explicit imports for unittest
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -213,7 +212,7 @@ class TestIntegrationMain(unittest.TestCase):
                     self.assertEqual(exit_code, 0)
                     self.assertTrue(observed_timeouts)
                     self.assertTrue(all(timeout == 10 for timeout in observed_timeouts))
-                    mock_apply.assert_called_with("DEBUG")
+                    mock_apply.assert_called_with("DEBUG", None)
 
     def test_dry_run_skips_downloads(self):
         rss_url = "https://example.com/feed.xml"
@@ -245,9 +244,9 @@ class TestIntegrationMain(unittest.TestCase):
                 self.assertEqual(exit_code, 0)
                 self.assertFalse(os.path.exists(expected_path))
                 log_text = "\n".join(log_ctx.output)
-                self.assertIn(
-                    "Dry run complete. transcripts_planned=1 (direct=1, whisper=0)", log_text
-                )
+                self.assertIn("Dry run complete. transcripts_planned=1", log_text)
+                self.assertIn("Direct downloads planned: 1", log_text)
+                self.assertIn("Whisper transcriptions planned: 0", log_text)
                 self.assertIn("would save as", log_text)
 
     def test_dry_run_performs_speaker_detection(self):

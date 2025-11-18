@@ -2,12 +2,19 @@
 
 Welcome! This site captures the knowledge required to understand, operate, and extend the `podcast_scraper` project.
 
+## Quick Links
+
+- **[API Reference](api/API_REFERENCE.md)** - Complete public API documentation with examples
+- **[Architecture](ARCHITECTURE.md)** - High-level system design and module responsibilities
+- **[API Boundaries](api/API_BOUNDARIES.md)** - API design principles and boundaries
+
 ## What you will find here
 
-- **Architecture overview** — High-level system design in `ARCHITECTURE.md`.
-- **Product Requirements (PRDs)** — Intent and functional expectations for major capabilities (transcript acquisition, Whisper fallback, user interfaces).
-- **Requests for Comment (RFCs)** — Technical specifications for the modules that implement each capability.
-- **Guides** — API comparison and migration references to help teams upgrade between releases.
+- **API Reference** — Complete documentation of all public functions, classes, and their parameters
+- **Architecture overview** — High-level system design in `ARCHITECTURE.md`
+- **Product Requirements (PRDs)** — Intent and functional expectations for major capabilities (transcript acquisition, Whisper fallback, user interfaces)
+- **Requests for Comment (RFCs)** — Technical specifications for the modules that implement each capability
+- **Guides** — API migration references and API boundaries documentation
 
 ## Getting Started
 

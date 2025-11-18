@@ -32,7 +32,10 @@ This command executes the same steps as the GitHub Actions workflow:
 - `mypy` type checking
 - `bandit` + `pip-audit` security scans
 - `pytest` with coverage report
-- `python -m build` packaging sanity check
+- `mkdocs build` documentation build (outputs to `.build/site/`)
+- `python -m build` packaging sanity check (outputs to `.build/dist/`)
+
+> **Note:** Build artifacts (distributions, documentation site, coverage reports) are organized in `.build/` directory. Test outputs are stored in `.test_outputs/`. Use `make clean` to remove all build artifacts.
 
 ## 3. Common commands
 

@@ -4,16 +4,20 @@ site_url: https://chipi.github.io/podcast_scraper/
 repo_url: https://github.com/chipi/podcast_scraper
 repo_name: chipi/podcast_scraper
 docs_dir: docs
+site_dir: .build/site
 nav:
   - Home: index.md
   - Architecture: ARCHITECTURE.md
   - Testing Strategy: TESTING_STRATEGY.md
   - Product Requirements:
+      - PRD Overview: prd/index.md
       - PRD-001 Transcript Acquisition Pipeline: prd/PRD-001-transcript-pipeline.md
       - PRD-002 Whisper Fallback Transcription: prd/PRD-002-whisper-fallback.md
       - PRD-003 User Interfaces & Configuration: prd/PRD-003-user-interface-config.md
       - PRD-004 Per-Episode Metadata Generation: prd/PRD-004-metadata-generation.md
+      - PRD-005 Episode Summarization: prd/PRD-005-episode-summarization.md
   - RFCs:
+      - RFC Overview: rfc/index.md
       - RFC-001 Workflow Orchestration: rfc/RFC-001-workflow-orchestration.md
       - RFC-002 RSS Parsing & Episode Modeling: rfc/RFC-002-rss-parsing.md
       - RFC-003 Transcript Download Processing: rfc/RFC-003-transcript-downloads.md
@@ -25,9 +29,22 @@ nav:
       - RFC-009 Progress Reporting Integration: rfc/RFC-009-progress-integration.md
       - RFC-010 Automatic Speaker Name Detection: rfc/RFC-010-speaker-name-detection.md
       - RFC-011 Per-Episode Metadata Generation: rfc/RFC-011-metadata-generation.md
-  - Guides:
-      - API Comparison (v1 → v2): API_COMPARISON.md
-      - API Migration Guide: API_MIGRATION_GUIDE.md
+      - RFC-012 Episode Summarization: rfc/RFC-012-episode-summarization.md
+  - API:
+      - API Reference: api/API_REFERENCE.md
+      - API Boundaries: api/API_BOUNDARIES.md
+      - API Migration Guide: api/API_MIGRATION_GUIDE.md
+  - Releases:
+      - v2.3.0 - Episode Summarization & Public API: releases/RELEASE_v2.3.0.md
+      - v2.2.0 - Metadata Generation & Code Quality: releases/RELEASE_v2.2.0.md
+      - v2.1.0 - Automatic Speaker Detection: releases/RELEASE_v2.1.0.md
+      - v2.0.1 - Bug Fixes: releases/RELEASE_v2.0.1.md
+      - v2.0.0 - Modular Architecture: releases/RELEASE_v2.0.0.md
+  - Work In Progress:
+      - WIP Overview: wip/WIP_README.md
+      - Architecture Modularity Assessment: wip/ARCHITECTURE_MODULARITY_ASSESSMENT.md
+      - Modularity Quick Reference: wip/MODULARITY_QUICK_REFERENCE.md
+      - Refactoring Opportunities: wip/REFACTORING_OPPORTUNITIES.md
   - Legal Notice: legal.md
 theme:
   name: material
