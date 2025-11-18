@@ -227,7 +227,7 @@ def _intercept_whisper_progress(progress_reporter: progress.ProgressReporter):
 
     original_tqdm = tqdm.tqdm
 
-    class InterceptedTqdm(original_tqdm):  # type: ignore[misc]
+    class InterceptedTqdm(original_tqdm):  # type: ignore[misc,valid-type]
         """Custom tqdm that suppresses output and forwards progress to our reporter."""
 
         def __init__(self, *args: Any, **kwargs: Any) -> None:

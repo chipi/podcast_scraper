@@ -980,8 +980,9 @@ def _prepare_chunks(
     )
 
     total_words = len(text.split())
-    # type: ignore[attr-defined]
-    total_tokens = len(model.tokenizer.encode(text, add_special_tokens=False))
+    total_tokens = len(
+        model.tokenizer.encode(text, add_special_tokens=False)  # type: ignore[attr-defined]
+    )
 
     if use_word_chunking:
         logger.info(
@@ -1064,8 +1065,9 @@ def summarize_long_text(
     input_chars = len(text)
     input_words = len(text.split())
     if model.tokenizer:
-        # type: ignore[attr-defined]
-        input_tokens = len(model.tokenizer.encode(text, add_special_tokens=False))
+        input_tokens = len(
+            model.tokenizer.encode(text, add_special_tokens=False)  # type: ignore[attr-defined]
+        )
     else:
         input_tokens = input_chars // CHARS_PER_TOKEN_ESTIMATE
 
@@ -1128,8 +1130,9 @@ def summarize_long_text(
     chunk_sizes_words = [len(chunk.split()) for chunk in chunks]
     if model.tokenizer:
         chunk_sizes_tokens = [
-            # type: ignore[attr-defined]
-            len(model.tokenizer.encode(chunk, add_special_tokens=False))
+            len(
+                model.tokenizer.encode(chunk, add_special_tokens=False)  # type: ignore[attr-defined]
+            )
             for chunk in chunks
         ]
     else:

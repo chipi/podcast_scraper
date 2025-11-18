@@ -314,6 +314,7 @@ Here's a practical plan:
    - Outputs JSON report for regression testing
 
 4. **Baseline**: Run evaluation with default BART-large (MAP) + LED (REDUCE):
+
    ```bash
    python scripts/eval_summaries.py \
        --model bart-large \
@@ -322,11 +323,14 @@ Here's a practical plan:
    ```
 
 5. **Compare models**: When you change models or settings, re-run on same episodes:
+
    ```bash
    python scripts/eval_summaries.py \
        --config config_pegasus.yaml \
        --output results/pegasus_run.json
    ```
+
+
    Compare ROUGE scores, generation times, and check pass rates.
 
 6. **Regression testing**: Store baseline JSON files in version control and compare:

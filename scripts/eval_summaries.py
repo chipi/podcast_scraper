@@ -464,7 +464,8 @@ def main() -> None:
 
     # Load config or create from arguments
     if args.config:
-        cfg = config.load_config_file(args.config)
+        cfg_dict = config.load_config_file(args.config)
+        cfg = config.Config(**cfg_dict)
     else:
         # Use --map-model if provided, fallback to --model for backward compatibility
         map_model_arg = args.map_model or args.model
@@ -473,7 +474,7 @@ def main() -> None:
         # If models not provided, defaults will be applied by
         # select_summary_model/select_reduce_model
         cfg = config.Config(
-            rss_url="",  # Not needed for evaluation
+            rss="",  # Not needed for evaluation (using alias)
             generate_summaries=True,
             summary_model=map_model_arg,  # None means use default (bart-large)
             summary_reduce_model=args.reduce_model,  # None means use default (long-fast)
