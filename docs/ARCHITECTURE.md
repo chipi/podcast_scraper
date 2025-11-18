@@ -4,17 +4,19 @@
 
 - Provide a resilient pipeline that collects podcast episode transcripts from RSS feeds and fills gaps via Whisper transcription.
 - Offer both CLI and Python APIs with a single configuration surface (`Config`) and deterministic filesystem layout.
-- Keep the public surface area small (`Config`, `load_config_file`, `run_pipeline`, `cli.main`) while exposing well-factored submodules for advanced use.
+- Keep the public surface area small (`Config`, `load_config_file`, `run_pipeline`, `service.run`, `service.run_from_config_file`, `cli.main`) while exposing well-factored submodules for advanced use.
+- Provide a service API (`service.py`) optimized for non-interactive use (daemons, process managers) with structured error handling and exit codes.
 
 ## High-Level Flow
 
 1. **Entry**: `podcast_scraper.cli.main` parses CLI args (optionally merging JSON/YAML configs) into a validated `Config` object and applies global logging preferences.
-2. **Run orchestration**: `workflow.run_pipeline` coordinates the end-to-end job: output setup, RSS acquisition, episode materialization, transcript download, optional Whisper transcription, optional metadata generation, and cleanup.
+2. **Run orchestration**: `workflow.run_pipeline` coordinates the end-to-end job: output setup, RSS acquisition, episode materialization, transcript download, optional Whisper transcription, optional metadata generation, optional summarization, and cleanup.
 3. **Episode handling**: For each `Episode`, `episode_processor.process_episode_download` either saves an existing transcript or enqueues media for Whisper.
 4. **Speaker detection** (RFC-010): When automatic speaker detection is enabled, host names are extracted from RSS author tags (channel-level `<author>`, `<itunes:author>`, `<itunes:owner>`) as the primary source, falling back to NER extraction from feed metadata if no author tags exist. Guest names are extracted from episode-specific metadata (titles and descriptions) using Named Entity Recognition (NER) with spaCy. Manual speaker names are only used as fallback when detection fails.
 5. **Transcription**: When Whisper fallback is enabled, `episode_processor.download_media_for_transcription` downloads media to a temp area and `episode_processor.transcribe_media_to_text` persists Whisper output using deterministic naming. Detected speaker names are integrated into screenplay formatting when enabled.
 6. **Metadata generation** (PRD-004/RFC-011): When enabled, per-episode metadata documents are generated alongside transcripts, capturing feed-level and episode-level information, detected speaker names, and processing metadata in JSON/YAML format.
-7. **Progress/UI**: All long-running operations report progress through the pluggable factory in `progress.py`, defaulting to `tqdm` in the CLI.
+7. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using local transformer models (BART, PEGASUS, LED) with a hybrid map-reduce strategy. Transcripts are first cleaned (removes timestamps, generic speaker tags, sponsor blocks) before summarization. The map phase (default: BART-large) chunks long transcripts and summarizes each chunk efficiently. The reduce phase (default: LED/long-fast) combines summaries using single-pass abstractive (≤800 tokens), mini map-reduce (800-4000 tokens, fully abstractive with re-chunking), or extractive selection (>4000 tokens). The mini map-reduce approach re-chunks combined summaries into 3-5 smaller sections (650 words each), summarizes each section, then performs a final abstractive reduce. Summaries are stored in metadata documents and include model information, word count, and generation timestamp. When `save_cleaned_transcript` is enabled (default: `true`), cleaned transcripts are saved to `.cleaned.txt` files alongside formatted transcripts for external testing and validation. Requires `torch` and `transformers` dependencies. Supports GPU acceleration via CUDA (NVIDIA) or MPS (Apple Silicon).
+8. **Progress/UI**: All long-running operations report progress through the pluggable factory in `progress.py`, defaulting to `tqdm` in the CLI.
 
 ### Pipeline Flow Diagram
 
@@ -41,7 +43,11 @@ flowchart TD
     SaveTranscript --> GenerateMetadata{Metadata<br/>Generation?}
     GenerateMetadata -->|Yes| CreateMetadata[Generate Metadata JSON/YAML]
     GenerateMetadata -->|No| Cleanup
-    CreateMetadata --> Cleanup[Cleanup Temp Files]
+    CreateMetadata --> GenerateSummary{Summarization<br/>Enabled?}
+    GenerateSummary -->|Yes| Summarize[Generate Summary & Takeaways<br/>Local Transformer Models]
+    GenerateSummary -->|No| Cleanup
+    Summarize --> AddSummaryToMetadata[Add Summary to Metadata]
+    AddSummaryToMetadata --> Cleanup[Cleanup Temp Files]
     Cleanup --> End([Complete])
     
     style Start fill:#e1f5ff
@@ -53,7 +59,8 @@ flowchart TD
 
 ## Module Responsibilities
 
-- `cli.py`: Parse/validate CLI arguments, integrate config files, set up progress reporting, trigger `run_pipeline`.
+- `cli.py`: Parse/validate CLI arguments, integrate config files, set up progress reporting, trigger `run_pipeline`. Optimized for interactive command-line use.
+- `service.py`: Service API for programmatic/daemon use. Provides `service.run()` and `service.run_from_config_file()` functions that return structured `ServiceResult` objects. Works exclusively with configuration files (no CLI arguments), optimized for non-interactive use (supervisor, systemd, etc.). Entry point: `python -m podcast_scraper.service --config config.yaml`.
 - `config.py`: Immutable Pydantic model representing all runtime options; JSON/YAML loader with strict validation and normalization helpers. Includes language configuration, NER settings, and speaker detection flags (RFC-010).
 - `workflow.py`: Pipeline coordinator that orchestrates directory prep, RSS parsing, download concurrency, Whisper lifecycle, speaker detection coordination, and cleanup.
 - `rss_parser.py`: Safe RSS/XML parsing, discovery of transcript/enclosure URLs, and creation of `Episode` models.
@@ -62,9 +69,10 @@ flowchart TD
 - `filesystem.py`: Filename sanitization, output directory derivation, run suffix logic, and helper utilities for Whisper output paths.
 - `whisper_integration.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names.
 - `speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency.
+- `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy: (1) **MAP phase** (default: BART-large): chunks transcript into manageable pieces (word-based for encoder-decoder models, token-based for others) and summarizes each chunk efficiently, (2) **REDUCE phase** (default: LED/long-fast): combines chunk summaries using a three-tier approach: single abstractive reduce (≤800 tokens), mini map-reduce (800-4000 tokens, fully abstractive with re-chunking into 3-5 sections), or extractive selection (>4000 tokens). The mini map-reduce approach re-chunks combined summaries into smaller sections (650 words each), summarizes each section, then performs a final abstractive reduce. This hybrid BART→LED approach is widely used in production systems for optimal balance of speed (MAP) and accuracy (REDUCE). Supports GPU acceleration via CUDA (NVIDIA) or MPS (Apple Silicon). Both MAP and REDUCE models are configurable via `summary_model` and `summary_reduce_model` config fields. Requires `torch` and `transformers` dependencies (optional). Models are automatically cached locally (default: `~/.cache/huggingface/hub/`) and reused across runs. Provides cache management utilities (`get_cache_size`, `prune_cache`) accessible via CLI (`--cache-info`, `--prune-cache`). Includes transcript cleaning functionality (`clean_transcript`) that removes timestamps, generic speaker tags, sponsor blocks, and collapses blank lines. When `save_cleaned_transcript` is enabled (default: `true`), cleaned transcripts are saved to `.cleaned.txt` files alongside formatted transcripts for external testing and validation.
 - `progress.py`: Minimal global progress publishing API so callers can swap in alternative UIs.
 - `models.py`: Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob`) shared across modules. May be extended to include detected speaker metadata.
-- `metadata.py` (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, and processing metadata in structured JSON/YAML format. Opt-in feature for backwards compatibility.
+- `metadata.py` (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, processing metadata, and optional summaries in structured JSON/YAML format. When summarization is enabled, reads formatted transcripts (screenplay or plain), cleans them using `summarizer.clean_transcript()`, and optionally saves cleaned versions to `.cleaned.txt` files. Opt-in feature for backwards compatibility.
 
 ### Module Dependencies Diagram
 
@@ -92,6 +100,7 @@ graph TB
         Whisper[whisper_integration.py]
         SpeakerDetect[speaker_detection.py]
         Metadata[metadata.py]
+        Summarizer[summarizer.py]
     end
     
     CLI --> Config
@@ -103,6 +112,7 @@ graph TB
     Workflow --> Whisper
     Workflow --> SpeakerDetect
     Workflow --> Metadata
+    Workflow --> Summarizer
     Workflow --> Filesystem
     Workflow --> Models
     Workflow --> Progress
@@ -112,7 +122,9 @@ graph TB
     EpisodeProc --> Models
     RSSParser --> Models
     Whisper --> SpeakerDetect
+    Metadata --> Summarizer
     Metadata --> Models
+    Summarizer --> Models
     SpeakerDetect --> Models
     
     style CLI fill:#e1f5ff
@@ -131,9 +143,11 @@ graph TB
 - **Dry-run and resumability**: `--dry-run` walks the entire plan without touching disk, while `--skip-existing` short-circuits work per episode, making repeated runs idempotent.
 - **Pluggable progress/UI**: A narrow `ProgressFactory` abstraction lets embedding applications replace the default `tqdm` progress without touching business logic.
 - **Optional Whisper dependency**: Whisper is imported lazily and guarded so environments without GPU support or `openai-whisper` can still run transcript-only workloads.
+- **Optional summarization dependency** (PRD-005/RFC-012): Summarization requires `torch` and `transformers` dependencies and is imported lazily. When dependencies are unavailable, summarization is gracefully skipped. Models are automatically selected based on available hardware (MPS for Apple Silicon, CUDA for NVIDIA GPUs, CPU fallback), with memory-efficient options for systems like Apple M4 Pro. The summarization pipeline uses a map-reduce strategy: (1) Map phase chunks long transcripts and summarizes each chunk, (2) Reduce phase intelligently combines summaries using single-pass abstractive (≤800 tokens), mini map-reduce (800-4000 tokens, fully abstractive with re-chunking into 3-5 sections of 650 words each), or extractive selection (>4000 tokens) based on combined summary size. The mini map-reduce approach ensures fully abstractive processing for medium-sized combined summaries by re-chunking them into smaller sections, summarizing each section, then performing a final abstractive reduce. Transformer models are automatically cached locally (default: `~/.cache/huggingface/hub/` for newer transformers, `~/.cache/huggingface/transformers/` for older versions) and reused across runs to avoid re-downloading. Cache management is available via CLI (`--cache-info`, `--prune-cache`) and programmatically via `summarizer.get_cache_size()` and `summarizer.prune_cache()`.
 - **Language-aware processing** (RFC-010): A single `language` configuration drives both Whisper model selection (preferring English-only `.en` variants) and NER model selection (e.g., `en_core_web_sm`), ensuring consistent language handling across the pipeline.
 - **Automatic speaker detection** (RFC-010): Named Entity Recognition extracts speaker names from episode metadata transparently. Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails, not as override. spaCy is a required dependency for speaker detection.
 - **Host/guest distinction**: Host detection prioritizes RSS author tags (channel-level only) as the most reliable source, falling back to NER extraction from feed metadata when author tags are unavailable. Guests are always detected from episode-specific metadata using NER, ensuring accurate speaker labeling in Whisper screenplay output.
+- **Local-first summarization** (PRD-005/RFC-012): Summarization defaults to local transformer models for privacy and cost-effectiveness. API-based providers (OpenAI, Anthropic) are supported in configuration but not yet implemented. Long transcripts are handled via chunking strategies, and memory optimization is applied for GPU backends (CUDA/MPS). Models are automatically cached and reused across runs, with cache management utilities available via CLI and programmatic APIs.
 
 ### Episode Processing Flow
 
@@ -156,8 +170,11 @@ flowchart LR
     Transcribe --> Format[Format Screenplay<br/>with Speakers]
     Format --> SaveFile
     SaveFile --> Metadata{Generate<br/>Metadata?}
-    Metadata -->|Yes| WriteMeta[Write Metadata File]
+    Metadata -->|Yes| GenerateSummary{Summarization<br/>Enabled?}
     Metadata -->|No| Complete[Complete]
+    GenerateSummary -->|Yes| Summarize[Generate Summary & Takeaways]
+    GenerateSummary -->|No| WriteMeta
+    Summarize --> WriteMeta[Write Metadata File<br/>with Summary]
     WriteMeta --> Complete
     Skip --> Complete
     
@@ -203,7 +220,7 @@ flowchart TD
 
 ## Constraints and Assumptions
 
-- Python 3.10+ with third-party packages: `requests`, `tqdm`, `defusedxml`, `platformdirs`, `pydantic`, `PyYAML`, `spacy` (required for speaker detection), and optionally `openai-whisper` + `ffmpeg` when transcription is required.
+- Python 3.10+ with third-party packages: `requests`, `tqdm`, `defusedxml`, `platformdirs`, `pydantic`, `PyYAML`, `spacy` (required for speaker detection), and optionally `openai-whisper` + `ffmpeg` when transcription is required, and optionally `torch` + `transformers` when summarization is required.
 - Network-facing operations assume well-formed HTTPS endpoints; malformed feeds raise early during parsing to avoid partial state.
 - Whisper transcription supports multiple languages via `language` configuration, with English (`"en"`) as the default. Model selection automatically prefers `.en` variants for English content. Transcription remains sequential by design; concurrent transcription is intentionally out of scope due to typical hardware limits.
 - Speaker name detection via NER (RFC-010) requires spaCy. When automatic detection fails, the system falls back to manual speaker names (if provided) or default `["Host", "Guest"]` labels.
@@ -224,6 +241,7 @@ flowchart TD
     Config --> Whisper[whisper_integration]
     Config --> SpeakerDetect[speaker_detection]
     Config --> Metadata[metadata]
+    Config --> Summarizer[summarizer]
     
     style Input fill:#e1f5ff
     style Config fill:#fff3cd
@@ -236,7 +254,7 @@ flowchart TD
 - Transcript filenames follow `<####> - <episode_title>[ _<run_suffix>].<ext>` with extensions inferred from declared types, HTTP headers, or URL heuristics.
 - Whisper output names append the Whisper model/run identifier to differentiate multiple experimental runs inside the same base directory. Screenplay formatting uses detected speaker names when available.
 - Temporary media downloads land in `<output>/ .tmp_media/` and always get cleaned up (best effort) after transcription completes.
-- Episode metadata documents (per PRD-004/RFC-011) are generated when `generate_metadata` is enabled, storing detected speaker names, feed information, transcript sources, and other episode details alongside transcripts in JSON/YAML format for downstream use cases.
+- Episode metadata documents (per PRD-004/RFC-011) are generated when `generate_metadata` is enabled, storing detected speaker names, feed information, transcript sources, and other episode details alongside transcripts in JSON/YAML format for downstream use cases. When summarization is enabled, metadata documents include summary and key takeaways fields with model information and generation timestamps.
 
 ### Filesystem Layout
 
@@ -280,10 +298,12 @@ graph TD
 - **Speaker detection** (RFC-010): NER implementation is modular and can be extended with custom heuristics, additional entity types, or alternative NLP libraries. Configuration allows disabling detection behavior or providing manual fallback names.
 - **Language support**: Language configuration drives both Whisper and NER model selection, enabling multi-language support through consistent configuration. New languages can be added by extending model selection logic and spaCy model support.
 - **Metadata generation** (PRD-004/RFC-011): Metadata document generation is opt-in and can be extended with additional fields or alternative output formats. The schema is versioned to support future evolution.
+- **Summarization** (PRD-005/RFC-012): Summarization is opt-in and integrated with metadata generation. Local transformer models are preferred for privacy and cost-effectiveness, with automatic hardware-aware model selection. The implementation supports multiple model architectures (BART, DistilBART) and can be extended with additional models or API-based providers. Long transcript handling via chunking strategies ensures scalability. Models are automatically cached locally and reused across runs. Cache management utilities (`get_cache_size`, `prune_cache`, `format_cache_size`) are available via CLI (`--cache-info`, `--prune-cache`) and programmatically for disk space management.
 
 ## Testing Notes
 
 - `tests/test_podcast_scraper.py` acts as an integration-focused suite, simulating CLI usage, error cases, transcript selection heuristics, and Whisper fallbacks via mocks. This keeps the public API stable and documents expected behaviors for future refactors.
 - Speaker detection tests (RFC-010) should cover RSS author tag extraction, NER extraction scenarios, host/guest distinction, manual fallback behavior, and integration with Whisper screenplay formatting.
 - Metadata generation tests (PRD-004/RFC-011) should cover JSON/YAML output formats, schema validation, file naming conventions, and integration with the episode processing pipeline.
+- Summarization tests (PRD-005/RFC-012) should cover model selection logic, device detection (MPS/CUDA/CPU), summary generation, key takeaways extraction, chunking for long transcripts, error handling (OOM, missing dependencies), memory optimization, and integration with metadata generation.
 - See `docs/TESTING_STRATEGY.md` for comprehensive testing requirements, patterns, and infrastructure.

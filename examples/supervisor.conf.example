@@ -1,0 +1,32 @@
+; Example supervisor configuration for podcast_scraper service
+; Install supervisor: pip install supervisor
+; Start supervisor: supervisord -c supervisor.conf.example
+; View status: supervisorctl -c supervisor.conf.example status
+; View logs: supervisorctl -c supervisor.conf.example tail -f podcast_scraper
+
+[program:podcast_scraper]
+command=python -m podcast_scraper.service --config /path/to/config.yaml
+directory=/path/to/working/directory
+user=your_username
+autostart=true
+autorestart=true
+startretries=3
+startsecs=10
+stopwaitsecs=30
+stdout_logfile=/var/log/podcast_scraper/stdout.log
+stderr_logfile=/var/log/podcast_scraper/stderr.log
+stdout_logfile_maxbytes=10MB
+stderr_logfile_maxbytes=10MB
+stdout_logfile_backups=5
+stderr_logfile_backups=5
+environment=PYTHONUNBUFFERED="1"
+
+; Optional: Run on a schedule using cron-like syntax
+; [program:podcast_scraper_scheduled]
+; command=python -m podcast_scraper.service --config /path/to/config.yaml
+; directory=/path/to/working/directory
+; user=your_username
+; autostart=false
+; autorestart=false
+; ; Use cron to trigger this: 0 2 * * * supervisorctl -c supervisor.conf.example start podcast_scraper_scheduled
+

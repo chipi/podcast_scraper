@@ -1,0 +1,28 @@
+[Unit]
+Description=Podcast Scraper Service
+After=network.target
+
+[Service]
+Type=oneshot
+User=your_username
+WorkingDirectory=/path/to/working/directory
+ExecStart=/usr/bin/python3 -m podcast_scraper.service --config /path/to/config.yaml
+StandardOutput=journal
+StandardError=journal
+
+; For periodic execution, use a systemd timer instead:
+; Create podcast-scraper.timer:
+; [Unit]
+; Description=Run Podcast Scraper Daily
+; Requires=podcast-scraper.service
+;
+; [Timer]
+; OnCalendar=daily
+; OnCalendar=02:00
+;
+; [Install]
+; WantedBy=timers.target
+
+[Install]
+WantedBy=multi-user.target
+

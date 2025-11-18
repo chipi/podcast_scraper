@@ -16,7 +16,23 @@ speaker_names:
   - Host
   - Guest
 run_id: experiment
+log_file: null  # Optional: path to log file (logs written to both console and file)
+skip_existing: false  # Skip episodes with existing output (transcripts/metadata)
+reuse_media: false  # Reuse existing media files instead of re-downloading (for faster testing)
 dry_run: false
 generate_metadata: true  # Generate metadata documents alongside transcripts
 metadata_format: json  # json or yaml (json recommended for database ingestion)
 metadata_subdirectory: null  # Optional subdirectory for metadata files (null = same as transcripts)
+
+# Summarization settings (requires torch and transformers dependencies)
+generate_summaries: true  # Generate summaries for episodes
+summary_provider: local  # local, openai, or anthropic (only 'local' currently implemented)
+summary_model: null  # Optional: MAP model key (e.g., "bart-large", "bart-small", "fast") or direct model ID (e.g., "facebook/bart-large-cnn"). Defaults to "bart-large" for fast chunk summarization
+summary_reduce_model: null  # Optional: REDUCE model key (e.g., "long-fast", "long") or direct model ID (e.g., "allenai/led-base-16384"). Defaults to "long-fast" (LED) for accurate final combine
+summary_max_length: 150  # Maximum summary length in tokens
+summary_min_length: 30  # Minimum summary length in tokens
+summary_device: null  # Optional: cuda, mps, cpu, or null for auto-detection
+summary_chunk_size: null  # Optional: chunk size for long transcripts in tokens (null = model max length)
+summary_cache_dir: null  # Optional: custom cache directory for transformer models (default: ~/.cache/huggingface/hub)
+summary_prompt: null  # Optional: custom prompt/instruction to guide summarization (default: built-in prompt)
+save_cleaned_transcript: true  # Save cleaned transcript to separate file (e.g., episode.cleaned.txt) for testing (default: true)

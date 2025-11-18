@@ -1,12 +1,33 @@
+# Build artifacts
+.build/
 podcast_scraper.egg-info/
+
+# Virtual environment
 .venv/
+
+# Test outputs
+.test_outputs/
 output_*/
+
+# Python cache
 *.pyc
 __pycache__/
+
+# OS files
 .DS_Store
+
+# Coverage
+.coverage
+
+# IDE
+.vscode/
+
+# Example/test files
 examples/config.lenny.yaml
 examples.txt
-.coverage
-/dist/
-.vscode/
-site/
+
+# Evaluation dataset (contains personal transcripts and reference summaries)
+data/eval/
+
+# Evaluation results
+results/

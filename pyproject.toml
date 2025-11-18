@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "podcast-scraper"
-version = "2.2.0"
+version = "2.3.0"
 description = "Download podcast transcripts from RSS feeds with optional Whisper fallback"
 readme = "README.md"
 authors = [{name = "Podcast Scraper Maintainers"}]
@@ -19,6 +19,11 @@ dependencies = [
   "PyYAML>=6.0",
   "openai-whisper>=20231117",
   "spacy>=3.7.0",
+  "torch>=2.0.0",
+  "transformers>=4.30.0",
+  "sentencepiece>=0.1.99",
+  "accelerate>=0.20.0",
+  "protobuf>=3.20.0",
 ]
 
 [tool.setuptools]
@@ -36,6 +41,8 @@ exclude = '''
     | \.mypy_cache
     | \.pytest_cache
     | \.venv
+    | \.build
+    | \.test_outputs
     | build
     | dist
     | __pycache__
@@ -66,3 +73,9 @@ source = ["podcast_scraper"]
 show_missing = true
 skip_covered = true
 precision = 2
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests (may require network/downloads)",
+]

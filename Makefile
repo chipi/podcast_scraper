@@ -13,9 +13,10 @@ help:
 	@echo "  make type            Run mypy type checks"
 	@echo "  make security        Run bandit & pip-audit security scans"
 	@echo "  make test            Run pytest with coverage"
-	@echo "  make docs            Build MkDocs site (strict mode)"
-	@echo "  make build           Build source and wheel distributions"
+	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
+	@echo "  make build           Build source and wheel distributions (outputs to .build/dist/)"
 	@echo "  make ci              Run the full CI suite locally"
+	@echo "  make clean           Remove build artifacts (.build/, .mypy_cache/, .pytest_cache/)"
 
 init:
 	$(PYTHON) -m pip install --upgrade pip setuptools
@@ -47,7 +48,7 @@ lint:
 
 lint-markdown:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
-	markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore site
+	markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site
 
 type:
 	mypy --config-file pyproject.toml .
@@ -70,9 +71,11 @@ test:
 coverage: test
 
 build:
+	$(PYTHON) -m pip install --quiet build
 	$(PYTHON) -m build
+	@if [ -d dist ]; then mkdir -p .build && rm -rf .build/dist && mv dist .build/ && echo "Moved dist to .build/dist/"; fi
 
 ci: format-check lint lint-markdown type security test docs build
 
 clean:
-	rm -rf build dist *.egg-info .mypy_cache .pytest_cache .coverage site
+	rm -rf build .build .mypy_cache .pytest_cache

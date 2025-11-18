@@ -10,7 +10,9 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 from urllib.parse import urlparse
 
@@ -20,6 +22,10 @@ from pydantic import BaseModel, Field, field_serializer
 from . import config, filesystem, models
 
 logger = logging.getLogger(__name__)
+
+# Lazy import for summarization (optional dependency)
+# Import is deferred until actually needed to avoid PyTorch initialization in dry-run mode
+summarizer = None  # type: ignore
 
 SCHEMA_VERSION = "1.0.0"
 
@@ -181,6 +187,21 @@ class ContentMetadata(BaseModel):
     detected_guests: List[str] = Field(default_factory=list)
 
 
+class SummaryMetadata(BaseModel):
+    """Summary metadata."""
+
+    short_summary: str
+    generated_at: datetime
+    model_used: Optional[str] = None
+    provider: str  # "local", "openai", "anthropic"
+    word_count: Optional[int] = None
+
+    @field_serializer("generated_at")
+    def serialize_generated_at(self, value: datetime) -> str:
+        """Serialize datetime as ISO 8601 string for database compatibility."""
+        return value.isoformat()
+
+
 class ProcessingMetadata(BaseModel):
     """Processing-related metadata."""
 
@@ -217,6 +238,7 @@ class EpisodeMetadataDocument(BaseModel):
     episode: EpisodeMetadata
     content: ContentMetadata
     processing: ProcessingMetadata
+    summary: Optional[SummaryMetadata] = None
 
 
 def _build_feed_metadata(
@@ -359,6 +381,303 @@ def _build_processing_metadata(cfg: config.Config, output_dir: str) -> Processin
     )
 
 
+def _generate_episode_summary(
+    transcript_file_path: str,
+    output_dir: str,
+    cfg: config.Config,
+    episode_idx: int,
+    summary_model=None,
+) -> Optional[SummaryMetadata]:
+    """Generate summary for an episode transcript.
+
+    Args:
+        transcript_file_path: Path to transcript file (relative to output_dir)
+        output_dir: Output directory path
+        cfg: Configuration object
+        episode_idx: Episode index for logging
+        summary_model: Pre-loaded summary model (optional, will load if None)
+
+    Returns:
+        SummaryMetadata object or None if generation failed/skipped
+    """
+    if not cfg.generate_summaries:
+        return None
+
+    # Handle dry-run mode - skip actual model loading and inference
+    # Check this FIRST before any imports or device checks that might trigger PyTorch initialization
+    if cfg.dry_run:
+        logger.info(
+            "[%s] (dry-run) would generate summary for transcript: %s",
+            episode_idx,
+            transcript_file_path,
+        )
+        return None
+
+    if cfg.summary_provider != "local":
+        # API-based providers (OpenAI, Anthropic) not implemented yet
+        logger.warning(
+            "[%s] Summary provider '%s' not yet implemented, skipping summary generation",
+            episode_idx,
+            cfg.summary_provider,
+        )
+        return None
+
+    # Lazy import check - only import summarizer module if not already imported
+    # This prevents PyTorch initialization in dry-run mode
+    # Import happens AFTER dry-run check to avoid loading torch/transformers unnecessarily
+    global summarizer
+    if summarizer is None:
+        try:
+            from . import summarizer as _summarizer  # noqa: PLC0415
+
+            summarizer = _summarizer
+        except ImportError:
+            logger.warning(
+                "[%s] Summarization dependencies not available, skipping summary generation",
+                episode_idx,
+            )
+            return None
+
+    # Read transcript file
+    full_transcript_path = os.path.join(output_dir, transcript_file_path)
+    try:
+        with open(full_transcript_path, "r", encoding="utf-8") as f:
+            transcript_text = f.read()
+    except Exception as e:
+        logger.warning(
+            "[%s] Failed to read transcript for summarization: %s",
+            episode_idx,
+            e,
+        )
+        return None
+
+    if not transcript_text or len(transcript_text.strip()) < 50:
+        logger.debug("[%s] Transcript too short for summarization, skipping", episode_idx)
+        return None
+
+    # Load model if not provided
+    if summary_model is None:
+        try:
+            # MAP model (chunk summaries)
+            model_name = summarizer.select_summary_model(cfg)
+            logger.info(
+                "[%s] Selected MAP model: %s (from config: %s)",
+                episode_idx,
+                model_name,
+                cfg.summary_model or "default (bart-large)",
+            )
+            logger.info(
+                "[%s] Loading MAP model for chunk summarization: %s",
+                episode_idx,
+                model_name,
+            )
+            summary_model = summarizer.SummaryModel(
+                model_name=model_name,
+                device=cfg.summary_device,
+                cache_dir=cfg.summary_cache_dir,
+            )
+            logger.info(
+                "[%s] MAP model loaded successfully: %s",
+                episode_idx,
+                summary_model.model_name,
+            )
+        except Exception as e:
+            logger.error(
+                "[%s] Failed to load summary model: %s",
+                episode_idx,
+                e,
+            )
+            return None
+
+    # Optional REDUCE model (final combine, can be different from MAP model)
+    reduce_model = summary_model
+    try:
+        reduce_model_name = summarizer.select_reduce_model(cfg, summary_model.model_name)
+        logger.info(
+            "[%s] Selected REDUCE model: %s (from config: %s)",
+            episode_idx,
+            reduce_model_name,
+            getattr(cfg, "summary_reduce_model", None) or "default (long-fast/LED)",
+        )
+        if reduce_model_name != summary_model.model_name:
+            logger.info(
+                "[%s] Loading separate REDUCE model for final combine: %s",
+                episode_idx,
+                reduce_model_name,
+            )
+            reduce_model = summarizer.SummaryModel(
+                model_name=reduce_model_name,
+                device=cfg.summary_device,
+                cache_dir=cfg.summary_cache_dir,
+            )
+            logger.info(
+                "[%s] REDUCE model loaded successfully: %s",
+                episode_idx,
+                reduce_model.model_name,
+            )
+        else:
+            logger.info(
+                "[%s] Using MAP model for REDUCE phase: %s",
+                episode_idx,
+                summary_model.model_name,
+            )
+    except Exception as e:
+        logger.warning(
+            "[%s] Failed to load separate reduce model (%s), falling back to map model: %s",
+            episode_idx,
+            e,
+            summary_model.model_name,
+        )
+        reduce_model = summary_model
+
+    # Generate summary
+    try:
+        import time
+
+        summary_start = time.time()
+        transcript_length = len(transcript_text)
+        word_count_approx = len(transcript_text.split())
+        logger.info(
+            "[%s] Generating summary (transcript: ~%d words, %d chars)...",
+            episode_idx,
+            word_count_approx,
+            transcript_length,
+        )
+
+        # Always use chunking for long transcripts to avoid buffer size errors
+        # Clean transcript before summarization (Option B architecture)
+        # This improves summarization quality by removing noise
+        # Conservative cleaning: preserves speaker names (detected via NER)
+        # and works with any language
+        logger.debug("[%s] Cleaning transcript before summarization...", episode_idx)
+        cleaned_text = summarizer.clean_transcript(
+            transcript_text,
+            remove_timestamps=True,  # Language-agnostic (numbers work for all languages)
+            normalize_speakers=True,  # Only removes generic patterns, preserves actual names
+            collapse_blank_lines=True,  # Language-agnostic
+            # Disabled: English-only, won't work for multi-language transcripts
+            remove_fillers=False,
+        )
+        logger.debug(
+            "[%s] Transcript cleaned: %d -> %d chars",
+            episode_idx,
+            len(transcript_text),
+            len(cleaned_text),
+        )
+
+        # Save cleaned transcript to separate file if configured
+        if cfg.save_cleaned_transcript:
+            try:
+                # Create cleaned transcript filename by inserting .cleaned before extension
+                transcript_path_obj = Path(full_transcript_path)
+                cleaned_path = transcript_path_obj.parent / (
+                    transcript_path_obj.stem + ".cleaned" + transcript_path_obj.suffix
+                )
+                with open(cleaned_path, "w", encoding="utf-8") as f:
+                    f.write(cleaned_text)
+                logger.info(
+                    "[%s] Saved cleaned transcript to: %s",
+                    episode_idx,
+                    cleaned_path.name,
+                )
+            except Exception as e:
+                logger.warning(
+                    "[%s] Failed to save cleaned transcript: %s",
+                    episode_idx,
+                    e,
+                )
+
+        # Determine if we should use word-based chunking for encoder-decoder models
+        # Word-based chunking is recommended for BART/PEGASUS models (Option B)
+        model_name = summary_model.model_name if hasattr(summary_model, "model_name") else ""
+        use_word_chunking = any(
+            model_keyword in model_name.lower()
+            for model_keyword in ["bart", "pegasus", "distilbart"]
+        )
+        if use_word_chunking:
+            logger.info(
+                "[%s] Using word-based chunking for encoder-decoder model: %s",
+                episode_idx,
+                model_name,
+            )
+
+        # Use configured chunk_size or default to larger value for efficiency
+        # Larger chunks = fewer chunks = faster processing
+        # Default to DEFAULT_SUMMARY_CHUNK_SIZE tokens (BART models support up to
+        # 1024, but we can use larger chunks safely by letting the model handle
+        # truncation internally)
+        chunk_size = cfg.summary_chunk_size or config.DEFAULT_SUMMARY_CHUNK_SIZE
+        word_chunk_size = (
+            cfg.summary_word_chunk_size
+            if cfg.summary_word_chunk_size is not None
+            else summarizer.DEFAULT_WORD_CHUNK_SIZE
+        )
+        word_overlap = (
+            cfg.summary_word_overlap
+            if cfg.summary_word_overlap is not None
+            else summarizer.DEFAULT_WORD_OVERLAP
+        )
+        logger.info(
+            "[%s] Summarization config: "
+            f"max_length={cfg.summary_max_length}, min_length={cfg.summary_min_length}, "
+            f"word_chunk_size={word_chunk_size if use_word_chunking else 'N/A'}, "
+            f"word_overlap={word_overlap if use_word_chunking else 'N/A'}, "
+            f"token_chunk_size={chunk_size if not use_word_chunking else 'N/A'}, "
+            f"batch_size={cfg.summary_batch_size if summary_model.device == 'cpu' else 'N/A'}, "
+            f"map_model={summary_model.model_name}, reduce_model={reduce_model.model_name}, "
+            f"device={summary_model.device}",
+            episode_idx,
+        )
+        short_summary = summarizer.summarize_long_text(
+            model=summary_model,
+            text=cleaned_text,  # Use cleaned text
+            chunk_size=chunk_size,
+            max_length=cfg.summary_max_length,
+            min_length=cfg.summary_min_length,
+            batch_size=cfg.summary_batch_size if summary_model.device == "cpu" else None,
+            prompt=cfg.summary_prompt,
+            use_word_chunking=use_word_chunking,
+            word_chunk_size=word_chunk_size,
+            word_overlap=word_overlap,
+            reduce_model=reduce_model,
+        )
+
+        summary_elapsed = time.time() - summary_start
+        logger.info(
+            "[%s] Summary generated in %.1fs (length: %d chars)",
+            episode_idx,
+            summary_elapsed,
+            len(short_summary) if short_summary else 0,
+        )
+
+        # Record summary generation time if metrics available
+        # Note: pipeline_metrics is passed through generate_episode_metadata
+        # We'll record it there after checking if summary was generated
+
+        if not short_summary:
+            logger.warning("[%s] Summary generation returned empty result", episode_idx)
+            return None
+
+        word_count = len(transcript_text.split())
+
+        return SummaryMetadata(
+            short_summary=short_summary,
+            generated_at=datetime.now(),
+            model_used=summary_model.model_name,
+            provider=cfg.summary_provider,
+            word_count=word_count,
+        )
+
+    except Exception as e:
+        logger.error(
+            "[%s] Failed to generate summary: %s",
+            episode_idx,
+            e,
+            exc_info=True,
+        )
+        return None
+
+
 def _determine_metadata_path(
     episode: models.Episode,
     output_dir: str,
@@ -437,6 +756,8 @@ def generate_episode_metadata(
     episode_duration_seconds: Optional[int] = None,
     episode_number: Optional[int] = None,
     episode_image_url: Optional[str] = None,
+    summary_model=None,
+    pipeline_metrics=None,
 ) -> Optional[str]:
     """Generate metadata document for an episode.
 
@@ -462,6 +783,7 @@ def generate_episode_metadata(
         episode_duration_seconds: Episode duration in seconds (if available)
         episode_number: Episode number/sequence (if available)
         episode_image_url: Episode image/artwork URL (if available)
+        summary_model: Pre-loaded summary model (optional, will load if None)
 
     Returns:
         Path to generated metadata file, or None if generation skipped
@@ -523,35 +845,62 @@ def generate_episode_metadata(
     )
     processing_metadata = _build_processing_metadata(cfg, output_dir)
 
+    # Generate summary if enabled and transcript is available
+    summary_metadata = None
+    summary_elapsed = 0.0
+    if cfg.generate_summaries and transcript_file_path:
+        summary_start = time.time()
+        summary_metadata = _generate_episode_summary(
+            transcript_file_path=transcript_file_path,
+            output_dir=output_dir,
+            cfg=cfg,
+            episode_idx=episode.idx,
+            summary_model=summary_model,
+        )
+        summary_elapsed = time.time() - summary_start
+        # Record summary generation time if metrics available
+        if pipeline_metrics is not None and summary_elapsed > 0:
+            pipeline_metrics.record_summarize_time(summary_elapsed)
+
     # Build complete metadata document
     metadata_doc = EpisodeMetadataDocument(
         feed=feed_metadata,
         episode=episode_metadata,
         content=content_metadata,
         processing=processing_metadata,
+        summary=summary_metadata,
     )
 
     # Determine output path
     metadata_path = _determine_metadata_path(episode, output_dir, run_suffix, cfg)
 
     # Check skip_existing
-    # Allow overwriting when transcript_source is "whisper_transcription" (complete transcript data)
+    # Allow overwriting when:
+    # 1. transcript_source is "whisper_transcription" (complete transcript data)
+    # 2. generate_summaries is enabled (to regenerate summaries even if metadata exists)
     # This fixes the case where metadata was created with transcript_source=None (Whisper pending)
     # and needs to be updated with actual transcript information after transcription completes
     if cfg.skip_existing and os.path.exists(metadata_path):
-        if transcript_source != "whisper_transcription":
+        if transcript_source != "whisper_transcription" and not cfg.generate_summaries:
             logger.debug(
                 "[%s] Metadata file already exists; skipping (--skip-existing): %s",
                 episode.idx,
                 metadata_path,
             )
             return None
-        # Allow overwriting for whisper_transcription to update incomplete metadata
-        logger.debug(
-            "[%s] Metadata file exists but will be overwritten with complete transcript data: %s",
-            episode.idx,
-            metadata_path,
-        )
+        # Allow overwriting for whisper_transcription or when generating summaries
+        if cfg.generate_summaries:
+            logger.debug(
+                "[%s] Metadata file exists but will be regenerated with summaries: %s",
+                episode.idx,
+                metadata_path,
+            )
+        else:
+            logger.debug(
+                "[%s] Metadata file exists but will be overwritten with complete transcript data: %s",  # noqa: E501
+                episode.idx,
+                metadata_path,
+            )
 
     # Handle dry-run mode
     if cfg.dry_run:
@@ -566,6 +915,13 @@ def generate_episode_metadata(
     try:
         _serialize_metadata(metadata_doc, metadata_path, cfg)
         logger.debug("[%s] Generated metadata file: %s", episode.idx, metadata_path)
+
+        # Track metadata generation and summarization
+        if pipeline_metrics is not None:
+            pipeline_metrics.metadata_files_generated += 1
+            if summary_metadata is not None:
+                pipeline_metrics.episodes_summarized += 1
+
         return metadata_path
 
     except Exception as exc:

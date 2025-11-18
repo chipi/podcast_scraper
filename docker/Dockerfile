@@ -49,5 +49,5 @@ WORKDIR /app
 
 RUN rm -rf /tmp/build
 
-ENTRYPOINT ["python", "-m", "podcast_scraper.cli"]
+ENTRYPOINT ["python", "-m", "podcast_scraper.service"]
 

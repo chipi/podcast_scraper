@@ -22,11 +22,11 @@ import xml.etree.ElementTree as ET  # nosec B405 - tests construct safe XML elem
 from pathlib import Path
 from unittest.mock import patch
 
+import podcast_scraper.cli as cli
 import requests
 from platformdirs import user_cache_dir, user_data_dir
 
 import podcast_scraper
-import podcast_scraper.cli as cli
 from podcast_scraper import (
     config,
     downloader,

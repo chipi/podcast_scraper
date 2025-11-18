@@ -336,7 +336,7 @@ class TestSkipExisting(unittest.TestCase):
             )
 
             with patch("podcast_scraper.downloader.http_get") as mock_http_get:
-                success, transcript_path, transcript_source = (
+                success, transcript_path, transcript_source, bytes_downloaded = (
                     episode_processor.process_transcript_download(
                         episode,
                         f"{TEST_BASE_URL}/ep1.txt",

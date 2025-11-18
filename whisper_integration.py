@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import importlib
 import logging
+import os
 import sys
 import time
 import warnings
+from contextlib import contextmanager
 from types import ModuleType
-from typing import Any, List, Optional, Tuple, Union, cast
+from typing import Any, List, Optional, Tuple, Union
 
 from . import config, progress
 
@@ -205,6 +207,69 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
     return None
 
 
+@contextmanager
+def _intercept_whisper_progress(progress_reporter: progress.ProgressReporter):
+    """Intercept Whisper's tqdm progress calls and forward to our progress reporter.
+
+    Whisper uses tqdm internally for progress reporting. This context manager
+    temporarily overrides tqdm to capture Whisper's progress updates and forward
+    them to our own progress reporter, preventing multiple progress bar lines.
+
+    Args:
+        progress_reporter: Our progress reporter to forward updates to
+    """
+    try:
+        import tqdm
+    except ImportError:
+        # tqdm not available, can't intercept
+        yield
+        return
+
+    original_tqdm = tqdm.tqdm
+
+    class InterceptedTqdm(original_tqdm):  # type: ignore[misc]
+        """Custom tqdm that suppresses output and forwards progress to our reporter."""
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            # Suppress tqdm's own display
+            kwargs["file"] = open(os.devnull, "w")
+            kwargs["disable"] = True  # Disable tqdm's display completely
+            # Store total for percentage calculation
+            self._whisper_total: Optional[int] = kwargs.get("total")
+            self._whisper_n = 0
+            super().__init__(*args, **kwargs)
+
+        def update(self, n: int = 1) -> Optional[bool]:
+            """Update progress and forward to our reporter."""
+            result: Optional[bool] = super().update(n)
+            self._whisper_n = getattr(self, "n", self._whisper_n + n)
+
+            # Forward update to our progress reporter
+            if progress_reporter:
+                # Forward the increment to our progress reporter
+                progress_reporter.update(n)
+
+            return result
+
+        def close(self) -> None:
+            """Clean up and ensure final update."""
+            if progress_reporter and self._whisper_total:
+                # Ensure we're at 100% if we have a total
+                remaining = self._whisper_total - self._whisper_n
+                if remaining > 0:
+                    progress_reporter.update(remaining)
+            super().close()
+
+    # Temporarily replace tqdm.tqdm with our interceptor
+    tqdm.tqdm = InterceptedTqdm
+
+    try:
+        yield
+    finally:
+        # Restore original tqdm
+        tqdm.tqdm = original_tqdm
+
+
 def transcribe_with_whisper(
     whisper_model: Any, temp_media: str, cfg: config.Config
 ) -> Tuple[dict, float]:
@@ -221,21 +286,24 @@ def transcribe_with_whisper(
         # Use configured language, defaulting to "en" for backwards compatibility
         language = cfg.language if cfg.language else "en"
         logger.debug("Transcribing with language=%s", language)
-        if suppress_fp16_warning:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message="FP16 is not supported on CPU",
-                    category=UserWarning,
-                )
+
+        # Intercept Whisper's tqdm progress calls and forward to our progress reporter
+        # This prevents multiple progress bar lines while showing real progress
+        with _intercept_whisper_progress(reporter):
+            if suppress_fp16_warning:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        message="FP16 is not supported on CPU",
+                        category=UserWarning,
+                    )
+                    result = whisper_model.transcribe(
+                        temp_media, task="transcribe", language=language, verbose=False
+                    )
+            else:
                 result = whisper_model.transcribe(
                     temp_media, task="transcribe", language=language, verbose=False
                 )
-        else:
-            result = whisper_model.transcribe(
-                temp_media, task="transcribe", language=language, verbose=False
-            )
-        cast(progress.ProgressReporter, reporter).update(1)
     elapsed = time.time() - start
     segments = result.get("segments")
     logger.debug(

@@ -41,6 +41,18 @@ VALID_WHISPER_MODELS = (
 VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 MAX_RUN_ID_LENGTH = 100
 MAX_METADATA_SUBDIRECTORY_LENGTH = 255
+DEFAULT_SUMMARY_MAX_LENGTH = 160  # Per SUMMARY_REVIEW.md: chunk summaries should be ~160 tokens
+DEFAULT_SUMMARY_MIN_LENGTH = (
+    60  # Per SUMMARY_REVIEW.md: chunk summaries should be at least 60 tokens
+)
+DEFAULT_SUMMARY_BATCH_SIZE = 1
+DEFAULT_SUMMARY_CHUNK_SIZE = (
+    2048  # Default token chunk size (BART models support up to 1024, but larger chunks work safely)
+)
+DEFAULT_SUMMARY_WORD_CHUNK_SIZE = (
+    900  # Per SUMMARY_REVIEW.md: 800-1200 words recommended for encoder-decoder models
+)
+DEFAULT_SUMMARY_WORD_OVERLAP = 150  # Per SUMMARY_REVIEW.md: 100-200 words recommended
 
 
 class Config(BaseModel):
@@ -59,9 +71,19 @@ class Config(BaseModel):
     screenplay_speaker_names: List[str] = Field(default_factory=list, alias="speaker_names")
     run_id: Optional[str] = Field(default=None, alias="run_id")
     log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="log_level")
+    log_file: Optional[str] = Field(
+        default=None,
+        alias="log_file",
+        description="Path to log file (logs will be written to both console and file)",
+    )
     workers: int = Field(default=DEFAULT_WORKERS, alias="workers")
     skip_existing: bool = Field(default=False, alias="skip_existing")
     clean_output: bool = Field(default=False, alias="clean_output")
+    reuse_media: bool = Field(
+        default=False,
+        alias="reuse_media",
+        description="Reuse existing media files instead of re-downloading (for faster testing)",
+    )
     dry_run: bool = Field(default=False, alias="dry_run")
     language: str = Field(default=DEFAULT_LANGUAGE, alias="language")
     ner_model: Optional[str] = Field(default=None, alias="ner_model")
@@ -70,6 +92,39 @@ class Config(BaseModel):
     generate_metadata: bool = Field(default=False, alias="generate_metadata")
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
+    generate_summaries: bool = Field(default=False, alias="generate_summaries")
+    summary_provider: Literal["local", "openai", "anthropic"] = Field(
+        default="local", alias="summary_provider"
+    )
+    summary_model: Optional[str] = Field(default=None, alias="summary_model")
+    # Optional separate model for reduce phase (e.g., BART for map, LED for reduce).
+    # If not set, the same model is used for both map and reduce.
+    summary_reduce_model: Optional[str] = Field(
+        default=None,
+        alias="summary_reduce_model",
+        description="Optional separate model (or key) to use for reduce phase; "
+        "falls back to summary_model when not set.",
+    )
+    summary_max_length: int = Field(default=DEFAULT_SUMMARY_MAX_LENGTH, alias="summary_max_length")
+    summary_min_length: int = Field(default=DEFAULT_SUMMARY_MIN_LENGTH, alias="summary_min_length")
+    summary_device: Optional[str] = Field(default=None, alias="summary_device")
+    summary_batch_size: int = Field(default=DEFAULT_SUMMARY_BATCH_SIZE, alias="summary_batch_size")
+    summary_chunk_size: Optional[int] = Field(default=None, alias="summary_chunk_size")
+    summary_word_chunk_size: Optional[int] = Field(
+        default=DEFAULT_SUMMARY_WORD_CHUNK_SIZE,
+        alias="summary_word_chunk_size",
+        description="Chunk size in words for word-based chunking (800-1200 recommended)",
+    )
+    summary_word_overlap: Optional[int] = Field(
+        default=DEFAULT_SUMMARY_WORD_OVERLAP,
+        alias="summary_word_overlap",
+        description="Overlap in words for word-based chunking (100-200 recommended)",
+    )
+    summary_cache_dir: Optional[str] = Field(default=None, alias="summary_cache_dir")
+    summary_prompt: Optional[str] = Field(default=None, alias="summary_prompt")
+    save_cleaned_transcript: bool = Field(
+        default=True, alias="save_cleaned_transcript"
+    )  # Save cleaned transcript to separate file for testing (default: True)
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True, frozen=True)
 
@@ -321,6 +376,103 @@ class Config(BaseModel):
         if invalid_chars:
             raise ValueError("metadata_subdirectory cannot contain control characters")
         return value
+
+    @field_validator("summary_provider", mode="before")
+    @classmethod
+    def _validate_summary_provider(cls, value: Any) -> Literal["local", "openai", "anthropic"]:
+        """Validate summary provider."""
+        if value is None or value == "":
+            return "local"
+        value_str = str(value).strip().lower()
+        if value_str not in ("local", "openai", "anthropic"):
+            raise ValueError("summary_provider must be 'local', 'openai', or 'anthropic'")
+        return value_str  # type: ignore[return-value]
+
+    @field_validator("summary_model", mode="before")
+    @classmethod
+    def _coerce_summary_model(cls, value: Any) -> Optional[str]:
+        """Coerce summary model to string or None."""
+        if value is None or value == "":
+            return None
+        return str(value).strip() or None
+
+    @field_validator("summary_max_length", mode="before")
+    @classmethod
+    def _ensure_summary_max_length(cls, value: Any) -> int:
+        """Ensure summary max length is a positive integer."""
+        if value is None or value == "":
+            return DEFAULT_SUMMARY_MAX_LENGTH
+        try:
+            length = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("summary_max_length must be an integer") from exc
+        if length < 1:
+            raise ValueError("summary_max_length must be at least 1")
+        return length
+
+    @field_validator("summary_min_length", mode="before")
+    @classmethod
+    def _ensure_summary_min_length(cls, value: Any) -> int:
+        """Ensure summary min length is a positive integer."""
+        if value is None or value == "":
+            return DEFAULT_SUMMARY_MIN_LENGTH
+        try:
+            length = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("summary_min_length must be an integer") from exc
+        if length < 1:
+            raise ValueError("summary_min_length must be at least 1")
+        return length
+
+    @field_validator("summary_device", mode="before")
+    @classmethod
+    def _coerce_summary_device(cls, value: Any) -> Optional[str]:
+        """Coerce summary device to string or None."""
+        if value is None or value == "":
+            return None
+        value_str = str(value).strip().lower()
+        if value_str == "auto":
+            return None
+        if value_str not in ("cuda", "mps", "cpu"):
+            raise ValueError("summary_device must be 'cuda', 'mps', 'cpu', or 'auto'")
+        return value_str
+
+    @field_validator("summary_batch_size", mode="before")
+    @classmethod
+    def _ensure_batch_size(cls, value: Any) -> int:
+        """Ensure batch size is a positive integer."""
+        if value is None or value == "":
+            return DEFAULT_SUMMARY_BATCH_SIZE
+        try:
+            batch_size = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("summary_batch_size must be an integer") from exc
+        if batch_size < 1:
+            raise ValueError("summary_batch_size must be at least 1")
+        return batch_size
+
+    @field_validator("summary_chunk_size", mode="before")
+    @classmethod
+    def _coerce_chunk_size(cls, value: Any) -> Optional[int]:
+        """Coerce chunk size to positive integer or None."""
+        if value is None or value == "":
+            return None
+        try:
+            chunk_size = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("summary_chunk_size must be an integer") from exc
+        if chunk_size < 1:
+            raise ValueError("summary_chunk_size must be at least 1")
+        return chunk_size
+
+    @field_validator("summary_cache_dir", mode="before")
+    @classmethod
+    def _coerce_cache_dir(cls, value: Any) -> Optional[str]:
+        """Coerce cache directory to string or None."""
+        if value is None or value == "":
+            return None
+        value_str = str(value).strip()
+        return value_str or None
 
 
 def load_config_file(
