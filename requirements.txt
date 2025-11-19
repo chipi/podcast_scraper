@@ -1,10 +1,9 @@
-openai-whisper>=20231117
-defusedxml>=0.7.1
-tqdm>=4.66.0
-PyYAML>=6.0
+# Core dependencies only - for full install use: pip install -e .[ml]
+# Or for development: pip install -e .[dev,ml,docs]
 requests>=2.31.0
+tqdm>=4.66.0
+defusedxml>=0.7.1
 platformdirs>=3.11.0
 pydantic>=2.6.0
+PyYAML>=6.0
 types-PyYAML>=6.0.12
-spacy>=3.7.0
-

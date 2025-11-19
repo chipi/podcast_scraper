@@ -20,19 +20,8 @@ help:
 
 init:
 	$(PYTHON) -m pip install --upgrade pip setuptools
-	$(PYTHON) -m pip install \
-		black \
-		isort \
-		flake8 \
-		pytest \
-		pytest-cov \
-		mypy \
-		bandit \
-		pip-audit \
-		build
-	@if [ -f requirements.txt ]; then $(PYTHON) -m pip install -r requirements.txt; fi
+	$(PYTHON) -m pip install -e .[dev,ml]
 	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install -r docs/requirements.txt; fi
-	$(PYTHON) -m pip install -e .
 
 format:
 	black .
