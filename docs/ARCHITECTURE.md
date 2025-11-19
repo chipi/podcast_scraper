@@ -289,6 +289,7 @@ flowchart TD
 #### Summarization Process Details
 
 **1. Transcript Cleaning Phase**
+
 - Removes timestamps (language-agnostic: `[00:12:34]` patterns)
 - Strips generic speaker tags while preserving actual speaker names
 - Removes sponsor blocks and outro sections
@@ -296,6 +297,7 @@ flowchart TD
 - Optionally saves cleaned transcript to `.cleaned.txt` for validation
 
 **2. Size Assessment & Model Selection**
+
 - Checks if transcript fits within model's context window
 - If fits: performs single-pass direct summarization (most efficient)
 - If too long: initiates MAP-REDUCE pipeline
@@ -303,6 +305,7 @@ flowchart TD
 - Selects REDUCE model (default: LED long-fast for final combination)
 
 **3. MAP Phase (Chunk Summarization)**
+
 - **Chunking Strategy**: Token-based chunking with configurable overlap
   - Encoder-decoder models (BART/PEGASUS): forced to 600 tokens per chunk
   - Long-context models (LED): can handle larger chunks
@@ -318,12 +321,14 @@ flowchart TD
 The REDUCE phase employs a three-tier decision tree based on combined summary size:
 
 **Tier 1: Single-Pass Abstractive (≤800 tokens)**
+
 - Most efficient approach for short combined summaries
 - Uses REDUCE model (default: LED) to generate final summary in one pass
 - Target: 200-480 tokens final summary
 - No chunk selection - uses ALL summaries for completeness
 
 **Tier 2: Hierarchical Reduce (800-4000 tokens)**
+
 - Fully abstractive approach for medium-sized combined summaries
 - Implements mini map-reduce strategy:
   1. Re-chunk combined summaries into 3-5 sections (650 words each)
@@ -336,6 +341,7 @@ The REDUCE phase employs a three-tier decision tree based on combined summary si
 - Prevents extractive fallback by iteratively reducing size
 
 **Tier 3: Extractive Approach (>4000 tokens)**
+
 - Safety fallback for very large combined summaries
 - Selects representative chunks instead of using all:
   - ≤3 chunks: use all
@@ -345,12 +351,14 @@ The REDUCE phase employs a three-tier decision tree based on combined summary si
 - Prioritizes avoiding hallucination over completeness
 
 **5. Quality Validation**
+
 - Strips instruction leaks (removes prompt text that leaked into output)
 - Detects and fixes repetitive content (deduplicates repeated sentences)
 - Validates summary length (flags if suspiciously close to input length)
 - Returns empty string if quality validation fails
 
 **6. Metadata Storage**
+
 - Creates `SummaryMetadata` object with:
   - Generated summary text
   - Generation timestamp
@@ -363,16 +371,19 @@ The REDUCE phase employs a three-tier decision tree based on combined summary si
 #### Model Selection Strategy
 
 **MAP Model (Chunk Summarization)**
+
 - Default: `facebook/bart-large-cnn` (best quality, ~2GB)
 - Fast option: `sshleifer/distilbart-cnn-12-6` (~300MB)
 - Alternative: `google/pegasus-large` (trained for summarization, ~2.5GB)
 
 **REDUCE Model (Final Combination)**
+
 - Default: `allenai/led-base-16384` (long-context, ~1GB, handles 16k tokens)
 - High quality: `allenai/led-large-16384` (~2.5GB, better accuracy)
 - Same as MAP: Falls back to MAP model if not specified
 
 **Device Selection**
+
 - Auto-detects: MPS (Apple Silicon) → CUDA (NVIDIA) → CPU
 - GPU/MPS: Sequential processing, memory-efficient
 - CPU: Parallel processing (4 workers), slower but works without GPU
@@ -382,7 +393,7 @@ The REDUCE phase employs a three-tier decision tree based on combined summary si
 - **Direct Summarization**: <5s for transcripts ≤1024 tokens
 - **MAP-REDUCE**: ~3s per chunk (varies by model and device)
 - **Parallel Processing**: 3-4x speedup on CPU with 4 workers
-- **Memory Usage**: 
+- **Memory Usage**:
   - BART-large: ~2GB GPU memory
   - DistilBART: ~300MB (recommended for memory-constrained systems)
   - LED-base: ~1GB (reduce phase)
