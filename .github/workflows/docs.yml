@@ -4,11 +4,19 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+      - '**.py'  # Python files for API docs
+      - 'README.md'
   pull_request:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
       - '.github/workflows/docs.yml'
+      - '**.py'  # Python files for API docs
+      - 'README.md'
   workflow_dispatch:
 
 permissions:
