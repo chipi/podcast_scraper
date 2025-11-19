@@ -98,7 +98,8 @@ def _close_all_sessions() -> None:
         for session in _SESSION_REGISTRY:
             try:
                 session.close()
-            except Exception:  # pragma: no cover - best effort cleanup  # nosec B110
+            # Best-effort cleanup; ignore shutdown errors
+            except Exception:  # pragma: no cover  # nosec B110
                 pass
         _SESSION_REGISTRY.clear()
 

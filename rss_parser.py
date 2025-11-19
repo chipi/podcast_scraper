@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import logging
 import re
-import xml.etree.ElementTree as ET  # nosec B405 - parsing handled via defusedxml safe APIs
+
+# Bandit: parsing handled via defusedxml safe APIs
+import xml.etree.ElementTree as ET  # nosec B405
 from datetime import datetime
 from html import unescape
 from html.parser import HTMLParser
@@ -319,7 +321,8 @@ def extract_feed_metadata(
             date_tuple = parsedate_to_datetime(last_build_elem.text.strip())
             if date_tuple:
                 last_updated = date_tuple
-        except Exception:  # nosec B110 - intentional fallback for date parsing
+        # Intentional fallback for date parsing
+        except Exception:  # nosec B110
             pass
     # Atom updated
     if not last_updated:
@@ -331,7 +334,8 @@ def extract_feed_metadata(
                 last_updated = datetime.fromisoformat(
                     atom_updated_elem.text.strip().replace("Z", "+00:00")
                 )
-            except Exception:  # nosec B110 - intentional fallback for date parsing
+            # Intentional fallback for date parsing
+            except Exception:  # nosec B110
                 pass
 
     return description, image_url, last_updated
@@ -483,7 +487,8 @@ def extract_episode_published_date(item: ET.Element) -> Optional[datetime]:
             date_tuple = parsedate_to_datetime(pub_date_elem.text.strip())
             if date_tuple:
                 return date_tuple
-        except Exception:  # nosec B110 - intentional fallback for date parsing
+        # Intentional fallback for date parsing
+        except Exception:  # nosec B110
             pass
 
     # Atom published
@@ -491,7 +496,8 @@ def extract_episode_published_date(item: ET.Element) -> Optional[datetime]:
     if atom_published_elem is not None and atom_published_elem.text:
         try:
             return datetime.fromisoformat(atom_published_elem.text.strip().replace("Z", "+00:00"))
-        except Exception:  # nosec B110 - intentional fallback for date parsing
+        # Intentional fallback for date parsing
+        except Exception:  # nosec B110
             pass
 
     # Atom updated (fallback)
@@ -499,7 +505,8 @@ def extract_episode_published_date(item: ET.Element) -> Optional[datetime]:
     if atom_updated_elem is not None and atom_updated_elem.text:
         try:
             return datetime.fromisoformat(atom_updated_elem.text.strip().replace("Z", "+00:00"))
-        except Exception:  # nosec B110 - intentional fallback for date parsing
+        # Intentional fallback for date parsing
+        except Exception:  # nosec B110
             pass
 
     return None

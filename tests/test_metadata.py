@@ -15,7 +15,9 @@ if PROJECT_ROOT not in sys.path:
 import json
 import tempfile
 import unittest
-import xml.etree.ElementTree as ET  # nosec B405 - tests construct safe XML elements
+
+# Bandit: tests construct safe XML elements
+import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
 from unittest.mock import patch
 
