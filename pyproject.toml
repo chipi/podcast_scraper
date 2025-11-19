@@ -17,6 +17,11 @@ dependencies = [
   "platformdirs>=3.11.0",
   "pydantic>=2.6.0",
   "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+# Heavy ML dependencies - only install when needed
+ml = [
   "openai-whisper>=20231117",
   "spacy>=3.7.0",
   "torch>=2.0.0",
@@ -24,6 +29,25 @@ dependencies = [
   "sentencepiece>=0.1.99",
   "accelerate>=0.20.0",
   "protobuf>=3.20.0",
+]
+# Development tools
+dev = [
+  "black>=23.0.0",
+  "isort>=5.12.0",
+  "flake8>=6.0.0",
+  "pytest>=7.4.0",
+  "pytest-cov>=4.1.0",
+  "mypy>=1.5.0",
+  "types-PyYAML>=6.0.12",
+  "bandit>=1.7.5",
+  "pip-audit>=2.6.0",
+  "build",
+]
+# Documentation
+docs = [
+  "mkdocs>=1.6.0",
+  "mkdocs-material>=9.5.0",
+  "pymdown-extensions>=10.0",
 ]
 
 [tool.setuptools]

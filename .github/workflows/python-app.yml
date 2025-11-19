@@ -13,57 +13,99 @@ permissions:
   contents: read
 
 jobs:
-  build:
-
+  # Fast checks - no heavy ML dependencies
+  lint:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
-          docker image prune -af || true
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-          df -h
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: |
-            requirements.txt
-            pyproject.toml
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install \
-            black \
-            isort \
-            flake8 \
-            pytest \
-            pytest-cov \
-            mypy \
-            types-PyYAML \
-            bandit \
-            pip-audit \
-            build
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          if [ -f docs/requirements.txt ]; then pip install -r docs/requirements.txt; fi
-          pip install -e .
-      - name: Install markdownlint
-        run: |
-          npm install -g markdownlint-cli
-      - name: Run CI checks
-        run: |
-          export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-          make ci
-      - name: Post-build cleanup
-        if: always()
-        run: |
-          rm -rf ~/.cache/huggingface ~/.cache/torch ~/.cache/whisper
-          rm -rf .pytest_cache .mypy_cache .build dist
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+    - name: Install lint dependencies (no ML packages)
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+    - name: Install markdownlint
+      run: npm install -g markdownlint-cli
+    - name: Run lint checks
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        make format-check
+        make lint
+        make lint-markdown
+        make type
+        make security
+
+  # Full tests - needs ML dependencies
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
+        docker image prune -af || true
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+        df -h
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+    - name: Install full dependencies (including ML)
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev,ml]
+    - name: Run tests
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        make test
+    - name: Post-build cleanup
+      if: always()
+      run: |
+        rm -rf ~/.cache/huggingface ~/.cache/torch ~/.cache/whisper
+        rm -rf .pytest_cache .mypy_cache .build dist
+
+  # Documentation build
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+    - name: Install doc dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[docs]
+    - name: Build docs
+      run: make docs
+
+  # Build package
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+    - name: Install build tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install build
+    - name: Build package
+      run: make build
