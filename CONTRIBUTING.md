@@ -584,6 +584,7 @@ Workflows are configured to skip when irrelevant files change:
 | Only `.py` | ✅ Run | ✅ Run | ✅ Run | - |
 | Only `README.md` | ❌ Skip | ✅ Run | ❌ Skip | ~18 minutes |
 | `pyproject.toml` | ✅ Run | ❌ Skip | ❌ Skip | ~5 minutes |
+| `docker/Dockerfile` | ✅ Run | ❌ Skip | ❌ Skip | ~5 minutes |
 
 This optimization provides fast feedback for documentation updates while maintaining full validation for code changes.
 

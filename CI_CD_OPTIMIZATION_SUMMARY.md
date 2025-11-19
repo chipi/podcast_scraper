@@ -15,6 +15,7 @@ Your CI/CD pipelines have been optimized with **intelligent path-based filtering
 - `pyproject.toml` - Project configuration
 - `requirements.txt` - Dependencies
 - `Makefile` - Build configuration
+- `docker/**` - Docker files (ensures builds are validated)
 - `.github/workflows/python-app.yml` - Workflow itself
 
 **Result:** Skips when only docs, README, or non-code files change
@@ -73,6 +74,22 @@ Your CI/CD pipelines have been optimized with **intelligent path-based filtering
 
 **Total:** ~15-20 minutes (appropriate for code changes)
 
+**Why all workflows run:**
+- `**.py` pattern matches any Python file
+- Python code changes require:
+  - ✅ Full linting and formatting validation
+  - ✅ Complete test suite execution
+  - ✅ Security vulnerability scanning
+  - ✅ API documentation regeneration
+  - ✅ Package build validation
+
+**Validation confirms:**
+- ✅ All Python code changes get full linting
+- ✅ All Python code changes get full testing
+- ✅ All Python code changes get security scanning
+- ✅ All Python code changes update API docs
+- ✅ All Python code changes validate package build
+
 ---
 
 ### ✅ Test Case: README Change
@@ -87,6 +104,28 @@ Your CI/CD pipelines have been optimized with **intelligent path-based filtering
 
 **Total:** ~3-5 minutes
 **Savings:** ~18 minutes (73% reduction) ✅
+
+---
+
+### ✅ Test Case: Docker File Change
+
+**Example:** You edit `docker/Dockerfile`
+
+| Workflow | Status | Time |
+|----------|--------|------|
+| python-app.yml | ✅ RUNS | 15 min |
+| docs.yml | ❌ SKIPPED | 0 min |
+| codeql.yml | ❌ SKIPPED | 0 min |
+
+**Total:** ~15 minutes
+
+**Why python-app.yml runs:**
+Docker builds depend on the Python package being valid. The build job in python-app.yml ensures the package can be built correctly, which is critical for Docker image creation. If the package build fails, the Docker build will also fail.
+
+**Validation confirms:**
+- ✅ Docker changes validate package builds correctly
+- ✅ Docker changes don't trigger unnecessary doc rebuilds  
+- ✅ Docker changes don't trigger unnecessary security scans
 
 ---
 

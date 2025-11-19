@@ -93,6 +93,7 @@ graph TB
 - `pyproject.toml` - Project configuration
 - `requirements.txt` - Dependencies
 - `Makefile` - Build configuration
+- `docker/**` - Docker files (Dockerfile, docker-compose, etc.)
 - `.github/workflows/python-app.yml` - Workflow itself
 
 **Skips when:** Only documentation, markdown, or non-code files change
@@ -515,6 +516,7 @@ When you change files, here's what runs:
 | **Only `.py` files** | ✅ Run | ✅ Run | ✅ Run | Code changes need full validation + API docs rebuild |
 | **Only `README.md`** | ❌ Skip | ✅ Run | ❌ Skip | README is included in docs site |
 | **`pyproject.toml`** | ✅ Run | ❌ Skip | ❌ Skip | Config changes affect dependencies/build |
+| **`docker/Dockerfile`** | ✅ Run | ❌ Skip | ❌ Skip | Docker builds depend on package validation |
 | **`.github/workflows/`** | ✅ (if python-app.yml) | ✅ (if docs.yml) | ✅ Run | Workflow changes need validation |
 | **Mixed changes** | ✅ Run | ✅ Run | ✅ Run | Any match triggers the workflow |
 
