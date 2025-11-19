@@ -2,24 +2,38 @@
 
 Thanks for taking the time to contribute! This project mirrors its CI pipeline locally so you can catch issues before opening a pull request.
 
-## 1. Set up your environment
+**Table of Contents**
+- [Quick Start](#quick-start)
+- [Code Style Guidelines](#code-style-guidelines)
+- [Development Workflow](#development-workflow)
+- [Testing Requirements](#testing-requirements)
+- [Documentation Standards](#documentation-standards)
+- [CI/CD Integration](#cicd-integration)
+- [Architecture Principles](#architecture-principles)
+- [Pull Request Process](#pull-request-process)
+
+---
+
+## Quick Start
+
+### 1. Set up your environment
 
 ```bash
-# clone the repository
-https://github.com/chipi/podcast_scraper.git
+# Clone the repository
+git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 
-# create and activate a virtual environment (example using Python's venv)
+# Create and activate a virtual environment (example using Python's venv)
 python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# install development dependencies and the package itself
+# Install development dependencies and the package itself
 make init
 ```
 
 > `make init` upgrades pip, installs lint/test/type/security tooling, installs runtime requirements (if `requirements.txt` exists), and then installs `podcast_scraper` in editable mode. It matches the dependencies used in CI.
 
-## 2. Run the full check suite (matches CI)
+### 2. Run the full check suite (matches CI)
 
 ```bash
 make ci
@@ -29,6 +43,7 @@ This command executes the same steps as the GitHub Actions workflow:
 
 - `black`/`isort` formatting checks
 - `flake8` linting
+- `markdownlint` for markdown files
 - `mypy` type checking
 - `bandit` + `pip-audit` security scans
 - `pytest` with coverage report
@@ -37,29 +52,765 @@ This command executes the same steps as the GitHub Actions workflow:
 
 > **Note:** Build artifacts (distributions, documentation site, coverage reports) are organized in `.build/` directory. Test outputs are stored in `.test_outputs/`. Use `make clean` to remove all build artifacts.
 
-## 3. Common commands
+### 3. Common commands
 
 Use the Makefile targets to work faster:
 
 ```bash
-make help          # list all targets
-make format        # auto-format with black + isort
-make format-check  # formatting check without modifying files
-make lint          # run flake8
-make type          # run mypy
-make security      # run bandit + pip-audit
-make test          # run pytest with coverage
-make build         # build sdist & wheel
+make help          # List all targets
+make format        # Auto-format with black + isort
+make format-check  # Formatting check without modifying files
+make lint          # Run flake8 linting
+make lint-markdown # Run markdownlint on markdown files
+make type          # Run mypy type checks
+make security      # Run bandit + pip-audit security scans
+make test          # Run pytest with coverage
+make docs          # Build MkDocs documentation
+make build         # Build sdist & wheel
+make ci            # Run the full CI suite locally
+make clean         # Remove build artifacts
 ```
 
-## 4. Pre-commit hooks (optional but recommended)
+---
 
-If you prefer `pre-commit`, install it and reuse the same tools via the Makefile commands or roll your own `.pre-commit-config.yaml`. Running `make format` + `make ci` before every push keeps you aligned with CI.
+## Code Style Guidelines
 
-## 5. Opening a pull request
+### Formatting Tools
 
-1. Ensure `make ci` passes locally.
-2. Push your branch and open a PR.
-3. The docs workflow runs on PRs that touch `docs/`, and the Python workflow runs on every PR targeting `main`.
+The project uses automated formatting tools to ensure consistency:
 
-Thanks again for contributing!
+- **Black**: Code formatting (line length: 100 characters)
+- **isort**: Import statement organization
+- **flake8**: Linting and style enforcement
+- **mypy**: Static type checking
+
+**Apply formatting automatically:**
+```bash
+make format
+```
+
+**Check formatting without modifying:**
+```bash
+make format-check
+```
+
+### Naming Conventions
+
+#### Variables and Functions
+- Use `snake_case` for variables, functions, and methods
+- Use descriptive names that indicate purpose
+- Avoid single-letter names except for common iterators (`i`, `j`, `k`)
+
+```python
+# Good
+def fetch_rss_feed(url: str) -> RssFeed:
+    episode_count = len(feed.episodes)
+    
+# Bad
+def fetchRSSFeed(url: str):  # camelCase
+    x = len(feed.episodes)  # non-descriptive name
+```
+
+#### Classes
+- Use `PascalCase` for class names
+- Use descriptive nouns that represent entities
+
+```python
+# Good
+class RssFeed:
+    pass
+
+class TranscriptionJob:
+    pass
+
+# Bad
+class rss_feed:  # snake_case
+    pass
+```
+
+#### Constants
+- Use `UPPER_SNAKE_CASE` for module-level constants
+
+```python
+# Good
+DEFAULT_TIMEOUT = 20
+MAX_RETRIES = 3
+
+# Bad
+default_timeout = 20  # lowercase
+maxRetries = 3  # camelCase
+```
+
+#### Private Members
+- Prefix with single underscore for internal use
+
+```python
+class SummaryModel:
+    def __init__(self):
+        self._device = "cpu"  # Internal attribute
+    
+    def _load_model(self):  # Internal method
+        pass
+```
+
+### Type Hints
+
+**All public functions and methods must have type hints:**
+
+```python
+# Good
+def sanitize_filename(filename: str, max_length: int = 255) -> str:
+    """Sanitize filename for safe filesystem use."""
+    pass
+
+# Bad
+def sanitize_filename(filename, max_length=255):
+    """Sanitize filename for safe filesystem use."""
+    pass
+```
+
+**Use Optional, Union, List, Dict from typing:**
+
+```python
+from typing import Optional, List, Dict, Union
+
+def process_episode(
+    episode: Episode,
+    cfg: Config,
+    progress: Optional[ProgressBar] = None
+) -> Dict[str, Union[str, int]]:
+    pass
+```
+
+### Docstrings
+
+**Use Google-style or NumPy-style docstrings for all public functions:**
+
+```python
+def run_pipeline(cfg: Config, progress_factory=None) -> None:
+    """Run the complete podcast scraping pipeline.
+    
+    Args:
+        cfg: Configuration object containing RSS URL and processing options.
+        progress_factory: Optional custom progress reporter (default: tqdm).
+        
+    Raises:
+        ValueError: If configuration is invalid.
+        HTTPError: If RSS feed cannot be fetched.
+        
+    Example:
+        >>> from podcast_scraper import Config, run_pipeline
+        >>> cfg = Config(rss="https://example.com/feed.xml")
+        >>> run_pipeline(cfg)
+    """
+    pass
+```
+
+**Module-level docstrings:**
+
+```python
+"""Podcast transcript downloading and processing.
+
+This module provides functionality for downloading podcast transcripts
+from RSS feeds with optional Whisper fallback for missing transcripts.
+"""
+```
+
+### Import Organization
+
+**Order imports in three groups (isort handles this automatically):**
+
+1. Standard library imports
+2. Third-party imports
+3. Local application imports
+
+```python
+# Standard library
+import os
+import sys
+from pathlib import Path
+from typing import Optional, List
+
+# Third-party
+import requests
+from pydantic import BaseModel
+
+# Local
+from podcast_scraper import config
+from podcast_scraper.models import Episode
+```
+
+---
+
+## Development Workflow
+
+### Git Workflow
+
+#### Branch Naming
+
+Create descriptive branches for all changes:
+
+```bash
+# Feature branches
+git checkout -b feature/add-postgresql-export
+git checkout -b feature/issue-40-etl-loading
+
+# Bug fix branches
+git checkout -b fix/whisper-progress-indicator
+git checkout -b fix/issue-19-progress-bars
+
+# Documentation branches
+git checkout -b docs/update-api-reference
+git checkout -b docs/contributing-guide
+```
+
+#### Commit Messages
+
+Follow conventional commit format:
+
+```
+<type>: <short description>
+
+<detailed description if needed>
+
+Fixes #<issue-number>
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `test`: Test changes
+- `refactor`: Code refactoring
+- `ci`: CI/CD changes
+- `chore`: Maintenance tasks
+- `perf`: Performance improvements
+
+**Examples:**
+
+```
+feat: add PostgreSQL export adapter
+
+Implement export functionality to generate PostgreSQL-compatible SQL
+dumps from episode metadata. Includes schema templates and CLI flags.
+
+Fixes #40
+```
+
+```
+fix: resolve double progress bar in Whisper transcription
+
+Remove duplicate progress indicators when transcribing with Whisper.
+Now shows single consolidated progress bar.
+
+Fixes #19
+```
+
+### When to Create New Files
+
+**Create new modules when:**
+- Implementing a new major feature (e.g., new summarization provider)
+- A module has distinct responsibility following Single Responsibility Principle
+- An existing module exceeds ~1000 lines and can be logically split
+
+**Modify existing files when:**
+- Fixing bugs
+- Enhancing existing functionality
+- Refactoring within the same module
+
+### Module Boundaries
+
+Respect established module boundaries (see `docs/ARCHITECTURE.md`):
+
+- **`cli.py`**: CLI only, no business logic
+- **`service.py`**: Service API, structured results for daemon use
+- **`workflow.py`**: Orchestration only, no HTTP/IO details
+- **`config.py`**: Configuration models and validation
+- **`downloader.py`**: HTTP operations only
+- **`filesystem.py`**: File system utilities only
+- **`rss_parser.py`**: RSS parsing, episode creation
+- **`episode_processor.py`**: Episode-level processing logic
+- **`whisper_integration.py`**: Whisper transcription interface
+- **`speaker_detection.py`**: NER-based speaker extraction
+- **`summarizer.py`**: Transcript summarization
+- **`metadata.py`**: Metadata document generation
+- **`progress.py`**: Progress reporting abstraction
+- **`models.py`**: Shared data models
+
+**Keep concerns separated** - don't mix HTTP calls in CLI, don't put business logic in config, etc.
+
+---
+
+## Testing Requirements
+
+> **See also:** [`docs/TESTING_STRATEGY.md`](docs/TESTING_STRATEGY.md) for comprehensive testing guidelines.
+
+### Every New Function Needs
+
+✅ **Unit test with mocks for external dependencies:**
+
+```python
+@patch("podcast_scraper.downloader.requests.Session")
+def test_fetch_url_with_retry(self, mock_session):
+    """Test that fetch_url retries on network failure."""
+    mock_session.get.side_effect = [
+        requests.ConnectionError("Network error"),
+        MockHTTPResponse(content="Success", status_code=200)
+    ]
+    result = fetch_url("https://example.com/feed.xml")
+    self.assertEqual(result, "Success")
+```
+
+✅ **Test both happy path and error cases:**
+
+```python
+def test_sanitize_filename_valid(self):
+    """Test filename sanitization with valid input."""
+    result = sanitize_filename("Episode 1: Great Content")
+    self.assertEqual(result, "Episode 1 Great Content")
+
+def test_sanitize_filename_invalid_chars(self):
+    """Test filename sanitization removes invalid characters."""
+    result = sanitize_filename("Episode<>:\"/\\|?*")
+    self.assertEqual(result, "Episode")
+```
+
+✅ **Use descriptive test names:**
+
+```python
+# Good
+def test_config_validation_raises_error_for_negative_workers(self):
+    pass
+
+def test_whisper_model_selection_prefers_en_variant_for_english(self):
+    pass
+
+# Bad
+def test_config(self):
+    pass
+
+def test_whisper(self):
+    pass
+```
+
+### Every New Feature Needs
+
+- **Integration test** (can be marked `@pytest.mark.slow` or `@pytest.mark.integration`)
+- **Documentation update** (README, API docs, or relevant guide)
+- **Examples** if user-facing
+
+### Mock External Dependencies
+
+Always mock external dependencies in tests:
+
+- **HTTP requests**: Mock `requests` module
+- **Whisper models**: Mock `whisper.load_model()` and `whisper.transcribe()`
+- **File I/O**: Use `tempfile.TemporaryDirectory` for isolated tests
+- **spaCy models**: Mock NER extraction for unit tests
+
+```python
+import tempfile
+from unittest.mock import patch, Mock
+
+class TestEpisodeProcessor(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+    
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    @patch("podcast_scraper.whisper_integration.whisper")
+    def test_transcription(self, mock_whisper):
+        mock_whisper.load_model.return_value = Mock()
+        mock_whisper.transcribe.return_value = {"text": "Test transcript"}
+        # ... test code ...
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Run specific test file
+pytest tests/test_summarizer.py
+
+# Run specific test
+pytest tests/test_summarizer.py::TestModelSelection::test_select_model_with_explicit_model
+
+# Run with verbose output
+pytest -v
+
+# Skip slow tests
+pytest -m "not slow"
+
+# Run only integration tests
+pytest -m integration
+```
+
+---
+
+## Documentation Standards
+
+### When to Create PRD (Product Requirements Document)
+
+Create a PRD for:
+- New user-facing features
+- Significant functionality additions
+- Changes that affect user workflows
+
+**Template:** `docs/prd/PRD-XXX-feature-name.md`
+
+**Examples:**
+- PRD-004: Metadata Generation
+- PRD-005: Episode Summarization
+
+### When to Create RFC (Request for Comments)
+
+Create an RFC for:
+- Architectural changes
+- Breaking API changes
+- Design decisions that need discussion
+- Technical implementation approaches
+
+**Template:** `docs/rfc/RFC-XXX-feature-name.md`
+
+**Examples:**
+- RFC-010: Speaker Name Detection
+- RFC-012: Episode Summarization
+
+### When to Skip PRD/RFC
+
+You can proceed without PRD/RFC for:
+- Bug fixes
+- Small enhancements (< 100 lines of code)
+- Internal refactoring that doesn't affect API
+- Documentation-only updates
+- Test improvements
+
+### Always Update
+
+**README** if:
+- CLI flags change
+- New features are user-facing
+- Installation requirements change
+- Usage examples need updates
+
+**`docs/ARCHITECTURE.md`** if:
+- Module responsibilities change
+- New modules are added
+- Data flow changes
+- Design decisions are made
+
+**`docs/TESTING_STRATEGY.md`** if:
+- Testing approach changes
+- New test categories are added
+- Test infrastructure is updated
+
+**API docs** if:
+- Public API changes (functions, classes, parameters)
+- New public modules are added
+- API contracts change
+
+---
+
+## CI/CD Integration
+
+### What Runs in CI
+
+The GitHub Actions workflow (`.github/workflows/python-app.yml`) runs:
+
+1. **Code Quality:**
+   - Black/isort formatting checks
+   - Flake8 linting
+   - Markdownlint for docs
+   - Mypy type checking
+
+2. **Security:**
+   - Bandit static analysis
+   - pip-audit dependency scanning
+
+3. **Testing:**
+   - Full pytest suite with coverage
+   - Integration tests (mocked)
+   - E2E tests (optional, manual trigger)
+
+4. **Documentation:**
+   - MkDocs build (strict mode)
+   - Deploy to GitHub Pages (on main branch)
+
+5. **Packaging:**
+   - Build source distribution
+   - Build wheel distribution
+
+### Before Pushing
+
+**Always run locally:**
+
+```bash
+# Quick check (run before commit)
+make format
+make test
+
+# Full CI check (run before push)
+make ci
+```
+
+**Expected outcome:**
+- All formatting checks pass
+- All lints pass
+- All type checks pass
+- All security scans pass
+- All tests pass (>80% coverage)
+- Documentation builds successfully
+- Package builds successfully
+
+### CI Failure Response
+
+If CI fails on your PR:
+
+1. **Check the CI logs** to identify the failure
+2. **Reproduce locally:** Run `make ci` to see the same failure
+3. **Fix the issue** and test locally
+4. **Push the fix** - CI will re-run automatically
+
+**Common failures:**
+- Formatting issues: Run `make format`
+- Type errors: Add missing type hints
+- Test failures: Fix or update tests
+- Coverage drop: Add tests for new code
+- Linting errors: Fix code style issues
+
+---
+
+## Architecture Principles
+
+### Modularity
+
+- **Single Responsibility:** Each module should have one clear purpose
+- **Loose Coupling:** Modules should depend on abstractions, not concrete implementations
+- **High Cohesion:** Related functionality should be grouped together
+
+### Configuration
+
+**All runtime options flow through the `Config` model:**
+
+```python
+from podcast_scraper import Config
+
+# Good - centralized configuration
+cfg = Config(
+    rss="https://example.com/feed.xml",
+    output_dir="./output",
+    transcribe_missing=True
+)
+run_pipeline(cfg)
+
+# Bad - scattered configuration
+fetch_rss(url, timeout=30)
+download_transcripts(episodes, workers=8)
+transcribe_missing(jobs, model="base")
+```
+
+**Adding new configuration:**
+
+1. Add to `Config` model in `config.py`
+2. Add CLI argument in `cli.py`
+3. Document in README options section
+4. Update config examples in `examples/`
+
+### Error Handling
+
+**Follow these patterns:**
+
+```python
+# Recoverable errors - log warnings, continue
+try:
+    transcript = download_transcript(url)
+except requests.RequestException as e:
+    logger.warning(f"Failed to download transcript: {e}")
+    return None
+
+# Unrecoverable errors - raise specific exceptions
+if not cfg.rss:
+    raise ValueError("RSS URL is required")
+
+# Validation errors - use ValueError with clear message
+if cfg.workers < 1:
+    raise ValueError(f"Workers must be >= 1, got: {cfg.workers}")
+
+# Graceful degradation for optional features
+try:
+    import whisper
+    WHISPER_AVAILABLE = True
+except ImportError:
+    WHISPER_AVAILABLE = False
+    logger.warning("Whisper not available, transcription disabled")
+```
+
+### Progress Reporting
+
+**Use the `progress.py` abstraction:**
+
+```python
+from podcast_scraper import progress
+
+# Good - uses progress abstraction
+with progress.make_progress(
+    total=len(episodes),
+    desc="Downloading transcripts"
+) as pbar:
+    for episode in episodes:
+        process_episode(episode)
+        pbar.update(1)
+
+# Bad - direct tqdm usage
+from tqdm import tqdm
+for episode in tqdm(episodes):
+    process_episode(episode)
+```
+
+### Lazy Loading for Optional Dependencies
+
+```python
+# At module level
+_whisper = None
+
+def load_whisper():
+    """Lazy load Whisper library."""
+    global _whisper
+    if _whisper is None:
+        try:
+            import whisper
+            _whisper = whisper
+        except ImportError:
+            raise ImportError(
+                "Whisper not installed. "
+                "Install with: pip install openai-whisper"
+            )
+    return _whisper
+```
+
+---
+
+## Pull Request Process
+
+### Before Creating PR
+
+**1. Ensure all checks pass:**
+```bash
+make ci
+```
+
+**2. Update documentation:**
+- [ ] README if user-facing changes
+- [ ] API docs if public API changes
+- [ ] Architecture docs if design changes
+- [ ] Add/update tests
+
+**3. Commit with clear messages:**
+- Follow conventional commit format
+- Reference issue numbers
+- Explain "why" not just "what"
+
+### Creating the PR
+
+**1. Create feature branch:**
+```bash
+git checkout -b feature/my-feature
+```
+
+**2. Push branch:**
+```bash
+git push -u origin feature/my-feature
+```
+
+**3. Open PR with:**
+- **Clear title** (e.g., "Add PostgreSQL export adapter")
+- **Description** that includes:
+  - Problem being solved
+  - Solution approach
+  - Testing performed
+  - Related issues (Fixes #XX)
+  - Breaking changes (if any)
+
+**PR Template Example:**
+
+```markdown
+## Summary
+
+Add PostgreSQL export functionality to generate SQL dumps from episode metadata.
+
+## Changes
+
+- Added `export.py` module with SQL generation
+- Added `--export-format sql` CLI flag
+- Created SQL schema templates
+- Updated documentation
+
+## Testing
+
+- Unit tests for SQL generation
+- Integration test for full export
+- Manual testing with PostgreSQL 14
+
+## Related
+
+Fixes #40
+
+## Breaking Changes
+
+None
+```
+
+### PR Review Process
+
+1. **Automated checks run** (CI, linting, tests)
+2. **Maintainer reviews code**
+3. **Address feedback** if requested
+4. **CI re-runs** after changes
+5. **Approval and merge** once all checks pass
+
+### After PR Merge
+
+- Your branch will be deleted (automatic)
+- Changes will be included in next release
+- Release notes will be updated
+
+---
+
+## Getting Help
+
+- **Documentation**: Check `docs/` directory first
+- **Issues**: Search existing issues or create a new one
+- **Discussions**: Use GitHub Discussions for questions (if enabled)
+- **Architecture**: See `docs/ARCHITECTURE.md` for design principles
+- **Testing**: See `docs/TESTING_STRATEGY.md` for testing guidelines
+
+---
+
+## Pre-commit Hooks (Optional)
+
+If you prefer automated checks before every commit, you can set up pre-commit hooks:
+
+**Option 1: Use Make targets**
+```bash
+# Add to .git/hooks/pre-commit
+#!/bin/sh
+make format
+make lint
+make type
+```
+
+**Option 2: Use pre-commit framework**
+```bash
+pip install pre-commit
+# Create .pre-commit-config.yaml
+pre-commit install
+```
+
+Running `make format` + `make ci` before every push keeps you aligned with CI without requiring hooks.
+
+---
+
+Thanks again for contributing! If you have questions, please open an issue or discussion.
