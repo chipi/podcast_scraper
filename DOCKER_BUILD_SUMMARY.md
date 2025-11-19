@@ -142,6 +142,30 @@ Consider these enhancements:
 2. `Makefile` - Added `docker-build`, `docker-test`, `docker-clean` targets
 3. `README.md` - Added Docker testing documentation
 
+## Common Issues & Fixes
+
+### Issue: "Build fails" - Images not loaded for testing
+
+**Problem:** When using `docker/build-push-action`, images are built with BuildKit but not automatically loaded into the Docker daemon for testing.
+
+**Solution:** Added `load: true` to the build-push-action configuration to ensure images are available for smoke tests.
+
+```yaml
+- uses: docker/build-push-action@v5
+  with:
+    load: true  # ← This loads the image into Docker daemon
+    tags: podcast-scraper:test
+```
+
+### Testing the Fix
+
+The workflow now includes comprehensive smoke tests:
+
+1. **Help command test** - Verifies argparse works
+2. **Version test** - Verifies --version flag
+3. **Error handling test** - Verifies required argument validation
+4. **Multi-model build test** - Verifies build-arg functionality
+
 ## Summary
 
 ✅ **Docker builds are now automatically tested in CI**
@@ -149,5 +173,6 @@ Consider these enhancements:
 ✅ **Dockerfile validation with hadolint**
 ✅ **Documentation updated**
 ✅ **Build caching for performance**
+✅ **Images properly loaded for testing**
 
 Docker images can now be confidently built and tested, with CI catching any issues before they reach production.

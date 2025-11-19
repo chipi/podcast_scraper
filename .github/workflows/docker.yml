@@ -38,6 +38,7 @@ jobs:
         context: .
         file: docker/Dockerfile
         push: false
+        load: true
         tags: podcast-scraper:test
         cache-from: type=gha
         cache-to: type=gha,mode=max
@@ -50,17 +51,23 @@ jobs:
         build-args: |
           WHISPER_PRELOAD_MODELS=tiny.en,base.en
         push: false
+        load: true
         tags: podcast-scraper:multi-model
         cache-from: type=gha
         cache-to: type=gha,mode=max
     
-    - name: Test Docker image (smoke test)
+    - name: Test Docker image (help command)
       run: |
         docker run --rm podcast-scraper:test --help
     
     - name: Test Docker image (version check)
       run: |
-        docker run --rm podcast-scraper:test --version || true
+        docker run --rm podcast-scraper:test --version
+    
+    - name: Test Docker image (no args - should show error)
+      run: |
+        output=$(docker run --rm podcast-scraper:test 2>&1 || true)
+        echo "$output" | grep -q "required"
     
     - name: Validate Dockerfile with hadolint
       uses: hadolint/hadolint-action@v3.1.0

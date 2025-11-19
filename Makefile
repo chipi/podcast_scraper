@@ -74,10 +74,15 @@ docker-build:
 
 docker-test: docker-build
 	@echo "Running Docker smoke tests..."
-	docker run --rm podcast-scraper:test --help
-	@echo "Testing Docker build with multiple Whisper models..."
-	docker build --build-arg WHISPER_PRELOAD_MODELS="tiny.en,base.en" -t podcast-scraper:multi-model -f docker/Dockerfile .
-	docker run --rm podcast-scraper:multi-model --help
+	@echo "Test 1: --help command"
+	@docker run --rm podcast-scraper:test --help > /dev/null
+	@echo "Test 2: --version command"
+	@docker run --rm podcast-scraper:test --version
+	@echo "Test 3: No args (should error)"
+	@docker run --rm podcast-scraper:test 2>&1 | grep -q "required" && echo "✓ Error handling works"
+	@echo "Test 4: Building with multiple Whisper models..."
+	@docker build --quiet --build-arg WHISPER_PRELOAD_MODELS="tiny.en,base.en" -t podcast-scraper:multi-model -f docker/Dockerfile . > /dev/null
+	@docker run --rm podcast-scraper:multi-model --help > /dev/null
 	@echo "✅ All Docker tests passed"
 
 docker-clean:
