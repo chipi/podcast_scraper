@@ -1,7 +1,7 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
-.PHONY: help init format format-check lint lint-markdown type security security-bandit security-audit test coverage docs build ci clean
+.PHONY: help init format format-check lint lint-markdown type security security-bandit security-audit test coverage docs build ci clean docker-build docker-test docker-clean
 
 help:
 	@echo "Common developer commands:"
@@ -16,6 +16,9 @@ help:
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
 	@echo "  make build           Build source and wheel distributions (outputs to .build/dist/)"
 	@echo "  make ci              Run the full CI suite locally"
+	@echo "  make docker-build    Build Docker image"
+	@echo "  make docker-test     Build and test Docker image"
+	@echo "  make docker-clean    Remove Docker test images"
 	@echo "  make clean           Remove build artifacts (.build/, .mypy_cache/, .pytest_cache/)"
 
 init:
@@ -65,6 +68,20 @@ build:
 	@if [ -d dist ]; then mkdir -p .build && rm -rf .build/dist && mv dist .build/ && echo "Moved dist to .build/dist/"; fi
 
 ci: format-check lint lint-markdown type security test docs build
+
+docker-build:
+	docker build -t podcast-scraper:test -f docker/Dockerfile .
+
+docker-test: docker-build
+	@echo "Running Docker smoke tests..."
+	docker run --rm podcast-scraper:test --help
+	@echo "Testing Docker build with multiple Whisper models..."
+	docker build --build-arg WHISPER_PRELOAD_MODELS="tiny.en,base.en" -t podcast-scraper:multi-model -f docker/Dockerfile .
+	docker run --rm podcast-scraper:multi-model --help
+	@echo "✅ All Docker tests passed"
+
+docker-clean:
+	docker rmi podcast-scraper:test podcast-scraper:multi-model 2>/dev/null || true
 
 clean:
 	rm -rf build .build .mypy_cache .pytest_cache

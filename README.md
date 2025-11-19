@@ -311,6 +311,23 @@ The service API is optimized for non-interactive use and provides structured exi
 
 **Note:** The service API only accepts configuration files (no CLI arguments). Ensure your `config.yaml` includes all necessary settings like `rss_url` and `output_dir`.
 
+#### Testing Docker Builds
+
+Test Docker builds locally using Make targets:
+
+```bash
+# Build Docker image
+make docker-build
+
+# Build and run smoke tests
+make docker-test
+
+# Clean up Docker test images
+make docker-clean
+```
+
+Docker builds are automatically validated in CI on every push to `main` and on pull requests that affect Docker-related files.
+
 ## Python API
 
 The top-level package exposes a minimal stable API:
