@@ -21,7 +21,7 @@ PRDs serve as the foundation for technical design (RFCs) and help ensure feature
 ## PRD Index
 
 | PRD | Title | Version | Status | Description |
-|-----|-------|---------|--------|-------------|
+| --- | ----- | ------- | ------ | ----------- |
 | [PRD-001](PRD-001-transcript-pipeline.md) | Transcript Acquisition Pipeline | v2.0.0 | ✅ Implemented | Core pipeline for downloading published transcripts from RSS feeds |
 | [PRD-002](PRD-002-whisper-fallback.md) | Whisper Fallback Transcription | v2.0.0 | ✅ Implemented | Automatic transcription fallback when episodes lack published transcripts |
 | [PRD-003](PRD-003-user-interface-config.md) | User Interfaces & Configuration | v2.0.0 | ✅ Implemented | CLI interface and configuration file support (JSON/YAML) |

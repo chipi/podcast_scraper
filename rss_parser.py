@@ -517,7 +517,8 @@ def extract_episode_description(item: ET.Element) -> Optional[str]:
     desc_el = item.find("description")
     if desc_el is None:
         desc_el = next(
-            (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("description")), None
+            (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("description")),
+            None,
         )
     if desc_el is not None:
         # Get text content - RSS descriptions often contain HTML
