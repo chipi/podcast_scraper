@@ -56,6 +56,108 @@ DEFAULT_SUMMARY_WORD_OVERLAP = 150  # Per SUMMARY_REVIEW.md: 100-200 words recom
 
 
 class Config(BaseModel):
+    """Configuration model for podcast scraping pipeline.
+
+    This Pydantic model defines all configuration options for podcast_scraper, with
+    automatic validation and type checking. Configuration can be created programmatically
+    or loaded from JSON/YAML files using `load_config_file()`.
+
+    The configuration is organized into several categories:
+
+    - **RSS Feed**: Source feed URL and episode limits
+    - **Output**: Directory structure, file naming, and run management
+    - **HTTP**: Request behavior, timeouts, and user agents
+    - **Transcription**: Whisper model selection and language settings
+    - **Screenplay**: Speaker detection and formatting options
+    - **Metadata**: Episode metadata generation settings
+    - **Summarization**: AI-powered episode summary generation
+    - **Processing**: Parallelization and execution control
+    - **Logging**: Log levels and output destinations
+
+    All fields support validation and provide sensible defaults. The model is immutable
+    (frozen) after creation to prevent accidental modification.
+
+    Attributes:
+        rss_url: RSS feed URL to scrape. Required unless loading from config file.
+        output_dir: Output directory path. Auto-generated from RSS URL if not provided.
+        max_episodes: Maximum number of episodes to process. None processes all episodes.
+        user_agent: HTTP User-Agent header for requests.
+        timeout: Request timeout in seconds (minimum: 1).
+        delay_ms: Delay between requests in milliseconds.
+        prefer_types: Preferred transcript types or extensions (e.g., ["text/vtt", ".srt"]).
+        transcribe_missing: Enable Whisper transcription for episodes without transcripts.
+        whisper_model: Whisper model name (e.g., "base", "small", "medium").
+        screenplay: Format transcripts as screenplay with speaker labels.
+        screenplay_gap_s: Minimum gap in seconds between speaker segments.
+        screenplay_num_speakers: Number of speakers for Whisper diarization.
+        screenplay_speaker_names: Manual speaker names list (overrides auto-detection).
+        run_id: Optional run identifier. Use "auto" for timestamp-based ID.
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+        log_file: Optional log file path for file output.
+        workers: Number of parallel download workers.
+        skip_existing: Skip episodes with existing output files.
+        clean_output: Remove output directory before processing.
+        reuse_media: Reuse existing media files instead of re-downloading.
+        dry_run: Preview planned work without saving files.
+        language: Language code for transcription (e.g., "en", "fr", "de").
+        ner_model: spaCy NER model name for speaker detection.
+        auto_speakers: Enable automatic speaker name detection using NER.
+        cache_detected_hosts: Cache detected host names across episodes.
+        generate_metadata: Generate per-episode metadata documents.
+        metadata_format: Metadata file format ("json" or "yaml").
+        metadata_subdirectory: Optional subdirectory for metadata files.
+        generate_summaries: Generate episode summaries using AI models.
+        summary_provider: Summary generation provider ("local", "openai", "anthropic").
+        summary_model: Model identifier for MAP-phase summarization.
+        summary_reduce_model: Optional separate model for REDUCE-phase summarization.
+        summary_max_length: Maximum summary length in tokens.
+        summary_min_length: Minimum summary length in tokens.
+        summary_device: Device for model execution ("cpu", "cuda", "mps", or None).
+        summary_batch_size: Batch size for parallel processing.
+        summary_chunk_size: Chunk size in tokens for long transcripts.
+        summary_word_chunk_size: Chunk size in words for word-based chunking.
+        summary_word_overlap: Overlap in words for word-based chunking.
+        summary_cache_dir: Custom cache directory for transformer models.
+        summary_prompt: Optional custom prompt for summarization.
+        save_cleaned_transcript: Save cleaned transcript to separate file.
+
+    Example:
+        Create configuration programmatically:
+
+        >>> from podcast_scraper import Config
+        >>> cfg = Config(
+        ...     rss_url="https://example.com/feed.xml",
+        ...     output_dir="./transcripts",
+        ...     max_episodes=50,
+        ...     transcribe_missing=True,
+        ...     whisper_model="base"
+        ... )
+
+    Example:
+        Load configuration from file:
+
+        >>> from podcast_scraper import Config, load_config_file
+        >>> config_dict = load_config_file("config.yaml")
+        >>> cfg = Config(**config_dict)
+
+    Example:
+        Configuration with metadata and summaries:
+
+        >>> cfg = Config(
+        ...     rss_url="https://example.com/feed.xml",
+        ...     generate_metadata=True,
+        ...     metadata_format="yaml",
+        ...     generate_summaries=True,
+        ...     summary_model="facebook/bart-base",
+        ...     summary_device="mps"
+        ... )
+
+    See Also:
+        - `load_config_file()`: Load configuration from JSON/YAML files
+        - `run_pipeline()`: Execute pipeline with configuration
+        - API Reference: https://chipi.github.io/podcast_scraper/api/configuration/
+    """
+
     rss_url: Optional[str] = Field(default=None, alias="rss")
     output_dir: Optional[str] = Field(default=None, alias="output_dir")
     max_episodes: Optional[int] = Field(default=None, alias="max_episodes")
