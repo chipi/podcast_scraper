@@ -37,6 +37,7 @@ RUN pip install --no-cache-dir \
 # Install the podcast_scraper package itself (without reinstalling ML deps)
 RUN pip install --no-cache-dir --no-deps .
 
+# hadolint ignore=SC2261
 RUN python - <<'PY'
 import os
 import whisper
