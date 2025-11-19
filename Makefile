@@ -79,11 +79,11 @@ docker-test: docker-build
 	@echo "Test 2: --version command"
 	@docker run --rm podcast-scraper:test --version
 	@echo "Test 3: No args (should error)"
-	@docker run --rm podcast-scraper:test 2>&1 | grep -q "required" && echo "✓ Error handling works"
+	@docker run --rm podcast-scraper:test 2>&1 | grep -q "required" && echo "[OK] Error handling works"
 	@echo "Test 4: Building with multiple Whisper models..."
 	@docker build --quiet --build-arg WHISPER_PRELOAD_MODELS="tiny.en,base.en" -t podcast-scraper:multi-model -f docker/Dockerfile . > /dev/null
 	@docker run --rm podcast-scraper:multi-model --help > /dev/null
-	@echo "✅ All Docker tests passed"
+	@echo "[OK] All Docker tests passed"
 
 docker-clean:
 	docker rmi podcast-scraper:test podcast-scraper:multi-model 2>/dev/null || true
