@@ -3,6 +3,7 @@
 Thanks for taking the time to contribute! This project mirrors its CI pipeline locally so you can catch issues before opening a pull request.
 
 **Table of Contents**
+
 - [Quick Start](#quick-start)
 - [Code Style Guidelines](#code-style-guidelines)
 - [Development Workflow](#development-workflow)
@@ -97,6 +98,7 @@ make format-check
 ### Naming Conventions
 
 #### Variables and Functions
+
 - Use `snake_case` for variables, functions, and methods
 - Use descriptive names that indicate purpose
 - Avoid single-letter names except for common iterators (`i`, `j`, `k`)
@@ -112,6 +114,7 @@ def fetchRSSFeed(url: str):  # camelCase
 ```
 
 #### Classes
+
 - Use `PascalCase` for class names
 - Use descriptive nouns that represent entities
 
@@ -129,6 +132,7 @@ class rss_feed:  # snake_case
 ```
 
 #### Constants
+
 - Use `UPPER_SNAKE_CASE` for module-level constants
 
 ```python
@@ -142,6 +146,7 @@ maxRetries = 3  # camelCase
 ```
 
 #### Private Members
+
 - Prefix with single underscore for internal use
 
 ```python
@@ -268,7 +273,7 @@ git checkout -b docs/contributing-guide
 
 Follow conventional commit format:
 
-```
+```text
 <type>: <short description>
 
 <detailed description if needed>
@@ -277,6 +282,7 @@ Fixes #<issue-number>
 ```
 
 **Types:**
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -288,7 +294,7 @@ Fixes #<issue-number>
 
 **Examples:**
 
-```
+```text
 feat: add PostgreSQL export adapter
 
 Implement export functionality to generate PostgreSQL-compatible SQL
@@ -297,7 +303,7 @@ dumps from episode metadata. Includes schema templates and CLI flags.
 Fixes #40
 ```
 
-```
+```text
 fix: resolve double progress bar in Whisper transcription
 
 Remove duplicate progress indicators when transcribing with Whisper.
@@ -309,11 +315,13 @@ Fixes #19
 ### When to Create New Files
 
 **Create new modules when:**
+
 - Implementing a new major feature (e.g., new summarization provider)
 - A module has distinct responsibility following Single Responsibility Principle
 - An existing module exceeds ~1000 lines and can be logically split
 
 **Modify existing files when:**
+
 - Fixing bugs
 - Enhancing existing functionality
 - Refactoring within the same module
@@ -455,6 +463,7 @@ pytest -m integration
 ### When to Create PRD (Product Requirements Document)
 
 Create a PRD for:
+
 - New user-facing features
 - Significant functionality additions
 - Changes that affect user workflows
@@ -462,12 +471,14 @@ Create a PRD for:
 **Template:** `docs/prd/PRD-XXX-feature-name.md`
 
 **Examples:**
+
 - PRD-004: Metadata Generation
 - PRD-005: Episode Summarization
 
 ### When to Create RFC (Request for Comments)
 
 Create an RFC for:
+
 - Architectural changes
 - Breaking API changes
 - Design decisions that need discussion
@@ -476,12 +487,14 @@ Create an RFC for:
 **Template:** `docs/rfc/RFC-XXX-feature-name.md`
 
 **Examples:**
+
 - RFC-010: Speaker Name Detection
 - RFC-012: Episode Summarization
 
 ### When to Skip PRD/RFC
 
 You can proceed without PRD/RFC for:
+
 - Bug fixes
 - Small enhancements (< 100 lines of code)
 - Internal refactoring that doesn't affect API
@@ -491,23 +504,27 @@ You can proceed without PRD/RFC for:
 ### Always Update
 
 **README** if:
+
 - CLI flags change
 - New features are user-facing
 - Installation requirements change
 - Usage examples need updates
 
 **`docs/ARCHITECTURE.md`** if:
+
 - Module responsibilities change
 - New modules are added
 - Data flow changes
 - Design decisions are made
 
 **`docs/TESTING_STRATEGY.md`** if:
+
 - Testing approach changes
 - New test categories are added
 - Test infrastructure is updated
 
 **API docs** if:
+
 - Public API changes (functions, classes, parameters)
 - New public modules are added
 - API contracts change
@@ -557,6 +574,7 @@ make ci
 ```
 
 **Expected outcome:**
+
 - All formatting checks pass
 - All lints pass
 - All type checks pass
@@ -575,6 +593,7 @@ If CI fails on your PR:
 4. **Push the fix** - CI will re-run automatically
 
 **Common failures:**
+
 - Formatting issues: Run `make format`
 - Type errors: Add missing type hints
 - Test failures: Fix or update tests
@@ -703,12 +722,14 @@ make ci
 ```
 
 **2. Update documentation:**
+
 - [ ] README if user-facing changes
 - [ ] API docs if public API changes
 - [ ] Architecture docs if design changes
 - [ ] Add/update tests
 
 **3. Commit with clear messages:**
+
 - Follow conventional commit format
 - Reference issue numbers
 - Explain "why" not just "what"
@@ -726,6 +747,7 @@ git push -u origin feature/my-feature
 ```
 
 **3. Open PR with:**
+
 - **Clear title** (e.g., "Add PostgreSQL export adapter")
 - **Description** that includes:
   - Problem being solved

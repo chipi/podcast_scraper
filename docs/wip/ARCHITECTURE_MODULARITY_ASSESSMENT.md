@@ -432,7 +432,7 @@ class TranscriptionProviderFactory:
 ### Current Architecture Scores
 
 | Area | Score | Status |
-|------|-------|--------|
+| --- | --- | --- |
 | Podcast Source | 2/10 | 🔴 Needs Improvement |
 | Speaker Detection | 5/10 | 🟡 Moderate |
 | Transcription | 6/10 | 🟡 Moderate |

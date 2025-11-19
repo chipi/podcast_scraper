@@ -127,7 +127,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     metadata/summarization.
 
     The pipeline executes the following stages:
-    
+
     1. Setup output directory (with optional run ID subdirectory)
     2. Fetch and parse RSS feed
     3. Detect speakers (if auto-detection enabled)
@@ -144,19 +144,19 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
     Returns:
         Tuple[int, str]: A tuple containing:
-        
+
             - count (int): Number of episodes processed (transcripts saved or planned)
             - summary (str): Human-readable summary message describing the run
-            
+
     Raises:
         RuntimeError: If output directory cleanup fails when `clean_output=True`
         ValueError: If RSS URL is invalid or feed cannot be parsed
         FileNotFoundError: If configuration file references missing files
         OSError: If file system operations fail
-        
+
     Example:
         >>> from podcast_scraper import Config, run_pipeline
-        >>> 
+        >>>
         >>> cfg = Config(
         ...     rss="https://example.com/feed.xml",
         ...     output_dir="./transcripts",
@@ -165,7 +165,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         >>> count, summary = run_pipeline(cfg)
         >>> print(f"Downloaded {count} transcripts: {summary}")
         Downloaded 10 transcripts: Processed 10/50 episodes
-        
+
     Example with Whisper transcription:
         >>> cfg = Config(
         ...     rss="https://example.com/feed.xml",
@@ -175,7 +175,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         ...     num_speakers=2
         ... )
         >>> count, summary = run_pipeline(cfg)
-        
+
     Example with metadata and summaries:
         >>> cfg = Config(
         ...     rss="https://example.com/feed.xml",
@@ -183,11 +183,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         ...     generate_summaries=True
         ... )
         >>> count, summary = run_pipeline(cfg)
-        
+
     Note:
         For non-interactive use (daemons, services), consider using the `service.run()`
         function instead, which provides structured error handling and return values.
-        
+
     See Also:
         - `Config`: Configuration model with all available options
         - `service.run()`: Service API with structured error handling

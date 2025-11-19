@@ -6,7 +6,7 @@ This document describes the versioning policy for the podcast_scraper public API
 
 The podcast_scraper API follows [Semantic Versioning 2.0.0](https://semver.org/):
 
-```
+```text
 MAJOR.MINOR.PATCH
 ```
 
@@ -103,26 +103,31 @@ def old_function():
 ### What We Guarantee
 
 ✅ **Backward compatibility within major versions:**
+
 - Minor and patch releases are backward compatible
 - Existing code continues to work
 - Deprecation warnings before removal
 
 ✅ **Clear migration paths:**
+
 - Breaking changes documented in migration guide
 - Deprecation period of at least one minor version
 
 ### What We Don't Guarantee
 
 ❌ **Internal API stability:**
+
 - Internal modules may change
 - Private functions/classes (prefixed with `_`)
 - Implementation details
 
 ❌ **CLI output format:**
+
 - CLI output may change for better UX
 - Use service API for programmatic parsing
 
 ❌ **File formats:**
+
 - Metadata JSON/YAML structure may evolve
 - Transcript formatting may improve
 
