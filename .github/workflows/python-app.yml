@@ -48,6 +48,7 @@ jobs:
             pytest \
             pytest-cov \
             mypy \
+            types-PyYAML \
             bandit \
             pip-audit \
             build
@@ -59,6 +60,7 @@ jobs:
           npm install -g markdownlint-cli
       - name: Run CI checks
         run: |
+          export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           make ci
       - name: Post-build cleanup
         if: always()
