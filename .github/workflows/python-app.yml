@@ -63,5 +63,5 @@ jobs:
       - name: Post-build cleanup
         if: always()
         run: |
-          rm -rf ~/.cache/pip ~/.cache/huggingface ~/.cache/torch ~/.cache/whisper
+          rm -rf ~/.cache/huggingface ~/.cache/torch ~/.cache/whisper
           rm -rf .pytest_cache .mypy_cache .build dist
