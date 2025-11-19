@@ -85,11 +85,14 @@ jobs:
       with:
         python-version: "3.11"
         cache: "pip"
-        cache-dependency-path: pyproject.toml
+        cache-dependency-path: |
+          docs/requirements.txt
+          pyproject.toml
     - name: Install doc dependencies (includes ML for mkdocstrings)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[docs,ml]
+        pip install -r docs/requirements.txt
+        pip install -e .[ml]
     - name: Build docs
       run: make docs
 

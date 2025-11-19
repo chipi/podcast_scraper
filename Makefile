@@ -20,7 +20,8 @@ help:
 
 init:
 	$(PYTHON) -m pip install --upgrade pip setuptools
-	$(PYTHON) -m pip install -e .[dev,ml,docs]
+	$(PYTHON) -m pip install -e .[dev,ml]
+	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install -r docs/requirements.txt; fi
 
 format:
 	black .
