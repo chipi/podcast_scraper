@@ -294,6 +294,8 @@ docker run --rm \
   --config /app/config.yaml
 ```
 
+**Note:** The Docker image uses CPU-only PyTorch (~150MB) instead of the full CUDA version (4GB+) to reduce image size and build time. GPU acceleration is not available in the Docker image.
+
 **Note:** The Docker image preloads the `base.en` Whisper model by default for optimal English transcription performance. To preload different models during build, use the `WHISPER_PRELOAD_MODELS` build argument:
 
 ```bash
@@ -310,6 +312,23 @@ The service API is optimized for non-interactive use and provides structured exi
 - `1`: Error (configuration or runtime)
 
 **Note:** The service API only accepts configuration files (no CLI arguments). Ensure your `config.yaml` includes all necessary settings like `rss_url` and `output_dir`.
+
+#### Testing Docker Builds
+
+Test Docker builds locally using Make targets:
+
+```bash
+# Build Docker image
+make docker-build
+
+# Build and run smoke tests
+make docker-test
+
+# Clean up Docker test images
+make docker-clean
+```
+
+Docker builds are automatically validated in CI on every push to `main` and on pull requests that affect Docker-related files.
 
 ## Python API
 

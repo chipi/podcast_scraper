@@ -1,0 +1,19 @@
+---
+# Hadolint configuration for podcast_scraper Dockerfile
+# See: https://github.com/hadolint/hadolint
+
+ignored:
+  # DL3008: Pin versions in apt-get install
+  # We deliberately use latest ffmpeg as we want security updates
+  - DL3008
+  
+  # DL3013: Pin versions in pip install
+  # Version pinning is done in requirements.txt and pyproject.toml
+  # The torch install uses a specific index URL which is version-controlled
+  - DL3013
+  
+  # DL3059: Multiple consecutive RUN instructions
+  # We intentionally separate RUN commands for clarity and caching
+  - DL3059
+
+failure-threshold: error
