@@ -178,8 +178,8 @@ The service API (`podcast_scraper.service`) is optimized for non-interactive use
 - Running as a systemd service
 - Managed by supervisor
 - Scheduled execution (cron + service mode)
-- CI/CD pipelines
-- Automated workflows
+- CI/CD pipelines with intelligent path-based filtering
+- Automated workflows optimized for docs vs. code changes
 
 **Example service usage:**
 
