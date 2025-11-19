@@ -16,8 +16,10 @@ RUN mkdir -p "${XDG_CACHE_HOME}"
 
 WORKDIR /tmp/build
 
-COPY requirements.txt .
+COPY . .
+
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir .[ml]
 
 RUN python - <<'PY'
 import os
@@ -35,10 +37,6 @@ for name in models:
     print(f"Preloading Whisper model: {name}")
     whisper.load_model(name)
 PY
-
-COPY . .
-
-RUN pip install --no-cache-dir .
 
 RUN mkdir -p /opt/podcast_scraper/examples \
     && cp examples/config.example.* /opt/podcast_scraper/examples/
