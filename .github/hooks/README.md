@@ -1,0 +1,57 @@
+# Git Hooks
+
+This directory contains git hooks that can be installed to improve code quality and prevent issues before they reach CI.
+
+## Pre-commit Hook
+
+The `pre-commit` hook automatically checks your code before each commit to ensure it meets quality standards.
+
+### Installation
+
+```bash
+make install-hooks
+```
+
+### What It Checks
+
+- **Black** formatting check
+- **isort** import sorting check
+- **flake8** linting
+- **markdownlint** (if installed)
+- **mypy** type checking
+
+### Behavior
+
+- If **all checks pass** → Commit proceeds normally
+- If **any check fails** → Commit is blocked with error details
+
+### Usage
+
+```bash
+# Normal commit (hook runs automatically)
+git commit -m "your message"
+
+# Auto-fix formatting issues before committing
+make format
+
+# Skip hook for a specific commit (not recommended)
+git commit --no-verify -m "your message"
+```
+
+### Benefits
+
+- ✅ Catch issues locally before pushing
+- ✅ Prevent CI failures from linting
+- ✅ Maintain consistent code quality
+- ✅ Get immediate feedback
+
+### Troubleshooting
+
+If the hook fails:
+
+1. Read the error output carefully
+2. Run `make format` to auto-fix formatting
+3. Fix any remaining linting/type errors manually
+4. Try committing again
+
+For more information, see the [CI/CD documentation](../../docs/CI_CD.md#automatic-pre-commit-checks).

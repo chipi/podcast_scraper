@@ -533,43 +533,73 @@ You can proceed without PRD/RFC for:
 
 ## CI/CD Integration
 
+> **See also:** [`docs/CI_CD.md`](docs/CI_CD.md) for complete CI/CD pipeline documentation with visualizations.
+
 ### What Runs in CI
 
-The GitHub Actions workflow (`.github/workflows/python-app.yml`) runs:
+The GitHub Actions workflows run in parallel for fast feedback:
 
-1. **Code Quality:**
+**Python Application Workflow** (4 parallel jobs):
+
+1. **Lint Job** (2-3 min, no ML deps):
    - Black/isort formatting checks
    - Flake8 linting
    - Markdownlint for docs
    - Mypy type checking
+   - Bandit + pip-audit security scanning
 
-2. **Security:**
-   - Bandit static analysis
-   - pip-audit dependency scanning
-
-3. **Testing:**
+2. **Test Job** (10-15 min, full ML stack):
    - Full pytest suite with coverage
    - Integration tests (mocked)
-   - E2E tests (optional, manual trigger)
 
-4. **Documentation:**
+3. **Docs Job** (3-5 min):
    - MkDocs build (strict mode)
-   - Deploy to GitHub Pages (on main branch)
+   - API documentation generation
 
-5. **Packaging:**
+4. **Build Job** (2-3 min):
    - Build source distribution
    - Build wheel distribution
 
+**Documentation Deployment** (sequential):
+
+- Build MkDocs site
+- Deploy to GitHub Pages (on push to main)
+
+**CodeQL Security** (parallel language analysis):
+
+- Python security scanning
+- GitHub Actions security scanning
+
 ### Before Pushing
 
-**Always run locally:**
+**Recommended workflow:**
 
 ```bash
-# Quick check (run before commit)
+# 1. Install pre-commit hook (one-time setup)
+make install-hooks
+
+# 2. Make your changes
+# ... edit files ...
+
+# 3. Commit (pre-commit hook runs automatically)
+git commit -m "your message"
+# Hook checks formatting, linting, types, markdown
+
+# 4. Full CI check before pushing
+make ci
+
+# 5. Push to remote
+git push
+```
+
+**If you haven't installed the hook:**
+
+```bash
+# Quick check before commit
 make format
 make test
 
-# Full CI check (run before push)
+# Full CI check before push
 make ci
 ```
 
@@ -594,11 +624,23 @@ If CI fails on your PR:
 
 **Common failures:**
 
-- Formatting issues: Run `make format`
-- Type errors: Add missing type hints
-- Test failures: Fix or update tests
-- Coverage drop: Add tests for new code
-- Linting errors: Fix code style issues
+| Issue | Solution |
+| ----- | -------- |
+| Formatting issues | Run `make format` to auto-fix |
+| Linting errors | Fix code style issues or run `make format` |
+| Type errors | Add missing type hints |
+| Test failures | Fix or update tests |
+| Coverage drop | Add tests for new code |
+| Markdown linting | Fix markdown syntax or run `markdownlint --fix` |
+
+**Prevent failures with pre-commit hooks:**
+
+```bash
+# Install once
+make install-hooks
+
+# Now linting failures are caught before commit!
+```
 
 ---
 
@@ -811,27 +853,52 @@ None
 
 ---
 
-## Pre-commit Hooks (Optional)
+## Pre-commit Hooks (Recommended)
 
-If you prefer automated checks before every commit, you can set up pre-commit hooks:
+**Prevent CI failures before they happen!**
 
-**Option 1: Use Make targets**
+Install the pre-commit hook to automatically check your code before every commit:
+
 ```bash
-# Add to .git/hooks/pre-commit
-#!/bin/sh
+# One-time setup
+make install-hooks
+```
+
+The pre-commit hook automatically runs before each commit:
+
+- ✅ **Black** formatting check
+- ✅ **isort** import sorting check
+- ✅ **flake8** linting
+- ✅ **markdownlint** (if installed)
+- ✅ **mypy** type checking
+
+**If any check fails, the commit is blocked** until you fix the issues.
+
+### Skip Hook (Not Recommended)
+
+```bash
+# Skip pre-commit checks for a specific commit
+git commit --no-verify -m "your message"
+```
+
+### Auto-fix Issues
+
+```bash
+# Auto-fix formatting issues
 make format
-make lint
-make type
+
+# Then try committing again
+git commit -m "your message"
 ```
 
-**Option 2: Use pre-commit framework**
-```bash
-pip install pre-commit
-# Create .pre-commit-config.yaml
-pre-commit install
-```
+**Why use hooks?**
 
-Running `make format` + `make ci` before every push keeps you aligned with CI without requiring hooks.
+- Catch issues locally before pushing
+- Prevent CI failures from linting
+- Get immediate feedback on code quality
+- Save time waiting for CI
+
+See [`docs/CI_CD.md`](docs/CI_CD.md#automatic-pre-commit-checks) for more details.
 
 ---
 

@@ -1,7 +1,7 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
-.PHONY: help init format format-check lint lint-markdown type security security-bandit security-audit test coverage docs build ci clean docker-build docker-test docker-clean
+.PHONY: help init format format-check lint lint-markdown type security security-bandit security-audit test coverage docs build ci clean docker-build docker-test docker-clean install-hooks
 
 help:
 	@echo "Common developer commands:"
@@ -19,6 +19,7 @@ help:
 	@echo "  make docker-build    Build Docker image"
 	@echo "  make docker-test     Build and test Docker image"
 	@echo "  make docker-clean    Remove Docker test images"
+	@echo "  make install-hooks   Install git pre-commit hook for automatic linting"
 	@echo "  make clean           Remove build artifacts (.build/, .mypy_cache/, .pytest_cache/)"
 
 init:
@@ -87,6 +88,21 @@ docker-test: docker-build
 
 docker-clean:
 	docker rmi podcast-scraper:test podcast-scraper:multi-model 2>/dev/null || true
+
+install-hooks:
+	@if [ ! -d .git ]; then echo "Error: Not a git repository"; exit 1; fi
+	@echo "Installing git pre-commit hook..."
+	@cp .github/hooks/pre-commit .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "✓ Pre-commit hook installed!"
+	@echo ""
+	@echo "The hook will automatically run before each commit to check:"
+	@echo "  • Black & isort formatting"
+	@echo "  • flake8 linting"
+	@echo "  • markdownlint (if installed)"
+	@echo "  • mypy type checking"
+	@echo ""
+	@echo "To skip the hook for a specific commit, use: git commit --no-verify"
 
 clean:
 	rm -rf build .build .mypy_cache .pytest_cache

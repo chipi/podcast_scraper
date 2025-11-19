@@ -121,6 +121,7 @@ python3 -m podcast_scraper.cli --config config.yaml
 | **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** | Development workflow, code style, testing requirements |
 | **[Architecture Overview](ARCHITECTURE.md)** | High-level system design and module responsibilities |
 | **[Testing Strategy](TESTING_STRATEGY.md)** | Test coverage, quality assurance, and testing guidelines |
+| **[CI/CD Pipeline](CI_CD.md)** | GitHub Actions workflows, parallel execution, and pipeline visualization |
 | **[API Boundaries](api/API_BOUNDARIES.md)** | API design principles and stability guarantees |
 | **[API Migration Guide](api/API_MIGRATION_GUIDE.md)** | Upgrading between versions |
 | **[API Versioning](api/API_VERSIONING.md)** | Versioning strategy and compatibility |
@@ -463,7 +464,7 @@ MIT License - See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main/L
 | -------- | ----- |
 | **Getting Started** | [Quick Start](#quick-start) • [Configuration](api/configuration.md) • [CLI Ref](api/cli.md) |
 | **Examples** | [Config YAML](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) • [Config JSON](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) • [systemd](https://github.com/chipi/podcast_scraper/blob/main/examples/systemd.service.example) • [supervisor](https://github.com/chipi/podcast_scraper/blob/main/examples/supervisor.conf.example) |
-| **Development** | [Contributing](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md) • [Architecture](ARCHITECTURE.md) • [Testing](TESTING_STRATEGY.md) • [Scripts](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md) |
+| **Development** | [Contributing](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md) • [Architecture](ARCHITECTURE.md) • [Testing](TESTING_STRATEGY.md) • [CI/CD](CI_CD.md) • [Scripts](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md) |
 | **Specifications** | [PRDs](prd/index.md) • [RFCs](rfc/index.md) • [Releases](releases/RELEASE_v2.3.0.md) |
 | **Legal** | [Legal Notice](legal.md) • [License](https://github.com/chipi/podcast_scraper/blob/main/LICENSE) |
 
