@@ -5,7 +5,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     XDG_CACHE_HOME=/opt/whisper-cache
 
-ARG WHISPER_PRELOAD_MODELS=base
+ARG WHISPER_PRELOAD_MODELS=base.en
 ENV WHISPER_PRELOAD_MODELS=${WHISPER_PRELOAD_MODELS}
 
 RUN apt-get update \
@@ -29,7 +29,7 @@ if model_csv:
 else:
     models = []
 if not models:
-    models = ["base"]
+    models = ["base.en"]
 
 for name in models:
     print(f"Preloading Whisper model: {name}")
