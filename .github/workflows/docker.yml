@@ -79,4 +79,4 @@ jobs:
     
     - name: Validate Dockerfile with hadolint
       run: |
-        docker run --rm -i hadolint/hadolint:latest < docker/Dockerfile
+        docker run --rm -v $(pwd):/workspace -w /workspace hadolint/hadolint:latest hadolint docker/Dockerfile
