@@ -21,7 +21,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 ## RFC Index
 
 | RFC | Title | Related PRD | Version | Status | Description |
-|-----|-------|-------------|---------|--------|-------------|
+| --- | ----- | ----------- | ------- | ------ | ----------- |
 | [RFC-001](RFC-001-workflow-orchestration.md) | Workflow Orchestration | PRD-001 | v2.0.0 | ✅ Accepted | Central orchestrator for transcript acquisition pipeline |
 | [RFC-002](RFC-002-rss-parsing.md) | RSS Parsing & Episode Modeling | PRD-001 | v2.0.0 | ✅ Accepted | RSS feed parsing and episode data model |
 | [RFC-003](RFC-003-transcript-downloads.md) | Transcript Download Processing | PRD-001 | v2.0.0 | ✅ Accepted | Resilient transcript download with retry logic |

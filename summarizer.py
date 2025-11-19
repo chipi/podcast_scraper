@@ -524,22 +524,20 @@ class SummaryModel:
             # Users can pin versions by specifying model_name with revision (e.g., "model@revision")
             # Transformers automatically caches models - won't be re-downloaded if cached
             logger.debug("Loading tokenizer (will use cache if available)...")
-            self.tokenizer = (
-                AutoTokenizer.from_pretrained(  # nosec B615 - revision pinning optional
-                    self.model_name,
-                    cache_dir=self.cache_dir,
-                )
+            # Revision pinning optional; relying on cache integrity
+            self.tokenizer = AutoTokenizer.from_pretrained(  # nosec B615
+                self.model_name,
+                cache_dir=self.cache_dir,
             )
 
             # Load model
             # Note: Model versions are managed by Hugging Face cache
             # Users can pin versions by specifying model_name with revision (e.g., "model@revision")
             logger.debug("Loading model (will use cache if available)...")
-            self.model = (
-                AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615 - revision pinning optional
-                    self.model_name,
-                    cache_dir=self.cache_dir,
-                )
+            # Revision pinning optional; relying on cache integrity
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
+                self.model_name,
+                cache_dir=self.cache_dir,
             )
             logger.info("Model loaded successfully (cached for future runs)")
 

@@ -32,7 +32,8 @@ def _platformdirs_safe_roots() -> set[Path]:
         for app_name in _PLATFORMDIR_APP_NAMES:
             try:
                 location = getter(app_name)
-            except Exception:  # nosec B112 - fall back to next candidate on failure
+            # Fall back to next candidate on failure
+            except Exception:  # nosec B112
                 continue
             if not location:
                 continue
@@ -96,7 +97,8 @@ def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
     parsed = urlparse(rss_url)
     base = parsed.netloc or "feed"
     safe_base = sanitize_filename(base)
-    digest = hashlib.sha1(rss_url.encode("utf-8")).hexdigest()  # nosec B324 - deterministic naming
+    # Deterministic hash for directory naming (not security sensitive)
+    digest = hashlib.sha1(rss_url.encode("utf-8"), usedforsecurity=False).hexdigest()
     return f"output_rss_{safe_base}_{digest[:URL_HASH_LENGTH]}"
 
 

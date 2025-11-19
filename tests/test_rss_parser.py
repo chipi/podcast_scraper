@@ -14,7 +14,9 @@ if PROJECT_ROOT not in sys.path:
 # Note: pytest automatically loads conftest.py, but we need explicit imports for unittest
 import sys
 import unittest
-import xml.etree.ElementTree as ET  # nosec B405 - tests construct safe XML elements
+
+# Bandit: tests construct safe XML elements
+import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
 
 from podcast_scraper import rss_parser

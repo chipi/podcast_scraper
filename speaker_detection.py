@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import logging
 import re
-import subprocess  # nosec B404 - subprocess is needed for spaCy model download
+
+# Bandit: subprocess is needed for spaCy model download
+import subprocess  # nosec B404
 import sys
 import threading
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -115,7 +117,7 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
             # Use subprocess to call 'python -m spacy download' (most reliable method)
             # This ensures we use the same Python interpreter and environment
             # Model name is validated above to prevent command injection
-            subprocess.run(  # nosec B603 - model_name is validated above
+            subprocess.run(  # nosec B603
                 [sys.executable, "-m", "spacy", "download", model_name],
                 capture_output=True,
                 text=True,
