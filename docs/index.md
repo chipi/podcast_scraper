@@ -1,37 +1,472 @@
-# Podcast Scraper Documentation
+# Podcast Scraper
 
-Welcome! This site captures the knowledge required to understand, operate, and extend the `podcast_scraper` project.
+**Download and process podcast transcripts with ease.**
 
-## Quick Links
+Podcast Scraper is a Python tool that downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, and can fall back to Whisper transcription when episodes lack published transcripts.
 
-- **[API Reference](api/API_REFERENCE.md)** - Complete public API documentation with examples
-- **[Architecture](ARCHITECTURE.md)** - High-level system design and module responsibilities
-- **[API Boundaries](api/API_BOUNDARIES.md)** - API design principles and boundaries
+> **⚠️ Important:** This project is intended for **personal, non-commercial use only**. All downloaded content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate Use](legal.md) for details.
 
-## What you will find here
+---
 
-- **API Reference** — Complete documentation of all public functions, classes, and their parameters
-- **Architecture overview** — High-level system design in `ARCHITECTURE.md`
-- **Product Requirements (PRDs)** — Intent and functional expectations for major capabilities (transcript acquisition, Whisper fallback, user interfaces)
-- **Requests for Comment (RFCs)** — Technical specifications for the modules that implement each capability
-- **Guides** — API migration references and API boundaries documentation
+## ✨ Key Features
 
-## Getting Started
+- **Transcript Downloads** — Automatic detection and download of podcast transcripts from RSS feeds
+- **Whisper Fallback** — Generate transcripts using OpenAI Whisper when none exist
+- **Speaker Detection** — Automatic speaker name detection using Named Entity Recognition (NER)
+- **Screenplay Formatting** — Format Whisper transcripts as dialogue with speaker labels
+- **Episode Summarization** — Generate concise summaries using local transformer models (BART + LED)
+- **Metadata Generation** — Create database-friendly JSON/YAML metadata documents per episode
+- **Multi-threaded Downloads** — Concurrent processing with configurable worker pools
+- **Resumable Operations** — Skip existing files, reuse media, and handle interruptions gracefully
+- **Configuration Files** — JSON/YAML config support for repeatable workflows
+- **Service Mode** — Non-interactive daemon mode for automation and process managers
 
-1. Review the [Architecture](ARCHITECTURE.md) to understand system boundaries and major components.
-2. Read the PRDs to learn the *why* behind each feature area.
-3. Dive into the RFCs for implementation details when building or modifying functionality.
-4. Consult the Guides when migrating from earlier versions or comparing API changes.
+---
 
-## Local Development
+## 🚀 Quick Start
+
+### Installation
 
 ```bash
-pip install mkdocs mkdocs-material
+# Clone or download the repository
+git clone https://github.com/chipi/podcast_scraper.git
+cd podcast_scraper
+
+# Install the package
+pip install -e .
+
+# For Whisper transcription, ensure ffmpeg is installed
+# macOS: brew install ffmpeg
+# Ubuntu: sudo apt install ffmpeg
+```
+
+### Basic Usage
+
+```bash
+# Download transcripts from a podcast RSS feed
+python3 -m podcast_scraper.cli https://example.com/feed.xml
+
+# Limit episodes and use custom output directory
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
+  --max-episodes 10 \
+  --output-dir ./my_transcripts
+
+# Use Whisper when transcripts are missing
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
+  --transcribe-missing \
+  --whisper-model base
+
+# Generate metadata and summaries
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
+  --generate-metadata \
+  --generate-summaries
+```
+
+### Configuration Files
+
+Use JSON or YAML configuration files for complex workflows:
+
+```yaml
+# config.yaml
+rss: https://example.com/feed.xml
+output_dir: ./transcripts
+max_episodes: 50
+transcribe_missing: true
+whisper_model: base
+screenplay: true
+num_speakers: 2
+auto_speakers: true
+generate_metadata: true
+generate_summaries: true
+workers: 4
+skip_existing: true
+```
+
+```bash
+python3 -m podcast_scraper.cli --config config.yaml
+```
+
+**Configuration examples:**
+
+- [config.example.json](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) - JSON format with all options
+- [config.example.yaml](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) - YAML format with comments
+
+---
+
+## 📚 Documentation
+
+### Getting Started
+
+| Resource | Description |
+| -------- | ----------- |
+| **[Quick Start](#quick-start)** | Installation, basic usage, and first commands |
+| **[Configuration Guide](api/configuration.md)** | Complete configuration options and examples |
+| **[CLI Reference](api/cli.md)** | Command-line interface documentation |
+| **[Python API](api/API_REFERENCE.md)** | Public API for programmatic usage |
+| **[Legal Notice](legal.md)** | ⚠️ Important usage restrictions and fair use |
+
+### User Guides
+
+| Guide | Description |
+| ----- | ----------- |
+| **[Service Mode](api/service.md)** | Running as daemon or service (systemd, supervisor, cron) |
+| **[Service Examples](#service-daemon-examples)** | systemd and supervisor configuration templates |
+| **[Advanced Features](#advanced-features)** | Speaker detection, summarization, language support |
+| **[Configuration Files](#configuration-files)** | JSON/YAML config examples |
+
+### For Developers
+
+| Resource | Description |
+| -------- | ----------- |
+| **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** | Development workflow, code style, testing requirements |
+| **[Architecture Overview](ARCHITECTURE.md)** | High-level system design and module responsibilities |
+| **[Testing Strategy](TESTING_STRATEGY.md)** | Test coverage, quality assurance, and testing guidelines |
+| **[API Boundaries](api/API_BOUNDARIES.md)** | API design principles and stability guarantees |
+| **[API Migration Guide](api/API_MIGRATION_GUIDE.md)** | Upgrading between versions |
+| **[API Versioning](api/API_VERSIONING.md)** | Versioning strategy and compatibility |
+
+### API Reference
+
+Complete documentation of all public modules:
+
+| Module | Description |
+| ------ | ----------- |
+| **[Core API](api/core.md)** | Main entry point (`run_pipeline`, `Config`) |
+| **[Configuration](api/configuration.md)** | Configuration model and file loading |
+| **[Service API](api/service.md)** | Non-interactive service mode for daemons |
+| **[CLI Interface](api/cli.md)** | Command-line interface |
+| **[Models](api/models.md)** | Data models (Episode, RssFeed, etc.) |
+
+### Product & Technical Specs
+
+#### Product Requirements (PRDs)
+
+PRDs define the **what** and **why** behind each major feature:
+
+| PRD | Title | Version | Description |
+| --- | ----- | ------- | ----------- |
+| **[PRD-001](prd/PRD-001-transcript-pipeline.md)** | Transcript Acquisition Pipeline | v2.0.0 | Core pipeline for downloading published transcripts |
+| **[PRD-002](prd/PRD-002-whisper-fallback.md)** | Whisper Fallback Transcription | v2.0.0 | Automatic transcription when transcripts are missing |
+| **[PRD-003](prd/PRD-003-user-interface-config.md)** | User Interfaces & Configuration | v2.0.0 | CLI interface and config file support |
+| **[PRD-004](prd/PRD-004-metadata-generation.md)** | Per-Episode Metadata Generation | v2.2.0 | Database-friendly metadata documents |
+| **[PRD-005](prd/PRD-005-episode-summarization.md)** | Episode Summarization | v2.3.0 | Automatic summaries using transformer models |
+
+[View all PRDs →](prd/index.md)
+
+#### Technical Specifications (RFCs)
+
+RFCs define the **how** behind each feature implementation:
+
+| RFC | Title | Version | Description |
+| --- | ----- | ------- | ----------- |
+| **[RFC-001](rfc/RFC-001-workflow-orchestration.md)** | Workflow Orchestration | v2.0.0 | Central orchestrator for transcript pipeline |
+| **[RFC-002](rfc/RFC-002-rss-parsing.md)** | RSS Parsing & Episode Modeling | v2.0.0 | RSS feed parsing and episode data model |
+| **[RFC-003](rfc/RFC-003-transcript-downloads.md)** | Transcript Download Processing | v2.0.0 | Resilient transcript downloads with retries |
+| **[RFC-004](rfc/RFC-004-filesystem-layout.md)** | Filesystem Layout & Run Management | v2.0.0 | Output directory structure and run scoping |
+| **[RFC-005](rfc/RFC-005-whisper-integration.md)** | Whisper Integration Lifecycle | v2.0.0 | Whisper model loading and transcription |
+| **[RFC-006](rfc/RFC-006-screenplay-formatting.md)** | Whisper Screenplay Formatting | v2.0.0 | Speaker-attributed transcript formatting |
+| **[RFC-007](rfc/RFC-007-cli-interface.md)** | CLI Interface & Validation | v2.0.0 | Command-line argument parsing |
+| **[RFC-008](rfc/RFC-008-config-model.md)** | Configuration Model & Validation | v2.0.0 | Pydantic-based configuration |
+| **[RFC-009](rfc/RFC-009-progress-integration.md)** | Progress Reporting Integration | v2.0.0 | Pluggable progress reporting |
+| **[RFC-010](rfc/RFC-010-speaker-name-detection.md)** | Automatic Speaker Name Detection | v2.1.0 | NER-based host/guest identification |
+| **[RFC-011](rfc/RFC-011-metadata-generation.md)** | Per-Episode Metadata Generation | v2.2.0 | Structured metadata document generation |
+| **[RFC-012](rfc/RFC-012-episode-summarization.md)** | Episode Summarization | v2.3.0 | Local transformer-based summarization |
+
+[View all RFCs →](rfc/index.md)
+
+### Release History
+
+| Version | Date | Highlights |
+| ------- | ---- | ---------- |
+| **[v2.3.0](releases/RELEASE_v2.3.0.md)** | Latest | Episode summarization, public API, cleaned transcripts |
+| **[v2.2.0](releases/RELEASE_v2.2.0.md)** | - | Metadata generation, code quality improvements |
+| **[v2.1.0](releases/RELEASE_v2.1.0.md)** | - | Automatic speaker detection using NER |
+| **[v2.0.1](releases/RELEASE_v2.0.1.md)** | - | Bug fixes and stability improvements |
+| **[v2.0.0](releases/RELEASE_v2.0.0.md)** | - | Modular architecture, public API foundation |
+
+---
+
+## 📦 Service & Daemon Examples
+
+Run podcast_scraper as a background service:
+
+### systemd Service
+
+```ini
+[Unit]
+Description=Podcast Scraper Service
+After=network.target
+
+[Service]
+Type=oneshot
+User=your_username
+WorkingDirectory=/path/to/working/directory
+ExecStart=/usr/bin/python3 -m podcast_scraper.service --config /path/to/config.yaml
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+```
+
+[Full systemd example →](https://github.com/chipi/podcast_scraper/blob/main/examples/systemd.service.example)
+
+### Supervisor Configuration
+
+```ini
+[program:podcast_scraper]
+command=python -m podcast_scraper.service --config /path/to/config.yaml
+directory=/path/to/working/directory
+user=your_username
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/podcast_scraper/stdout.log
+stderr_logfile=/var/log/podcast_scraper/stderr.log
+```
+
+[Full supervisor example →](https://github.com/chipi/podcast_scraper/blob/main/examples/supervisor.conf.example)
+
+---
+
+## 🛠️ Advanced Features
+
+### Automatic Speaker Detection
+
+```bash
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
+  --transcribe-missing \
+  --screenplay \
+  --num-speakers 2 \
+  --auto-speakers
+```
+
+Speaker names are automatically extracted from episode metadata using Named Entity Recognition. Manual override available via `--speaker-names`.
+
+### Episode Summarization
+
+```bash
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
+  --generate-metadata \
+  --generate-summaries \
+  --summary-model bart-large \
+  --summary-device mps
+```
+
+Generates concise summaries using a hybrid map-reduce strategy with local transformer models. Supports GPU acceleration (CUDA/MPS).
+
+### Language Support
+
+```bash
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
+  --transcribe-missing \
+  --language fr \
+  --whisper-model base
+```
+
+Automatic language-aware Whisper model selection and NER model matching.
+
+---
+
+## 🔬 Evaluation & Testing
+
+### Evaluation Scripts
+
+Test and evaluate transcript processing quality:
+
+| Script | Purpose |
+| ------ | ------- |
+| **eval_cleaning.py** | Evaluate transcript cleaning quality (sponsor removal, word counts, diffs) |
+| **eval_summaries.py** | Evaluate summarization quality (ROUGE metrics, compression, keyword coverage) |
+
+**Usage:**
+
+```bash
+# Evaluate transcript cleaning
+python scripts/eval_cleaning.py --episode ep01
+
+# Evaluate summarization quality
+python scripts/eval_summaries.py --map-model bart-large --reduce-model long-fast
+```
+
+[Scripts documentation →](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md)
+
+### Development Setup
+
+```bash
+# Set up development environment
+bash scripts/setup_venv.sh
+source .venv/bin/activate
+pip install -e .
+
+# Run full CI suite locally
+make ci
+```
+
+---
+
+## 🐍 Python API
+
+The top-level package exposes a minimal stable API:
+
+```python
+import podcast_scraper
+
+# Configure and run
+cfg = podcast_scraper.Config(
+    rss="https://example.com/feed.xml",
+    output_dir="./out",
+    transcribe_missing=True,
+    generate_metadata=True
+)
+
+podcast_scraper.run_pipeline(cfg)
+```
+
+**Utilities:**
+
+- `podcast_scraper.load_config_file(path)` — Parse JSON/YAML configuration
+- `podcast_scraper.run_pipeline(cfg)` — Run the full pipeline
+- `podcast_scraper.cli.main(argv)` — CLI entry point
+
+[Complete API reference →](api/API_REFERENCE.md)
+
+---
+
+## 🐳 Docker
+
+The Docker image uses the service API, which requires a configuration file:
+
+```bash
+docker build -t podcast-scraper -f docker/Dockerfile .
+
+docker run --rm \
+  -v "$(pwd)/output_docker:/app/output" \
+  -v "$(pwd)/config.yaml:/app/config.yaml:ro" \
+  podcast-scraper \
+  --config /app/config.yaml
+```
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how to get started:
+
+### Quick Start
+
+```bash
+# Set up development environment
+make init
+
+# Run full CI suite (matches GitHub Actions)
+make ci
+
+# Common commands
+make format        # Auto-format code
+make lint          # Run linting
+make type          # Type checking
+make test          # Run tests with coverage
+make docs          # Build documentation
+```
+
+### What to Know
+
+- **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** — Complete development workflow, code style, testing requirements
+- **[Architecture](ARCHITECTURE.md)** — Module boundaries and design principles
+- **[Testing Strategy](TESTING_STRATEGY.md)** — Test coverage and quality standards
+- **Code Style:** Black + isort + flake8 + mypy (line length: 100)
+- **Testing:** pytest with mocks for external dependencies
+- **Documentation:** Update README, API docs, and PRD/RFC as needed
+
+### PR Checklist
+
+- [ ] Run `make ci` locally (all checks pass)
+- [ ] Add/update tests for new functionality
+- [ ] Update documentation (README, API docs, etc.)
+- [ ] Follow conventional commit format
+- [ ] Reference related issues (Fixes #XX)
+
+[View full contributing guide →](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)
+
+---
+
+## 📖 Local Documentation Development
+
+Build and preview documentation locally:
+
+```bash
+# Install dependencies
+pip install -r docs/requirements.txt
+
+# Serve with live reload
 mkdocs serve
 ```
 
-Visit [http://localhost:8000](http://localhost:8000) to preview the site. The page updates automatically as you edit Markdown files.
+Visit [http://localhost:8000](http://localhost:8000) to preview. The site updates automatically as you edit Markdown files.
 
-## Deployment
+**Build output:** `.build/site/` (organized in `.build/` to keep root clean)
 
-This repository includes a GitHub Actions workflow that builds the site with MkDocs and publishes it to GitHub Pages on every push to `main`.
+---
+
+## 🔬 Work In Progress
+
+Experimental and draft documentation:
+
+- [WIP Overview](wip/WIP_README.md) — Purpose and guidelines for WIP docs
+- [Architecture Modularity Assessment](wip/ARCHITECTURE_MODULARITY_ASSESSMENT.md)
+- [Modularity Quick Reference](wip/MODULARITY_QUICK_REFERENCE.md)
+- [Refactoring Opportunities](wip/REFACTORING_OPPORTUNITIES.md)
+- [Summarization Testing Evaluation](wip/SUMMARIZATION_TESTING_EVALUATION.md)
+- [Summary Review](wip/SUMMARY_REVIEW.md)
+- [Whisper Progress Analysis](wip/WHISPER_PROGRESS_ANALYSIS.md)
+
+> ⚠️ **Note:** WIP documents are temporary, may be incomplete, and are not part of official documentation.
+
+---
+
+## ⚖️ Legal & Fair Use
+
+This project is intended for **personal, non-commercial use only**. All downloaded content must remain local to your device and must not be shared, uploaded, or redistributed.
+
+**You are responsible for ensuring compliance with:**
+
+- Copyright law
+- RSS feed terms of service
+- Podcast platform policies
+
+This software is provided for educational and personal-use purposes only. It is not intended to power a public dataset, index, or any commercial service without explicit permission from rights holders.
+
+[Read full legal notice →](legal.md)
+
+---
+
+## 📄 License
+
+MIT License - See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main/LICENSE) for details.
+
+**Important:** The MIT license applies only to the source code. It does not grant any rights to redistribute third-party podcast content.
+
+---
+
+## 🔗 Quick Links
+
+### Project Resources
+
+- **Repository:** [github.com/chipi/podcast_scraper](https://github.com/chipi/podcast_scraper)
+- **Documentation:** [chipi.github.io/podcast_scraper](https://chipi.github.io/podcast_scraper/)
+- **Issues:** [Report bugs or request features](https://github.com/chipi/podcast_scraper/issues)
+- **License:** [MIT License](https://github.com/chipi/podcast_scraper/blob/main/LICENSE)
+
+### Essential Documentation
+
+| Category | Links |
+| -------- | ----- |
+| **Getting Started** | [Quick Start](#quick-start) • [Configuration](api/configuration.md) • [CLI Ref](api/cli.md) |
+| **Examples** | [Config YAML](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) • [Config JSON](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) • [systemd](https://github.com/chipi/podcast_scraper/blob/main/examples/systemd.service.example) • [supervisor](https://github.com/chipi/podcast_scraper/blob/main/examples/supervisor.conf.example) |
+| **Development** | [Contributing](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md) • [Architecture](ARCHITECTURE.md) • [Testing](TESTING_STRATEGY.md) • [Scripts](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md) |
+| **Specifications** | [PRDs](prd/index.md) • [RFCs](rfc/index.md) • [Releases](releases/RELEASE_v2.3.0.md) |
+| **Legal** | [Legal Notice](legal.md) • [License](https://github.com/chipi/podcast_scraper/blob/main/LICENSE) |
+
+---
+
+**Need help?** Check the [documentation](#-documentation), search [existing issues](https://github.com/chipi/podcast_scraper/issues), or open a new issue for support.
