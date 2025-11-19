@@ -1251,7 +1251,8 @@ def _parallel_episode_summarization(
                             metadata_content = json.load(f)
                         if metadata_content and metadata_content.get("summary"):
                             needs_summary = False
-                except Exception:  # nosec B110 - Graceful fallback: assume needs summarization
+                # Graceful fallback: assume needs summarization
+                except Exception:  # nosec B110
                     pass
 
             if needs_summary:

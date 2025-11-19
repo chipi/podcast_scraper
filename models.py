@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET  # nosec B405 - used only for typing references
+# Bandit: ElementTree usage limited to typing references
+import xml.etree.ElementTree as ET  # nosec B405
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 

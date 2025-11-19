@@ -11,7 +11,9 @@ All test files can import from this module using pytest's conftest.py mechanism.
 
 import argparse
 import unittest.mock
-import xml.etree.ElementTree as ET  # nosec B405 - tests construct safe XML elements
+
+# Bandit: tests construct safe XML elements
+import xml.etree.ElementTree as ET  # nosec B405
 
 from podcast_scraper import config, models
 

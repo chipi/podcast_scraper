@@ -314,7 +314,7 @@ Each episode in `data/eval/` should contain:
 ### 📊 Performance Impact
 
 | Component | Before | After | Improvement |
-| --- | --- | --- | --- |
+| --------- | ------ | ----- | ----------- |
 | Summary model (100 episodes) | 50-60GB | ~1GB | ~98% reduction |
 | spaCy model (full pipeline) | ~50-100MB | ~30-50MB | 30-50% reduction |
 | spaCy cache persistence | Persistent | Cleared after processing | ~50MB freed |

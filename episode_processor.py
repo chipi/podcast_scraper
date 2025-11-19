@@ -195,9 +195,10 @@ def download_media_for_transcription(
     ep_num_str = f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d}"
     short_title = filesystem.truncate_whisper_title(episode.title_safe, for_log=False)
     title_hash_input = f"{episode.media_url}|{episode.idx}|{cfg.rss_url}"
-    title_hash = hashlib.sha1(  # nosec B324 - used only for stable filenames
-        title_hash_input.encode("utf-8")
-    ).hexdigest()[:TITLE_HASH_PREFIX_LENGTH]
+    # Hash is only for stable filenames (not security sensitive)
+    title_hash = hashlib.sha1(title_hash_input.encode("utf-8"), usedforsecurity=False).hexdigest()[
+        :TITLE_HASH_PREFIX_LENGTH
+    ]
     temp_media = os.path.join(temp_dir, f"{ep_num_str}_{short_title}_{title_hash}{ext}")
 
     # Check if media file already exists and reuse it if configured
