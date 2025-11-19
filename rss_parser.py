@@ -45,9 +45,12 @@ def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[str], List[ET.Element]]
     title = ""
     authors: List[str] = []
     if channel is not None:
-        t = channel.find("title") or next(
-            (e for e in channel.iter() if isinstance(e.tag, str) and e.tag.endswith("title")), None
-        )
+        t = channel.find("title")
+        if t is None:
+            t = next(
+                (e for e in channel.iter() if isinstance(e.tag, str) and e.tag.endswith("title")),
+                None,
+            )
         if t is not None and t.text:
             title = t.text.strip()
 
@@ -182,9 +185,11 @@ def extract_episode_title(item: ET.Element, idx: int) -> Tuple[str, str]:
     Returns:
         Tuple of (original_title, safe_filename_title)
     """
-    title_el = item.find("title") or next(
-        (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("title")), None
-    )
+    title_el = item.find("title")
+    if title_el is None:
+        title_el = next(
+            (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("title")), None
+        )
     ep_title = title_el.text.strip() if title_el is not None and title_el.text else f"episode_{idx}"
     ep_title_safe = filesystem.sanitize_filename(ep_title)
     return ep_title, ep_title_safe
@@ -280,10 +285,12 @@ def extract_feed_metadata(
         return None, None, None
 
     description = None
-    desc_elem = channel.find("description") or next(
-        (e for e in channel.iter() if isinstance(e.tag, str) and e.tag.endswith("description")),
-        None,
-    )
+    desc_elem = channel.find("description")
+    if desc_elem is None:
+        desc_elem = next(
+            (e for e in channel.iter() if isinstance(e.tag, str) and e.tag.endswith("description")),
+            None,
+        )
     if desc_elem is not None and desc_elem.text:
         description = _strip_html(desc_elem.text.strip())
 
@@ -414,14 +421,14 @@ def extract_episode_metadata(
         where each may be None
     """
     description = None
-    desc_elem = (
-        item.find("description")
-        or item.find("summary")
-        or next(
+    desc_elem = item.find("description")
+    if desc_elem is None:
+        desc_elem = item.find("summary")
+    if desc_elem is None:
+        desc_elem = next(
             (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("description")),
             None,
         )
-    )
     if desc_elem is None:
         desc_elem = next(
             (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("summary")), None
@@ -507,9 +514,11 @@ def extract_episode_description(item: ET.Element) -> Optional[str]:
     Returns:
         Description text with HTML stripped, or None if not found
     """
-    desc_el = item.find("description") or next(
-        (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("description")), None
-    )
+    desc_el = item.find("description")
+    if desc_el is None:
+        desc_el = next(
+            (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("description")), None
+        )
     if desc_el is not None:
         # Get text content - RSS descriptions often contain HTML
         desc_text = desc_el.text or ""
