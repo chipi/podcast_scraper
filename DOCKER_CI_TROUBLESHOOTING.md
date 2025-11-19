@@ -3,6 +3,7 @@
 ## Current Status
 
 The Docker build CI workflow has been implemented and committed:
+
 - Commit `a247f10`: feat: Add Docker build and test CI workflow  
 - Commit `eac71eb`: Fix: Load Docker images for CI testing
 
@@ -52,6 +53,7 @@ paths:
 **Current Setting:** `failure-threshold: warning`
 
 This means hadolint will fail the build on warnings, not just errors. Common warnings:
+
 - DL3008: Pin versions in apt-get install (already handled with `--no-install-recommends`)
 - DL3013: Pin versions in pip install (already using requirements.txt)
 - DL3059: Multiple consecutive RUN commands (acceptable for clarity)
@@ -70,6 +72,7 @@ This means hadolint will fail the build on warnings, not just errors. Common war
 **Issue:** The Dockerfile copies the entire project and runs `pip install .`
 
 **Requirements:**
+
 - `pyproject.toml` must be present and valid
 - `requirements.txt` must be present
 - All Python modules must be importable
