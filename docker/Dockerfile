@@ -34,6 +34,9 @@ RUN pip install --no-cache-dir \
     protobuf>=3.20.0 \
     && rm -rf /root/.cache/pip
 
+# Install the podcast_scraper package itself (without reinstalling ML deps)
+RUN pip install --no-cache-dir --no-deps .
+
 RUN python - <<'PY'
 import os
 import whisper
