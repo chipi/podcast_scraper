@@ -78,7 +78,5 @@ jobs:
         echo "$output" | grep -q "required"
     
     - name: Validate Dockerfile with hadolint
-      uses: hadolint/hadolint-action@v3.1.0
-      with:
-        dockerfile: docker/Dockerfile
-        failure-threshold: error
+      run: |
+        docker run --rm -i hadolint/hadolint:latest < docker/Dockerfile
