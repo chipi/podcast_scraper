@@ -478,7 +478,76 @@ class Config(BaseModel):
 def load_config_file(
     path: str,
 ) -> Dict[str, Any]:  # noqa: C901 - file parsing handles multiple formats
-    """Load JSON or YAML configuration file and return a dictionary."""
+    """Load configuration from a JSON or YAML file.
+
+    This function reads a configuration file and returns a dictionary of configuration values.
+    The file format is auto-detected from the file extension (`.json`, `.yaml`, or `.yml`).
+
+    The returned dictionary can be unpacked into the `Config` constructor to create a
+    configuration object.
+
+    Args:
+        path: Path to configuration file (JSON or YAML). Supports tilde expansion for
+              home directory (e.g., "~/config.yaml").
+
+    Returns:
+        Dict[str, Any]: Dictionary containing configuration values from the file.
+            Keys correspond to `Config` field names (using aliases where applicable).
+
+    Raises:
+        ValueError: If any of the following occur:
+            
+            - Config path is empty
+            - Config file does not exist
+            - File format is invalid (not JSON or YAML)
+            - JSON parsing fails
+            - YAML parsing fails
+            
+        OSError: If file cannot be read due to permissions or I/O errors
+
+    Example:
+        >>> from podcast_scraper import Config, load_config_file, run_pipeline
+        >>> 
+        >>> # Load from YAML file
+        >>> config_dict = load_config_file("config.yaml")
+        >>> cfg = Config(**config_dict)
+        >>> count, summary = run_pipeline(cfg)
+        
+    Example with JSON:
+        >>> config_dict = load_config_file("config.json")
+        >>> cfg = Config(**config_dict)
+        
+    Example with direct usage:
+        >>> from podcast_scraper import load_config_file, service
+        >>> 
+        >>> # Service API provides load_config_file convenience
+        >>> result = service.run_from_config_file("config.yaml")
+        
+    Supported Formats:
+        **JSON** (`.json`):
+        
+            {
+              "rss": "https://example.com/feed.xml",
+              "output_dir": "./transcripts",
+              "max_episodes": 50
+            }
+            
+        **YAML** (`.yaml`, `.yml`):
+        
+            rss: https://example.com/feed.xml
+            output_dir: ./transcripts
+            max_episodes: 50
+            
+    Note:
+        - Field aliases are supported (e.g., both "rss" and "rss_url" work)
+        - See `Config` documentation for all available configuration options
+        - Configuration files should not contain sensitive data (API keys, passwords)
+        
+    See Also:
+        - `Config`: Configuration model and field documentation
+        - `service.run_from_config_file()`: Direct service API from config file
+        - Configuration examples: `examples/config.example.json`, `examples/config.example.yaml`
+    """
     if not path:
         raise ValueError("Config path cannot be empty")
 
