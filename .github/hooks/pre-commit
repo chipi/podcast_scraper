@@ -1,0 +1,81 @@
+#!/bin/bash
+#
+# Git pre-commit hook to check linting before commits
+# 
+# This hook runs:
+# - Black & isort formatting checks
+# - flake8 linting
+# - markdownlint on markdown files
+# - mypy type checking
+#
+# To install: run `make install-hooks` or manually:
+#   cp .github/hooks/pre-commit .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+# To skip the hook for a specific commit:
+#   git commit --no-verify
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+echo ""
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+ERRORS=0
+
+# Function to run a check and track errors
+run_check() {
+    local name="$1"
+    local command="$2"
+    
+    echo "→ Running $name..."
+    if eval "$command" > /tmp/precommit_$$.log 2>&1; then
+        echo -e "${GREEN}✓${NC} $name passed"
+    else
+        echo -e "${RED}✗${NC} $name failed"
+        cat /tmp/precommit_$$.log
+        ERRORS=$((ERRORS + 1))
+    fi
+    rm -f /tmp/precommit_$$.log
+    echo ""
+}
+
+# Check formatting
+run_check "Black formatting" "black --check ."
+run_check "isort import sorting" "isort --check-only ."
+
+# Check linting
+run_check "flake8 linting" "flake8 --config .flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics"
+
+# Check markdown linting (only if markdownlint is installed)
+if command -v markdownlint >/dev/null 2>&1; then
+    run_check "Markdown linting" "markdownlint '**/*.md' --ignore node_modules --ignore .venv --ignore .build"
+else
+    echo -e "${YELLOW}⚠${NC} markdownlint not found, skipping markdown checks"
+    echo "  Install with: npm install -g markdownlint-cli"
+    echo ""
+fi
+
+# Check types
+run_check "mypy type checking" "mypy --config-file pyproject.toml ."
+
+# Summary
+echo "═══════════════════════════════════════════════"
+if [ $ERRORS -eq 0 ]; then
+    echo -e "${GREEN}✓ All pre-commit checks passed!${NC}"
+    echo "═══════════════════════════════════════════════"
+    exit 0
+else
+    echo -e "${RED}✗ $ERRORS check(s) failed!${NC}"
+    echo ""
+    echo "Fix the issues above or use:"
+    echo "  • make format       - Auto-fix formatting"
+    echo "  • git commit --no-verify - Skip checks (not recommended)"
+    echo "═══════════════════════════════════════════════"
+    exit 1
+fi

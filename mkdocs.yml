@@ -9,6 +9,7 @@ nav:
   - Home: index.md
   - Architecture: ARCHITECTURE.md
   - Testing Strategy: TESTING_STRATEGY.md
+  - CI/CD Pipeline: CI_CD.md
   - Product Requirements:
       - PRD Overview: prd/index.md
       - PRD-001 Transcript Acquisition Pipeline: prd/PRD-001-transcript-pipeline.md
