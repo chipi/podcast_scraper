@@ -1,7 +1,8 @@
 # Release v2.3.0 - Episode Summarization & Public API
 
-**Release Date:** November 2024  
-**Type:** Minor Release
+**Release Date:** November 2025  
+**Type:** Minor Release  
+**Last Updated:** November 18, 2025
 
 ## Summary
 
@@ -371,6 +372,34 @@ Each episode in `data/eval/` should contain:
 - **Missing Import**: Fixed missing `time` import in `metadata.py`
 - **Unused Imports**: Removed unused imports in `workflow.py` and `test_service.py`
 
+### 🔧 CI/CD Improvements (Post-Release Update)
+
+**Comprehensive CI/CD fixes and improvements (#52):**
+
+- **Linting & Formatting**: Fixed all linting and formatting issues across the codebase
+- **Markdown Compliance**: Updated all markdown files to comply with markdownlint rules
+- **Documentation Build**: Fixed GitHub Actions workflow for documentation deployment
+- **Gitignore Updates**: Enhanced `.gitignore` with proper build artifact patterns
+- **Makefile Improvements**: Updated build targets and paths for better artifact management
+- **Code Quality**: Improved code formatting consistency across all Python modules
+- **Test Files**: Enhanced test file organization and formatting
+- **Example Configs**: Updated example configuration files with better formatting and comments
+
+**Files Updated:**
+- CI workflows (`.github/workflows/docs.yml`, `.github/workflows/python-app.yml`)
+- Linting configurations (`.flake8`, `.markdownlint.json`)
+- Project configuration (`Makefile`, `pyproject.toml`, `.gitignore`)
+- Core modules (`__init__.py`, `cli.py`, `config.py`, `episode_processor.py`, `metadata.py`, `speaker_detection.py`, `workflow.py`, `whisper_integration.py`)
+- All documentation files for markdown compliance
+- Test files for consistent formatting
+- Example configuration files
+
+**Impact:**
+- All CI checks now pass consistently
+- Improved code maintainability and readability
+- Better documentation formatting and navigation
+- Cleaner build process with proper artifact management
+
 ### 📝 Configuration
 
 **New Configuration Fields:**
@@ -489,6 +518,9 @@ reuse_media: true
 - Root directory reorganization
 - Memory optimizations
 - Performance improvements
+- CI/CD pipeline improvements and fixes
+- Code quality and formatting enhancements
+- Documentation compliance and improvements
 
 ## Next Steps
 
