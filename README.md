@@ -294,6 +294,16 @@ docker run --rm \
   --config /app/config.yaml
 ```
 
+**Note:** The Docker image preloads the `base.en` Whisper model by default for optimal English transcription performance. To preload different models during build, use the `WHISPER_PRELOAD_MODELS` build argument:
+
+```bash
+# Preload multiple models
+docker build --build-arg WHISPER_PRELOAD_MODELS="base.en,small.en" -t podcast-scraper .
+
+# Preload multilingual model
+docker build --build-arg WHISPER_PRELOAD_MODELS="base" -t podcast-scraper .
+```
+
 The service API is optimized for non-interactive use and provides structured exit codes:
 
 - `0`: Success
