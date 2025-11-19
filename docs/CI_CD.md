@@ -88,6 +88,7 @@ graph TB
 **Triggers:** Push and Pull Requests to `main` branch (only when relevant files change)
 
 **Path Filters:**
+
 - `**.py` - All Python source files
 - `tests/**` - Test files
 - `pyproject.toml` - Project configuration
@@ -244,6 +245,7 @@ graph TD
 - Manual dispatch (`workflow_dispatch`)
 
 **Path Filters:**
+
 - `docs/**` - Documentation files
 - `mkdocs.yml` - MkDocs configuration
 - `**.py` - Python files (needed for API documentation)
@@ -322,6 +324,7 @@ Only one deployment runs at a time. If multiple pushes occur, older deployments 
 - **Scheduled:** Every Thursday at 13:17 UTC (weekly security scan)
 
 **Path Filters:**
+
 - `**.py` - All Python source files
 - `.github/workflows/**` - GitHub Actions workflow files
 
@@ -502,7 +505,7 @@ rm -rf ~/.cache/whisper
 
 ## Path-Based Optimization Strategy
 
-### Overview
+### Strategy Overview
 
 All workflows implement **intelligent path-based filtering** to ensure CI/CD runs only when necessary. This optimization dramatically reduces unnecessary CI runs, saves compute resources, and provides faster feedback.
 
@@ -523,16 +526,19 @@ When you change files, here's what runs:
 ### Benefits
 
 **Time Savings:**
+
 - Docs-only change: ~18 minutes saved (only 3-5 min for docs vs. 20+ min for everything)
 - README-only change: ~18 minutes saved
 - Config-only change: ~5 minutes saved (skips docs and CodeQL)
 
 **Resource Savings:**
+
 - ~70% fewer runner minutes for documentation updates
 - ~30GB less disk space operations per docs-only change
 - Reduced ML dependency installations
 
 **Developer Experience:**
+
 - ✅ Faster feedback loop for documentation updates
 - ✅ Clear separation: code changes = full CI, docs changes = docs only
 - ✅ No wasted time waiting for unrelated checks
@@ -540,11 +546,14 @@ When you change files, here's what runs:
 ### Examples
 
 #### Example 1: Documentation Update
+
 ```bash
 # You change only: docs/api/API_REFERENCE.md
 git commit -m "Update API documentation"
 ```
+
 **Result:**
+
 - ✅ `docs.yml` runs (3-5 min)
 - ❌ `python-app.yml` skipped
 - ❌ `codeql.yml` skipped
@@ -552,11 +561,14 @@ git commit -m "Update API documentation"
 **Total CI time:** ~3-5 minutes (vs. 20+ minutes before)
 
 #### Example 2: Python Code Change
+
 ```bash
 # You change: downloader.py
 git commit -m "Fix download retry logic"
 ```
+
 **Result:**
+
 - ✅ `python-app.yml` runs (lint, test, docs, build)
 - ✅ `docs.yml` runs (API docs need rebuild)
 - ✅ `codeql.yml` runs (security scan on code)
@@ -564,11 +576,14 @@ git commit -m "Fix download retry logic"
 **Total CI time:** ~15-20 minutes (all workflows needed)
 
 #### Example 3: Mixed Changes
+
 ```bash
 # You change: docs/index.md AND service.py
 git commit -m "Update docs and fix service"
 ```
+
 **Result:**
+
 - ✅ All workflows run (code changed = full validation needed)
 
 **Total CI time:** ~15-20 minutes (appropriate for code changes)
@@ -578,6 +593,7 @@ git commit -m "Update docs and fix service"
 The system now passes the "minimal docs CI/CD" requirement:
 
 **When changing ONLY documentation files:**
+
 - ✅ Docs build and deploy (required)
 - ❌ NO Python linting
 - ❌ NO Python testing
