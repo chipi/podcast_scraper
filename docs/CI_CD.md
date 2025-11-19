@@ -826,6 +826,60 @@ make ci
 
 ---
 
+## Testing Path Filtering
+
+After merging the path filtering optimization, validate it works correctly:
+
+### Test 1: Documentation-Only Change
+
+```bash
+# Edit a docs file
+echo "Test update" >> docs/CI_CD.md
+git add docs/CI_CD.md
+git commit -m "docs: test path filtering"
+git push
+```
+
+**Expected:** Only `docs.yml` workflow runs (~3-5 minutes)
+
+### Test 2: Python Code Change
+
+```bash
+# Edit a Python file
+echo "# Test comment" >> downloader.py
+git add downloader.py
+git commit -m "feat: test python path filtering"
+git push
+```
+
+**Expected:** All 3 workflows run (`python-app.yml`, `docs.yml`, `codeql.yml`) (~15-20 minutes)
+
+### Test 3: Docker File Change
+
+```bash
+# Edit Dockerfile
+echo "# Test comment" >> docker/Dockerfile
+git add docker/Dockerfile
+git commit -m "chore: test docker path filtering"
+git push
+```
+
+**Expected:** Only `python-app.yml` workflow runs (~15 minutes)
+
+### Test 4: README Change
+
+```bash
+# Edit README
+echo "Test update" >> README.md
+git add README.md
+git commit -m "docs: test readme path filtering"
+git push
+```
+
+**Expected:** Only `docs.yml` workflow runs (~3-5 minutes)
+
+---
+
 ## Related Documentation
 
 - **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** - Development workflow and local testing
