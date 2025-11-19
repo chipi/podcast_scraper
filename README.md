@@ -294,6 +294,8 @@ docker run --rm \
   --config /app/config.yaml
 ```
 
+**Note:** The Docker image uses CPU-only PyTorch (~150MB) instead of the full CUDA version (4GB+) to reduce image size and build time. GPU acceleration is not available in the Docker image.
+
 **Note:** The Docker image preloads the `base.en` Whisper model by default for optimal English transcription performance. To preload different models during build, use the `WHISPER_PRELOAD_MODELS` build argument:
 
 ```bash

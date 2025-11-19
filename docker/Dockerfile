@@ -19,7 +19,20 @@ WORKDIR /tmp/build
 COPY . .
 
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir .[ml]
+
+# Install torch CPU-only (much smaller than CUDA version, ~150MB vs 4GB+)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+    && rm -rf /root/.cache/pip
+
+# Install remaining ML dependencies (without torch, already installed above)
+RUN pip install --no-cache-dir \
+    openai-whisper>=20231117 \
+    spacy>=3.7.0 \
+    transformers>=4.30.0 \
+    sentencepiece>=0.1.99 \
+    accelerate>=0.20.0 \
+    protobuf>=3.20.0 \
+    && rm -rf /root/.cache/pip
 
 RUN python - <<'PY'
 import os
@@ -45,6 +58,7 @@ RUN mkdir -p /app
 
 WORKDIR /app
 
-RUN rm -rf /tmp/build
+# Clean up build directory and pip cache
+RUN rm -rf /tmp/build /root/.cache/pip /root/.cache/torch
 
 ENTRYPOINT ["python", "-m", "podcast_scraper.service"]
