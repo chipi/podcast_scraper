@@ -1,7 +1,7 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
-.PHONY: help init format format-check lint lint-markdown type security security-bandit security-audit test coverage docs build ci clean
+.PHONY: help init format format-check lint lint-markdown type security security-bandit security-audit test coverage docs build ci clean install-hooks
 
 help:
 	@echo "Common developer commands:"
@@ -16,6 +16,7 @@ help:
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
 	@echo "  make build           Build source and wheel distributions (outputs to .build/dist/)"
 	@echo "  make ci              Run the full CI suite locally"
+	@echo "  make install-hooks   Install git pre-commit hook for automatic linting"
 	@echo "  make clean           Remove build artifacts (.build/, .mypy_cache/, .pytest_cache/)"
 
 init:
@@ -65,6 +66,21 @@ build:
 	@if [ -d dist ]; then mkdir -p .build && rm -rf .build/dist && mv dist .build/ && echo "Moved dist to .build/dist/"; fi
 
 ci: format-check lint lint-markdown type security test docs build
+
+install-hooks:
+	@if [ ! -d .git ]; then echo "Error: Not a git repository"; exit 1; fi
+	@echo "Installing git pre-commit hook..."
+	@cp .github/hooks/pre-commit .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "✓ Pre-commit hook installed!"
+	@echo ""
+	@echo "The hook will automatically run before each commit to check:"
+	@echo "  • Black & isort formatting"
+	@echo "  • flake8 linting"
+	@echo "  • markdownlint (if installed)"
+	@echo "  • mypy type checking"
+	@echo ""
+	@echo "To skip the hook for a specific commit, use: git commit --no-verify"
 
 clean:
 	rm -rf build .build .mypy_cache .pytest_cache

@@ -7,7 +7,7 @@ The Podcast Scraper project uses GitHub Actions for continuous integration and d
 ### Workflows Summary
 
 | Workflow | File | Purpose | Trigger |
-|----------|------|---------|---------|
+| -------- | ---- | ------- | ------- |
 | **Python Application** | `python-app.yml` | Main CI pipeline with testing, linting, and builds | Push/PR to `main` |
 | **Documentation Deploy** | `docs.yml` | Build and deploy MkDocs documentation to GitHub Pages | Push to `main`, PR with doc changes, manual |
 | **CodeQL Security** | `codeql.yml` | Security vulnerability scanning | Push/PR to `main`, scheduled weekly |
@@ -120,6 +120,7 @@ graph LR
 **Duration:** ~2-3 minutes
 
 **Steps:**
+
 1. Checkout code
 2. Set up Python 3.11 with pip caching
 3. Set up Node.js 20 for markdown linting
@@ -141,6 +142,7 @@ graph LR
 **Duration:** ~10-15 minutes (includes ML package installation)
 
 **Steps:**
+
 1. Checkout code
 2. Free disk space (removes unnecessary system packages)
 3. Set up Python 3.11 with pip caching
@@ -152,6 +154,7 @@ graph LR
 6. Post-build cleanup (cache cleanup for disk space management)
 
 **Disk Space Management:**
+
 - Pre-test: Removes unnecessary system packages (~30GB freed)
 - Post-test: Cleans ML model caches (HuggingFace, Torch, Whisper)
 
@@ -162,6 +165,7 @@ graph LR
 **Duration:** ~3-5 minutes
 
 **Steps:**
+
 1. Checkout code
 2. Set up Python 3.11 with pip caching (docs + pyproject.toml)
 3. Install documentation dependencies + ML packages (needed for mkdocstrings API docs)
@@ -179,6 +183,7 @@ graph LR
 **Duration:** ~2-3 minutes
 
 **Steps:**
+
 1. Checkout code
 2. Set up Python 3.11 with pip caching
 3. Install build tools (`pip install build`)
@@ -222,6 +227,7 @@ graph TD
 
 **File:** `.github/workflows/docs.yml`  
 **Triggers:**
+
 - Push to `main` branch
 - Pull Requests modifying `docs/**`, `mkdocs.yml`, or the workflow file
 - Manual dispatch (`workflow_dispatch`)
@@ -241,7 +247,7 @@ graph LR
     style D fill:#90EE90
 ```
 
-### Job Details
+### Documentation Build Job Details
 
 #### 1. Build Job
 
@@ -250,6 +256,7 @@ graph LR
 **Runs:** On all triggers (push, PR, manual)
 
 **Steps:**
+
 1. Check out repository
 2. Set up Python 3.11 with pip caching
 3. Install documentation dependencies
@@ -267,9 +274,11 @@ graph LR
 **Depends on:** Build job must succeed
 
 **Steps:**
+
 1. Deploy to GitHub Pages using the uploaded artifact
 
 **Environment:**
+
 - Name: `github-pages`
 - URL: Deployment URL exposed as output
 
@@ -289,6 +298,7 @@ Only one deployment runs at a time. If multiple pushes occur, older deployments 
 
 **File:** `.github/workflows/codeql.yml`  
 **Triggers:**
+
 - Push to `main` branch
 - Pull Requests to `main` branch
 - **Scheduled:** Every Thursday at 13:17 UTC (weekly security scan)
@@ -321,21 +331,23 @@ graph TB
 **Languages Analyzed:**
 
 | Language | Build Mode | Purpose |
-|----------|------------|---------|
+| -------- | ---------- | ------- |
 | **Python** | `none` | Analyze application code for security vulnerabilities |
 | **GitHub Actions** | `none` | Analyze workflow YAML files for security issues |
 
 **Build Mode:** `none` means no compilation required (interpreted languages)
 
-### Job Details
+### CodeQL Job Details
 
 **Per-language steps:**
+
 1. Checkout repository
 2. Initialize CodeQL tools
 3. Scan codebase for security vulnerabilities
 4. Upload results to GitHub Security tab
 
 **Scan Categories:**
+
 - SQL injection
 - Cross-site scripting (XSS)
 - Path traversal
@@ -363,7 +375,8 @@ schedule:
 #### ✅ Completely Parallel
 
 **Within Python Application Workflow:**
-```
+
+```text
 ├── Lint Job (2-3 min)
 ├── Test Job (10-15 min)
 ├── Docs Job (3-5 min)
@@ -372,20 +385,23 @@ schedule:
 All four jobs start simultaneously and run independently.
 
 **Within CodeQL Workflow:**
-```
+
+```text
 ├── Python Analysis
 └── Actions Analysis
 ```
 Both language analyses run in parallel via matrix strategy.
 
 **Across Workflows:**
+
 - All three workflows (Python app, docs, CodeQL) trigger independently
 - They run in parallel when triggered by the same event
 
 #### ❌ Sequential
 
 **Documentation Workflow:**
-```
+
+```text
 Build Job → Deploy Job
 ```
 Deploy job waits for build job to complete and only runs on push to `main`.
@@ -453,7 +469,7 @@ rm -rf ~/.cache/whisper
 ## Workflow Triggers Matrix
 
 | Workflow | Push to main | PR to main | Schedule | Manual | Doc Changes |
-|----------|--------------|------------|----------|--------|-------------|
+| -------- | ------------ | ---------- | -------- | ------ | ----------- |
 | **Python Application** | ✅ | ✅ | ❌ | ❌ | ❌ |
 | **Documentation Deploy** | ✅ (deploy) | ✅ (build only) | ❌ | ✅ | ✅ |
 | **CodeQL Security** | ✅ | ✅ | ✅ Weekly | ❌ | ❌ |
@@ -497,7 +513,45 @@ rm -rf ~/.cache/whisper
 
 ## Local Development
 
-### Running CI Checks Locally
+### Automatic Pre-commit Checks
+
+**Prevent linting failures before they reach CI!**
+
+Install the git pre-commit hook to automatically check your code before every commit:
+
+```bash
+# One-time setup
+make install-hooks
+```
+
+The pre-commit hook will automatically run before each commit:
+
+- ✅ **Black** formatting check
+- ✅ **isort** import sorting check
+- ✅ **flake8** linting
+- ✅ **markdownlint** (if installed)
+- ✅ **mypy** type checking
+
+**If any check fails, the commit is blocked** until you fix the issues.
+
+#### Skip Hook (Not Recommended)
+
+```bash
+# Skip pre-commit checks for a specific commit
+git commit --no-verify -m "your message"
+```
+
+#### Auto-fix Issues
+
+```bash
+# Auto-fix formatting issues
+make format
+
+# Then try committing again
+git commit -m "your message"
+```
+
+### Running CI Checks Manually
 
 The project provides a `Makefile` that mirrors the CI workflow:
 
@@ -520,29 +574,44 @@ make build         # package build
 
 ```mermaid
 graph TD
-    A[Local Development] --> B{make ci}
+    A[Local Development] --> B{git commit}
     
-    B --> C[format-check]
-    B --> D[lint]
-    B --> E[lint-markdown]
-    B --> F[type]
-    B --> G[security]
-    B --> H[test]
-    B --> I[docs]
-    B --> J[build]
+    B --> C[Pre-commit Hook]
+    C --> C1[format-check]
+    C --> C2[lint]
+    C --> C3[lint-markdown]
+    C --> C4[type]
     
-    C & D & E & F & G & H & I & J --> K{All Pass?}
-    K -->|Yes| L[Ready to Push]
+    C1 & C2 & C3 & C4 --> D{Hook Pass?}
+    D -->|No| E[Commit Blocked]
+    E --> F[make format to fix]
+    F --> A
+    
+    D -->|Yes| G[Commit Created]
+    G --> H[git push]
+    
+    H --> I{make ci}
+    I --> J[All CI Checks]
+    J --> K{CI Pass?}
+    K -->|Yes| L[PR Ready]
     K -->|No| M[Fix Issues]
     M --> A
     
     style L fill:#90EE90
+    style E fill:#FFB6C6
     style M fill:#FFB6C6
+    style G fill:#87CEEB
 ```
 
 ---
 
 ## CI/CD Best Practices Implemented
+
+### ✅ Prevention
+
+- **Pre-commit hooks:** Catch issues before they're committed
+- **Local CI validation:** `make ci` runs full suite before push
+- **Auto-fix formatting:** `make format` fixes issues automatically
 
 ### ✅ Speed
 
@@ -587,7 +656,7 @@ graph TD
 ### Common Issues & Solutions
 
 | Issue | Cause | Solution |
-|-------|-------|----------|
+| ----- | ----- | -------- |
 | Test timeout | Large ML models download | Already handled by disk space management |
 | Lint failures | Formatting issues | Run `make format` locally before push |
 | Docs build failure | Broken links or invalid syntax | Run `make docs` locally, check `mkdocs build` output |
@@ -651,7 +720,7 @@ make ci
 
 ### Workflow Files
 
-```
+```text
 .github/workflows/
 ├── python-app.yml    # Main CI (lint, test, docs, build)
 ├── docs.yml          # Documentation deployment
