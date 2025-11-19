@@ -537,9 +537,13 @@ You can proceed without PRD/RFC for:
 
 ### What Runs in CI
 
-The GitHub Actions workflows run in parallel for fast feedback:
+The GitHub Actions workflows use **intelligent path-based filtering** to run only when necessary. This means:
 
-**Python Application Workflow** (4 parallel jobs):
+- **Documentation-only changes:** Only the docs workflow runs (~3-5 min)
+- **Python code changes:** All workflows run for full validation (~15-20 min)
+- **README changes:** Only the docs workflow runs (~3-5 min)
+
+**Python Application Workflow** (4 parallel jobs) - **Runs only when Python/config files change:**
 
 1. **Lint Job** (2-3 min, no ML deps):
    - Black/isort formatting checks
@@ -560,15 +564,29 @@ The GitHub Actions workflows run in parallel for fast feedback:
    - Build source distribution
    - Build wheel distribution
 
-**Documentation Deployment** (sequential):
+**Documentation Deployment** (sequential) - **Runs when docs or Python files change:**
 
 - Build MkDocs site
 - Deploy to GitHub Pages (on push to main)
 
-**CodeQL Security** (parallel language analysis):
+**CodeQL Security** (parallel language analysis) - **Runs only when code/workflow files change:**
 
 - Python security scanning
 - GitHub Actions security scanning
+
+### Path-Based CI Optimization
+
+Workflows are configured to skip when irrelevant files change:
+
+| Files Changed | Python App | Docs | CodeQL | Time Savings |
+| ------------- | ---------- | ---- | ------ | ------------ |
+| Only `docs/` | ❌ Skip | ✅ Run | ❌ Skip | ~18 minutes |
+| Only `.py` | ✅ Run | ✅ Run | ✅ Run | - |
+| Only `README.md` | ❌ Skip | ✅ Run | ❌ Skip | ~18 minutes |
+| `pyproject.toml` | ✅ Run | ❌ Skip | ❌ Skip | ~5 minutes |
+| `docker/Dockerfile` | ✅ Run | ❌ Skip | ❌ Skip | ~5 minutes |
+
+This optimization provides fast feedback for documentation updates while maintaining full validation for code changes.
 
 ### Before Pushing
 
