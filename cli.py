@@ -16,6 +16,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    cast,
 )
 from urllib.parse import urlparse
 
@@ -554,7 +555,8 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "summary_prompt": args.summary_prompt,
         "save_cleaned_transcript": args.save_cleaned_transcript,
     }
-    return config.Config.model_validate(payload)
+    # Pydantic's model_validate returns the correct type, but mypy needs help
+    return cast(config.Config, config.Config.model_validate(payload))
 
 
 def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:

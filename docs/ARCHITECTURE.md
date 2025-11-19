@@ -15,7 +15,7 @@
 4. **Speaker detection** (RFC-010): When automatic speaker detection is enabled, host names are extracted from RSS author tags (channel-level `<author>`, `<itunes:author>`, `<itunes:owner>`) as the primary source, falling back to NER extraction from feed metadata if no author tags exist. Guest names are extracted from episode-specific metadata (titles and descriptions) using Named Entity Recognition (NER) with spaCy. Manual speaker names are only used as fallback when detection fails.
 5. **Transcription**: When Whisper fallback is enabled, `episode_processor.download_media_for_transcription` downloads media to a temp area and `episode_processor.transcribe_media_to_text` persists Whisper output using deterministic naming. Detected speaker names are integrated into screenplay formatting when enabled.
 6. **Metadata generation** (PRD-004/RFC-011): When enabled, per-episode metadata documents are generated alongside transcripts, capturing feed-level and episode-level information, detected speaker names, and processing metadata in JSON/YAML format.
-7. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using local transformer models (BART, PEGASUS, LED) with a hybrid map-reduce strategy. Transcripts are first cleaned (removes timestamps, generic speaker tags, sponsor blocks) before summarization. The map phase (default: BART-large) chunks long transcripts and summarizes each chunk efficiently. The reduce phase (default: LED/long-fast) combines summaries using single-pass abstractive (≤800 tokens), mini map-reduce (800-4000 tokens, fully abstractive with re-chunking), or extractive selection (>4000 tokens). The mini map-reduce approach re-chunks combined summaries into 3-5 smaller sections (650 words each), summarizes each section, then performs a final abstractive reduce. Summaries are stored in metadata documents and include model information, word count, and generation timestamp. When `save_cleaned_transcript` is enabled (default: `true`), cleaned transcripts are saved to `.cleaned.txt` files alongside formatted transcripts for external testing and validation. Requires `torch` and `transformers` dependencies. Supports GPU acceleration via CUDA (NVIDIA) or MPS (Apple Silicon).
+7. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using local transformer models (BART, PEGASUS, LED) with a hybrid map-reduce strategy. Transcripts are first cleaned (removes timestamps, generic speaker tags, sponsor blocks) before summarization. The map phase (default: BART-large) chunks long transcripts and summarizes each chunk efficiently. The reduce phase (default: LED/long-fast) combines summaries using single-pass abstractive (≤800 tokens), mini map-reduce (800-4000 tokens, fully abstractive with re-chunking), or extractive selection (>4000 tokens). The mini map-reduce approach re-chunks combined summaries into 3-5 smaller sections (650 words each), summarizes each section, then performs a final abstractive reduce. Summaries are stored in metadata documents and include model information, word count, and generation timestamp. When `save_cleaned_transcript` is enabled (default: `true`), cleaned transcripts are saved to `.cleaned.txt` files alongside formatted transcripts for external testing and validation. Requires `torch` and `transformers` dependencies. Supports GPU acceleration via CUDA (NVIDIA) or MPS (Apple Silicon). See [Summarization Flow](#summarization-flow) for detailed architecture.
 8. **Progress/UI**: All long-running operations report progress through the pluggable factory in `progress.py`, defaulting to `tqdm` in the CLI.
 
 ### Pipeline Flow Diagram
@@ -69,7 +69,7 @@ flowchart TD
 - `filesystem.py`: Filename sanitization, output directory derivation, run suffix logic, and helper utilities for Whisper output paths.
 - `whisper_integration.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names.
 - `speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency.
-- `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy: (1) **MAP phase** (default: BART-large): chunks transcript into manageable pieces (word-based for encoder-decoder models, token-based for others) and summarizes each chunk efficiently, (2) **REDUCE phase** (default: LED/long-fast): combines chunk summaries using a three-tier approach: single abstractive reduce (≤800 tokens), mini map-reduce (800-4000 tokens, fully abstractive with re-chunking into 3-5 sections), or extractive selection (>4000 tokens). The mini map-reduce approach re-chunks combined summaries into smaller sections (650 words each), summarizes each section, then performs a final abstractive reduce. This hybrid BART→LED approach is widely used in production systems for optimal balance of speed (MAP) and accuracy (REDUCE). Supports GPU acceleration via CUDA (NVIDIA) or MPS (Apple Silicon). Both MAP and REDUCE models are configurable via `summary_model` and `summary_reduce_model` config fields. Requires `torch` and `transformers` dependencies (optional). Models are automatically cached locally (default: `~/.cache/huggingface/hub/`) and reused across runs. Provides cache management utilities (`get_cache_size`, `prune_cache`) accessible via CLI (`--cache-info`, `--prune-cache`). Includes transcript cleaning functionality (`clean_transcript`) that removes timestamps, generic speaker tags, sponsor blocks, and collapses blank lines. When `save_cleaned_transcript` is enabled (default: `true`), cleaned transcripts are saved to `.cleaned.txt` files alongside formatted transcripts for external testing and validation.
+- `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy: (1) **MAP phase** (default: BART-large): chunks transcript into manageable pieces (word-based for encoder-decoder models, token-based for others) and summarizes each chunk efficiently, (2) **REDUCE phase** (default: LED/long-fast): combines chunk summaries using a three-tier approach: single abstractive reduce (≤800 tokens), mini map-reduce (800-4000 tokens, fully abstractive with re-chunking into 3-5 sections), or extractive selection (>4000 tokens). The mini map-reduce approach re-chunks combined summaries into smaller sections (650 words each), summarizes each section, then performs a final abstractive reduce. This hybrid BART→LED approach is widely used in production systems for optimal balance of speed (MAP) and accuracy (REDUCE). Supports GPU acceleration via CUDA (NVIDIA) or MPS (Apple Silicon). Both MAP and REDUCE models are configurable via `summary_model` and `summary_reduce_model` config fields. Requires `torch` and `transformers` dependencies (optional). Models are automatically cached locally (default: `~/.cache/huggingface/hub/`) and reused across runs. Provides cache management utilities (`get_cache_size`, `prune_cache`) accessible via CLI (`--cache-info`, `--prune-cache`). Includes transcript cleaning functionality (`clean_transcript`) that removes timestamps, generic speaker tags, sponsor blocks, and collapses blank lines. When `save_cleaned_transcript` is enabled (default: `true`), cleaned transcripts are saved to `.cleaned.txt` files alongside formatted transcripts for external testing and validation. See [Summarization Flow](#summarization-flow) for detailed architecture.
 - `progress.py`: Minimal global progress publishing API so callers can swap in alternative UIs.
 - `models.py`: Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob`) shared across modules. May be extended to include detected speaker metadata.
 - `metadata.py` (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, processing metadata, and optional summaries in structured JSON/YAML format. When summarization is enabled, reads formatted transcripts (screenplay or plain), cleans them using `summarizer.clean_transcript()`, and optionally saves cleaned versions to `.cleaned.txt` files. Opt-in feature for backwards compatibility.
@@ -218,6 +218,194 @@ flowchart TD
     style End fill:#d4edda
 ```
 
+### Summarization Flow
+
+The summarization system implements a sophisticated hybrid MAP-REDUCE architecture to handle transcripts of any length efficiently. This flow is triggered when `generate_summaries` is enabled and a transcript is available.
+
+```mermaid
+flowchart TD
+    Start([Transcript Available]) --> CheckEnabled{Summarization<br/>Enabled?}
+    CheckEnabled -->|No| Skip[Skip Summarization]
+    CheckEnabled -->|Yes| CleanTranscript[Clean Transcript<br/>Remove timestamps, sponsors, fillers]
+    CleanTranscript --> SaveCleaned{Save Cleaned<br/>Transcript?}
+    SaveCleaned -->|Yes| WriteCleaned[Write .cleaned.txt File]
+    SaveCleaned -->|No| CheckSize
+    WriteCleaned --> CheckSize{Text Size<br/>Check}
+    CheckSize -->|Fits in Context| DirectSummarize[Direct Summarization<br/>Single Pass]
+    CheckSize -->|Too Long| StartMapReduce[Begin MAP-REDUCE Pipeline]
+    
+    StartMapReduce --> ChunkText[Chunk Text<br/>Token-based or Word-based]
+    ChunkText --> MapPhase[MAP PHASE<br/>Summarize Each Chunk]
+    MapPhase --> MapModel[Use MAP Model<br/>Default: BART-large]
+    MapModel --> ParallelCheck{Device<br/>Type?}
+    ParallelCheck -->|CPU| ParallelMap[Parallel Processing<br/>ThreadPoolExecutor]
+    ParallelCheck -->|GPU/MPS| SequentialMap[Sequential Processing<br/>Avoid Thrashing]
+    ParallelMap --> ChunkSummaries[Chunk Summaries<br/>Generated]
+    SequentialMap --> ChunkSummaries
+    
+    ChunkSummaries --> CombineSummaries[Combine Summaries]
+    CombineSummaries --> CheckCombinedSize{Combined<br/>Token Count?}
+    
+    CheckCombinedSize -->|≤800 tokens| SinglePass[SINGLE-PASS ABSTRACTIVE<br/>Direct Final Summary]
+    CheckCombinedSize -->|800-4000 tokens| MiniMapReduce[HIERARCHICAL REDUCE<br/>Mini Map-Reduce]
+    CheckCombinedSize -->|>4000 tokens| Extractive[EXTRACTIVE APPROACH<br/>Select Key Chunks]
+    
+    MiniMapReduce --> RechunkSummaries[Re-chunk Combined Summaries<br/>3-5 sections, 650 words each]
+    RechunkSummaries --> SummarizeSections[Summarize Each Section]
+    SummarizeSections --> CheckIterations{More<br/>Iterations<br/>Needed?}
+    CheckIterations -->|Yes, <4 passes| RechunkSummaries
+    CheckIterations -->|No| FinalAbstractive[Final Abstractive Reduce]
+    
+    Extractive --> SelectKeyChunks[Select Representative Chunks<br/>First, Middle, Last, Quartiles]
+    SelectKeyChunks --> FinalExtractivePass{Still Too<br/>Long?}
+    FinalExtractivePass -->|Yes| FinalExtractSummarize[Final Summarization Pass]
+    FinalExtractivePass -->|No| UseExtractiveOutput[Use Selected Chunks]
+    FinalExtractSummarize --> FinalSummary
+    UseExtractiveOutput --> FinalSummary
+    
+    SinglePass --> ReduceModel[Use REDUCE Model<br/>Default: LED long-fast]
+    ReduceModel --> FinalAbstractive
+    FinalAbstractive --> FinalSummary[Final Summary Generated]
+    DirectSummarize --> FinalSummary
+    
+    FinalSummary --> ValidateSummary[Validate Summary<br/>Check for repetition/leaks]
+    ValidateSummary --> StripLeaks[Strip Instruction Leaks]
+    StripLeaks --> FixRepetitive[Fix Repetitive Content]
+    FixRepetitive --> CreateMetadata[Create Summary Metadata<br/>Timestamp, Model, Word Count]
+    CreateMetadata --> StoreInMetadata[Store in Episode Metadata<br/>JSON/YAML]
+    StoreInMetadata --> Complete([Summarization Complete])
+    Skip --> Complete
+    
+    style Start fill:#e1f5ff
+    style CleanTranscript fill:#fff3cd
+    style MapPhase fill:#ffd4a3
+    style MiniMapReduce fill:#d4a3ff
+    style Extractive fill:#ffa3d4
+    style SinglePass fill:#a3ffd4
+    style FinalSummary fill:#d4edda
+    style Complete fill:#d4edda
+```
+
+#### Summarization Process Details
+
+**1. Transcript Cleaning Phase**
+
+- Removes timestamps (language-agnostic: `[00:12:34]` patterns)
+- Strips generic speaker tags while preserving actual speaker names
+- Removes sponsor blocks and outro sections
+- Collapses excessive blank lines
+- Optionally saves cleaned transcript to `.cleaned.txt` for validation
+
+**2. Size Assessment & Model Selection**
+
+- Checks if transcript fits within model's context window
+- If fits: performs single-pass direct summarization (most efficient)
+- If too long: initiates MAP-REDUCE pipeline
+- Selects MAP model (default: BART-large for chunk summaries)
+- Selects REDUCE model (default: LED long-fast for final combination)
+
+**3. MAP Phase (Chunk Summarization)**
+
+- **Chunking Strategy**: Token-based chunking with configurable overlap
+  - Encoder-decoder models (BART/PEGASUS): forced to 600 tokens per chunk
+  - Long-context models (LED): can handle larger chunks
+  - Overlap: 10% of chunk size for context continuity
+- **Parallel vs Sequential Processing**:
+  - CPU devices: parallel processing with ThreadPoolExecutor (up to 4 workers)
+  - GPU/MPS devices: sequential to avoid memory thrashing
+- **Progress Tracking**: Logs every 5 chunks with ETA estimation
+- **Output**: Collection of chunk summaries (80-160 tokens each)
+
+**4. REDUCE Phase (Summary Combination)**
+
+The REDUCE phase employs a three-tier decision tree based on combined summary size:
+
+**Tier 1: Single-Pass Abstractive (≤800 tokens)**
+
+- Most efficient approach for short combined summaries
+- Uses REDUCE model (default: LED) to generate final summary in one pass
+- Target: 200-480 tokens final summary
+- No chunk selection - uses ALL summaries for completeness
+
+**Tier 2: Hierarchical Reduce (800-4000 tokens)**
+
+- Fully abstractive approach for medium-sized combined summaries
+- Implements mini map-reduce strategy:
+  1. Re-chunk combined summaries into 3-5 sections (650 words each)
+  2. Summarize each section (80-160 tokens per section)
+  3. Check if result is small enough for final reduce
+  4. If still too large, repeat (up to 4 iterations max)
+  5. Final abstractive reduce when size permits
+- Uses token-based chunking to guarantee no truncation
+- Uses ALL section summaries (no selection) for accuracy
+- Prevents extractive fallback by iteratively reducing size
+
+**Tier 3: Extractive Approach (>4000 tokens)**
+
+- Safety fallback for very large combined summaries
+- Selects representative chunks instead of using all:
+  - ≤3 chunks: use all
+  - ≤10 chunks: use first, middle, last
+  - >10 chunks: use first, 25th, 50th, 75th percentile, last
+- One optional final summarization pass if selected chunks still too long
+- Prioritizes avoiding hallucination over completeness
+
+**5. Quality Validation**
+
+- Strips instruction leaks (removes prompt text that leaked into output)
+- Detects and fixes repetitive content (deduplicates repeated sentences)
+- Validates summary length (flags if suspiciously close to input length)
+- Returns empty string if quality validation fails
+
+**6. Metadata Storage**
+
+- Creates `SummaryMetadata` object with:
+  - Generated summary text
+  - Generation timestamp
+  - Model used (MAP and optionally REDUCE)
+  - Provider (local/openai/anthropic)
+  - Word count of original transcript
+- Stores in episode metadata document (PRD-004/RFC-011)
+- Respects `--skip-existing` flag (regenerates if transcription source changes)
+
+#### Model Selection Strategy
+
+**MAP Model (Chunk Summarization)**
+
+- Default: `facebook/bart-large-cnn` (best quality, ~2GB)
+- Fast option: `sshleifer/distilbart-cnn-12-6` (~300MB)
+- Alternative: `google/pegasus-large` (trained for summarization, ~2.5GB)
+
+**REDUCE Model (Final Combination)**
+
+- Default: `allenai/led-base-16384` (long-context, ~1GB, handles 16k tokens)
+- High quality: `allenai/led-large-16384` (~2.5GB, better accuracy)
+- Same as MAP: Falls back to MAP model if not specified
+
+**Device Selection**
+
+- Auto-detects: MPS (Apple Silicon) → CUDA (NVIDIA) → CPU
+- GPU/MPS: Sequential processing, memory-efficient
+- CPU: Parallel processing (4 workers), slower but works without GPU
+
+#### Performance Characteristics
+
+- **Direct Summarization**: <5s for transcripts ≤1024 tokens
+- **MAP-REDUCE**: ~3s per chunk (varies by model and device)
+- **Parallel Processing**: 3-4x speedup on CPU with 4 workers
+- **Memory Usage**:
+  - BART-large: ~2GB GPU memory
+  - DistilBART: ~300MB (recommended for memory-constrained systems)
+  - LED-base: ~1GB (reduce phase)
+
+#### Error Handling
+
+- Model loading failures: Log warning, skip summarization
+- Out-of-memory errors: Log error, skip summarization (no automatic fallback)
+- Buffer size errors (MPS): Log error with device details
+- Validation failures: Return empty summary rather than hallucinated content
+- Summarization failures don't block transcript processing
+
 ## Constraints and Assumptions
 
 - Python 3.10+ with third-party packages: `requests`, `tqdm`, `defusedxml`, `platformdirs`, `pydantic`, `PyYAML`, `spacy` (required for speaker detection), and optionally `openai-whisper` + `ffmpeg` when transcription is required, and optionally `torch` + `transformers` when summarization is required.
@@ -305,5 +493,15 @@ graph TD
 - `tests/test_podcast_scraper.py` acts as an integration-focused suite, simulating CLI usage, error cases, transcript selection heuristics, and Whisper fallbacks via mocks. This keeps the public API stable and documents expected behaviors for future refactors.
 - Speaker detection tests (RFC-010) should cover RSS author tag extraction, NER extraction scenarios, host/guest distinction, manual fallback behavior, and integration with Whisper screenplay formatting.
 - Metadata generation tests (PRD-004/RFC-011) should cover JSON/YAML output formats, schema validation, file naming conventions, and integration with the episode processing pipeline.
-- Summarization tests (PRD-005/RFC-012) should cover model selection logic, device detection (MPS/CUDA/CPU), summary generation, key takeaways extraction, chunking for long transcripts, error handling (OOM, missing dependencies), memory optimization, and integration with metadata generation.
+- Summarization tests (PRD-005/RFC-012) should cover:
+  - Transcript cleaning (timestamp removal, speaker normalization, sponsor block detection)
+  - Model selection logic (MAP vs REDUCE models, device detection)
+  - MAP phase (chunking strategies, parallel vs sequential processing)
+  - REDUCE phase decision tree (single-pass abstractive, hierarchical reduce, extractive approach)
+  - Quality validation (instruction leak detection, repetitive content handling)
+  - Long transcript handling (chunking, mini map-reduce iterations)
+  - Error handling (OOM, buffer size errors, model loading failures)
+  - Memory optimization (GPU/MPS/CPU device selection)
+  - Integration with metadata generation
+  - See [Summarization Flow](#summarization-flow) for architecture details
 - See `docs/TESTING_STRATEGY.md` for comprehensive testing requirements, patterns, and infrastructure.
