@@ -122,22 +122,76 @@ def apply_log_level(level: str, log_file: Optional[str] = None) -> None:
 def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     """Execute the main podcast scraping pipeline.
 
-    This orchestrates the entire workflow:
-    1. Setup output directory
+    This is the primary entry point for programmatic use of podcast_scraper. It orchestrates
+    the complete workflow from RSS feed fetching to transcript generation and optional
+    metadata/summarization.
+
+    The pipeline executes the following stages:
+
+    1. Setup output directory (with optional run ID subdirectory)
     2. Fetch and parse RSS feed
-    3. Process episodes (download transcripts or media for transcription)
-    4. Transcribe media files using Whisper if needed
-    5. Clean up temporary files
+    3. Detect speakers (if auto-detection enabled)
+    4. Process episodes concurrently:
+       - Download published transcripts
+       - Or queue media for Whisper transcription
+    5. Transcribe queued media files sequentially (if Whisper enabled)
+    6. Generate metadata documents (if enabled)
+    7. Generate episode summaries (if enabled)
+    8. Clean up temporary files
 
     Args:
-        cfg: Configuration object with all settings
+        cfg: Configuration object with all pipeline settings. See `Config` for available options.
 
     Returns:
-        Tuple of (count, summary_message) where count is number of transcripts saved/planned
+        Tuple[int, str]: A tuple containing:
+
+            - count (int): Number of episodes processed (transcripts saved or planned)
+            - summary (str): Human-readable summary message describing the run
 
     Raises:
-        RuntimeError: If output directory cleanup fails
-        ValueError: If RSS fetch or parse fails
+        RuntimeError: If output directory cleanup fails when `clean_output=True`
+        ValueError: If RSS URL is invalid or feed cannot be parsed
+        FileNotFoundError: If configuration file references missing files
+        OSError: If file system operations fail
+
+    Example:
+        >>> from podcast_scraper import Config, run_pipeline
+        >>>
+        >>> cfg = Config(
+        ...     rss="https://example.com/feed.xml",
+        ...     output_dir="./transcripts",
+        ...     max_episodes=10
+        ... )
+        >>> count, summary = run_pipeline(cfg)
+        >>> print(f"Downloaded {count} transcripts: {summary}")
+        Downloaded 10 transcripts: Processed 10/50 episodes
+
+    Example with Whisper transcription:
+        >>> cfg = Config(
+        ...     rss="https://example.com/feed.xml",
+        ...     transcribe_missing=True,
+        ...     whisper_model="base",
+        ...     screenplay=True,
+        ...     num_speakers=2
+        ... )
+        >>> count, summary = run_pipeline(cfg)
+
+    Example with metadata and summaries:
+        >>> cfg = Config(
+        ...     rss="https://example.com/feed.xml",
+        ...     generate_metadata=True,
+        ...     generate_summaries=True
+        ... )
+        >>> count, summary = run_pipeline(cfg)
+
+    Note:
+        For non-interactive use (daemons, services), consider using the `service.run()`
+        function instead, which provides structured error handling and return values.
+
+    See Also:
+        - `Config`: Configuration model with all available options
+        - `service.run()`: Service API with structured error handling
+        - `load_config_file()`: Load configuration from JSON/YAML file
     """
     # Initialize metrics collector
     pipeline_metrics = metrics.Metrics()
