@@ -98,8 +98,8 @@ python3 -m podcast_scraper.cli --config config.yaml
 ### Getting Started
 
 | Resource | Description |
-|----------|-------------|
-| **[Quick Start](#-quick-start)** | Installation, basic usage, and first commands |
+| -------- | ----------- |
+| **[Quick Start](#quick-start)** | Installation, basic usage, and first commands |
 | **[Configuration Guide](api/configuration.md)** | Complete configuration options and examples |
 | **[CLI Reference](api/cli.md)** | Command-line interface documentation |
 | **[Python API](api/API_REFERENCE.md)** | Public API for programmatic usage |
@@ -108,16 +108,16 @@ python3 -m podcast_scraper.cli --config config.yaml
 ### User Guides
 
 | Guide | Description |
-|-------|-------------|
+| ----- | ----------- |
 | **[Service Mode](api/service.md)** | Running as daemon or service (systemd, supervisor, cron) |
-| **[Service Examples](#service--daemon-examples)** | systemd and supervisor configuration templates |
-| **[Advanced Features](#-advanced-features)** | Speaker detection, summarization, language support |
+| **[Service Examples](#service-daemon-examples)** | systemd and supervisor configuration templates |
+| **[Advanced Features](#advanced-features)** | Speaker detection, summarization, language support |
 | **[Configuration Files](#configuration-files)** | JSON/YAML config examples |
 
 ### For Developers
 
 | Resource | Description |
-|----------|-------------|
+| -------- | ----------- |
 | **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** | Development workflow, code style, testing requirements |
 | **[Architecture Overview](ARCHITECTURE.md)** | High-level system design and module responsibilities |
 | **[Testing Strategy](TESTING_STRATEGY.md)** | Test coverage, quality assurance, and testing guidelines |
@@ -130,7 +130,7 @@ python3 -m podcast_scraper.cli --config config.yaml
 Complete documentation of all public modules:
 
 | Module | Description |
-|--------|-------------|
+| ------ | ----------- |
 | **[Core API](api/core.md)** | Main entry point (`run_pipeline`, `Config`) |
 | **[Configuration](api/configuration.md)** | Configuration model and file loading |
 | **[Service API](api/service.md)** | Non-interactive service mode for daemons |
@@ -144,7 +144,7 @@ Complete documentation of all public modules:
 PRDs define the **what** and **why** behind each major feature:
 
 | PRD | Title | Version | Description |
-|-----|-------|---------|-------------|
+| --- | ----- | ------- | ----------- |
 | **[PRD-001](prd/PRD-001-transcript-pipeline.md)** | Transcript Acquisition Pipeline | v2.0.0 | Core pipeline for downloading published transcripts |
 | **[PRD-002](prd/PRD-002-whisper-fallback.md)** | Whisper Fallback Transcription | v2.0.0 | Automatic transcription when transcripts are missing |
 | **[PRD-003](prd/PRD-003-user-interface-config.md)** | User Interfaces & Configuration | v2.0.0 | CLI interface and config file support |
@@ -158,7 +158,7 @@ PRDs define the **what** and **why** behind each major feature:
 RFCs define the **how** behind each feature implementation:
 
 | RFC | Title | Version | Description |
-|-----|-------|---------|-------------|
+| --- | ----- | ------- | ----------- |
 | **[RFC-001](rfc/RFC-001-workflow-orchestration.md)** | Workflow Orchestration | v2.0.0 | Central orchestrator for transcript pipeline |
 | **[RFC-002](rfc/RFC-002-rss-parsing.md)** | RSS Parsing & Episode Modeling | v2.0.0 | RSS feed parsing and episode data model |
 | **[RFC-003](rfc/RFC-003-transcript-downloads.md)** | Transcript Download Processing | v2.0.0 | Resilient transcript downloads with retries |
@@ -177,7 +177,7 @@ RFCs define the **how** behind each feature implementation:
 ### Release History
 
 | Version | Date | Highlights |
-|---------|------|------------|
+| ------- | ---- | ---------- |
 | **[v2.3.0](releases/RELEASE_v2.3.0.md)** | Latest | Episode summarization, public API, cleaned transcripts |
 | **[v2.2.0](releases/RELEASE_v2.2.0.md)** | - | Metadata generation, code quality improvements |
 | **[v2.1.0](releases/RELEASE_v2.1.0.md)** | - | Automatic speaker detection using NER |
@@ -274,7 +274,7 @@ Automatic language-aware Whisper model selection and NER model matching.
 Test and evaluate transcript processing quality:
 
 | Script | Purpose |
-|--------|---------|
+| ------ | ------- |
 | **eval_cleaning.py** | Evaluate transcript cleaning quality (sponsor removal, word counts, diffs) |
 | **eval_summaries.py** | Evaluate summarization quality (ROUGE metrics, compression, keyword coverage) |
 
@@ -460,8 +460,8 @@ MIT License - See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main/L
 ### Essential Documentation
 
 | Category | Links |
-|----------|-------|
-| **Getting Started** | [Quick Start](#-quick-start) • [Configuration](api/configuration.md) • [CLI Ref](api/cli.md) |
+| -------- | ----- |
+| **Getting Started** | [Quick Start](#quick-start) • [Configuration](api/configuration.md) • [CLI Ref](api/cli.md) |
 | **Examples** | [Config YAML](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) • [Config JSON](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) • [systemd](https://github.com/chipi/podcast_scraper/blob/main/examples/systemd.service.example) • [supervisor](https://github.com/chipi/podcast_scraper/blob/main/examples/supervisor.conf.example) |
 | **Development** | [Contributing](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md) • [Architecture](ARCHITECTURE.md) • [Testing](TESTING_STRATEGY.md) • [Scripts](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md) |
 | **Specifications** | [PRDs](prd/index.md) • [RFCs](rfc/index.md) • [Releases](releases/RELEASE_v2.3.0.md) |
