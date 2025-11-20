@@ -1,6 +1,6 @@
 ## Version 2.0.0
 
-**Release Date:** November 2025  
+**Release Date:** November 13, 2025  
 **Type:** Major Release  
 **Last Updated:** November 18, 2025
 
