@@ -386,6 +386,7 @@ Each episode in `data/eval/` should contain:
 - **Example Configs**: Updated example configuration files with better formatting and comments
 
 **Files Updated:**
+
 - CI workflows (`.github/workflows/docs.yml`, `.github/workflows/python-app.yml`)
 - Linting configurations (`.flake8`, `.markdownlint.json`)
 - Project configuration (`Makefile`, `pyproject.toml`, `.gitignore`)
@@ -395,6 +396,7 @@ Each episode in `data/eval/` should contain:
 - Example configuration files
 
 **Impact:**
+
 - All CI checks now pass consistently
 - Improved code maintainability and readability
 - Better documentation formatting and navigation
