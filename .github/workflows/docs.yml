@@ -5,17 +5,39 @@ on:
     branches:
       - main
     paths:
-      - 'docs/**'
+      # Only files that are part of the MkDocs site (see mkdocs.yml nav)
+      - 'docs/index.md'
+      - 'docs/ARCHITECTURE.md'
+      - 'docs/TESTING_STRATEGY.md'
+      - 'docs/CI_CD.md'
+      - 'docs/legal.md'
+      - 'docs/api/**'
+      - 'docs/prd/**'
+      - 'docs/rfc/**'
+      - 'docs/releases/**'
+      - 'docs/wip/**'
+      - 'docs/javascripts/**'
       - 'mkdocs.yml'
       - '.github/workflows/docs.yml'
-      - '**.py'  # Python files for API docs
+      - '**.py'  # Python files for API docs (mkdocstrings)
       - 'README.md'
   pull_request:
     paths:
-      - 'docs/**'
+      # Only files that are part of the MkDocs site (see mkdocs.yml nav)
+      - 'docs/index.md'
+      - 'docs/ARCHITECTURE.md'
+      - 'docs/TESTING_STRATEGY.md'
+      - 'docs/CI_CD.md'
+      - 'docs/legal.md'
+      - 'docs/api/**'
+      - 'docs/prd/**'
+      - 'docs/rfc/**'
+      - 'docs/releases/**'
+      - 'docs/wip/**'
+      - 'docs/javascripts/**'
       - 'mkdocs.yml'
       - '.github/workflows/docs.yml'
-      - '**.py'  # Python files for API docs
+      - '**.py'  # Python files for API docs (mkdocstrings)
       - 'README.md'
   workflow_dispatch:
 
