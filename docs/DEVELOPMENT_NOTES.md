@@ -31,17 +31,39 @@ markdownlint --fix "**/*.md" --ignore node_modules --ignore .venv --ignore .buil
 
 ### Pre-commit Hook
 
-Consider adding a pre-commit hook to catch these automatically:
+**✅ Already Integrated!** The project includes a pre-commit hook (`.github/hooks/pre-commit`) that automatically checks markdown files before commits.
+
+**Install the hook:**
 
 ```bash
-# Install pre-commit (if not already installed)
-pip install pre-commit
+# Install the pre-commit hook
+make install-hooks
 
-# Add to .pre-commit-config.yaml:
-#   - repo: https://github.com/igorshubovych/markdownlint-cli
-#     rev: v0.38.0
-#     hooks:
-#       - id: markdownlint
+# Or manually:
+cp .github/hooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+**Features:**
+
+- ✅ Automatically checks staged markdown files before each commit
+- ✅ Uses same ignore patterns as `make lint-markdown`
+- ✅ Prevents commits with markdown linting errors
+- ✅ Auto-fix support (see below)
+
+**Enable auto-fix in pre-commit hook:**
+
+```bash
+# Set environment variable to enable auto-fix
+export MARKDOWNLINT_FIX=1
+git commit -m "your message"
+# Auto-fixed files will be re-staged automatically
+```
+
+**Skip pre-commit checks (if needed):**
+
+```bash
+git commit --no-verify
 ```
 
 ### CI/CD Integration
@@ -51,3 +73,25 @@ The GitHub Actions workflow runs `make lint-markdown` which includes:
 - `markdownlint "**/*.md"` with proper ignores
 - Fails the build if any errors are found
 - All markdown files are checked, not just changed files
+
+### Workflow Summary
+
+**Local Development:**
+
+1. Edit markdown files
+2. Stage files: `git add docs/...`
+3. Commit: `git commit` (pre-commit hook runs automatically)
+4. If errors: Fix manually or use `markdownlint --fix`
+
+**Pre-commit Hook:**
+
+- ✅ Already installed and active
+- ✅ Checks only staged files (fast)
+- ✅ Uses same rules as CI/CD
+- ✅ Optional auto-fix with `MARKDOWNLINT_FIX=1`
+
+**CI/CD:**
+
+- ✅ Checks all markdown files
+- ✅ Fails build on any errors
+- ✅ Ensures consistency across all files
