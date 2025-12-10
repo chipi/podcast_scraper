@@ -195,6 +195,114 @@ This PRD addresses the need to add OpenAI as a provider option while maintaining
 - **Risk**: Breaking changes if provider interfaces change
   - **Mitigation**: Protocol-based interfaces, comprehensive tests, backward compatibility
 
+## Extensibility & Public API
+
+### Extension Points (Public API)
+
+The provider system is designed to be extensible by external contributors:
+
+1. **Protocol Interfaces** (Public API):
+   - `SpeakerDetector` protocol - Public interface for speaker detection providers
+   - `TranscriptionProvider` protocol - Public interface for transcription providers
+   - `SummarizationProvider` protocol - Public interface for summarization providers
+   - These protocols define the contract that all providers must implement
+
+2. **Factory Registration** (Public API):
+   - Factories can be extended to support custom providers
+   - Contributors can register their own provider implementations
+   - Provider selection via configuration remains the same
+
+3. **Configuration Extensions** (Public API):
+   - Config fields for provider selection are public
+   - Custom providers can add their own config fields
+   - Backward compatible with existing configurations
+
+### Internal Implementations
+
+What we provide are **internal implementations** of the protocols:
+
+- `NERSpeakerDetector` - Internal implementation (spaCy-based)
+- `WhisperTranscriptionProvider` - Internal implementation (local Whisper)
+- `LocalSummarizationProvider` - Internal implementation (Hugging Face transformers)
+- `OpenAISpeakerDetector` - Internal implementation (OpenAI API)
+- `OpenAITranscriptionProvider` - Internal implementation (OpenAI Whisper API)
+- `OpenAISummarizationProvider` - Internal implementation (OpenAI GPT API)
+
+These are provided as reference implementations and defaults, but the architecture supports external implementations.
+
+### Contributor Implementations
+
+We expect and encourage contributors to create their own provider implementations:
+
+- **Custom Speaker Detectors**: AWS Comprehend, Google Cloud NLP, custom NER models
+- **Custom Transcription Providers**: Deepgram, AssemblyAI, Azure Speech Services
+- **Custom Summarization Providers**: Anthropic Claude, Google Gemini, custom LLMs
+
+**Requirements for Contributor Implementations:**
+
+1. Must implement the protocol interface (type checking enforced)
+2. Must pass all protocol tests
+3. Must include unit tests
+4. Must be documented with examples
+5. Must handle errors gracefully
+6. Must respect rate limits (for API providers)
+
+### Testing Strategy
+
+**Generic Pipeline Testing:**
+
+- Test workflow with mock providers (verify protocol compliance)
+- Test factory selection logic
+- Test provider switching
+- Test error handling and fallbacks
+- Test configuration validation
+
+**Implementation Testing:**
+
+- Each provider must have comprehensive unit tests
+- Test protocol interface compliance
+- Test error scenarios
+- Test edge cases
+- Integration tests with real providers (optional, requires API keys)
+
+**Testing Requirements:**
+
+- All providers must pass protocol interface tests
+- All providers must pass generic pipeline tests
+- Internal implementations must have 80%+ test coverage
+- External implementations should follow same testing standards
+
+### Documentation & Examples
+
+**New Extensibility Section** (`docs/EXTENSIBILITY.md`):
+
+1. **Architecture Overview**:
+   - How provider system works
+   - Protocol-based design
+   - Factory pattern usage
+
+2. **Creating Custom Providers**:
+   - Step-by-step guide for each provider type
+   - Protocol interface documentation
+   - Example implementations
+
+3. **Testing Custom Providers**:
+   - How to test protocol compliance
+   - Mock provider examples
+   - Integration testing guide
+
+4. **Contributing Providers**:
+   - Code organization
+   - Naming conventions
+   - Documentation requirements
+   - Pull request process
+
+5. **Examples**:
+   - Minimal provider implementation
+   - Full-featured provider implementation
+   - Provider with custom configuration
+   - Provider with error handling
+
 ## Future Considerations
 
 - Support for other providers (Anthropic Claude, AWS services)
@@ -202,3 +310,4 @@ This PRD addresses the need to add OpenAI as a provider option while maintaining
 - Cost tracking and usage monitoring
 - Provider performance comparison tools
 - Hybrid processing (use API for some episodes, local for others)
+- Provider plugin system (external packages can register providers)
