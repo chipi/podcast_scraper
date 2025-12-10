@@ -20,8 +20,6 @@ on:
       - 'mkdocs.yml'
       - '**.py'  # Python files for API docs (mkdocstrings)
       - 'README.md'
-    paths-ignore:
-      - '.github/workflows/**'  # Workflow changes handled by codeql.yml
   pull_request:
     branches: [ "main" ]
     paths:
@@ -40,8 +38,6 @@ on:
       - 'mkdocs.yml'
       - '**.py'  # Python files for API docs (mkdocstrings)
       - 'README.md'
-    paths-ignore:
-      - '.github/workflows/**'  # Workflow changes handled by codeql.yml
   workflow_dispatch:
 
 permissions:
