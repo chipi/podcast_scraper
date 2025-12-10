@@ -1477,12 +1477,16 @@ def _parallel_episode_summarization(
                 # First, unload any models that were successfully loaded to prevent memory leak
                 logger.warning("Falling back to sequential processing due to model loading failure")
                 if worker_models:
-                    logger.debug(f"Unloading {len(worker_models)} successfully loaded model(s) before fallback")
+                    logger.debug(
+                        f"Unloading {len(worker_models)} successfully loaded model(s) before fallback"
+                    )
                     for worker_model in worker_models:
                         try:
                             summarizer.unload_model(worker_model)
                         except Exception as unload_error:
-                            logger.debug(f"Error unloading worker model during fallback: {unload_error}")
+                            logger.debug(
+                                f"Error unloading worker model during fallback: {unload_error}"
+                            )
                 # Now proceed with sequential processing using the original model
                 for (
                     episode,

@@ -2294,9 +2294,13 @@ def prune_cache(cache_dir: Optional[str] = None, dry_run: bool = False) -> int:
             safe_roots = {home, cache_root}
             # Security check: path must be within a safe root AND not be the safe root itself
             # Explicitly exclude home directory and ~/.cache themselves
-            is_safe = any(
-                resolved_path.is_relative_to(root) and resolved_path != root for root in safe_roots
-            ) and resolved_path != cache_root
+            is_safe = (
+                any(
+                    resolved_path.is_relative_to(root) and resolved_path != root
+                    for root in safe_roots
+                )
+                and resolved_path != cache_root
+            )
             if not is_safe:
                 raise ValueError(
                     f"Cache directory {resolved_path} is outside safe locations "
