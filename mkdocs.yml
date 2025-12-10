@@ -17,6 +17,7 @@ nav:
       - PRD-003 User Interfaces & Configuration: prd/PRD-003-user-interface-config.md
       - PRD-004 Per-Episode Metadata Generation: prd/PRD-004-metadata-generation.md
       - PRD-005 Episode Summarization: prd/PRD-005-episode-summarization.md
+      - PRD-006 OpenAI Provider Integration: prd/PRD-006-openai-provider-integration.md
   - RFCs:
       - RFC Overview: rfc/index.md
       - RFC-001 Workflow Orchestration: rfc/RFC-001-workflow-orchestration.md
@@ -31,6 +32,9 @@ nav:
       - RFC-010 Automatic Speaker Name Detection: rfc/RFC-010-speaker-name-detection.md
       - RFC-011 Per-Episode Metadata Generation: rfc/RFC-011-metadata-generation.md
       - RFC-012 Episode Summarization: rfc/RFC-012-episode-summarization.md
+      - RFC-013 OpenAI Provider Implementation: rfc/RFC-013-openai-provider-implementation.md
+      - RFC-015 AI Experiment Pipeline: rfc/RFC-015-ai-experiment-pipeline.md
+      - RFC-016 Modularization for AI Experiments: rfc/RFC-016-modularization-for-ai-experiments.md
   - API:
       - API Overview: api/API_REFERENCE.md
       - Core API: api/core.md
@@ -50,9 +54,8 @@ nav:
       - v2.0.0 - Modular Architecture: releases/RELEASE_v2.0.0.md
   - Work In Progress:
       - WIP Overview: wip/WIP_README.md
-      - Architecture Modularity Assessment: wip/ARCHITECTURE_MODULARITY_ASSESSMENT.md
-      - Modularity Quick Reference: wip/MODULARITY_QUICK_REFERENCE.md
-      - Refactoring Opportunities: wip/REFACTORING_OPPORTUNITIES.md
+      - Modularization Refactoring Plan: wip/MODULARIZATION_REFACTORING_PLAN.md
+      - Incremental Modularization Plan: wip/INCREMENTAL_MODULARIZATION_PLAN.md
   - Legal Notice: legal.md
 theme:
   name: material
