@@ -1,5 +1,7 @@
 # Development Notes
 
+> **Maintenance Note**: This document should be kept up-to-date as linting rules, Makefile targets, pre-commit hooks, or CI/CD workflows evolve. When adding new checks, tools, or workflows, update this document accordingly.
+
 ## Markdown Linting
 
 ### Catching Table Formatting Issues Locally

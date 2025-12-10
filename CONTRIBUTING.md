@@ -1030,6 +1030,10 @@ git commit -m "your message"
 
 See [`docs/CI_CD.md`](docs/CI_CD.md#automatic-pre-commit-checks) for more details.
 
+**Additional Resources:**
+
+- [`docs/DEVELOPMENT_NOTES.md`](docs/DEVELOPMENT_NOTES.md) - Detailed notes on linting, formatting, and development workflows (updated as tooling evolves)
+
 ---
 
 Thanks again for contributing! If you have questions, please open an issue or discussion.
