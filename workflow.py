@@ -1595,7 +1595,8 @@ def _parallel_episode_summarization(
                                 logger.debug(
                                     f"Error unloading worker REDUCE model during fallback: {unload_error}"
                                 )
-                # Now proceed with sequential processing using the original model
+                # Now proceed with sequential processing using the original models
+                # Pass reduce_model to maintain consistent behavior with parallel path
                 for (
                     episode,
                     transcript_path,
