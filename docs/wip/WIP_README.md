@@ -11,9 +11,12 @@ This folder contains temporary documentation, ideas, references, and work-in-pro
 
 ## Current Contents
 
-- `ARCHITECTURE_MODULARITY_ASSESSMENT.md` - Assessment of codebase modularity for podcast sources, speaker detection, and transcription
-- `MODULARITY_QUICK_REFERENCE.md` - Quick reference guide for modularity concepts
-- `REFACTORING_OPPORTUNITIES.md` - Identified refactoring opportunities
+- `MODULARIZATION_REFACTORING_PLAN.md` - Overall refactoring strategy for OpenAI provider integration and modularization
+- `INCREMENTAL_MODULARIZATION_PLAN.md` - 6-stage incremental implementation plan with risk assessment
+- `SUMMARIZATION_TESTING_EVALUATION.md` - Testing and evaluation strategies for summarization
+- `SUMMARY_REVIEW.md` - Review of summarization implementation
+- `WHISPER_PROGRESS_ANALYSIS.md` - Analysis of Whisper transcription progress reporting
+- `METRICS_REVIEW.md` - Review of metrics and monitoring
 
 ## Guidelines
 
