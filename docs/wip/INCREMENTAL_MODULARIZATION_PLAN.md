@@ -55,7 +55,7 @@ This document provides a **risk-balanced, incremental implementation plan** for 
    # config.py - Add new fields with defaults matching current behavior
    speaker_detector_type: Literal["ner", "openai"] = Field(default="ner")
    transcription_provider: Literal["whisper", "openai"] = Field(default="whisper")
-   summary_provider: Literal["local", "openai"] = Field(default="local")
+   summary_provider: Literal["transformers", "openai"] = Field(default="transformers")
    openai_api_key: Optional[str] = Field(default=None)
    ```
 
@@ -255,7 +255,7 @@ This document provides a **risk-balanced, incremental implementation plan** for 
 ### Stage 4 Deliverables
 
 1. **Refactor `summarizer.py` → `summarization/local_provider.py`**:
-   - Move `SummaryModel` class to `LocalSummarizationProvider`
+   - Move `SummaryModel` class to `TransformersSummarizationProvider`
    - Implement `SummarizationProvider` protocol
    - Wrap existing methods:
      - `initialize()` - Load model (current `__init__` logic)
@@ -265,7 +265,7 @@ This document provides a **risk-balanced, incremental implementation plan** for 
      - `cleanup()` - Unload model (current cleanup logic)
 
 2. **Create factory**:
-   - `SummarizationProviderFactory.create()` returns `LocalSummarizationProvider` for `"local"`
+   - `SummarizationProviderFactory.create()` returns `TransformersSummarizationProvider` for `"transformers"`
    - Factory reads `summary_provider` config field
 
 3. **Update `workflow.py`**:
@@ -306,6 +306,18 @@ This document provides a **risk-balanced, incremental implementation plan** for 
 - ✅ Memory management works (no leaks)
 - ✅ `metadata.py` is cleaner (uses provider)
 
+### Stage 4 Documentation Tasks
+
+**Create:** `docs/wip/TESTING_STRATEGY_MODULARIZATION.md`
+
+- Protocol compliance test examples
+- Mock provider patterns
+- Integration test requirements
+- Performance benchmark baselines
+- Example test cases for each provider type
+
+**Purpose:** Support testing efforts in Stage 5 and Stage 6
+
 ---
 
 ## Stage 5: Provider Integration & Testing
@@ -339,6 +351,8 @@ This document provides a **risk-balanced, incremental implementation plan** for 
    - Update docstrings for providers
    - Document provider interfaces
    - Add examples for each provider
+   - **Create:** `docs/CUSTOM_PROVIDER_GUIDE.md` (for external contributors)
+   - **Create:** `docs/ENVIRONMENT_VARIABLES.md` (before Stage 6)
 
 ### Stage 5 Tests
 
@@ -363,6 +377,27 @@ This document provides a **risk-balanced, incremental implementation plan** for 
 - ✅ No performance regression
 - ✅ Backward compatibility maintained
 - ✅ Documentation complete
+
+### Stage 5 Documentation Tasks
+
+**Create during Stage 5:**
+
+1. **`docs/CUSTOM_PROVIDER_GUIDE.md`**
+   - Step-by-step provider creation guide
+   - Protocol interface documentation
+   - Factory registration pattern
+   - Testing requirements
+   - Three example implementations (minimal, full-featured, custom config)
+   - Pull request process
+
+2. **`docs/ENVIRONMENT_VARIABLES.md`**
+   - Complete list of supported environment variables
+   - Usage examples (macOS, Linux, Windows, Docker)
+   - Security best practices
+   - Troubleshooting guide
+   - Prepare for Stage 6 (OpenAI API keys)
+
+**Purpose:** Enable external contributions and prepare for Stage 6 (OpenAI)
 
 ---
 

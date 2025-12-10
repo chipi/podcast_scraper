@@ -6,16 +6,16 @@ Add OpenAI API as an optional provider for speaker detection (NER), transcriptio
 
 ## Background & Context
 
-Currently, the podcast scraper uses local on-device AI/ML models:
+Currently, the podcast scraper uses on-device AI/ML models:
 
 - **Speaker Detection**: spaCy NER models running locally
 - **Transcription**: OpenAI Whisper models running locally
 - **Summarization**: Hugging Face transformer models (BART, LED) running locally
 
-While local processing provides privacy and predictable costs, some users may prefer:
+While on-device processing provides privacy and predictable costs, some users may prefer:
 
 - **Higher accuracy**: OpenAI's models may provide better results for speaker detection and summarization
-- **Reduced resource usage**: Offload processing to cloud, reducing local CPU/GPU/memory requirements
+- **Reduced resource usage**: Offload processing to cloud, reducing on-device CPU/GPU/memory requirements
 - **Faster processing**: API-based transcription can be faster than local Whisper for some users
 - **Better quality**: OpenAI's GPT models may produce higher-quality summaries than local transformers
 
@@ -30,9 +30,101 @@ This PRD addresses the need to add OpenAI as a provider option while maintaining
 - Maintain existing parallelism and performance characteristics where applicable
 - Support both development and production environments for API key storage
 
+## OpenAI Model Selection and Cost Analysis
+
+### Configuration Fields
+
+Add to `config.py` when implementing OpenAI providers:
+
+```python
+# OpenAI Model Selection
+openai_speaker_model: str = Field(
+    default="gpt-4o-mini",
+    description="OpenAI model for speaker detection (entity extraction)"
+)
+
+openai_summary_model: str = Field(
+    default="gpt-4o-mini",
+    description="OpenAI model for summarization"
+)
+
+openai_transcription_model: str = Field(
+    default="whisper-1",
+    description="OpenAI Whisper API model version"
+)
+
+# OpenAI API Configuration
+openai_api_key: Optional[str] = Field(
+    default=None,
+    description="OpenAI API key (prefer OPENAI_API_KEY environment variable)"
+)
+
+openai_temperature: float = Field(
+    default=0.3,
+    ge=0.0,
+    le=2.0,
+    description="Temperature for OpenAI generation (0.0-2.0, lower = more deterministic)"
+)
+
+openai_max_tokens: Optional[int] = Field(
+    default=None,
+    description="Max tokens for OpenAI generation (None = model default)"
+)
+```
+
+### Pricing (as of December 2025)
+
+| Model | Input Cost | Output Cost | Context Window | Best For |
+|-------|------------|-------------|----------------|----------|
+| **gpt-4o** | $2.50 / 1M tokens | $10.00 / 1M tokens | 128k tokens | Highest quality |
+| **gpt-4o-mini** | $0.15 / 1M tokens | $0.60 / 1M tokens | 128k tokens | **Recommended** (balanced) |
+| **gpt-4-turbo** | $10.00 / 1M tokens | $30.00 / 1M tokens | 128k tokens | Maximum quality |
+| **gpt-3.5-turbo** | $0.50 / 1M tokens | $1.50 / 1M tokens | 16k tokens | Budget option |
+| **whisper-1** | $0.006 / minute | N/A | N/A | Audio transcription |
+
+**Note:** Prices subject to change. Check [OpenAI Pricing](https://openai.com/api/pricing/) for current rates.
+
+### Cost Comparison: Local vs OpenAI (Per 100 Episodes)
+
+| Component | Local (Transformers) | OpenAI (gpt-4o-mini) | Difference |
+|-----------|---------------------|----------------------|------------|
+| **Speaker Detection** | Free (spaCy NER) | $0.14 | +$0.14 |
+| **Transcription** | Free (local Whisper) | $36.00 | +$36.00 |
+| **Summarization** | Free (local BART/LED) | $0.41 | +$0.41 |
+| **Total API Costs** | $0 | **$36.55** | +$36.55 |
+
+**Infrastructure Costs (Local):**
+
+- Hardware: ~$2,000-$4,000 (GPU, high RAM)
+- Electricity: ~$0.50-$1.00/hour (GPU usage)
+- Maintenance: Developer time for model updates
+
+### Recommended Hybrid Strategies
+
+**Cost-Optimized Hybrid ($0.55/100 episodes):**
+```yaml
+speaker_detector_type: openai      # $0.14/100 (minimal cost)
+transcription_provider: whisper    # Free (local)
+summary_provider: openai          # $0.41/100 (high value)
+```
+
+**Privacy-Focused Hybrid ($0.41/100 episodes):**
+```yaml
+speaker_detector_type: ner        # Free (local, private)
+transcription_provider: whisper   # Free (local, private)  
+summary_provider: openai         # $0.41/100 (convenience)
+```
+
+### Recommended Defaults
+
+- **gpt-4o-mini** for both speaker detection and summarization (best quality/cost balance)
+- **whisper-1** for transcription (only OpenAI option)
+- **Temperature:** 0.3 (deterministic, factual)
+- **Max Tokens:** None (model default)
+
 ## Non-Goals
 
-- Changing default behavior (local providers remain default)
+- Changing default behavior (transformers/local providers remain default)
 - Supporting other cloud providers in this PRD (OpenAI only)
 - Changing end-user workflow or CLI interface
 - Modifying existing local provider implementations
@@ -63,7 +155,7 @@ This PRD addresses the need to add OpenAI as a provider option while maintaining
 
 - **FR1.1**: Add `speaker_detector_type` config field with values `"ner"` (default), `"openai"`
 - **FR1.2**: Add `transcription_provider` config field with values `"whisper"` (default), `"openai"`
-- **FR1.3**: Add `summary_provider` config field with values `"local"` (default), `"openai"`
+- **FR1.3**: Add `summary_provider` config field with values `"transformers"` (default), `"openai"`
 - **FR1.4**: Provider selection is independent per capability (can mix providers)
 - **FR1.5**: Default values maintain current behavior (local providers)
 - **FR1.6**: Invalid provider values result in clear error messages

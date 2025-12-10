@@ -516,10 +516,10 @@ class SummarizationProviderFactory:
         if not cfg.generate_summaries:
             return None
         
-        provider_type = cfg.summary_provider  # 'local', 'openai', etc.
-        if provider_type == 'local':
-            from .local_provider import LocalSummarizationProvider
-            return LocalSummarizationProvider(cfg)
+        provider_type = cfg.summary_provider  # 'transformers', 'openai', etc.
+        if provider_type == 'transformers':
+            from .transformers_provider import TransformersSummarizationProvider
+            return TransformersSummarizationProvider(cfg)
         elif provider_type == 'openai':
             from .openai_provider import OpenAISummarizationProvider
             return OpenAISummarizationProvider(cfg)
@@ -532,7 +532,7 @@ class SummarizationProviderFactory:
 
 1. **Add provider type field to `config.py`:**
    ```python
-   summary_provider: Literal["local", "openai"] = Field(default="local")
+   summary_provider: Literal["transformers", "openai"] = Field(default="transformers")
    # Keep summary_model for backward compatibility
    summary_model: Optional[str] = Field(default=None, alias="summary_model")
    ```
@@ -554,7 +554,7 @@ class SummarizationProviderFactory:
    - These functions are provider-agnostic and should be called BEFORE provider selection
    - Update `metadata.py` to use shared preprocessing module
 
-2. **Refactor `summarizer.py` → `summarization/local_provider.py`:**
+2. **Refactor `summarizer.py` → `summarization/transformers_provider.py`:**
    - Keep all current logic
    - Implement `SummarizationProvider` protocol
    - Wrap existing `SummaryModel` class as provider
@@ -636,7 +636,7 @@ class SummarizationProviderFactory:
    # config.py
    speaker_detector_type: Literal["ner", "openai"] = Field(default="ner")
    transcription_provider: Literal["whisper", "openai"] = Field(default="whisper")
-   summary_provider: Literal["local", "openai"] = Field(default="local")
+   summary_provider: Literal["transformers", "openai"] = Field(default="transformers")
    ```
 
 2. **Create Protocol/ABC Definitions:**
@@ -677,10 +677,10 @@ podcast_scraper/
 │   └── openai_provider.py  # Future OpenAI Whisper API implementation
 ├── summarization/
 │   ├── __init__.py
-│   ├── base.py              # SummarizationProvider protocol
-│   ├── factory.py           # SummarizationProviderFactory
-│   ├── local_provider.py   # Current local transformers implementation (refactored)
-│   └── openai_provider.py  # Future OpenAI API implementation
+│   ├── base.py                    # SummarizationProvider protocol
+│   ├── factory.py                 # SummarizationProviderFactory
+│   ├── transformers_provider.py   # Current HuggingFace transformers implementation (refactored)
+│   └── openai_provider.py         # Future OpenAI API implementation
 ├── workflow.py              # Uses factories, calls preprocessing
 ├── metadata.py              # Refactored (smaller functions), calls preprocessing BEFORE providers
 ├── config.py                # Has provider type fields

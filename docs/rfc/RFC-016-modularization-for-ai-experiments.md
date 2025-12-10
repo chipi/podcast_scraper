@@ -443,7 +443,7 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
             config_dict["summary_provider"] = "openai"
             config_dict["openai_summarization_model"] = model_config["name"]
         elif model_config["type"] == "hf_local":
-            config_dict["summary_provider"] = "local"
+            config_dict["summary_provider"] = "transformers"
             config_dict["summary_model"] = model_config["name"]
             # For local models, map reduce model if specified
             if "reduce" in experiment_config.get("models", {}):
