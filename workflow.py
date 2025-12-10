@@ -1,4 +1,7 @@
-"""Core workflow orchestration: main pipeline execution."""
+"""Core workflow orchestration: main pipeline execution.
+
+This module handles the main podcast scraping pipeline workflow.
+"""
 
 from __future__ import annotations
 
