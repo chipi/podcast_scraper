@@ -988,13 +988,15 @@ Install the pre-commit hook to automatically check your code before every commit
 make install-hooks
 ```
 
-The pre-commit hook automatically runs before each commit:
+The pre-commit hook automatically runs before each commit and **only checks staged files** (files you're committing), making it fast and efficient:
 
-- ✅ **Black** formatting check
-- ✅ **isort** import sorting check
-- ✅ **flake8** linting
-- ✅ **markdownlint** (if installed)
-- ✅ **mypy** type checking
+- ✅ **Black** formatting check (Python files)
+- ✅ **isort** import sorting check (Python files)
+- ✅ **flake8** linting (Python files)
+- ✅ **markdownlint** (markdown files, if installed)
+- ✅ **mypy** type checking (Python files)
+
+> **Note:** The hook only checks files that are staged for commit, not the entire codebase. This makes it much faster and ensures you're only checking what you're actually committing.
 
 **If any check fails, the commit is blocked** until you fix the issues.
 
