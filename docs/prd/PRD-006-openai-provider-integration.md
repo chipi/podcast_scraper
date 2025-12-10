@@ -96,12 +96,13 @@ This PRD addresses the need to add OpenAI as a provider option while maintaining
 
 ### FR5: Summarization with OpenAI
 
-- **FR5.1**: OpenAI provider uses GPT-4 or GPT-3.5-turbo for summarization
+- **FR5.1**: OpenAI provider uses GPT-4o-mini or GPT-4 for summarization
 - **FR5.2**: Maintains same interface as local provider (summarize, summarize_chunks, combine_summaries)
-- **FR5.3**: Supports MAP/REDUCE pattern (chunk summarization + final combine)
+- **FR5.3**: **Leverages large context window (128k tokens)** - can process full transcripts without chunking
 - **FR5.4**: Returns results in same format as local provider
-- **FR5.5**: Handles long transcripts via chunking (same as local provider)
-- **FR5.6**: Maintains parallelism for chunk processing where applicable
+- **FR5.5**: **Simplified processing** - single API call for most transcripts (no MAP/REDUCE needed)
+- **FR5.6**: Falls back to chunking only for extremely long transcripts (rare)
+- **FR5.7**: More cost-efficient than local provider (single API call vs multiple model inferences)
 
 ### FR6: Logging and Observability
 

@@ -340,6 +340,8 @@ class OpenAITranscriptionProvider:
 
 **File**: `podcast_scraper/summarization/openai_provider.py`
 
+**Key Advantage**: OpenAI GPT models (GPT-4, GPT-4o-mini) have much larger context windows (128k+ tokens) compared to local transformer models (1k-16k tokens). This means we can process full transcripts directly without chunking, simplifying the implementation significantly.
+
 ```python
 from typing import List, Optional, Dict, Any
 from openai import OpenAI
@@ -355,6 +357,8 @@ class OpenAISummarizationProvider:
         self.client = OpenAI(api_key=cfg.openai_api_key)
         self.cfg = cfg
         self.model = getattr(cfg, 'openai_summary_model', 'gpt-4o-mini')  # Cost-effective default
+        # GPT-4o-mini supports 128k context window - can handle full transcripts
+        self.max_context_tokens = 128000  # Conservative estimate
     
     def initialize(self, cfg: config.Config) -> Optional[Any]:
         """Initialize provider (no local model loading needed for API)."""
@@ -368,7 +372,11 @@ class OpenAISummarizationProvider:
         max_length: Optional[int] = None,
         min_length: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Summarize text using OpenAI GPT API."""
+        """Summarize text using OpenAI GPT API.
+        
+        Can handle full transcripts directly due to large context window (128k+ tokens).
+        No chunking needed for most podcast transcripts.
+        """
         max_length = max_length or getattr(cfg, 'summary_max_length', 150)
         min_length = min_length or getattr(cfg, 'summary_min_length', 30)
         
@@ -378,7 +386,7 @@ class OpenAISummarizationProvider:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are an expert at creating concise, informative summaries."},
+                    {"role": "system", "content": "You are an expert at creating concise, informative summaries with key takeaways."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
@@ -405,13 +413,31 @@ class OpenAISummarizationProvider:
         cfg: config.Config,
         resource: Any,
     ) -> List[str]:
-        """Summarize multiple text chunks (MAP phase) - can be parallelized."""
-        # Can parallelize API calls for multiple chunks
-        summaries = []
-        for chunk in chunks:
-            result = self.summarize(chunk, cfg, resource)
-            summaries.append(result['summary'])
-        return summaries
+        """Summarize multiple text chunks (MAP phase).
+        
+        NOTE: For OpenAI, this is typically not needed due to large context window.
+        However, we maintain this interface for compatibility. If chunks can fit in
+        one context window, we combine them and summarize once. Otherwise, we
+        summarize each chunk separately.
+        """
+        # Check if we can combine chunks into single API call
+        combined_text = "\n\n".join(chunks)
+        estimated_tokens = len(combined_text.split()) * 1.3  # Rough token estimate
+        
+        if estimated_tokens < self.max_context_tokens * 0.8:  # 80% safety margin
+            # Can fit all chunks in one call - more efficient
+            logger.debug("Combining chunks for single OpenAI API call (fits in context window)")
+            result = self.summarize(combined_text, cfg, resource)
+            # Return as single summary (workflow will handle this correctly)
+            return [result['summary']]
+        else:
+            # Too long, summarize chunks separately (rare case)
+            logger.debug("Chunks too long, summarizing separately")
+            summaries = []
+            for chunk in chunks:
+                result = self.summarize(chunk, cfg, resource)
+                summaries.append(result['summary'])
+            return summaries
     
     def combine_summaries(
         self,
@@ -419,7 +445,17 @@ class OpenAISummarizationProvider:
         cfg: config.Config,
         resource: Any,
     ) -> str:
-        """Combine multiple summaries into final summary (REDUCE phase)."""
+        """Combine multiple summaries into final summary (REDUCE phase).
+        
+        NOTE: For OpenAI, if summarize_chunks() combined chunks into one call,
+        this method may receive a single summary. In that case, we can return it
+        directly or refine it. For multiple summaries, we combine them.
+        """
+        if len(summaries) == 1:
+            # Already combined in summarize_chunks() - can return directly or refine
+            return summaries[0]
+        
+        # Multiple summaries to combine
         combined_text = "\n\n".join(summaries)
         prompt = self._build_combination_prompt(combined_text)
         
@@ -447,11 +483,12 @@ class OpenAISummarizationProvider:
 
 **Key Design Decisions:**
 
-- Support MAP/REDUCE pattern (chunk summarization + final combine)
-- Can parallelize chunk summarization (multiple API calls)
-- Use GPT-4o-mini for cost efficiency (configurable)
-- Maintain same interface as local provider
-- Handle long transcripts via chunking (same as local provider)
+- **Leverage Large Context Window**: GPT-4o-mini supports 128k tokens - can handle full transcripts without chunking
+- **Simplified Processing**: Most transcripts fit in one API call, eliminating MAP/REDUCE complexity
+- **Maintain Interface Compatibility**: Still implement MAP/REDUCE methods for protocol compliance, but optimize internally
+- **Smart Chunk Handling**: If chunks are provided, check if they fit in context window and combine them
+- **Cost Efficiency**: Single API call for full transcript is more cost-effective than multiple chunk calls
+- **Use GPT-4o-mini**: Cost-effective default with large context window
 
 ### 4. Factory Updates
 
