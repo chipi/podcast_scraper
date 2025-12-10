@@ -221,21 +221,40 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     # Step 6: Setup transcription resources (Whisper model, temp dir)
     transcription_resources = _setup_transcription_resources(cfg, effective_output_dir)
 
-    # Step 6.5: Setup summary model if summarization is enabled
-    # Load model once and reuse across all episodes to avoid memory leaks
+    # Step 6.5: Setup summary models if summarization is enabled
+    # Load models once and reuse across all episodes to avoid memory leaks and redundant downloads
     summary_model = None
+    reduce_model = None
     if cfg.generate_summaries and not cfg.dry_run:
         try:
             # Lazy import to avoid loading torch in dry-run mode
             from . import summarizer  # noqa: PLC0415
 
+            # Load MAP model (for chunk summarization)
             model_name = summarizer.select_summary_model(cfg)
             summary_model = summarizer.SummaryModel(
                 model_name=model_name,
                 device=cfg.summary_device,
                 cache_dir=cfg.summary_cache_dir,
             )
-            logger.info("Loaded summary model for reuse across all episodes")
+            logger.debug("Loaded MAP summary model for reuse across all episodes")
+
+            # Load REDUCE model if different from MAP model (for final combine)
+            reduce_model_name = summarizer.select_reduce_model(cfg, model_name)
+            if reduce_model_name != model_name:
+                reduce_model = summarizer.SummaryModel(
+                    model_name=reduce_model_name,
+                    device=cfg.summary_device,
+                    cache_dir=cfg.summary_cache_dir,
+                )
+                logger.debug(
+                    f"Loaded REDUCE summary model ({reduce_model_name}) "
+                    f"for reuse across all episodes"
+                )
+            else:
+                # Use MAP model for REDUCE phase if they're the same
+                reduce_model = summary_model
+                logger.debug("Using MAP model for REDUCE phase (same model)")
         except ImportError:
             logger.warning("Summarization dependencies not available, skipping summary generation")
         except Exception as e:
@@ -267,6 +286,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         transcription_resources,
         pipeline_metrics,
         summary_model,
+        reduce_model,
     )
 
     # Step 9: Process transcription jobs sequentially
@@ -282,6 +302,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         host_detection_result,
         pipeline_metrics,
         summary_model,
+        reduce_model,
     )
     pipeline_metrics.record_stage("writing_storage", time.time() - writing_start)
 
@@ -307,19 +328,29 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             feed_metadata=feed_metadata,
             host_detection_result=host_detection_result,
             summary_model=summary_model,
+            reduce_model=reduce_model,
             download_args=download_args,
             pipeline_metrics=pipeline_metrics,
         )
 
     # Step 9.5: Unload models to free memory
+    # This runs even if exceptions occur above, preventing memory leaks
     if summary_model is not None:
         try:
             from . import summarizer  # noqa: PLC0415
 
             summarizer.unload_model(summary_model)
-            logger.info("Unloaded summary model to free memory")
+            logger.debug("Unloaded MAP summary model to free memory")
         except Exception as e:
-            logger.warning(f"Failed to unload summary model: {e}")
+            logger.warning(f"Failed to unload MAP summary model: {e}")
+    if reduce_model is not None and reduce_model != summary_model:
+        try:
+            from . import summarizer  # noqa: PLC0415
+
+            summarizer.unload_model(reduce_model)
+            logger.debug("Unloaded REDUCE summary model to free memory")
+        except Exception as e:
+            logger.warning(f"Failed to unload REDUCE summary model: {e}")
 
     # Clear spaCy model cache to free memory
     # Models are cached at module level, so we clear them after processing
@@ -698,6 +729,7 @@ def _process_episodes(
     transcription_resources: _TranscriptionResources,
     pipeline_metrics: metrics.Metrics,
     summary_model=None,
+    reduce_model=None,
 ) -> int:
     """Process episodes: download transcripts or queue transcription jobs.
 
@@ -790,6 +822,7 @@ def _process_episodes(
                     feed_image_url=feed_metadata.image_url,
                     feed_last_updated=feed_metadata.last_updated,
                     summary_model=summary_model,
+                    reduce_model=reduce_model,
                     pipeline_metrics=pipeline_metrics,
                 )
     else:
@@ -877,6 +910,7 @@ def _process_episodes(
                                 feed_image_url=feed_metadata.image_url,
                                 feed_last_updated=feed_metadata.last_updated,
                                 summary_model=summary_model,
+                                reduce_model=reduce_model,
                                 pipeline_metrics=pipeline_metrics,
                             )
                 except Exception as exc:  # pragma: no cover
@@ -898,6 +932,7 @@ def _process_transcription_jobs(
     host_detection_result: _HostDetectionResult,
     pipeline_metrics: metrics.Metrics,
     summary_model=None,
+    reduce_model=None,
 ) -> int:
     """Process Whisper transcription jobs sequentially.
 
@@ -1115,6 +1150,7 @@ def _generate_episode_metadata(
     feed_image_url: Optional[str],
     feed_last_updated: Optional[datetime],
     summary_model=None,
+    reduce_model=None,
     pipeline_metrics=None,
 ) -> None:
     """Helper function to generate episode metadata.
@@ -1162,6 +1198,7 @@ def _generate_episode_metadata(
         transcript_source=transcript_source,
         whisper_model=whisper_model,
         summary_model=summary_model,
+        reduce_model=reduce_model,
         detected_hosts=detected_hosts,
         detected_guests=detected_guests,
         feed_description=feed_description,
@@ -1189,6 +1226,7 @@ def _parallel_episode_summarization(
     summary_model,
     download_args: List[Tuple],
     pipeline_metrics: metrics.Metrics,
+    reduce_model=None,
 ) -> None:
     """Process episode summarization in parallel for episodes with existing transcripts.
 
@@ -1291,6 +1329,7 @@ def _parallel_episode_summarization(
                 feed_metadata=feed_metadata,
                 host_detection_result=host_detection_result,
                 summary_model=summary_model,
+                reduce_model=reduce_model,
                 detected_names=detected_names,
                 pipeline_metrics=pipeline_metrics,
             )
@@ -1312,6 +1351,7 @@ def _parallel_episode_summarization(
                     feed_metadata=feed_metadata,
                     host_detection_result=host_detection_result,
                     summary_model=summary_model,
+                    reduce_model=reduce_model,
                     detected_names=detected_names,
                     pipeline_metrics=pipeline_metrics,
                 )
@@ -1342,6 +1382,7 @@ def _summarize_single_episode(
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
     summary_model,
+    reduce_model=None,
     detected_names: Optional[List[str]] = None,
     pipeline_metrics: Optional[metrics.Metrics] = None,
 ) -> None:
@@ -1393,6 +1434,7 @@ def _summarize_single_episode(
         transcript_source=transcript_source,
         whisper_model=None,
         summary_model=summary_model,
+        reduce_model=reduce_model,
         detected_hosts=(
             list(host_detection_result.cached_hosts) if host_detection_result.cached_hosts else None
         ),

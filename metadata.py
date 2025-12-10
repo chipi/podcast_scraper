@@ -387,6 +387,7 @@ def _generate_episode_summary(
     cfg: config.Config,
     episode_idx: int,
     summary_model=None,
+    reduce_model=None,
 ) -> Optional[SummaryMetadata]:
     """Generate summary for an episode transcript.
 
@@ -490,45 +491,53 @@ def _generate_episode_summary(
             return None
 
     # Optional REDUCE model (final combine, can be different from MAP model)
-    reduce_model = summary_model
-    try:
-        reduce_model_name = summarizer.select_reduce_model(cfg, summary_model.model_name)
-        logger.info(
-            "[%s] Selected REDUCE model: %s (from config: %s)",
-            episode_idx,
-            reduce_model_name,
-            getattr(cfg, "summary_reduce_model", None) or "default (long-fast/LED)",
-        )
-        if reduce_model_name != summary_model.model_name:
-            logger.info(
-                "[%s] Loading separate REDUCE model for final combine: %s",
+    # Use provided reduce_model if available (reused across episodes), otherwise create one
+    if reduce_model is None:
+        reduce_model = summary_model
+        try:
+            reduce_model_name = summarizer.select_reduce_model(cfg, summary_model.model_name)
+            logger.debug(
+                "[%s] Selected REDUCE model: %s (from config: %s)",
                 episode_idx,
                 reduce_model_name,
+                getattr(cfg, "summary_reduce_model", None) or "default (long-fast/LED)",
             )
-            reduce_model = summarizer.SummaryModel(
-                model_name=reduce_model_name,
-                device=cfg.summary_device,
-                cache_dir=cfg.summary_cache_dir,
-            )
-            logger.info(
-                "[%s] REDUCE model loaded successfully: %s",
+            if reduce_model_name != summary_model.model_name:
+                logger.debug(
+                    "[%s] Loading separate REDUCE model for final combine: %s",
+                    episode_idx,
+                    reduce_model_name,
+                )
+                reduce_model = summarizer.SummaryModel(
+                    model_name=reduce_model_name,
+                    device=cfg.summary_device,
+                    cache_dir=cfg.summary_cache_dir,
+                )
+                logger.debug(
+                    "[%s] REDUCE model loaded successfully: %s",
+                    episode_idx,
+                    reduce_model.model_name,
+                )
+            else:
+                logger.debug(
+                    "[%s] Using MAP model for REDUCE phase: %s",
+                    episode_idx,
+                    summary_model.model_name,
+                )
+        except Exception as e:
+            logger.warning(
+                "[%s] Failed to load separate reduce model (%s), falling back to map model: %s",
                 episode_idx,
-                reduce_model.model_name,
-            )
-        else:
-            logger.info(
-                "[%s] Using MAP model for REDUCE phase: %s",
-                episode_idx,
+                e,
                 summary_model.model_name,
             )
-    except Exception as e:
-        logger.warning(
-            "[%s] Failed to load separate reduce model (%s), falling back to map model: %s",
+            reduce_model = summary_model
+    else:
+        logger.debug(
+            "[%s] Using provided REDUCE model (reused from pipeline): %s",
             episode_idx,
-            e,
-            summary_model.model_name,
+            reduce_model.model_name,
         )
-        reduce_model = summary_model
 
     # Generate summary
     try:
@@ -757,6 +766,7 @@ def generate_episode_metadata(
     episode_number: Optional[int] = None,
     episode_image_url: Optional[str] = None,
     summary_model=None,
+    reduce_model=None,
     pipeline_metrics=None,
 ) -> Optional[str]:
     """Generate metadata document for an episode.
@@ -856,6 +866,7 @@ def generate_episode_metadata(
             cfg=cfg,
             episode_idx=episode.idx,
             summary_model=summary_model,
+            reduce_model=reduce_model,
         )
         summary_elapsed = time.time() - summary_start
         # Record summary generation time if metrics available
