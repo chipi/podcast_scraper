@@ -31,6 +31,10 @@ markdownlint --fix "**/*.md" --ignore node_modules --ignore .venv --ignore .buil
    - ❌ Bad: `| Header |` followed by `|-------|` (misaligned)
    - ✅ Good: `| Header |` followed by `| ------ |` (aligned)
 
+3. **Compact style separator**: No spaces around pipes in separator row
+   - ❌ Bad: `| Header |` followed by `| -------- |` (has spaces)
+   - ✅ Good: `| Header |` followed by `|----------|` (no spaces)
+
 ### Pre-commit Hook
 
 **✅ Already Integrated!** The project includes a pre-commit hook (`.github/hooks/pre-commit`) that automatically checks markdown files before commits.
