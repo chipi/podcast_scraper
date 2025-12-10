@@ -1382,7 +1382,8 @@ def _parallel_episode_summarization(
         feed_metadata: Feed metadata tuple
         host_detection_result: Host detection result
         summary_model: Pre-loaded summary model (used for configuration, each worker loads its own)
-        reduce_model: Pre-loaded reduce model (used for configuration, each worker loads its own or reuses MAP)
+        reduce_model: Pre-loaded reduce model (used for configuration, each worker
+            loads its own or reuses MAP)
     """
     import os
 
@@ -1532,7 +1533,8 @@ def _parallel_episode_summarization(
                 logger.warning("Falling back to sequential processing due to model loading failure")
                 if worker_models:
                     logger.debug(
-                        f"Unloading {len(worker_models)} successfully loaded model(s) before fallback"
+                        f"Unloading {len(worker_models)} successfully loaded "
+                        f"model(s) before fallback"
                     )
                     for worker_model in worker_models:
                         try:
