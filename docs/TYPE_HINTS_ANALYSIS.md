@@ -93,8 +93,8 @@ __all__ = [
 
 ### Impact Assessment
 
-| Function | Current | With Type Hints | Breaking? |
-|----------|---------|-----------------|-----------|
+| Function              | Current        | With Type Hints                    | Breaking? |
+| --------------------- | -------------- | ---------------------------------- | --------- |
 | `run_pipeline(config)` | No return type | `-> Tuple[int, Dict[str, Any]]` | ❌ No |
 | `load_config_file(path)` | No return type | `-> Dict[str, Any]` | ❌ No |
 | Internal functions | No return types | Various return types | ❌ No |

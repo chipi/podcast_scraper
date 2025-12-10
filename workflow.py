@@ -1574,7 +1574,8 @@ def _parallel_episode_summarization(
                 logger.warning("Falling back to sequential processing due to model loading failure")
                 if worker_models:
                     logger.debug(
-                        f"Unloading {len(worker_models)} successfully loaded MAP model(s) before fallback"
+                        f"Unloading {len(worker_models)} successfully loaded "
+                        f"MAP model(s) before fallback"
                     )
                     for worker_model in worker_models:
                         try:
@@ -1584,8 +1585,12 @@ def _parallel_episode_summarization(
                                 f"Error unloading worker MAP model during fallback: {unload_error}"
                             )
                 if worker_reduce_models:
+                    reduce_count = len(
+                        [m for m in worker_reduce_models if m and m not in worker_models]
+                    )
                     logger.debug(
-                        f"Unloading {len([m for m in worker_reduce_models if m and m not in worker_models])} successfully loaded REDUCE model(s) before fallback"
+                        f"Unloading {reduce_count} successfully loaded "
+                        f"REDUCE model(s) before fallback"
                     )
                     for worker_reduce_model in worker_reduce_models:
                         if worker_reduce_model and worker_reduce_model not in worker_models:
@@ -1593,7 +1598,8 @@ def _parallel_episode_summarization(
                                 summarizer.unload_model(worker_reduce_model)
                             except Exception as unload_error:
                                 logger.debug(
-                                    f"Error unloading worker REDUCE model during fallback: {unload_error}"
+                                    f"Error unloading worker REDUCE model "
+                                    f"during fallback: {unload_error}"
                                 )
                 # Now proceed with sequential processing using the original models
                 # Pass reduce_model to maintain consistent behavior with parallel path
