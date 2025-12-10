@@ -42,6 +42,7 @@ nav:
       - API Migration Guide: api/API_MIGRATION_GUIDE.md
       - API Versioning: api/API_VERSIONING.md
   - Releases:
+      - v2.3.1 - Security Fixes & Code Quality Improvements: releases/RELEASE_v2.3.1.md
       - v2.3.0 - Episode Summarization & Public API: releases/RELEASE_v2.3.0.md
       - v2.2.0 - Metadata Generation & Code Quality: releases/RELEASE_v2.2.0.md
       - v2.1.0 - Automatic Speaker Detection: releases/RELEASE_v2.1.0.md
