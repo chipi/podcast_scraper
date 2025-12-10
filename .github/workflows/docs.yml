@@ -23,6 +23,7 @@ on:
     paths-ignore:
       - '.github/workflows/**'  # Workflow changes handled by codeql.yml
   pull_request:
+    branches: [ "main" ]
     paths:
       # Only files that are part of the MkDocs site (see mkdocs.yml nav)
       - 'docs/index.md'
