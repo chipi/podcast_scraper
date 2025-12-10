@@ -272,39 +272,38 @@ def _validate_model_source(model_name: str) -> None:
     to mitigate supply chain risks. Custom models from unknown sources will
     trigger a warning but are still allowed (user choice).
 
+    Note: Does not log sensitive information (model names, source identifiers)
+    to avoid clear-text logging of potentially untrusted input.
+
     Args:
         model_name: Model identifier (e.g., "facebook/bart-large-cnn")
 
     Note:
-        - Logs INFO for default trusted models
-        - Logs WARNING for custom models from untrusted sources
+        - Logs DEBUG for default trusted models (no sensitive info)
+        - Logs WARNING for custom models from untrusted sources (generic message)
         - Does not block loading (respects user choice)
     """
     # Check if model is from a trusted source
+    # Security: Avoid logging sensitive information (source names, model identifiers) in clear text
     if "/" in model_name:
         source = model_name.split("/")[0]
         if source in TRUSTED_MODEL_SOURCES:
-            logger.debug(
-                f"Loading model from trusted source: {source} "
-                f"(verified in TRUSTED_MODEL_SOURCES)"
-            )
+            logger.debug("Loading model from verified trusted source")
         else:
             logger.warning(
-                f"Loading model from custom source: {source}\n"
-                f"    ⚠️  SECURITY NOTICE:\n"
-                f"    This model is not from a pre-verified trusted source.\n"
-                f"    Trusted sources: {', '.join(sorted(TRUSTED_MODEL_SOURCES))}\n"
-                f"    Only use models from sources you trust.\n"
-                f"    Consider using default models (e.g., 'bart-large', 'fast') for "
-                f"better security."
+                "⚠️  SECURITY NOTICE: Loading model from custom (untrusted) source.\n"
+                "    This model is not from a pre-verified trusted source.\n"
+                "    Only use models from sources you trust.\n"
+                "    Consider using default models (e.g., 'bart-large', 'fast', 'pegasus') "
+                "for better security."
             )
     else:
         # Local model or non-standard identifier
         logger.warning(
-            f"Loading model with non-standard identifier: {model_name}\n"
-            f"    ⚠️  SECURITY NOTICE:\n"
-            f"    Unable to verify model source.\n"
-            f"    Only load models from sources you trust."
+            "⚠️  SECURITY NOTICE: Loading model with non-standard identifier.\n"
+            "    Unable to verify model source.\n"
+            "    Only load models from sources you trust.\n"
+            "    Use default model names for verified sources."
         )
 
 
