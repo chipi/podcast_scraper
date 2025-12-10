@@ -414,9 +414,8 @@ Visit [http://localhost:8000](http://localhost:8000) to preview. The site update
 Experimental and draft documentation:
 
 - [WIP Overview](wip/WIP_README.md) — Purpose and guidelines for WIP docs
-- [Architecture Modularity Assessment](wip/ARCHITECTURE_MODULARITY_ASSESSMENT.md)
-- [Modularity Quick Reference](wip/MODULARITY_QUICK_REFERENCE.md)
-- [Refactoring Opportunities](wip/REFACTORING_OPPORTUNITIES.md)
+- [Modularization Refactoring Plan](wip/MODULARIZATION_REFACTORING_PLAN.md) — Overall refactoring strategy for OpenAI provider integration
+- [Incremental Modularization Plan](wip/INCREMENTAL_MODULARIZATION_PLAN.md) — 6-stage incremental implementation plan
 - [Summarization Testing Evaluation](wip/SUMMARIZATION_TESTING_EVALUATION.md)
 - [Summary Review](wip/SUMMARY_REVIEW.md)
 - [Whisper Progress Analysis](wip/WHISPER_PROGRESS_ANALYSIS.md)

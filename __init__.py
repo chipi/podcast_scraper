@@ -49,7 +49,7 @@ __all__ = [
     "__version__",
     "__api_version__",
 ]
-__version__ = "2.3.2"
+__version__ = "2.4.0"
 
 # API version follows semantic versioning and is tied to module version
 # - Major version (X.y.z): Breaking API changes

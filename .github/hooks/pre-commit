@@ -102,7 +102,23 @@ fi
 if [ -n "$STAGED_MARKDOWN" ]; then
     if command -v markdownlint >/dev/null 2>&1; then
         MARKDOWN_FILES=$(echo "$STAGED_MARKDOWN" | tr '\n' ' ')
-        run_check "Markdown linting" "markdownlint $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build"
+        # Use same ignore patterns as make lint-markdown
+        # Check if auto-fix is requested via environment variable
+        if [ "$MARKDOWNLINT_FIX" = "1" ]; then
+            echo "→ Auto-fixing markdown linting issues..."
+            if markdownlint --fix $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site > /tmp/precommit_md_$$.log 2>&1; then
+                echo -e "${GREEN}✓${NC} Markdown auto-fix completed"
+                # Re-stage fixed files
+                echo "$MARKDOWN_FILES" | xargs git add 2>/dev/null || true
+            else
+                echo -e "${YELLOW}⚠${NC} Some markdown issues could not be auto-fixed"
+                cat /tmp/precommit_md_$$.log
+            fi
+            rm -f /tmp/precommit_md_$$.log
+            echo ""
+        fi
+        # Run linting check (after auto-fix if enabled)
+        run_check "Markdown linting" "markdownlint $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site"
     else
         echo -e "${RED}✗${NC} markdownlint not found but markdown files are staged"
         echo ""
@@ -111,6 +127,8 @@ if [ -n "$STAGED_MARKDOWN" ]; then
         echo "  npm install -g markdownlint-cli"
         echo ""
         echo "Or skip this check with: git commit --no-verify"
+        echo ""
+        echo "Tip: Enable auto-fix by setting MARKDOWNLINT_FIX=1 before committing"
         echo ""
         ERRORS=$((ERRORS + 1))
     fi
