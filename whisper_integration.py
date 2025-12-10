@@ -161,7 +161,7 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
                 )
             model = whisper_lib.load_model(attempt_model)
             if attempt_model != model_name:
-                logger.warning(
+                logger.info(
                     "Loaded fallback Whisper model: %s (requested %s was not available)",
                     attempt_model,
                     model_name,

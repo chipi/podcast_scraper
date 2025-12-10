@@ -140,7 +140,7 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
                 exc,
                 exc.stderr or exc.stdout or "",
             )
-            logger.warning("You can manually install with: python -m spacy download %s", model_name)
+            logger.info("You can manually install with: python -m spacy download %s", model_name)
             return None
         except OSError as exc:
             logger.error(
@@ -769,7 +769,7 @@ def detect_speaker_names(
 
     nlp = get_ner_model(cfg)
     if not nlp:
-        logger.warning("spaCy model not available, detection failed")
+        logger.info("spaCy model not available, detection failed")
         return DEFAULT_SPEAKER_NAMES.copy(), set(), False
 
     # Use cached/known hosts, but do NOT detect hosts from episode metadata

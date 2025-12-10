@@ -517,7 +517,7 @@ class SummaryModel:
             else:
                 device_info += " (CPU)"
             logger.info(f"Loading summarization model: {self.model_name} on {device_info}")
-            logger.info(f"Cache directory: {self.cache_dir}")
+            logger.debug(f"Cache directory: {self.cache_dir}")
 
             # Load tokenizer
             # Note: Model versions are managed by Hugging Face cache
@@ -983,18 +983,18 @@ def _prepare_chunks(
     )
 
     if use_word_chunking:
-        logger.info(
+        logger.debug(
             "Encoder-decoder model detected (word chunking requested). "
             f"Forcing token chunking with chunk_size={chunk_size} tokens "
             f"(requested word_chunk_size={word_chunk_size} words, overlap={overlap} tokens)."
         )
     else:
-        logger.info(
+        logger.debug(
             f"Using token-based chunking "
             f"(chunk_size={chunk_size} tokens, overlap={overlap} tokens)."
         )
 
-    logger.info(
+    logger.debug(
         f"Split text into {len(chunks)} chunks for summarization "
         f"({total_words} words total, ~{total_tokens} tokens, chunk_size={chunk_size} tokens, "
         f"overlap={overlap} tokens)"
@@ -1199,7 +1199,7 @@ def summarize_long_text(
             f"avg={sum(summary_sizes_words) // len(summary_sizes_words)}"
         )
     else:
-        logger.warning("[MAP-REDUCE VALIDATION] Map phase: No chunk summaries generated!")
+        logger.debug("[MAP-REDUCE VALIDATION] Map phase: No chunk summaries generated!")
 
     # Step 4: Reduce - Combine summaries into final result
     reduce_start_time = time.time()
@@ -1885,14 +1885,14 @@ def _combine_summaries_mini_map_reduce(
                         f"({len(section_summary.split())} words)"
                     )
             except Exception as e:
-                logger.warning(
+                logger.debug(
                     f"[MAP-REDUCE VALIDATION] Mini map-reduce iteration {iteration}: "
                     f"failed to summarize section {i}: {e}"
                 )
                 continue
 
         if not section_summaries:
-            logger.warning(
+            logger.debug(
                 f"[MAP-REDUCE VALIDATION] Hierarchical iteration {iteration}: "
                 "No section summaries generated, falling back to extractive approach"
             )
@@ -1928,7 +1928,7 @@ def _combine_summaries_mini_map_reduce(
         )
 
     if current_tokens > target_tokens:
-        logger.warning(
+        logger.debug(
             f"[MAP-REDUCE VALIDATION] Hierarchical reduce reached {iteration} passes "
             f"but still {current_tokens} tokens > threshold ({target_tokens}). "
             "Falling back to extractive approach."
@@ -2237,7 +2237,7 @@ def prune_cache(cache_dir: Optional[str] = None, dry_run: bool = False) -> int:
                         item.unlink()
                         deleted_count += 1
                     except (OSError, PermissionError) as e:
-                        logger.warning("Failed to delete %s: %s", item, e)
+                        logger.debug("Failed to delete %s: %s", item, e)
                 else:
                     deleted_count += 1
             elif item.is_dir() and not any(item.iterdir()):

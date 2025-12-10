@@ -228,7 +228,7 @@ def download_media_for_transcription(
                         mb = total_bytes / downloader.BYTES_PER_MB
                         logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
                     except (ValueError, ZeroDivisionError, TypeError) as exc:
-                        logger.warning(f"    failed to format download size: {exc}")
+                        logger.debug(f"    failed to format download size: {exc}")
         except OSError as exc:
             logger.warning(f"    error checking media file, re-downloading: {exc}")
             dl_start = time.time()
@@ -350,7 +350,7 @@ def _cleanup_temp_media(temp_media: str, cfg: Optional[config.Config] = None) ->
     try:
         os.remove(temp_media)
     except OSError as exc:
-        logger.warning(f"    failed to remove temp media file {temp_media}: {exc}")
+        logger.debug(f"    failed to remove temp media file {temp_media}: {exc}")
 
 
 def transcribe_media_to_text(

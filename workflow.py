@@ -237,7 +237,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             )
             logger.info("Loaded summary model for reuse across all episodes")
         except ImportError:
-            logger.warning("Summarization dependencies not available, skipping summary generation")
+            logger.info("Summarization dependencies not available, skipping summary generation")
         except Exception as e:
             logger.error(f"Failed to load summary model: {e}")
 
@@ -1034,7 +1034,7 @@ def _cleanup_pipeline(temp_dir: Optional[str]) -> None:
             shutil.rmtree(temp_dir)
             logger.info(f"Cleaned up temp directory: {temp_dir}")
         except OSError as exc:
-            logger.warning(f"Failed to remove temp directory {temp_dir}: {exc}")
+            logger.debug(f"Failed to remove temp directory {temp_dir}: {exc}")
 
 
 def _generate_pipeline_summary(
