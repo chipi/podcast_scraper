@@ -68,7 +68,7 @@ jobs:
   snyk-docker:
     name: Snyk - Docker
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule' || github.repository == github.repository
+    if: github.event_name != 'schedule'
     steps:
       - uses: actions/checkout@v4
       
@@ -78,6 +78,9 @@ jobs:
           docker image prune -af || true
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       
       - name: Build Docker image
         uses: docker/build-push-action@v5
@@ -90,6 +93,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
+      - name: Verify Docker image exists
+        run: |
+          docker images | grep podcast-scraper || echo "Image not found"
+          docker inspect podcast-scraper:snyk-scan || echo "Image inspection failed"
+      
       - name: Run Snyk to check Docker image for vulnerabilities
         uses: snyk/actions/docker@master
         continue-on-error: true
@@ -101,7 +109,7 @@ jobs:
       
       - name: Upload Snyk Docker results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           sarif_file: snyk-docker.sarif
           wait-for-processing: true
