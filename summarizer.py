@@ -2286,11 +2286,12 @@ def prune_cache(cache_dir: Optional[str] = None, dry_run: bool = False) -> int:
         cache_path = Path(cache_dir)
         # Security check: ensure cache directory is within safe locations
         # Only allow deletion within user's home directory or standard cache locations
+        # (but not the home directory or ~/.cache themselves to prevent accidental deletion)
         try:
             resolved_path = cache_path.resolve()
             safe_roots = {Path.home(), Path.home() / ".cache"}
             is_safe = any(
-                resolved_path == root or resolved_path.is_relative_to(root) for root in safe_roots
+                resolved_path.is_relative_to(root) and resolved_path != root for root in safe_roots
             )
             if not is_safe:
                 raise ValueError(
