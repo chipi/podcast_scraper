@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "podcast-scraper"
-version = "2.3.1"
+version = "2.3.2"
 description = "Download podcast transcripts from RSS feeds with optional Whisper fallback"
 readme = "README.md"
 authors = [{name = "Podcast Scraper Maintainers"}]
