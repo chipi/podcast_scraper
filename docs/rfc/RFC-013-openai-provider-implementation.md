@@ -763,13 +763,468 @@ pip install -e ".[ml,openai]"
    - Update documentation
    - Add examples
 
+## Extensibility & Public API Design
+
+### Extension Points (Public API)
+
+The provider system is designed to be extensible by external contributors. The following are **public APIs** that contributors can use:
+
+#### 1. Protocol Interfaces (Public API)
+
+**Location**: `podcast_scraper/speaker_detectors/base.py`, `podcast_scraper/transcription/base.py`, `podcast_scraper/summarization/base.py`
+
+```python
+# Public API - Protocol definitions
+from typing import Protocol
+
+class SpeakerDetector(Protocol):
+    """Public protocol for speaker detection providers."""
+    def detect_hosts(...) -> Set[str]: ...
+    def detect_speakers(...) -> Tuple[List[str], Set[str], bool]: ...
+    def analyze_patterns(...) -> Optional[Dict[str, Any]]: ...
+
+class TranscriptionProvider(Protocol):
+    """Public protocol for transcription providers."""
+    def initialize(...) -> Optional[Any]: ...
+    def transcribe(...) -> Tuple[Dict[str, Any], float]: ...
+    def cleanup(...) -> None: ...
+
+class SummarizationProvider(Protocol):
+    """Public protocol for summarization providers."""
+    def initialize(...) -> Optional[Any]: ...
+    def summarize(...) -> Dict[str, Any]: ...
+    def summarize_chunks(...) -> List[str]: ...
+    def combine_summaries(...) -> str: ...
+    def cleanup(...) -> None: ...
+```
+
+**Usage by Contributors:**
+
+```python
+# External contributor can implement protocol
+from podcast_scraper.speaker_detectors.base import SpeakerDetector
+
+class CustomSpeakerDetector:
+    """Custom implementation by contributor."""
+    def detect_hosts(self, ...) -> Set[str]:
+        # Custom implementation
+        pass
+    
+    def detect_speakers(self, ...) -> Tuple[List[str], Set[str], bool]:
+        # Custom implementation
+        pass
+    
+    def analyze_patterns(self, ...) -> Optional[Dict[str, Any]]:
+        # Custom implementation
+        pass
+
+# Type checker will verify protocol compliance
+detector: SpeakerDetector = CustomSpeakerDetector()  # ✅ Type-safe
+```
+
+#### 2. Factory Registration (Public API)
+
+**Location**: `podcast_scraper/speaker_detectors/factory.py`, etc.
+
+```python
+# Public API - Factory extension points
+class SpeakerDetectorFactory:
+    """Factory for creating speaker detectors."""
+    
+    @staticmethod
+    def create(cfg: config.Config) -> Optional[SpeakerDetector]:
+        """Create detector based on config.
+        
+        Contributors can extend this to support custom providers.
+        """
+        if not cfg.auto_speakers:
+            return None
+        
+        detector_type = cfg.speaker_detector_type
+        if detector_type == 'ner':
+            from .ner_detector import NERSpeakerDetector
+            return NERSpeakerDetector(cfg)
+        elif detector_type == 'openai':
+            from .openai_detector import OpenAISpeakerDetector
+            return OpenAISpeakerDetector(cfg)
+        # Contributors can add custom providers here
+        elif detector_type == 'custom':
+            from external_package import CustomSpeakerDetector
+            return CustomSpeakerDetector(cfg)
+        return None
+```
+
+#### 3. Configuration Extensions (Public API)
+
+**Location**: `podcast_scraper/config.py`
+
+```python
+# Public API - Config fields for provider selection
+class Config(BaseModel):
+    """Configuration model - public API for provider selection."""
+    
+    # Public fields for provider selection
+    speaker_detector_type: Literal["ner", "openai", "custom"] = Field(default="ner")
+    transcription_provider: Literal["whisper", "openai", "custom"] = Field(default="whisper")
+    summary_provider: Literal["local", "openai", "custom"] = Field(default="local")
+    
+    # Contributors can extend with custom config fields
+    custom_provider_config: Optional[Dict[str, Any]] = Field(default=None)
+```
+
+### Internal Implementations
+
+What we provide are **internal implementations** (reference implementations):
+
+- Located in `podcast_scraper/speaker_detectors/ner_detector.py` (internal)
+- Located in `podcast_scraper/transcription/whisper_provider.py` (internal)
+- Located in `podcast_scraper/summarization/local_provider.py` (internal)
+- Located in `podcast_scraper/speaker_detectors/openai_detector.py` (internal)
+- Located in `podcast_scraper/transcription/openai_provider.py` (internal)
+- Located in `podcast_scraper/summarization/openai_provider.py` (internal)
+
+These serve as:
+
+- **Reference implementations** showing how to implement protocols
+- **Default providers** for users who don't need custom implementations
+- **Examples** for contributors
+
+### Contributor Implementations
+
+We expect and encourage contributors to create their own provider implementations.
+
+**Example: Custom Transcription Provider**
+
+```python
+# external_package/deepgram_provider.py
+from typing import Dict, Optional, Tuple, Any
+from podcast_scraper.transcription.base import TranscriptionProvider
+from podcast_scraper import config
+
+class DeepgramTranscriptionProvider:
+    """Custom Deepgram transcription provider by contributor."""
+    
+    def __init__(self, cfg: config.Config):
+        import deepgram
+        self.client = deepgram.DeepgramClient(cfg.deepgram_api_key)
+        self.cfg = cfg
+    
+    def initialize(self, cfg: config.Config) -> Optional[Any]:
+        """Initialize Deepgram client."""
+        return self
+    
+    def transcribe(
+        self,
+        media_path: str,
+        cfg: config.Config,
+        resource: Any,
+    ) -> Tuple[Dict[str, Any], float]:
+        """Transcribe using Deepgram API."""
+        import time
+        start_time = time.time()
+        
+        with open(media_path, 'rb') as audio_file:
+            response = self.client.transcription.sync_prerecorded(
+                {'buffer': audio_file},
+                {'punctuate': True, 'model': 'nova'}
+            )
+        
+        elapsed = time.time() - start_time
+        
+        # Return same format as protocol requires
+        result = {
+            'text': response['results']['channels'][0]['alternatives'][0]['transcript'],
+            'segments': [...],  # Convert Deepgram format to standard format
+        }
+        
+        return result, elapsed
+    
+    def cleanup(self, resource: Any) -> None:
+        """Cleanup resources."""
+        pass
+```
+
+**Registration:**
+
+```python
+# In factory or plugin system
+from external_package.deepgram_provider import DeepgramTranscriptionProvider
+
+# Add to factory
+if cfg.transcription_provider == 'deepgram':
+    return DeepgramTranscriptionProvider(cfg)
+```
+
+### Testing Strategy
+
+#### 1. Generic Pipeline Testing
+
+**Test Protocol Compliance:**
+
+```python
+# tests/test_provider_protocols.py
+def test_speaker_detector_protocol():
+    """Test that any SpeakerDetector implementation follows protocol."""
+    from podcast_scraper.speaker_detectors.base import SpeakerDetector
+    
+    # Mock implementation
+    class MockDetector:
+        def detect_hosts(self, ...) -> Set[str]:
+            return {"Host"}
+        def detect_speakers(self, ...) -> Tuple[List[str], Set[str], bool]:
+            return (["Host", "Guest"], {"Host"}, True)
+        def analyze_patterns(self, ...) -> Optional[Dict[str, Any]]:
+            return None
+    
+    # Type checker verifies protocol compliance
+    detector: SpeakerDetector = MockDetector()  # Must pass type check
+    
+    # Runtime verification
+    assert hasattr(detector, 'detect_hosts')
+    assert hasattr(detector, 'detect_speakers')
+    assert hasattr(detector, 'analyze_patterns')
+```
+
+**Test Factory Selection:**
+
+```python
+# tests/test_factories.py
+def test_factory_provider_selection():
+    """Test factory correctly selects providers."""
+    cfg = Config(speaker_detector_type="ner")
+    detector = SpeakerDetectorFactory.create(cfg)
+    assert isinstance(detector, NERSpeakerDetector)
+    
+    cfg = Config(speaker_detector_type="openai", openai_api_key="test")
+    detector = SpeakerDetectorFactory.create(cfg)
+    assert isinstance(detector, OpenAISpeakerDetector)
+```
+
+**Test Workflow Integration:**
+
+```python
+# tests/test_workflow_with_providers.py
+def test_workflow_with_mock_provider():
+    """Test workflow works with any provider implementation."""
+    mock_detector = MockSpeakerDetector()
+    # Test that workflow uses detector correctly
+    # Verify no provider-specific code in workflow
+```
+
+#### 2. Implementation Testing
+
+**Each Provider Must Have:**
+
+```python
+# tests/speaker_detectors/test_ner_detector.py
+class TestNERSpeakerDetector:
+    """Tests for NER speaker detector implementation."""
+    
+    def test_detect_hosts(self):
+        """Test host detection."""
+        detector = NERSpeakerDetector(cfg)
+        hosts = detector.detect_hosts("Test Podcast", None, ["John Doe"])
+        assert isinstance(hosts, set)
+        assert len(hosts) > 0
+    
+    def test_detect_speakers(self):
+        """Test speaker detection."""
+        detector = NERSpeakerDetector(cfg)
+        speakers, detected_hosts, success = detector.detect_speakers(
+            "Episode with Guest", None, {"Host"}
+        )
+        assert isinstance(speakers, list)
+        assert isinstance(detected_hosts, set)
+        assert isinstance(success, bool)
+    
+    def test_protocol_compliance(self):
+        """Verify protocol interface compliance."""
+        detector = NERSpeakerDetector(cfg)
+        # Type check
+        detector_typed: SpeakerDetector = detector
+        # Runtime check
+        assert hasattr(detector, 'detect_hosts')
+        assert hasattr(detector, 'detect_speakers')
+        assert hasattr(detector, 'analyze_patterns')
+```
+
+**Testing Requirements:**
+
+- ✅ All providers must pass protocol interface tests
+- ✅ All providers must pass generic pipeline tests
+- ✅ Internal implementations must have 80%+ test coverage
+- ✅ External implementations should follow same testing standards
+- ✅ Mock providers for testing workflow without real providers
+- ✅ Integration tests with real providers (optional, requires API keys)
+
+### Documentation & Examples
+
+**New Extensibility Documentation** (`docs/EXTENSIBILITY.md`):
+
+#### Architecture Overview
+
+- How provider system works (protocol-based design)
+- Factory pattern usage
+- Provider lifecycle (initialization, usage, cleanup)
+- Configuration-driven provider selection
+
+#### Creating Custom Providers
+
+**Step-by-step guides:**
+
+1. **Creating a Custom Speaker Detector**:
+   - Implement `SpeakerDetector` protocol
+   - Register in factory
+   - Add config field
+   - Write tests
+   - Document usage
+
+2. **Creating a Custom Transcription Provider**:
+   - Implement `TranscriptionProvider` protocol
+   - Handle file uploads
+   - Return standard format
+   - Register in factory
+   - Write tests
+
+3. **Creating a Custom Summarization Provider**:
+   - Implement `SummarizationProvider` protocol
+   - Handle long texts (if needed)
+   - Return standard format
+   - Register in factory
+   - Write tests
+
+#### Example: Minimal Provider
+
+```python
+# Minimal speaker detector implementation
+from typing import Set, List, Tuple, Optional, Dict, Any
+from podcast_scraper.speaker_detectors.base import SpeakerDetector
+from podcast_scraper import config
+
+class MinimalSpeakerDetector:
+    """Minimal example of speaker detector implementation."""
+    
+    def __init__(self, cfg: config.Config):
+        self.cfg = cfg
+    
+    def detect_hosts(
+        self,
+        feed_title: str,
+        feed_description: Optional[str],
+        feed_authors: Optional[List[str]],
+    ) -> Set[str]:
+        """Detect hosts - minimal implementation."""
+        if feed_authors:
+            return set(feed_authors)
+        return set()
+    
+    def detect_speakers(
+        self,
+        episode_title: str,
+        episode_description: Optional[str],
+        known_hosts: Set[str],
+    ) -> Tuple[List[str], Set[str], bool]:
+        """Detect speakers - minimal implementation."""
+        speakers = list(known_hosts)
+        return speakers, known_hosts, True
+    
+    def analyze_patterns(
+        self,
+        episodes: List[models.Episode],
+        known_hosts: Set[str],
+    ) -> Optional[Dict[str, Any]]:
+        """Analyze patterns - optional."""
+        return None
+```
+
+#### Example: Full-Featured Provider
+
+```python
+# Full-featured provider with error handling, logging, etc.
+class FullFeaturedSpeakerDetector:
+    """Full-featured example with error handling."""
+    
+    def __init__(self, cfg: config.Config):
+        self.cfg = cfg
+        self.logger = logging.getLogger(__name__)
+        # Initialize resources
+    
+    def detect_hosts(self, ...) -> Set[str]:
+        """Detect hosts with error handling."""
+        try:
+            # Implementation
+            pass
+        except Exception as e:
+            self.logger.error(f"Error detecting hosts: {e}")
+            raise
+    
+    # ... rest of implementation
+```
+
+#### Testing Custom Providers
+
+**Protocol Compliance Testing:**
+
+```python
+# tests/test_custom_provider.py
+def test_custom_provider_protocol():
+    """Test custom provider follows protocol."""
+    from podcast_scraper.speaker_detectors.base import SpeakerDetector
+    
+    custom_detector = CustomSpeakerDetector(cfg)
+    
+    # Type check
+    detector: SpeakerDetector = custom_detector
+    
+    # Runtime checks
+    assert hasattr(custom_detector, 'detect_hosts')
+    assert hasattr(custom_detector, 'detect_speakers')
+    assert hasattr(custom_detector, 'analyze_patterns')
+    
+    # Functional tests
+    hosts = custom_detector.detect_hosts(...)
+    assert isinstance(hosts, set)
+```
+
+#### Contributing Providers
+
+**Requirements:**
+
+1. **Code Organization**:
+   - Follow existing provider structure
+   - Place in appropriate package (`speaker_detectors/`, `transcription/`, `summarization/`)
+   - Or create external package
+
+2. **Naming Conventions**:
+   - Provider classes: `{Service}Provider` or `{Service}Detector`
+   - Files: `{service}_provider.py` or `{service}_detector.py`
+
+3. **Documentation**:
+   - Docstrings for all public methods
+   - Usage examples
+   - Configuration requirements
+   - Error handling documentation
+
+4. **Testing**:
+   - Unit tests for all methods
+   - Protocol compliance tests
+   - Error scenario tests
+   - Integration tests (if applicable)
+
+5. **Pull Request Process**:
+   - Add provider to factory
+   - Add config field (if needed)
+   - Add tests
+   - Update documentation
+   - Add examples
+
 ## Open Questions
 
 1. **Rate Limiting**: What are OpenAI API rate limits? Should we make rate limiter configurable?
-
 2. **Cost Tracking**: Should we add cost tracking/monitoring?
 3. **Fallback**: Should we support fallback (try OpenAI, fallback to local)?
 4. **Model Selection**: Should model selection be more granular (different models for different tasks)?
+5. **Plugin System**: Should we support external packages registering providers via entry points?
 
 ## Alternatives Considered
 
