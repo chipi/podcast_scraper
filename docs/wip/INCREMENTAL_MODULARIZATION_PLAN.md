@@ -7,7 +7,6 @@
 - `docs/prd/PRD-006-openai-provider-integration.md` - OpenAI provider requirements
 - `docs/rfc/RFC-013-openai-provider-implementation.md` - OpenAI implementation design
 - `docs/rfc/RFC-016-modularization-for-ai-experiments.md` - Code structure refactoring
-- `docs/rfc/DOCUMENT_ALIGNMENT_REVIEW.md` - Document alignment verification
 
 ## Overview
 
