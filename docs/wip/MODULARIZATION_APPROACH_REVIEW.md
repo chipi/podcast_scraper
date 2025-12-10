@@ -381,8 +381,8 @@ Add to documentation:
 
 | Provider | Transcription | Speaker Detection | Summarization | Notes |
 |----------|---------------|-------------------|---------------|-------|
-| Local    | ~2-5x realtime  | ~10ms/episode       | ~5-30s/episode  | GPU-dep |
-| OpenAI   | ~1x realtime     | ~500ms/episode      | ~2-10s/episode   | API     |
+| Local    | ~2-5x realtime| ~10ms/episode     | ~5-30s/episode| GPU-de|
+| OpenAI   | ~1x realtime  | ~500ms/episode    | ~2-10s/episode| API   |
 
 Include:
 
