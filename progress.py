@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Callable, ContextManager, Iterator, Optional, Protocol, cast
+from typing import Callable, cast, ContextManager, Iterator, Optional, Protocol
 
 
 class ProgressReporter(Protocol):

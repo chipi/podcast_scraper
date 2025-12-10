@@ -7,10 +7,10 @@ import os
 import shutil
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, NamedTuple, Optional, Set, Tuple, cast
+from typing import Any, cast, Dict, List, Literal, NamedTuple, Optional, Set, Tuple
 
 from . import (
     config,

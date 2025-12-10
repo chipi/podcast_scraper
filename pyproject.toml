@@ -34,7 +34,7 @@ ml = [
 # Development tools
 dev = [
   "black>=23.0.0,<25.0.0",
-  "isort>=5.12.0,<6.0.0",
+  "isort>=5.12.0,<8.0.0",
   "flake8>=6.0.0,<8.0.0",
   "pytest>=7.4.0,<9.0.0",
   "pytest-cov>=4.1.0,<6.0.0",
@@ -73,8 +73,9 @@ exclude = '''
 [tool.isort]
 profile = "black"
 line_length = 100
-combine_as_imports = true
 known_first_party = ["podcast_scraper"]
+combine_as_imports = true
+force_alphabetical_sort_within_sections = true
 
 [tool.mypy]
 python_version = "3.10"

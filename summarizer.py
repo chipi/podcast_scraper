@@ -22,7 +22,7 @@ import logging
 import re
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, cast
+from typing import cast, Dict, List, Optional, Set, Tuple
 
 # IMPORTANT: Set warning filters BEFORE importing transformers
 # Suppress transformers max_new_tokens/max_length warning globally
@@ -1435,7 +1435,7 @@ def _summarize_chunks_parallel(
         List of chunk summaries
     """
     import time
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from concurrent.futures import as_completed, ThreadPoolExecutor
 
     total_chunks = len(chunks)
 

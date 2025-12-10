@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from typing import List, Optional, Tuple
 from urllib.parse import urljoin
 
-from defusedxml.ElementTree import ParseError as DefusedXMLParseError, fromstring as safe_fromstring
+from defusedxml.ElementTree import fromstring as safe_fromstring, ParseError as DefusedXMLParseError
 
 from . import config, downloader, filesystem, models
 

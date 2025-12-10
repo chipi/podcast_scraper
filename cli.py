@@ -7,16 +7,16 @@ import logging
 from contextlib import contextmanager
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
+    cast,
     Dict,
     Iterator,
     List,
     Optional,
     Sequence,
     Tuple,
-    cast,
+    TYPE_CHECKING,
 )
 from urllib.parse import urlparse
 
