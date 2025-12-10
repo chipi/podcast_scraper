@@ -14,11 +14,13 @@ make install-hooks
 
 ### What It Checks
 
-- **Black** formatting check
-- **isort** import sorting check
-- **flake8** linting
-- **markdownlint** (if installed)
-- **mypy** type checking
+The hook runs checks **only on staged files** (files you're committing), making it fast and efficient:
+
+- **Black** formatting check (Python files)
+- **isort** import sorting check (Python files)
+- **flake8** linting (Python files)
+- **markdownlint** (markdown files, if installed)
+- **mypy** type checking (Python files)
 
 ### Behavior
 
