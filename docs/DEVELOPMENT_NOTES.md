@@ -45,6 +45,51 @@ markdownlint --fix "**/*.md" --ignore node_modules --ignore .venv --ignore .buil
    - ❌ Bad: `| Value  |` (extra spaces in data row)
    - ✅ Good: `| Header |` followed by `|----------|` and `| Value |`
 
+### Solution: Use Python to Generate Exact Alignment
+
+**⚠️ Important**: When dealing with complex tables or "aligned" style errors, manually aligning pipes is error-prone and time-consuming. Use Python to generate perfectly aligned rows:
+
+```python
+# Step 1: Define header and extract pipe positions
+header = "| Provider | Transcription | Speaker Detection | Summarization | Notes |"
+h_pipes = [i for i, c in enumerate(header) if c == '|']
+# Result: [0, 11, 27, 47, 63, 71]
+
+# Step 2: Calculate column widths (distance between pipes)
+col_widths = [h_pipes[i+1] - h_pipes[i] for i in range(len(h_pipes)-1)]
+# Result: [11, 16, 20, 16, 8]
+
+# Step 3: Build data rows with exact alignment using f-strings
+# Content width = column width - 3 (for "| " and " |")
+data1 = f"| {'Local':<9}| {'~2-5x realtime':<14}| {'~10ms/episode':<18}| {'~5-30s/episode':<14}| {'GPU-de':<6}|"
+data2 = f"| {'OpenAI':<9}| {'~1x realtime':<14}| {'~500ms/episode':<18}| {'~2-10s/episode':<14}| {'API':<6}|"
+
+# Step 4: Verify alignment programmatically
+d1_pipes = [i for i, c in enumerate(data1) if c == '|']
+d2_pipes = [i for i, c in enumerate(data2) if c == '|']
+assert h_pipes == d1_pipes == d2_pipes, "Pipes must align exactly!"
+assert len(header) == len(data1) == len(data2), "All rows must be same length!"
+
+print("✅ Alignment verified!")
+```
+
+**Key points:**
+
+- **Column width** = distance between pipes (e.g., 11-0=11, 27-11=16)
+- **Content width** = column width - 3 (accounts for `|` prefix and `|` suffix with spaces)
+- Use Python f-strings with left alignment (`:<width`) to pad content
+- **Always verify** alignment programmatically before committing
+- This approach saved significant debugging time when manual alignment failed
+
+**Quick workflow:**
+
+1. Get MD060 error → Identify it's "aligned" style
+2. Extract pipe positions from header using Python
+3. Generate data rows using f-string formatting
+4. Verify alignment programmatically
+5. Copy exact strings to markdown file
+6. Run `make lint-markdown` to confirm fix
+
 ### Pre-commit Hook
 
 **✅ Already Integrated!** The project includes a pre-commit hook (`.github/hooks/pre-commit`) that automatically checks markdown files before commits.
