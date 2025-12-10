@@ -43,8 +43,14 @@ Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. I
 Install the package from the repository root:
 
 ```bash
+# Basic installation (core dependencies only)
 pip install -e .
+
+# With ML dependencies (spaCy, Whisper, transformers for speaker detection, transcription, and summarization)
+pip install -e ".[ml]"
 ```
+
+**Note:** For speaker detection, transcription, and summarization features, you need to install with the `[ml]` extra (e.g., `pip install -e ".[ml]"`). This includes `spacy`, `openai-whisper`, `torch`, and `transformers`.
 
 **Note:** spaCy language models are automatically downloaded when needed (similar to Whisper models). The default English model (`en_core_web_sm`) will be downloaded automatically on first use. You can also manually download models if needed:
 
@@ -272,7 +278,8 @@ bash scripts/setup_venv.sh
 source .venv/bin/activate
 
 # install project into the virtual environment
-pip install -e .
+# Use [ml] extra for speaker detection, transcription, and summarization features
+pip install -e ".[ml]"
 
 # spaCy models are downloaded automatically when needed
 # (or manually: python -m spacy download en_core_web_sm)
