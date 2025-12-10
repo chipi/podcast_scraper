@@ -38,9 +38,12 @@ markdownlint --fix "**/*.md" --ignore node_modules --ignore .venv --ignore .buil
      | Value  | Data    |
      ```
 
-3. **Compact style separator**: No spaces around pipes in separator row
-   - ❌ Bad: `| Header |` followed by `| -------- |` (has spaces)
-   - ✅ Good: `| Header |` followed by `|----------|` (no spaces)
+3. **Compact style**: Consistent spacing throughout
+   - Separator row: No spaces around pipes `|----------|`
+   - Data rows: Minimal spacing `| Value |` (not `| Value  |` with extra spaces)
+   - ❌ Bad: `| Header |` followed by `| -------- |` (separator has spaces)
+   - ❌ Bad: `| Value  |` (extra spaces in data row)
+   - ✅ Good: `| Header |` followed by `|----------|` and `| Value |`
 
 ### Pre-commit Hook
 
