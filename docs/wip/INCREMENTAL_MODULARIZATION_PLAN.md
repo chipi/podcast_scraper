@@ -417,7 +417,7 @@ This document provides a **risk-balanced, incremental implementation plan** for 
 ## Risk Assessment Summary
 
 | Stage | Risk Level | Mitigation Strategy |
-|-------|------------|---------------------|
+| ----- | ---------- | -------------------- |
 | Stage 0: Foundation | ⚪ Very Low | Empty packages, defaults match current behavior |
 | Stage 1: Preprocessing | 🟢 Low | Isolated refactoring, easy to test |
 | Stage 2: Transcription | 🟡 Medium | Well-isolated, copy-paste logic |
@@ -494,7 +494,7 @@ This document provides a **risk-balanced, incremental implementation plan** for 
 ## Timeline Estimate
 
 | Stage | Duration | Cumulative |
-|-------|----------|------------|
+| ----- | -------- | ---------- |
 | Stage 0: Foundation | 1-2 days | 1-2 days |
 | Stage 1: Preprocessing | 1-2 days | 2-4 days |
 | Stage 2: Transcription | 2-3 days | 4-7 days |

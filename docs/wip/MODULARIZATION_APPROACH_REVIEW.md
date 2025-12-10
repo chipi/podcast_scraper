@@ -380,7 +380,7 @@ No guidance on expected performance differences between providers.
 Add to documentation:
 
 | Provider | Transcription | Speaker Detection | Summarization | Notes |
-|----------|---------------|-------------------|---------------|-------|
+| -------- | ------------- | ----------------- | -------------- | ----- |
 | Local    | ~2-5x realtime | ~10ms/episode | ~5-30s/episode | GPU-dependent |
 | OpenAI   | ~1x realtime | ~500ms/episode | ~2-10s/episode | API latency |
 
@@ -424,7 +424,7 @@ ANTHROPIC_API_KEY=...
 ### Document Consistency: ✅ Excellent
 
 | Aspect | Status | Notes |
-|--------|--------|-------|
+| ------ | ------ | ---- |
 | **Vision Alignment** | ✅ Perfect | All docs support OpenAI provider integration goal |
 | **Technical Design** | ✅ Perfect | Protocol-based design consistent across all RFCs |
 | **Backward Compatibility** | ✅ Perfect | Emphasized in all documents |
@@ -439,7 +439,7 @@ ANTHROPIC_API_KEY=...
 ### Risks Well-Mitigated ✅
 
 | Risk | Mitigation | Status |
-|------|------------|--------|
+| ---- | ---------- | ------ |
 | Breaking changes | Backward compatibility at every step | ✅ Excellent |
 | Big-bang refactoring | 6-stage incremental plan | ✅ Excellent |
 | Testing gaps | Comprehensive testing at each stage | ✅ Good |
@@ -449,7 +449,7 @@ ANTHROPIC_API_KEY=...
 ### Risks Needing Attention ⚠️
 
 | Risk | Mitigation Needed | Priority |
-|------|------------------|----------|
+| ---- | ----------------- | -------- |
 | Rate limiting complexity | Detailed implementation strategy | 🟡 Medium |
 | API cost surprises | Cost estimation tooling | 🟢 Low |
 | Provider interface changes | Versioning strategy | 🟢 Low |
@@ -532,7 +532,7 @@ ANTHROPIC_API_KEY=...
 ## 📈 Comparison to Industry Standards
 
 | Aspect | Your Approach | Industry Standard | Assessment |
-|--------|---------------|-------------------|------------|
+| ------ | ------------- | ----------------- | ---------- |
 | **Modularization Strategy** | Protocol-based | Interface/ABC-based | ✅ Better (more flexible) |
 | **Incremental Delivery** | 6-stage plan | Big-bang or 2-phase | ✅ Better (more granular) |
 | **Documentation** | 6 comprehensive docs | Often lacking | ✅ Excellent |

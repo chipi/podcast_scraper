@@ -1146,7 +1146,7 @@ results/
 **Summarization Tab:**
 
 | Experiment ID | ROUGE-L | ROUGE-1 | ROUGE-2 | Avg Compression | Date | Notes |
-|---------------|---------|---------|---------|-----------------|------|-------|
+| -------------- | ------- | ------- | ------- | --------------- | ---- | ----- |
 | summarization_bart_led_v1 | 0.120 | 0.315 | 0.145 | 43.4× | 2024-01-15 | Baseline local model |
 | summarization_openai_gpt4_mini_v1 | 0.145 | 0.330 | 0.150 | 38.2× | 2024-01-16 | OpenAI GPT-4o-mini |
 | summarization_openai_gpt4_mini_promptB | 0.152 | 0.335 | 0.155 | 37.5× | 2024-01-17 | Improved prompt ⭐ |
@@ -1154,14 +1154,14 @@ results/
 **NER Tab:**
 
 | Experiment ID | Precision | Recall | F1 | Date | Notes |
-|---------------|-----------|--------|----|----|-------|
+| -------------- | --------- | ------ | -- | ---- | ----- |
 | ner_openai_gpt4_mini_v1 | 0.85 | 0.82 | 0.835 | 2024-01-15 | OpenAI GPT-4o-mini |
 | ner_spacy_en_core_web_sm | 0.78 | 0.75 | 0.765 | 2024-01-15 | Baseline spaCy |
 
 **Transcription Tab:**
 
 | Experiment ID | WER | CER | Date | Notes |
-|---------------|-----|-----|------|-------|
+| -------------- | --- | --- | ---- | ----- |
 | transcription_openai_whisper_v1 | 0.12 | 0.08 | 2024-01-15 | OpenAI Whisper API |
 | transcription_whisper_large_v3 | 0.15 | 0.10 | 2024-01-15 | Local Whisper large-v3 |
 
