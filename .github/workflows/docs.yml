@@ -22,7 +22,6 @@ on:
       - 'README.md'
     paths-ignore:
       - '.github/workflows/**'  # Workflow changes handled by codeql.yml
-      - 'docs/**/*.md'  # Exclude standalone analysis docs (not in mkdocs nav)
   pull_request:
     paths:
       # Only files that are part of the MkDocs site (see mkdocs.yml nav)
@@ -42,7 +41,6 @@ on:
       - 'README.md'
     paths-ignore:
       - '.github/workflows/**'  # Workflow changes handled by codeql.yml
-      - 'docs/**/*.md'  # Exclude standalone analysis docs (not in mkdocs nav)
   workflow_dispatch:
 
 permissions:
