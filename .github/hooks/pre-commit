@@ -6,6 +6,8 @@
 # - Black & isort formatting checks (Python files)
 # - flake8 linting (Python files)
 # - markdownlint on markdown files
+# - JSON syntax validation (JSON files)
+# - YAML syntax validation (YAML/YML files)
 # - mypy type checking (Python files)
 #
 # To install: run `make install-hooks` or manually:
@@ -39,6 +41,8 @@ fi
 # Filter staged files by type
 STAGED_PYTHON=$(echo "$STAGED_FILES" | grep -E '\.(py)$' || true)
 STAGED_MARKDOWN=$(echo "$STAGED_FILES" | grep -E '\.(md)$' || true)
+STAGED_JSON=$(echo "$STAGED_FILES" | grep -E '\.(json)$' || true)
+STAGED_YAML=$(echo "$STAGED_FILES" | grep -E '\.(yaml|yml)$' || true)
 
 # Function to run a check and track errors
 run_check() {
@@ -111,6 +115,91 @@ if [ -n "$STAGED_MARKDOWN" ]; then
     fi
 else
     echo -e "${YELLOW}⚠${NC} No markdown files staged, skipping markdown checks"
+    echo ""
+fi
+
+# Check JSON syntax validation (required when JSON files are staged)
+if [ -n "$STAGED_JSON" ]; then
+    echo "→ Running JSON syntax validation..."
+    JSON_ERRORS=0
+    for json_file in $STAGED_JSON; do
+        if python3 -m json.tool "$json_file" > /dev/null 2>&1; then
+            echo -e "  ${GREEN}✓${NC} $json_file"
+        else
+            echo -e "  ${RED}✗${NC} $json_file"
+            python3 -m json.tool "$json_file" 2>&1 | head -5
+            JSON_ERRORS=$((JSON_ERRORS + 1))
+        fi
+    done
+    if [ $JSON_ERRORS -eq 0 ]; then
+        echo -e "${GREEN}✓${NC} JSON syntax validation passed"
+    else
+        echo -e "${RED}✗${NC} JSON syntax validation failed ($JSON_ERRORS file(s) with errors)"
+        ERRORS=$((ERRORS + 1))
+    fi
+    echo ""
+else
+    echo -e "${YELLOW}⚠${NC} No JSON files staged, skipping JSON checks"
+    echo ""
+fi
+
+# Check YAML syntax validation (required when YAML files are staged)
+if [ -n "$STAGED_YAML" ]; then
+    echo "→ Running YAML syntax validation..."
+    YAML_ERRORS=0
+    for yaml_file in $STAGED_YAML; do
+        # Try yamllint first if available (better error messages and handles custom tags)
+        if command -v yamllint >/dev/null 2>&1; then
+            if yamllint "$yaml_file" > /tmp/precommit_yaml_$$.log 2>&1; then
+                echo -e "  ${GREEN}✓${NC} $yaml_file"
+            else
+                echo -e "  ${RED}✗${NC} $yaml_file"
+                cat /tmp/precommit_yaml_$$.log | head -5
+                YAML_ERRORS=$((YAML_ERRORS + 1))
+            fi
+            rm -f /tmp/precommit_yaml_$$.log
+        else
+            # Fallback to Python yaml module - check basic syntax (ignore custom tags)
+            # Use a custom loader that ignores unknown tags for basic syntax validation
+            if python3 -c "
+import yaml
+import sys
+try:
+    with open('$yaml_file', 'r') as f:
+        # Try to parse YAML - if it fails, it's a syntax error
+        list(yaml.safe_load_all(f))
+    sys.exit(0)
+except yaml.YAMLError as e:
+    # Only fail on actual YAML syntax errors, not unknown tags
+    if 'could not determine a constructor' in str(e) or 'tag:' in str(e):
+        # Unknown tag - this is OK for syntax validation
+        sys.exit(0)
+    else:
+        # Real syntax error
+        print(e, file=sys.stderr)
+        sys.exit(1)
+except Exception as e:
+    print(e, file=sys.stderr)
+    sys.exit(1)
+" > /tmp/precommit_yaml_$$.log 2>&1; then
+                echo -e "  ${GREEN}✓${NC} $yaml_file"
+            else
+                echo -e "  ${RED}✗${NC} $yaml_file"
+                cat /tmp/precommit_yaml_$$.log | head -5
+                YAML_ERRORS=$((YAML_ERRORS + 1))
+            fi
+            rm -f /tmp/precommit_yaml_$$.log
+        fi
+    done
+    if [ $YAML_ERRORS -eq 0 ]; then
+        echo -e "${GREEN}✓${NC} YAML syntax validation passed"
+    else
+        echo -e "${RED}✗${NC} YAML syntax validation failed ($YAML_ERRORS file(s) with errors)"
+        ERRORS=$((ERRORS + 1))
+    fi
+    echo ""
+else
+    echo -e "${YELLOW}⚠${NC} No YAML files staged, skipping YAML checks"
     echo ""
 fi
 
