@@ -7,27 +7,25 @@ import logging
 from contextlib import contextmanager
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
+    cast,
     Dict,
     Iterator,
     List,
     Optional,
     Sequence,
     Tuple,
-    cast,
+    TYPE_CHECKING,
 )
 from urllib.parse import urlparse
 
 from pydantic import ValidationError
 
-from . import config, filesystem, progress, workflow
+from . import __version__, config, filesystem, progress, workflow
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import tqdm
-
-__version__ = "2.3.0"
 
 _LOGGER = logging.getLogger(__name__)
 

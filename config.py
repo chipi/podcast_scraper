@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_NUM_SPEAKERS = 2
@@ -575,6 +576,107 @@ class Config(BaseModel):
             return None
         value_str = str(value).strip()
         return value_str or None
+
+    @model_validator(mode="after")
+    def _validate_cross_field_settings(self) -> "Config":
+        """Cross-field validation for configuration settings.
+
+        Validates logical relationships and dependencies between configuration fields:
+
+        Summary Settings:
+        - summary_max_length must be greater than summary_min_length
+        - summary_word_overlap must be less than summary_word_chunk_size
+        - Warns if word-based chunking parameters are outside recommended ranges
+        - Ensures generate_summaries requires generate_metadata
+
+        Output Control:
+        - Prevents contradictory flag combinations (clean_output with skip_existing/reuse_media)
+
+        Transcription:
+        - Ensures transcribe_missing has a valid whisper_model
+
+        Returns:
+            Self for method chaining
+
+        Raises:
+            ValueError: If any validation check fails
+        """
+        # === Summary Settings Validation ===
+
+        # 1. summary_max_length must be greater than summary_min_length
+        if self.summary_max_length <= self.summary_min_length:
+            raise ValueError(
+                f"summary_max_length ({self.summary_max_length}) must be greater than "
+                f"summary_min_length ({self.summary_min_length})"
+            )
+
+        # 2. summary_word_chunk_size should be in recommended range (800-1200)
+        #    Warn but don't error to allow experimentation
+        if self.summary_word_chunk_size is not None:
+            if self.summary_word_chunk_size < 800 or self.summary_word_chunk_size > 1200:
+                warnings.warn(
+                    f"summary_word_chunk_size ({self.summary_word_chunk_size}) is outside "
+                    f"recommended range (800-1200). This may affect summary quality.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+        # 3. summary_word_overlap should be in recommended range (100-200)
+        #    Warn but don't error to allow experimentation
+        if self.summary_word_overlap is not None:
+            if self.summary_word_overlap < 100 or self.summary_word_overlap > 200:
+                warnings.warn(
+                    f"summary_word_overlap ({self.summary_word_overlap}) is outside "
+                    f"recommended range (100-200). This may affect summary quality.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+        # 4. summary_word_overlap must be less than summary_word_chunk_size
+        if self.summary_word_chunk_size is not None and self.summary_word_overlap is not None:
+            if self.summary_word_overlap >= self.summary_word_chunk_size:
+                raise ValueError(
+                    f"summary_word_overlap ({self.summary_word_overlap}) must be less than "
+                    f"summary_word_chunk_size ({self.summary_word_chunk_size})"
+                )
+
+        # 5. generate_summaries requires generate_metadata
+        #    Summaries are stored in metadata files, so metadata generation must be enabled
+        if self.generate_summaries and not self.generate_metadata:
+            raise ValueError(
+                "generate_summaries=True requires generate_metadata=True "
+                "(summaries are stored in metadata files)"
+            )
+
+        # === Output Control Validation ===
+
+        # 6. clean_output and skip_existing are mutually exclusive
+        #    clean_output removes all files, making skip_existing meaningless
+        if self.clean_output and self.skip_existing:
+            raise ValueError(
+                "clean_output and skip_existing are mutually exclusive "
+                "(clean_output removes all existing files, making skip_existing meaningless)"
+            )
+
+        # 7. clean_output and reuse_media are mutually exclusive
+        #    clean_output removes media files that reuse_media would reuse
+        if self.clean_output and self.reuse_media:
+            raise ValueError(
+                "clean_output and reuse_media are mutually exclusive "
+                "(clean_output removes media files that would be reused)"
+            )
+
+        # === Transcription Validation ===
+
+        # 8. transcribe_missing requires a valid whisper_model
+        #    Can't transcribe without specifying which model to use
+        if self.transcribe_missing and not self.whisper_model:
+            raise ValueError(
+                "transcribe_missing=True requires a valid whisper_model "
+                "(e.g., 'base', 'small', 'medium')"
+            )
+
+        return self
 
 
 def load_config_file(

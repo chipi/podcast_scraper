@@ -415,7 +415,7 @@ def _generate_episode_summary(
 
     if cfg.summary_provider != "local":
         # API-based providers (OpenAI, Anthropic) not implemented yet
-        logger.warning(
+        logger.info(
             "[%s] Summary provider '%s' not yet implemented, skipping summary generation",
             episode_idx,
             cfg.summary_provider,
@@ -432,7 +432,7 @@ def _generate_episode_summary(
 
             summarizer = _summarizer
         except ImportError:
-            logger.warning(
+            logger.info(
                 "[%s] Summarization dependencies not available, skipping summary generation",
                 episode_idx,
             )
@@ -581,7 +581,7 @@ def _generate_episode_summary(
                     cleaned_path.name,
                 )
             except Exception as e:
-                logger.warning(
+                logger.error(
                     "[%s] Failed to save cleaned transcript: %s",
                     episode_idx,
                     e,
@@ -925,7 +925,7 @@ def generate_episode_metadata(
         return metadata_path
 
     except Exception as exc:
-        logger.warning(
+        logger.error(
             "[%s] Failed to generate metadata file %s: %s",
             episode.idx,
             metadata_path,

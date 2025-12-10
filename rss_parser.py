@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from typing import List, Optional, Tuple
 from urllib.parse import urljoin
 
-from defusedxml.ElementTree import ParseError as DefusedXMLParseError, fromstring as safe_fromstring
+from defusedxml.ElementTree import fromstring as safe_fromstring, ParseError as DefusedXMLParseError
 
 from . import config, downloader, filesystem, models
 
@@ -366,6 +366,8 @@ def _extract_duration_seconds(item: ET.Element) -> Optional[int]:
         elif len(parts) == DURATION_PARTS_SS:  # SS
             return int(parts[0])
     except (ValueError, IndexError):
+        # Invalid duration format (e.g., non-numeric, malformed string)
+        # Return None as documented in function signature
         pass
     return None
 

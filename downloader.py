@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 import threading
-from typing import List, Optional, Tuple, cast
+from typing import cast, List, Optional, Tuple
 
 import requests
 from requests.adapters import HTTPAdapter
