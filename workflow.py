@@ -96,7 +96,8 @@ def _call_generate_metadata(
     host_detection_result: _HostDetectionResult,
     detected_names: Optional[List[str]],
     summary_model,
-    pipeline_metrics: metrics.Metrics,
+    reduce_model=None,
+    pipeline_metrics: Optional[metrics.Metrics] = None,
 ) -> None:
     """Call _generate_episode_metadata with common parameters.
 
@@ -114,7 +115,8 @@ def _call_generate_metadata(
         feed_metadata: Feed metadata tuple
         host_detection_result: Host detection result
         detected_names: Detected guest names
-        summary_model: Summary model instance
+        summary_model: Summary model instance (MAP model)
+        reduce_model: Optional REDUCE model instance (reused across episodes)
         pipeline_metrics: Metrics object
     """
     _generate_episode_metadata(
@@ -135,6 +137,7 @@ def _call_generate_metadata(
         feed_image_url=feed_metadata.image_url,
         feed_last_updated=feed_metadata.last_updated,
         summary_model=summary_model,
+        reduce_model=reduce_model,
         pipeline_metrics=pipeline_metrics,
     )
 
@@ -945,6 +948,7 @@ def _process_episodes(
                     host_detection_result=host_detection_result,
                     detected_names=detected_names,
                     summary_model=summary_model,
+                    reduce_model=reduce_model,
                     pipeline_metrics=pipeline_metrics,
                 )
     else:
@@ -1298,7 +1302,8 @@ def _generate_episode_metadata(
         feed_description: Podcast feed description text
         feed_image_url: URL to podcast artwork/cover image
         feed_last_updated: Last update timestamp from feed metadata
-        summary_model: Optional loaded summary model for generating episode summary
+        summary_model: Optional loaded summary model (MAP model) for generating episode summary
+        reduce_model: Optional loaded REDUCE model for final combine (reused across episodes)
         pipeline_metrics: Optional metrics collector for tracking summary generation time
 
     Raises:
@@ -1336,6 +1341,7 @@ def _generate_episode_metadata(
         transcript_source=transcript_source,
         whisper_model=whisper_model,
         summary_model=summary_model,
+        reduce_model=reduce_model,
         detected_hosts=detected_hosts,
         detected_guests=detected_guests,
         feed_description=feed_description,
@@ -1361,9 +1367,9 @@ def _parallel_episode_summarization(
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
     summary_model,
-    download_args: List[Tuple],
-    pipeline_metrics: metrics.Metrics,
     reduce_model=None,
+    download_args: Optional[List[Tuple]] = None,
+    pipeline_metrics: Optional[metrics.Metrics] = None,
 ) -> None:
     """Process episode summarization in parallel for episodes with existing transcripts.
 
@@ -1382,14 +1388,15 @@ def _parallel_episode_summarization(
         feed_metadata: Feed metadata tuple
         host_detection_result: Host detection result
         summary_model: Pre-loaded summary model (used for configuration, each worker loads its own)
-        reduce_model: Pre-loaded reduce model (used for configuration, each worker
-            loads its own or reuses MAP)
+        reduce_model: Optional REDUCE model (shared across all workers)
     """
     import os
 
     # Collect episodes that need summarization
     # Build a map of episode idx to detected names for guest detection
     episode_to_detected_names = {}
+    if download_args is None:
+        download_args = []
     for args in download_args:
         episode_obj, _, _, _, _, _, _, detected_names = args
         episode_to_detected_names[episode_obj.idx] = detected_names
@@ -1482,6 +1489,9 @@ def _parallel_episode_summarization(
         # Very limited parallelism for GPU (2 max)
         max_workers = min(2, len(episodes_to_summarize))
 
+    # Track if we need separate reduce models (for cleanup)
+    has_separate_reduce_models = not reduce_model_is_same_as_map and reduce_model_name is not None
+
     if max_workers <= 1:
         # Sequential processing - reuse existing model
         for episode, transcript_path, metadata_path, detected_names in episodes_to_summarize:
@@ -1511,7 +1521,8 @@ def _parallel_episode_summarization(
         # This ensures all models are ready upfront and avoids lazy-loading overhead
         from . import summarizer  # noqa: PLC0415
 
-        worker_models = []
+        worker_models: List[Any] = []
+        worker_reduce_models: List[Any] = []  # type: ignore[assignment]
         model_kwargs = {
             "model_name": model_name,
             "device": model_device,
@@ -1520,12 +1531,42 @@ def _parallel_episode_summarization(
         if model_revision:
             model_kwargs["revision"] = model_revision
 
-        logger.debug(f"Pre-loading {max_workers} model instances...")
+        # Prepare reduce model kwargs if needed
+        reduce_model_kwargs = None
+        if has_separate_reduce_models:
+            reduce_model_kwargs = {
+                "model_name": reduce_model_name,
+                "device": reduce_model_device or model_device,
+                "cache_dir": reduce_model_cache_dir or model_cache_dir,
+            }
+            if reduce_model_revision:
+                reduce_model_kwargs["revision"] = reduce_model_revision
+
+        logger.debug(f"Pre-loading {max_workers} MAP model instances...")
+        if has_separate_reduce_models:
+            logger.debug(f"Pre-loading {max_workers} REDUCE model instances...")
+        elif reduce_model_is_same_as_map:
+            logger.debug("REDUCE model same as MAP - workers will reuse MAP model")
+
         for i in range(max_workers):
             try:
-                logger.debug(f"Loading model instance {i+1}/{max_workers} for worker thread")
+                logger.debug(f"Loading MAP model instance {i+1}/{max_workers} for worker thread")
                 worker_model = summarizer.SummaryModel(**model_kwargs)
                 worker_models.append(worker_model)
+
+                # Load reduce model if different from MAP
+                if has_separate_reduce_models and reduce_model_kwargs:
+                    logger.debug(
+                        f"Loading REDUCE model instance {i+1}/{max_workers} for worker thread"
+                    )
+                    worker_reduce_model = summarizer.SummaryModel(**reduce_model_kwargs)
+                    worker_reduce_models.append(worker_reduce_model)
+                elif reduce_model_is_same_as_map:
+                    # Reuse MAP model for REDUCE phase
+                    worker_reduce_models.append(worker_model)
+                else:
+                    # No reduce model needed
+                    worker_reduce_models.append(None)  # type: ignore[arg-type]
             except Exception as e:
                 logger.error(f"Failed to load model instance {i+1}/{max_workers}: {e}")
                 # If we can't load all models, fall back to sequential processing
@@ -1534,16 +1575,34 @@ def _parallel_episode_summarization(
                 if worker_models:
                     logger.debug(
                         f"Unloading {len(worker_models)} successfully loaded "
-                        f"model(s) before fallback"
+                        f"MAP model(s) before fallback"
                     )
                     for worker_model in worker_models:
                         try:
                             summarizer.unload_model(worker_model)
                         except Exception as unload_error:
                             logger.debug(
-                                f"Error unloading worker model during fallback: {unload_error}"
+                                f"Error unloading worker MAP model during fallback: {unload_error}"
                             )
-                # Now proceed with sequential processing using the original model
+                if worker_reduce_models:
+                    reduce_count = len(
+                        [m for m in worker_reduce_models if m and m not in worker_models]
+                    )
+                    logger.debug(
+                        f"Unloading {reduce_count} successfully loaded "
+                        f"REDUCE model(s) before fallback"
+                    )
+                    for worker_reduce_model in worker_reduce_models:
+                        if worker_reduce_model and worker_reduce_model not in worker_models:
+                            try:
+                                summarizer.unload_model(worker_reduce_model)
+                            except Exception as unload_error:
+                                logger.debug(
+                                    f"Error unloading worker REDUCE model "
+                                    f"during fallback: {unload_error}"
+                                )
+                # Now proceed with sequential processing using the original models
+                # Pass reduce_model to maintain consistent behavior with parallel path
                 for (
                     episode,
                     transcript_path,
@@ -1561,12 +1620,17 @@ def _parallel_episode_summarization(
                         feed_metadata=feed_metadata,
                         host_detection_result=host_detection_result,
                         summary_model=summary_model,
+                        reduce_model=reduce_model,
                         detected_names=detected_names,
                         pipeline_metrics=pipeline_metrics,
                     )
                 return
 
-        logger.debug(f"Successfully pre-loaded {len(worker_models)} model instances")
+        logger.debug(f"Successfully pre-loaded {len(worker_models)} MAP model instances")
+        if has_separate_reduce_models:
+            logger.debug(
+                f"Successfully pre-loaded {len(worker_reduce_models)} REDUCE model instances"
+            )
 
         # Use thread-local storage to assign pre-loaded models to worker threads
         # Each worker thread gets one model from the pre-loaded pool
@@ -1574,22 +1638,25 @@ def _parallel_episode_summarization(
         model_index = [0]  # Use list to allow modification in nested function
         model_index_lock = threading.Lock()
 
-        def _get_worker_model():
-            """Get pre-loaded model instance for current worker thread."""
-            if not hasattr(thread_local, "model"):
+        def _get_worker_models():
+            """Get pre-loaded model instances for current worker thread."""
+            if not hasattr(thread_local, "map_model"):
                 with model_index_lock:
                     if model_index[0] < len(worker_models):
-                        thread_local.model = worker_models[model_index[0]]
+                        idx = model_index[0]
+                        thread_local.map_model = worker_models[idx]
+                        thread_local.reduce_model = worker_reduce_models[idx]
                         model_index[0] += 1
                     else:
-                        # Fallback: reuse last model (shouldn't happen with proper worker count)
-                        thread_local.model = worker_models[-1]
-            return thread_local.model
+                        # Fallback: reuse last models (shouldn't happen with proper worker count)
+                        thread_local.map_model = worker_models[-1]
+                        thread_local.reduce_model = worker_reduce_models[-1]
+            return thread_local.map_model, thread_local.reduce_model
 
         def _summarize_with_worker_model(args):
-            """Wrapper to get worker-specific model and summarize episode."""
+            """Wrapper to get worker-specific models and summarize episode."""
             episode, transcript_path, metadata_path, detected_names = args
-            worker_model = _get_worker_model()
+            worker_map_model, worker_reduce_model = _get_worker_models()
             _summarize_single_episode(
                 episode=episode,
                 transcript_path=transcript_path,
@@ -1600,7 +1667,8 @@ def _parallel_episode_summarization(
                 run_suffix=run_suffix,
                 feed_metadata=feed_metadata,
                 host_detection_result=host_detection_result,
-                summary_model=worker_model,
+                summary_model=worker_map_model,
+                reduce_model=worker_reduce_model,
                 detected_names=detected_names,
                 pipeline_metrics=pipeline_metrics,
             )
@@ -1626,12 +1694,21 @@ def _parallel_episode_summarization(
                         logger.error(f"Error during parallel summarization: {e}")
         finally:
             # Cleanup: unload all worker models
-            logger.debug("Unloading worker model instances...")
+            logger.debug("Unloading worker MAP model instances...")
             for worker_model in worker_models:
                 try:
                     summarizer.unload_model(worker_model)
                 except Exception as e:
-                    logger.debug(f"Error unloading worker model: {e}")
+                    logger.debug(f"Error unloading worker MAP model: {e}")
+            # Unload REDUCE models (only if different from MAP)
+            if has_separate_reduce_models:
+                logger.debug("Unloading worker REDUCE model instances...")
+                for worker_reduce_model in worker_reduce_models:
+                    if worker_reduce_model and worker_reduce_model not in worker_models:
+                        try:
+                            summarizer.unload_model(worker_reduce_model)
+                        except Exception as e:
+                            logger.debug(f"Error unloading worker REDUCE model: {e}")
 
 
 def _summarize_single_episode(
@@ -1661,7 +1738,8 @@ def _summarize_single_episode(
         run_suffix: Optional run suffix
         feed_metadata: Feed metadata tuple
         host_detection_result: Host detection result
-        summary_model: Pre-loaded summary model
+        summary_model: Pre-loaded MAP summary model (worker-specific for parallel processing)
+        reduce_model: Optional REDUCE model (worker-specific for parallel processing, or None)
         detected_names: Detected guest names for this episode (optional)
     """
     import os
