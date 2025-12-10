@@ -353,7 +353,7 @@ class TestPruneCacheSecurity(unittest.TestCase):
     def test_prevents_deletion_outside_home(self):
         """Test that paths outside home directory are rejected."""
         # Use a path that's definitely outside home
-        outside_path = Path("/tmp") / "test_cache"
+        outside_path = Path("/tmp") / "test_cache"  # nosec B108
         with self.assertRaises(ValueError) as context:
             summarizer.prune_cache(cache_dir=str(outside_path), dry_run=True)
         self.assertIn("outside safe locations", str(context.exception).lower())
