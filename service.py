@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from . import config, workflow
+from . import __version__, config, workflow
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +190,7 @@ Examples:
     parser.add_argument(
         "--version",
         action="version",
-        version="podcast_scraper 2.3.0",
+        version=f"podcast_scraper {__version__}",
     )
 
     args = parser.parse_args()

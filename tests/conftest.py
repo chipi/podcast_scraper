@@ -101,6 +101,12 @@ def create_test_config(**overrides):
         "clean_output": False,
     }
     defaults.update(overrides)
+
+    # Auto-enable generate_metadata if generate_summaries is True
+    # (required by cross-field validation)
+    if overrides.get("generate_summaries") and "generate_metadata" not in overrides:
+        defaults["generate_metadata"] = True
+
     return config.Config(**defaults)
 
 

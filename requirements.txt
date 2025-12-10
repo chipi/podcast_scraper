@@ -1,10 +1,12 @@
 # Core dependencies only - for full install use: pip install -e .[ml]
 # Or for development: pip install -e .[dev,ml,docs]
-requests>=2.31.0
-urllib3>=2.6.0
-tqdm>=4.66.0
-defusedxml>=0.7.1
-platformdirs>=3.11.0
-pydantic>=2.6.0
-PyYAML>=6.0
-types-PyYAML>=6.0.12
+# Version pinning: Using compatible release ranges to prevent breaking changes
+# while allowing minor updates and security patches
+requests>=2.31.0,<3.0.0
+urllib3>=2.6.0,<3.0.0
+tqdm>=4.66.0,<5.0.0
+defusedxml>=0.7.1,<1.0.0
+platformdirs>=3.11.0,<5.0.0
+pydantic>=2.6.0,<3.0.0
+PyYAML>=6.0,<7.0.0
+types-PyYAML>=6.0.12,<7.0.0

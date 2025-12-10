@@ -241,96 +241,101 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         except Exception as e:
             logger.error(f"Failed to load summary model: {e}")
 
-    # Step 7: Prepare episode processing arguments with speaker detection
-    download_args = _prepare_episode_download_args(
-        episodes,
-        cfg,
-        effective_output_dir,
-        run_suffix,
-        transcription_resources,
-        host_detection_result,
-        pipeline_metrics,
-    )
-    pipeline_metrics.record_stage("normalizing", time.time() - normalizing_start)
+    # Wrap all processing in try-finally to ensure cleanup always happens
+    # This prevents memory leaks if exceptions occur during processing
+    try:
+        # Step 7: Prepare episode processing arguments with speaker detection
+        download_args = _prepare_episode_download_args(
+            episodes,
+            cfg,
+            effective_output_dir,
+            run_suffix,
+            transcription_resources,
+            host_detection_result,
+            pipeline_metrics,
+        )
+        pipeline_metrics.record_stage("normalizing", time.time() - normalizing_start)
 
-    # Step 8: Process episodes (download transcripts or queue transcription jobs)
-    writing_start = time.time()
-    saved = _process_episodes(
-        download_args,
-        episodes,
-        feed,
-        cfg,
-        effective_output_dir,
-        run_suffix,
-        feed_metadata,
-        host_detection_result,
-        transcription_resources,
-        pipeline_metrics,
-        summary_model,
-    )
-
-    # Step 9: Process transcription jobs sequentially
-    saved += _process_transcription_jobs(
-        transcription_resources,
-        download_args,
-        episodes,
-        feed,
-        cfg,
-        effective_output_dir,
-        run_suffix,
-        feed_metadata,
-        host_detection_result,
-        pipeline_metrics,
-        summary_model,
-    )
-    pipeline_metrics.record_stage("writing_storage", time.time() - writing_start)
-
-    # Step 9: Parallel episode summarization (if enabled and multiple episodes)
-    # Process episodes that need summarization in parallel for better performance
-    # This runs after all episodes are processed and checks for episodes that might
-    # have been skipped during inline processing or need summary regeneration
-    if (
-        cfg.generate_summaries
-        and cfg.generate_metadata
-        and summary_model is not None
-        and not cfg.dry_run
-        and len(episodes) > 1
-    ):
-        # Only run parallel summarization if we have multiple episodes to process
-        # It will skip episodes that already have summaries
-        _parallel_episode_summarization(
-            episodes=episodes,
-            feed=feed,
-            cfg=cfg,
-            effective_output_dir=effective_output_dir,
-            run_suffix=run_suffix,
-            feed_metadata=feed_metadata,
-            host_detection_result=host_detection_result,
-            summary_model=summary_model,
-            download_args=download_args,
-            pipeline_metrics=pipeline_metrics,
+        # Step 8: Process episodes (download transcripts or queue transcription jobs)
+        writing_start = time.time()
+        saved = _process_episodes(
+            download_args,
+            episodes,
+            feed,
+            cfg,
+            effective_output_dir,
+            run_suffix,
+            feed_metadata,
+            host_detection_result,
+            transcription_resources,
+            pipeline_metrics,
+            summary_model,
         )
 
-    # Step 9.5: Unload models to free memory
-    if summary_model is not None:
-        try:
-            from . import summarizer  # noqa: PLC0415
+        # Step 9: Process transcription jobs sequentially
+        saved += _process_transcription_jobs(
+            transcription_resources,
+            download_args,
+            episodes,
+            feed,
+            cfg,
+            effective_output_dir,
+            run_suffix,
+            feed_metadata,
+            host_detection_result,
+            pipeline_metrics,
+            summary_model,
+        )
+        pipeline_metrics.record_stage("writing_storage", time.time() - writing_start)
 
-            summarizer.unload_model(summary_model)
-            logger.info("Unloaded summary model to free memory")
-        except Exception as e:
-            logger.warning(f"Failed to unload summary model: {e}")
+        # Step 9: Parallel episode summarization (if enabled and multiple episodes)
+        # Process episodes that need summarization in parallel for better performance
+        # This runs after all episodes are processed and checks for episodes that might
+        # have been skipped during inline processing or need summary regeneration
+        if (
+            cfg.generate_summaries
+            and cfg.generate_metadata
+            and summary_model is not None
+            and not cfg.dry_run
+            and len(episodes) > 1
+        ):
+            # Only run parallel summarization if we have multiple episodes to process
+            # It will skip episodes that already have summaries
+            _parallel_episode_summarization(
+                episodes=episodes,
+                feed=feed,
+                cfg=cfg,
+                effective_output_dir=effective_output_dir,
+                run_suffix=run_suffix,
+                feed_metadata=feed_metadata,
+                host_detection_result=host_detection_result,
+                summary_model=summary_model,
+                download_args=download_args,
+                pipeline_metrics=pipeline_metrics,
+            )
 
-    # Clear spaCy model cache to free memory
-    # Models are cached at module level, so we clear them after processing
-    if cfg.auto_speakers:
-        try:
-            from . import speaker_detection  # noqa: PLC0415
+    finally:
+        # Step 9.5: Unload models to free memory
+        # This runs even if exceptions occur above, preventing memory leaks
+        if summary_model is not None:
+            try:
+                from . import summarizer  # noqa: PLC0415
 
-            speaker_detection.clear_spacy_model_cache()
-            logger.debug("Cleared spaCy model cache to free memory")
-        except Exception as e:
-            logger.warning(f"Failed to clear spaCy model cache: {e}")
+                summarizer.unload_model(summary_model)
+                logger.info("Unloaded summary model to free memory")
+            except Exception as e:
+                logger.warning(f"Failed to unload summary model: {e}")
+
+        # Clear spaCy model cache to free memory
+        # Models are cached at module level, so we clear them after processing
+        if cfg.auto_speakers:
+            try:
+                from . import speaker_detection  # noqa: PLC0415
+
+                speaker_detection.clear_spacy_model_cache()
+                logger.debug("Cleared spaCy model cache to free memory")
+            except Exception as e:
+                logger.warning(f"Failed to clear spaCy model cache: {e}")
 
     # Step 10: Cleanup temporary files
     _cleanup_pipeline(temp_dir=transcription_resources.temp_dir)
@@ -345,14 +350,30 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 def _setup_pipeline_environment(cfg: config.Config) -> Tuple[str, Optional[str]]:
     """Setup output directory and handle cleanup if needed.
 
+    Creates the output directory structure based on configuration, optionally
+    adding a run ID subdirectory. If clean_output is enabled, removes any
+    existing output directory before creating it.
+
     Args:
-        cfg: Configuration object
+        cfg: Configuration object with output_dir, run_id, clean_output,
+            and dry_run settings
 
     Returns:
-        Tuple of (effective_output_dir, run_suffix)
+        Tuple[str, Optional[str]]: A tuple containing:
+            - effective_output_dir (str): Full path to output directory
+              (may include run_id subdirectory)
+            - run_suffix (Optional[str]): Run ID suffix if run_id was provided,
+              None otherwise
 
     Raises:
-        RuntimeError: If output directory cleanup fails
+        RuntimeError: If output directory cleanup fails when clean_output=True
+        OSError: If directory creation fails
+
+    Example:
+        >>> cfg = Config(rss_url="...", output_dir="./out", run_id="test_run")
+        >>> output_dir, run_suffix = _setup_pipeline_environment(cfg)
+        >>> print(output_dir)  # "./out/test_run"
+        >>> print(run_suffix)  # "test_run"
     """
     effective_output_dir, run_suffix = filesystem.setup_output_directory(cfg)
     logger.debug("Effective output dir=%s (run_suffix=%s)", effective_output_dir, run_suffix)
@@ -591,16 +612,25 @@ def _prepare_episode_download_args(
 ) -> List[Tuple]:
     """Prepare download arguments for each episode with speaker detection.
 
+    Performs speaker detection (if enabled) for each episode and packages all
+    necessary information into tuples for parallel processing. Speaker detection
+    includes host detection from feed metadata and guest detection from episode
+    titles and descriptions using NER.
+
     Args:
-        episodes: List of Episode objects
-        cfg: Configuration object
-        effective_output_dir: Output directory path
-        run_suffix: Optional run suffix
-        transcription_resources: Transcription resources
-        host_detection_result: Host detection result
+        episodes: List of Episode objects to process
+        cfg: Configuration object with auto_speakers, cache_detected_hosts settings
+        effective_output_dir: Full path to output directory
+        run_suffix: Optional run ID suffix for file naming
+        transcription_resources: Transcription resources (Whisper model, temp dir, job queue)
+        host_detection_result: Previously detected hosts and heuristics from feed metadata
+        pipeline_metrics: Metrics collector for tracking speaker extraction timing
 
     Returns:
-        List of download argument tuples
+        List[Tuple]: List of argument tuples, each containing:
+            (episode, cfg, temp_dir, effective_output_dir, run_suffix,
+             whisper_model, transcription_jobs, detected_speaker_names,
+             transcription_jobs_lock, saved_counter_lock, pipeline_metrics)
     """
     download_args = []
     for episode in episodes:
@@ -1016,15 +1046,32 @@ def _generate_pipeline_summary(
 ) -> Tuple[int, str]:
     """Generate pipeline summary message with detailed statistics.
 
+    Creates a human-readable summary of pipeline execution, including counts
+    of transcripts processed, performance metrics (download/transcription times),
+    and output location. In dry-run mode, reports planned operations instead
+    of actual results.
+
     Args:
-        cfg: Configuration object
-        saved: Number of transcripts saved
-        transcription_resources: Transcription resources
-        effective_output_dir: Output directory path
-        pipeline_metrics: Pipeline metrics collector
+        cfg: Configuration object (checks dry_run, transcribe_missing flags)
+        saved: Number of transcripts successfully saved or planned
+        transcription_resources: Transcription resources containing the job queue
+        effective_output_dir: Full path to output directory for display
+        pipeline_metrics: Metrics collector with timing data for operations
 
     Returns:
-        Tuple of (count, summary_message)
+        Tuple[int, str]: A tuple containing:
+            - count (int): Total episodes processed (saved + transcribed)
+            - summary (str): Multi-line summary message with statistics and metrics
+
+    Example output (normal mode):
+        >>> count, summary = _generate_pipeline_summary(...)
+        >>> print(summary)
+        Processed 10 episodes
+          - Direct downloads: 8
+          - Whisper transcriptions: 2
+          - Average download time: 2.3s/episode
+          - Average transcription time: 45.2s/episode
+          - Output directory: ./transcripts
     """
     if cfg.dry_run:
         planned_downloads = saved
@@ -1117,24 +1164,40 @@ def _generate_episode_metadata(
     summary_model=None,
     pipeline_metrics=None,
 ) -> None:
-    """Helper function to generate episode metadata.
+    """Generate and save episode metadata document.
+
+    Creates a comprehensive metadata document for the episode containing feed info,
+    episode details, transcript information, detected speakers, and optionally an
+    AI-generated summary. The metadata is saved in JSON or YAML format based on
+    configuration.
 
     Args:
-        feed: RssFeed object
-        episode: Episode object
-        feed_url: RSS feed URL
-        cfg: Configuration object
-        output_dir: Output directory path
-        run_suffix: Optional run suffix
-        transcript_file_path: Path to transcript file (relative to output_dir)
-        transcript_source: Source of transcript ("direct_download" or "whisper_transcription")
-        whisper_model: Whisper model used (if applicable)
-        detected_hosts: List of detected host names
-        detected_guests: List of detected guest names
-        feed_description: Feed description
-        feed_image_url: Feed image URL
-        feed_last_updated: Feed last updated date
-        summary_model: Pre-loaded summary model for reuse (optional)
+        feed: RssFeed object with feed title and authors
+        episode: Episode object with title, index, and RSS item data
+        feed_url: RSS feed URL for reference
+        cfg: Configuration object (metadata_format, metadata_subdirectory, generate_summaries)
+        output_dir: Full path to output directory
+        run_suffix: Optional run ID suffix for file naming
+        transcript_file_path: Relative path to transcript file (from output_dir)
+        transcript_source: How transcript was obtained
+            ("direct_download" or "whisper_transcription")
+        whisper_model: Name of Whisper model used for transcription (if applicable)
+        detected_hosts: List of detected podcast host names from NER
+        detected_guests: List of detected guest names from episode title/description
+        feed_description: Podcast feed description text
+        feed_image_url: URL to podcast artwork/cover image
+        feed_last_updated: Last update timestamp from feed metadata
+        summary_model: Optional loaded summary model for generating episode summary
+        pipeline_metrics: Optional metrics collector for tracking summary generation time
+
+    Raises:
+        OSError: If metadata file cannot be written
+        ValueError: If metadata generation fails
+
+    Note:
+        Metadata file is saved as either .json or .yaml based on cfg.metadata_format.
+        If generate_summaries is enabled and summary_model is provided, an AI-generated
+        summary will be included in the metadata document.
     """
     if not cfg.generate_metadata:
         return

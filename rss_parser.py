@@ -366,6 +366,8 @@ def _extract_duration_seconds(item: ET.Element) -> Optional[int]:
         elif len(parts) == DURATION_PARTS_SS:  # SS
             return int(parts[0])
     except (ValueError, IndexError):
+        # Invalid duration format (e.g., non-numeric, malformed string)
+        # Return None as documented in function signature
         pass
     return None
 

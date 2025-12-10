@@ -22,12 +22,10 @@ from urllib.parse import urlparse
 
 from pydantic import ValidationError
 
-from . import config, filesystem, progress, workflow
+from . import __version__, config, filesystem, progress, workflow
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import tqdm
-
-__version__ = "2.3.0"
 
 _LOGGER = logging.getLogger(__name__)
 

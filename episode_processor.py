@@ -418,6 +418,8 @@ def transcribe_media_to_text(
         try:
             bytes_downloaded = os.path.getsize(temp_media)
         except OSError:
+            # File size check is optional (for metrics only)
+            # Use default value of 0 if stat fails
             pass
 
     try:

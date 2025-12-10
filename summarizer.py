@@ -2115,12 +2115,15 @@ def optimize_model_memory(model: SummaryModel) -> None:
             torch.mps.empty_cache()
 
 
-def unload_model(model: SummaryModel) -> None:
+def unload_model(model: Optional[SummaryModel]) -> None:
     """Unload model to free memory.
 
     Args:
-        model: Summary model instance
+        model: Summary model instance, or None (no-op if None)
     """
+    if model is None:
+        return
+
     if model.model:
         del model.model
     if model.tokenizer:
@@ -2162,8 +2165,10 @@ def get_cache_size(cache_dir: Optional[str] = None) -> int:
         for item in cache_path.rglob("*"):
             if item.is_file():
                 total_size += item.stat().st_size
-    except (OSError, PermissionError):
-        pass
+    except (OSError, PermissionError) as e:
+        # Partial results are acceptable for cache info display
+        # Permission errors might occur in shared environments
+        logger.debug(f"Could not fully calculate cache size (partial result): {e}")
 
     return total_size
 
@@ -2197,6 +2202,21 @@ def prune_cache(cache_dir: Optional[str] = None, dry_run: bool = False) -> int:
     """
     if cache_dir:
         cache_path = Path(cache_dir)
+        # Security check: ensure cache directory is within safe locations
+        # Only allow deletion within user's home directory or standard cache locations
+        try:
+            resolved_path = cache_path.resolve()
+            safe_roots = {Path.home(), Path.home() / ".cache"}
+            is_safe = any(
+                resolved_path == root or resolved_path.is_relative_to(root) for root in safe_roots
+            )
+            if not is_safe:
+                raise ValueError(
+                    f"Cache directory {resolved_path} is outside safe locations "
+                    f"(home directory or ~/.cache). Refusing to delete for security."
+                )
+        except (OSError, RuntimeError) as e:
+            raise ValueError(f"Invalid cache directory path: {e}") from e
     else:
         cache_path = HF_CACHE_DIR if HF_CACHE_DIR.exists() else HF_CACHE_DIR_LEGACY
 
@@ -2225,8 +2245,9 @@ def prune_cache(cache_dir: Optional[str] = None, dry_run: bool = False) -> int:
                 if not dry_run:
                     try:
                         item.rmdir()
-                    except (OSError, PermissionError):
-                        pass
+                    except (OSError, PermissionError) as e:
+                        # Best-effort cleanup of empty directories; failures are acceptable
+                        logger.debug(f"Could not remove empty directory {item}: {e}")
 
         size_str = format_cache_size(total_size)
         if dry_run:
