@@ -658,6 +658,11 @@ class SummarizationProviderFactory:
 
 ```text
 podcast_scraper/
+├── preprocessing.py         # NEW: Provider-agnostic preprocessing utilities
+│                           # - clean_transcript() (timestamp removal, speaker normalization)
+│                           # - remove_sponsor_blocks() (ad removal)
+│                           # - clean_for_summarization() (combined cleaning)
+│                           # Called BEFORE provider selection in metadata.py/workflow.py
 ├── speaker_detectors/
 │   ├── __init__.py
 │   ├── base.py              # SpeakerDetector protocol
@@ -676,8 +681,8 @@ podcast_scraper/
 │   ├── factory.py           # SummarizationProviderFactory
 │   ├── local_provider.py   # Current local transformers implementation (refactored)
 │   └── openai_provider.py  # Future OpenAI API implementation
-├── workflow.py              # Uses factories
-├── metadata.py              # Refactored (smaller functions)
+├── workflow.py              # Uses factories, calls preprocessing
+├── metadata.py              # Refactored (smaller functions), calls preprocessing BEFORE providers
 ├── config.py                # Has provider type fields
 └── ...
 ```
