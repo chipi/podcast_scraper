@@ -19,8 +19,10 @@ The hook runs checks **only on staged files** (files you're committing), making 
 - **Black** formatting check (Python files)
 - **isort** import sorting check (Python files)
 - **flake8** linting (Python files)
-- **markdownlint** (markdown files, if installed)
+- **markdownlint** (markdown files - **required** when markdown files are staged)
 - **mypy** type checking (Python files)
+
+> **Note:** If you're committing markdown files, `markdownlint` must be installed. Install it with: `npm install -g markdownlint-cli`
 
 ### Behavior
 

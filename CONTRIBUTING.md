@@ -993,9 +993,10 @@ The pre-commit hook automatically runs before each commit and **only checks stag
 - ✅ **Black** formatting check (Python files)
 - ✅ **isort** import sorting check (Python files)
 - ✅ **flake8** linting (Python files)
-- ✅ **markdownlint** (markdown files, if installed)
+- ✅ **markdownlint** (markdown files - **required** when markdown files are staged)
 - ✅ **mypy** type checking (Python files)
 
+> **Note:** If you're committing markdown files, `markdownlint` must be installed. Install it with: `npm install -g markdownlint-cli`  
 > **Note:** The hook only checks files that are staged for commit, not the entire codebase. This makes it much faster and ensures you're only checking what you're actually committing.
 
 **If any check fails, the commit is blocked** until you fix the issues.
