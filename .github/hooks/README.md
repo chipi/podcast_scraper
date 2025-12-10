@@ -14,11 +14,18 @@ make install-hooks
 
 ### What It Checks
 
-- **Black** formatting check
-- **isort** import sorting check
-- **flake8** linting
-- **markdownlint** (if installed)
-- **mypy** type checking
+The hook runs checks **only on staged files** (files you're committing), making it fast and efficient:
+
+- **Black** formatting check (Python files)
+- **isort** import sorting check (Python files)
+- **flake8** linting (Python files)
+- **markdownlint** (markdown files - **required** when markdown files are staged)
+- **JSON syntax validation** (JSON files - uses Python's json.tool)
+- **YAML syntax validation** (YAML/YML files - uses yamllint if available, otherwise Python yaml module)
+- **mypy** type checking (Python files)
+
+> **Note:** If you're committing markdown files, `markdownlint` must be installed. Install it with: `npm install -g markdownlint-cli`  
+> **Note:** For better YAML validation, install `yamllint` with: `pip install yamllint` (optional - Python yaml module is used as fallback)
 
 ### Behavior
 

@@ -460,13 +460,13 @@ def _generate_episode_summary(
         try:
             # MAP model (chunk summaries)
             model_name = summarizer.select_summary_model(cfg)
-            logger.info(
+            logger.debug(
                 "[%s] Selected MAP model: %s (from config: %s)",
                 episode_idx,
                 model_name,
                 cfg.summary_model or "default (bart-large)",
             )
-            logger.info(
+            logger.debug(
                 "[%s] Loading MAP model for chunk summarization: %s",
                 episode_idx,
                 model_name,
@@ -476,7 +476,7 @@ def _generate_episode_summary(
                 device=cfg.summary_device,
                 cache_dir=cfg.summary_cache_dir,
             )
-            logger.info(
+            logger.debug(
                 "[%s] MAP model loaded successfully: %s",
                 episode_idx,
                 summary_model.model_name,
@@ -493,14 +493,14 @@ def _generate_episode_summary(
     reduce_model = summary_model
     try:
         reduce_model_name = summarizer.select_reduce_model(cfg, summary_model.model_name)
-        logger.info(
+        logger.debug(
             "[%s] Selected REDUCE model: %s (from config: %s)",
             episode_idx,
             reduce_model_name,
             getattr(cfg, "summary_reduce_model", None) or "default (long-fast/LED)",
         )
         if reduce_model_name != summary_model.model_name:
-            logger.info(
+            logger.debug(
                 "[%s] Loading separate REDUCE model for final combine: %s",
                 episode_idx,
                 reduce_model_name,
@@ -510,13 +510,13 @@ def _generate_episode_summary(
                 device=cfg.summary_device,
                 cache_dir=cfg.summary_cache_dir,
             )
-            logger.info(
+            logger.debug(
                 "[%s] REDUCE model loaded successfully: %s",
                 episode_idx,
                 reduce_model.model_name,
             )
         else:
-            logger.info(
+            logger.debug(
                 "[%s] Using MAP model for REDUCE phase: %s",
                 episode_idx,
                 summary_model.model_name,
@@ -537,7 +537,7 @@ def _generate_episode_summary(
         summary_start = time.time()
         transcript_length = len(transcript_text)
         word_count_approx = len(transcript_text.split())
-        logger.info(
+        logger.debug(
             "[%s] Generating summary (transcript: ~%d words, %d chars)...",
             episode_idx,
             word_count_approx,
@@ -575,7 +575,7 @@ def _generate_episode_summary(
                 )
                 with open(cleaned_path, "w", encoding="utf-8") as f:
                     f.write(cleaned_text)
-                logger.info(
+                logger.debug(
                     "[%s] Saved cleaned transcript to: %s",
                     episode_idx,
                     cleaned_path.name,
@@ -595,7 +595,7 @@ def _generate_episode_summary(
             for model_keyword in ["bart", "pegasus", "distilbart"]
         )
         if use_word_chunking:
-            logger.info(
+            logger.debug(
                 "[%s] Using word-based chunking for encoder-decoder model: %s",
                 episode_idx,
                 model_name,
@@ -617,7 +617,7 @@ def _generate_episode_summary(
             if cfg.summary_word_overlap is not None
             else summarizer.DEFAULT_WORD_OVERLAP
         )
-        logger.info(
+        logger.debug(
             "[%s] Summarization config: "
             f"max_length={cfg.summary_max_length}, min_length={cfg.summary_min_length}, "
             f"word_chunk_size={word_chunk_size if use_word_chunking else 'N/A'}, "

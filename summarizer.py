@@ -621,7 +621,7 @@ class SummaryModel:
                 self.model_name,
                 **model_kwargs,
             )
-            logger.info("Model loaded successfully (cached for future runs)")
+            logger.debug("Model loaded successfully (cached for future runs)")
 
             # Move model to device
             self.model = self.model.to(self.device)  # type: ignore[union-attr]
@@ -657,7 +657,7 @@ class SummaryModel:
                     if hasattr(self.pipeline.model.config, "max_new_tokens"):
                         setattr(self.pipeline.model.config, "max_new_tokens", None)
 
-            logger.info(f"Successfully loaded model: {self.model_name}")
+            logger.debug(f"Successfully loaded model: {self.model_name}")
 
         except Exception as e:
             logger.error(f"Failed to load summarization model: {e}")
@@ -938,7 +938,7 @@ def _validate_and_fix_repetitive_summary(summary: str) -> str:
             fixed_summary = ". ".join(unique_sentences)
             if fixed_summary and not fixed_summary.endswith("."):
                 fixed_summary += "."
-            logger.info(
+            logger.debug(
                 f"Fixed repetitive summary: reduced from {len(sentences)} "
                 f"to {len(unique_sentences)} sentences"
             )
@@ -1135,7 +1135,7 @@ def summarize_long_text(
     if cleaned_text != text:
         removed_chars = len(text) - len(cleaned_text)
         removed_pct = (removed_chars / len(text) * 100) if len(text) else 0
-        logger.info(
+        logger.debug(
             "[SPONSOR CLEANUP] Removed not clean segments before summarization: "
             f"{removed_chars:,} chars ({removed_pct:.1f}%)"
         )
@@ -1151,11 +1151,11 @@ def summarize_long_text(
     else:
         input_tokens = input_chars // CHARS_PER_TOKEN_ESTIMATE
 
-    logger.info(
+    logger.debug(
         "[MAP-REDUCE VALIDATION] Input text: "
         f"{input_chars:,} chars, {input_words:,} words, ~{input_tokens:,} tokens"
     )
-    logger.info(
+    logger.debug(
         "[MAP-REDUCE VALIDATION] Configuration: "
         f"max_length={max_length}, min_length={min_length}, "
         f"word_chunk_size={word_chunk_size if use_word_chunking else 'N/A'}, "
@@ -1176,7 +1176,7 @@ def summarize_long_text(
         chunk_size = min(chunk_size, ENCODER_DECODER_TOKEN_CHUNK_SIZE)
         encoder_decoder_override = True
 
-    logger.info(
+    logger.debug(
         "[MAP-REDUCE VALIDATION] Chunking strategy: "
         f"requested_chunk_size={requested_chunk_size} tokens, "
         f"model_max={model_max_tokens}, "
@@ -1193,7 +1193,7 @@ def summarize_long_text(
         output_words = len(direct_summary.split())
         compression_ratio = input_chars / output_chars if output_chars > 0 else 0
         total_time = time.time() - pipeline_start_time
-        logger.info(
+        logger.debug(
             "[MAP-REDUCE VALIDATION] Direct summary (no chunking): "
             f"output={output_chars:,} chars, {output_words:,} words, "
             f"compression={compression_ratio:.1f}x, time={total_time:.1f}s"
@@ -1222,20 +1222,20 @@ def summarize_long_text(
 
     overlap_tokens = int(chunk_size * CHUNK_OVERLAP_RATIO)
     method_desc = "token-based (encoder-decoder override)" if use_word_chunking else "token-based"
-    logger.info(
+    logger.debug(
         "[MAP-REDUCE VALIDATION] Chunking phase: "
         f"created {len(chunks)} chunks, "
         f"method={method_desc}, "
         f"chunk_size=tokens={chunk_size}, "
         f"overlap=tokens={overlap_tokens}"
     )
-    logger.info(
+    logger.debug(
         "[MAP-REDUCE VALIDATION] Chunk size stats (words): "
         f"min={min(chunk_sizes_words)}, max={max(chunk_sizes_words)}, "
         f"avg={sum(chunk_sizes_words) // len(chunk_sizes_words)}"
     )
     if model.tokenizer:
-        logger.info(
+        logger.debug(
             "[MAP-REDUCE VALIDATION] Chunk size stats (tokens): "
             f"min={min(chunk_sizes_tokens)}, max={max(chunk_sizes_tokens)}, "
             f"avg={sum(chunk_sizes_tokens) // len(chunk_sizes_tokens)}"
@@ -1267,7 +1267,7 @@ def summarize_long_text(
         map_output_words = sum(summary_sizes_words)
         map_compression_ratio = input_chars / map_output_chars if map_output_chars > 0 else 0
 
-        logger.info(
+        logger.debug(
             "[MAP-REDUCE VALIDATION] Map phase: "
             f"processed {len(chunk_summaries)}/{len(chunks)} chunks, "
             f"time={map_time:.1f}s ({map_time/len(chunk_summaries):.2f}s/chunk), "
@@ -1275,7 +1275,7 @@ def summarize_long_text(
             f"compression={map_compression_ratio:.1f}x, "
             f"max_length={max_length}, min_length={min_length}"
         )
-        logger.info(
+        logger.debug(
             "[MAP-REDUCE VALIDATION] Map output stats (words per chunk summary): "
             f"min={min(summary_sizes_words)}, max={max(summary_sizes_words)}, "
             f"avg={sum(summary_sizes_words) // len(summary_sizes_words)}"
@@ -1308,7 +1308,7 @@ def summarize_long_text(
         map_output_chars / final_chars if chunk_summaries and final_chars > 0 else 0
     )
 
-    logger.info(
+    logger.debug(
         "[MAP-REDUCE VALIDATION] Reduce phase: "
         f"time={reduce_time:.1f}s, "
         f"input={map_output_chars:,} chars ({len(chunk_summaries)} summaries), "
@@ -1316,7 +1316,7 @@ def summarize_long_text(
         f"compression={reduce_compression_ratio:.1f}x, "
         f"max_length={max_length}, min_length={min_length}"
     )
-    logger.info(
+    logger.debug(
         "[MAP-REDUCE VALIDATION] Overall pipeline: "
         f"total_time={total_time:.1f}s "
         f"(map={map_time:.1f}s, reduce={reduce_time:.1f}s), "
@@ -1371,7 +1371,7 @@ def _summarize_chunks_map(
     if can_parallelize and batch_size and batch_size > 1:
         max_workers = min(batch_size, MAX_PARALLEL_WORKERS, total_chunks)
         if max_workers > 1:
-            logger.info(f"Using parallel processing with {max_workers} workers (CPU device)")
+            logger.debug(f"Using parallel processing with {max_workers} workers (CPU device)")
 
     # Estimate and log processing time
     estimated_minutes = (total_chunks * SECONDS_PER_CHUNK_ESTIMATE) // 60
@@ -1380,7 +1380,7 @@ def _summarize_chunks_map(
     overlap = int(chunk_size * CHUNK_OVERLAP_RATIO)
     chunk_max_length = min(chunk_size, max_length, CHUNK_SUMMARY_MAX_TOKENS)
     chunk_min_length = min(chunk_max_length, max(min_length, CHUNK_SUMMARY_MIN_TOKENS))
-    logger.info(
+    logger.debug(
         f"[MAP-REDUCE CONFIG] Map stage: {total_chunks} chunks, chunk_size={chunk_size} tokens, "
         f"overlap={overlap} tokens, workers={max_workers}, "
         f"chunk_summary_range={chunk_min_length}-{chunk_max_length} tokens, "
@@ -1476,7 +1476,7 @@ def _summarize_chunks_parallel(
                 eta_seconds = avg_time * remaining_chunks
                 eta_min = int(eta_seconds // 60)
                 eta_sec = int(eta_seconds % 60)
-                logger.info(
+                logger.debug(
                     f"Completed {completed}/{total_chunks} chunks with MAP model: "
                     f"{model.model_name} ({avg_time:.1f}s avg, ETA: ~{eta_min}m {eta_sec}s)"
                 )
@@ -1517,7 +1517,7 @@ def _summarize_chunks_sequential(
         try:
             chunk_start = time.time()
             if i == 1 or i % PROGRESS_LOG_INTERVAL == 0:
-                logger.info(
+                logger.debug(
                     f"Processing chunk {i}/{total_chunks} with MAP model: {model.model_name}..."
                 )
             summary = model.summarize(
@@ -1534,7 +1534,7 @@ def _summarize_chunks_sequential(
                     avg_time = elapsed_total / i
                     remaining_chunks = total_chunks - i
                     eta_seconds = avg_time * remaining_chunks
-                    logger.info(
+                    logger.debug(
                         f"Completed {i}/{total_chunks} chunks "
                         f"({chunk_elapsed:.1f}s this chunk, {avg_time:.1f}s avg, "
                         f"ETA: ~{int(eta_seconds // 60)}m {int(eta_seconds % 60)}s)"
@@ -1636,7 +1636,7 @@ def _combine_summaries_reduce(
             "using extractive fallback (representative chunks only)"
         )
 
-    logger.info(
+    logger.debug(
         "[MAP-REDUCE VALIDATION] Reduce phase decision: "
         f"combined_input={combined_chars:,} chars, {combined_words:,} words, "
         f"~{combined_tokens:,} tokens, "
@@ -1645,7 +1645,7 @@ def _combine_summaries_reduce(
         f"mini_map_reduce_ceiling={mini_map_reduce_ceiling}, "
         f"approach={approach}"
     )
-    logger.info(f"[MAP-REDUCE VALIDATION] Reduce phase decision reason: {reason}")
+    logger.debug(f"[MAP-REDUCE VALIDATION] Reduce phase decision reason: {reason}")
 
     final_reduce_max_length = int(
         min(FINAL_SUMMARY_MAX_TOKENS, model_max - MODEL_MAX_BUFFER, SAFE_MAX_LENGTH)
@@ -1662,7 +1662,7 @@ def _combine_summaries_reduce(
     # 3. If > ceiling → extractive approach
     if combined_tokens > mini_map_reduce_ceiling:
         selected = _select_key_summaries(chunk_summaries)
-        logger.info(
+        logger.debug(
             "[MAP-REDUCE CONFIG] Extractive fallback: "
             f"summary_range={final_reduce_min_length}-{final_reduce_max_length} tokens"
         )
@@ -1689,7 +1689,7 @@ def _combine_summaries_reduce(
         )
 
     # Single-pass abstractive reduce - use ALL summaries, no selection
-    logger.info(
+    logger.debug(
         "[MAP-REDUCE CONFIG] Final reduce: "
         f"summary_range={final_reduce_min_length}-{final_reduce_max_length} tokens, "
         f"prompt={'REDUCE_PROMPT_SHORT' if prompt is None else 'custom'}"
@@ -1782,7 +1782,7 @@ def _combine_summaries_extractive(
         Final summary
     """
     combined_tokens = len("".join(selected_summaries)) // CHARS_PER_TOKEN_ESTIMATE
-    logger.info(
+    logger.debug(
         "[MAP-REDUCE VALIDATION] 🔄 EXTRACTIVE APPROACH: Combined summaries too long "
         f"(~{combined_tokens} tokens). Selecting representative chunks (safety fallback)."
     )
@@ -1791,7 +1791,7 @@ def _combine_summaries_extractive(
 
     # Only do one final pass if still too long
     if len(final_summary) > max_length * CHARS_PER_TOKEN_FOR_LENGTH_CHECK:
-        logger.info("Selected summaries still too long, doing one final summarization pass")
+        logger.debug("Selected summaries still too long, doing one final summarization pass")
         safe_max_length = min(
             max_length * MAX_LENGTH_MULTIPLIER, model_max - MODEL_MAX_BUFFER, SAFE_MAX_LENGTH
         )
@@ -1817,7 +1817,7 @@ def _combine_summaries_extractive(
             logger.warning(f"Final summarization failed ({e}), using extractive summaries directly")
             return _join_summaries_with_structure(selected_summaries)
     else:
-        logger.info("Using extractive summaries directly (no further summarization)")
+        logger.debug("Using extractive summaries directly (no further summarization)")
         return final_summary
 
 
@@ -1878,7 +1878,7 @@ def _combine_summaries_mini_map_reduce(
     current_text = combined_text
     current_tokens = combined_tokens
 
-    logger.info(
+    logger.debug(
         f"[MAP-REDUCE VALIDATION] ⚡ HIERARCHICAL REDUCE: "
         f"combined summaries ({current_tokens} tokens) exceed single-pass threshold "
         f"({target_tokens}), "
@@ -1895,7 +1895,7 @@ def _combine_summaries_mini_map_reduce(
         iteration_start = time.time()
         passes_run += 1
 
-        logger.info(
+        logger.debug(
             f"[MAP-REDUCE VALIDATION] ⚡ Hierarchical Iteration {iteration} "
             f"(REDUCE model: {model.model_name}): "
             f"Processing {current_tokens} tokens (threshold={target_tokens})"
@@ -1922,7 +1922,7 @@ def _combine_summaries_mini_map_reduce(
                     f"This should not happen with token-based chunking!"
                 )
 
-        logger.info(
+        logger.debug(
             f"[MAP-REDUCE VALIDATION] ⚡ Hierarchical Iteration {iteration} "
             f"Step 1 (REDUCE model: {model.model_name}): "
             f"Re-chunked into {len(mini_chunks)} section chunks "
@@ -1944,7 +1944,7 @@ def _combine_summaries_mini_map_reduce(
             section_max_length,
             max(min_length, SECTION_SUMMARY_MIN_TOKENS),
         )
-        logger.info(
+        logger.debug(
             f"[MAP-REDUCE CONFIG] Hierarchical iteration {iteration}: "
             f"section_summary_range={section_min_length}-{section_max_length} tokens, "
             f"sections={len(mini_chunks)}"
@@ -2002,7 +2002,7 @@ def _combine_summaries_mini_map_reduce(
 
         last_section_summaries = section_summaries
         iteration_time = time.time() - iteration_start
-        logger.info(
+        logger.debug(
             f"[MAP-REDUCE VALIDATION] ⚡ Hierarchical Iteration {iteration} "
             f"Step 3 (REDUCE model: {model.model_name}): "
             f"Summaries combined ({current_chars:,} chars, {current_words:,} words, "
@@ -2025,7 +2025,7 @@ def _combine_summaries_mini_map_reduce(
         )
 
     # Final abstractive reduce (now small enough for single pass)
-    logger.info(
+    logger.debug(
         f"[MAP-REDUCE VALIDATION] ⚡ Hierarchical Final Step: "
         f"Combined summaries ({current_tokens} tokens) now <= threshold ({target_tokens}), "
         f"proceeding to single-pass abstractive reduce after {passes_run} iteration(s)"
@@ -2044,7 +2044,7 @@ def _combine_summaries_mini_map_reduce(
 
     total_mini_time = time.time() - mini_map_start
 
-    logger.info(
+    logger.debug(
         f"[MAP-REDUCE VALIDATION] ⚡ MINI MAP-REDUCE COMPLETE: "
         f"total_time={total_mini_time:.1f}s ({iteration} iteration(s)), "
         f"input={combined_tokens} tokens -> output={len(final_summary.split())} words"
@@ -2086,7 +2086,7 @@ def _combine_summaries_abstractive(
         )
     )
 
-    logger.info(
+    logger.debug(
         f"Final summarization: {len(chunk_summaries)} chunks, "
         f"combined ~{combined_tokens} tokens, "
         f"using max_length={final_max_length} for final summary"
@@ -2289,14 +2289,23 @@ def prune_cache(cache_dir: Optional[str] = None, dry_run: bool = False) -> int:
         # (but not the home directory or ~/.cache themselves to prevent accidental deletion)
         try:
             resolved_path = cache_path.resolve()
-            safe_roots = {Path.home(), Path.home() / ".cache"}
-            is_safe = any(
-                resolved_path.is_relative_to(root) and resolved_path != root for root in safe_roots
+            home = Path.home()
+            cache_root = home / ".cache"
+            safe_roots = {home, cache_root}
+            # Security check: path must be within a safe root AND not be the safe root itself
+            # Explicitly exclude home directory and ~/.cache themselves
+            is_safe = (
+                any(
+                    resolved_path.is_relative_to(root) and resolved_path != root
+                    for root in safe_roots
+                )
+                and resolved_path != cache_root
             )
             if not is_safe:
                 raise ValueError(
                     f"Cache directory {resolved_path} is outside safe locations "
-                    f"(home directory or ~/.cache). Refusing to delete for security."
+                    f"(home directory or ~/.cache) or is a protected root directory. "
+                    f"Refusing to delete for security."
                 )
         except (OSError, RuntimeError) as e:
             raise ValueError(f"Invalid cache directory path: {e}") from e

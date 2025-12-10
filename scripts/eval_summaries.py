@@ -600,8 +600,28 @@ def main() -> None:
     }
 
     # Determine output path (default to results/eval_<timestamp>.json if not provided)
+    # with path traversal protection
     if args.output:
-        output_path = Path(args.output)
+        # Resolve to absolute path to prevent path traversal attacks
+        output_path = Path(args.output).resolve()
+
+        # Ensure output is within current working directory or results subdirectory
+        cwd = Path.cwd().resolve()
+        results_dir = cwd / "results"
+
+        # Allow paths within cwd or results/ subdirectory
+        if not (output_path == cwd or output_path.is_relative_to(cwd)):
+            raise ValueError(
+                f"Output path {output_path} is outside current working directory. "
+                f"Paths must be within {cwd} or its subdirectories."
+            )
+
+        # Warn if writing outside results/ directory
+        if not (output_path == results_dir or output_path.is_relative_to(results_dir)):
+            logger.warning(
+                f"Output path {output_path} is outside recommended 'results/' directory. "
+                f"Consider using 'results/' subdirectory instead."
+            )
     else:
         # Generate default filename with timestamp
         timestamp = time.strftime("%Y%m%d_%H%M%S")

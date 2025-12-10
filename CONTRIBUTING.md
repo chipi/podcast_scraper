@@ -11,6 +11,7 @@ Thanks for taking the time to contribute! This project mirrors its CI pipeline l
 - [Documentation Standards](#documentation-standards)
 - [CI/CD Integration](#cicd-integration)
 - [Architecture Principles](#architecture-principles)
+- [Logging Guidelines](#logging-guidelines)
 - [Pull Request Process](#pull-request-process)
 
 ---
@@ -727,6 +728,111 @@ except ImportError:
     logger.warning("Whisper not available, transcription disabled")
 ```
 
+### Logging Guidelines
+
+**Use appropriate log levels to keep service/daemon logs manageable:**
+
+The project follows a principle of **minimal INFO verbosity** - INFO logs should focus on high-level operations and important user-facing events, while detailed technical information belongs in DEBUG.
+
+#### Log Level Guidelines
+
+**Use `logger.info()` for:**
+
+- High-level operations that users care about
+- Important state changes and milestones
+- User-facing progress updates
+- Important results (e.g., "Summary generated", "saved transcript")
+- Episode processing start/completion
+- Major pipeline stages (e.g., "Starting Whisper transcription", "Processing summarization")
+
+**Use `logger.debug()` for:**
+
+- Detailed internal operations
+- Model loading/unloading details
+- Configuration details and parameter values
+- Per-item processing details
+- Technical implementation details
+- Validation metrics and statistics
+- Chunking, mapping, and reduction details
+- File handle management and cleanup
+- Fallback attempts and retries
+
+**Use `logger.warning()` for:**
+
+- Recoverable errors
+- Degraded functionality
+- Missing optional dependencies
+- Non-critical failures
+
+**Use `logger.error()` for:**
+
+- Unrecoverable errors
+- Critical failures
+- Validation failures
+
+#### Examples
+
+```python
+# Good - INFO for high-level operation
+logger.info("Processing summarization for %d episodes in parallel", len(episodes))
+
+# Good - DEBUG for detailed technical info
+logger.debug("Pre-loading %d model instances for thread safety", max_workers)
+logger.debug("Successfully pre-loaded %d model instances", len(worker_models))
+
+# Good - INFO for important results
+logger.info("Summary generated in %.1fs (length: %d chars)", elapsed, len(summary))
+logger.info("saved transcript: %s (transcribed in %.1fs)", rel_path, elapsed)
+
+# Bad - INFO for technical details
+logger.info("Loading summarization model: %s on %s", model_name, device)  # Should be DEBUG
+logger.info("Model loaded successfully (cached for future runs)")  # Should be DEBUG
+logger.info("[MAP-REDUCE VALIDATION] Input text: %d chars, %d words", ...)  # Should be DEBUG
+
+# Good - DEBUG for technical details
+logger.debug("Loading summarization model: %s on %s", model_name, device)
+logger.debug("Model loaded successfully (cached for future runs)")
+logger.debug("[MAP-REDUCE VALIDATION] Input text: %d chars, %d words", ...)
+```
+
+#### Module-Specific Patterns
+
+**Workflow (`workflow.py`):**
+
+- INFO: Episode titles, episode counts, major stages, progress milestones
+- DEBUG: Model loading/unloading, host detection details, cleanup operations
+
+**Summarization (`summarizer.py`, `metadata.py`):**
+
+- INFO: Summary generation start/completion, important results
+- DEBUG: Model selection, loading details, chunking stats, validation metrics, config details
+
+**Whisper (`whisper_integration.py`):**
+
+- INFO: Transcription start ("transcribing with Whisper")
+- DEBUG: Model loading, fallback attempts, device details
+
+**Episode Processing (`episode_processor.py`):**
+
+- INFO: File save operations ("saved transcript", "saved")
+- DEBUG: Download details, file reuse, speaker names
+
+**Speaker Detection (`speaker_detection.py`):**
+
+- INFO: Detection results ("→ Guest: %s")
+- DEBUG: Model download attempts, detection failures
+
+#### Rationale
+
+This approach ensures:
+
+- **Service/daemon logs** remain focused and readable
+- **Production monitoring** shows high-level progress without noise
+- **Debugging** still has access to detailed information when needed
+- **Log file sizes** stay manageable during long runs
+
+When in doubt, prefer DEBUG over INFO - it's easier to promote a log level than to demote it.
+
 ### Progress Reporting
 
 **Use the `progress.py` abstraction:**
@@ -882,13 +988,19 @@ Install the pre-commit hook to automatically check your code before every commit
 make install-hooks
 ```
 
-The pre-commit hook automatically runs before each commit:
+The pre-commit hook automatically runs before each commit and **only checks staged files** (files you're committing), making it fast and efficient:
 
-- ✅ **Black** formatting check
-- ✅ **isort** import sorting check
-- ✅ **flake8** linting
-- ✅ **markdownlint** (if installed)
-- ✅ **mypy** type checking
+- ✅ **Black** formatting check (Python files)
+- ✅ **isort** import sorting check (Python files)
+- ✅ **flake8** linting (Python files)
+- ✅ **markdownlint** (markdown files - **required** when markdown files are staged)
+- ✅ **JSON syntax validation** (JSON files - uses Python's json.tool)
+- ✅ **YAML syntax validation** (YAML/YML files - uses yamllint if available, otherwise Python yaml module)
+- ✅ **mypy** type checking (Python files)
+
+> **Note:** If you're committing markdown files, `markdownlint` must be installed. Install it with: `npm install -g markdownlint-cli`  
+> **Note:** For better YAML validation, install `yamllint` with: `pip install yamllint` (optional - Python yaml module is used as fallback)  
+> **Note:** The hook only checks files that are staged for commit, not the entire codebase. This makes it much faster and ensures you're only checking what you're actually committing.
 
 **If any check fails, the commit is blocked** until you fix the issues.
 

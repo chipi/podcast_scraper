@@ -32,7 +32,6 @@ from .rss_parser import (
     extract_episode_metadata,
     extract_episode_published_date,
     extract_feed_metadata,
-    fetch_and_parse_rss,
 )
 
 logger = logging.getLogger(__name__)
@@ -278,11 +277,12 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
     # Step 2: Fetch and parse RSS feed (scraping stage)
     scraping_start = time.time()
-    feed = _fetch_and_parse_feed(cfg)
+    feed, rss_bytes = _fetch_and_parse_feed(cfg)
     pipeline_metrics.record_stage("scraping", time.time() - scraping_start)
 
     # Step 3: Extract feed metadata (if metadata generation enabled)
-    feed_metadata = _extract_feed_metadata_for_generation(cfg, feed)
+    # Reuse RSS bytes from initial fetch to avoid duplicate network request
+    feed_metadata = _extract_feed_metadata_for_generation(cfg, feed, rss_bytes)
 
     # Step 4: Prepare episodes from RSS items (parsing stage)
     parsing_start = time.time()
@@ -312,7 +312,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 device=cfg.summary_device,
                 cache_dir=cfg.summary_cache_dir,
             )
-            logger.info("Loaded summary model for reuse across all episodes")
+            logger.debug("Loaded summary model for reuse across all episodes")
         except ImportError:
             logger.info("Summarization dependencies not available, skipping summary generation")
         except Exception as e:
@@ -399,7 +399,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 from . import summarizer  # noqa: PLC0415
 
                 summarizer.unload_model(summary_model)
-                logger.info("Unloaded summary model to free memory")
+                logger.debug("Unloaded summary model to free memory")
             except Exception as e:
                 logger.warning(f"Failed to unload summary model: {e}")
 
@@ -482,51 +482,73 @@ def _setup_pipeline_environment(cfg: config.Config) -> Tuple[str, Optional[str]]
     return effective_output_dir, run_suffix
 
 
-def _fetch_and_parse_feed(cfg: config.Config) -> models.RssFeed:
+def _fetch_and_parse_feed(cfg: config.Config) -> tuple[models.RssFeed, bytes]:
     """Fetch and parse RSS feed.
+
+    Fetches RSS feed once and returns both the parsed feed and raw XML bytes
+    to avoid duplicate network requests.
 
     Args:
         cfg: Configuration object
 
     Returns:
-        Parsed RssFeed object
+        Tuple of (Parsed RssFeed object, RSS XML bytes)
     """
-    feed = fetch_and_parse_rss(cfg)
+    from . import downloader
+    from .rss_parser import parse_rss_items
+
+    if cfg.rss_url is None:
+        raise ValueError("RSS URL is required")
+
+    # Fetch RSS feed once
+    resp = downloader.fetch_url(cfg.rss_url, cfg.user_agent, cfg.timeout, stream=False)
+    if resp is None:
+        raise ValueError("Failed to fetch RSS feed.")
+
+    try:
+        rss_bytes = resp.content
+        feed_base_url = resp.url or cfg.rss_url
+    finally:
+        resp.close()
+
+    # Parse RSS feed
+    try:
+        feed_title, feed_authors, items = parse_rss_items(rss_bytes)
+    except Exception as exc:
+        raise ValueError(f"Failed to parse RSS XML: {exc}") from exc
+
+    feed = models.RssFeed(
+        title=feed_title, authors=feed_authors, items=items, base_url=feed_base_url
+    )
     logger.debug("Fetched RSS feed title=%s (%s items)", feed.title, len(feed.items))
-    return feed
+
+    return feed, rss_bytes
 
 
 def _extract_feed_metadata_for_generation(
-    cfg: config.Config, feed: models.RssFeed
+    cfg: config.Config, feed: models.RssFeed, rss_bytes: bytes
 ) -> _FeedMetadata:
     """Extract feed metadata for metadata generation.
 
     Args:
         cfg: Configuration object
         feed: Parsed RssFeed object
+        rss_bytes: Raw RSS XML bytes (reused from initial fetch to avoid duplicate request)
 
     Returns:
         _FeedMetadata tuple
     """
-    if not cfg.generate_metadata or not cfg.rss_url:
-        return _FeedMetadata(None, None, None)
-
-    # Re-fetch RSS XML to extract feed metadata
-    # TODO: Cache RSS XML to avoid re-fetching
-    from . import downloader
-
-    resp = downloader.fetch_url(cfg.rss_url, cfg.user_agent, cfg.timeout, stream=False)
-    if not resp:
+    if not cfg.generate_metadata or not rss_bytes:
         return _FeedMetadata(None, None, None)
 
     try:
-        rss_bytes = resp.content
         feed_description, feed_image_url, feed_last_updated = extract_feed_metadata(
             rss_bytes, feed.base_url
         )
         return _FeedMetadata(feed_description, feed_image_url, feed_last_updated)
-    finally:
-        resp.close()
+    except Exception as exc:
+        logger.debug("Failed to extract feed metadata: %s", exc)
+        return _FeedMetadata(None, None, None)
 
 
 def _prepare_episodes_from_feed(feed: models.RssFeed, cfg: config.Config) -> List[models.Episode]:
@@ -606,7 +628,7 @@ def _detect_feed_hosts_and_patterns(
                     len(validated_hosts),
                 )
                 if validated_hosts:
-                    logger.info(
+                    logger.debug(
                         "Validated hosts (appear in feed and first episode): %s",
                         list(validated_hosts),
                     )
@@ -628,7 +650,7 @@ def _detect_feed_hosts_and_patterns(
         logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
         logger.info("=" * 60)
     elif cfg.auto_speakers:
-        logger.info("No hosts detected from feed metadata")
+        logger.debug("No hosts detected from feed metadata")
 
     # Analyze patterns from first few episodes to extract heuristics
     if cfg.auto_speakers and episodes:
@@ -754,7 +776,7 @@ def _prepare_episode_download_args(
                 # Use detected hosts if available, otherwise use manual host
                 if detected_hosts_set:
                     fallback_names = list(detected_hosts_set) + [manual_guest]
-                    logger.info(
+                    logger.debug(
                         "  → Guest detection failed, using manual guest fallback: %s (hosts: %s)",
                         manual_guest,
                         ", ".join(detected_hosts_set),
@@ -762,7 +784,7 @@ def _prepare_episode_download_args(
                 else:
                     # No hosts detected either, use both manual names
                     fallback_names = [manual_host, manual_guest]
-                    logger.info(
+                    logger.debug(
                         "  → Detection failed, using manual fallback: %s, %s",
                         manual_host,
                         manual_guest,
@@ -1088,7 +1110,7 @@ def _cleanup_pipeline(temp_dir: Optional[str]) -> None:
     if temp_dir and os.path.exists(temp_dir):
         try:
             shutil.rmtree(temp_dir)
-            logger.info(f"Cleaned up temp directory: {temp_dir}")
+            logger.debug(f"Cleaned up temp directory: {temp_dir}")
         except OSError as exc:
             logger.debug(f"Failed to remove temp directory {temp_dir}: {exc}")
 
@@ -1314,6 +1336,9 @@ def _parallel_episode_summarization(
     This function identifies episodes that have transcripts but may not have summaries yet,
     and processes them in parallel for better performance.
 
+    Each worker thread gets its own model instance to ensure thread safety, as HuggingFace
+    pipelines/models are not thread-safe and cannot be shared across threads.
+
     Args:
         episodes: List of Episode objects
         feed: Parsed RssFeed object
@@ -1322,7 +1347,7 @@ def _parallel_episode_summarization(
         run_suffix: Optional run suffix
         feed_metadata: Feed metadata tuple
         host_detection_result: Host detection result
-        summary_model: Pre-loaded summary model
+        summary_model: Pre-loaded summary model (used for configuration, each worker loads its own)
     """
     import os
 
@@ -1386,18 +1411,25 @@ def _parallel_episode_summarization(
 
     logger.info(f"Processing summarization for {len(episodes_to_summarize)} episodes in parallel")
 
+    # Extract model configuration from the pre-loaded model
+    # Each worker will load its own model instance for thread safety
+    model_name = summary_model.model_name
+    model_device = summary_model.device
+    model_cache_dir = summary_model.cache_dir
+    model_revision = getattr(summary_model, "revision", None)
+
     # Determine number of workers based on device
     # GPU: Limited parallelism (2 workers max due to memory)
     # CPU: Can use more workers (up to 4)
     max_workers = 1
-    if summary_model.device == "cpu":
+    if model_device == "cpu":
         max_workers = min(cfg.summary_batch_size or 1, 4, len(episodes_to_summarize))
-    elif summary_model.device in ("mps", "cuda"):
+    elif model_device in ("mps", "cuda"):
         # Very limited parallelism for GPU (2 max)
         max_workers = min(2, len(episodes_to_summarize))
 
     if max_workers <= 1:
-        # Sequential processing
+        # Sequential processing - reuse existing model
         for episode, transcript_path, metadata_path, detected_names in episodes_to_summarize:
             _summarize_single_episode(
                 episode=episode,
@@ -1414,40 +1446,136 @@ def _parallel_episode_summarization(
                 pipeline_metrics=pipeline_metrics,
             )
     else:
-        # Parallel processing
-        logger.info(f"Using {max_workers} workers for parallel episode summarization")
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = []
-            for episode, transcript_path, metadata_path, detected_names in episodes_to_summarize:
-                future = executor.submit(
-                    _summarize_single_episode,
-                    episode=episode,
-                    transcript_path=transcript_path,
-                    metadata_path=metadata_path,
-                    feed=feed,
-                    cfg=cfg,
-                    effective_output_dir=effective_output_dir,
-                    run_suffix=run_suffix,
-                    feed_metadata=feed_metadata,
-                    host_detection_result=host_detection_result,
-                    summary_model=summary_model,
-                    detected_names=detected_names,
-                    pipeline_metrics=pipeline_metrics,
-                )
-                futures.append(future)
+        # Parallel processing - each worker gets its own model instance
+        logger.debug(
+            f"Using {max_workers} workers for parallel episode summarization "
+            f"(pre-loading {max_workers} model instances for thread safety)"
+        )
 
-            # Wait for all to complete and log progress
-            completed = 0
-            for future in as_completed(futures):
-                completed += 1
+        # Pre-load model instances for all workers before starting parallel execution
+        # This ensures all models are ready upfront and avoids lazy-loading overhead
+        from . import summarizer  # noqa: PLC0415
+
+        worker_models = []
+        model_kwargs = {
+            "model_name": model_name,
+            "device": model_device,
+            "cache_dir": model_cache_dir,
+        }
+        if model_revision:
+            model_kwargs["revision"] = model_revision
+
+        logger.debug(f"Pre-loading {max_workers} model instances...")
+        for i in range(max_workers):
+            try:
+                logger.debug(f"Loading model instance {i+1}/{max_workers} for worker thread")
+                worker_model = summarizer.SummaryModel(**model_kwargs)
+                worker_models.append(worker_model)
+            except Exception as e:
+                logger.error(f"Failed to load model instance {i+1}/{max_workers}: {e}")
+                # If we can't load all models, fall back to sequential processing
+                # First, unload any models that were successfully loaded to prevent memory leak
+                logger.warning("Falling back to sequential processing due to model loading failure")
+                if worker_models:
+                    logger.debug(
+                        f"Unloading {len(worker_models)} successfully loaded model(s) before fallback"
+                    )
+                    for worker_model in worker_models:
+                        try:
+                            summarizer.unload_model(worker_model)
+                        except Exception as unload_error:
+                            logger.debug(
+                                f"Error unloading worker model during fallback: {unload_error}"
+                            )
+                # Now proceed with sequential processing using the original model
+                for (
+                    episode,
+                    transcript_path,
+                    metadata_path,
+                    detected_names,
+                ) in episodes_to_summarize:
+                    _summarize_single_episode(
+                        episode=episode,
+                        transcript_path=transcript_path,
+                        metadata_path=metadata_path,
+                        feed=feed,
+                        cfg=cfg,
+                        effective_output_dir=effective_output_dir,
+                        run_suffix=run_suffix,
+                        feed_metadata=feed_metadata,
+                        host_detection_result=host_detection_result,
+                        summary_model=summary_model,
+                        detected_names=detected_names,
+                        pipeline_metrics=pipeline_metrics,
+                    )
+                return
+
+        logger.debug(f"Successfully pre-loaded {len(worker_models)} model instances")
+
+        # Use thread-local storage to assign pre-loaded models to worker threads
+        # Each worker thread gets one model from the pre-loaded pool
+        thread_local = threading.local()
+        model_index = [0]  # Use list to allow modification in nested function
+        model_index_lock = threading.Lock()
+
+        def _get_worker_model():
+            """Get pre-loaded model instance for current worker thread."""
+            if not hasattr(thread_local, "model"):
+                with model_index_lock:
+                    if model_index[0] < len(worker_models):
+                        thread_local.model = worker_models[model_index[0]]
+                        model_index[0] += 1
+                    else:
+                        # Fallback: reuse last model (shouldn't happen with proper worker count)
+                        thread_local.model = worker_models[-1]
+            return thread_local.model
+
+        def _summarize_with_worker_model(args):
+            """Wrapper to get worker-specific model and summarize episode."""
+            episode, transcript_path, metadata_path, detected_names = args
+            worker_model = _get_worker_model()
+            _summarize_single_episode(
+                episode=episode,
+                transcript_path=transcript_path,
+                metadata_path=metadata_path,
+                feed=feed,
+                cfg=cfg,
+                effective_output_dir=effective_output_dir,
+                run_suffix=run_suffix,
+                feed_metadata=feed_metadata,
+                host_detection_result=host_detection_result,
+                summary_model=worker_model,
+                detected_names=detected_names,
+                pipeline_metrics=pipeline_metrics,
+            )
+
+        try:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = []
+                for episode_data in episodes_to_summarize:
+                    future = executor.submit(_summarize_with_worker_model, episode_data)
+                    futures.append(future)
+
+                # Wait for all to complete and log progress
+                completed = 0
+                for future in as_completed(futures):
+                    completed += 1
+                    try:
+                        future.result()
+                        if completed % 5 == 0 or completed == len(futures):
+                            logger.info(
+                                f"Completed summarization for {completed}/{len(futures)} episodes"
+                            )
+                    except Exception as e:
+                        logger.error(f"Error during parallel summarization: {e}")
+        finally:
+            # Cleanup: unload all worker models
+            logger.debug("Unloading worker model instances...")
+            for worker_model in worker_models:
                 try:
-                    future.result()
-                    if completed % 5 == 0 or completed == len(futures):
-                        logger.info(
-                            f"Completed summarization for {completed}/{len(futures)} episodes"
-                        )
+                    summarizer.unload_model(worker_model)
                 except Exception as e:
-                    logger.error(f"Error during parallel summarization: {e}")
+                    logger.debug(f"Error unloading worker model: {e}")
 
 
 def _summarize_single_episode(

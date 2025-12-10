@@ -112,7 +112,7 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
             logger.debug("Loaded spaCy model (full pipeline): %s", model_name)
         return nlp
     except OSError:
-        logger.info("spaCy model '%s' not found locally, attempting to download...", model_name)
+        logger.debug("spaCy model '%s' not found locally, attempting to download...", model_name)
         try:
             # Use subprocess to call 'python -m spacy download' (most reliable method)
             # This ensures we use the same Python interpreter and environment
@@ -123,7 +123,7 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
                 text=True,
                 check=True,
             )
-            logger.info("Successfully downloaded spaCy model: %s", model_name)
+            logger.debug("Successfully downloaded spaCy model: %s", model_name)
             # Now try loading again with disabled components for memory efficiency
             try:
                 nlp = spacy.load(model_name, disable=["parser", "tagger", "lemmatizer"])
@@ -769,7 +769,7 @@ def detect_speaker_names(
 
     nlp = get_ner_model(cfg)
     if not nlp:
-        logger.info("spaCy model not available, detection failed")
+        logger.debug("spaCy model not available, detection failed")
         return DEFAULT_SPEAKER_NAMES.copy(), set(), False
 
     # Use cached/known hosts, but do NOT detect hosts from episode metadata

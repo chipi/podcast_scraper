@@ -1,0 +1,149 @@
+name: Snyk Security Scan
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - 'requirements.txt'
+      - 'docker/**'
+      - 'Dockerfile'
+    paths-ignore:
+      - '.github/workflows/**'  # Workflow changes handled by codeql.yml
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - 'requirements.txt'
+      - 'docker/**'
+      - 'Dockerfile'
+    paths-ignore:
+      - '.github/workflows/**'  # Workflow changes handled by codeql.yml
+  schedule:
+    # Run weekly on Mondays at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # Scan Python dependencies
+  snyk-dependencies:
+    name: Snyk - Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+      
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/python@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=requirements.txt --sarif-file-output=snyk.sarif
+      
+      - name: Upload Snyk results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk.sarif
+          wait-for-processing: true
+        continue-on-error: true
+
+  # Scan Docker image
+  snyk-docker:
+    name: Snyk - Docker
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
+          docker image prune -af || true
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:latest
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: false
+          load: true
+          tags: podcast-scraper:snyk-scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Verify Docker image exists
+        run: |
+          docker images | grep podcast-scraper || echo "Image not found"
+          docker inspect podcast-scraper:snyk-scan || echo "Image inspection failed"
+      
+      - name: Run Snyk to check Docker image for vulnerabilities
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: podcast-scraper:snyk-scan
+          args: --severity-threshold=high --sarif-file-output=snyk-docker.sarif
+      
+      - name: Upload Snyk Docker results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        with:
+          sarif_file: snyk-docker.sarif
+          wait-for-processing: true
+        continue-on-error: true
+
+  # Monitor dependencies (for PRs and scheduled runs)
+  snyk-monitor:
+    name: Snyk - Monitor
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+      
+      - name: Run Snyk to monitor project
+        uses: snyk/actions/python@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: monitor
+          args: --file=requirements.txt
