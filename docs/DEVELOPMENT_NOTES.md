@@ -27,9 +27,16 @@ markdownlint --fix "**/*.md" --ignore node_modules --ignore .venv --ignore .buil
    - ❌ Bad: `|Column1|Column2|`
    - ✅ Good: `| Column1 | Column2 |`
 
-2. **Aligned style**: Table separator row must align with header
-   - ❌ Bad: `| Header |` followed by `|-------|` (misaligned)
-   - ✅ Good: `| Header |` followed by `| ------ |` (aligned)
+2. **Aligned style**: ALL rows (header, separator, and data) must have pipes at the same column positions
+   - ❌ Bad: `| Header |` followed by `|-------|` (separator misaligned)
+   - ❌ Bad: `| Header |` followed by `| Value |` (data row pipes don't align)
+   - ✅ Good: All pipes align vertically:
+
+     ```markdown
+     | Header | Column2 |
+     | ------ | ------- |
+     | Value  | Data    |
+     ```
 
 3. **Compact style separator**: No spaces around pipes in separator row
    - ❌ Bad: `| Header |` followed by `| -------- |` (has spaces)
