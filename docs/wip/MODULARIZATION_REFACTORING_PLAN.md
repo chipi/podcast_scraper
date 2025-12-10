@@ -548,10 +548,17 @@ class SummarizationProviderFactory:
 
 #### Phase 2: Refactor Current Implementation - Summarization
 
-1. **Refactor `summarizer.py` → `summarization/local_provider.py`:**
+1. **Extract Preprocessing to Shared Module:**
+   - Create `podcast_scraper/preprocessing.py` module
+   - Move `clean_transcript()`, `remove_sponsor_blocks()`, `clean_for_summarization()` from `summarizer.py`
+   - These functions are provider-agnostic and should be called BEFORE provider selection
+   - Update `metadata.py` to use shared preprocessing module
+
+2. **Refactor `summarizer.py` → `summarization/local_provider.py`:**
    - Keep all current logic
    - Implement `SummarizationProvider` protocol
    - Wrap existing `SummaryModel` class as provider
+   - Remove preprocessing functions (moved to shared module)
    - Extract helper functions from `metadata.py`:
      - `_build_feed_metadata()` - Construct FeedMetadata
      - `_build_episode_metadata()` - Construct EpisodeMetadata

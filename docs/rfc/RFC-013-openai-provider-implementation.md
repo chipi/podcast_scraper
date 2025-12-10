@@ -40,6 +40,47 @@ Requirements:
 
 ## Design & Implementation
 
+### 0. Preprocessing Strategy (Provider-Agnostic)
+
+**Key Principle**: All preprocessing steps should be provider-agnostic and applied BEFORE passing data to any provider (local or OpenAI).
+
+**Current Preprocessing Steps:**
+
+1. **Transcript Cleaning** (for summarization):
+   - Remove timestamps `[00:12:34]` (language-agnostic)
+   - Remove generic speaker tags (`Speaker 1:`, `Host:`, etc.) while preserving actual names
+   - Collapse excessive blank lines
+   - Optionally remove filler words (disabled by default for multi-language support)
+
+2. **Sponsor Block Removal** (for summarization):
+   - Remove sponsor/advertisement blocks
+   - Remove outro blocks (subscription prompts, etc.)
+
+3. **Name Sanitization** (for speaker detection):
+   - Remove parentheses, punctuation
+   - Normalize whitespace
+   - Preserve actual speaker names
+
+**Implementation Location:**
+
+- Preprocessing happens in `metadata.py` BEFORE calling providers
+- Functions like `clean_transcript()` and `remove_sponsor_blocks()` are in `summarizer.py` but are provider-agnostic utilities
+- After modularization, these should remain in a shared preprocessing module or utility functions
+
+**Benefits:**
+
+- ✅ Consistent preprocessing regardless of provider
+- ✅ More efficient (do once, not per provider)
+- ✅ Easier to maintain (single implementation)
+- ✅ Providers receive clean, standardized input
+
+**After Modularization:**
+
+- Preprocessing functions should be moved to a shared module (e.g., `podcast_scraper/preprocessing.py`)
+- Called in `metadata.py` or `workflow.py` BEFORE provider selection
+- All providers (local and OpenAI) receive preprocessed text
+- No provider-specific preprocessing needed
+
 ### 1. Architecture Overview
 
 Build on the provider abstraction from modularization refactoring:
