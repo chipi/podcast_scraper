@@ -18,7 +18,6 @@ on:
       - 'docs/wip/**'
       - 'docs/javascripts/**'
       - 'mkdocs.yml'
-      - '.github/workflows/docs.yml'
       - '**.py'  # Python files for API docs (mkdocstrings)
       - 'README.md'
   pull_request:
@@ -36,7 +35,6 @@ on:
       - 'docs/wip/**'
       - 'docs/javascripts/**'
       - 'mkdocs.yml'
-      - '.github/workflows/docs.yml'
       - '**.py'  # Python files for API docs (mkdocstrings)
       - 'README.md'
   workflow_dispatch:

@@ -9,7 +9,6 @@ on:
       - 'requirements.txt'
       - 'pyproject.toml'
       - '*.py'
-      - '.github/workflows/docker.yml'
   pull_request:
     branches: [ "main" ]
     paths:
@@ -18,7 +17,6 @@ on:
       - 'requirements.txt'
       - 'pyproject.toml'
       - '*.py'
-      - '.github/workflows/docker.yml'
 
 permissions:
   contents: read

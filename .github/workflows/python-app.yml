@@ -13,7 +13,6 @@ on:
       - 'requirements.txt'
       - 'Makefile'
       - 'docker/**'
-      - '.github/workflows/python-app.yml'
   pull_request:
     branches: [ "main" ]
     paths:
@@ -23,7 +22,6 @@ on:
       - 'requirements.txt'
       - 'Makefile'
       - 'docker/**'
-      - '.github/workflows/python-app.yml'
 
 permissions:
   contents: read

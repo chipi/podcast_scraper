@@ -9,7 +9,6 @@ on:
       - 'requirements.txt'
       - 'docker/**'
       - 'Dockerfile'
-      - '.github/workflows/snyk.yml'
   pull_request:
     branches: [ "main" ]
     paths:
@@ -18,7 +17,6 @@ on:
       - 'requirements.txt'
       - 'docker/**'
       - 'Dockerfile'
-      - '.github/workflows/snyk.yml'
   schedule:
     # Run weekly on Mondays at 00:00 UTC
     - cron: '0 0 * * 1'
