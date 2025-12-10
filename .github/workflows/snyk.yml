@@ -9,6 +9,8 @@ on:
       - 'requirements.txt'
       - 'docker/**'
       - 'Dockerfile'
+    paths-ignore:
+      - '.github/workflows/**'  # Workflow changes handled by codeql.yml
   pull_request:
     branches: [ "main" ]
     paths:
@@ -17,6 +19,8 @@ on:
       - 'requirements.txt'
       - 'docker/**'
       - 'Dockerfile'
+    paths-ignore:
+      - '.github/workflows/**'  # Workflow changes handled by codeql.yml
   schedule:
     # Run weekly on Mondays at 00:00 UTC
     - cron: '0 0 * * 1'
