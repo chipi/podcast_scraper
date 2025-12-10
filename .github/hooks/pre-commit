@@ -93,16 +93,25 @@ else
     echo ""
 fi
 
-# Check markdown linting (only if markdownlint is installed and there are markdown files)
+# Check markdown linting (required when markdown files are staged)
 if [ -n "$STAGED_MARKDOWN" ]; then
     if command -v markdownlint >/dev/null 2>&1; then
         MARKDOWN_FILES=$(echo "$STAGED_MARKDOWN" | tr '\n' ' ')
         run_check "Markdown linting" "markdownlint $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build"
     else
-        echo -e "${YELLOW}⚠${NC} markdownlint not found, skipping markdown checks"
-        echo "  Install with: npm install -g markdownlint-cli"
+        echo -e "${RED}✗${NC} markdownlint not found but markdown files are staged"
         echo ""
+        echo "Markdown linting is required when committing markdown files."
+        echo "Install markdownlint with:"
+        echo "  npm install -g markdownlint-cli"
+        echo ""
+        echo "Or skip this check with: git commit --no-verify"
+        echo ""
+        ERRORS=$((ERRORS + 1))
     fi
+else
+    echo -e "${YELLOW}⚠${NC} No markdown files staged, skipping markdown checks"
+    echo ""
 fi
 
 # Summary
