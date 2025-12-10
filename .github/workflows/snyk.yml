@@ -54,7 +54,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high --file=requirements.txt --json-file-output=snyk-results.json
+          args: --severity-threshold=high --file=requirements.txt --sarif-file-output=snyk.sarif
       
       - name: Upload Snyk results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
@@ -97,13 +97,13 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: podcast-scraper:snyk-scan
-          args: --severity-threshold=high --json-file-output=snyk-docker-results.json
+          args: --severity-threshold=high --sarif-file-output=snyk-docker.sarif
       
-      - name: Upload Snyk results to GitHub Code Scanning
+      - name: Upload Snyk Docker results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: snyk.sarif
+          sarif_file: snyk-docker.sarif
           wait-for-processing: true
         continue-on-error: true
 
