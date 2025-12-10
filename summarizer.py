@@ -2,6 +2,20 @@
 
 This module provides functionality to generate concise summaries
 from episode transcripts using local PyTorch transformer models.
+
+Security Considerations:
+- Model Loading: Uses Hugging Face transformers library to load pre-trained models
+- Supply Chain Risk: Models are loaded from Hugging Face Hub (third-party source)
+- Mitigation Strategies:
+  1. TRUSTED_MODEL_SOURCES: Whitelist of verified model publishers
+  2. Model Validation: _validate_model_source() warns about untrusted sources
+  3. Revision Pinning: Optional revision parameter for reproducible builds
+  4. User Choice: Warnings issued but custom models still allowed
+- Recommendations:
+  * Use default models (e.g., 'bart-large', 'fast') from trusted sources
+  * Pin model revisions in production: SummaryModel(model, revision="abc123")
+  * Review model source before using custom models
+  * Keep transformers library updated for security patches
 """
 
 import logging
@@ -214,6 +228,16 @@ LENGTH_PENALTY = (
 # Note: BART models have 1024 token limit, requiring chunking for long texts
 # PEGASUS models were trained directly for summarization, 1024 token limit
 # LED (Longformer) models support up to 16k tokens, eliminating need for chunking
+# Trusted model sources - these are verified, well-known models from reputable organizations
+# Security: Using models from these sources reduces supply chain risks
+# Users can override with custom models, but will receive security warnings
+TRUSTED_MODEL_SOURCES = {
+    "facebook",  # Meta AI (BART models)
+    "google",  # Google Research (PEGASUS, T5 models)
+    "sshleifer",  # Sam Shleifer (DistilBART - widely used)
+    "allenai",  # Allen Institute for AI (LED models)
+}
+
 DEFAULT_SUMMARY_MODELS = {
     # BART-large (best quality, ~2GB memory), 1024 token limit
     "bart-large": "facebook/bart-large-cnn",
@@ -239,6 +263,49 @@ DEFAULT_SUMMARY_PROMPT = (
     "Only include information that is explicitly stated in the transcript. "
     "Do not add, infer, or invent any information not present in the original text:"
 )
+
+
+def _validate_model_source(model_name: str) -> None:
+    """Validate model source and warn if not from trusted sources.
+
+    Security: This function checks if a model comes from a known trusted source
+    to mitigate supply chain risks. Custom models from unknown sources will
+    trigger a warning but are still allowed (user choice).
+
+    Args:
+        model_name: Model identifier (e.g., "facebook/bart-large-cnn")
+
+    Note:
+        - Logs INFO for default trusted models
+        - Logs WARNING for custom models from untrusted sources
+        - Does not block loading (respects user choice)
+    """
+    # Check if model is from a trusted source
+    if "/" in model_name:
+        source = model_name.split("/")[0]
+        if source in TRUSTED_MODEL_SOURCES:
+            logger.debug(
+                f"Loading model from trusted source: {source} "
+                f"(verified in TRUSTED_MODEL_SOURCES)"
+            )
+        else:
+            logger.warning(
+                f"Loading model from custom source: {source}\n"
+                f"    ⚠️  SECURITY NOTICE:\n"
+                f"    This model is not from a pre-verified trusted source.\n"
+                f"    Trusted sources: {', '.join(sorted(TRUSTED_MODEL_SOURCES))}\n"
+                f"    Only use models from sources you trust.\n"
+                f"    Consider using default models (e.g., 'bart-large', 'fast') for "
+                f"better security."
+            )
+    else:
+        # Local model or non-standard identifier
+        logger.warning(
+            f"Loading model with non-standard identifier: {model_name}\n"
+            f"    ⚠️  SECURITY NOTICE:\n"
+            f"    Unable to verify model source.\n"
+            f"    Only load models from sources you trust."
+        )
 
 
 def clean_transcript(
@@ -455,16 +522,24 @@ class SummaryModel:
         model_name: str,
         device: Optional[str] = None,
         cache_dir: Optional[str] = None,
+        revision: Optional[str] = None,
     ):
         """Initialize summary model.
 
         Args:
-            model_name: Hugging Face model identifier
+            model_name: Hugging Face model identifier (e.g., "facebook/bart-large-cnn")
             device: Device to use ("cuda", "mps", "cpu", or None for auto-detection)
             cache_dir: Custom cache directory for model files
+            revision: Specific model revision/commit hash for reproducibility and security.
+                     Example: "main" or a specific commit hash like "abc123def456"
+                     If None, uses the latest version (less secure but more convenient)
         """
         self.model_name = model_name
+        self.revision = revision
         self.device = self._detect_device(device)
+
+        # Security: Validate model source before loading
+        _validate_model_source(model_name)
         # Use provided cache_dir or default to standard Hugging Face cache location
         # Transformers will automatically use this directory for caching
         if cache_dir:
@@ -520,24 +595,32 @@ class SummaryModel:
             logger.debug(f"Cache directory: {self.cache_dir}")
 
             # Load tokenizer
-            # Note: Model versions are managed by Hugging Face cache
-            # Users can pin versions by specifying model_name with revision (e.g., "model@revision")
-            # Transformers automatically caches models - won't be re-downloaded if cached
+            # Security: Revision pinning provides reproducibility and prevents supply chain attacks
+            # If revision is None, latest version is used (less secure but more convenient)
             logger.debug("Loading tokenizer (will use cache if available)...")
-            # Revision pinning optional; relying on cache integrity
+            tokenizer_kwargs = {
+                "cache_dir": self.cache_dir,
+            }
+            if self.revision:
+                tokenizer_kwargs["revision"] = self.revision
+                logger.debug(f"Using pinned revision: {self.revision}")
             self.tokenizer = AutoTokenizer.from_pretrained(  # nosec B615
                 self.model_name,
-                cache_dir=self.cache_dir,
+                **tokenizer_kwargs,
             )
 
             # Load model
-            # Note: Model versions are managed by Hugging Face cache
-            # Users can pin versions by specifying model_name with revision (e.g., "model@revision")
+            # Security: Revision pinning provides reproducibility and prevents supply chain attacks
+            # If revision is None, latest version is used (less secure but more convenient)
             logger.debug("Loading model (will use cache if available)...")
-            # Revision pinning optional; relying on cache integrity
+            model_kwargs = {
+                "cache_dir": self.cache_dir,
+            }
+            if self.revision:
+                model_kwargs["revision"] = self.revision
             self.model = AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
                 self.model_name,
-                cache_dir=self.cache_dir,
+                **model_kwargs,
             )
             logger.info("Model loaded successfully (cached for future runs)")
 

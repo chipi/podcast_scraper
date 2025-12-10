@@ -63,6 +63,83 @@ class _TranscriptionResources(NamedTuple):
     saved_counter_lock: Optional[threading.Lock]
 
 
+def _update_metric_safely(
+    pipeline_metrics: metrics.Metrics,
+    metric_name: str,
+    value: int,
+    lock: Optional[threading.Lock] = None,
+) -> None:
+    """Update a metric value in a thread-safe manner.
+
+    Args:
+        pipeline_metrics: Metrics object to update
+        metric_name: Name of the metric attribute to update
+        value: Value to add to the metric
+        lock: Optional lock for thread safety
+    """
+    if lock:
+        with lock:
+            setattr(pipeline_metrics, metric_name, getattr(pipeline_metrics, metric_name) + value)
+    else:
+        setattr(pipeline_metrics, metric_name, getattr(pipeline_metrics, metric_name) + value)
+
+
+def _call_generate_metadata(
+    episode: models.Episode,
+    feed: models.RssFeed,
+    cfg: config.Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    transcript_path: Optional[str],
+    transcript_source: Optional[Literal["direct_download", "whisper_transcription"]],
+    whisper_model: Optional[str],
+    feed_metadata: _FeedMetadata,
+    host_detection_result: _HostDetectionResult,
+    detected_names: Optional[List[str]],
+    summary_model,
+    pipeline_metrics: metrics.Metrics,
+) -> None:
+    """Call _generate_episode_metadata with common parameters.
+
+    This helper reduces code duplication by centralizing the metadata generation call.
+
+    Args:
+        episode: Episode object
+        feed: RssFeed object
+        cfg: Configuration object
+        effective_output_dir: Output directory path
+        run_suffix: Optional run suffix
+        transcript_path: Path to transcript file
+        transcript_source: Source of transcript (direct_download or whisper_transcription)
+        whisper_model: Whisper model name if used
+        feed_metadata: Feed metadata tuple
+        host_detection_result: Host detection result
+        detected_names: Detected guest names
+        summary_model: Summary model instance
+        pipeline_metrics: Metrics object
+    """
+    _generate_episode_metadata(
+        feed=feed,
+        episode=episode,
+        feed_url=cfg.rss_url or "",
+        cfg=cfg,
+        output_dir=effective_output_dir,
+        run_suffix=run_suffix,
+        transcript_file_path=transcript_path,
+        transcript_source=transcript_source,
+        whisper_model=whisper_model,
+        detected_hosts=(
+            list(host_detection_result.cached_hosts) if host_detection_result.cached_hosts else None
+        ),
+        detected_guests=detected_names if detected_names else None,
+        feed_description=feed_metadata.description,
+        feed_image_url=feed_metadata.image_url,
+        feed_last_updated=feed_metadata.last_updated,
+        summary_model=summary_model,
+        pipeline_metrics=pipeline_metrics,
+    )
+
+
 def apply_log_level(level: str, log_file: Optional[str] = None) -> None:
     """Apply logging level to root logger and configure handlers.
 
@@ -776,18 +853,20 @@ def _process_episodes(
                     )
                 )
                 if bytes_downloaded:
-                    pipeline_metrics.bytes_downloaded_total += bytes_downloaded
+                    _update_metric_safely(
+                        pipeline_metrics, "bytes_downloaded_total", bytes_downloaded
+                    )
                 if success:
                     saved += 1
                     # Track transcript source
                     if transcript_source == "direct_download":
-                        pipeline_metrics.transcripts_downloaded += 1
+                        _update_metric_safely(pipeline_metrics, "transcripts_downloaded", 1)
                     logger.debug("Episode %s yielded transcript (saved=%s)", episode.idx, saved)
                 elif transcript_path is None and transcript_source is None:
                     # Episode was skipped (skip_existing)
-                    pipeline_metrics.episodes_skipped_total += 1
+                    _update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
             except Exception as exc:  # pragma: no cover
-                pipeline_metrics.errors_total += 1
+                _update_metric_safely(pipeline_metrics, "errors_total", 1)
                 logger.error(
                     f"[{episode.idx}] episode processing raised an unexpected error: {exc}"
                 )
@@ -800,25 +879,18 @@ def _process_episodes(
                     Optional[Literal["direct_download", "whisper_transcription"]],
                     transcript_source,
                 )
-                _generate_episode_metadata(
-                    feed=feed,
+                _call_generate_metadata(
                     episode=episode,
-                    feed_url=cfg.rss_url or "",
+                    feed=feed,
                     cfg=cfg,
-                    output_dir=output_dir_arg,
+                    effective_output_dir=output_dir_arg,
                     run_suffix=run_suffix_arg,
-                    transcript_file_path=transcript_path,
+                    transcript_path=transcript_path,
                     transcript_source=transcript_source_typed,
                     whisper_model=None,  # Will be updated after transcription
-                    detected_hosts=(
-                        list(host_detection_result.cached_hosts)
-                        if host_detection_result.cached_hosts
-                        else None
-                    ),
-                    detected_guests=detected_names if detected_names else None,
-                    feed_description=feed_metadata.description,
-                    feed_image_url=feed_metadata.image_url,
-                    feed_last_updated=feed_metadata.last_updated,
+                    feed_metadata=feed_metadata,
+                    host_detection_result=host_detection_result,
+                    detected_names=detected_names,
                     summary_model=summary_model,
                     pipeline_metrics=pipeline_metrics,
                 )
@@ -845,29 +917,28 @@ def _process_episodes(
                 try:
                     success, transcript_path, transcript_source, bytes_downloaded = future.result()
                     if bytes_downloaded:
-                        if saved_counter_lock:
-                            with saved_counter_lock:
-                                pipeline_metrics.bytes_downloaded_total += bytes_downloaded
-                        else:
-                            pipeline_metrics.bytes_downloaded_total += bytes_downloaded
+                        _update_metric_safely(
+                            pipeline_metrics,
+                            "bytes_downloaded_total",
+                            bytes_downloaded,
+                            saved_counter_lock,
+                        )
                     if success:
                         if saved_counter_lock:
                             with saved_counter_lock:
                                 saved += 1
-                                if transcript_source == "direct_download":
-                                    pipeline_metrics.transcripts_downloaded += 1
                         else:
                             saved += 1
-                            if transcript_source == "direct_download":
-                                pipeline_metrics.transcripts_downloaded += 1
+                        if transcript_source == "direct_download":
+                            _update_metric_safely(
+                                pipeline_metrics, "transcripts_downloaded", 1, saved_counter_lock
+                            )
                         logger.debug("Episode %s yielded transcript (saved=%s)", idx, saved)
                     elif transcript_path is None and transcript_source is None:
                         # Episode was skipped (skip_existing)
-                        if saved_counter_lock:
-                            with saved_counter_lock:
-                                pipeline_metrics.episodes_skipped_total += 1
-                        else:
-                            pipeline_metrics.episodes_skipped_total += 1
+                        _update_metric_safely(
+                            pipeline_metrics, "episodes_skipped_total", 1, saved_counter_lock
+                        )
 
                     # Generate metadata if enabled and transcript_source is available
                     # Skip if transcript_source is None (Whisper pending) - will be generated
@@ -885,32 +956,23 @@ def _process_episodes(
                                 Optional[Literal["direct_download", "whisper_transcription"]],
                                 transcript_source,
                             )
-                            _generate_episode_metadata(
-                                feed=feed,
+                            _call_generate_metadata(
                                 episode=episode_obj,
-                                feed_url=cfg.rss_url or "",
+                                feed=feed,
                                 cfg=cfg,
-                                output_dir=effective_output_dir,
+                                effective_output_dir=effective_output_dir,
                                 run_suffix=run_suffix,
-                                transcript_file_path=transcript_path,
+                                transcript_path=transcript_path,
                                 transcript_source=transcript_source_typed,
                                 whisper_model=None,  # Will be updated after transcription
-                                detected_hosts=(
-                                    list(host_detection_result.cached_hosts)
-                                    if host_detection_result.cached_hosts
-                                    else None
-                                ),
-                                detected_guests=(
-                                    detected_names_for_ep if detected_names_for_ep else None
-                                ),
-                                feed_description=feed_metadata.description,
-                                feed_image_url=feed_metadata.image_url,
-                                feed_last_updated=feed_metadata.last_updated,
+                                feed_metadata=feed_metadata,
+                                host_detection_result=host_detection_result,
+                                detected_names=detected_names_for_ep,
                                 summary_model=summary_model,
                                 pipeline_metrics=pipeline_metrics,
                             )
                 except Exception as exc:  # pragma: no cover
-                    pipeline_metrics.errors_total += 1
+                    _update_metric_safely(pipeline_metrics, "errors_total", 1, saved_counter_lock)
                     logger.error(f"[{idx}] episode processing raised an unexpected error: {exc}")
 
     return saved
@@ -968,10 +1030,12 @@ def _process_transcription_jobs(
                     pipeline_metrics=pipeline_metrics,
                 )
                 if bytes_downloaded:
-                    pipeline_metrics.bytes_downloaded_total += bytes_downloaded
+                    _update_metric_safely(
+                        pipeline_metrics, "bytes_downloaded_total", bytes_downloaded
+                    )
                 if success:
                     saved += 1
-                    pipeline_metrics.transcripts_transcribed += 1
+                    _update_metric_safely(pipeline_metrics, "transcripts_transcribed", 1)
 
                     # Generate metadata if enabled
                     if cfg.generate_metadata:
@@ -983,31 +1047,23 @@ def _process_transcription_jobs(
                                 if args[0].idx == job.idx:
                                     detected_names_for_ep = args[7]
                                     break
-                            _generate_episode_metadata(
-                                feed=feed,
+                            _call_generate_metadata(
                                 episode=episode_obj,
-                                feed_url=cfg.rss_url or "",
+                                feed=feed,
                                 cfg=cfg,
-                                output_dir=effective_output_dir,
+                                effective_output_dir=effective_output_dir,
                                 run_suffix=run_suffix,
-                                transcript_file_path=transcript_path,
+                                transcript_path=transcript_path,
                                 transcript_source="whisper_transcription",
                                 whisper_model=cfg.whisper_model,
-                                detected_hosts=(
-                                    list(host_detection_result.cached_hosts)
-                                    if host_detection_result.cached_hosts
-                                    else None
-                                ),
-                                detected_guests=(
-                                    detected_names_for_ep if detected_names_for_ep else None
-                                ),
-                                feed_description=feed_metadata.description,
-                                feed_image_url=feed_metadata.image_url,
-                                feed_last_updated=feed_metadata.last_updated,
+                                feed_metadata=feed_metadata,
+                                host_detection_result=host_detection_result,
+                                detected_names=detected_names_for_ep,
                                 summary_model=summary_model,
+                                pipeline_metrics=pipeline_metrics,
                             )
             except Exception as exc:  # pragma: no cover
-                pipeline_metrics.errors_total += 1
+                _update_metric_safely(pipeline_metrics, "errors_total", 1)
                 logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
 
             reporter.update(1)
