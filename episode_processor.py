@@ -205,7 +205,7 @@ def download_media_for_transcription(
     total_bytes = 0
     dl_elapsed = 0.0
     if cfg.reuse_media and os.path.exists(temp_media):
-        logger.info(f"    reusing existing media file: {temp_media}")
+        logger.debug(f"    reusing existing media file: {temp_media}")
         # Verify file size is reasonable (not empty or corrupted)
         try:
             file_size = os.path.getsize(temp_media)
@@ -226,7 +226,7 @@ def download_media_for_transcription(
                 if downloader.should_log_download_summary():
                     try:
                         mb = total_bytes / downloader.BYTES_PER_MB
-                        logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
+                        logger.debug(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
                     except (ValueError, ZeroDivisionError, TypeError) as exc:
                         logger.debug(f"    failed to format download size: {exc}")
         except OSError as exc:
@@ -402,7 +402,7 @@ def transcribe_media_to_text(
     # Log detected speaker names (hosts + guests) before transcription
     if job.detected_speaker_names:
         speaker_names_display = ", ".join(job.detected_speaker_names)
-        logger.info("    Speaker names for transcription: %s", speaker_names_display)
+        logger.debug("    Speaker names for transcription: %s", speaker_names_display)
 
     if whisper_model is None:
         logger.warning(

@@ -148,7 +148,7 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
             elif model_name.startswith("large"):
                 fallback_models.extend(["medium", "small", "base", "tiny"])
 
-    logger.info("Loading Whisper model: %s", model_name)
+    logger.debug("Loading Whisper model: %s", model_name)
     if len(fallback_models) > 1:
         logger.debug("Fallback chain: %s", fallback_models)
 
@@ -156,12 +156,12 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
     for attempt_model in fallback_models:
         try:
             if attempt_model != model_name:
-                logger.info(
+                logger.debug(
                     "Trying fallback Whisper model: %s (requested: %s)", attempt_model, model_name
                 )
             model = whisper_lib.load_model(attempt_model)
             if attempt_model != model_name:
-                logger.info(
+                logger.debug(
                     "Loaded fallback Whisper model: %s (requested %s was not available)",
                     attempt_model,
                     model_name,
@@ -183,7 +183,7 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
             is_cpu_device = device_type == "cpu"
             setattr(model, "_is_cpu_device", is_cpu_device)
             if is_cpu_device:
-                logger.info("Whisper is running on CPU; FP16 is unavailable so FP32 will be used.")
+                logger.debug("Whisper is running on CPU; FP16 is unavailable so FP32 will be used.")
             else:
                 logger.debug("Whisper model is using accelerator device type=%s", device_type)
             return model
@@ -232,7 +232,9 @@ def _intercept_whisper_progress(progress_reporter: progress.ProgressReporter):
 
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             # Suppress tqdm's own display
-            kwargs["file"] = open(os.devnull, "w")
+            # Store file handle to ensure it's closed properly
+            self._devnull_file = open(os.devnull, "w")
+            kwargs["file"] = self._devnull_file
             kwargs["disable"] = True  # Disable tqdm's display completely
             # Store total for percentage calculation
             self._whisper_total: Optional[int] = kwargs.get("total")
@@ -259,6 +261,22 @@ def _intercept_whisper_progress(progress_reporter: progress.ProgressReporter):
                 if remaining > 0:
                     progress_reporter.update(remaining)
             super().close()
+            # Explicitly close the devnull file handle to prevent descriptor leaks
+            if hasattr(self, "_devnull_file") and self._devnull_file:
+                try:
+                    self._devnull_file.close()
+                except Exception:  # nosec B110
+                    # Ignore errors during cleanup
+                    pass
+
+        def __del__(self) -> None:
+            """Safety net: ensure file handle is closed even if close() wasn't called."""
+            if hasattr(self, "_devnull_file") and self._devnull_file:
+                try:
+                    self._devnull_file.close()
+                except Exception:  # nosec B110
+                    # Ignore errors during cleanup
+                    pass
 
     # Temporarily replace tqdm.tqdm with our interceptor
     tqdm.tqdm = InterceptedTqdm
