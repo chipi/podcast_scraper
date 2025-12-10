@@ -13,6 +13,8 @@ Design and implement OpenAI API providers for speaker detection, transcription, 
 
 ## Problem Statement
 
+**Note:** For detailed model selection guidance and cost analysis, see `docs/prd/PRD-006-openai-provider-integration.md` section "OpenAI Model Selection and Cost Analysis".
+
 Users want the option to use OpenAI API for:
 
 1. **Speaker Detection**: Higher accuracy entity extraction using GPT models
@@ -30,7 +32,7 @@ Requirements:
 ## Constraints & Assumptions
 
 - **Prerequisite**: Modularization refactoring (MODULARIZATION_REFACTORING_PLAN.md) must be completed first
-- **Backward Compatibility**: Default providers (local) must remain unchanged
+- **Backward Compatibility**: Default providers (transformers/local) must remain unchanged
 - **API Key Security**: API keys must never be in source code or committed files
 - **Environment Support**: Must work in both development and production environments
 - **Rate Limits**: Must respect OpenAI API rate limits and implement retry logic
@@ -125,9 +127,9 @@ transcription_provider: Literal["whisper", "openai"] = Field(
 )
 
 # Summarization Provider
-summary_provider: Literal["local", "openai"] = Field(
-    default="local",
-    description="Summarization provider: 'local' (transformers) or 'openai' (GPT API)"
+summary_provider: Literal["transformers", "openai"] = Field(
+    default="transformers",
+    description="Summarization provider: 'transformers' (HuggingFace) or 'openai' (GPT API)"
 )
 
 # Keep existing fields for backward compatibility
@@ -866,7 +868,7 @@ class Config(BaseModel):
     # Public fields for provider selection
     speaker_detector_type: Literal["ner", "openai", "custom"] = Field(default="ner")
     transcription_provider: Literal["whisper", "openai", "custom"] = Field(default="whisper")
-    summary_provider: Literal["local", "openai", "custom"] = Field(default="local")
+    summary_provider: Literal["transformers", "openai", "custom"] = Field(default="transformers")
     
     # Contributors can extend with custom config fields
     custom_provider_config: Optional[Dict[str, Any]] = Field(default=None)
@@ -1220,10 +1222,10 @@ def test_custom_provider_protocol():
 
 ## Open Questions
 
-1. **Rate Limiting**: What are OpenAI API rate limits? Should we make rate limiter configurable?
+1. **Rate Limiting**: ~~What are OpenAI API rate limits? Should we make rate limiter configurable?~~ ✅ **RESOLVED** - See Appendix B
 2. **Cost Tracking**: Should we add cost tracking/monitoring?
 3. **Fallback**: Should we support fallback (try OpenAI, fallback to local)?
-4. **Model Selection**: Should model selection be more granular (different models for different tasks)?
+4. **Model Selection**: ~~Should model selection be more granular (different models for different tasks)?~~ ✅ **RESOLVED** - See PRD-006 and Appendix A
 5. **Plugin System**: Should we support external packages registering providers via entry points?
 
 ## Alternatives Considered
@@ -1246,3 +1248,442 @@ def test_custom_provider_protocol():
 - ✅ Error handling is clear and actionable
 - ✅ Default behavior (local providers) unchanged
 - ✅ Documentation complete and clear
+
+---
+
+## Future Documentation (Before Stage 6)
+
+The following documentation should be created during Stages 1-5 to support Stage 6 (OpenAI implementation):
+
+### 1. Testing Strategy Document (`docs/wip/TESTING_STRATEGY_MODULARIZATION.md`)
+
+**Purpose:** Provide concrete examples and patterns for testing providers
+
+**Contents:**
+
+- Protocol compliance test examples
+- Mock provider patterns
+- Integration test requirements
+- Performance benchmark baselines
+- Test data fixtures
+- Example test cases for each provider type
+
+**Example:**
+```python
+def test_summarization_provider_protocol_compliance():
+    """Verify provider implements SummarizationProvider protocol."""
+    provider = LocalSummarizationProvider(cfg)
+    
+    # Protocol interface check
+    assert hasattr(provider, 'initialize')
+    assert hasattr(provider, 'summarize')
+    assert hasattr(provider, 'cleanup')
+    
+    # Signature validation
+    import inspect
+    sig = inspect.signature(provider.summarize)
+    assert 'text' in sig.parameters
+    assert 'cfg' in sig.parameters
+    
+    # Return type validation
+    result = provider.summarize("test text", cfg)
+    assert isinstance(result, dict)
+    assert 'summary' in result
+```
+
+**Timeline:** Create during Stage 4 (Summarization abstraction)
+
+---
+
+### 2. Custom Provider Guide (`docs/CUSTOM_PROVIDER_GUIDE.md`)
+
+**Purpose:** Enable external contributors to create custom providers
+
+**Contents:**
+
+- Step-by-step provider creation guide
+- Protocol interface documentation
+- Factory registration pattern
+- Testing requirements
+- Documentation requirements
+- Pull request process
+- Three example implementations:
+  1. **Minimal Example** (Hello World provider)
+  2. **Full-Featured Example** (with error handling, retries, logging)
+  3. **Custom Config Example** (provider with custom configuration)
+
+**Example Structure:**
+```markdown
+# Custom Provider Guide
+
+## Quick Start
+
+1. Create provider class implementing protocol
+2. Add to factory
+3. Add tests
+4. Submit PR
+
+## Minimal Example: Custom Summarization Provider
+
+\`\`\`python
+class MyCustomSummarizationProvider:
+    """Custom summarization provider example."""
+    
+    def __init__(self, cfg: config.Config):
+        self.cfg = cfg
+    
+    def initialize(self) -> None:
+        """Initialize provider resources."""
+        pass
+    
+    def summarize(self, text: str, cfg: config.Config) -> Dict[str, Any]:
+        """Summarize text using custom logic."""
+        # Your implementation here
+        return {"summary": "Custom summary", "method": "custom"}
+    
+    def cleanup(self) -> None:
+        """Clean up provider resources."""
+        pass
+\`\`\`
+
+## Registering Your Provider
+
+\`\`\`python
+# In podcast_scraper/summarization/factory.py
+def create(cfg: config.Config):
+    if cfg.summary_provider == "my-custom":
+        from .my_custom_provider import MyCustomSummarizationProvider
+        return MyCustomSummarizationProvider(cfg)
+    # ... existing logic
+\`\`\`
+```
+
+**Timeline:** Create during Stage 5 (Integration testing)
+
+---
+
+### 3. Environment Variable Documentation (`docs/ENVIRONMENT_VARIABLES.md`)
+
+**Purpose:** Comprehensive reference for all environment variables
+
+**Contents:**
+
+- Complete list of supported environment variables
+- Usage examples
+- Security best practices
+- Troubleshooting guide
+- Platform-specific instructions (macOS, Linux, Windows)
+- Docker/container environment setup
+
+**Example Structure:**
+```markdown
+# Environment Variables
+
+## OpenAI Configuration
+
+### OPENAI_API_KEY (Required for OpenAI providers)
+
+**Description:** OpenAI API authentication key
+
+**Format:** `sk-...` (starts with `sk-`)
+
+**Usage:**
+\`\`\`bash
+# macOS/Linux
+export OPENAI_API_KEY="sk-..."
+
+# Windows (PowerShell)
+$env:OPENAI_API_KEY="sk-..."
+
+# Docker
+docker run -e OPENAI_API_KEY="sk-..." ...
+
+# Docker Compose
+environment:
+  - OPENAI_API_KEY=${OPENAI_API_KEY}
+\`\`\`
+
+**Security:**
+- Never commit API keys to source control
+- Use `.env` files (add to `.gitignore`)
+- Rotate keys periodically
+- Use separate keys for dev/prod
+
+**Troubleshooting:**
+- Check key starts with `sk-`
+- Verify key hasn't been revoked: https://platform.openai.com/api-keys
+- Test with: `python -c "import os; print(os.getenv('OPENAI_API_KEY')[:10])"`
+
+### OPENAI_ORGANIZATION (Optional)
+
+**Description:** OpenAI organization ID (for users in multiple orgs)
+
+**Format:** `org-...`
+
+**Usage:**
+\`\`\`bash
+export OPENAI_ORGANIZATION="org-..."
+\`\`\`
+
+### OPENAI_API_BASE (Optional)
+
+**Description:** Custom API base URL (for proxies or alternative endpoints)
+
+**Default:** `https://api.openai.com/v1`
+
+**Usage:**
+\`\`\`bash
+export OPENAI_API_BASE="https://your-proxy.example.com/v1"
+\`\`\`
+
+## Other Environment Variables
+
+### LOG_LEVEL (Optional)
+
+**Description:** Set logging verbosity
+
+**Values:** `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`
+
+**Default:** `INFO`
+
+**Usage:**
+\`\`\`bash
+export LOG_LEVEL="DEBUG"
+\`\`\`
+
+## Complete Example (.env file)
+
+\`\`\`bash
+# .env - Add to .gitignore!
+OPENAI_API_KEY=sk-...
+OPENAI_ORGANIZATION=org-...
+LOG_LEVEL=INFO
+\`\`\`
+```
+
+**Timeline:** Create before Stage 6 (OpenAI implementation)
+
+---
+
+## Appendix A: Provider Naming Convention
+
+**Decision Date:** December 10, 2025  
+**Status:** Approved
+
+### Current State (Inconsistent)
+
+```python
+# Naming in planning documents before standardization:
+speaker_detector_type: Literal["ner", "openai"]          # ✅ Technology-based
+transcription_provider: Literal["whisper", "openai"]     # ✅ Technology-based  
+summary_provider: Literal["local", "openai"]             # ❌ Location-based (ambiguous)
+```
+
+**Problem:** "local" is ambiguous - doesn't specify which technology (transformers? BART? LED?)
+
+### Decision: Technology-First Naming
+
+**Principle:** Name providers by the **core technology** they use, not by location or company.
+
+**Standardized Naming:**
+```python
+speaker_detector_type: Literal["ner", "openai"] = "ner"
+transcription_provider: Literal["whisper", "openai"] = "whisper"  
+summary_provider: Literal["transformers", "openai"] = "transformers"  # CHANGED
+```
+
+**Rationale:**
+
+1. **Clarity:** "transformers" clearly indicates Hugging Face transformers library
+2. **Consistency:** All values now refer to technology (ner, whisper, transformers, openai)
+3. **Extensibility:** Easy to add more technologies (e.g., "anthropic", "aws-comprehend")
+4. **User Understanding:** Users immediately know what technology they're selecting
+
+**Future Extensibility:**
+```python
+# Examples of future additions:
+speaker_detector_type: Literal["ner", "openai", "aws-comprehend", "google-nlp"]
+transcription_provider: Literal["whisper", "openai", "deepgram", "assemblyai"]
+summary_provider: Literal["transformers", "openai", "anthropic", "cohere"]
+```
+
+**Pattern:** Use technology/service name directly, hyphenate company-technology combinations if needed.
+
+### Backward Compatibility
+
+**Recommended Approach:** Accept "local" as alias for "transformers" with deprecation warning:
+
+```python
+@field_validator('summary_provider', mode='before')
+def migrate_local_to_transformers(cls, v):
+    if v == "local":
+        warnings.warn(
+            "summary_provider='local' is deprecated, use 'transformers'. "
+            "Support for 'local' will be removed in v3.0.0",
+            DeprecationWarning
+        )
+        return "transformers"
+    return v
+```
+
+---
+
+## Appendix B: Rate Limiting Strategy
+
+### OpenAI Rate Limits (as of December 2025)
+
+OpenAI uses a tiered rate limiting system based on usage:
+
+| Tier | Requirement | RPM (gpt-4o-mini) | TPM (Tokens) | RPD (Requests) |
+|------|-------------|-------------------|--------------|----------------|
+| **Free** | New account | 500 | 200,000 | 10,000 |
+| **Tier 1** | $5+ spent | 500 | 2,000,000 | 10,000 |
+| **Tier 2** | $50+ spent + 7 days | 5,000 | 10,000,000 | 100,000 |
+| **Tier 3** | $100+ spent + 7 days | 5,000 | 10,000,000 | 200,000 |
+| **Tier 4** | $250+ spent + 14 days | 10,000 | 30,000,000 | 300,000 |
+| **Tier 5** | $1,000+ spent + 30 days | 10,000 | 80,000,000 | 500,000 |
+
+**Legend:** RPM = Requests Per Minute, TPM = Tokens Per Minute, RPD = Requests Per Day
+
+**Note:** Check [OpenAI Rate Limits](https://platform.openai.com/docs/guides/rate-limits) for current limits.
+
+### Configuration Fields
+
+Add to `config.py` when implementing OpenAI providers:
+
+```python
+# OpenAI Rate Limiting
+openai_max_concurrent_requests: int = Field(
+    default=5,
+    ge=1,
+    le=100,
+    description="Maximum concurrent OpenAI API requests (controls parallelism)"
+)
+
+openai_requests_per_minute: int = Field(
+    default=50,
+    ge=1,
+    le=10000,
+    description="Rate limit: requests per minute (adjust based on OpenAI tier)"
+)
+
+openai_tokens_per_minute: int = Field(
+    default=100000,
+    ge=1000,
+    le=80000000,
+    description="Rate limit: tokens per minute (adjust based on OpenAI tier)"
+)
+
+openai_retry_max_attempts: int = Field(
+    default=3,
+    ge=1,
+    le=10,
+    description="Maximum retry attempts for failed OpenAI API requests"
+)
+
+openai_retry_backoff_factor: float = Field(
+    default=2.0,
+    ge=1.0,
+    le=10.0,
+    description="Exponential backoff factor for retries (delay = backoff^attempt)"
+)
+
+openai_retry_max_delay: int = Field(
+    default=60,
+    ge=1,
+    le=300,
+    description="Maximum retry delay in seconds (caps exponential backoff)"
+)
+
+openai_timeout: int = Field(
+    default=60,
+    ge=5,
+    le=600,
+    description="Request timeout in seconds for OpenAI API calls"
+)
+```
+
+### Recommended Defaults by Tier
+
+**Conservative (Tier 1 - Default):**
+```python
+openai_max_concurrent_requests: 5
+openai_requests_per_minute: 50
+openai_tokens_per_minute: 100000
+```
+**Use Case:** Development, testing, small batches
+
+**Balanced (Tier 2+):**
+```python
+openai_max_concurrent_requests: 10
+openai_requests_per_minute: 500
+openai_tokens_per_minute: 500000
+```
+**Use Case:** Production, moderate volume
+
+**Aggressive (Tier 4+):**
+```python
+openai_max_concurrent_requests: 20
+openai_requests_per_minute: 1000
+openai_tokens_per_minute: 1000000
+```
+**Use Case:** High-volume production, large batches
+
+### Implementation Strategy
+
+1. **Rate Limiter Component** (`podcast_scraper/rate_limiter.py`):
+   - Token bucket algorithm for requests and tokens
+   - Semaphore for concurrency control
+   - Sliding window for rate tracking
+
+2. **Retry Logic** (using `tenacity` library):
+   - Automatic retry for rate limit, timeout, and connection errors
+   - Exponential backoff (2x multiplier, capped at 60s)
+   - 3 attempts by default
+
+3. **Error Handling**:
+   - **Retry-able:** RateLimitError, APITimeoutError, APIConnectionError, InternalServerError
+   - **Non-retry-able:** AuthenticationError, PermissionDeniedError, BadRequestError, NotFoundError
+
+### Error Messages
+
+**Rate Limit Error (after retries):**
+
+```text
+OpenAI rate limit exceeded. Suggestions:
+1. Reduce parallelism: --openai-max-concurrent-requests 3
+2. Reduce rate: --openai-requests-per-minute 30
+3. Wait and retry: The limit resets every minute
+4. Check tier limits: https://platform.openai.com/account/limits
+```
+
+**Authentication Error:**
+
+```text
+OpenAI API authentication failed.
+Please check:
+1. OPENAI_API_KEY environment variable is set
+2. API key is valid (starts with 'sk-')
+3. API key has not been revoked
+Get your API key: https://platform.openai.com/api-keys
+```
+
+### Dependencies
+
+```python
+# Add to requirements.txt
+tenacity>=8.2.0,<9.0.0  # For retry logic with exponential backoff
+```
+
+### Testing
+
+- Mock rate limiter for unit tests (no delays)
+- Unit tests for token bucket logic
+- Integration tests for API error handling
+- Protocol compliance tests
+
+### References
+
+- [OpenAI Rate Limits Documentation](https://platform.openai.com/docs/guides/rate-limits)
+- [OpenAI API Reference](https://platform.openai.com/docs/api-reference)
+- [Tenacity Library](https://tenacity.readthedocs.io/)
