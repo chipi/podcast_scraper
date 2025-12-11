@@ -159,9 +159,7 @@ class TestStage0Factories(unittest.TestCase):
         """Test that speaker detector factory creates detector (Stage 3)."""
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml", speaker_detector_type="ner"
-        )
+        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="ner")
         # Stage 3: Factory now creates NERSpeakerDetector
         detector = create_speaker_detector(cfg)
         self.assertIsNotNone(detector)
@@ -179,13 +177,19 @@ class TestStage0Factories(unittest.TestCase):
         self.assertIsNotNone(provider)
         self.assertEqual(provider.__class__.__name__, "WhisperTranscriptionProvider")
 
-    def test_summarization_provider_factory_not_implemented(self):
-        """Test that summarization provider factory raises NotImplementedError."""
+    def test_summarization_provider_factory_creates_provider(self):
+        """Test that summarization provider factory creates provider (Stage 4)."""
         from podcast_scraper.summarization.factory import create_summarization_provider
 
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-        with self.assertRaises(NotImplementedError):
-            create_summarization_provider(cfg)
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="local",
+            generate_summaries=False,
+        )
+        # Stage 4: Factory now creates TransformersSummarizationProvider
+        provider = create_summarization_provider(cfg)
+        self.assertIsNotNone(provider)
+        self.assertEqual(provider.__class__.__name__, "TransformersSummarizationProvider")
 
 
 class TestStage0BackwardCompatibility(unittest.TestCase):

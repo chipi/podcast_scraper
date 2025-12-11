@@ -37,6 +37,7 @@ from .rss_parser import (
     extract_feed_metadata,
 )
 from .speaker_detectors.factory import create_speaker_detector
+from .summarization.factory import create_summarization_provider
 from .transcription.factory import create_transcription_provider
 
 logger = logging.getLogger(__name__)
@@ -312,40 +313,51 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     # Load models once and reuse across all episodes to avoid memory leaks and redundant downloads
     summary_model = None
     reduce_model = None
+    # Stage 4: Use provider pattern for summarization
+    summary_provider = None
+    summary_model = None
+    reduce_model = None
+
     if cfg.generate_summaries and not cfg.dry_run:
         try:
-            # Lazy import to avoid loading torch in dry-run mode
-            from . import summarizer  # noqa: PLC0415
-
-            # Load MAP model (for chunk summarization)
-            model_name = summarizer.select_summary_model(cfg)
-            summary_model = summarizer.SummaryModel(
-                model_name=model_name,
-                device=cfg.summary_device,
-                cache_dir=cfg.summary_cache_dir,
-            )
-            logger.debug("Loaded MAP summary model for reuse across all episodes")
-
-            # Load REDUCE model if different from MAP model (for final combine)
-            reduce_model_name = summarizer.select_reduce_model(cfg, model_name)
-            if reduce_model_name != model_name:
-                reduce_model = summarizer.SummaryModel(
-                    model_name=reduce_model_name,
-                    device=cfg.summary_device,
-                    cache_dir=cfg.summary_cache_dir,
-                )
+            # Stage 4: Create and initialize summarization provider
+            summary_provider = create_summarization_provider(cfg)
+            if hasattr(summary_provider, "initialize"):
+                summary_provider.initialize()  # type: ignore[attr-defined]
+                # Get models from provider for backward compatibility
+                summary_model = getattr(summary_provider, "map_model", None)
+                reduce_model = getattr(summary_provider, "reduce_model", None)
                 logger.debug(
-                    f"Loaded REDUCE summary model ({reduce_model_name}) "
-                    f"for reuse across all episodes"
+                    "Summarization provider initialized: %s (MAP: %s, REDUCE: %s)",
+                    type(summary_provider).__name__,
+                    summary_model.model_name if summary_model else None,
+                    reduce_model.model_name if reduce_model else None,
                 )
-            else:
-                # Use MAP model for REDUCE phase if they're the same
-                reduce_model = summary_model
-                logger.debug("Using MAP model for REDUCE phase (same model)")
         except ImportError:
             logger.info("Summarization dependencies not available, skipping summary generation")
         except Exception as e:
-            logger.error(f"Failed to load summary model: {e}")
+            logger.error("Failed to initialize summarization provider: %s", e)
+            # Fallback to direct model loading for backward compatibility
+            try:
+                from . import summarizer  # noqa: PLC0415
+
+                model_name = summarizer.select_summary_model(cfg)
+                summary_model = summarizer.SummaryModel(
+                    model_name=model_name,
+                    device=cfg.summary_device,
+                    cache_dir=cfg.summary_cache_dir,
+                )
+                reduce_model_name = summarizer.select_reduce_model(cfg, model_name)
+                if reduce_model_name != model_name:
+                    reduce_model = summarizer.SummaryModel(
+                        model_name=reduce_model_name,
+                        device=cfg.summary_device,
+                        cache_dir=cfg.summary_cache_dir,
+                    )
+                else:
+                    reduce_model = summary_model
+            except Exception as fallback_error:
+                logger.error("Fallback model loading also failed: %s", fallback_error)
 
     # Wrap all processing in try-finally to ensure cleanup always happens
     # This prevents memory leaks if exceptions occur during processing
@@ -426,22 +438,32 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     finally:
         # Step 9.5: Unload models to free memory
         # This runs even if exceptions occur above, preventing memory leaks
-        if summary_model is not None:
+        # Stage 4: Cleanup provider (which handles model unloading)
+        if summary_provider is not None:
+            try:
+                if hasattr(summary_provider, "cleanup"):
+                    summary_provider.cleanup()  # type: ignore[attr-defined]
+                    logger.debug("Cleaned up summarization provider")
+            except Exception as e:
+                logger.warning("Failed to cleanup summarization provider: %s", e)
+
+        # Fallback cleanup for direct models (backward compatibility)
+        if summary_model is not None and summary_provider is None:
             try:
                 from . import summarizer  # noqa: PLC0415
 
                 summarizer.unload_model(summary_model)
                 logger.debug("Unloaded MAP summary model to free memory")
             except Exception as e:
-                logger.warning(f"Failed to unload MAP summary model: {e}")
-        if reduce_model is not None and reduce_model != summary_model:
+                logger.warning("Failed to unload MAP summary model: %s", e)
+        if reduce_model is not None and reduce_model != summary_model and summary_provider is None:
             try:
                 from . import summarizer  # noqa: PLC0415
 
                 summarizer.unload_model(reduce_model)
                 logger.debug("Unloaded REDUCE summary model to free memory")
             except Exception as e:
-                logger.warning(f"Failed to unload REDUCE summary model: {e}")
+                logger.warning("Failed to unload REDUCE summary model: %s", e)
 
         # Clear spaCy model cache to free memory
         # Models are cached at module level, so we clear them after processing

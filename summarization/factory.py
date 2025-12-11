@@ -26,11 +26,15 @@ def create_summarization_provider(cfg: config.Config) -> SummarizationProvider:
         ValueError: If provider type is not supported
 
     Note:
-        Stage 0: Currently returns NotImplementedError.
-        Implementations will be added in later stages.
+        Stage 4: Returns TransformersSummarizationProvider for "local" provider type.
     """
-    # Stage 0: Factory is empty - implementations will be added in later stages
-    raise NotImplementedError(
-        "Summarization provider factory not yet implemented. "
-        "This will be implemented in Stage 4."
-    )
+    provider_type = cfg.summary_provider
+
+    if provider_type == "local":
+        from .local_provider import TransformersSummarizationProvider
+
+        return TransformersSummarizationProvider(cfg)
+    else:
+        raise ValueError(
+            f"Unsupported summarization provider: {provider_type}. " "Supported providers: 'local'"
+        )
