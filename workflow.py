@@ -13,6 +13,7 @@ import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
+from queue import Empty, Queue
 from typing import Any, cast, Dict, List, Literal, NamedTuple, Optional, Set, Tuple
 
 from . import (
@@ -375,7 +376,37 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         pipeline_metrics.record_stage("normalizing", time.time() - normalizing_start)
 
         # Step 8: Process episodes (download transcripts or queue transcription jobs)
+        # Start transcription processing concurrently if transcription is enabled
         writing_start = time.time()
+        transcription_complete_event = threading.Event()
+        transcription_saved = [0]  # Use list to allow modification from thread
+
+        if cfg.transcribe_missing and not cfg.dry_run:
+            # Start transcription processing in background thread
+            transcription_thread = threading.Thread(
+                target=_process_transcription_jobs_concurrent,
+                args=(
+                    transcription_resources,
+                    download_args,
+                    episodes,
+                    feed,
+                    cfg,
+                    effective_output_dir,
+                    run_suffix,
+                    feed_metadata,
+                    host_detection_result,
+                    pipeline_metrics,
+                    summary_model,
+                    reduce_model,
+                    transcription_complete_event,
+                    transcription_saved,
+                ),
+                daemon=False,
+                name="TranscriptionProcessor",
+            )
+            transcription_thread.start()
+            logger.debug("Started concurrent transcription processing thread")
+
         saved = _process_episodes(
             download_args,
             episodes,
@@ -391,21 +422,30 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             reduce_model,
         )
 
-        # Step 9: Process transcription jobs sequentially
-        saved += _process_transcription_jobs(
-            transcription_resources,
-            download_args,
-            episodes,
-            feed,
-            cfg,
-            effective_output_dir,
-            run_suffix,
-            feed_metadata,
-            host_detection_result,
-            pipeline_metrics,
-            summary_model,
-            reduce_model,
-        )
+        # Step 9: Wait for transcription to complete (if started)
+        if cfg.transcribe_missing and not cfg.dry_run:
+            # Signal that downloads are complete
+            transcription_complete_event.set()
+            # Wait for transcription thread to finish processing remaining jobs
+            transcription_thread.join()
+            saved += transcription_saved[0]
+            logger.debug("Concurrent transcription processing completed")
+        elif cfg.transcribe_missing:
+            # Dry-run mode: process transcription jobs sequentially after downloads
+            saved += _process_transcription_jobs(
+                transcription_resources,
+                download_args,
+                episodes,
+                feed,
+                cfg,
+                effective_output_dir,
+                run_suffix,
+                feed_metadata,
+                host_detection_result,
+                pipeline_metrics,
+                summary_model,
+                reduce_model,
+            )
         pipeline_metrics.record_stage("writing_storage", time.time() - writing_start)
 
         # Step 9: Parallel episode summarization (if enabled and multiple episodes)
@@ -438,6 +478,19 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     finally:
         # Step 9.5: Unload models to free memory
         # This runs even if exceptions occur above, preventing memory leaks
+        # Stage 2: Cleanup transcription provider (which handles model unloading)
+        if (
+            transcription_resources is not None
+            and transcription_resources.transcription_provider is not None
+        ):
+            try:
+                provider = transcription_resources.transcription_provider
+                if hasattr(provider, "cleanup"):
+                    provider.cleanup()  # type: ignore[attr-defined]
+                    logger.debug("Cleaned up transcription provider")
+            except Exception as e:
+                logger.warning("Failed to cleanup transcription provider: %s", e)
+
         # Stage 4: Cleanup provider (which handles model unloading)
         if summary_provider is not None:
             try:
@@ -1262,6 +1315,265 @@ def _process_transcription_jobs(
             )
 
     return saved
+
+
+def _process_transcription_jobs_concurrent(
+    transcription_resources: _TranscriptionResources,
+    download_args: List[Tuple],
+    episodes: List[models.Episode],
+    feed: models.RssFeed,
+    cfg: config.Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    feed_metadata: _FeedMetadata,
+    host_detection_result: _HostDetectionResult,
+    pipeline_metrics: metrics.Metrics,
+    summary_model=None,
+    reduce_model=None,
+    downloads_complete_event: Optional[threading.Event] = None,
+    saved_counter: Optional[List[int]] = None,
+) -> None:
+    """Process transcription jobs concurrently as they become available.
+
+    This function runs in a separate thread and processes transcription jobs
+    from the queue as downloads complete, rather than waiting for all downloads
+    to finish before starting transcription.
+
+    Uses transcription_parallelism config to control episode-level parallelism:
+    - Whisper provider: Always sequential (parallelism = 1, ignores config > 1)
+    - OpenAI provider: Parallel with rate limiting (uses parallelism config)
+
+    Args:
+        transcription_resources: Transcription resources
+        download_args: List of download argument tuples
+        episodes: List of Episode objects
+        feed: Parsed RssFeed object
+        cfg: Configuration object (uses transcription_parallelism)
+        effective_output_dir: Output directory path
+        run_suffix: Optional run suffix
+        feed_metadata: Feed metadata tuple
+        host_detection_result: Host detection result
+        pipeline_metrics: Metrics collector
+        summary_model: Optional summary model
+        reduce_model: Optional reduce model
+        downloads_complete_event: Event to signal when downloads are complete
+        saved_counter: List to store count of saved transcripts (for thread communication)
+    """
+    if saved_counter is None:
+        saved_counter = [0]
+
+    # Get parallelism from config (provider-specific behavior)
+    # Whisper: Always sequential (parallelism = 1)
+    # OpenAI: Uses parallelism config (default: 5)
+    max_workers = cfg.transcription_parallelism
+    if cfg.transcription_provider == "whisper":
+        # Whisper is memory/CPU bound - always sequential
+        max_workers = 1
+        logger.debug(
+            "Whisper provider: Using sequential processing (parallelism=%d ignored)",
+            cfg.transcription_parallelism,
+        )
+    else:
+        # Other providers (OpenAI) can use parallelism
+        logger.debug(
+            "Transcription provider '%s': Using parallelism=%d",
+            cfg.transcription_provider,
+            max_workers,
+        )
+
+    saved = 0
+    jobs_processed = 0
+    processed_job_indices = set()  # Track which jobs we've processed
+    processed_job_indices_lock = threading.Lock()  # Lock for thread-safe access
+
+    logger.debug("Concurrent transcription processor started (max_workers=%d)", max_workers)
+
+    def _process_single_job(job: models.TranscriptionJob) -> tuple[bool, Optional[str], int]:
+        """Process a single transcription job.
+
+        Returns:
+            Tuple of (success, transcript_path, bytes_downloaded)
+        """
+        try:
+            success, transcript_path, bytes_downloaded = transcribe_media_to_text(
+                job,
+                cfg,
+                transcription_resources.whisper_model,
+                run_suffix,
+                effective_output_dir,
+                transcription_provider=transcription_resources.transcription_provider,
+                pipeline_metrics=pipeline_metrics,
+            )
+            if bytes_downloaded:
+                _update_metric_safely(pipeline_metrics, "bytes_downloaded_total", bytes_downloaded)
+            if success:
+                _update_metric_safely(pipeline_metrics, "transcripts_transcribed", 1)
+
+                # Generate metadata if enabled
+                if cfg.generate_metadata:
+                    episode_obj = next((ep for ep in episodes if ep.idx == job.idx), None)
+                    if episode_obj:
+                        # Find detected names for this episode
+                        detected_names_for_ep = None
+                        for args in download_args:
+                            if args[0].idx == job.idx:
+                                detected_names_for_ep = args[7]
+                                break
+                        _call_generate_metadata(
+                            episode=episode_obj,
+                            feed=feed,
+                            cfg=cfg,
+                            effective_output_dir=effective_output_dir,
+                            run_suffix=run_suffix,
+                            transcript_path=transcript_path,
+                            transcript_source="whisper_transcription",
+                            whisper_model=cfg.whisper_model,
+                            feed_metadata=feed_metadata,
+                            host_detection_result=host_detection_result,
+                            detected_names=detected_names_for_ep,
+                            summary_model=summary_model,
+                            pipeline_metrics=pipeline_metrics,
+                        )
+            return success, transcript_path, bytes_downloaded
+        except Exception as exc:  # pragma: no cover
+            _update_metric_safely(pipeline_metrics, "errors_total", 1)
+            logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
+            return False, None, 0
+
+    # Process jobs as they become available
+    # Continue until downloads are complete AND queue is empty
+    if max_workers <= 1:
+        # Sequential processing (Whisper default)
+        while True:
+            # Check for new jobs in the queue
+            job_found = False
+            current_job = None
+
+            if transcription_resources.transcription_jobs_lock:
+                with transcription_resources.transcription_jobs_lock:
+                    # Find first unprocessed job
+                    with processed_job_indices_lock:
+                        for job in transcription_resources.transcription_jobs:
+                            if job.idx not in processed_job_indices:
+                                job_found = True
+                                processed_job_indices.add(job.idx)
+                                current_job = job
+                                break
+            else:
+                # Single-threaded mode
+                with processed_job_indices_lock:
+                    for job in transcription_resources.transcription_jobs:
+                        if job.idx not in processed_job_indices:
+                            job_found = True
+                            processed_job_indices.add(job.idx)
+                            current_job = job
+                            break
+
+            if job_found and current_job:
+                success, transcript_path, bytes_downloaded = _process_single_job(current_job)
+                if success:
+                    saved += 1
+                jobs_processed += 1
+                logger.debug(
+                    "Processed transcription job idx=%s (saved=%s, processed=%s)",
+                    current_job.idx,
+                    saved,
+                    jobs_processed,
+                )
+                continue
+
+            # No job found - check if we should continue waiting
+            if downloads_complete_event and downloads_complete_event.is_set():
+                # Downloads are complete, check if queue is empty
+                with processed_job_indices_lock:
+                    if transcription_resources.transcription_jobs_lock:
+                        with transcription_resources.transcription_jobs_lock:
+                            total_jobs = len(transcription_resources.transcription_jobs)
+                    else:
+                        total_jobs = len(transcription_resources.transcription_jobs)
+                    queue_empty = total_jobs == len(processed_job_indices)
+
+                if queue_empty:
+                    # All jobs processed, exit
+                    break
+
+            # Wait a bit before checking again (avoid busy-waiting)
+            if not (downloads_complete_event and downloads_complete_event.is_set()):
+                time.sleep(0.1)
+            else:
+                # Downloads complete but might have more jobs - check more frequently
+                time.sleep(0.05)
+    else:
+        # Parallel processing (OpenAI provider)
+        from concurrent.futures import as_completed, ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {}
+            while True:
+                # Submit new jobs as they become available
+                if transcription_resources.transcription_jobs_lock:
+                    with transcription_resources.transcription_jobs_lock:
+                        with processed_job_indices_lock:
+                            for job in transcription_resources.transcription_jobs:
+                                if job.idx not in processed_job_indices and job.idx not in futures:
+                                    processed_job_indices.add(job.idx)
+                                    future = executor.submit(_process_single_job, job)
+                                    futures[future] = job.idx
+                else:
+                    with processed_job_indices_lock:
+                        for job in transcription_resources.transcription_jobs:
+                            if job.idx not in processed_job_indices and job.idx not in futures:
+                                processed_job_indices.add(job.idx)
+                                future = executor.submit(_process_single_job, job)
+                                futures[future] = job.idx
+
+                # Process completed futures
+                for future in as_completed(list(futures.keys()), timeout=0.1):
+                    job_idx = futures.pop(future)
+                    try:
+                        success, transcript_path, bytes_downloaded = future.result()
+                        if success:
+                            saved += 1
+                        jobs_processed += 1
+                        logger.debug(
+                            "Processed transcription job idx=%s (saved=%s, processed=%s)",
+                            job_idx,
+                            saved,
+                            jobs_processed,
+                        )
+                    except Exception as exc:  # pragma: no cover
+                        logger.error(f"[{job_idx}] transcription future raised error: {exc}")
+
+                # Check if we should continue
+                if downloads_complete_event and downloads_complete_event.is_set():
+                    # Downloads complete - check if all jobs are submitted and completed
+                    with processed_job_indices_lock:
+                        if transcription_resources.transcription_jobs_lock:
+                            with transcription_resources.transcription_jobs_lock:
+                                total_jobs = len(transcription_resources.transcription_jobs)
+                        else:
+                            total_jobs = len(transcription_resources.transcription_jobs)
+                        all_submitted = total_jobs == len(processed_job_indices)
+                    if all_submitted and len(futures) == 0:
+                        # All jobs submitted and completed
+                        break
+
+                # Wait a bit before checking again
+                if not (downloads_complete_event and downloads_complete_event.is_set()):
+                    time.sleep(0.1)
+                else:
+                    time.sleep(0.05)
+
+    # Update saved counter
+    saved_counter[0] = saved
+    total_jobs = (
+        len(transcription_resources.transcription_jobs)
+        if transcription_resources.transcription_jobs
+        else 0
+    )
+    logger.info(
+        f"Concurrent transcription processing completed: {saved}/{total_jobs} transcripts saved (parallelism={max_workers})"
+    )
 
 
 def _cleanup_pipeline(temp_dir: Optional[str]) -> None:

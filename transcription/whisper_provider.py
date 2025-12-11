@@ -24,6 +24,12 @@ class WhisperTranscriptionProvider:
 
     This provider uses OpenAI Whisper for local transcription of audio files.
     It implements the TranscriptionProvider protocol.
+
+    Note:
+        This provider always processes transcriptions sequentially (one at a time)
+        due to memory and CPU constraints. The transcription_parallelism config
+        field is ignored for Whisper provider (always uses parallelism = 1).
+        For parallel transcription, use OpenAI provider (future implementation).
     """
 
     def __init__(self, cfg: config.Config):

@@ -217,6 +217,11 @@ class Config(BaseModel):
         alias="transcription_provider",
         description="Transcription provider type (default: 'whisper' for local Whisper)",
     )
+    transcription_parallelism: int = Field(
+        default=1,
+        alias="transcription_parallelism",
+        description="Episode-level parallelism: Number of episodes to transcribe in parallel (default: 1 for sequential. Whisper ignores >1, OpenAI uses for parallel API calls)",
+    )
     # OpenAI API configuration (RFC-013)
     openai_api_key: Optional[str] = Field(
         default=None,
@@ -613,6 +618,20 @@ class Config(BaseModel):
         if value_str not in ("cuda", "mps", "cpu"):
             raise ValueError("summary_device must be 'cuda', 'mps', 'cpu', or 'auto'")
         return value_str
+
+    @field_validator("transcription_parallelism", mode="before")
+    @classmethod
+    def _ensure_transcription_parallelism(cls, value: Any) -> int:
+        """Ensure transcription parallelism is a positive integer."""
+        if value is None or value == "":
+            return 1
+        try:
+            parallelism = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("transcription_parallelism must be an integer") from exc
+        if parallelism < 1:
+            raise ValueError("transcription_parallelism must be at least 1")
+        return parallelism
 
     @field_validator("summary_batch_size", mode="before")
     @classmethod
