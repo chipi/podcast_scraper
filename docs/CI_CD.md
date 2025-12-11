@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Podcast Scraper project uses GitHub Actions for continuous integration and deployment. The CI/CD pipeline consists of three main workflows that automate testing, code quality checks, security scanning, and documentation deployment.
+The Podcast Scraper project uses GitHub Actions for continuous integration and deployment. The CI/CD pipeline consists of **five main workflows** that automate testing, code quality checks, security scanning, Docker validation, and documentation deployment.
 
 ### Workflows Summary
 
@@ -11,6 +11,8 @@ The Podcast Scraper project uses GitHub Actions for continuous integration and d
 | **Python Application** | `python-app.yml` | Main CI pipeline with testing, linting, and builds | Push/PR to `main` (only when Python/config files change) |
 | **Documentation Deploy** | `docs.yml` | Build and deploy MkDocs documentation to GitHub Pages | Push to `main`, PR with doc changes, manual |
 | **CodeQL Security** | `codeql.yml` | Security vulnerability scanning | Push/PR to `main` (only when code/workflow files change), scheduled weekly |
+| **Docker Build & Test** | `docker.yml` | Build and test Docker images | Push/PR to `main` (only when Docker/Python files change) |
+| **Snyk Security Scan** | `snyk.yml` | Dependency and Docker image vulnerability scanning | Push/PR to `main`, scheduled weekly (Mondays), manual |
 
 ---
 
@@ -55,9 +57,23 @@ graph TB
     end
     
     subgraph "CodeQL Workflow"
-        C1[CodeQL Matrix]
-        C1 -->|Python Analysis| C1A[Scan Python Code]
-        C1 -->|Actions Analysis| C1B[Scan GitHub Actions]
+    C1[CodeQL Matrix]
+    C1 -->|Python Analysis| C1A[Scan Python Code]
+    C1 -->|Actions Analysis| C1B[Scan GitHub Actions]
+    end
+    
+    subgraph "Docker Workflow"
+    DOCK1[Build Docker Image]
+    DOCK2[Test Docker Image]
+    DOCK3[Hadolint Validation]
+    DOCK1 --> DOCK2
+    DOCK1 --> DOCK3
+    end
+    
+    subgraph "Snyk Workflow"
+    SNYK1[Dependencies Scan]
+    SNYK2[Docker Scan]
+    SNYK3[Monitor]
     end
     
     T1 --> P1 & P2 & P3 & P4
@@ -71,6 +87,13 @@ graph TB
     T2 --> C1
     T3 --> C1
     
+    T1 --> DOCK1
+    T2 --> DOCK1
+    
+    T1 --> SNYK1 & SNYK2
+    T2 --> SNYK1 & SNYK2
+    T3 --> SNYK3
+    
     style P1 fill:#e1f5e1
     style P2 fill:#e1f5e1
     style P3 fill:#e1f5e1
@@ -78,6 +101,8 @@ graph TB
     style D1 fill:#e1e5ff
     style D2 fill:#e1e5ff
     style C1 fill:#ffe1e1
+    style DOCK1 fill:#fff4e1
+    style SNYK1 fill:#ffe1f5
 ```
 
 ---
@@ -395,9 +420,197 @@ schedule:
 
 ---
 
+## Docker Build & Test Workflow
+
+**File:** `.github/workflows/docker.yml`  
+**Triggers:** Push and Pull Requests to `main` branch (only when Docker or Python files change)
+
+**Path Filters:**
+
+- `docker/**` - Docker-related files
+- `Dockerfile` - Main Dockerfile
+- `requirements.txt` - Python dependencies
+- `pyproject.toml` - Project configuration
+- `*.py` - Python source files
+
+**Skips when:** Only documentation, markdown, or unrelated files change
+
+### Workflow Purpose
+
+Validates that Docker images can be built correctly and pass basic smoke tests. Ensures Docker configuration remains functional as code evolves.
+
+### Docker Job Details
+
+#### Docker Build & Test Job
+
+**Purpose:** Build Docker images and run smoke tests
+
+**Duration:** ~5-10 minutes
+
+**Steps:**
+
+1. Checkout code
+2. Free disk space (removes unnecessary system packages)
+3. Set up Docker Buildx
+4. Build Docker image (default configuration)
+   - Uses `docker/Dockerfile`
+   - Caches layers using GitHub Actions cache
+   - Tags as `podcast-scraper:test`
+5. Build Docker image (multiple Whisper models)
+   - Preloads `tiny.en` and `base.en` Whisper models
+   - Tags as `podcast-scraper:multi-model`
+6. Test Docker images:
+   - Test `--help` command
+   - Test `--version` command
+   - Test error handling (no args should show error)
+7. Validate Dockerfile with hadolint
+   - Lints Dockerfile for best practices
+   - Catches common Docker anti-patterns
+
+**Docker Image Tests:**
+
+- ✅ Help command works
+- ✅ Version command works
+- ✅ Error handling works (no args shows error)
+- ✅ Multiple model preloading works
+
+**Dockerfile Validation:**
+
+- ✅ Hadolint linting passes
+- ✅ Best practices enforced
+
+---
+
+## Snyk Security Scan Workflow
+
+**File:** `.github/workflows/snyk.yml`  
+**Triggers:**
+
+- Push to `main` branch (only when code/Docker files change)
+- Pull Requests to `main` branch (only when code/Docker files change)
+- **Scheduled:** Every Monday at 00:00 UTC (weekly security scan)
+- Manual dispatch (`workflow_dispatch`)
+
+**Path Filters:**
+
+- `**.py` - Python source files
+- `pyproject.toml` - Project configuration
+- `requirements.txt` - Dependencies
+- `docker/**` - Docker files
+- `Dockerfile` - Main Dockerfile
+
+**Skips when:** Only documentation or unrelated files change
+
+### Snyk Workflow Purpose
+
+Provides comprehensive security scanning for both Python dependencies and Docker images using Snyk's vulnerability database.
+
+### Snyk Job Details
+
+#### 1. Snyk Dependencies Scan
+
+**Purpose:** Scan Python dependencies for known vulnerabilities
+
+**Runs:** On all triggers (push, PR, schedule, manual)
+
+**Steps:**
+
+1. Checkout code
+2. Set up Python 3.11 with pip caching
+3. Install dependencies (`pip install -e .[dev]`)
+4. Run Snyk scan on Python dependencies
+   - Scans `requirements.txt`
+   - Severity threshold: `high` (only reports high/critical issues)
+   - Generates SARIF file for GitHub Code Scanning integration
+5. Upload results to GitHub Code Scanning
+   - Results appear in Security tab
+   - Integrated with GitHub's security dashboard
+
+**Output:** SARIF file uploaded to GitHub Code Scanning
+
+#### 2. Snyk Docker Scan
+
+**Purpose:** Scan Docker image for vulnerabilities
+
+**Runs:** On push/PR (not on schedule)
+
+**Steps:**
+
+1. Checkout code
+2. Free disk space
+3. Set up Docker Buildx
+4. Build Docker image
+   - Tags as `podcast-scraper:snyk-scan`
+   - Uses GitHub Actions cache
+5. Verify Docker image exists
+6. Run Snyk scan on Docker image
+   - Scans built image for vulnerabilities
+   - Severity threshold: `high`
+   - Generates SARIF file
+7. Upload results to GitHub Code Scanning
+
+**Output:** SARIF file uploaded to GitHub Code Scanning
+
+#### 3. Snyk Monitor
+
+**Purpose:** Monitor dependencies for ongoing security tracking
+
+**Runs:** On PRs and scheduled runs (not on push)
+
+**Steps:**
+
+1. Checkout code
+2. Set up Python 3.11 with pip caching
+3. Install dependencies
+4. Run Snyk monitor
+   - Tracks dependencies in Snyk dashboard
+   - Enables ongoing monitoring and alerts
+
+**Purpose:** Provides long-term security monitoring and alerts for new vulnerabilities
+
+### Snyk Schedule Details
+
+```yaml
+schedule:
+  - cron: '0 0 * * 1'
+```
+
+**Runs:** Every Monday at 00:00 UTC  
+**Purpose:** Weekly security scan to catch newly discovered vulnerabilities
+
+### Integration with GitHub Security
+
+- Results uploaded to GitHub Code Scanning
+- Appears in Security tab
+- Integrated with Dependabot alerts
+- SARIF format for standardized reporting
+
+---
+
 ## Parallel Execution Summary
 
-### What Runs in Parallel?
+### Workflow Independence
+
+All workflows run independently and in parallel when triggered:
+
+- **Python Application Workflow** (4 parallel jobs: lint, test, docs, build)
+- **Documentation Deployment Workflow** (sequential: build → deploy)
+- **CodeQL Workflow** (matrix: Python + Actions analysis in parallel)
+- **Docker Workflow** (single job: build → test → validate)
+- **Snyk Workflow** (3 jobs: dependencies scan, Docker scan, monitor - run based on trigger type)
+
+### Parallel Workflow Execution
+
+Each workflow is independent and can run simultaneously:
+
+- Python app workflow doesn't wait for Docker
+- Docker workflow doesn't wait for Snyk
+- CodeQL runs independently of other workflows
+- Documentation workflow runs independently
+
+This maximizes parallelism and reduces total CI time.
+
+### Parallel Execution Details
 
 #### ✅ Completely Parallel
 
@@ -625,8 +838,10 @@ The system now passes the "minimal docs CI/CD" requirement:
 
 4. **Comprehensive Security Scanning**
    - CodeQL for static analysis (Python + Actions)
+   - Snyk for dependency and Docker image scanning
    - Scheduled weekly scans for newly discovered vulnerabilities
-   - Bandit & Safety in lint job for immediate feedback
+   - Bandit & pip-audit in lint job for immediate feedback
+   - Multiple layers of security validation
 
 5. **Documentation as Code**
    - Docs build validated on every PR
@@ -816,6 +1031,19 @@ make ci
 ---
 
 ## Future Enhancements
+
+### Planned Enhancements
+
+1. **AI Experiment Pipeline CI/CD** (See PRD-007, RFC-015)
+   - Layer A: Fast smoke tests on every push/PR
+   - Layer B: Full evaluation pipeline (nightly/on-demand)
+   - Integration with experiment runner
+   - Automated regression detection
+
+2. **Environment Variable Management**
+   - `.env` file support via `python-dotenv`
+   - Environment-specific configurations
+   - Secure API key management
 
 ### Potential Improvements
 

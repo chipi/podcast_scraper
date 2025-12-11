@@ -40,27 +40,67 @@ Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. I
 
 ## Installation
 
-Install the package from the repository root:
+### Quick Start
 
 ```bash
-# Basic installation (core dependencies only)
-pip install -e .
+# Create virtual environment (recommended)
+bash scripts/setup_venv.sh
+source .venv/bin/activate
 
-# With ML dependencies (spaCy, Whisper, transformers for speaker detection, transcription, and summarization)
+# Install with ML dependencies (speaker detection, transcription, summarization)
+pip install -e ".[ml]"
+
+# Or use Makefile for development setup
+make init  # Installs dev + ML dependencies
+```
+
+### Installation Options
+
+**Basic installation (core dependencies only):**
+```bash
+pip install -e .
+```
+
+**With ML dependencies** (spaCy, Whisper, transformers for speaker detection, transcription, and summarization):
+```bash
 pip install -e ".[ml]"
 ```
 
-**Note:** For speaker detection, transcription, and summarization features, you need to install with the `[ml]` extra (e.g., `pip install -e ".[ml]"`). This includes `spacy`, `openai-whisper`, `torch`, and `transformers`.
+**With development dependencies** (for contributing):
+```bash
+pip install -e ".[dev,ml]"
+# Or use: make init
+```
 
-**Note:** spaCy language models are automatically downloaded when needed (similar to Whisper models). The default English model (`en_core_web_sm`) will be downloaded automatically on first use. You can also manually download models if needed:
+### Environment Variables (Optional)
+
+If you plan to use OpenAI providers (see PRD-006), set up environment variables:
+
+```bash
+# Copy example .env file
+cp .env.example .env
+
+# Edit .env and add your API key
+# OPENAI_API_KEY=sk-your-actual-key-here
+```
+
+The `.env` file is automatically loaded via `python-dotenv` when the package is imported. See `docs/rfc/RFC-013-openai-provider-implementation.md` for details.
+
+**Note:** The `.env` file should never be committed to git (it's in `.gitignore`). Use `.env.example` as a template.
+
+### Additional Setup
+
+**spaCy language models** are automatically downloaded when needed (similar to Whisper models). The default English model (`en_core_web_sm`) will be downloaded automatically on first use. You can also manually download models if needed:
 
 ```bash
 python -m spacy download en_core_web_sm
 ```
 
-For Whisper transcription, ensure `ffmpeg` is available on your system (e.g., `brew install ffmpeg` on macOS).
+**For Whisper transcription**, ensure `ffmpeg` is available on your system:
 
-When using a virtual environment, activate it first (see below) and run the same commands.
+- macOS: `brew install ffmpeg`
+- Ubuntu/Debian: `sudo apt-get install ffmpeg`
+- Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
 
 ## Project Layout
 
@@ -273,19 +313,40 @@ save_cleaned_transcript: true  # Save cleaned transcript to .cleaned.txt file (d
 
 ### Virtual Environment
 
+**Quick setup:**
 ```bash
 bash scripts/setup_venv.sh
 source .venv/bin/activate
+```
 
-# install project into the virtual environment
-# Use [ml] extra for speaker detection, transcription, and summarization features
-pip install -e ".[ml]"
+**Install dependencies:**
+```bash
+# For development (includes dev tools + ML dependencies)
+make init
 
-# spaCy models are downloaded automatically when needed
-# (or manually: python -m spacy download en_core_web_sm)
+# Or manually:
+pip install -e ".[dev,ml]"
+```
 
+**Set up environment variables (if using OpenAI providers):**
+```bash
+# Copy example .env file
+cp .env.example .env
+
+# Edit .env and add your OPENAI_API_KEY
+# OPENAI_API_KEY=sk-your-actual-key-here
+```
+
+**Run the CLI:**
+```bash
 python -m podcast_scraper.cli <rss_url> [options]
 ```
+
+**Additional notes:**
+
+- spaCy models are downloaded automatically when needed
+- Or manually: `python -m spacy download en_core_web_sm`
+- Ensure `ffmpeg` is installed for Whisper transcription
 
 ### Docker
 

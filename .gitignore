@@ -31,3 +31,8 @@ data/eval/
 
 # Evaluation results
 results/
+
+# Environment variables
+.env
+.env.local
+.env.*.local

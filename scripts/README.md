@@ -79,9 +79,13 @@ Evaluates summarization quality using ROUGE metrics and reference-free checks.
 
 ### Installation (eval_summaries.py)
 
-Requires the `rouge-score` library:
+Requires the `rouge-score` library. Install with:
 
 ```bash
+# Option 1: Install as part of dev dependencies (recommended)
+pip install -e .[dev]
+
+# Option 2: Install rouge-score directly
 pip install rouge-score
 ```
 
@@ -168,3 +172,50 @@ Each episode directory should contain:
 - `summary.gold.long.txt` - Detailed human-written reference summary (default for ROUGE)
 - `summary.gold.short.txt` - Optional concise reference summary
 - `metadata.json` - Optional episode metadata
+
+---
+
+## setup_venv.sh Script
+
+Creates a Python virtual environment and installs the package in editable mode.
+
+### setup_venv.sh Usage
+
+```bash
+bash scripts/setup_venv.sh
+source .venv/bin/activate
+```
+
+### What It Does
+
+1. Creates `.venv/` virtual environment
+2. Upgrades pip
+3. Installs package in editable mode (`pip install -e .`)
+
+### Next Steps
+
+After running `setup_venv.sh`:
+
+1. **Activate the virtual environment:**
+   ```bash
+   source .venv/bin/activate
+   ```
+
+2. **Install development dependencies:**
+   ```bash
+   make init
+   # Or manually: pip install -e .[dev,ml]
+   ```
+
+3. **Set up environment variables (optional, for OpenAI providers):**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your OPENAI_API_KEY
+   ```
+
+4. **Run the CLI:**
+   ```bash
+   python -m podcast_scraper.cli <rss_url> [options]
+   ```
+
+See `README.md` and `CONTRIBUTING.md` for more details.

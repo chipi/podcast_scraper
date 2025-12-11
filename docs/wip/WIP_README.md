@@ -12,11 +12,14 @@ This folder contains temporary documentation, ideas, references, and work-in-pro
 ## Current Contents
 
 - `MODULARIZATION_REFACTORING_PLAN.md` - Overall refactoring strategy for OpenAI provider integration and modularization
-- `INCREMENTAL_MODULARIZATION_PLAN.md` - 6-stage incremental implementation plan with risk assessment
+- `INCREMENTAL_MODULARIZATION_PLAN.md` - Incremental implementation plan with risk assessment (includes AI experiment pipeline stages)
 - `SUMMARIZATION_TESTING_EVALUATION.md` - Testing and evaluation strategies for summarization
 - `SUMMARY_REVIEW.md` - Review of summarization implementation
 - `WHISPER_PROGRESS_ANALYSIS.md` - Analysis of Whisper transcription progress reporting
 - `METRICS_REVIEW.md` - Review of metrics and monitoring
+- `DOCKER_BASE_IMAGE_ANALYSIS.md` - Analysis of Docker base image choices
+- `TYPE_HINTS_ANALYSIS.md` - Analysis of type hints usage
+- `WORKFLOW_TRIGGER_ANALYSIS.md` - Analysis of workflow triggers
 
 ## Guidelines
 

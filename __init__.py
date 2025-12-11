@@ -44,11 +44,12 @@ __all__ = [
     "Config",
     "load_config_file",
     "run_pipeline",
-    "cli",
-    "service",
     "__version__",
     "__api_version__",
 ]
+# Note: 'cli' and 'service' are available via __getattr__ for lazy loading
+# Use: from podcast_scraper import cli, service
+# Or: import podcast_scraper.cli as cli
 __version__ = "2.4.0"
 
 # API version follows semantic versioning and is tied to module version
@@ -57,14 +58,24 @@ __version__ = "2.4.0"
 # - Patch version (x.y.Z): Bug fixes, backward compatible
 __api_version__ = __version__
 
+# Cache for lazy-loaded modules to prevent circular imports
+_import_cache: dict[str, object] = {}
+
 
 def __getattr__(name: str):
-    if name == "cli":
-        from . import cli as _cli  # type: ignore
+    if name in _import_cache:
+        return _import_cache[name]
 
+    if name == "cli":
+        import importlib
+
+        _cli = importlib.import_module(f"{__name__}.cli")
+        _import_cache[name] = _cli
         return _cli
     if name == "service":
-        from . import service as _service  # type: ignore
+        import importlib
 
+        _service = importlib.import_module(f"{__name__}.service")
+        _import_cache[name] = _service
         return _service
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -151,6 +151,8 @@ PRDs define the **what** and **why** behind each major feature:
 | **[PRD-003](prd/PRD-003-user-interface-config.md)** | User Interfaces & Configuration | v2.0.0 | CLI interface and config file support |
 | **[PRD-004](prd/PRD-004-metadata-generation.md)** | Per-Episode Metadata Generation | v2.2.0 | Database-friendly metadata documents |
 | **[PRD-005](prd/PRD-005-episode-summarization.md)** | Episode Summarization | v2.3.0 | Automatic summaries using transformer models |
+| **[PRD-006](prd/PRD-006-openai-provider-integration.md)** | OpenAI Provider Integration | Draft | Add OpenAI API as optional provider |
+| **[PRD-007](prd/PRD-007-ai-experiment-pipeline.md)** | AI Experiment Pipeline | Draft | Configuration-driven experiment pipeline |
 
 [View all PRDs →](prd/index.md)
 
@@ -172,6 +174,10 @@ RFCs define the **how** behind each feature implementation:
 | **[RFC-010](rfc/RFC-010-speaker-name-detection.md)** | Automatic Speaker Name Detection | v2.1.0 | NER-based host/guest identification |
 | **[RFC-011](rfc/RFC-011-metadata-generation.md)** | Per-Episode Metadata Generation | v2.2.0 | Structured metadata document generation |
 | **[RFC-012](rfc/RFC-012-episode-summarization.md)** | Episode Summarization | v2.3.0 | Local transformer-based summarization |
+| **[RFC-013](rfc/RFC-013-openai-provider-implementation.md)** | OpenAI Provider Implementation | Draft | Technical design for OpenAI API providers |
+| **[RFC-015](rfc/RFC-015-ai-experiment-pipeline.md)** | AI Experiment Pipeline | Draft | Configuration-driven experiment pipeline |
+| **[RFC-016](rfc/RFC-016-modularization-for-ai-experiments.md)** | Modularization for AI Experiments | Draft | Provider system architecture |
+| **[RFC-017](rfc/RFC-017-prompt-management.md)** | Prompt Management | Draft | Versioned, parameterized prompt management |
 
 [View all RFCs →](rfc/index.md)
 
@@ -179,11 +185,14 @@ RFCs define the **how** behind each feature implementation:
 
 | Version | Date | Highlights |
 | ------- | ---- | ---------- |
-| **[v2.3.0](releases/RELEASE_v2.3.0.md)** | Latest | Episode summarization, public API, cleaned transcripts |
+| **[v2.3.2](releases/RELEASE_v2.3.2.md)** | Latest | Latest release |
+| **[v2.3.1](releases/RELEASE_v2.3.1.md)** | - | Patch release |
+| **[v2.3.0](releases/RELEASE_v2.3.0.md)** | - | Episode summarization, public API, cleaned transcripts |
 | **[v2.2.0](releases/RELEASE_v2.2.0.md)** | - | Metadata generation, code quality improvements |
 | **[v2.1.0](releases/RELEASE_v2.1.0.md)** | - | Automatic speaker detection using NER |
 | **[v2.0.1](releases/RELEASE_v2.0.1.md)** | - | Bug fixes and stability improvements |
 | **[v2.0.0](releases/RELEASE_v2.0.0.md)** | - | Modular architecture, public API foundation |
+| **[v1.0.0](releases/RELEASE_v1.0.0.md)** | - | Initial release |
 
 ---
 
@@ -415,10 +424,14 @@ Experimental and draft documentation:
 
 - [WIP Overview](wip/WIP_README.md) — Purpose and guidelines for WIP docs
 - [Modularization Refactoring Plan](wip/MODULARIZATION_REFACTORING_PLAN.md) — Overall refactoring strategy for OpenAI provider integration
-- [Incremental Modularization Plan](wip/INCREMENTAL_MODULARIZATION_PLAN.md) — 6-stage incremental implementation plan
+- [Incremental Modularization Plan](wip/INCREMENTAL_MODULARIZATION_PLAN.md) — Incremental implementation plan (includes AI experiment pipeline stages)
 - [Summarization Testing Evaluation](wip/SUMMARIZATION_TESTING_EVALUATION.md)
 - [Summary Review](wip/SUMMARY_REVIEW.md)
 - [Whisper Progress Analysis](wip/WHISPER_PROGRESS_ANALYSIS.md)
+- [Metrics Review](wip/METRICS_REVIEW.md)
+- [Docker Base Image Analysis](wip/DOCKER_BASE_IMAGE_ANALYSIS.md)
+- [Type Hints Analysis](wip/TYPE_HINTS_ANALYSIS.md)
+- [Workflow Trigger Analysis](wip/WORKFLOW_TRIGGER_ANALYSIS.md)
 
 > ⚠️ **Note:** WIP documents are temporary, may be incomplete, and are not part of official documentation.
 
