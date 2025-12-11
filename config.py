@@ -7,7 +7,17 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 import yaml
+from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+# Load .env file if it exists (RFC-013: OpenAI API key management)
+# Check for .env in project root (where config.py is located)
+env_path = Path(__file__).parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path, override=False)
+else:
+    # Also check current working directory (for flexibility)
+    load_dotenv(override=False)
 
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_NUM_SPEAKERS = 2
@@ -121,6 +131,9 @@ class Config(BaseModel):
         summary_cache_dir: Custom cache directory for transformer models.
         summary_prompt: Optional custom prompt for summarization.
         save_cleaned_transcript: Save cleaned transcript to separate file.
+        speaker_detector_type: Speaker detection provider type ("ner" or "openai").
+        transcription_provider: Transcription provider type ("whisper" or "openai").
+        openai_api_key: OpenAI API key (loaded from environment variable or .env file if not provided).
 
     Example:
         Create configuration programmatically:
@@ -192,6 +205,23 @@ class Config(BaseModel):
     ner_model: Optional[str] = Field(default=None, alias="ner_model")
     auto_speakers: bool = Field(default=True, alias="auto_speakers")
     cache_detected_hosts: bool = Field(default=True, alias="cache_detected_hosts")
+    # Provider selection fields (Stage 0: Foundation)
+    speaker_detector_type: Literal["ner", "openai"] = Field(
+        default="ner",
+        alias="speaker_detector_type",
+        description="Speaker detection provider type (default: 'ner' for spaCy NER)",
+    )
+    transcription_provider: Literal["whisper", "openai"] = Field(
+        default="whisper",
+        alias="transcription_provider",
+        description="Transcription provider type (default: 'whisper' for local Whisper)",
+    )
+    # OpenAI API configuration (RFC-013)
+    openai_api_key: Optional[str] = Field(
+        default=None,
+        alias="openai_api_key",
+        description="OpenAI API key (prefer OPENAI_API_KEY environment variable or .env file)",
+    )
     generate_metadata: bool = Field(default=False, alias="generate_metadata")
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
@@ -479,6 +509,40 @@ class Config(BaseModel):
         if invalid_chars:
             raise ValueError("metadata_subdirectory cannot contain control characters")
         return value
+
+    @field_validator("openai_api_key", mode="before")
+    @classmethod
+    def _load_openai_api_key_from_env(cls, value: Any) -> Optional[str]:
+        """Load OpenAI API key from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_key = os.getenv("OPENAI_API_KEY")
+        if env_key:
+            return env_key.strip() or None
+        return None
+
+    @field_validator("speaker_detector_type", mode="before")
+    @classmethod
+    def _validate_speaker_detector_type(cls, value: Any) -> Literal["ner", "openai"]:
+        """Validate speaker detector type."""
+        if value is None or value == "":
+            return "ner"
+        value_str = str(value).strip().lower()
+        if value_str not in ("ner", "openai"):
+            raise ValueError("speaker_detector_type must be 'ner' or 'openai'")
+        return value_str  # type: ignore[return-value]
+
+    @field_validator("transcription_provider", mode="before")
+    @classmethod
+    def _validate_transcription_provider(cls, value: Any) -> Literal["whisper", "openai"]:
+        """Validate transcription provider."""
+        if value is None or value == "":
+            return "whisper"
+        value_str = str(value).strip().lower()
+        if value_str not in ("whisper", "openai"):
+            raise ValueError("transcription_provider must be 'whisper' or 'openai'")
+        return value_str  # type: ignore[return-value]
 
     @field_validator("summary_provider", mode="before")
     @classmethod
