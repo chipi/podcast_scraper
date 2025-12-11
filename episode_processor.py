@@ -359,6 +359,7 @@ def transcribe_media_to_text(
     whisper_model,
     run_suffix: Optional[str],
     effective_output_dir: str,
+    transcription_provider=None,  # Stage 2: Optional TranscriptionProvider
     pipeline_metrics=None,
 ) -> tuple[bool, Optional[str], int]:
     """Transcribe media file using Whisper and save result.
@@ -366,9 +367,11 @@ def transcribe_media_to_text(
     Args:
         job: TranscriptionJob with media file path
         cfg: Configuration object
-        whisper_model: Loaded Whisper model
+        whisper_model: Loaded Whisper model (for backward compatibility)
         run_suffix: Optional suffix for output filename
         effective_output_dir: Output directory path
+        transcription_provider: Optional TranscriptionProvider instance (Stage 2)
+        pipeline_metrics: Optional metrics object
 
     Returns:
         Tuple of (success: bool, transcript_file_path: Optional[str], bytes_downloaded: int)
@@ -404,7 +407,16 @@ def transcribe_media_to_text(
         speaker_names_display = ", ".join(job.detected_speaker_names)
         logger.debug("    Speaker names for transcription: %s", speaker_names_display)
 
-    if whisper_model is None:
+    # Stage 2: Use provider if available, otherwise fall back to direct model
+    # Get model from provider if available
+    effective_model = whisper_model
+    if transcription_provider is not None:
+        effective_model = getattr(transcription_provider, "model", whisper_model)
+        if effective_model is None:
+            logger.warning("    Transcription provider has no model, falling back to direct model")
+            effective_model = whisper_model
+
+    if effective_model is None:
         logger.warning(
             "    Skipping transcription: Whisper model not available (requested: %s)",
             cfg.whisper_model,
@@ -423,7 +435,11 @@ def transcribe_media_to_text(
             pass
 
     try:
-        result, tc_elapsed = whisper.transcribe_with_whisper(whisper_model, temp_media, cfg)
+        # Stage 2: Use provider's transcribe method if available
+        # Note: We still need the full result dict for screenplay formatting,
+        # so we use transcribe_with_whisper which returns (result_dict, elapsed)
+        # Future stages can refactor to use provider.transcribe() directly
+        result, tc_elapsed = whisper.transcribe_with_whisper(effective_model, temp_media, cfg)
         text = _format_transcript_if_needed(result, cfg, job.detected_speaker_names)
         rel_path = _save_transcript_file(text, job, run_suffix, effective_output_dir)
         logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")

@@ -36,6 +36,7 @@ from .rss_parser import (
     extract_episode_published_date,
     extract_feed_metadata,
 )
+from .transcription.factory import create_transcription_provider
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,8 @@ class _HostDetectionResult(NamedTuple):
 class _TranscriptionResources(NamedTuple):
     """Resources needed for transcription."""
 
-    whisper_model: Any
+    whisper_model: Any  # Kept for backward compatibility
+    transcription_provider: Any  # Stage 2: TranscriptionProvider instance
     temp_dir: Optional[str]
     transcription_jobs: List[models.TranscriptionJob]
     transcription_jobs_lock: Optional[threading.Lock]
@@ -707,7 +709,7 @@ def _detect_feed_hosts_and_patterns(
 def _setup_transcription_resources(
     cfg: config.Config, effective_output_dir: str
 ) -> _TranscriptionResources:
-    """Setup Whisper model and temp directory for transcription.
+    """Setup transcription provider and temp directory for transcription.
 
     Args:
         cfg: Configuration object
@@ -717,8 +719,27 @@ def _setup_transcription_resources(
         _TranscriptionResources object
     """
     whisper_model = None
+    transcription_provider = None
+
     if cfg.transcribe_missing and not cfg.dry_run:
-        whisper_model = whisper.load_whisper_model(cfg)
+        # Stage 2: Use provider pattern
+        try:
+            transcription_provider = create_transcription_provider(cfg)
+            # Type check: TranscriptionProvider protocol doesn't require initialize(),
+            # but WhisperTranscriptionProvider does. Use hasattr to check.
+            if hasattr(transcription_provider, "initialize"):
+                transcription_provider.initialize()  # type: ignore[attr-defined]
+            # Keep whisper_model for backward compatibility (episode_processor still uses it)
+            whisper_model = getattr(transcription_provider, "model", None)
+            logger.debug(
+                "Transcription provider initialized: %s (model: %s)",
+                type(transcription_provider).__name__,
+                cfg.transcription_provider,
+            )
+        except Exception as exc:
+            logger.error("Failed to initialize transcription provider: %s", exc)
+            # Fallback to direct whisper loading for backward compatibility
+            whisper_model = whisper.load_whisper_model(cfg)
 
     temp_dir = None
     if cfg.transcribe_missing:
@@ -732,7 +753,12 @@ def _setup_transcription_resources(
     saved_counter_lock = threading.Lock() if cfg.workers > 1 else None
 
     return _TranscriptionResources(
-        whisper_model, temp_dir, transcription_jobs, transcription_jobs_lock, saved_counter_lock
+        whisper_model,
+        transcription_provider,
+        temp_dir,
+        transcription_jobs,
+        transcription_jobs_lock,
+        saved_counter_lock,
     )
 
 
@@ -1082,12 +1108,16 @@ def _process_transcription_jobs(
         jobs_processed = 0
         for job in transcription_resources.transcription_jobs:
             try:
+                # Stage 2: Use provider if available, otherwise fall back to direct model
+                # For backward compatibility, we pass both provider and model
+                # transcribe_media_to_text will use provider if available
                 success, transcript_path, bytes_downloaded = transcribe_media_to_text(
                     job,
                     cfg,
                     transcription_resources.whisper_model,
                     run_suffix,
                     effective_output_dir,
+                    transcription_provider=transcription_resources.transcription_provider,
                     pipeline_metrics=pipeline_metrics,
                 )
                 if bytes_downloaded:

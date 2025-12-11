@@ -26,11 +26,16 @@ def create_transcription_provider(cfg: config.Config) -> TranscriptionProvider:
         ValueError: If provider type is not supported
 
     Note:
-        Stage 0: Currently returns NotImplementedError.
-        Implementations will be added in later stages.
+        Stage 2: Returns WhisperTranscriptionProvider for "whisper" provider type.
     """
-    # Stage 0: Factory is empty - implementations will be added in later stages
-    raise NotImplementedError(
-        "Transcription provider factory not yet implemented. "
-        "This will be implemented in Stage 3."
-    )
+    provider_type = cfg.transcription_provider
+
+    if provider_type == "whisper":
+        from .whisper_provider import WhisperTranscriptionProvider
+
+        return WhisperTranscriptionProvider(cfg)
+    else:
+        raise ValueError(
+            f"Unsupported transcription provider: {provider_type}. "
+            "Supported providers: 'whisper'"
+        )

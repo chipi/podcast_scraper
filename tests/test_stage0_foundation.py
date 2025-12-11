@@ -163,13 +163,17 @@ class TestStage0Factories(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             create_speaker_detector(cfg)
 
-    def test_transcription_provider_factory_not_implemented(self):
-        """Test that transcription provider factory raises NotImplementedError."""
+    def test_transcription_provider_factory_creates_provider(self):
+        """Test that transcription provider factory creates provider (Stage 2)."""
         from podcast_scraper.transcription.factory import create_transcription_provider
 
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-        with self.assertRaises(NotImplementedError):
-            create_transcription_provider(cfg)
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml", transcription_provider="whisper"
+        )
+        # Stage 2: Factory now creates WhisperTranscriptionProvider
+        provider = create_transcription_provider(cfg)
+        self.assertIsNotNone(provider)
+        self.assertEqual(provider.__class__.__name__, "WhisperTranscriptionProvider")
 
     def test_summarization_provider_factory_not_implemented(self):
         """Test that summarization provider factory raises NotImplementedError."""
