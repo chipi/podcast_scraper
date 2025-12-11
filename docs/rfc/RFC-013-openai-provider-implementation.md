@@ -1714,7 +1714,6 @@ LOG_LEVEL=INFO
 \`\`\`
 
 **Note:** The `.env` file is automatically loaded via `python-dotenv` when the `podcast_scraper.config` module is imported. See section 2.2 for implementation details.
-```
 
 **Timeline:** Create before Stage 6 (OpenAI implementation)
 
