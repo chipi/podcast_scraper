@@ -212,7 +212,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
             "max_length": 200,
             "min_length": 50,
             "chunk_size": 512,
-            "batch_size": 4,
+            "chunk_parallelism": 4,  # Use chunk_parallelism instead of batch_size
             "prompt": "Custom prompt",
         }
         result = provider.summarize("Test transcript", params=params)
@@ -222,6 +222,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertEqual(call_args[1]["max_length"], 200)
         self.assertEqual(call_args[1]["min_length"], 50)
         self.assertEqual(call_args[1]["chunk_size"], 512)
+        # chunk_parallelism is converted to batch_size internally (for CPU device)
         self.assertEqual(call_args[1]["batch_size"], 4)
         self.assertEqual(call_args[1]["prompt"], "Custom prompt")
 

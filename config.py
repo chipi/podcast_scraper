@@ -124,7 +124,8 @@ class Config(BaseModel):
         summary_max_length: Maximum summary length in tokens.
         summary_min_length: Minimum summary length in tokens.
         summary_device: Device for model execution ("cpu", "cuda", "mps", or None).
-        summary_batch_size: Batch size for parallel processing.
+        summary_batch_size: Batch size for episode-level parallel processing (episodes in parallel).
+        summary_chunk_parallelism: Number of chunks to process in parallel within a single episode (CPU-bound, local providers only).
         summary_chunk_size: Chunk size in tokens for long transcripts.
         summary_word_chunk_size: Chunk size in words for word-based chunking.
         summary_word_overlap: Overlap in words for word-based chunking.
@@ -241,7 +242,16 @@ class Config(BaseModel):
     summary_max_length: int = Field(default=DEFAULT_SUMMARY_MAX_LENGTH, alias="summary_max_length")
     summary_min_length: int = Field(default=DEFAULT_SUMMARY_MIN_LENGTH, alias="summary_min_length")
     summary_device: Optional[str] = Field(default=None, alias="summary_device")
-    summary_batch_size: int = Field(default=DEFAULT_SUMMARY_BATCH_SIZE, alias="summary_batch_size")
+    summary_batch_size: int = Field(
+        default=DEFAULT_SUMMARY_BATCH_SIZE,
+        alias="summary_batch_size",
+        description="Episode-level parallelism: Number of episodes to summarize in parallel (memory-bound for local, rate-limited for API providers)",
+    )
+    summary_chunk_parallelism: int = Field(
+        default=1,
+        alias="summary_chunk_parallelism",
+        description="Chunk-level parallelism: Number of chunks to process in parallel within a single episode (CPU-bound, local providers only. API providers handle internally via rate limiting)",
+    )
     summary_chunk_size: Optional[int] = Field(default=None, alias="summary_chunk_size")
     summary_word_chunk_size: Optional[int] = Field(
         default=DEFAULT_SUMMARY_WORD_CHUNK_SIZE,
@@ -617,6 +627,20 @@ class Config(BaseModel):
         if batch_size < 1:
             raise ValueError("summary_batch_size must be at least 1")
         return batch_size
+
+    @field_validator("summary_chunk_parallelism", mode="before")
+    @classmethod
+    def _ensure_chunk_parallelism(cls, value: Any) -> int:
+        """Ensure chunk parallelism is a positive integer."""
+        if value is None or value == "":
+            return 1
+        try:
+            chunk_parallelism = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("summary_chunk_parallelism must be an integer") from exc
+        if chunk_parallelism < 1:
+            raise ValueError("summary_chunk_parallelism must be at least 1")
+        return chunk_parallelism
 
     @field_validator("summary_chunk_size", mode="before")
     @classmethod

@@ -629,13 +629,15 @@ def _generate_episode_summary(
             if cfg.summary_word_overlap is not None
             else summarizer.DEFAULT_WORD_OVERLAP
         )
+        # Chunk-level parallelism: Use summary_chunk_parallelism for chunk processing
+        chunk_parallelism = cfg.summary_chunk_parallelism if summary_model.device == "cpu" else None
         logger.debug(
             "[%s] Summarization config: "
             f"max_length={cfg.summary_max_length}, min_length={cfg.summary_min_length}, "
             f"word_chunk_size={word_chunk_size if use_word_chunking else 'N/A'}, "
             f"word_overlap={word_overlap if use_word_chunking else 'N/A'}, "
             f"token_chunk_size={chunk_size if not use_word_chunking else 'N/A'}, "
-            f"batch_size={cfg.summary_batch_size if summary_model.device == 'cpu' else 'N/A'}, "
+            f"chunk_parallelism={chunk_parallelism if chunk_parallelism else 'N/A'}, "
             f"map_model={summary_model.model_name}, reduce_model={reduce_model.model_name}, "
             f"device={summary_model.device}",
             episode_idx,
@@ -646,7 +648,7 @@ def _generate_episode_summary(
             chunk_size=chunk_size,
             max_length=cfg.summary_max_length,
             min_length=cfg.summary_min_length,
-            batch_size=cfg.summary_batch_size if summary_model.device == "cpu" else None,
+            batch_size=chunk_parallelism,  # Use chunk_parallelism for chunk-level parallelism
             prompt=cfg.summary_prompt,
             use_word_chunking=use_word_chunking,
             word_chunk_size=word_chunk_size,

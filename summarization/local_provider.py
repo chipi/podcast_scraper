@@ -99,7 +99,7 @@ class TransformersSummarizationProvider:
                 - max_length: Maximum summary length (default from config)
                 - min_length: Minimum summary length (default from config)
                 - chunk_size: Chunk size in tokens (default from config)
-                - batch_size: Batch size for parallel processing (CPU only)
+                - chunk_parallelism: Number of chunks to process in parallel (CPU only, default from config)
                 - use_word_chunking: Use word-based chunking (default: auto-detected)
                 - word_chunk_size: Chunk size in words (default from config)
                 - word_overlap: Overlap in words (default from config)
@@ -128,7 +128,15 @@ class TransformersSummarizationProvider:
         max_length = (params.get("max_length") if params else None) or self.cfg.summary_max_length
         min_length = (params.get("min_length") if params else None) or self.cfg.summary_min_length
         chunk_size = (params.get("chunk_size") if params else None) or self.cfg.summary_chunk_size
-        batch_size = (params.get("batch_size") if params else None) or self.cfg.summary_batch_size
+        # Chunk-level parallelism: Use chunk_parallelism from params, fallback to config
+        chunk_parallelism = (
+            params.get("chunk_parallelism") if params else None
+        ) or self.cfg.summary_chunk_parallelism
+        # batch_size is deprecated - use chunk_parallelism instead
+        # Keep for backward compatibility if explicitly provided
+        batch_size = params.get("batch_size") if params else None
+        if batch_size is None:
+            batch_size = chunk_parallelism if self._map_model.device == "cpu" else None
         use_word_chunking = params.get("use_word_chunking") if params else None
         word_chunk_size = (
             params.get("word_chunk_size") if params else None
