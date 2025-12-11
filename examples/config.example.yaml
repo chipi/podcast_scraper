@@ -1,7 +1,8 @@
 # Example podcast scraper configuration
-# Values specified here are used as defaults unless overridden on the CLI.
 
-rss: https://example.com/feed.xml
+# Values specified here are used as defaults unless overridden on the CLI
+
+rss: <https://example.com/feed.xml>
 output_dir: output_podcast_example
 max_episodes: 10
 transcribe_missing: true
@@ -11,10 +12,13 @@ language: en
 auto_speakers: true
 cache_detected_hosts: true
 screenplay: true
+
 # Optional: manual speaker names fallback (used only if auto-detection fails)
+
 speaker_names:
-  - Host
-  - Guest
+
+- Host
+- Guest
 run_id: experiment
 log_file: null  # Optional: path to log file (logs written to both console and file)
 skip_existing: false  # Skip episodes with existing output (transcripts/metadata)
@@ -24,7 +28,14 @@ generate_metadata: true  # Generate metadata documents alongside transcripts
 metadata_format: json  # json or yaml (json recommended for database ingestion)
 metadata_subdirectory: null  # Optional subdirectory for metadata files (null = same as transcripts)
 
+# Parallelism settings
+
+workers: 4  # Number of parallel download workers (default: 4-8 based on CPU count)
+transcription_parallelism: 1  # Number of episodes to transcribe in parallel (default: 1. Whisper ignores >1, OpenAI uses for parallel API calls)
+processing_parallelism: 2  # Number of episodes to process (metadata/summarization) in parallel (default: 2)
+
 # Summarization settings (requires torch and transformers dependencies)
+
 generate_summaries: true  # Generate summaries for episodes
 summary_provider: local  # local, openai, or anthropic (only 'local' currently implemented)
 summary_model: null  # Optional: MAP model key (e.g., "bart-large", "bart-small", "fast") or direct model ID (e.g., "facebook/bart-large-cnn"). Defaults to "bart-large" for fast chunk summarization
@@ -32,6 +43,8 @@ summary_reduce_model: null  # Optional: REDUCE model key (e.g., "long-fast", "lo
 summary_max_length: 150  # Maximum summary length in tokens
 summary_min_length: 30  # Minimum summary length in tokens
 summary_device: null  # Optional: cuda, mps, cpu, or null for auto-detection
+summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summarize in parallel (default: 1)
+summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode (CPU-bound, local providers only, default: 1)
 summary_chunk_size: null  # Optional: chunk size for long transcripts in tokens (null = model max length)
 summary_cache_dir: null  # Optional: custom cache directory for transformer models (default: ~/.cache/huggingface/hub)
 summary_prompt: null  # Optional: custom prompt/instruction to guide summarization (default: built-in prompt)

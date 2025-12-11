@@ -48,8 +48,12 @@ cfg = Config(
   "transcribe_missing": true,
   "whisper_model": "base",
   "workers": 8,
+  "transcription_parallelism": 1,
+  "processing_parallelism": 2,
   "generate_metadata": true,
-  "generate_summaries": true
+  "generate_summaries": true,
+  "summary_batch_size": 1,
+  "summary_chunk_parallelism": 1
 }
 ```
 
@@ -62,8 +66,12 @@ max_episodes: 50
 transcribe_missing: true
 whisper_model: base
 workers: 8
+transcription_parallelism: 1  # Number of episodes to transcribe in parallel (Whisper ignores >1, OpenAI uses for parallel API calls)
+processing_parallelism: 2  # Number of episodes to process (metadata/summarization) in parallel
 generate_metadata: true
 generate_summaries: true
+summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summarize in parallel
+summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode
 ```
 
 ## Field Aliases

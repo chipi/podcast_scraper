@@ -265,6 +265,8 @@ python3 -m podcast_scraper.cli --config config.json
   "prefer_type": ["text/vtt", ".srt"],
   "run_id": "experiment",
   "workers": 4,
+  "transcription_parallelism": 1,
+  "processing_parallelism": 2,
   "skip_existing": true,
   "reuse_media": false,
   "dry_run": false,
@@ -273,6 +275,8 @@ python3 -m podcast_scraper.cli --config config.json
   "generate_summaries": true,
   "summary_provider": "local",
   "summary_model": "facebook/bart-base",
+  "summary_batch_size": 1,
+  "summary_chunk_parallelism": 1,
   "summary_max_length": 150,
   "summary_max_takeaways": 10,
   "summary_cache_dir": null
@@ -292,7 +296,9 @@ auto_speakers: true
 speaker_names:  # Optional: manual override (takes precedence over auto-detection)
   - Host
   - Guest
-workers: 6
+workers: 6  # Number of parallel download workers
+transcription_parallelism: 1  # Number of episodes to transcribe in parallel (Whisper ignores >1, OpenAI uses for parallel API calls)
+processing_parallelism: 2  # Number of episodes to process (metadata/summarization) in parallel
 skip_existing: true
 reuse_media: false  # Reuse existing media files instead of re-downloading (for faster testing)
 dry_run: false
@@ -305,6 +311,8 @@ summary_model: null  # Optional: MAP model (defaults to bart-large for chunk sum
 summary_reduce_model: null  # Optional: REDUCE model (defaults to long-fast/LED for final combine)
 summary_max_length: 160  # Maximum summary length in tokens (default: 160)
 summary_min_length: 60  # Minimum summary length in tokens (default: 60)
+summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summarize in parallel
+summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode
 summary_chunk_size: null  # Optional: token chunk size (defaults to 2048)
 summary_device: null  # Optional: cuda, mps, cpu, or null for auto-detection
 summary_cache_dir: null  # Optional: custom cache directory for transformer models (default: ~/.cache/huggingface/hub)
