@@ -48,13 +48,17 @@ from typing import Any, Dict, List, Optional, Tuple
 try:
     from rouge_score import rouge_scorer
 except ImportError:
-    print("ERROR: rouge-score library not installed. Install with: pip install rouge-score")
+    print(
+        "ERROR: rouge-score library not installed. "
+        "Install with: pip install rouge-score "
+        "or pip install -e .[dev]"
+    )
     sys.exit(1)
 
 # Add parent directory to path to import podcast_scraper modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from podcast_scraper import config, summarizer
+from podcast_scraper import config, summarizer  # pyright: ignore[reportMissingImports]
 
 logger = logging.getLogger(__name__)
 
@@ -473,8 +477,9 @@ def main() -> None:
         # Create minimal config for evaluation
         # If models not provided, defaults will be applied by
         # select_summary_model/select_reduce_model
-        cfg = config.Config(
-            rss="",  # Not needed for evaluation (using alias)
+        cfg = config.Config(  # type: ignore[call-arg]
+            rss_url=None,  # Not needed for evaluation
+            generate_metadata=True,  # Required when generate_summaries=True
             generate_summaries=True,
             summary_model=map_model_arg,  # None means use default (bart-large)
             summary_reduce_model=args.reduce_model,  # None means use default (long-fast)
@@ -686,9 +691,7 @@ def main() -> None:
         f"({compression_pct:.1%})"
     )
     repetition_pct = no_repetition_count / total_episodes
-    print(
-        f"  No Repetition:       {no_repetition_count}/{total_episodes} " f"({repetition_pct:.1%})"
-    )
+    print(f"  No Repetition:       {no_repetition_count}/{total_episodes} ({repetition_pct:.1%})")
     keyword_pct = keyword_coverage_ok_count / total_episodes
     print(
         f"  Keyword Coverage OK: {keyword_coverage_ok_count}/{total_episodes} "

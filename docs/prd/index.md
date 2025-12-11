@@ -27,6 +27,8 @@ PRDs serve as the foundation for technical design (RFCs) and help ensure feature
 | [PRD-003](PRD-003-user-interface-config.md) | User Interfaces & Configuration | v2.0.0 | ✅ Implemented | CLI interface and configuration file support (JSON/YAML) |
 | [PRD-004](PRD-004-metadata-generation.md) | Per-Episode Metadata Generation | v2.2.0 | ✅ Implemented | Structured metadata documents (JSON/YAML) for database ingestion and search |
 | [PRD-005](PRD-005-episode-summarization.md) | Episode Summarization | v2.3.0 | ✅ Implemented | Automatic summary and key takeaways generation using local transformer models |
+| [PRD-006](PRD-006-openai-provider-integration.md) | OpenAI Provider Integration | - | 📋 Draft | Add OpenAI API as optional provider for speaker detection, transcription, and summarization |
+| [PRD-007](PRD-007-ai-experiment-pipeline.md) | AI Experiment Pipeline | - | 📋 Draft | Configuration-driven experiment pipeline for rapid iteration on models, prompts, and parameters |
 
 ## Quick Links
 

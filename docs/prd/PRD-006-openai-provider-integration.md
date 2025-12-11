@@ -25,7 +25,8 @@ This PRD addresses the need to add OpenAI as a provider option while maintaining
 
 - Add OpenAI API as provider option for speaker detection, transcription, and summarization
 - Maintain 100% backward compatibility - no changes to existing behavior with default (local) providers
-- Provide secure API key management via environment variables (never in source code)
+- Provide secure API key management via environment variables and `.env` files (never in source code)
+- Use `python-dotenv` for convenient environment variable management per environment
 - Enable per-capability provider selection (can mix local and OpenAI providers)
 - Maintain existing parallelism and performance characteristics where applicable
 - Support both development and production environments for API key storage
@@ -56,7 +57,7 @@ openai_transcription_model: str = Field(
 # OpenAI API Configuration
 openai_api_key: Optional[str] = Field(
     default=None,
-    description="OpenAI API key (prefer OPENAI_API_KEY environment variable)"
+    description="OpenAI API key (prefer OPENAI_API_KEY environment variable or .env file)"
 )
 
 openai_temperature: float = Field(
@@ -75,7 +76,7 @@ openai_max_tokens: Optional[int] = Field(
 ### Pricing (as of December 2025)
 
 | Model | Input Cost | Output Cost | Context Window | Best For |
-|-------|------------|-------------|----------------|----------|
+| ----- | ---------- | ----------- | -------------- | -------- |
 | **gpt-4o** | $2.50 / 1M tokens | $10.00 / 1M tokens | 128k tokens | Highest quality |
 | **gpt-4o-mini** | $0.15 / 1M tokens | $0.60 / 1M tokens | 128k tokens | **Recommended** (balanced) |
 | **gpt-4-turbo** | $10.00 / 1M tokens | $30.00 / 1M tokens | 128k tokens | Maximum quality |
@@ -87,7 +88,7 @@ openai_max_tokens: Optional[int] = Field(
 ### Cost Comparison: Local vs OpenAI (Per 100 Episodes)
 
 | Component | Local (Transformers) | OpenAI (gpt-4o-mini) | Difference |
-|-----------|---------------------|----------------------|------------|
+| --------- | ------------------- | -------------------- | ---------- |
 | **Speaker Detection** | Free (spaCy NER) | $0.14 | +$0.14 |
 | **Transcription** | Free (local Whisper) | $36.00 | +$36.00 |
 | **Summarization** | Free (local BART/LED) | $0.41 | +$0.41 |
@@ -163,11 +164,15 @@ summary_provider: openai         # $0.41/100 (convenience)
 ### FR2: API Key Management
 
 - **FR2.1**: Support `OPENAI_API_KEY` environment variable for API authentication
-- **FR2.2**: API key is never stored in source code, config files, or committed files
-- **FR2.3**: Missing API key when OpenAI provider is selected results in clear error message
-- **FR2.4**: API key validation occurs at provider initialization (fail fast)
-- **FR2.5**: Support for development and production environments (same mechanism)
-- **FR2.6**: Future-proof design for additional API keys (e.g., `ANTHROPIC_API_KEY`)
+- **FR2.2**: Support `.env` file via `python-dotenv` for convenient per-environment configuration
+- **FR2.3**: API key is never stored in source code, config files, or committed files
+- **FR2.4**: `.env` file automatically loaded when `config.py` module is imported
+- **FR2.5**: `.env.example` template file provided (safe to commit) with placeholder values
+- **FR2.6**: Missing API key when OpenAI provider is selected results in clear error message
+- **FR2.7**: API key validation occurs at provider initialization (fail fast)
+- **FR2.8**: Support for development and production environments via separate `.env` files
+- **FR2.9**: Environment variable priority: config file > system env > `.env` file
+- **FR2.10**: Future-proof design for additional API keys (e.g., `ANTHROPIC_API_KEY`)
 
 ### FR3: Speaker Detection with OpenAI
 
@@ -238,7 +243,7 @@ summary_provider: openai         # $0.41/100 (convenience)
 ### TR3: Configuration
 
 - **TR3.1**: Add provider type fields to config.py (already planned in refactoring)
-- **TR3.2**: Support environment variable for API key
+- **TR3.2**: Support environment variable and `.env` file for API key (via `python-dotenv`)
 - **TR3.3**: Config validation ensures provider + API key consistency
 - **TR3.4**: Backward compatible defaults (local providers)
 
@@ -254,12 +259,12 @@ summary_provider: openai         # $0.41/100 (convenience)
 
 - ✅ Users can select OpenAI provider for any capability via configuration
 - ✅ Default behavior (local providers) remains unchanged
-- ✅ API keys are managed securely via environment variables
+- ✅ API keys are managed securely via environment variables and `.env` files (using `python-dotenv`)
 - ✅ OpenAI providers implement same interfaces as local providers
 - ✅ No changes required to workflow.py or end-user code
 - ✅ Parallelism works correctly with API providers
 - ✅ Error handling is clear and actionable
-- ✅ Documentation explains provider selection and API key setup
+- ✅ Documentation explains provider selection and API key setup (including `.env` file usage)
 
 ## Out of Scope
 
@@ -355,7 +360,7 @@ We expect and encourage contributors to create their own provider implementation
 - Test protocol interface compliance
 - Test error scenarios
 - Test edge cases
-- Integration tests with real providers (optional, requires API keys)
+- Integration tests with real providers (optional, requires API keys in `.env` file or environment)
 
 **Testing Requirements:**
 

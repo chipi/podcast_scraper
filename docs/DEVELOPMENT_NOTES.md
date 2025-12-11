@@ -1,6 +1,49 @@
 # Development Notes
 
-> **Maintenance Note**: This document should be kept up-to-date as linting rules, Makefile targets, pre-commit hooks, or CI/CD workflows evolve. When adding new checks, tools, or workflows, update this document accordingly.
+> **Maintenance Note**: This document should be kept up-to-date as linting rules, Makefile targets, pre-commit hooks, CI/CD workflows, or development setup procedures evolve. When adding new checks, tools, workflows, or environment setup steps, update this document accordingly.
+
+## Environment Setup
+
+### Virtual Environment
+
+**Quick setup:**
+```bash
+bash scripts/setup_venv.sh
+source .venv/bin/activate
+```
+
+**Install dependencies:**
+```bash
+make init  # Installs dev + ML dependencies
+```
+
+### Environment Variables
+
+**For OpenAI providers** (see PRD-006, RFC-013):
+
+1. **Copy example `.env` file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit `.env` and add your API key:**
+   ```bash
+   OPENAI_API_KEY=sk-your-actual-key-here
+   ```
+
+3. **The `.env` file is automatically loaded** via `python-dotenv` when `podcast_scraper.config` module is imported.
+
+**Security notes:**
+
+- ✅ `.env` is in `.gitignore` (never committed)
+- ✅ `.env.example` is safe to commit (template only)
+- ✅ API keys are never logged or exposed
+- ✅ Environment variables take precedence over `.env` file
+
+**See also:**
+
+- `docs/rfc/RFC-013-openai-provider-implementation.md` - API key management details
+- `docs/prd/PRD-006-openai-provider-integration.md` - OpenAI provider requirements
 
 ## Markdown Linting
 

@@ -3,12 +3,14 @@
 - **Status**: Draft
 - **Authors**:
 - **Stakeholders**: Maintainers, developers implementing AI experiment pipeline, developers maintaining core workflow
-- **Related RFCs**: `docs/rfc/RFC-015-ai-experiment-pipeline.md`, `docs/wip/MODULARIZATION_REFACTORING_PLAN.md`
+- **Related RFCs**: `docs/rfc/RFC-015-ai-experiment-pipeline.md`, `docs/rfc/RFC-017-prompt-management.md`, `docs/wip/MODULARIZATION_REFACTORING_PLAN.md`
 - **Related Issues**: (to be created)
 
 ## Abstract
 
 This RFC identifies the refactoring and modularization needed to support the AI experiment pipeline (RFC-015) while maintaining the existing production workflow. **This refactoring aligns with and builds upon the modularization already planned in RFC-013 (OpenAI Provider Implementation)**. The goal is to create clean abstractions that allow the experiment pipeline to run independently without duplicating code or interfering with the main pipeline.
+
+**Key Concept**: The experiment pipeline wraps existing pieces (gold data, HF baseline, eval scripts) in a repeatable pipeline. The provider system enables this by allowing the experiment runner to reuse production providers without code duplication. Once the structure is in place, adding new providers is just "add config + small backend class".
 
 **Note**: The provider pattern refactoring described here is the same refactoring planned in RFC-013. This RFC focuses specifically on how that refactoring enables the AI experiment pipeline, ensuring we don't duplicate work.
 
@@ -48,6 +50,10 @@ podcast_scraper/
 ├── summarizer.py            # Local transformer models
 ├── speaker_detection.py     # NER-based speaker detection
 ├── config.py                # Configuration model
+├── prompt_store.py          # Prompt management (RFC-017)
+├── prompts/                 # Versioned prompt templates
+│   ├── summarization/
+│   └── ner/
 └── scripts/
     ├── eval_summaries.py    # Evaluation script
     └── eval_cleaning.py     # Evaluation script
@@ -232,6 +238,47 @@ def remove_sponsor_blocks(text: str) -> str:
 - `metadata.py` imports from `preprocessing` instead of `summarizer`
 - `providers/summarization/local.py` imports from `preprocessing` if needed
 - All providers receive preprocessed text
+
+### 3.1 Prompt Management Integration
+
+**Prompt management is a provider-specific concern** (see RFC-017):
+
+- **Provider Autonomy**: Each provider that needs prompts (OpenAI) uses `prompt_store` internally
+- **Protocol-Agnostic**: Prompts don't appear in protocol definitions
+- **Versioned Assets**: Prompts stored as `.j2` files in `prompts/` directory
+- **Config-Driven**: Prompt selection via config fields
+
+**Example Provider Implementation:**
+
+```python
+# podcast_scraper/summarization/openai_provider.py
+from ..prompt_store import render_prompt
+
+class OpenAISummarizationProvider:
+    def summarize(self, text: str, cfg: config.Config, ...) -> Dict[str, Any]:
+        # Load prompts internally (provider-specific)
+        system_prompt = render_prompt(
+            cfg.summary_system_prompt or "summarization/system_v1",
+            **cfg.summary_prompt_params,
+        ) if cfg.summary_system_prompt else None
+        
+        user_prompt = render_prompt(
+            cfg.summary_user_prompt or "summarization/long_v1",
+            transcript=text,
+            **cfg.summary_prompt_params,
+        )
+        
+        # Use prompts in API call...
+```
+
+**Key Points:**
+
+- ✅ Providers load prompts internally - not part of protocol interface
+- ✅ Local providers (transformers, Whisper) don't use prompts
+- ✅ Prompt management doesn't affect protocol compliance
+- ✅ Same `prompt_store` used in both application and experiments
+
+See RFC-017 for complete prompt management design.
 
 ### 4. Create Experiment Backend Adapters
 
@@ -470,14 +517,26 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
         # Note: Some OpenAI params (temperature, etc.) may need to be passed
         # directly to provider, not via Config
     
-    # Map prompts
+    # Map prompts (using prompt_store from RFC-017)
     if "prompts" in experiment_config:
         prompts = experiment_config["prompts"]
-        if "prompts_file" in prompts:
-            config_dict["openai_prompts_file"] = prompts["prompts_file"]
+        # Map prompt names to config fields
+        if "system" in prompts:
+            config_dict["summary_system_prompt"] = prompts["system"]
+        if "user" in prompts:
+            config_dict["summary_user_prompt"] = prompts["user"]
+        if "params" in prompts:
+            config_dict["summary_prompt_params"] = prompts["params"]
     
     return config.Config(**config_dict)
 ```
+
+**Note**: Prompt management is handled via `prompt_store` (RFC-017), which provides:
+
+- Versioned prompt files (`.j2` templates)
+- Jinja2 parameterization
+- Caching and tracking
+- Provider-specific usage (prompts loaded internally by providers)
 
 ## Migration Strategy
 
@@ -523,6 +582,8 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
 
 ## Benefits
 
+**Note**: For product benefits, see `docs/prd/PRD-007-ai-experiment-pipeline.md`. This section focuses on technical benefits.
+
 1. **No Code Duplication**: Experiment pipeline reuses production providers
 2. **Independent Execution**: Experiments don't require full pipeline
 3. **Testability**: Each provider can be tested independently
@@ -550,17 +611,22 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
 
 ## Success Criteria
 
+**Note**: For product success criteria, see `docs/prd/PRD-007-ai-experiment-pipeline.md`. This section focuses on technical success criteria.
+
 - ✅ Experiment pipeline can run independently
 - ✅ Production workflow continues to work unchanged
 - ✅ No code duplication between experiment and production
 - ✅ Easy to add new providers
 - ✅ Evaluation scripts work with both experiment and production outputs
 - ✅ Clear separation of concerns
+- ✅ Provider interfaces are well-defined and testable
 
 ## Related Documents
 
-- `docs/rfc/RFC-015-ai-experiment-pipeline.md`: AI experiment pipeline design
+- `docs/prd/PRD-007-ai-experiment-pipeline.md`: Product requirements, use cases, and functional specifications
+- `docs/rfc/RFC-015-ai-experiment-pipeline.md`: Technical design and implementation details
 - `docs/rfc/RFC-013-openai-provider-implementation.md`: OpenAI provider design (shared refactoring plan)
+- `docs/rfc/RFC-017-prompt-management.md`: Prompt management and loading implementation
 - `docs/prd/PRD-006-openai-provider-integration.md`: Product requirements for OpenAI integration
 
 ## Alignment with RFC-013

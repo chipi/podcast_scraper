@@ -3,14 +3,29 @@
 **Status**: Draft  
 **Related Documents**:
 
-- `docs/wip/MODULARIZATION_REFACTORING_PLAN.md` - Overall refactoring strategy
-- `docs/prd/PRD-006-openai-provider-integration.md` - OpenAI provider requirements
-- `docs/rfc/RFC-013-openai-provider-implementation.md` - OpenAI implementation design
-- `docs/rfc/RFC-016-modularization-for-ai-experiments.md` - Code structure refactoring
+- `docs/wip/MODULARIZATION_REFACTORING_PLAN.md` - Overall refactoring strategy (baseline)
+- `docs/prd/PRD-006-openai-provider-integration.md` - OpenAI provider product requirements
+- `docs/prd/PRD-007-ai-experiment-pipeline.md` - AI experiment pipeline product requirements
+- `docs/rfc/RFC-013-openai-provider-implementation.md` - OpenAI provider technical design
+- `docs/rfc/RFC-015-ai-experiment-pipeline.md` - AI experiment pipeline technical design
+- `docs/rfc/RFC-016-modularization-for-ai-experiments.md` - Provider system architecture
+- `docs/rfc/RFC-017-prompt-management.md` - Prompt management implementation
 
 ## Overview
 
-This document provides a **risk-balanced, incremental implementation plan** for modularizing the podcast scraper architecture to support OpenAI provider integration and the AI experiment pipeline. Each stage is **complete, tested, and fully working** before moving to the next.
+This document provides a **holistic, risk-balanced, incremental implementation plan** for:
+
+1. **Modularizing the podcast scraper architecture** to support provider abstraction (OpenAI, local HF, etc.)
+2. **Building the AI experiment pipeline** that enables rapid iteration on models, prompts, and parameters
+3. **Implementing prompt management** for versioned, parameterized prompts
+
+**Key Concept**: Think of the AI experiment pipeline exactly like your unit/integration test pipeline – just for models instead of code. The experiment pipeline wraps existing pieces (gold data, HF baseline, eval scripts) in a repeatable pipeline that sits next to your normal build/CI.
+
+Each stage is **complete, tested, and fully working** before moving to the next. The plan integrates:
+
+- **Provider modularization** (Stages 0-6) - Enables pluggable backends
+- **Prompt management** (Stage 7) - Versioned, parameterized prompts
+- **AI experiment pipeline** (Stages 8-10) - Configuration-driven experimentation
 
 **Core Principles**:
 
@@ -431,10 +446,17 @@ This document provides a **risk-balanced, incremental implementation plan** for 
    - Add OpenAI provider to factory selection logic
 
 3. **Add config validation**:
-   - Validate API key when OpenAI provider selected
+   - Validate API key when OpenAI provider selected (using `python-dotenv` for `.env` files)
    - Add per-provider model configuration
+   - Use `prompt_store` (RFC-017) for prompt loading
 
-4. **Tests**:
+4. **API Key Management**:
+   - Use `python-dotenv` to load `.env` files automatically
+   - Support `OPENAI_API_KEY` environment variable
+   - Create `.env.example` template
+   - Add `.env` to `.gitignore`
+
+5. **Tests**:
    - Unit tests with mocked OpenAI API
    - Integration tests with real API (optional, requires key)
    - Error handling tests (API failures, rate limits)
@@ -445,7 +467,213 @@ This document provides a **risk-balanced, incremental implementation plan** for 
 - ✅ All protocol tests pass
 - ✅ Integration tests pass (with mocked API)
 - ✅ Error handling works correctly
+- ✅ API key management works (`.env` file support)
+- ✅ Uses `prompt_store` for prompts (RFC-017)
 - ✅ Documentation complete
+
+**Reference**: See `docs/rfc/RFC-013-openai-provider-implementation.md` for detailed implementation design.
+
+---
+
+## Stage 7: Prompt Management System
+
+**Goal**: Implement versioned, parameterized prompt management system
+
+**Duration**: 2-3 days  
+**Risk Level**: 🟢 Low (new functionality, well-isolated)
+
+### Stage 7 Prerequisites
+
+- ✅ Stage 6 completed (or can be done in parallel)
+- ✅ OpenAI providers use prompts
+
+### Stage 7 Deliverables
+
+1. **Create `prompt_store.py` module**:
+   - Load prompts from `prompts/` directory
+   - Jinja2 templating support
+   - Caching with `lru_cache`
+   - SHA256 hashing for tracking
+   - Functions: `render_prompt()`, `get_prompt_metadata()`, `get_prompt_source()`
+
+2. **Create prompt directory structure**:
+
+   ```text
+   prompts/
+   ├── summarization/
+   │   ├── system_v1.j2
+   │   ├── long_v1.j2
+   │   └── short_v1.j2
+   └── ner/
+       ├── system_ner_v1.j2
+       └── guest_host_v1.j2
+   ```
+
+3. **Update OpenAI providers**:
+   - Use `prompt_store.render_prompt()` instead of hardcoded prompts
+   - Track prompt metadata in results
+
+4. **Create `experiment_config.py`**:
+   - Pydantic models for experiment configs
+   - YAML loader
+   - Data discovery helpers
+   - Prompt config models
+
+5. **Tests**:
+   - Unit tests for prompt loading and rendering
+   - Template parameterization tests
+   - Metadata tracking tests
+
+### Stage 7 Success Criteria
+
+- ✅ Prompts stored as versioned files
+- ✅ Prompts support Jinja2 templating
+- ✅ Prompt metadata tracked in results
+- ✅ OpenAI providers use `prompt_store`
+- ✅ Experiment config models ready
+
+**Reference**: See `docs/rfc/RFC-017-prompt-management.md` for detailed implementation design.
+
+---
+
+## Stage 8: AI Experiment Pipeline - Foundation
+
+**Goal**: Normalize existing structure and build generic runner
+
+**Duration**: 3-4 days  
+**Risk Level**: 🟡 Medium (new functionality, wraps existing pieces)
+
+### Stage 8 Prerequisites
+
+- ✅ Stage 7 completed (prompt management)
+- ✅ Stages 0-6 completed (provider system)
+
+### Stage 8 Deliverables
+
+1. **Normalize data structure**:
+   - Move gold data under `data/eval/episodes/*`
+   - Ensure consistent episode structure
+   - Document golden dataset format
+
+2. **Establish baseline**:
+   - Keep existing baseline as `results/summarization_bart_led_v1/metrics.json`
+   - Create baseline experiment config file
+   - Document baseline experiment
+
+3. **Create generic `run_experiment.py`**:
+   - Takes config path as input
+   - Loads episodes listed in config
+   - Calls appropriate backend (local HF or OpenAI API)
+   - Writes predictions + metrics separately
+   - Support episode filtering (e.g., `--episodes ep01`)
+
+4. **Create `eval_experiment.py` wrapper**:
+   - Bridges experiment output to existing eval scripts
+   - Reuses `eval_summaries.py` logic
+   - No changes to existing eval scripts required
+
+5. **Tests**:
+   - Test generic runner with baseline config
+   - Test episode filtering
+   - Test prediction generation
+   - Test metrics computation
+
+### Stage 8 Success Criteria
+
+- ✅ Gold data normalized under `data/eval/episodes/*`
+- ✅ Baseline experiment documented and config file created
+- ✅ Generic runner works with baseline config
+- ✅ Generates predictions.jsonl
+- ✅ Can evaluate predictions using existing eval logic
+
+**Reference**: See `docs/prd/PRD-007-ai-experiment-pipeline.md` and `docs/rfc/RFC-015-ai-experiment-pipeline.md` for detailed design.
+
+---
+
+## Stage 9: AI Experiment Pipeline - CI/CD Integration
+
+**Goal**: Add two-layer CI/CD integration (smoke tests + full pipeline)
+
+**Duration**: 2-3 days  
+**Risk Level**: 🟡 Medium (CI/CD integration)
+
+### Stage 9 Prerequisites
+
+- ✅ Stage 8 completed (generic runner)
+
+### Stage 9 Deliverables
+
+1. **Layer A: CI Smoke Tests**:
+   - GitHub Actions workflow for smoke tests
+   - Runs on every push/PR
+   - Uses tiny subset (e.g., `ep01` only)
+   - Uses single baseline config
+   - Asserts quality thresholds (e.g., `rougeL_f >= threshold`)
+   - Asserts no errors, no NaNs, no missing fields
+
+2. **Layer B: Full Eval Pipeline**:
+   - Script that loops over all YAMLs in `experiments/*.yaml`
+   - Runs them, writes results
+   - Prints summary table
+   - GitHub Actions workflow for full evaluation
+   - Runs nightly or on-demand
+   - Generates summary report
+
+3. **Comparison tooling**:
+   - Script to compare experiment results
+   - Generate comparison reports (markdown, JSON)
+   - Detect regressions
+
+### Stage 9 Success Criteria
+
+- ✅ Smoke tests run on every push/PR
+- ✅ Asserts quality thresholds
+- ✅ Catches breakages quickly
+- ✅ Full eval script runs all experiments
+- ✅ Generates summary report with metrics table
+- ✅ Can compare experiments and detect regressions
+
+**Reference**: See `docs/rfc/RFC-015-ai-experiment-pipeline.md` Section 7 for detailed CI/CD design.
+
+---
+
+## Stage 10: AI Experiment Pipeline - Comparison Tooling
+
+**Goal**: Build comparison tool that creates Excel with all experiments and key metrics
+
+**Duration**: 2-3 days  
+**Risk Level**: 🟢 Low (new tooling, well-isolated)
+
+### Stage 10 Prerequisites
+
+- ✅ Stage 9 completed (CI/CD integration)
+
+### Stage 10 Deliverables
+
+1. **Build comparison tool**:
+   - Reads all experiment results
+   - Creates Excel workbook with all experiments
+   - One tab per task type
+   - Key metrics columns (ROUGE, precision, F1, etc.)
+
+2. **Enable data-driven decisions**:
+   - Answer "which model + prompt is best?" becomes a data question
+   - Visual comparison tables
+   - Trend analysis
+
+3. **Integration**:
+   - Integrate with full eval pipeline
+   - Generate Excel workbook automatically
+   - Update workbook on each run
+
+### Stage 10 Success Criteria
+
+- ✅ Comparison tool creates Excel workbook
+- ✅ All experiments and key metrics visible
+- ✅ Easy to compare and make data-driven decisions
+- ✅ Integrated with full eval pipeline
+
+**Reference**: See `docs/prd/PRD-007-ai-experiment-pipeline.md` FR5 for requirements.
 
 ---
 
@@ -453,6 +681,7 @@ This document provides a **risk-balanced, incremental implementation plan** for 
 
 | Stage | Risk Level | Mitigation Strategy |
 | ----- | ---------- | -------------------- |
+| **Provider Modularization** | | |
 | Stage 0: Foundation | ⚪ Very Low | Empty packages, defaults match current behavior |
 | Stage 1: Preprocessing | 🟢 Low | Isolated refactoring, easy to test |
 | Stage 2: Transcription | 🟡 Medium | Well-isolated, copy-paste logic |
@@ -460,6 +689,12 @@ This document provides a **risk-balanced, incremental implementation plan** for 
 | Stage 4: Summarization | 🟠 Medium-High | Most complex, done last with experience |
 | Stage 5: Integration | 🟡 Medium | Comprehensive testing |
 | Stage 6: OpenAI | 🟡 Medium | Well-isolated, optional, can be incremental |
+| **Prompt Management** | | |
+| Stage 7: Prompt Management | 🟢 Low | New functionality, well-isolated |
+| **AI Experiment Pipeline** | | |
+| Stage 8: Foundation | 🟡 Medium | Wraps existing pieces, new functionality |
+| Stage 9: CI/CD Integration | 🟡 Medium | CI/CD integration, well-tested patterns |
+| Stage 10: Comparison Tooling | 🟢 Low | New tooling, well-isolated |
 
 ---
 
@@ -498,6 +733,15 @@ This document provides a **risk-balanced, incremental implementation plan** for 
 - Verify no performance regression
 - Test memory usage
 
+### Experiment Pipeline Tests (Stages 8-10)
+
+- Test generic runner with various configs
+- Test episode filtering
+- Test prediction generation
+- Test metrics computation
+- Test CI/CD workflows (smoke tests and full pipeline)
+- Test comparison tooling
+
 ---
 
 ## Success Metrics
@@ -530,6 +774,7 @@ This document provides a **risk-balanced, incremental implementation plan** for 
 
 | Stage | Duration | Cumulative |
 | ----- | -------- | ---------- |
+| **Provider Modularization** | | |
 | Stage 0: Foundation | 1-2 days | 1-2 days |
 | Stage 1: Preprocessing | 1-2 days | 2-4 days |
 | Stage 2: Transcription | 2-3 days | 4-7 days |
@@ -537,31 +782,56 @@ This document provides a **risk-balanced, incremental implementation plan** for 
 | Stage 4: Summarization | 3-4 days | 9-14 days |
 | Stage 5: Integration | 2-3 days | 11-17 days |
 | Stage 6: OpenAI (optional) | 3-5 days each | 14-32 days |
+| **Prompt Management** | | |
+| Stage 7: Prompt Management | 2-3 days | 16-35 days |
+| **AI Experiment Pipeline** | | |
+| Stage 8: Foundation | 3-4 days | 19-39 days |
+| Stage 9: CI/CD Integration | 2-3 days | 21-42 days |
+| Stage 10: Comparison Tooling | 2-3 days | 23-45 days |
 
 **Total Core Refactoring**: ~11-17 days (2-3 weeks)  
-**With OpenAI Providers**: ~14-32 days (3-6 weeks)
+**With OpenAI Providers**: ~14-32 days (3-6 weeks)  
+**With Prompt Management**: ~16-35 days (3-7 weeks)  
+**With Full AI Experiment Pipeline**: ~23-45 days (5-9 weeks)
+
+**Note**: Stages can be done incrementally. The experiment pipeline (Stages 8-10) can be started once provider system (Stages 0-6) and prompt management (Stage 7) are in place.
 
 ---
 
 ## Dependencies Between Stages
 
 ```text
-Stage 0 (Foundation)
-  ↓
-Stage 1 (Preprocessing) - Independent
-  ↓
-Stage 2 (Transcription) - Independent
-  ↓
-Stage 3 (Speaker Detection) - Independent
-  ↓
-Stage 4 (Summarization) - Uses preprocessing from Stage 1
-  ↓
-Stage 5 (Integration) - Requires all Stages 1-4
-  ↓
-Stage 6 (OpenAI) - Requires Stage 5
+Provider Modularization:
+  Stage 0 (Foundation)
+    ↓
+  Stage 1 (Preprocessing) - Independent
+    ↓
+  Stage 2 (Transcription) - Independent
+    ↓
+  Stage 3 (Speaker Detection) - Independent
+    ↓
+  Stage 4 (Summarization) - Uses preprocessing from Stage 1
+    ↓
+  Stage 5 (Integration) - Requires all Stages 1-4
+    ↓
+  Stage 6 (OpenAI) - Requires Stage 5 (optional)
+
+Prompt Management:
+  Stage 7 (Prompt Management) - Can be done in parallel with Stage 6
+
+AI Experiment Pipeline:
+  Stage 8 (Foundation) - Requires Stages 0-6 (provider system) + Stage 7 (prompts)
+    ↓
+  Stage 9 (CI/CD Integration) - Requires Stage 8
+    ↓
+  Stage 10 (Comparison Tooling) - Requires Stage 9
 ```
 
-**Note**: Stages 1-4 can be done in parallel after Stage 0, but sequential is recommended for risk management.
+**Note**:
+
+- Stages 1-4 can be done in parallel after Stage 0, but sequential is recommended for risk management
+- Stage 7 (Prompt Management) can be done in parallel with Stage 6 (OpenAI)
+- Stages 8-10 (AI Experiment Pipeline) require provider system (Stages 0-6) and prompt management (Stage 7)
 
 ---
 
@@ -594,5 +864,36 @@ Each stage is designed to be independently revertible without affecting previous
 - This plan prioritizes **risk reduction** and **incremental value delivery**
 - Each stage can be **reviewed and approved** independently
 - **OpenAI providers** can be added later (Stage 6) or in parallel by different developers
+- **Prompt management** (Stage 7) can be done in parallel with OpenAI providers (Stage 6)
+- **AI experiment pipeline** (Stages 8-10) wraps existing pieces - think of it like your test pipeline for models
 - **Testing is critical** at each stage - don't proceed without passing tests
 - **Backward compatibility** is maintained at every step
+- The experiment pipeline enables rapid iteration on models/prompts without code changes - just config files
+
+## Key Concepts
+
+### Test Pipeline Analogy
+
+The AI experiment pipeline is exactly like your unit/integration test pipeline – just for models instead of code:
+
+- **Unit Tests** → **Smoke Tests** (Layer A): Fast sanity checks on every push/PR
+- **Integration Tests** → **Full Eval Pipeline** (Layer B): Comprehensive evaluation nightly/on-demand
+- **Test Files** → **Experiment Configs**: Configuration-driven, version-controlled
+- **Test Results** → **Experiment Metrics**: Tracked, comparable, reproducible
+
+### Wrapping Existing Pieces
+
+The experiment pipeline doesn't rebuild - it wraps:
+
+- Existing gold data → Normalized under `data/eval/episodes/*`
+- Existing HF baseline → Baseline experiment config
+- Existing eval scripts → Wrapped by `eval_experiment.py`
+- Existing providers → Used by generic runner
+
+### Configuration-Driven
+
+Treat model + prompt + params as configuration:
+
+- No hardcoded experiments in Python
+- Config files define experiments (like GitHub Actions workflows)
+- "Trying a different model or prompt" = adding another config file

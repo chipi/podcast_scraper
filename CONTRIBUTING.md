@@ -25,7 +25,11 @@ Thanks for taking the time to contribute! This project mirrors its CI pipeline l
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 
-# Create and activate a virtual environment (example using Python's venv)
+# Option 1: Use setup script (recommended)
+bash scripts/setup_venv.sh
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# Option 2: Manual setup
 python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
@@ -33,7 +37,19 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 make init
 ```
 
-> `make init` upgrades pip, installs lint/test/type/security tooling, installs runtime requirements (if `requirements.txt` exists), and then installs `podcast_scraper` in editable mode. It matches the dependencies used in CI.
+> `make init` upgrades pip, installs lint/test/type/security tooling, installs runtime requirements (if `requirements.txt` exists), and then installs `podcast_scraper` in editable mode with `[dev,ml]` extras. It matches the dependencies used in CI.
+
+**Optional: Set up environment variables** (if testing OpenAI providers):
+
+```bash
+# Copy example .env file
+cp .env.example .env
+
+# Edit .env and add your OPENAI_API_KEY
+# OPENAI_API_KEY=sk-your-actual-key-here
+```
+
+The `.env` file is automatically loaded via `python-dotenv` when the package is imported. See `docs/rfc/RFC-013-openai-provider-implementation.md` for details.
 
 ### 2. Run the full check suite (matches CI)
 

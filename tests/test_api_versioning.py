@@ -52,3 +52,16 @@ class TestAPIVersioning(unittest.TestCase):
 
         self.assertEqual(__api_version__, __version__)
         self.assertEqual(__api_version__, podcast_scraper.__api_version__)
+
+    def test_lazy_loaded_modules_importable(self):
+        """Test lazy-loaded modules (cli, service) import without circular import issues."""
+        # These use __getattr__ which previously had circular import bugs
+        from podcast_scraper import cli, service
+
+        self.assertTrue(cli is not None)
+        self.assertTrue(service is not None)
+        # Verify they're actual modules
+        import types
+
+        self.assertIsInstance(cli, types.ModuleType)
+        self.assertIsInstance(service, types.ModuleType)

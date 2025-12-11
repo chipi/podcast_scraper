@@ -44,6 +44,7 @@ dev = [
   "bandit>=1.7.5,<2.0.0",
   "pip-audit>=2.6.0,<3.0.0",
   "build",
+  "rouge-score>=0.1.2,<1.0.0",  # Required for scripts/eval_summaries.py
 ]
 # Documentation - see docs/requirements.txt
 
@@ -83,6 +84,9 @@ python_version = "3.10"
 ignore_missing_imports = true
 warn_return_any = true
 warn_unused_configs = true
+exclude = [
+    "^scripts/.*",  # Scripts use sys.path manipulation, exclude from mypy
+]
 
 [[tool.mypy.overrides]]
 module = ["requests", "requests.*"]

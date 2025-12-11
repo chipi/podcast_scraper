@@ -2,6 +2,9 @@
 # Or for development: pip install -e .[dev,ml,docs]
 # Version pinning: Using compatible release ranges to prevent breaking changes
 # while allowing minor updates and security patches
+#
+# Note: rouge-score (required for scripts/eval_summaries.py) is included in
+# dev optional dependencies. Install with: pip install -e .[dev]
 requests>=2.31.0,<3.0.0
 urllib3>=2.6.0,<3.0.0
 tqdm>=4.66.0,<5.0.0

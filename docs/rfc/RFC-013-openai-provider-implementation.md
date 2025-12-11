@@ -4,6 +4,7 @@
 - **Authors**:
 - **Stakeholders**: Maintainers, users wanting OpenAI API integration, developers implementing providers
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
+- **Related RFCs**: `docs/rfc/RFC-017-prompt-management.md`
 - **Related Documents**: `docs/wip/MODULARIZATION_REFACTORING_PLAN.md`
 - **Related Issues**: (to be created)
 
@@ -140,13 +141,30 @@ summary_model: Optional[str] = Field(default=None, alias="summary_model")
 
 #### 2.2 API Key Management
 
-**Environment Variable Approach:**
+**Environment Variable Approach with `python-dotenv`:**
+
+We use `python-dotenv` to manage environment variables via `.env` files, providing a convenient way to configure API keys per environment (development, staging, production) without hardcoding them.
+
+**Implementation:**
 
 ```python
-# config.py
+# config.py (at module level, before Config class)
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env file from project root (if it exists)
+# This happens automatically when config module is imported
+_env_path = Path(__file__).parent.parent / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path, override=False)  # Don't override existing env vars
+else:
+    # Also check current working directory (for flexibility)
+    load_dotenv(override=False)
+
+# Config class
 openai_api_key: Optional[str] = Field(
     default=None,
-    description="OpenAI API key (prefer OPENAI_API_KEY environment variable)"
+    description="OpenAI API key (prefer OPENAI_API_KEY environment variable or .env file)"
 )
 
 @field_validator('openai_api_key', mode='before')
@@ -170,18 +188,144 @@ def validate_openai_config(self) -> 'Config':
     if needs_key and not self.openai_api_key:
         raise ValueError(
             "OpenAI API key required when using OpenAI providers. "
-            "Set OPENAI_API_KEY environment variable or openai_api_key config field."
+            "Set OPENAI_API_KEY environment variable, add it to .env file, "
+            "or set openai_api_key in config file."
         )
     return self
 ```
 
+**`.env` File Setup:**
+
+1. **Create `.env` file** in project root (never commit to git):
+
+```bash
+# .env (add to .gitignore!)
+# OpenAI API Configuration
+OPENAI_API_KEY=sk-your-actual-api-key-here
+
+# Optional: OpenAI Organization ID (if you're in multiple orgs)
+OPENAI_ORGANIZATION=org-your-org-id
+
+# Optional: Custom API base URL (for proxies)
+# OPENAI_API_BASE=https://api.openai.com/v1
+
+# Other environment variables
+LOG_LEVEL=INFO
+```
+
+2. **Create `.env.example`** template (commit this to git):
+
+```bash
+# .env.example
+# Copy this file to .env and fill in your actual values
+# DO NOT commit .env to git!
+
+# OpenAI API Configuration
+OPENAI_API_KEY=sk-your-api-key-here
+# OPENAI_ORGANIZATION=org-your-org-id
+# OPENAI_API_BASE=https://api.openai.com/v1
+
+# Logging
+LOG_LEVEL=INFO
+```
+
+3. **Add to `.gitignore`**:
+
+```gitignore
+# Environment variables
+.env
+.env.local
+.env.*.local
+```
+
+**Application Startup:**
+
+The `.env` file is automatically loaded when `config.py` is imported. For CLI and service entry points:
+
+```python
+# cli.py or service.py
+from podcast_scraper import config  # This loads .env automatically
+# ... rest of code
+```
+
+**Environment-Specific `.env` Files:**
+
+You can use different `.env` files for different environments:
+
+```bash
+# Development
+.env.development
+
+# Staging
+.env.staging
+
+# Production
+.env.production
+```
+
+Load specific file:
+
+```python
+from dotenv import load_dotenv
+from pathlib import Path
+
+env_file = Path(".env.production")  # or from ENV environment variable
+load_dotenv(env_file, override=False)
+```
+
 **Security Best Practices:**
 
-- Never log API keys
-- Never commit API keys to source control
-- Use environment variables as primary method
-- Support config file for convenience (but document security implications)
-- Validate API key format (starts with `sk-`) if possible
+- ✅ **Never commit `.env` to git** - Add to `.gitignore`
+- ✅ **Use `.env.example`** - Template file with placeholder values (safe to commit)
+- ✅ **Load at startup** - `.env` loaded automatically when config module imports
+- ✅ **Don't override existing vars** - `override=False` respects system environment variables
+- ✅ **Never log API keys** - Sanitize logs, never print full keys
+- ✅ **Validate key format** - Check that key starts with `sk-` if provided
+- ✅ **Separate keys per environment** - Use different keys for dev/staging/prod
+- ✅ **Rotate keys periodically** - Update keys regularly for security
+
+**Dependencies:**
+
+Add to `requirements.txt`:
+
+```text
+python-dotenv>=1.0.0
+```
+
+**Development Setup Documentation:**
+
+Update `docs/DEVELOPMENT_NOTES.md` or create `docs/SETUP.md` with the following content:
+
+**Environment Setup:**
+
+1. Copy `.env.example` to `.env`:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Edit `.env` and add your OpenAI API key:
+
+   ```bash
+   OPENAI_API_KEY=sk-your-actual-key-here
+   ```
+
+3. Verify setup:
+
+   ```bash
+   python -c "from podcast_scraper import config; print('Config loaded successfully')"
+   ```
+
+**Note:** The `.env` file is automatically loaded when the `podcast_scraper` package is imported.
+
+**Fallback Priority:**
+
+API key resolution order (highest to lowest priority):
+
+1. **Config file** (`openai_api_key` field in YAML/JSON config)
+2. **System environment variable** (`OPENAI_API_KEY` from shell/system)
+3. **`.env` file** (`OPENAI_API_KEY` from `.env` file)
+4. **None** (raises error if OpenAI provider is selected)
 
 ### 3. OpenAI Provider Implementations
 
@@ -281,9 +425,20 @@ class OpenAISpeakerDetector:
         feed_description: Optional[str],
         feed_authors: Optional[List[str]],
     ) -> str:
-        """Build prompt for host detection."""
-        # Implementation details...
-        pass
+        """Build prompt for host detection using prompt_store (RFC-017).
+        
+        Prompts are loaded from versioned files via prompt_store, enabling
+        prompt engineering without code changes.
+        """
+        from ..prompt_store import render_prompt
+        
+        return render_prompt(
+            self.cfg.ner_user_prompt or "ner/guest_host_v1",
+            feed_title=feed_title,
+            feed_description=feed_description or "",
+            feed_authors=", ".join(feed_authors) if feed_authors else "",
+            **self.cfg.ner_prompt_params,
+        )
     
     def _parse_hosts_from_response(self, response_text: str) -> Set[str]:
         """Parse host names from API response."""
@@ -294,10 +449,33 @@ class OpenAISpeakerDetector:
 **Key Design Decisions:**
 
 - Use GPT-4o-mini or GPT-3.5-turbo for cost efficiency (configurable)
+- **Prompt Management**: Use `prompt_store` (RFC-017) for versioned, parameterized prompts
 - Structured prompts for consistent results
 - Parse JSON or structured text from API responses
 - Handle API errors gracefully with retries
 - Maintain same return types as NER provider
+
+**Prompt Implementation:**
+
+All prompts are loaded via `prompt_store` (see RFC-017) for versioning and parameterization:
+
+```python
+from ..prompt_store import render_prompt
+
+# In detect_speakers():
+user_prompt = render_prompt(
+    self.cfg.ner_user_prompt or "ner/guest_host_v1",
+    episode_title=episode_title,
+    episode_description=episode_description or "",
+    known_hosts=", ".join(known_hosts) if known_hosts else "",
+    **self.cfg.ner_prompt_params,
+)
+
+system_prompt = render_prompt(
+    self.cfg.ner_system_prompt or "ner/system_ner_v1",
+    **self.cfg.ner_prompt_params,
+) if self.cfg.ner_system_prompt else None
+```
 
 #### 3.2 Transcription Provider
 
@@ -532,6 +710,30 @@ class OpenAISummarizationProvider:
 - **Smart Chunk Handling**: If chunks are provided, check if they fit in context window and combine them
 - **Cost Efficiency**: Single API call for full transcript is more cost-effective than multiple chunk calls
 - **Use GPT-4o-mini**: Cost-effective default with large context window
+- **Prompt Management**: Use `prompt_store` (RFC-017) for versioned, parameterized prompts
+
+**Prompt Implementation:**
+
+All prompts are loaded via `prompt_store` (see RFC-017) for versioning and parameterization:
+
+```python
+from ..prompt_store import render_prompt
+
+# In summarize():
+system_prompt = render_prompt(
+    self.cfg.summary_system_prompt or "summarization/system_v1",
+    **self.cfg.summary_prompt_params,
+) if self.cfg.summary_system_prompt else None
+
+user_prompt = render_prompt(
+    self.cfg.summary_user_prompt or "summarization/long_v1",
+    transcript=text,
+    title=episode_title or "",
+    paragraphs_min=(min_length or cfg.summary_min_length) // 100,
+    paragraphs_max=(max_length or cfg.summary_max_length) // 100,
+    **self.cfg.summary_prompt_params,
+)
+```
 
 ### 4. Factory Updates
 
@@ -555,6 +757,52 @@ def create(cfg: config.Config) -> Optional[SpeakerDetector]:
 
 # Similar updates for transcription and summarization factories
 ```
+
+### 4.1 Prompt Management Integration
+
+**All OpenAI providers use `prompt_store` (RFC-017) for prompt management:**
+
+- **Versioned Prompts**: Prompts stored as `.j2` files in `prompts/` directory
+- **Parameterization**: Jinja2 templates enable dynamic prompt content
+- **Provider-Specific**: Each provider loads prompts internally (not part of protocol)
+- **Config-Driven**: Prompt selection via config fields, not code
+
+**Example Integration:**
+
+```python
+# In OpenAISummarizationProvider.__init__():
+from ..prompt_store import render_prompt, get_prompt_metadata
+
+# Prompts are loaded on-demand when needed, cached automatically
+# No initialization required - prompt_store handles caching
+
+# In summarize() method:
+system_prompt = None
+if cfg.summary_system_prompt:
+    system_prompt = render_prompt(
+        cfg.summary_system_prompt,
+        **cfg.summary_prompt_params,
+    )
+
+user_prompt = render_prompt(
+    cfg.summary_user_prompt or "summarization/long_v1",
+    transcript=text,
+    title=episode_title or "",
+    paragraphs_min=min_length // 100,
+    paragraphs_max=max_length // 100,
+    **cfg.summary_prompt_params,
+)
+```
+
+**Benefits:**
+
+- ✅ **No Code Changes**: Edit prompt files to change prompts
+- ✅ **Versioning**: Explicit versioning via filenames (v1, v2, etc.)
+- ✅ **Reproducibility**: SHA256 hashes track exact prompt versions
+- ✅ **Provider Autonomy**: Each provider handles prompts internally
+- ✅ **Protocol Compliance**: Prompts don't affect protocol interfaces
+
+See RFC-017 for complete prompt management design.
 
 ### 5. Parallelism Considerations
 
@@ -1455,11 +1703,17 @@ export LOG_LEVEL="DEBUG"
 
 \`\`\`bash
 # .env - Add to .gitignore!
-OPENAI_API_KEY=sk-...
-OPENAI_ORGANIZATION=org-...
+# This file is automatically loaded by python-dotenv when config.py is imported
+
+# OpenAI API Configuration
+OPENAI_API_KEY=sk-your-actual-api-key-here
+OPENAI_ORGANIZATION=org-your-org-id-here  # Optional
+
+# Logging
 LOG_LEVEL=INFO
 \`\`\`
-```
+
+**Note:** The `.env` file is automatically loaded via `python-dotenv` when the `podcast_scraper.config` module is imported. See section 2.2 for implementation details.
 
 **Timeline:** Create before Stage 6 (OpenAI implementation)
 
@@ -1535,7 +1789,7 @@ def migrate_local_to_transformers(cls, v):
 OpenAI uses a tiered rate limiting system based on usage:
 
 | Tier | Requirement | RPM (gpt-4o-mini) | TPM (Tokens) | RPD (Requests) |
-|------|-------------|-------------------|--------------|----------------|
+| ---- | ----------- | ----------------- | ------------ | --------------- |
 | **Free** | New account | 500 | 200,000 | 10,000 |
 | **Tier 1** | $5+ spent | 500 | 2,000,000 | 10,000 |
 | **Tier 2** | $50+ spent + 7 days | 5,000 | 10,000,000 | 100,000 |
