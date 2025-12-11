@@ -26,10 +26,15 @@ def create_speaker_detector(cfg: config.Config) -> SpeakerDetector:
         ValueError: If provider type is not supported
 
     Note:
-        Stage 0: Currently returns NotImplementedError.
-        Implementations will be added in later stages.
+        Stage 3: Returns NERSpeakerDetector for "ner" provider type.
     """
-    # Stage 0: Factory is empty - implementations will be added in later stages
-    raise NotImplementedError(
-        "Speaker detector factory not yet implemented. " "This will be implemented in Stage 2."
-    )
+    provider_type = cfg.speaker_detector_type
+
+    if provider_type == "ner":
+        from .ner_detector import NERSpeakerDetector
+
+        return NERSpeakerDetector(cfg)
+    else:
+        raise ValueError(
+            f"Unsupported speaker detector type: {provider_type}. " "Supported types: 'ner'"
+        )

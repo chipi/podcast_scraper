@@ -155,13 +155,17 @@ class TestStage0ConfigFields(unittest.TestCase):
 class TestStage0Factories(unittest.TestCase):
     """Test that factory functions exist but raise NotImplementedError (Stage 0)."""
 
-    def test_speaker_detector_factory_not_implemented(self):
-        """Test that speaker detector factory raises NotImplementedError."""
+    def test_speaker_detector_factory_creates_detector(self):
+        """Test that speaker detector factory creates detector (Stage 3)."""
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-        with self.assertRaises(NotImplementedError):
-            create_speaker_detector(cfg)
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml", speaker_detector_type="ner"
+        )
+        # Stage 3: Factory now creates NERSpeakerDetector
+        detector = create_speaker_detector(cfg)
+        self.assertIsNotNone(detector)
+        self.assertEqual(detector.__class__.__name__, "NERSpeakerDetector")
 
     def test_transcription_provider_factory_creates_provider(self):
         """Test that transcription provider factory creates provider (Stage 2)."""

@@ -36,6 +36,7 @@ from .rss_parser import (
     extract_episode_published_date,
     extract_feed_metadata,
 )
+from .speaker_detectors.factory import create_speaker_detector
 from .transcription.factory import create_transcription_provider
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,7 @@ class _HostDetectionResult(NamedTuple):
 
     cached_hosts: Set[str]
     heuristics: Optional[Dict[str, Any]]
+    speaker_detector: Any = None  # Stage 3: Optional SpeakerDetector instance
 
 
 class _TranscriptionResources(NamedTuple):
@@ -631,79 +633,132 @@ def _detect_feed_hosts_and_patterns(
     heuristics: Optional[Dict[str, Any]] = None
 
     if not cfg.auto_speakers or not cfg.cache_detected_hosts:
-        return _HostDetectionResult(cached_hosts, heuristics)
+        return _HostDetectionResult(cached_hosts, heuristics, None)
 
-    # Detect hosts: prefer RSS author tags, fall back to NER
-    nlp = speaker_detection.get_ner_model(cfg) if not feed.authors else None
-    feed_hosts = speaker_detection.detect_hosts_from_feed(
-        feed_title=feed.title,
-        feed_description=None,  # TODO: Extract from feed XML if needed
-        feed_authors=feed.authors if feed.authors else None,
-        nlp=nlp,
-    )
+    # Stage 3: Use provider pattern for speaker detection
+    try:
+        speaker_detector = create_speaker_detector(cfg)
+        # Initialize provider (loads spaCy model)
+        if hasattr(speaker_detector, "initialize"):
+            speaker_detector.initialize()  # type: ignore[attr-defined]
 
-    # Validate hosts with first episode: hosts should appear in first episode too
-    # Skip validation if hosts came from author tags (they're already reliable)
-    if feed_hosts and episodes and not feed.authors:
-        # Only validate if we used NER (not author tags)
-        first_episode = episodes[0]
-        first_episode_description = extract_episode_description(first_episode.item)
-        if nlp:
-            first_episode_persons: Set[str] = set()
-            title_persons = speaker_detection.extract_person_entities(first_episode.title, nlp)
-            first_episode_persons.update(name for name, _ in title_persons)
-            if first_episode_description:
-                desc_persons = speaker_detection.extract_person_entities(
-                    first_episode_description, nlp
-                )
-                first_episode_persons.update(name for name, _ in desc_persons)
-            # Only keep hosts that also appear in first episode (validation)
-            validated_hosts = feed_hosts & first_episode_persons
-            if validated_hosts != feed_hosts:
-                logger.debug(
-                    "Host validation: %d hosts from feed, %d validated with first episode",
-                    len(feed_hosts),
-                    len(validated_hosts),
-                )
-                if validated_hosts:
-                    logger.debug(
-                        "Validated hosts (appear in feed and first episode): %s",
-                        list(validated_hosts),
-                    )
-                if feed_hosts - validated_hosts:
-                    logger.debug(
-                        "Hosts from feed not found in first episode (discarded): %s",
-                        list(feed_hosts - validated_hosts),
-                    )
-            cached_hosts = validated_hosts
-        else:
-            cached_hosts = feed_hosts
-    else:
-        # If hosts came from author tags, use them directly (no validation needed)
-        cached_hosts = feed_hosts
-
-    if cached_hosts:
-        source = "RSS author tags" if feed.authors else "feed metadata (NER)"
-        logger.info("=" * 60)
-        logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
-        logger.info("=" * 60)
-    elif cfg.auto_speakers:
-        logger.debug("No hosts detected from feed metadata")
-
-    # Analyze patterns from first few episodes to extract heuristics
-    if cfg.auto_speakers and episodes:
-        nlp = speaker_detection.get_ner_model(cfg)
-        if nlp:
-            heuristics = speaker_detection.analyze_episode_patterns(
-                episodes, nlp, cached_hosts, sample_size=5
+        # Detect hosts: prefer RSS author tags, fall back to NER
+        # Use provider's detect_hosts method if available, otherwise fall back to direct call
+        if hasattr(speaker_detector, "detect_hosts"):
+            feed_hosts = speaker_detector.detect_hosts(  # type: ignore[attr-defined]
+                feed_title=feed.title,
+                feed_description=None,  # TODO: Extract from feed XML if needed
+                feed_authors=feed.authors if feed.authors else None,
             )
-            if heuristics.get("title_position_preference"):
-                logger.debug(
-                    "Pattern analysis: guest names typically appear at %s of title",
-                    heuristics["title_position_preference"],
+        else:
+            # Fallback to direct speaker_detection call
+            nlp = speaker_detection.get_ner_model(cfg) if not feed.authors else None
+            feed_hosts = speaker_detection.detect_hosts_from_feed(
+                feed_title=feed.title,
+                feed_description=None,
+                feed_authors=feed.authors if feed.authors else None,
+                nlp=nlp,
+            )
+
+        # Validate hosts with first episode: hosts should appear in first episode too
+        # Skip validation if hosts came from author tags (they're already reliable)
+        if feed_hosts and episodes and not feed.authors:
+            # Only validate if we used NER (not author tags)
+            first_episode = episodes[0]
+            first_episode_description = extract_episode_description(first_episode.item)
+            # Use provider's nlp if available, otherwise get it directly
+            nlp = getattr(speaker_detector, "nlp", None) or speaker_detection.get_ner_model(cfg)
+            if nlp:
+                first_episode_persons: Set[str] = set()
+                title_persons = speaker_detection.extract_person_entities(first_episode.title, nlp)
+                first_episode_persons.update(name for name, _ in title_persons)
+                if first_episode_description:
+                    desc_persons = speaker_detection.extract_person_entities(
+                        first_episode_description, nlp
+                    )
+                    first_episode_persons.update(name for name, _ in desc_persons)
+                # Only keep hosts that also appear in first episode (validation)
+                validated_hosts = feed_hosts & first_episode_persons
+                if validated_hosts != feed_hosts:
+                    logger.debug(
+                        "Host validation: %d hosts from feed, %d validated with first episode",
+                        len(feed_hosts),
+                        len(validated_hosts),
+                    )
+                    if validated_hosts:
+                        logger.debug(
+                            "Validated hosts (appear in feed and first episode): %s",
+                            list(validated_hosts),
+                        )
+                    if feed_hosts - validated_hosts:
+                        logger.debug(
+                            "Hosts from feed not found in first episode (discarded): %s",
+                            list(feed_hosts - validated_hosts),
+                        )
+                cached_hosts = validated_hosts
+            else:
+                cached_hosts = feed_hosts
+        else:
+            # If hosts came from author tags, use them directly (no validation needed)
+            cached_hosts = feed_hosts
+
+        if cached_hosts:
+            source = "RSS author tags" if feed.authors else "feed metadata (NER)"
+            logger.info("=" * 60)
+            logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
+            logger.info("=" * 60)
+        elif cfg.auto_speakers:
+            logger.debug("No hosts detected from feed metadata")
+
+        # Analyze patterns from first few episodes to extract heuristics
+        if cfg.auto_speakers and episodes:
+            # Use provider's analyze_patterns method if available
+            if hasattr(speaker_detector, "analyze_patterns"):
+                heuristics_dict = speaker_detector.analyze_patterns(  # type: ignore[attr-defined]
+                    episodes=episodes, known_hosts=cached_hosts
+                )
+                if heuristics_dict:
+                    heuristics = heuristics_dict
+                    if heuristics.get("title_position_preference"):
+                        logger.debug(
+                            "Pattern analysis: guest names typically appear at %s of title",
+                            heuristics["title_position_preference"],
+                        )
+            else:
+                # Fallback to direct speaker_detection call
+                nlp = getattr(speaker_detector, "nlp", None) or speaker_detection.get_ner_model(cfg)
+                if nlp:
+                    heuristics = speaker_detection.analyze_episode_patterns(
+                        episodes, nlp, cached_hosts, sample_size=5
+                    )
+                    if heuristics.get("title_position_preference"):
+                        logger.debug(
+                            "Pattern analysis: guest names typically appear at %s of title",
+                            heuristics["title_position_preference"],
+                        )
+
+        # Return result with provider instance
+        return _HostDetectionResult(cached_hosts, heuristics, speaker_detector)
+    except Exception as exc:
+        logger.error("Failed to initialize speaker detector provider: %s", exc)
+        # Fallback to direct speaker_detection calls
+        nlp = speaker_detection.get_ner_model(cfg) if not feed.authors else None
+        feed_hosts = speaker_detection.detect_hosts_from_feed(
+            feed_title=feed.title,
+            feed_description=None,
+            feed_authors=feed.authors if feed.authors else None,
+            nlp=nlp,
+        )
+        cached_hosts = feed_hosts
+        if cfg.auto_speakers and episodes:
+            nlp = speaker_detection.get_ner_model(cfg)
+            if nlp:
+                heuristics = speaker_detection.analyze_episode_patterns(
+                    episodes, nlp, cached_hosts, sample_size=5
                 )
 
-    return _HostDetectionResult(cached_hosts, heuristics)
+        # Return result without provider (fallback mode)
+        return _HostDetectionResult(cached_hosts, heuristics, None)
 
 
 def _setup_transcription_resources(
@@ -808,17 +863,34 @@ def _prepare_episode_download_args(
             # Detect speaker names from episode title and first 20 chars of description
             # Guests are detected from episode title and description snippet
             extract_names_start = time.time()
-            detected_speakers, detected_hosts_set, detection_succeeded = (
-                speaker_detection.detect_speaker_names(
-                    episode_title=episode.title,
-                    episode_description=episode_description,
-                    cfg=cfg,
-                    cached_hosts=(
-                        host_detection_result.cached_hosts if cfg.cache_detected_hosts else None
-                    ),
-                    heuristics=host_detection_result.heuristics,
+
+            # Stage 3: Use provider if available, otherwise fall back to direct call
+            speaker_detector = host_detection_result.speaker_detector
+            if speaker_detector and hasattr(speaker_detector, "detect_speakers"):
+                # Use provider's detect_speakers method
+                cached_hosts_for_detection = (
+                    host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
                 )
-            )
+                detected_speakers, detected_hosts_set, detection_succeeded = (
+                    speaker_detector.detect_speakers(  # type: ignore[attr-defined]
+                        episode_title=episode.title,
+                        episode_description=episode_description,
+                        known_hosts=cached_hosts_for_detection,
+                    )
+                )
+            else:
+                # Fallback to direct speaker_detection call
+                detected_speakers, detected_hosts_set, detection_succeeded = (
+                    speaker_detection.detect_speaker_names(
+                        episode_title=episode.title,
+                        episode_description=episode_description,
+                        cfg=cfg,
+                        cached_hosts=(
+                            host_detection_result.cached_hosts if cfg.cache_detected_hosts else None
+                        ),
+                        heuristics=host_detection_result.heuristics,
+                    )
+                )
             extract_names_elapsed = time.time() - extract_names_start
             # Record speaker detection time if metrics available
             if pipeline_metrics is not None:
