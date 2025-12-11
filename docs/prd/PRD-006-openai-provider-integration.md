@@ -76,7 +76,7 @@ openai_max_tokens: Optional[int] = Field(
 ### Pricing (as of December 2025)
 
 | Model | Input Cost | Output Cost | Context Window | Best For |
-|-------|------------|-------------|----------------|----------|
+| ----- | ---------- | ----------- | -------------- | -------- |
 | **gpt-4o** | $2.50 / 1M tokens | $10.00 / 1M tokens | 128k tokens | Highest quality |
 | **gpt-4o-mini** | $0.15 / 1M tokens | $0.60 / 1M tokens | 128k tokens | **Recommended** (balanced) |
 | **gpt-4-turbo** | $10.00 / 1M tokens | $30.00 / 1M tokens | 128k tokens | Maximum quality |
@@ -88,7 +88,7 @@ openai_max_tokens: Optional[int] = Field(
 ### Cost Comparison: Local vs OpenAI (Per 100 Episodes)
 
 | Component | Local (Transformers) | OpenAI (gpt-4o-mini) | Difference |
-|-----------|---------------------|----------------------|------------|
+| --------- | ------------------- | -------------------- | ---------- |
 | **Speaker Detection** | Free (spaCy NER) | $0.14 | +$0.14 |
 | **Transcription** | Free (local Whisper) | $36.00 | +$36.00 |
 | **Summarization** | Free (local BART/LED) | $0.41 | +$0.41 |

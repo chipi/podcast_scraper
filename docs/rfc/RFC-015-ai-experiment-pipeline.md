@@ -1828,7 +1828,7 @@ python scripts/run_experiment.py \
 #### 5.4 Evolution Summary
 
 | Phase | Runner Capabilities | Eval Integration | Backends Supported |
-|-------|---------------------|-------------------|-------------------|
+| ----- | ------------------- | ----------------- | ------------------ |
 | **Phase 1** | OpenAI summarization only | Separate eval script | OpenAI |
 | **Phase 2** | Multiple tasks, provider pattern | Refactored eval functions | OpenAI + HF local |
 | **Phase 3** | Integrated evaluation | Built-in metrics | All providers |
@@ -2743,7 +2743,7 @@ The implementation follows a phased approach that wraps existing pieces (gold da
 The experiment runner evolves through four phases:
 
 | Phase | Capabilities | Eval Integration | Backends | Timeline |
-|-------|--------------|------------------|----------|----------|
+| ----- | ------------ | ---------------- | -------- | -------- |
 | **Phase 1** | OpenAI summarization only | Separate eval script | OpenAI | 2-3 days |
 | **Phase 2** | Multiple tasks, provider pattern | Refactored eval functions | OpenAI + HF local | 3-4 days |
 | **Phase 3** | Integrated evaluation | Built-in metrics | All providers | 2-3 days |

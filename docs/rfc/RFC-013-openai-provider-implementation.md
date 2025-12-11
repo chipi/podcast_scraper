@@ -1789,7 +1789,7 @@ def migrate_local_to_transformers(cls, v):
 OpenAI uses a tiered rate limiting system based on usage:
 
 | Tier | Requirement | RPM (gpt-4o-mini) | TPM (Tokens) | RPD (Requests) |
-|------|-------------|-------------------|--------------|----------------|
+| ---- | ----------- | ----------------- | ------------ | --------------- |
 | **Free** | New account | 500 | 200,000 | 10,000 |
 | **Tier 1** | $5+ spent | 500 | 2,000,000 | 10,000 |
 | **Tier 2** | $50+ spent + 7 days | 5,000 | 10,000,000 | 100,000 |
