@@ -559,7 +559,10 @@ def _generate_episode_summary(
         # Conservative cleaning: preserves speaker names (detected via NER)
         # and works with any language
         logger.debug("[%s] Cleaning transcript before summarization...", episode_idx)
-        cleaned_text = summarizer.clean_transcript(
+        # Use preprocessing module directly (Stage 1: extracted preprocessing)
+        from . import preprocessing
+
+        cleaned_text = preprocessing.clean_transcript(
             transcript_text,
             remove_timestamps=True,  # Language-agnostic (numbers work for all languages)
             normalize_speakers=True,  # Only removes generic patterns, preserves actual names
