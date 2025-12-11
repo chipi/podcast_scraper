@@ -71,6 +71,24 @@ class _TranscriptionResources(NamedTuple):
     saved_counter_lock: Optional[threading.Lock]
 
 
+class _ProcessingJob(NamedTuple):
+    """Job for processing (metadata/summarization) stage."""
+
+    episode: models.Episode
+    transcript_path: str
+    transcript_source: Literal["direct_download", "whisper_transcription"]
+    detected_names: Optional[List[str]]
+    whisper_model: Optional[str]
+
+
+class _ProcessingResources(NamedTuple):
+    """Resources needed for processing stage."""
+
+    processing_jobs: List[_ProcessingJob]
+    processing_jobs_lock: Optional[threading.Lock]
+    processing_complete_event: Optional[threading.Event]
+
+
 def _update_metric_safely(
     pipeline_metrics: metrics.Metrics,
     metric_name: str,
@@ -310,7 +328,10 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     # Step 6: Setup transcription resources (Whisper model, temp dir)
     transcription_resources = _setup_transcription_resources(cfg, effective_output_dir)
 
-    # Step 6.5: Setup summary models if summarization is enabled
+    # Step 6.5: Setup processing resources (metadata/summarization queue)
+    processing_resources = _setup_processing_resources(cfg)
+
+    # Step 6.6: Setup summary models if summarization is enabled
     # Load models once and reuse across all episodes to avoid memory leaks and redundant downloads
     summary_model = None
     reduce_model = None
@@ -376,11 +397,38 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         pipeline_metrics.record_stage("normalizing", time.time() - normalizing_start)
 
         # Step 8: Process episodes (download transcripts or queue transcription jobs)
-        # Start transcription processing concurrently if transcription is enabled
+        # Start processing stage concurrently (metadata/summarization)
         writing_start = time.time()
         transcription_complete_event = threading.Event()
         transcription_saved = [0]  # Use list to allow modification from thread
 
+        # Start processing thread if metadata generation is enabled
+        processing_thread = None
+        if cfg.generate_metadata:
+            processing_thread = threading.Thread(
+                target=_process_processing_jobs_concurrent,
+                args=(
+                    processing_resources,
+                    feed,
+                    cfg,
+                    effective_output_dir,
+                    run_suffix,
+                    feed_metadata,
+                    host_detection_result,
+                    pipeline_metrics,
+                    summary_model,
+                    reduce_model,
+                    transcription_complete_event,
+                ),
+                daemon=False,
+                name="ProcessingProcessor",
+            )
+            processing_thread.start()
+            logger.debug(
+                "Started concurrent processing thread (parallelism=%d)", cfg.processing_parallelism
+            )
+
+        # Start transcription processing concurrently if transcription is enabled
         if cfg.transcribe_missing and not cfg.dry_run:
             # Start transcription processing in background thread
             transcription_thread = threading.Thread(
@@ -395,6 +443,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                     run_suffix,
                     feed_metadata,
                     host_detection_result,
+                    processing_resources,
                     pipeline_metrics,
                     summary_model,
                     reduce_model,
@@ -417,6 +466,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             feed_metadata,
             host_detection_result,
             transcription_resources,
+            processing_resources,
             pipeline_metrics,
             summary_model,
             reduce_model,
@@ -448,7 +498,15 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             )
         pipeline_metrics.record_stage("writing_storage", time.time() - writing_start)
 
-        # Step 9: Parallel episode summarization (if enabled and multiple episodes)
+        # Step 9.5: Wait for processing to complete (if started)
+        if processing_thread is not None:
+            # Signal that transcription is complete (processing waits for this)
+            transcription_complete_event.set()
+            # Wait for processing thread to finish
+            processing_thread.join()
+            logger.debug("Concurrent processing completed")
+
+        # Step 10: Parallel episode summarization (if enabled and multiple episodes)
         # Process episodes that need summarization in parallel for better performance
         # This runs after all episodes are processed and checks for episodes that might
         # have been skipped during inline processing or need summary regeneration
@@ -892,6 +950,30 @@ def _setup_transcription_resources(
     )
 
 
+def _setup_processing_resources(cfg: config.Config) -> _ProcessingResources:
+    """Set up resources for processing stage (metadata/summarization).
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        _ProcessingResources with processing queue and locks
+    """
+    processing_jobs: List[_ProcessingJob] = []
+    processing_jobs_lock = (
+        threading.Lock()
+        if (cfg.workers > 1 or cfg.transcription_parallelism > 1 or cfg.processing_parallelism > 1)
+        else None
+    )
+    processing_complete_event = threading.Event()
+
+    return _ProcessingResources(
+        processing_jobs,
+        processing_jobs_lock,
+        processing_complete_event,
+    )
+
+
 def _prepare_episode_download_args(
     episodes: List[models.Episode],
     cfg: config.Config,
@@ -1034,6 +1116,7 @@ def _process_episodes(
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
     transcription_resources: _TranscriptionResources,
+    processing_resources: _ProcessingResources,
     pipeline_metrics: metrics.Metrics,
     summary_model=None,
     reduce_model=None,
@@ -1094,6 +1177,32 @@ def _process_episodes(
                     if transcript_source == "direct_download":
                         _update_metric_safely(pipeline_metrics, "transcripts_downloaded", 1)
                     logger.debug("Episode %s yielded transcript (saved=%s)", episode.idx, saved)
+
+                    # Queue processing job if metadata generation is enabled and transcript is available
+                    # Skip if transcript_source is None (Whisper pending) - will be queued after transcription
+                    if cfg.generate_metadata and transcript_source is not None:
+                        transcript_source_typed = cast(
+                            Literal["direct_download", "whisper_transcription"],
+                            transcript_source,
+                        )
+                        processing_job = _ProcessingJob(
+                            episode=episode,
+                            transcript_path=transcript_path or "",
+                            transcript_source=transcript_source_typed,
+                            detected_names=detected_names,
+                            whisper_model=None,  # Direct downloads don't use Whisper
+                        )
+                        # Queue processing job (processing thread will pick it up)
+                        if processing_resources.processing_jobs_lock:
+                            with processing_resources.processing_jobs_lock:
+                                processing_resources.processing_jobs.append(processing_job)
+                        else:
+                            processing_resources.processing_jobs.append(processing_job)
+                        logger.debug(
+                            "Queued processing job for episode %s (transcript_source=%s)",
+                            episode.idx,
+                            transcript_source_typed,
+                        )
                 elif transcript_path is None and transcript_source is None:
                     # Episode was skipped (skip_existing)
                     _update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
@@ -1102,34 +1211,10 @@ def _process_episodes(
                 logger.error(
                     f"[{episode.idx}] episode processing raised an unexpected error: {exc}"
                 )
-
-            # Generate metadata if enabled and transcript_source is available
-            # Skip if transcript_source is None (Whisper pending) - will be generated after
-            # transcription
-            if cfg.generate_metadata and transcript_source is not None:
-                transcript_source_typed = cast(
-                    Optional[Literal["direct_download", "whisper_transcription"]],
-                    transcript_source,
-                )
-                _call_generate_metadata(
-                    episode=episode,
-                    feed=feed,
-                    cfg=cfg,
-                    effective_output_dir=output_dir_arg,
-                    run_suffix=run_suffix_arg,
-                    transcript_path=transcript_path,
-                    transcript_source=transcript_source_typed,
-                    whisper_model=None,  # Will be updated after transcription
-                    feed_metadata=feed_metadata,
-                    host_detection_result=host_detection_result,
-                    detected_names=detected_names,
-                    summary_model=summary_model,
-                    reduce_model=reduce_model,
-                    pipeline_metrics=pipeline_metrics,
-                )
     else:
         # Concurrent processing
         saved_counter_lock = transcription_resources.saved_counter_lock
+        # Note: processing_resources is accessed via closure
         with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
             future_map = {
                 executor.submit(
@@ -1173,9 +1258,8 @@ def _process_episodes(
                             pipeline_metrics, "episodes_skipped_total", 1, saved_counter_lock
                         )
 
-                    # Generate metadata if enabled and transcript_source is available
-                    # Skip if transcript_source is None (Whisper pending) - will be generated
-                    # after transcription
+                    # Queue processing job if metadata generation is enabled and transcript is available
+                    # Skip if transcript_source is None (Whisper pending) - will be queued after transcription
                     if cfg.generate_metadata and transcript_source is not None:
                         episode_obj = next((ep for ep in episodes if ep.idx == idx), None)
                         if episode_obj:
@@ -1186,23 +1270,26 @@ def _process_episodes(
                                     detected_names_for_ep = args[7]
                                     break
                             transcript_source_typed = cast(
-                                Optional[Literal["direct_download", "whisper_transcription"]],
+                                Literal["direct_download", "whisper_transcription"],
                                 transcript_source,
                             )
-                            _call_generate_metadata(
+                            processing_job = _ProcessingJob(
                                 episode=episode_obj,
-                                feed=feed,
-                                cfg=cfg,
-                                effective_output_dir=effective_output_dir,
-                                run_suffix=run_suffix,
-                                transcript_path=transcript_path,
+                                transcript_path=transcript_path or "",
                                 transcript_source=transcript_source_typed,
-                                whisper_model=None,  # Will be updated after transcription
-                                feed_metadata=feed_metadata,
-                                host_detection_result=host_detection_result,
                                 detected_names=detected_names_for_ep,
-                                summary_model=summary_model,
-                                pipeline_metrics=pipeline_metrics,
+                                whisper_model=None,  # Direct downloads don't use Whisper
+                            )
+                            # Queue processing job (processing thread will pick it up)
+                            if processing_resources.processing_jobs_lock:
+                                with processing_resources.processing_jobs_lock:
+                                    processing_resources.processing_jobs.append(processing_job)
+                            else:
+                                processing_resources.processing_jobs.append(processing_job)
+                            logger.debug(
+                                "Queued processing job for episode %s (transcript_source=%s)",
+                                episode_obj.idx,
+                                transcript_source_typed,
                             )
                 except Exception as exc:  # pragma: no cover
                     _update_metric_safely(pipeline_metrics, "errors_total", 1, saved_counter_lock)
@@ -1327,6 +1414,7 @@ def _process_transcription_jobs_concurrent(
     run_suffix: Optional[str],
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
+    processing_resources: _ProcessingResources,
     pipeline_metrics: metrics.Metrics,
     summary_model=None,
     reduce_model=None,
@@ -1409,7 +1497,7 @@ def _process_transcription_jobs_concurrent(
             if success:
                 _update_metric_safely(pipeline_metrics, "transcripts_transcribed", 1)
 
-                # Generate metadata if enabled
+                # Queue processing job if metadata generation is enabled
                 if cfg.generate_metadata:
                     episode_obj = next((ep for ep in episodes if ep.idx == job.idx), None)
                     if episode_obj:
@@ -1419,20 +1507,22 @@ def _process_transcription_jobs_concurrent(
                             if args[0].idx == job.idx:
                                 detected_names_for_ep = args[7]
                                 break
-                        _call_generate_metadata(
+                        processing_job = _ProcessingJob(
                             episode=episode_obj,
-                            feed=feed,
-                            cfg=cfg,
-                            effective_output_dir=effective_output_dir,
-                            run_suffix=run_suffix,
-                            transcript_path=transcript_path,
+                            transcript_path=transcript_path or "",
                             transcript_source="whisper_transcription",
-                            whisper_model=cfg.whisper_model,
-                            feed_metadata=feed_metadata,
-                            host_detection_result=host_detection_result,
                             detected_names=detected_names_for_ep,
-                            summary_model=summary_model,
-                            pipeline_metrics=pipeline_metrics,
+                            whisper_model=cfg.whisper_model,
+                        )
+                        # Queue processing job (processing thread will pick it up)
+                        if processing_resources.processing_jobs_lock:
+                            with processing_resources.processing_jobs_lock:
+                                processing_resources.processing_jobs.append(processing_job)
+                        else:
+                            processing_resources.processing_jobs.append(processing_job)
+                        logger.debug(
+                            "Queued processing job for episode %s (whisper_transcription)",
+                            episode_obj.idx,
                         )
             return success, transcript_path, bytes_downloaded
         except Exception as exc:  # pragma: no cover
@@ -1573,6 +1663,195 @@ def _process_transcription_jobs_concurrent(
     )
     logger.info(
         f"Concurrent transcription processing completed: {saved}/{total_jobs} transcripts saved (parallelism={max_workers})"
+    )
+
+
+def _process_processing_jobs_concurrent(
+    processing_resources: _ProcessingResources,
+    feed: models.RssFeed,
+    cfg: config.Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    feed_metadata: _FeedMetadata,
+    host_detection_result: _HostDetectionResult,
+    pipeline_metrics: metrics.Metrics,
+    summary_model=None,
+    reduce_model=None,
+    transcription_complete_event: Optional[threading.Event] = None,
+) -> None:
+    """Process metadata/summarization jobs concurrently as they become available.
+
+    This function runs in a separate thread and processes jobs from the processing
+    queue as transcripts become available from downloads or transcription.
+
+    Args:
+        processing_resources: Processing resources with queue and locks
+        feed: Parsed RssFeed object
+        cfg: Configuration object (uses processing_parallelism)
+        effective_output_dir: Output directory path
+        run_suffix: Optional run suffix
+        feed_metadata: Feed metadata tuple
+        host_detection_result: Host detection result
+        pipeline_metrics: Metrics collector
+        summary_model: Optional summary model
+        reduce_model: Optional reduce model
+        transcription_complete_event: Event to signal when transcription is complete
+    """
+    max_workers = cfg.processing_parallelism
+    logger.debug("Concurrent processing processor started (max_workers=%d)", max_workers)
+
+    jobs_processed = 0
+    processed_job_indices = set()  # Track which jobs we've processed
+    processed_job_indices_lock = threading.Lock()  # Lock for thread-safe access
+
+    def _process_single_processing_job(job: _ProcessingJob) -> None:
+        """Process a single processing job (metadata/summarization)."""
+        try:
+            _call_generate_metadata(
+                episode=job.episode,
+                feed=feed,
+                cfg=cfg,
+                effective_output_dir=effective_output_dir,
+                run_suffix=run_suffix,
+                transcript_path=job.transcript_path,
+                transcript_source=job.transcript_source,
+                whisper_model=job.whisper_model,
+                feed_metadata=feed_metadata,
+                host_detection_result=host_detection_result,
+                detected_names=job.detected_names,
+                summary_model=summary_model,
+                reduce_model=reduce_model,
+                pipeline_metrics=pipeline_metrics,
+            )
+        except Exception as exc:  # pragma: no cover
+            _update_metric_safely(pipeline_metrics, "errors_total", 1)
+            logger.error(f"[{job.episode.idx}] processing raised an unexpected error: {exc}")
+
+    # Process jobs as they become available
+    if max_workers <= 1:
+        # Sequential processing
+        while True:
+            # Check for new jobs in the queue
+            job_found = False
+            current_job = None
+
+            if processing_resources.processing_jobs_lock:
+                with processing_resources.processing_jobs_lock:
+                    with processed_job_indices_lock:
+                        for job in processing_resources.processing_jobs:
+                            if job.episode.idx not in processed_job_indices:
+                                job_found = True
+                                processed_job_indices.add(job.episode.idx)
+                                current_job = job
+                                break
+            else:
+                with processed_job_indices_lock:
+                    for job in processing_resources.processing_jobs:
+                        if job.episode.idx not in processed_job_indices:
+                            job_found = True
+                            processed_job_indices.add(job.episode.idx)
+                            current_job = job
+                            break
+
+            if job_found and current_job:
+                _process_single_processing_job(current_job)
+                jobs_processed += 1
+                logger.debug(
+                    "Processed processing job idx=%s (processed=%s)",
+                    current_job.episode.idx,
+                    jobs_processed,
+                )
+                continue
+
+            # No job found - check if we should continue waiting
+            if transcription_complete_event and transcription_complete_event.is_set():
+                # Transcription complete - check if queue is empty
+                with processed_job_indices_lock:
+                    if processing_resources.processing_jobs_lock:
+                        with processing_resources.processing_jobs_lock:
+                            total_jobs = len(processing_resources.processing_jobs)
+                    else:
+                        total_jobs = len(processing_resources.processing_jobs)
+                    queue_empty = total_jobs == len(processed_job_indices)
+
+                if queue_empty:
+                    # All jobs processed, exit
+                    break
+
+            # Wait a bit before checking again
+            if not (transcription_complete_event and transcription_complete_event.is_set()):
+                time.sleep(0.1)
+            else:
+                time.sleep(0.05)
+    else:
+        # Parallel processing
+        from concurrent.futures import as_completed, ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {}
+            while True:
+                # Submit new jobs as they become available
+                if processing_resources.processing_jobs_lock:
+                    with processing_resources.processing_jobs_lock:
+                        with processed_job_indices_lock:
+                            for job in processing_resources.processing_jobs:
+                                if (
+                                    job.episode.idx not in processed_job_indices
+                                    and job.episode.idx not in futures
+                                ):
+                                    processed_job_indices.add(job.episode.idx)
+                                    future = executor.submit(_process_single_processing_job, job)
+                                    futures[future] = job.episode.idx
+                else:
+                    with processed_job_indices_lock:
+                        for job in processing_resources.processing_jobs:
+                            if (
+                                job.episode.idx not in processed_job_indices
+                                and job.episode.idx not in futures
+                            ):
+                                processed_job_indices.add(job.episode.idx)
+                                future = executor.submit(_process_single_processing_job, job)
+                                futures[future] = job.episode.idx
+
+                # Process completed futures
+                for future in as_completed(list(futures.keys()), timeout=0.1):
+                    episode_idx = futures.pop(future)
+                    try:
+                        future.result()
+                        jobs_processed += 1
+                        logger.debug(
+                            "Processed processing job idx=%s (processed=%s)",
+                            episode_idx,
+                            jobs_processed,
+                        )
+                    except Exception as exc:  # pragma: no cover
+                        logger.error(f"[{episode_idx}] processing future raised error: {exc}")
+
+                # Check if we should continue
+                if transcription_complete_event and transcription_complete_event.is_set():
+                    # Transcription complete - check if all jobs are submitted and completed
+                    with processed_job_indices_lock:
+                        if processing_resources.processing_jobs_lock:
+                            with processing_resources.processing_jobs_lock:
+                                total_jobs = len(processing_resources.processing_jobs)
+                        else:
+                            total_jobs = len(processing_resources.processing_jobs)
+                        all_submitted = total_jobs == len(processed_job_indices)
+                    if all_submitted and len(futures) == 0:
+                        # All jobs submitted and completed
+                        break
+
+                # Wait a bit before checking again
+                if not (transcription_complete_event and transcription_complete_event.is_set()):
+                    time.sleep(0.1)
+                else:
+                    time.sleep(0.05)
+
+    total_jobs = (
+        len(processing_resources.processing_jobs) if processing_resources.processing_jobs else 0
+    )
+    logger.info(
+        f"Concurrent processing completed: {jobs_processed}/{total_jobs} jobs processed (parallelism={max_workers})"
     )
 
 

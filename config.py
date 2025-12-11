@@ -222,6 +222,11 @@ class Config(BaseModel):
         alias="transcription_parallelism",
         description="Episode-level parallelism: Number of episodes to transcribe in parallel (default: 1 for sequential. Whisper ignores >1, OpenAI uses for parallel API calls)",
     )
+    processing_parallelism: int = Field(
+        default=2,
+        alias="processing_parallelism",
+        description="Episode-level parallelism: Number of episodes to process (metadata/summarization) in parallel (default: 2)",
+    )
     # OpenAI API configuration (RFC-013)
     openai_api_key: Optional[str] = Field(
         default=None,
@@ -631,6 +636,20 @@ class Config(BaseModel):
             raise ValueError("transcription_parallelism must be an integer") from exc
         if parallelism < 1:
             raise ValueError("transcription_parallelism must be at least 1")
+        return parallelism
+
+    @field_validator("processing_parallelism", mode="before")
+    @classmethod
+    def _ensure_processing_parallelism(cls, value: Any) -> int:
+        """Ensure processing parallelism is a positive integer."""
+        if value is None or value == "":
+            return 2
+        try:
+            parallelism = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("processing_parallelism must be an integer") from exc
+        if parallelism < 1:
+            raise ValueError("processing_parallelism must be at least 1")
         return parallelism
 
     @field_validator("summary_batch_size", mode="before")
