@@ -145,7 +145,9 @@ class TestNERSpeakerDetector(unittest.TestCase):
         detector.initialize()
 
         # Create Episode using proper structure
-        from xml.etree import ElementTree as ET
+        # Bandit: Safe XML construction for test data only
+        # Bandit: Safe XML construction for test data only
+        from xml.etree import ElementTree as ET  # nosec B405  # nosec B405
 
         item = ET.Element("item")
         title_elem = ET.SubElement(item, "title")
@@ -170,7 +172,9 @@ class TestNERSpeakerDetector(unittest.TestCase):
 
     def test_detector_analyze_patterns_no_model(self):
         """Test that analyze_patterns() returns None if model not available."""
-        from xml.etree import ElementTree as ET
+        # Bandit: Safe XML construction for test data only
+        # Bandit: Safe XML construction for test data only
+        from xml.etree import ElementTree as ET  # nosec B405  # nosec B405
 
         from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
 
