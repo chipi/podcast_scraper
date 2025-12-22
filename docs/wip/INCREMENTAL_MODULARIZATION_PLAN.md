@@ -453,7 +453,7 @@ Each stage is **complete, tested, and fully working** before moving to the next.
 4. **API Key Management**:
    - Use `python-dotenv` to load `.env` files automatically
    - Support `OPENAI_API_KEY` environment variable
-   - Create `.env.example` template
+   - Create `examples/.env.example` template
    - Add `.env` to `.gitignore`
 
 5. **Tests**:

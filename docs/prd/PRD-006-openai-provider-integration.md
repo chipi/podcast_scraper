@@ -167,7 +167,7 @@ summary_provider: openai         # $0.41/100 (convenience)
 - **FR2.2**: Support `.env` file via `python-dotenv` for convenient per-environment configuration
 - **FR2.3**: API key is never stored in source code, config files, or committed files
 - **FR2.4**: `.env` file automatically loaded when `config.py` module is imported
-- **FR2.5**: `.env.example` template file provided (safe to commit) with placeholder values
+- **FR2.5**: `examples/.env.example` template file provided (safe to commit) with placeholder values
 - **FR2.6**: Missing API key when OpenAI provider is selected results in clear error message
 - **FR2.7**: API key validation occurs at provider initialization (fail fast)
 - **FR2.8**: Support for development and production environments via separate `.env` files

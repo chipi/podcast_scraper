@@ -213,10 +213,10 @@ OPENAI_ORGANIZATION=org-your-org-id
 LOG_LEVEL=INFO
 ```
 
-2. **Create `.env.example`** template (commit this to git):
+2. **Create `examples/.env.example`** template (commit this to git):
 
 ```bash
-# .env.example
+# examples/.env.example
 # Copy this file to .env and fill in your actual values
 # DO NOT commit .env to git!
 
@@ -276,7 +276,7 @@ load_dotenv(env_file, override=False)
 **Security Best Practices:**
 
 - ✅ **Never commit `.env` to git** - Add to `.gitignore`
-- ✅ **Use `.env.example`** - Template file with placeholder values (safe to commit)
+- ✅ **Use `examples/.env.example`** - Template file with placeholder values (safe to commit)
 - ✅ **Load at startup** - `.env` loaded automatically when config module imports
 - ✅ **Don't override existing vars** - `override=False` respects system environment variables
 - ✅ **Never log API keys** - Sanitize logs, never print full keys
@@ -298,10 +298,10 @@ Update `docs/DEVELOPMENT_NOTES.md` or create `docs/SETUP.md` with the following 
 
 **Environment Setup:**
 
-1. Copy `.env.example` to `.env`:
+1. Copy `examples/.env.example` to `.env`:
 
    ```bash
-   cp .env.example .env
+   cp examples/.env.example .env
    ```
 
 2. Edit `.env` and add your OpenAI API key:

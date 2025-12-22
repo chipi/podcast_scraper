@@ -35,7 +35,7 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 **Security Notes**:
 
 - Never commit `.env` files containing API keys
-- Use `.env.example` as a template (without real keys)
+- Use `examples/.env.example` as a template (without real keys)
 - API keys are never logged or exposed in error messages
 - Environment variables take precedence over `.env` file values
 
@@ -139,7 +139,7 @@ services:
 
 1. **Copy example template** (if available):
    ```bash
-   cp .env.example .env
+   cp examples/.env.example .env
    ```
 
 2. **Create `.env` file** in project root:
@@ -186,7 +186,7 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 
 - **Use `.env` files for local development**
 - **Add `.env` to `.gitignore`** (never commit secrets)
-- **Use `.env.example` as template** (without real values)
+- **Use `examples/.env.example` as template** (without real values)
 - **Use environment variables in production** (more secure than files)
 - **Rotate API keys regularly**
 - **Use separate keys for development/production**

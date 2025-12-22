@@ -43,7 +43,7 @@ make init
 
 ```bash
 # Copy example .env file
-cp .env.example .env
+cp examples/.env.example .env
 
 # Edit .env and add your OPENAI_API_KEY
 # OPENAI_API_KEY=sk-your-actual-key-here

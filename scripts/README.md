@@ -209,7 +209,7 @@ After running `setup_venv.sh`:
 
 3. **Set up environment variables (optional, for OpenAI providers):**
    ```bash
-   cp .env.example .env
+   cp examples/.env.example .env
    # Edit .env and add your OPENAI_API_KEY
    ```
 

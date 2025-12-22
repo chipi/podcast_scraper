@@ -23,7 +23,7 @@ make init  # Installs dev + ML dependencies
 
 1. **Copy example `.env` file:**
    ```bash
-   cp .env.example .env
+   cp examples/.env.example .env
    ```
 
 2. **Edit `.env` and add your API key:**
@@ -36,7 +36,7 @@ make init  # Installs dev + ML dependencies
 **Security notes:**
 
 - ✅ `.env` is in `.gitignore` (never committed)
-- ✅ `.env.example` is safe to commit (template only)
+- ✅ `examples/.env.example` is safe to commit (template only)
 - ✅ API keys are never logged or exposed
 - ✅ Environment variables take precedence over `.env` file
 

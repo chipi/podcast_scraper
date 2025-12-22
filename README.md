@@ -78,7 +78,7 @@ If you plan to use OpenAI providers (see PRD-006), set up environment variables:
 
 ```bash
 # Copy example .env file
-cp .env.example .env
+cp examples/.env.example .env
 
 # Edit .env and add your API key
 # OPENAI_API_KEY=sk-your-actual-key-here
@@ -86,7 +86,7 @@ cp .env.example .env
 
 The `.env` file is automatically loaded via `python-dotenv` when the package is imported. See `docs/rfc/RFC-013-openai-provider-implementation.md` for details.
 
-**Note:** The `.env` file should never be committed to git (it's in `.gitignore`). Use `.env.example` as a template.
+**Note:** The `.env` file should never be committed to git (it's in `.gitignore`). Use `examples/.env.example` as a template.
 
 ### Additional Setup
 
@@ -339,7 +339,7 @@ pip install -e ".[dev,ml]"
 **Set up environment variables (if using OpenAI providers):**
 ```bash
 # Copy example .env file
-cp .env.example .env
+cp examples/.env.example .env
 
 # Edit .env and add your OPENAI_API_KEY
 # OPENAI_API_KEY=sk-your-actual-key-here
