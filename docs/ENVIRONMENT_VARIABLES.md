@@ -208,7 +208,214 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 
 # Optional: Add other variables here
 # LOG_LEVEL=DEBUG  # Valid: DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+# Performance Configuration (optional)
+# WORKERS=4
+# TRANSCRIPTION_PARALLELISM=3
+# PROCESSING_PARALLELISM=4
+# SUMMARY_BATCH_SIZE=3
+# SUMMARY_CHUNK_PARALLELISM=2
+# TIMEOUT=60
+# SUMMARY_DEVICE=cpu
 ```
+
+### Performance Configuration
+
+#### `WORKERS`
+
+**Description**: Number of parallel download workers.
+
+**Required**: No (defaults to CPU count bounded between 1 and 8).
+
+**Example**:
+```bash
+export WORKERS=4
+```
+
+**In `.env` file**:
+```bash
+WORKERS=4
+```
+
+**Priority**:
+
+1. Config file `workers` field (highest priority)
+2. `WORKERS` environment variable
+3. Default (CPU count, bounded 1-8)
+
+**Use Cases**:
+- Docker containers: `WORKERS=2` (limited CPU resources)
+- High-performance servers: `WORKERS=8` (more parallelism)
+- CI/CD: `WORKERS=1` (minimal resource usage)
+
+#### `TRANSCRIPTION_PARALLELISM`
+
+**Description**: Number of episodes to transcribe in parallel (episode-level parallelism).
+
+**Required**: No (defaults to 1 for sequential processing).
+
+**Example**:
+```bash
+export TRANSCRIPTION_PARALLELISM=3
+```
+
+**In `.env` file**:
+```bash
+TRANSCRIPTION_PARALLELISM=3
+```
+
+**Priority**:
+
+1. Config file `transcription_parallelism` field (highest priority)
+2. `TRANSCRIPTION_PARALLELISM` environment variable
+3. Default (`1`)
+
+**Note**:
+- Local Whisper ignores values > 1 (sequential only)
+- OpenAI provider uses this for parallel API calls
+
+**Use Cases**:
+- OpenAI provider: `TRANSCRIPTION_PARALLELISM=3` (parallel API calls)
+- Rate limit tuning: Adjust based on API limits
+
+#### `PROCESSING_PARALLELISM`
+
+**Description**: Number of episodes to process (metadata/summarization) in parallel.
+
+**Required**: No (defaults to 2).
+
+**Example**:
+```bash
+export PROCESSING_PARALLELISM=4
+```
+
+**In `.env` file**:
+```bash
+PROCESSING_PARALLELISM=4
+```
+
+**Priority**:
+
+1. Config file `processing_parallelism` field (highest priority)
+2. `PROCESSING_PARALLELISM` environment variable
+3. Default (`2`)
+
+**Use Cases**:
+- Memory-constrained environments: `PROCESSING_PARALLELISM=1`
+- High-memory servers: `PROCESSING_PARALLELISM=4`
+
+#### `SUMMARY_BATCH_SIZE`
+
+**Description**: Number of episodes to summarize in parallel (episode-level parallelism).
+
+**Required**: No (defaults to 2).
+
+**Example**:
+```bash
+export SUMMARY_BATCH_SIZE=3
+```
+
+**In `.env` file**:
+```bash
+SUMMARY_BATCH_SIZE=3
+```
+
+**Priority**:
+
+1. Config file `summary_batch_size` field (highest priority)
+2. `SUMMARY_BATCH_SIZE` environment variable
+3. Default (`2`)
+
+**Use Cases**:
+- Memory-bound for local providers
+- Rate-limited for API providers (OpenAI, Anthropic)
+
+#### `SUMMARY_CHUNK_PARALLELISM`
+
+**Description**: Number of chunks to process in parallel within a single episode (CPU-bound, local providers only).
+
+**Required**: No (defaults to 1).
+
+**Example**:
+```bash
+export SUMMARY_CHUNK_PARALLELISM=2
+```
+
+**In `.env` file**:
+```bash
+SUMMARY_CHUNK_PARALLELISM=2
+```
+
+**Priority**:
+
+1. Config file `summary_chunk_parallelism` field (highest priority)
+2. `SUMMARY_CHUNK_PARALLELISM` environment variable
+3. Default (`1`)
+
+**Note**: API providers handle parallelism internally via rate limiting.
+
+**Use Cases**:
+- Multi-core CPUs: `SUMMARY_CHUNK_PARALLELISM=2` (utilize multiple cores)
+- Single-core or memory-limited: `SUMMARY_CHUNK_PARALLELISM=1`
+
+#### `TIMEOUT`
+
+**Description**: Request timeout in seconds for HTTP requests.
+
+**Required**: No (defaults to 20 seconds).
+
+**Example**:
+```bash
+export TIMEOUT=60
+```
+
+**In `.env` file**:
+```bash
+TIMEOUT=60
+```
+
+**Priority**:
+
+1. Config file `timeout` field (highest priority)
+2. `TIMEOUT` environment variable
+3. Default (`20`)
+
+**Minimum Value**: 1 second
+
+**Use Cases**:
+- Slow networks: `TIMEOUT=60` (longer timeout for slow connections)
+- CI/CD: `TIMEOUT=30` (moderate timeout)
+- Fast networks: `TIMEOUT=10` (shorter timeout for faster failures)
+
+#### `SUMMARY_DEVICE`
+
+**Description**: Device for model execution (CPU, CUDA, MPS, or None for auto-detection).
+
+**Required**: No (defaults to None for auto-detection).
+
+**Example**:
+```bash
+export SUMMARY_DEVICE=cpu
+```
+
+**In `.env` file**:
+```bash
+SUMMARY_DEVICE=cpu
+```
+
+**Priority**:
+
+1. Config file `summary_device` field (highest priority)
+2. `SUMMARY_DEVICE` environment variable
+3. Default (`None` - auto-detect)
+
+**Valid Values**: `cpu`, `cuda`, `mps`, or empty string (for None/auto-detect)
+
+**Use Cases**:
+- Docker containers (no GPU): `SUMMARY_DEVICE=cpu`
+- CI/CD (no GPU): `SUMMARY_DEVICE=cpu`
+- NVIDIA GPU: `SUMMARY_DEVICE=cuda` (or auto-detect)
+- Apple Silicon: `SUMMARY_DEVICE=mps` (or auto-detect)
 
 ## Security Best Practices
 
@@ -295,13 +502,9 @@ The following environment variables may be added in future versions:
 
 - `OPENAI_ORGANIZATION` - OpenAI organization ID (for multi-org accounts)
 - `OPENAI_API_BASE` - Custom API base URL (for proxies)
-- `WORKERS` - Number of parallel download workers
-- `TRANSCRIPTION_PARALLELISM` - Episode-level transcription parallelism
-- `PROCESSING_PARALLELISM` - Episode-level processing parallelism
-- `SUMMARY_BATCH_SIZE` - Batch size for episode-level parallel processing
-- `SUMMARY_CHUNK_PARALLELISM` - Chunk-level parallelism for summarization
-- `TIMEOUT` - Request timeout in seconds
-- `SUMMARY_DEVICE` - Device for model execution (cpu, cuda, mps)
+- `DRY_RUN` - Testing/debugging flag
+- `SKIP_EXISTING` - Resumption convenience flag
+- `CLEAN_OUTPUT` - Safety control flag
 
 ## Related Documentation
 
