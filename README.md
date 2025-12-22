@@ -89,6 +89,7 @@ cp examples/.env.example .env
 ```
 
 **Supported environment variables:**
+
 - `OPENAI_API_KEY` - OpenAI API key (required for OpenAI providers)
 - `LOG_LEVEL` - Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `OUTPUT_DIR` - Output directory path

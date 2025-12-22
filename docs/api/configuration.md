@@ -36,6 +36,32 @@ cfg = Config(
       show_root_heading: true
       heading_level: 3
 
+## Environment Variables
+
+Many configuration options can be set via environment variables for flexible deployment:
+
+```bash
+# Set environment variables
+export OUTPUT_DIR=/data/transcripts
+export LOG_LEVEL=DEBUG
+export WORKERS=4
+export TIMEOUT=60
+
+# Or use .env file
+cp examples/.env.example .env
+# Edit .env with your settings
+```
+
+**Priority order**:
+
+1. Config file field (highest priority)
+2. Environment variable
+3. Default value
+
+**Exception**: `LOG_LEVEL` environment variable takes precedence over config file.
+
+See `docs/ENVIRONMENT_VARIABLES.md` for complete documentation of all supported environment variables.
+
 ## Configuration Files
 
 ### JSON Example

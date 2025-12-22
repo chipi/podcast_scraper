@@ -61,6 +61,7 @@ The podcast scraper supports configuration via environment variables for flexibl
 - ✅ Environment variables take precedence over `.env` file
 
 **Priority order:**
+
 - Config file field (highest priority)
 - Environment variable
 - Default value
