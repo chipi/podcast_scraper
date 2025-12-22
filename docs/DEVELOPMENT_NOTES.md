@@ -19,16 +19,36 @@ make init  # Installs dev + ML dependencies
 
 ### Environment Variables
 
-**For OpenAI providers** (see PRD-006, RFC-013):
+**Supported environment variables:**
+
+The podcast scraper supports configuration via environment variables for flexible deployment. Many settings can be configured via environment variables or `.env` files.
 
 1. **Copy example `.env` file:**
    ```bash
    cp examples/.env.example .env
    ```
 
-2. **Edit `.env` and add your API key:**
+2. **Edit `.env` and add your settings:**
    ```bash
+   # OpenAI API key (required for OpenAI providers)
    OPENAI_API_KEY=sk-your-actual-key-here
+
+   # Logging
+   LOG_LEVEL=DEBUG
+
+   # Paths
+   OUTPUT_DIR=/data/transcripts
+   LOG_FILE=/var/log/podcast_scraper.log
+   CACHE_DIR=/cache/models
+
+   # Performance tuning
+   WORKERS=4
+   TRANSCRIPTION_PARALLELISM=3
+   PROCESSING_PARALLELISM=4
+   SUMMARY_BATCH_SIZE=2
+   SUMMARY_CHUNK_PARALLELISM=2
+   TIMEOUT=60
+   SUMMARY_DEVICE=cpu
    ```
 
 3. **The `.env` file is automatically loaded** via `python-dotenv` when `podcast_scraper.config` module is imported.
@@ -40,8 +60,15 @@ make init  # Installs dev + ML dependencies
 - ✅ API keys are never logged or exposed
 - ✅ Environment variables take precedence over `.env` file
 
+**Priority order:**
+- Config file field (highest priority)
+- Environment variable
+- Default value
+- Exception: `LOG_LEVEL` (env var takes precedence)
+
 **See also:**
 
+- `docs/ENVIRONMENT_VARIABLES.md` - Complete environment variable documentation
 - `docs/rfc/RFC-013-openai-provider-implementation.md` - API key management details
 - `docs/prd/PRD-006-openai-provider-integration.md` - OpenAI provider requirements
 

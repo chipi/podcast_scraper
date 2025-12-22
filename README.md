@@ -74,17 +74,35 @@ pip install -e ".[dev,ml]"
 
 ### Environment Variables (Optional)
 
-If you plan to use OpenAI providers (see PRD-006), set up environment variables:
+The podcast scraper supports configuration via environment variables for flexible deployment. Many settings can be configured via environment variables or `.env` files:
 
+**Quick setup:**
 ```bash
 # Copy example .env file
 cp examples/.env.example .env
 
-# Edit .env and add your API key
+# Edit .env and add your settings
 # OPENAI_API_KEY=sk-your-actual-key-here
+# OUTPUT_DIR=/data/transcripts
+# LOG_LEVEL=DEBUG
+# WORKERS=4
 ```
 
-The `.env` file is automatically loaded via `python-dotenv` when the package is imported. See `docs/rfc/RFC-013-openai-provider-implementation.md` for details.
+**Supported environment variables:**
+- `OPENAI_API_KEY` - OpenAI API key (required for OpenAI providers)
+- `LOG_LEVEL` - Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `OUTPUT_DIR` - Output directory path
+- `LOG_FILE` - Log file path
+- `CACHE_DIR` / `SUMMARY_CACHE_DIR` - Model cache directory
+- `WORKERS` - Number of parallel download workers
+- `TRANSCRIPTION_PARALLELISM` - Episode-level transcription parallelism
+- `PROCESSING_PARALLELISM` - Episode-level processing parallelism
+- `SUMMARY_BATCH_SIZE` - Episode-level summarization batch size
+- `SUMMARY_CHUNK_PARALLELISM` - Chunk-level parallelism for summarization
+- `TIMEOUT` - Request timeout in seconds
+- `SUMMARY_DEVICE` - Device for model execution (cpu, cuda, mps)
+
+The `.env` file is automatically loaded via `python-dotenv` when the package is imported. See `docs/ENVIRONMENT_VARIABLES.md` for complete documentation.
 
 **Note:** The `.env` file should never be committed to git (it's in `.gitignore`). Use `examples/.env.example` as a template.
 

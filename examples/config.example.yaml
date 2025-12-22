@@ -2,8 +2,12 @@
 
 # Values specified here are used as defaults unless overridden on the CLI
 
+# Many settings can also be configured via environment variables (see docs/ENVIRONMENT_VARIABLES.md)
+
+# Priority: CLI args > Config file > Environment variables > Defaults
+
 rss: <https://example.com/feed.xml>
-output_dir: output_podcast_example
+output_dir: output_podcast_example  # Can also be set via OUTPUT_DIR env var
 max_episodes: 10
 transcribe_missing: true
 whisper_model: base
@@ -20,7 +24,7 @@ speaker_names:
 - Host
 - Guest
 run_id: experiment
-log_file: null  # Optional: path to log file (logs written to both console and file)
+log_file: null  # Optional: path to log file (logs written to both console and file). Can also be set via LOG_FILE env var
 skip_existing: false  # Skip episodes with existing output (transcripts/metadata)
 reuse_media: false  # Reuse existing media files instead of re-downloading (for faster testing)
 dry_run: false
@@ -30,9 +34,11 @@ metadata_subdirectory: null  # Optional subdirectory for metadata files (null = 
 
 # Parallelism settings
 
-workers: 4  # Number of parallel download workers (default: 4-8 based on CPU count)
-transcription_parallelism: 1  # Number of episodes to transcribe in parallel (default: 1. Whisper ignores >1, OpenAI uses for parallel API calls)
-processing_parallelism: 2  # Number of episodes to process (metadata/summarization) in parallel (default: 2)
+# All can be set via environment variables: WORKERS, TRANSCRIPTION_PARALLELISM, PROCESSING_PARALLELISM
+
+workers: 4  # Number of parallel download workers (default: 4-8 based on CPU count). Can also be set via WORKERS env var
+transcription_parallelism: 1  # Number of episodes to transcribe in parallel (default: 1. Whisper ignores >1, OpenAI uses for parallel API calls). Can also be set via TRANSCRIPTION_PARALLELISM env var
+processing_parallelism: 2  # Number of episodes to process (metadata/summarization) in parallel (default: 2). Can also be set via PROCESSING_PARALLELISM env var
 
 # Summarization settings (requires torch and transformers dependencies)
 
@@ -42,10 +48,10 @@ summary_model: null  # Optional: MAP model key (e.g., "bart-large", "bart-small"
 summary_reduce_model: null  # Optional: REDUCE model key (e.g., "long-fast", "long") or direct model ID (e.g., "allenai/led-base-16384"). Defaults to "long-fast" (LED) for accurate final combine
 summary_max_length: 150  # Maximum summary length in tokens
 summary_min_length: 30  # Minimum summary length in tokens
-summary_device: null  # Optional: cuda, mps, cpu, or null for auto-detection
-summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summarize in parallel (default: 1)
-summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode (CPU-bound, local providers only, default: 1)
+summary_device: null  # Optional: cuda, mps, cpu, or null for auto-detection. Can also be set via SUMMARY_DEVICE env var
+summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summarize in parallel (default: 1). Can also be set via SUMMARY_BATCH_SIZE env var
+summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode (CPU-bound, local providers only, default: 1). Can also be set via SUMMARY_CHUNK_PARALLELISM env var
 summary_chunk_size: null  # Optional: chunk size for long transcripts in tokens (null = model max length)
-summary_cache_dir: null  # Optional: custom cache directory for transformer models (default: ~/.cache/huggingface/hub)
+summary_cache_dir: null  # Optional: custom cache directory for transformer models (default: ~/.cache/huggingface/hub). Can also be set via SUMMARY_CACHE_DIR or CACHE_DIR env var
 summary_prompt: null  # Optional: custom prompt/instruction to guide summarization (default: built-in prompt)
 save_cleaned_transcript: true  # Save cleaned transcript to separate file (e.g., episode.cleaned.txt) for testing (default: true)

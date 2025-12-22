@@ -39,17 +39,20 @@ make init
 
 > `make init` upgrades pip, installs lint/test/type/security tooling, installs runtime requirements (if `requirements.txt` exists), and then installs `podcast_scraper` in editable mode with `[dev,ml]` extras. It matches the dependencies used in CI.
 
-**Optional: Set up environment variables** (if testing OpenAI providers):
+**Optional: Set up environment variables** (if testing OpenAI providers or configuring deployment settings):
 
 ```bash
 # Copy example .env file
 cp examples/.env.example .env
 
-# Edit .env and add your OPENAI_API_KEY
+# Edit .env and add your settings
 # OPENAI_API_KEY=sk-your-actual-key-here
+# LOG_LEVEL=DEBUG
+# OUTPUT_DIR=/tmp/test_output
+# WORKERS=2
 ```
 
-The `.env` file is automatically loaded via `python-dotenv` when the package is imported. See `docs/rfc/RFC-013-openai-provider-implementation.md` for details.
+The `.env` file is automatically loaded via `python-dotenv` when the package is imported. See `docs/ENVIRONMENT_VARIABLES.md` for complete list of supported environment variables.
 
 ### 2. Run the full check suite (matches CI)
 

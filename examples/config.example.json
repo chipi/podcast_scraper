@@ -1,4 +1,5 @@
 {
+  "_comment": "Example configuration. Many settings can also be configured via environment variables (see docs/ENVIRONMENT_VARIABLES.md). Priority: CLI args > Config file > Environment variables > Defaults",
   "rss": "https://example.com/feed.json",
   "timeout": 45,
   "transcribe_missing": true,

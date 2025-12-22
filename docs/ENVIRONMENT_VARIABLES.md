@@ -244,6 +244,7 @@ WORKERS=4
 3. Default (CPU count, bounded 1-8)
 
 **Use Cases**:
+
 - Docker containers: `WORKERS=2` (limited CPU resources)
 - High-performance servers: `WORKERS=8` (more parallelism)
 - CI/CD: `WORKERS=1` (minimal resource usage)
@@ -271,10 +272,12 @@ TRANSCRIPTION_PARALLELISM=3
 3. Default (`1`)
 
 **Note**:
+
 - Local Whisper ignores values > 1 (sequential only)
 - OpenAI provider uses this for parallel API calls
 
 **Use Cases**:
+
 - OpenAI provider: `TRANSCRIPTION_PARALLELISM=3` (parallel API calls)
 - Rate limit tuning: Adjust based on API limits
 
@@ -301,6 +304,7 @@ PROCESSING_PARALLELISM=4
 3. Default (`2`)
 
 **Use Cases**:
+
 - Memory-constrained environments: `PROCESSING_PARALLELISM=1`
 - High-memory servers: `PROCESSING_PARALLELISM=4`
 
@@ -327,6 +331,7 @@ SUMMARY_BATCH_SIZE=3
 3. Default (`2`)
 
 **Use Cases**:
+
 - Memory-bound for local providers
 - Rate-limited for API providers (OpenAI, Anthropic)
 
@@ -355,6 +360,7 @@ SUMMARY_CHUNK_PARALLELISM=2
 **Note**: API providers handle parallelism internally via rate limiting.
 
 **Use Cases**:
+
 - Multi-core CPUs: `SUMMARY_CHUNK_PARALLELISM=2` (utilize multiple cores)
 - Single-core or memory-limited: `SUMMARY_CHUNK_PARALLELISM=1`
 
@@ -383,6 +389,7 @@ TIMEOUT=60
 **Minimum Value**: 1 second
 
 **Use Cases**:
+
 - Slow networks: `TIMEOUT=60` (longer timeout for slow connections)
 - CI/CD: `TIMEOUT=30` (moderate timeout)
 - Fast networks: `TIMEOUT=10` (shorter timeout for faster failures)
@@ -412,6 +419,7 @@ SUMMARY_DEVICE=cpu
 **Valid Values**: `cpu`, `cuda`, `mps`, or empty string (for None/auto-detect)
 
 **Use Cases**:
+
 - Docker containers (no GPU): `SUMMARY_DEVICE=cpu`
 - CI/CD (no GPU): `SUMMARY_DEVICE=cpu`
 - NVIDIA GPU: `SUMMARY_DEVICE=cuda` (or auto-detect)
