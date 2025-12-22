@@ -105,10 +105,11 @@ class OpenAISpeakerDetector:
                 episode_title, episode_description, known_hosts
             )
 
-            # Get system prompt from prompt_store
+            # Get system prompt from prompt_store (RFC-017)
             from ..prompt_store import render_prompt
 
-            system_prompt = render_prompt("ner/system_ner_v1")
+            system_prompt_name = self.cfg.openai_speaker_system_prompt or "ner/system_ner_v1"
+            system_prompt = render_prompt(system_prompt_name)
 
             # Call OpenAI API
             response = self.client.chat.completions.create(
@@ -138,6 +139,9 @@ class OpenAISpeakerDetector:
                 len(detected_hosts),
                 success,
             )
+
+            # Note: Prompt metadata tracking could be added here if needed for results
+            # For now, we focus on summarization metadata tracking
 
             return speakers, detected_hosts, success
 
@@ -190,15 +194,18 @@ class OpenAISpeakerDetector:
         """
         from ..prompt_store import render_prompt
 
-        # Use prompt_store to load versioned prompt template
-        prompt_name = getattr(self.cfg, "openai_speaker_prompt", "ner/guest_host_v1")
+        # Use prompt_store to load versioned prompt template (RFC-017)
+        prompt_name = self.cfg.openai_speaker_user_prompt
 
-        return render_prompt(
-            prompt_name,
-            episode_title=episode_title,
-            episode_description=episode_description or "",
-            known_hosts=", ".join(sorted(known_hosts)) if known_hosts else "",
-        )
+        # Merge config params with template params
+        template_params = {
+            "episode_title": episode_title,
+            "episode_description": episode_description or "",
+            "known_hosts": ", ".join(sorted(known_hosts)) if known_hosts else "",
+        }
+        template_params.update(self.cfg.ner_prompt_params)
+
+        return render_prompt(prompt_name, **template_params)
 
     def _parse_speakers_from_response(
         self, response_text: str, known_hosts: Set[str]

@@ -124,7 +124,14 @@ class OpenAISummarizationProvider:
 
         try:
             # Build prompts using prompt_store (RFC-017)
-            system_prompt, user_prompt = self._build_summarization_prompts(
+            (
+                system_prompt,
+                user_prompt,
+                system_prompt_name,
+                user_prompt_name,
+                paragraphs_min,
+                paragraphs_max,
+            ) = self._build_summarization_prompts(
                 text, episode_title, episode_description, max_length, min_length, custom_prompt
             )
 
@@ -146,6 +153,23 @@ class OpenAISummarizationProvider:
 
             logger.debug("OpenAI summarization completed: %d characters", len(summary))
 
+            # Get prompt metadata for tracking (RFC-017)
+            from ..prompt_store import get_prompt_metadata
+
+            prompt_metadata = {}
+            if system_prompt_name:
+                prompt_metadata["system"] = get_prompt_metadata(system_prompt_name)
+            user_params = {
+                "transcript": (
+                    text[:100] + "..." if len(text) > 100 else text
+                ),  # Truncate for metadata
+                "title": episode_title or "",
+                "paragraphs_min": paragraphs_min,
+                "paragraphs_max": paragraphs_max,
+            }
+            user_params.update(self.cfg.summary_prompt_params)
+            prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
+
             return {
                 "summary": summary,
                 # OpenAI provider doesn't generate short summaries separately
@@ -155,6 +179,7 @@ class OpenAISummarizationProvider:
                     "provider": "openai",
                     "max_length": max_length,
                     "min_length": min_length,
+                    "prompts": prompt_metadata,
                 },
             }
 
@@ -170,7 +195,7 @@ class OpenAISummarizationProvider:
         max_length: int,
         min_length: int,
         custom_prompt: Optional[str],
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, Optional[str], str, int, int]:
         """Build system and user prompts for summarization using prompt_store (RFC-017).
 
         Args:
@@ -182,18 +207,20 @@ class OpenAISummarizationProvider:
             custom_prompt: Optional custom prompt (overrides default)
 
         Returns:
-            Tuple of (system_prompt, user_prompt)
+            Tuple of (system_prompt, user_prompt, system_prompt_name, user_prompt_name, paragraphs_min, paragraphs_max)
         """
         from ..prompt_store import render_prompt
 
-        # Use prompt_store to load versioned prompt templates
-        system_prompt_name = getattr(
-            self.cfg, "openai_summary_system_prompt", "summarization/system_v1"
-        )
-        user_prompt_name = getattr(self.cfg, "openai_summary_user_prompt", "summarization/long_v1")
+        # Use prompt_store to load versioned prompt templates (RFC-017)
+        system_prompt_name = self.cfg.openai_summary_system_prompt or "summarization/system_v1"
+        user_prompt_name = self.cfg.openai_summary_user_prompt
 
         # Render system prompt
         system_prompt = render_prompt(system_prompt_name)
+
+        # Estimate paragraphs: roughly 100 tokens per paragraph
+        paragraphs_min = max(1, min_length // 100)
+        paragraphs_max = max(paragraphs_min, max_length // 100)
 
         # Render user prompt
         if custom_prompt:
@@ -201,21 +228,29 @@ class OpenAISummarizationProvider:
             user_prompt = custom_prompt.replace("{{ transcript }}", text)
             if episode_title:
                 user_prompt = user_prompt.replace("{{ title }}", episode_title)
+            # For custom prompts, use a placeholder name
+            user_prompt_name = "custom"
         else:
             # Use prompt_store template
-            # Estimate paragraphs: roughly 100 tokens per paragraph
-            paragraphs_min = max(1, min_length // 100)
-            paragraphs_max = max(paragraphs_min, max_length // 100)  # noqa: E501
+            # Merge config params with template params
+            template_params = {
+                "transcript": text,
+                "title": episode_title or "",
+                "paragraphs_min": paragraphs_min,
+                "paragraphs_max": paragraphs_max,
+            }
+            template_params.update(self.cfg.summary_prompt_params)
 
-            user_prompt = render_prompt(
-                user_prompt_name,
-                transcript=text,
-                title=episode_title or "",
-                paragraphs_min=paragraphs_min,
-                paragraphs_max=paragraphs_max,
-            )
+            user_prompt = render_prompt(user_prompt_name, **template_params)
 
-        return system_prompt, user_prompt
+        return (
+            system_prompt,
+            user_prompt,
+            system_prompt_name,
+            user_prompt_name,
+            paragraphs_min,
+            paragraphs_max,
+        )
 
     def cleanup(self) -> None:
         """Cleanup provider resources (no-op for API provider)."""

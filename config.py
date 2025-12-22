@@ -271,6 +271,41 @@ class Config(BaseModel):
         alias="openai_max_tokens",
         description="Max tokens for OpenAI generation (None = model default)",
     )
+    # Prompt configuration (RFC-017)
+    openai_summary_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="openai_summary_system_prompt",
+        description="System prompt name for summarization (e.g. 'summarization/system_v1'). "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    openai_summary_user_prompt: str = Field(
+        default="summarization/long_v1",
+        alias="openai_summary_user_prompt",
+        description="User prompt name for summarization. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    summary_prompt_params: Dict[str, Any] = Field(
+        default_factory=dict,
+        alias="summary_prompt_params",
+        description="Template parameters for summary prompts (passed to Jinja2 templates).",
+    )
+    openai_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="openai_speaker_system_prompt",
+        description="System prompt name for speaker detection/NER. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    openai_speaker_user_prompt: str = Field(
+        default="ner/guest_host_v1",
+        alias="openai_speaker_user_prompt",
+        description="User prompt name for speaker detection/NER. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    ner_prompt_params: Dict[str, Any] = Field(
+        default_factory=dict,
+        alias="ner_prompt_params",
+        description="Template parameters for NER prompts (passed to Jinja2 templates).",
+    )
     generate_metadata: bool = Field(default=False, alias="generate_metadata")
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
