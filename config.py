@@ -175,7 +175,12 @@ class Config(BaseModel):
     """
 
     rss_url: Optional[str] = Field(default=None, alias="rss")
-    output_dir: Optional[str] = Field(default=None, alias="output_dir")
+    output_dir: Optional[str] = Field(
+        default=None,
+        alias="output_dir",
+        description="Output directory path. Auto-generated from RSS URL if not provided. "
+        "Can be set via OUTPUT_DIR environment variable.",
+    )
     max_episodes: Optional[int] = Field(default=None, alias="max_episodes")
     user_agent: str = Field(default=DEFAULT_USER_AGENT, alias="user_agent")
     timeout: int = Field(default=DEFAULT_TIMEOUT_SECONDS, alias="timeout")
@@ -192,7 +197,8 @@ class Config(BaseModel):
     log_file: Optional[str] = Field(
         default=None,
         alias="log_file",
-        description="Path to log file (logs will be written to both console and file)",
+        description="Path to log file (logs will be written to both console and file). "
+        "Can be set via LOG_FILE environment variable.",
     )
     workers: int = Field(default=DEFAULT_WORKERS, alias="workers")
     skip_existing: bool = Field(default=False, alias="skip_existing")
@@ -312,7 +318,12 @@ class Config(BaseModel):
         alias="summary_word_overlap",
         description="Overlap in words for word-based chunking (100-200 recommended)",
     )
-    summary_cache_dir: Optional[str] = Field(default=None, alias="summary_cache_dir")
+    summary_cache_dir: Optional[str] = Field(
+        default=None,
+        alias="summary_cache_dir",
+        description="Custom cache directory for transformer models. "
+        "Can be set via SUMMARY_CACHE_DIR or CACHE_DIR environment variable.",
+    )
     summary_prompt: Optional[str] = Field(default=None, alias="summary_prompt")
     save_cleaned_transcript: bool = Field(
         default=True, alias="save_cleaned_transcript"
@@ -330,11 +341,25 @@ class Config(BaseModel):
 
     @field_validator("output_dir", mode="before")
     @classmethod
-    def _strip_output_dir(cls, value: Any) -> Optional[str]:
-        if value is None:
-            return None
-        value = str(value).strip()
-        return value or None
+    def _load_output_dir_from_env(cls, value: Any) -> Optional[str]:
+        """Load output directory from environment variable if not provided."""
+        # Check environment variable first (loaded from .env by dotenv)
+        # This allows env var to be used when value is None (default)
+        env_output_dir = os.getenv("OUTPUT_DIR")
+        if env_output_dir:
+            env_value = str(env_output_dir).strip()
+            if env_value:
+                # If explicitly provided in config, config takes precedence
+                if value is not None and str(value).strip():
+                    return str(value).strip() or None
+                return env_value
+
+        # If explicitly provided in config, use it
+        if value is not None:
+            value_str = str(value).strip()
+            return value_str or None
+
+        return None
 
     @field_validator("whisper_model", "language", mode="before")
     @classmethod
@@ -407,6 +432,28 @@ class Config(BaseModel):
         if value not in VALID_LOG_LEVELS:
             raise ValueError(f"log_level must be one of {VALID_LOG_LEVELS}, got: {value}")
         return value
+
+    @field_validator("log_file", mode="before")
+    @classmethod
+    def _load_log_file_from_env(cls, value: Any) -> Optional[str]:
+        """Load log file path from environment variable if not provided."""
+        # Check environment variable first (loaded from .env by dotenv)
+        # This allows env var to be used when value is None (default)
+        env_log_file = os.getenv("LOG_FILE")
+        if env_log_file:
+            env_value = str(env_log_file).strip()
+            if env_value:
+                # If explicitly provided in config, config takes precedence
+                if value is not None and str(value).strip():
+                    return str(value).strip() or None
+                return env_value
+
+        # If explicitly provided in config, use it
+        if value is not None:
+            value_str = str(value).strip()
+            return value_str or None
+
+        return None
 
     @field_validator("run_id", mode="before")
     @classmethod

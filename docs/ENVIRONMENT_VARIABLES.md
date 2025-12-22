@@ -295,7 +295,13 @@ The following environment variables may be added in future versions:
 
 - `OPENAI_ORGANIZATION` - OpenAI organization ID (for multi-org accounts)
 - `OPENAI_API_BASE` - Custom API base URL (for proxies)
-- `CACHE_DIR` - Custom cache directory for models
+- `WORKERS` - Number of parallel download workers
+- `TRANSCRIPTION_PARALLELISM` - Episode-level transcription parallelism
+- `PROCESSING_PARALLELISM` - Episode-level processing parallelism
+- `SUMMARY_BATCH_SIZE` - Batch size for episode-level parallel processing
+- `SUMMARY_CHUNK_PARALLELISM` - Chunk-level parallelism for summarization
+- `TIMEOUT` - Request timeout in seconds
+- `SUMMARY_DEVICE` - Device for model execution (cpu, cuda, mps)
 
 ## Related Documentation
 
