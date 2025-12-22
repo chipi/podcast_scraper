@@ -818,7 +818,11 @@ class TestMetadataIntegration(unittest.TestCase):
         """Test that non-local providers are skipped."""
         from podcast_scraper import metadata
 
-        cfg = create_test_config(generate_summaries=True, summary_provider="openai")
+        cfg = create_test_config(
+            generate_summaries=True,
+            summary_provider="openai",
+            openai_api_key="sk-test123",  # Required for OpenAI provider
+        )
         result = metadata._generate_episode_summary(
             transcript_file_path="test.txt",
             output_dir=self.temp_dir,

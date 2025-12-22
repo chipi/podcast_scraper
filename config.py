@@ -240,6 +240,31 @@ class Config(BaseModel):
         alias="openai_api_key",
         description="OpenAI API key (prefer OPENAI_API_KEY env var or .env file)",
     )
+    openai_transcription_model: str = Field(
+        default="whisper-1",
+        alias="openai_transcription_model",
+        description="OpenAI Whisper API model version (default: 'whisper-1')",
+    )
+    openai_speaker_model: str = Field(
+        default="gpt-4o-mini",
+        alias="openai_speaker_model",
+        description="OpenAI model for speaker detection (default: 'gpt-4o-mini')",
+    )
+    openai_summary_model: str = Field(
+        default="gpt-4o-mini",
+        alias="openai_summary_model",
+        description="OpenAI model for summarization (default: 'gpt-4o-mini')",
+    )
+    openai_temperature: float = Field(
+        default=0.3,
+        alias="openai_temperature",
+        description="Temperature for OpenAI generation (0.0-2.0, lower = more deterministic)",
+    )
+    openai_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="openai_max_tokens",
+        description="Max tokens for OpenAI generation (None = model default)",
+    )
     generate_metadata: bool = Field(default=False, alias="generate_metadata")
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
@@ -588,6 +613,40 @@ class Config(BaseModel):
         if value_str not in ("local", "openai", "anthropic"):
             raise ValueError("summary_provider must be 'local', 'openai', or 'anthropic'")
         return value_str  # type: ignore[return-value]
+
+    @field_validator("openai_temperature", mode="before")
+    @classmethod
+    def _validate_openai_temperature(cls, value: Any) -> float:
+        """Validate OpenAI temperature is in valid range (0.0-2.0)."""
+        if value is None or value == "":
+            return 0.3
+        try:
+            temp = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("openai_temperature must be a number") from exc
+        if temp < 0.0 or temp > 2.0:
+            raise ValueError("openai_temperature must be between 0.0 and 2.0")
+        return temp
+
+    @model_validator(mode="after")
+    def _validate_openai_provider_requirements(self) -> "Config":
+        """Validate that OpenAI API key is provided when OpenAI providers are selected."""
+        openai_providers_used = []
+        if self.transcription_provider == "openai":
+            openai_providers_used.append("transcription")
+        if self.speaker_detector_type == "openai":
+            openai_providers_used.append("speaker_detection")
+        if self.summary_provider == "openai":
+            openai_providers_used.append("summarization")
+
+        if openai_providers_used and not self.openai_api_key:
+            providers_str = ", ".join(openai_providers_used)
+            raise ValueError(
+                f"OpenAI API key required for OpenAI providers: {providers_str}. "
+                "Set OPENAI_API_KEY environment variable or openai_api_key in config."
+            )
+
+        return self
 
     @field_validator("summary_model", mode="before")
     @classmethod

@@ -34,8 +34,12 @@ def create_transcription_provider(cfg: config.Config) -> TranscriptionProvider:
         from .whisper_provider import WhisperTranscriptionProvider
 
         return WhisperTranscriptionProvider(cfg)
+    elif provider_type == "openai":
+        from .openai_provider import OpenAITranscriptionProvider
+
+        return OpenAITranscriptionProvider(cfg)
     else:
         raise ValueError(
             f"Unsupported transcription provider: {provider_type}. "
-            "Supported providers: 'whisper'"
+            "Supported providers: 'whisper', 'openai'"
         )

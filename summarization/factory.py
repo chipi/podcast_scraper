@@ -34,7 +34,12 @@ def create_summarization_provider(cfg: config.Config) -> SummarizationProvider:
         from .local_provider import TransformersSummarizationProvider
 
         return TransformersSummarizationProvider(cfg)
+    elif provider_type == "openai":
+        from .openai_provider import OpenAISummarizationProvider
+
+        return OpenAISummarizationProvider(cfg)
     else:
         raise ValueError(
-            f"Unsupported summarization provider: {provider_type}. " "Supported providers: 'local'"
+            f"Unsupported summarization provider: {provider_type}. "
+            "Supported providers: 'local', 'openai'"
         )

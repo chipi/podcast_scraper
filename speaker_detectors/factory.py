@@ -34,7 +34,12 @@ def create_speaker_detector(cfg: config.Config) -> SpeakerDetector:
         from .ner_detector import NERSpeakerDetector
 
         return NERSpeakerDetector(cfg)
+    elif provider_type == "openai":
+        from .openai_detector import OpenAISpeakerDetector
+
+        return OpenAISpeakerDetector(cfg)
     else:
         raise ValueError(
-            f"Unsupported speaker detector type: {provider_type}. " "Supported types: 'ner'"
+            f"Unsupported speaker detector type: {provider_type}. "
+            "Supported types: 'ner', 'openai'"
         )

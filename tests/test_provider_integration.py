@@ -7,6 +7,8 @@ These tests verify that all providers work together correctly in the workflow.
 import unittest
 from unittest.mock import Mock, patch
 
+from pydantic import ValidationError
+
 from podcast_scraper import config
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
@@ -166,12 +168,18 @@ class TestProviderSwitching(unittest.TestCase):
         provider1 = create_transcription_provider(cfg1)
         self.assertEqual(provider1.__class__.__name__, "WhisperTranscriptionProvider")
 
-        # Note: "openai" provider not implemented yet, so we test error handling
+        # Test OpenAI provider creation (Stage 6)
         cfg2 = config.Config(
-            rss_url="https://example.com/feed.xml", transcription_provider="openai"
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="openai",
+            openai_api_key="sk-test123",
         )
-        with self.assertRaises(ValueError):
-            create_transcription_provider(cfg2)
+        provider2 = create_transcription_provider(cfg2)
+        self.assertEqual(provider2.__class__.__name__, "OpenAITranscriptionProvider")
+
+        # Test error handling: missing API key (caught by validator)
+        with self.assertRaises(ValidationError):
+            config.Config(rss_url="https://example.com/feed.xml", transcription_provider="openai")
 
     def test_speaker_detector_switching(self):
         """Test that speaker detector can be switched via config."""
@@ -179,10 +187,19 @@ class TestProviderSwitching(unittest.TestCase):
         detector1 = create_speaker_detector(cfg1)
         self.assertEqual(detector1.__class__.__name__, "NERSpeakerDetector")
 
-        # Note: "openai" detector not implemented yet, so we test error handling
-        cfg2 = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="openai")
-        with self.assertRaises(ValueError):
-            create_speaker_detector(cfg2)
+        # Test OpenAI detector creation (Stage 6)
+        cfg2 = config.Config(
+            rss_url="https://example.com/feed.xml",
+            speaker_detector_type="openai",
+            openai_api_key="sk-test123",
+            auto_speakers=True,
+        )
+        detector2 = create_speaker_detector(cfg2)
+        self.assertEqual(detector2.__class__.__name__, "OpenAISpeakerDetector")
+
+        # Test error handling: missing API key (caught by validator)
+        with self.assertRaises(ValidationError):
+            config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="openai")
 
     def test_summarization_provider_switching(self):
         """Test that summarization provider can be switched via config."""
@@ -194,14 +211,24 @@ class TestProviderSwitching(unittest.TestCase):
         provider1 = create_summarization_provider(cfg1)
         self.assertEqual(provider1.__class__.__name__, "TransformersSummarizationProvider")
 
-        # Note: "openai" provider not implemented yet, so we test error handling
+        # Test OpenAI provider creation (Stage 6)
         cfg2 = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="openai",
-            generate_summaries=False,
+            openai_api_key="sk-test123",
+            generate_metadata=True,
+            generate_summaries=True,
         )
-        with self.assertRaises(ValueError):
-            create_summarization_provider(cfg2)
+        provider2 = create_summarization_provider(cfg2)
+        self.assertEqual(provider2.__class__.__name__, "OpenAISummarizationProvider")
+
+        # Test error handling: missing API key (caught by validator)
+        with self.assertRaises(ValidationError):
+            config.Config(
+                rss_url="https://example.com/feed.xml",
+                summary_provider="openai",
+                generate_summaries=False,
+            )
 
 
 class TestProviderErrorHandling(unittest.TestCase):

@@ -92,7 +92,12 @@ class TestStage0ConfigFields(unittest.TestCase):
         cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="ner")
         self.assertEqual(cfg.speaker_detector_type, "ner")
 
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="openai")
+        # OpenAI provider requires API key
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            speaker_detector_type="openai",
+            openai_api_key="sk-test123",
+        )
         self.assertEqual(cfg.speaker_detector_type, "openai")
 
     def test_speaker_detector_type_invalid(self):
@@ -112,7 +117,12 @@ class TestStage0ConfigFields(unittest.TestCase):
         )
         self.assertEqual(cfg.transcription_provider, "whisper")
 
-        cfg = config.Config(rss_url="https://example.com/feed.xml", transcription_provider="openai")
+        # OpenAI provider requires API key
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="openai",
+            openai_api_key="sk-test123",
+        )
         self.assertEqual(cfg.transcription_provider, "openai")
 
     def test_transcription_provider_invalid(self):
@@ -130,10 +140,20 @@ class TestStage0ConfigFields(unittest.TestCase):
         cfg = config.Config(rss_url="https://example.com/feed.xml", summary_provider="local")
         self.assertEqual(cfg.summary_provider, "local")
 
-        cfg = config.Config(rss_url="https://example.com/feed.xml", summary_provider="openai")
+        # OpenAI provider requires API key
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="openai",
+            openai_api_key="sk-test123",
+        )
         self.assertEqual(cfg.summary_provider, "openai")
 
-        cfg = config.Config(rss_url="https://example.com/feed.xml", summary_provider="anthropic")
+        # Anthropic provider also requires API key (future implementation)
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="anthropic",
+            openai_api_key="sk-test123",  # Using OpenAI key for now, will need separate key later
+        )
         self.assertEqual(cfg.summary_provider, "anthropic")
 
     def test_summary_provider_invalid(self):
@@ -190,6 +210,45 @@ class TestStage0Factories(unittest.TestCase):
         provider = create_summarization_provider(cfg)
         self.assertIsNotNone(provider)
         self.assertEqual(provider.__class__.__name__, "TransformersSummarizationProvider")
+
+    def test_openai_providers_factory_creation(self):
+        """Test that OpenAI providers can be created via factories (Stage 6)."""
+        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
+        from podcast_scraper.summarization.factory import create_summarization_provider
+        from podcast_scraper.transcription.factory import create_transcription_provider
+
+        # Test OpenAI transcription provider
+        cfg_transcription = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="openai",
+            openai_api_key="sk-test123",
+        )
+        provider = create_transcription_provider(cfg_transcription)
+        self.assertIsNotNone(provider)
+        self.assertEqual(provider.__class__.__name__, "OpenAITranscriptionProvider")
+
+        # Test OpenAI speaker detector
+        cfg_speaker = config.Config(
+            rss_url="https://example.com/feed.xml",
+            speaker_detector_type="openai",
+            openai_api_key="sk-test123",
+            auto_speakers=True,
+        )
+        detector = create_speaker_detector(cfg_speaker)
+        self.assertIsNotNone(detector)
+        self.assertEqual(detector.__class__.__name__, "OpenAISpeakerDetector")
+
+        # Test OpenAI summarization provider
+        cfg_summary = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="openai",
+            openai_api_key="sk-test123",
+            generate_metadata=True,  # Required when generate_summaries=True
+            generate_summaries=True,
+        )
+        provider = create_summarization_provider(cfg_summary)
+        self.assertIsNotNone(provider)
+        self.assertEqual(provider.__class__.__name__, "OpenAISummarizationProvider")
 
 
 class TestStage0BackwardCompatibility(unittest.TestCase):
