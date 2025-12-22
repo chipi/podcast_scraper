@@ -403,6 +403,13 @@ class Config(BaseModel):
         - OUTPUT_DIR: Config file takes precedence, env var as fallback
         - LOG_FILE: Config file takes precedence, env var as fallback
         - SUMMARY_CACHE_DIR/CACHE_DIR: Config file takes precedence, env var as fallback
+        - WORKERS: Config file takes precedence, env var as fallback
+        - TRANSCRIPTION_PARALLELISM: Config file takes precedence, env var as fallback
+        - PROCESSING_PARALLELISM: Config file takes precedence, env var as fallback
+        - SUMMARY_BATCH_SIZE: Config file takes precedence, env var as fallback
+        - SUMMARY_CHUNK_PARALLELISM: Config file takes precedence, env var as fallback
+        - TIMEOUT: Config file takes precedence, env var as fallback
+        - SUMMARY_DEVICE: Config file takes precedence, env var as fallback
         """
         if not isinstance(data, dict):
             return data
@@ -438,6 +445,81 @@ class Config(BaseModel):
                 env_value = str(env_cache_dir).strip()
                 if env_value:
                     data["summary_cache_dir"] = env_value
+
+        # WORKERS: Only set from env if not in config
+        if "workers" not in data or data.get("workers") is None:
+            env_workers = os.getenv("WORKERS")
+            if env_workers:
+                try:
+                    workers_value = int(env_workers.strip())
+                    if workers_value > 0:
+                        data["workers"] = workers_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+        # TRANSCRIPTION_PARALLELISM: Only set from env if not in config
+        if "transcription_parallelism" not in data or data.get("transcription_parallelism") is None:
+            env_transcription_parallelism = os.getenv("TRANSCRIPTION_PARALLELISM")
+            if env_transcription_parallelism:
+                try:
+                    parallelism_value = int(env_transcription_parallelism.strip())
+                    if parallelism_value > 0:
+                        data["transcription_parallelism"] = parallelism_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+        # PROCESSING_PARALLELISM: Only set from env if not in config
+        if "processing_parallelism" not in data or data.get("processing_parallelism") is None:
+            env_processing_parallelism = os.getenv("PROCESSING_PARALLELISM")
+            if env_processing_parallelism:
+                try:
+                    parallelism_value = int(env_processing_parallelism.strip())
+                    if parallelism_value > 0:
+                        data["processing_parallelism"] = parallelism_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+        # SUMMARY_BATCH_SIZE: Only set from env if not in config
+        if "summary_batch_size" not in data or data.get("summary_batch_size") is None:
+            env_batch_size = os.getenv("SUMMARY_BATCH_SIZE")
+            if env_batch_size:
+                try:
+                    batch_size_value = int(env_batch_size.strip())
+                    if batch_size_value > 0:
+                        data["summary_batch_size"] = batch_size_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+        # SUMMARY_CHUNK_PARALLELISM: Only set from env if not in config
+        if "summary_chunk_parallelism" not in data or data.get("summary_chunk_parallelism") is None:
+            env_chunk_parallelism = os.getenv("SUMMARY_CHUNK_PARALLELISM")
+            if env_chunk_parallelism:
+                try:
+                    chunk_parallelism_value = int(env_chunk_parallelism.strip())
+                    if chunk_parallelism_value > 0:
+                        data["summary_chunk_parallelism"] = chunk_parallelism_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+        # TIMEOUT: Only set from env if not in config
+        if "timeout" not in data or data.get("timeout") is None:
+            env_timeout = os.getenv("TIMEOUT")
+            if env_timeout:
+                try:
+                    timeout_value = int(env_timeout.strip())
+                    if timeout_value >= MIN_TIMEOUT_SECONDS:
+                        data["timeout"] = timeout_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+        # SUMMARY_DEVICE: Only set from env if not in config
+        if "summary_device" not in data or data.get("summary_device") is None:
+            env_device = os.getenv("SUMMARY_DEVICE")
+            if env_device:
+                device_value = str(env_device).strip().lower()
+                # Validate device value (cpu, cuda, mps, or empty string for None)
+                if device_value in ("cpu", "cuda", "mps") or device_value == "":
+                    data["summary_device"] = device_value if device_value else None
 
         return data
 
