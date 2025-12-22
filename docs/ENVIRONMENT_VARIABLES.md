@@ -41,6 +41,36 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 
 **See Also**: `docs/rfc/RFC-013-openai-provider-implementation.md`
 
+### Logging Configuration
+
+#### `LOG_LEVEL`
+
+**Description**: Default logging level for the application.
+
+**Required**: No (defaults to "INFO" if not specified).
+
+**Valid Values**: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`
+
+**Example**:
+```bash
+export LOG_LEVEL=DEBUG
+```
+
+**In `.env` file**:
+```bash
+LOG_LEVEL=DEBUG
+```
+
+**Priority**:
+
+1. `LOG_LEVEL` environment variable (highest priority)
+2. Config file `log_level` field
+3. Default (`INFO`)
+
+**Note**: Unlike other configuration fields, `LOG_LEVEL` environment variable takes precedence over config file values. This allows easy runtime log level control without modifying config files.
+
+**See Also**: `config.py` for log_level field documentation.
+
 ## Usage Examples
 
 ### macOS / Linux
@@ -177,7 +207,7 @@ The first existing file is used. Project root takes precedence.
 OPENAI_API_KEY=sk-your-actual-api-key-here
 
 # Optional: Add other variables here
-# LOG_LEVEL=DEBUG
+# LOG_LEVEL=DEBUG  # Valid: DEBUG, INFO, WARNING, ERROR, CRITICAL
 ```
 
 ## Security Best Practices
@@ -265,7 +295,6 @@ The following environment variables may be added in future versions:
 
 - `OPENAI_ORGANIZATION` - OpenAI organization ID (for multi-org accounts)
 - `OPENAI_API_BASE` - Custom API base URL (for proxies)
-- `LOG_LEVEL` - Default log level (if not in config)
 - `CACHE_DIR` - Custom cache directory for models
 
 ## Related Documentation

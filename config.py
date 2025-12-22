@@ -368,9 +368,34 @@ class Config(BaseModel):
             raise ValueError(f"whisper_model must be one of {VALID_WHISPER_MODELS}, got: {value}")
         return value
 
+    @model_validator(mode="before")
+    @classmethod
+    def _load_log_level_from_env(cls, data: Any) -> Any:
+        """Load log level from environment variable before validation.
+
+        Priority (per ENVIRONMENT_VARIABLES.md):
+        1. LOG_LEVEL environment variable (highest priority - always takes precedence)
+        2. Config file value
+        3. Default (INFO)
+
+        Note: For LOG_LEVEL, environment variable takes precedence over config file,
+        unlike other fields where config file takes precedence. This allows easy
+        runtime log level control without modifying config files.
+        """
+        if isinstance(data, dict):
+            # Check environment variable first (loaded from .env by dotenv)
+            # Environment variable always takes precedence for LOG_LEVEL
+            env_log_level = os.getenv("LOG_LEVEL")
+            if env_log_level:
+                env_value = str(env_log_level).strip().upper()
+                if env_value and env_value in VALID_LOG_LEVELS:
+                    data["log_level"] = env_value
+        return data
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _normalize_log_level(cls, value: Any) -> str:
+        """Normalize log level value."""
         if value is None:
             return DEFAULT_LOG_LEVEL
         return str(value).strip().upper() or DEFAULT_LOG_LEVEL
