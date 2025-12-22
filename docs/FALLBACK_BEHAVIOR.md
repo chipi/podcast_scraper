@@ -266,7 +266,7 @@ else:
 ## Fallback Decision Matrix
 
 | Scenario | Provider Type | Fallback? | Reason |
-|----------|--------------|-----------|--------|
+| --------- | -------------- | ----------- | -------- |
 | Transcription init fails | Transcription | ✅ Yes | Graceful degradation |
 | Speaker detector init fails | SpeakerDetector | ❌ No | Fail-fast (optional) |
 | Summarization init fails | Summarization | ❌ No | Fail-fast (optional) |
@@ -430,7 +430,7 @@ def test_speaker_detector_no_fallback():
 ### Fallback Status
 
 | Pattern | Status | Future |
-|---------|--------|--------|
+| --------- | -------- | -------- |
 | Transcription provider fallback | ✅ Intentional | May be configurable |
 | Episode processor fallback | ✅ Intentional | Will be removed |
 | Metadata summarization fallback | ⚠️ Deprecated | Will be removed |

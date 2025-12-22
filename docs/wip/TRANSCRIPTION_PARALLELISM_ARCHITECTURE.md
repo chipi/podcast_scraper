@@ -13,7 +13,7 @@ With the introduction of OpenAI transcription providers (external API calls), we
 ### Local Whisper (Current)
 
 | Aspect | Current Implementation | Constraint | Resource Type |
-|--------|----------------------|------------|---------------|
+| -------- | ---------------------- | ------------ | --------------- |
 | **Processing** | Sequential (one job at a time) | Memory (RAM) + CPU | Each transcription = ~1-4GB RAM, CPU-intensive |
 | **Model Loading** | Single model instance shared | Memory (RAM) | ~500MB-2GB per model |
 | **Control** | No parallelism config | N/A | Sequential by design |
@@ -35,7 +35,7 @@ With the introduction of OpenAI transcription providers (external API calls), we
 ### OpenAI API (Future)
 
 | Aspect | Proposed Implementation | Constraint | Resource Type |
-|--------|------------------------|------------|---------------|
+| -------- | ------------------------ | ------------ | --------------- |
 | **Processing** | Parallel API calls | Rate limits (RPM/TPM) | Network I/O bound |
 | **Model Loading** | No local model | N/A | API-based |
 | **Control** | `transcription_parallelism` config | Rate limits | I/O-bound, can parallelize |
@@ -247,7 +247,7 @@ class OpenAITranscriptionProvider:
 ## Comparison with Summarization
 
 | Aspect | Summarization | Transcription |
-|--------|--------------|---------------|
+| -------- | -------------- | --------------- |
 | **Levels** | Episode-level + Chunk-level | Episode-level only |
 | **Config Fields** | `summary_batch_size` + `summary_chunk_parallelism` | `transcription_parallelism` |
 | **Local Provider** | Can parallelize chunks (CPU-bound) | Sequential (memory/CPU bound) |

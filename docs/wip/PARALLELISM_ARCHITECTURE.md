@@ -13,7 +13,7 @@ With the introduction of OpenAI providers (external API calls), we need to decid
 ### Local Models (Current)
 
 | Level | Constraint | Current Control | Resource Type |
-|-------|-----------|----------------|---------------|
+| ------- | ----------- | ---------------- | --------------- |
 | **Episode-level** | Memory (RAM) | `summary_batch_size` | Each episode = new model instance (~500MB-2GB) |
 | **Chunk-level** | CPU cores | `summary_batch_size` | Shared model, multiple threads |
 
@@ -22,7 +22,7 @@ With the introduction of OpenAI providers (external API calls), we need to decid
 ### OpenAI API (Future)
 
 | Level | Constraint | Proposed Control | Resource Type |
-|-------|-----------|------------------|---------------|
+| ------- | ----------- | ------------------ | --------------- |
 | **Episode-level** | Rate limits (RPM/TPM) | `openai_max_concurrent_requests` | Network I/O bound |
 | **Chunk-level** | Rate limits (RPM/TPM) | Same rate limiter | Network I/O bound |
 
@@ -199,14 +199,14 @@ class OpenAISummarizationProvider:
 ### Local Transformers Provider
 
 | Level | Constraint | Control | Typical Limit |
-|-------|-----------|---------|---------------|
+| ------- | ----------- | --------- | --------------- |
 | Episode | Memory (RAM) | `summary_batch_size` | 2-4 episodes |
 | Chunk | CPU cores | `summary_chunk_parallelism` | 4-8 chunks |
 
 ### OpenAI Provider
 
 | Level | Constraint | Control | Typical Limit |
-|-------|-----------|---------|---------------|
+| ------- | ----------- | --------- | --------------- |
 | Episode | Rate limits (RPM) | `openai_max_concurrent_requests` | 5-10 episodes |
 | Chunk | Rate limits (RPM/TPM) | Same rate limiter | Usually N/A (no chunking) |
 
@@ -215,7 +215,7 @@ class OpenAISummarizationProvider:
 ## Decision Matrix
 
 | Scenario | Episode Parallelism | Chunk Parallelism | Control Location |
-|----------|-------------------|-------------------|------------------|
+| ---------- | ------------------- | ------------------- | ------------------ |
 | **Local, High RAM, Low CPU** | High (4) | Low (1) | Workflow + Provider |
 | **Local, Low RAM, High CPU** | Low (1) | High (4) | Workflow + Provider |
 | **OpenAI, Standard** | Medium (5-10) | N/A (no chunking) | Workflow + Provider (rate limiter) |

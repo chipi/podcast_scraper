@@ -4,7 +4,6 @@
 import os
 import sys
 import unittest
-from pathlib import Path
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
