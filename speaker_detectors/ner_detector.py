@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Import speaker_detection functions (keeping existing implementation)
 from .. import config, models, speaker_detection
-from .base import SpeakerDetector
 
 logger = logging.getLogger(__name__)
 

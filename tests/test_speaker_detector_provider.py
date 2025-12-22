@@ -211,7 +211,6 @@ class TestSpeakerDetectorProtocol(unittest.TestCase):
 
     def test_detector_implements_protocol(self):
         """Test that NERSpeakerDetector implements SpeakerDetector protocol."""
-        from podcast_scraper.speaker_detectors.base import SpeakerDetector
         from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
 
         cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="ner")

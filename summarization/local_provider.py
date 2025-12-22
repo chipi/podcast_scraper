@@ -11,7 +11,6 @@ from typing import Any, Dict, Optional
 
 # Import summarizer functions (keeping existing implementation)
 from .. import config, summarizer
-from .base import SummarizationProvider
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +98,8 @@ class TransformersSummarizationProvider:
                 - max_length: Maximum summary length (default from config)
                 - min_length: Minimum summary length (default from config)
                 - chunk_size: Chunk size in tokens (default from config)
-                - chunk_parallelism: Number of chunks to process in parallel (CPU only, default from config)
+                - chunk_parallelism: Number of chunks to process in parallel
+                  (CPU only, default from config)
                 - use_word_chunking: Use word-based chunking (default: auto-detected)
                 - word_chunk_size: Chunk size in words (default from config)
                 - word_overlap: Overlap in words (default from config)

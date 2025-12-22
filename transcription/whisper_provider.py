@@ -7,16 +7,12 @@ for local transcription of audio files.
 from __future__ import annotations
 
 import logging
-import time
-import warnings
 from typing import Any, Optional
-
-from .base import TranscriptionProvider
 
 logger = logging.getLogger(__name__)
 
 # Import whisper_integration functions (keeping existing implementation)
-from .. import config, progress, whisper_integration
+from .. import config, whisper_integration
 
 
 class WhisperTranscriptionProvider:

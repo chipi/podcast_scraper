@@ -180,7 +180,6 @@ class TestTranscriptionProviderProtocol(unittest.TestCase):
 
     def test_provider_implements_protocol(self):
         """Test that WhisperTranscriptionProvider implements TranscriptionProvider protocol."""
-        from podcast_scraper.transcription.base import TranscriptionProvider
         from podcast_scraper.transcription.whisper_provider import WhisperTranscriptionProvider
 
         cfg = config.Config(

@@ -215,7 +215,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
             "chunk_parallelism": 4,  # Use chunk_parallelism instead of batch_size
             "prompt": "Custom prompt",
         }
-        result = provider.summarize("Test transcript", params=params)
+        provider.summarize("Test transcript", params=params)
 
         # Verify summarize_long_text was called with correct params
         call_args = mock_summarize_long.call_args
@@ -232,7 +232,6 @@ class TestSummarizationProviderProtocol(unittest.TestCase):
 
     def test_provider_implements_protocol(self):
         """Test that TransformersSummarizationProvider implements SummarizationProvider protocol."""
-        from podcast_scraper.summarization.base import SummarizationProvider
         from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
 
         cfg = config.Config(

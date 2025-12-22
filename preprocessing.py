@@ -8,8 +8,6 @@ Functions moved from summarizer.py in Stage 1 of incremental modularization.
 """
 
 import re
-import warnings
-from typing import Literal
 
 # Outro removal patterns
 OUTRO_BLOCK_PATTERNS = [

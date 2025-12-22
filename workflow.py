@@ -13,7 +13,6 @@ import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from queue import Empty, Queue
 from typing import Any, cast, Dict, List, Literal, NamedTuple, Optional, Set, Tuple
 
 from . import (
@@ -1178,8 +1177,8 @@ def _process_episodes(
                         _update_metric_safely(pipeline_metrics, "transcripts_downloaded", 1)
                     logger.debug("Episode %s yielded transcript (saved=%s)", episode.idx, saved)
 
-                    # Queue processing job if metadata generation is enabled and transcript is available
-                    # Skip if transcript_source is None (Whisper pending) - will be queued after transcription
+                    # Queue processing job if metadata generation enabled and transcript available
+                    # Skip if transcript_source is None (Whisper pending) - queued after
                     if cfg.generate_metadata and transcript_source is not None:
                         transcript_source_typed = cast(
                             Literal["direct_download", "whisper_transcription"],
@@ -1258,8 +1257,8 @@ def _process_episodes(
                             pipeline_metrics, "episodes_skipped_total", 1, saved_counter_lock
                         )
 
-                    # Queue processing job if metadata generation is enabled and transcript is available
-                    # Skip if transcript_source is None (Whisper pending) - will be queued after transcription
+                    # Queue processing job if metadata generation enabled and transcript available
+                    # Skip if transcript_source is None (Whisper pending) - queued after
                     if cfg.generate_metadata and transcript_source is not None:
                         episode_obj = next((ep for ep in episodes if ep.idx == idx), None)
                         if episode_obj:
@@ -1662,7 +1661,8 @@ def _process_transcription_jobs_concurrent(
         else 0
     )
     logger.info(
-        f"Concurrent transcription processing completed: {saved}/{total_jobs} transcripts saved (parallelism={max_workers})"
+        f"Concurrent transcription processing completed: {saved}/{total_jobs} "
+        f"transcripts saved (parallelism={max_workers})"
     )
 
 
@@ -1851,7 +1851,8 @@ def _process_processing_jobs_concurrent(
         len(processing_resources.processing_jobs) if processing_resources.processing_jobs else 0
     )
     logger.info(
-        f"Concurrent processing completed: {jobs_processed}/{total_jobs} jobs processed (parallelism={max_workers})"
+        f"Concurrent processing completed: {jobs_processed}/{total_jobs} "
+        f"jobs processed (parallelism={max_workers})"
     )
 
 

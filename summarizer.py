@@ -322,7 +322,7 @@ def clean_transcript(
     """Clean podcast transcript for better summarization quality.
 
     .. deprecated:: 2.5.0
-        This function is deprecated. Use :func:`podcast_scraper.preprocessing.clean_transcript` instead.
+        Use :func:`podcast_scraper.preprocessing.clean_transcript` instead.
 
     This is a wrapper function that delegates to the preprocessing module.
     It is kept for backward compatibility but will be removed in a future release.
@@ -377,7 +377,7 @@ def remove_outro_blocks(text: str) -> str:
     """Remove outro/closing blocks from transcript.
 
     .. deprecated:: 2.5.0
-        This function is deprecated. Use :func:`podcast_scraper.preprocessing.remove_outro_blocks` instead.
+        Use :func:`podcast_scraper.preprocessing.remove_outro_blocks` instead.
 
     This is a wrapper function that delegates to the preprocessing module.
     It is kept for backward compatibility but will be removed in a future release.
@@ -403,7 +403,7 @@ def clean_for_summarization(text: str) -> str:
       - runtime summarization (if you want consistency)
 
     .. deprecated:: 2.5.0
-        This function is deprecated. Use :func:`podcast_scraper.preprocessing.clean_for_summarization` instead.
+        Use :func:`podcast_scraper.preprocessing.clean_for_summarization` instead.
 
     This is a wrapper function that delegates to the preprocessing module.
     It is kept for backward compatibility but will be removed in a future release.

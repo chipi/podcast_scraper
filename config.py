@@ -125,7 +125,8 @@ class Config(BaseModel):
         summary_min_length: Minimum summary length in tokens.
         summary_device: Device for model execution ("cpu", "cuda", "mps", or None).
         summary_batch_size: Batch size for episode-level parallel processing (episodes in parallel).
-        summary_chunk_parallelism: Number of chunks to process in parallel within a single episode (CPU-bound, local providers only).
+        summary_chunk_parallelism: Number of chunks to process in parallel within a single episode
+            (CPU-bound, local providers only).
         summary_chunk_size: Chunk size in tokens for long transcripts.
         summary_word_chunk_size: Chunk size in words for word-based chunking.
         summary_word_overlap: Overlap in words for word-based chunking.
@@ -134,7 +135,7 @@ class Config(BaseModel):
         save_cleaned_transcript: Save cleaned transcript to separate file.
         speaker_detector_type: Speaker detection provider type ("ner" or "openai").
         transcription_provider: Transcription provider type ("whisper" or "openai").
-        openai_api_key: OpenAI API key (loaded from environment variable or .env file if not provided).
+        openai_api_key: OpenAI API key (loaded from environment variable or .env file).
 
     Example:
         Create configuration programmatically:
@@ -220,18 +221,24 @@ class Config(BaseModel):
     transcription_parallelism: int = Field(
         default=1,
         alias="transcription_parallelism",
-        description="Episode-level parallelism: Number of episodes to transcribe in parallel (default: 1 for sequential. Whisper ignores >1, OpenAI uses for parallel API calls)",
+        description=(
+            "Episode-level parallelism: Number of episodes to transcribe in parallel "
+            "(default: 1 for sequential. Whisper ignores >1, OpenAI uses for parallel API calls)"
+        ),
     )
     processing_parallelism: int = Field(
         default=2,
         alias="processing_parallelism",
-        description="Episode-level parallelism: Number of episodes to process (metadata/summarization) in parallel (default: 2)",
+        description=(
+            "Episode-level parallelism: Number of episodes to process "
+            "(metadata/summarization) in parallel (default: 2)"
+        ),
     )
     # OpenAI API configuration (RFC-013)
     openai_api_key: Optional[str] = Field(
         default=None,
         alias="openai_api_key",
-        description="OpenAI API key (prefer OPENAI_API_KEY environment variable or .env file)",
+        description="OpenAI API key (prefer OPENAI_API_KEY env var or .env file)",
     )
     generate_metadata: bool = Field(default=False, alias="generate_metadata")
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
@@ -255,12 +262,19 @@ class Config(BaseModel):
     summary_batch_size: int = Field(
         default=DEFAULT_SUMMARY_BATCH_SIZE,
         alias="summary_batch_size",
-        description="Episode-level parallelism: Number of episodes to summarize in parallel (memory-bound for local, rate-limited for API providers)",
+        description=(
+            "Episode-level parallelism: Number of episodes to summarize in parallel "
+            "(memory-bound for local, rate-limited for API providers)"
+        ),
     )
     summary_chunk_parallelism: int = Field(
         default=1,
         alias="summary_chunk_parallelism",
-        description="Chunk-level parallelism: Number of chunks to process in parallel within a single episode (CPU-bound, local providers only. API providers handle internally via rate limiting)",
+        description=(
+            "Chunk-level parallelism: Number of chunks to process in parallel "
+            "within a single episode (CPU-bound, local providers only. "
+            "API providers handle internally via rate limiting)"
+        ),
     )
     summary_chunk_size: Optional[int] = Field(default=None, alias="summary_chunk_size")
     summary_word_chunk_size: Optional[int] = Field(
