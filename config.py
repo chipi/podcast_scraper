@@ -395,26 +395,50 @@ class Config(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _load_log_level_from_env(cls, data: Any) -> Any:
-        """Load log level from environment variable before validation.
+    def _load_env_variables(cls, data: Any) -> Any:
+        """Load configuration from environment variables before validation.
 
-        Priority (per ENVIRONMENT_VARIABLES.md):
-        1. LOG_LEVEL environment variable (highest priority - always takes precedence)
-        2. Config file value
-        3. Default (INFO)
-
-        Note: For LOG_LEVEL, environment variable takes precedence over config file,
-        unlike other fields where config file takes precedence. This allows easy
-        runtime log level control without modifying config files.
+        Handles:
+        - LOG_LEVEL: Environment variable takes precedence (special case)
+        - OUTPUT_DIR: Config file takes precedence, env var as fallback
+        - LOG_FILE: Config file takes precedence, env var as fallback
+        - SUMMARY_CACHE_DIR/CACHE_DIR: Config file takes precedence, env var as fallback
         """
-        if isinstance(data, dict):
-            # Check environment variable first (loaded from .env by dotenv)
-            # Environment variable always takes precedence for LOG_LEVEL
-            env_log_level = os.getenv("LOG_LEVEL")
-            if env_log_level:
-                env_value = str(env_log_level).strip().upper()
-                if env_value and env_value in VALID_LOG_LEVELS:
-                    data["log_level"] = env_value
+        if not isinstance(data, dict):
+            return data
+
+        # LOG_LEVEL: Environment variable always takes precedence
+        env_log_level = os.getenv("LOG_LEVEL")
+        if env_log_level:
+            env_value = str(env_log_level).strip().upper()
+            if env_value and env_value in VALID_LOG_LEVELS:
+                data["log_level"] = env_value
+
+        # OUTPUT_DIR: Only set from env if not in config
+        if "output_dir" not in data or data.get("output_dir") is None:
+            env_output_dir = os.getenv("OUTPUT_DIR")
+            if env_output_dir:
+                env_value = str(env_output_dir).strip()
+                if env_value:
+                    data["output_dir"] = env_value
+
+        # LOG_FILE: Only set from env if not in config
+        if "log_file" not in data or data.get("log_file") is None:
+            env_log_file = os.getenv("LOG_FILE")
+            if env_log_file:
+                env_value = str(env_log_file).strip()
+                if env_value:
+                    data["log_file"] = env_value
+
+        # SUMMARY_CACHE_DIR: Only set from env if not in config
+        # Support both SUMMARY_CACHE_DIR and CACHE_DIR
+        if "summary_cache_dir" not in data or data.get("summary_cache_dir") is None:
+            env_cache_dir = os.getenv("SUMMARY_CACHE_DIR") or os.getenv("CACHE_DIR")
+            if env_cache_dir:
+                env_value = str(env_cache_dir).strip()
+                if env_value:
+                    data["summary_cache_dir"] = env_value
+
         return data
 
     @field_validator("log_level", mode="before")
