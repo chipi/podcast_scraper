@@ -23,7 +23,7 @@ class TestProviderIntegration(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
-            speaker_detector_type="ner",
+            speaker_detector_provider="ner",
             summary_provider="local",
             generate_summaries=False,  # Disable to avoid loading models in tests
             auto_speakers=False,  # Disable to avoid loading spaCy in tests
@@ -190,7 +190,7 @@ class TestProviderSwitching(unittest.TestCase):
         # Test OpenAI detector creation (Stage 6)
         cfg2 = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_type="openai",
+            speaker_detector_provider="openai",
             openai_api_key="sk-test123",
             auto_speakers=True,
         )
@@ -199,7 +199,9 @@ class TestProviderSwitching(unittest.TestCase):
 
         # Test error handling: missing API key (caught by validator)
         with self.assertRaises(ValidationError):
-            config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="openai")
+            config.Config(
+                rss_url="https://example.com/feed.xml", speaker_detector_provider="openai"
+            )
 
     def test_summarization_provider_switching(self):
         """Test that summarization provider can be switched via config."""
@@ -250,7 +252,7 @@ class TestProviderErrorHandling(unittest.TestCase):
         """Test graceful handling when speaker detector fails to initialize."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_type="ner",
+            speaker_detector_provider="ner",
             auto_speakers=False,
         )
         detector = create_speaker_detector(cfg)
@@ -298,7 +300,7 @@ class TestBackwardCompatibility(unittest.TestCase):
 
         # Defaults should match original behavior
         self.assertEqual(cfg.transcription_provider, "whisper")
-        self.assertEqual(cfg.speaker_detector_type, "ner")
+        self.assertEqual(cfg.speaker_detector_provider, "ner")
         self.assertEqual(cfg.summary_provider, "local")
 
     def test_default_providers_are_created(self):
@@ -323,5 +325,5 @@ class TestBackwardCompatibility(unittest.TestCase):
 
         # Providers should use defaults
         self.assertEqual(cfg.transcription_provider, "whisper")
-        self.assertEqual(cfg.speaker_detector_type, "ner")
+        self.assertEqual(cfg.speaker_detector_provider, "ner")
         self.assertEqual(cfg.summary_provider, "local")

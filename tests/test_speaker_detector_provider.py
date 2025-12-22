@@ -16,7 +16,7 @@ class TestSpeakerDetectorFactory(unittest.TestCase):
 
     def test_create_ner_detector(self):
         """Test that factory creates NERSpeakerDetector for 'ner'."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="ner")
+        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
         detector = create_speaker_detector(cfg)
         self.assertIsNotNone(detector)
         self.assertEqual(detector.__class__.__name__, "NERSpeakerDetector")
@@ -31,7 +31,7 @@ class TestSpeakerDetectorFactory(unittest.TestCase):
             from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 
             class MockConfig:
-                speaker_detector_type = "invalid"
+                speaker_detector_provider = "invalid"
 
             create_speaker_detector(MockConfig())  # type: ignore[arg-type]
 
@@ -39,7 +39,7 @@ class TestSpeakerDetectorFactory(unittest.TestCase):
 
     def test_factory_returns_detector_instance(self):
         """Test that factory returns a detector instance."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="ner")
+        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
         detector = create_speaker_detector(cfg)
         # Verify it has the expected methods
         self.assertTrue(hasattr(detector, "detect_speakers"))
@@ -53,7 +53,7 @@ class TestNERSpeakerDetector(unittest.TestCase):
         """Set up test fixtures."""
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_type="ner",
+            speaker_detector_provider="ner",
             auto_speakers=True,
             ner_model="en_core_web_sm",
         )
@@ -181,7 +181,7 @@ class TestNERSpeakerDetector(unittest.TestCase):
         # Create detector with auto_speakers disabled
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_type="ner",
+            speaker_detector_provider="ner",
             auto_speakers=False,
         )
         detector = NERSpeakerDetector(cfg)
@@ -213,7 +213,7 @@ class TestSpeakerDetectorProtocol(unittest.TestCase):
         """Test that NERSpeakerDetector implements SpeakerDetector protocol."""
         from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
 
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="ner")
+        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
         detector = NERSpeakerDetector(cfg)
 
         # Check that detector has required protocol methods

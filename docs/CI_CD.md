@@ -622,6 +622,7 @@ This maximizes parallelism and reduces total CI time.
 ├── Docs Job (3-5 min)
 └── Build Job (2-3 min)
 ```
+
 All four jobs start simultaneously and run independently.
 
 **Within CodeQL Workflow:**
@@ -630,6 +631,7 @@ All four jobs start simultaneously and run independently.
 ├── Python Analysis
 └── Actions Analysis
 ```
+
 Both language analyses run in parallel via matrix strategy.
 
 **Across Workflows:**
@@ -644,6 +646,7 @@ Both language analyses run in parallel via matrix strategy.
 ```text
 Build Job → Deploy Job
 ```
+
 Deploy job waits for build job to complete and only runs on push to `main`.
 
 ---

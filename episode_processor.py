@@ -407,19 +407,10 @@ def transcribe_media_to_text(
         speaker_names_display = ", ".join(job.detected_speaker_names)
         logger.debug("    Speaker names for transcription: %s", speaker_names_display)
 
-    # Stage 2: Use provider if available, otherwise fall back to direct model
-    # Get model from provider if available
-    effective_model = whisper_model
-    if transcription_provider is not None:
-        effective_model = getattr(transcription_provider, "model", whisper_model)
-        if effective_model is None:
-            logger.warning("    Transcription provider has no model, falling back to direct model")
-            effective_model = whisper_model
-
-    if effective_model is None:
+    # Stage 2: Require transcription provider
+    if transcription_provider is None:
         logger.warning(
-            "    Skipping transcription: Whisper model not available (requested: %s)",
-            cfg.whisper_model,
+            "    Skipping transcription: Transcription provider not available",
         )
         _cleanup_temp_media(temp_media, cfg)
         return False, None, 0
@@ -435,11 +426,11 @@ def transcribe_media_to_text(
             pass
 
     try:
-        # Stage 2: Use provider's transcribe method if available
-        # Note: We still need the full result dict for screenplay formatting,
-        # so we use transcribe_with_whisper which returns (result_dict, elapsed)
-        # Future stages can refactor to use provider.transcribe() directly
-        result, tc_elapsed = whisper.transcribe_with_whisper(effective_model, temp_media, cfg)
+        # Stage 2: Use provider's transcribe_with_segments method for full result with segments
+        # This supports both plain text and screenplay formatting
+        result, tc_elapsed = transcription_provider.transcribe_with_segments(
+            temp_media, language=cfg.language
+        )
         text = _format_transcript_if_needed(result, cfg, job.detected_speaker_names)
         rel_path = _save_transcript_file(text, job, run_suffix, effective_output_dir)
         logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")

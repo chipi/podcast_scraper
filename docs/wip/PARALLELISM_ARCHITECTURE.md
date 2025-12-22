@@ -142,6 +142,7 @@ class Config:
 ### Implementation Pattern
 
 **Workflow Level** (Episode Parallelism):
+
 ```python
 # workflow.py
 def _parallel_episode_summarization(...):
@@ -161,6 +162,7 @@ def _parallel_episode_summarization(...):
 ```
 
 **Provider Level** (Chunk Parallelism):
+
 ```python
 # summarization/local_provider.py
 class TransformersSummarizationProvider:

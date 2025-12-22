@@ -133,23 +133,30 @@ python scripts/eval_summaries.py --use-short-reference
 ### Options (eval_summaries.py)
 
 - `--eval-dir`: Directory containing evaluation episodes (default: `data/eval`)
-- `--map-model`: MAP model name/key (e.g., `bart-large`, `bart-small`, `pegasus`) or HuggingFace model ID. Defaults to `bart-large` (same as app default)
-- `--reduce-model`: REDUCE model name/key (e.g., `long-fast`, `long`, `bart-large`) or HuggingFace model ID. Defaults to `long-fast` (LED-base, same as app default)
+- `--map-model`: MAP model name/key (e.g., `bart-large`, `bart-small`,
+  `pegasus`) or HuggingFace model ID. Defaults to `bart-large` (same as app
+  default)
+- `--reduce-model`: REDUCE model name/key (e.g., `long-fast`, `long`,
+  `bart-large`) or HuggingFace model ID. Defaults to `long-fast` (LED-base,
+  same as app default)
 - `--model`: (Deprecated: use `--map-model`) Backward compatibility alias for `--map-model`
 - `--config`: Path to config file (JSON or YAML) - overrides model arguments
 - `--output`: Output JSON file path for results (default: `results/eval_<timestamp>.json`)
 - `--device`: Device to use (`cuda`, `mps`, `cpu`, or `None` for auto)
 - `--log-level`: Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`)
-- `--use-short-reference`: Use `summary.gold.short.txt` instead of `summary.gold.long.txt` for ROUGE scoring
+- `--use-short-reference`: Use `summary.gold.short.txt` instead of
+  `summary.gold.long.txt` for ROUGE scoring
 
 ### Model Defaults
 
 When models are not specified, the script uses the same defaults as the main application:
 
-- **MAP model**: `bart-large` (BART-large CNN) - fast, efficient chunk summarization
+- **MAP model**: `bart-large` (BART-large CNN) - fast, efficient chunk
+  summarization
 - **REDUCE model**: `long-fast` (LED-base-16384) - accurate, long-context final summarization
 
-This hybrid approach (BART for map, LED for reduce) is widely used in production summarization systems.
+This hybrid approach (BART for map, LED for reduce) is widely used in
+production summarization systems.
 
 ### Output (eval_summaries.py)
 
@@ -169,7 +176,8 @@ Each episode directory should contain:
 
 - `transcript.raw.txt` - Raw transcript from Whisper (optional, for validation)
 - `transcript.cleaned.txt` - Cleaned transcript (input for summarization)
-- `summary.gold.long.txt` - Detailed human-written reference summary (default for ROUGE)
+- `summary.gold.long.txt` - Detailed human-written reference summary
+  (default for ROUGE)
 - `summary.gold.short.txt` - Optional concise reference summary
 - `metadata.json` - Optional episode metadata
 
@@ -197,23 +205,27 @@ source .venv/bin/activate
 After running `setup_venv.sh`:
 
 1. **Activate the virtual environment:**
+
    ```bash
    source .venv/bin/activate
    ```
 
 2. **Install development dependencies:**
+
    ```bash
    make init
    # Or manually: pip install -e .[dev,ml]
    ```
 
 3. **Set up environment variables (optional, for OpenAI providers):**
+
    ```bash
    cp examples/.env.example .env
    # Edit .env and add your OPENAI_API_KEY
    ```
 
 4. **Run the CLI:**
+
    ```bash
    python -m podcast_scraper.cli <rss_url> [options]
    ```

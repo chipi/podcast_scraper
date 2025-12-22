@@ -20,14 +20,16 @@ Environment variables are automatically loaded when the `podcast_scraper.config`
 
 **Description**: OpenAI API key for OpenAI-based providers (transcription, speaker detection, summarization).
 
-**Required**: Yes, when using OpenAI providers (`transcription_provider=openai`, `speaker_detector_type=openai`, or `summary_provider=openai`).
+**Required**: Yes, when using OpenAI providers (`transcription_provider=openai`, `speaker_detector_provider=openai`, or `summary_provider=openai`).
 
 **Example**:
+
 ```bash
 export OPENAI_API_KEY=sk-your-actual-api-key-here
 ```
 
 **In `.env` file**:
+
 ```bash
 OPENAI_API_KEY=sk-your-actual-api-key-here
 ```
@@ -52,11 +54,13 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 **Valid Values**: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`
 
 **Example**:
+
 ```bash
 export LOG_LEVEL=DEBUG
 ```
 
 **In `.env` file**:
+
 ```bash
 LOG_LEVEL=DEBUG
 ```
@@ -76,17 +80,20 @@ LOG_LEVEL=DEBUG
 ### macOS / Linux
 
 **Set environment variable for current session**:
+
 ```bash
 export OPENAI_API_KEY=sk-your-key-here
 python3 -m podcast_scraper https://example.com/feed.xml
 ```
 
 **Set environment variable for single command**:
+
 ```bash
 OPENAI_API_KEY=sk-your-key-here python3 -m podcast_scraper https://example.com/feed.xml
 ```
 
 **Using `.env` file**:
+
 ```bash
 # Create .env file in project root
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
@@ -96,6 +103,7 @@ python3 -m podcast_scraper https://example.com/feed.xml
 ```
 
 **Persistent environment variable** (add to `~/.bashrc` or `~/.zshrc`):
+
 ```bash
 # Add to shell profile
 export OPENAI_API_KEY=sk-your-key-here
@@ -107,18 +115,21 @@ source ~/.bashrc  # or source ~/.zshrc
 ### Windows
 
 **Set environment variable for current session** (Command Prompt):
+
 ```cmd
 set OPENAI_API_KEY=sk-your-key-here
 python -m podcast_scraper https://example.com/feed.xml
 ```
 
 **Set environment variable for current session** (PowerShell):
+
 ```powershell
 $env:OPENAI_API_KEY="sk-your-key-here"
 python -m podcast_scraper https://example.com/feed.xml
 ```
 
 **Using `.env` file**:
+
 ```cmd
 # Create .env file in project root
 echo OPENAI_API_KEY=sk-your-key-here > .env
@@ -138,12 +149,14 @@ python -m podcast_scraper https://example.com/feed.xml
 ### Docker
 
 **Using environment variable**:
+
 ```bash
 docker run -e OPENAI_API_KEY=sk-your-key-here \
   podcast-scraper https://example.com/feed.xml
 ```
 
 **Using `.env` file**:
+
 ```bash
 # Create .env file
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
@@ -153,6 +166,7 @@ docker-compose up
 ```
 
 **In `docker-compose.yml`**:
+
 ```yaml
 services:
   podcast-scraper:
@@ -168,17 +182,20 @@ services:
 ### Creating .env File
 
 1. **Copy example template** (if available):
+
    ```bash
    cp examples/.env.example .env
    ```
 
 2. **Create `.env` file** in project root:
+
    ```bash
    # .env
    OPENAI_API_KEY=sk-your-actual-api-key-here
    ```
 
 3. **Verify `.env` is in `.gitignore`**:
+
    ```bash
    # .gitignore should contain:
    .env
@@ -228,11 +245,13 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 **Required**: No (defaults to CPU count bounded between 1 and 8).
 
 **Example**:
+
 ```bash
 export WORKERS=4
 ```
 
 **In `.env` file**:
+
 ```bash
 WORKERS=4
 ```
@@ -256,11 +275,13 @@ WORKERS=4
 **Required**: No (defaults to 1 for sequential processing).
 
 **Example**:
+
 ```bash
 export TRANSCRIPTION_PARALLELISM=3
 ```
 
 **In `.env` file**:
+
 ```bash
 TRANSCRIPTION_PARALLELISM=3
 ```
@@ -288,11 +309,13 @@ TRANSCRIPTION_PARALLELISM=3
 **Required**: No (defaults to 2).
 
 **Example**:
+
 ```bash
 export PROCESSING_PARALLELISM=4
 ```
 
 **In `.env` file**:
+
 ```bash
 PROCESSING_PARALLELISM=4
 ```
@@ -315,11 +338,13 @@ PROCESSING_PARALLELISM=4
 **Required**: No (defaults to 2).
 
 **Example**:
+
 ```bash
 export SUMMARY_BATCH_SIZE=3
 ```
 
 **In `.env` file**:
+
 ```bash
 SUMMARY_BATCH_SIZE=3
 ```
@@ -342,11 +367,13 @@ SUMMARY_BATCH_SIZE=3
 **Required**: No (defaults to 1).
 
 **Example**:
+
 ```bash
 export SUMMARY_CHUNK_PARALLELISM=2
 ```
 
 **In `.env` file**:
+
 ```bash
 SUMMARY_CHUNK_PARALLELISM=2
 ```
@@ -371,11 +398,13 @@ SUMMARY_CHUNK_PARALLELISM=2
 **Required**: No (defaults to 20 seconds).
 
 **Example**:
+
 ```bash
 export TIMEOUT=60
 ```
 
 **In `.env` file**:
+
 ```bash
 TIMEOUT=60
 ```
@@ -401,11 +430,13 @@ TIMEOUT=60
 **Required**: No (defaults to None for auto-detection).
 
 **Example**:
+
 ```bash
 export SUMMARY_DEVICE=cpu
 ```
 
 **In `.env` file**:
+
 ```bash
 SUMMARY_DEVICE=cpu
 ```
@@ -460,6 +491,7 @@ SUMMARY_DEVICE=cpu
 5. **Verify loading**: Check that `python-dotenv` is installed (`pip install python-dotenv`)
 
 **Debug**:
+
 ```python
 import os
 print(os.getenv("OPENAI_API_KEY"))  # Should print your key (or None)
@@ -478,6 +510,7 @@ print(os.getenv("OPENAI_API_KEY"))  # Should print your key (or None)
 5. **Verify `python-dotenv` installed**: `pip install python-dotenv`
 
 **Debug**:
+
 ```python
 from pathlib import Path
 from dotenv import load_dotenv

@@ -114,6 +114,52 @@ class WhisperTranscriptionProvider:
 
         return str(text)  # Ensure we return str, not Any
 
+    def transcribe_with_segments(
+        self, audio_path: str, language: str | None = None
+    ) -> tuple[dict[str, object], float]:
+        """Transcribe audio file and return full result with segments.
+
+        Returns the complete Whisper transcription result including segments
+        and timestamps for screenplay formatting.
+
+        Args:
+            audio_path: Path to audio file
+            language: Optional language code (e.g., "en", "fr").
+                     If None, uses cfg.language or defaults to "en"
+
+        Returns:
+            Tuple of (result_dict, elapsed_time) where result_dict contains:
+            - "text": Full transcribed text
+            - "segments": List of segment dicts with start, end, text
+            - Other Whisper metadata
+        """
+        if not self._initialized or self._model is None:
+            raise RuntimeError(
+                "WhisperTranscriptionProvider not initialized. Call initialize() first."
+            )
+
+        # Use provided language or fall back to config
+        effective_language = language if language is not None else (self.cfg.language or "en")
+
+        logger.debug(
+            "Transcribing audio file with segments: %s (language: %s)",
+            audio_path,
+            effective_language,
+        )
+
+        # Call transcribe_with_whisper which returns (result_dict, elapsed)
+        result_dict, elapsed = whisper_integration.transcribe_with_whisper(
+            self._model, audio_path, self.cfg
+        )
+
+        logger.debug(
+            "Transcription with segments completed in %.2fs (%d segments)",
+            elapsed,
+            len(result_dict.get("segments", [])),
+        )
+
+        return result_dict, elapsed
+
     def cleanup(self) -> None:
         """Cleanup resources.
 

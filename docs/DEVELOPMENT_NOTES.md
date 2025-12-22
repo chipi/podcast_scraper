@@ -7,12 +7,14 @@
 ### Virtual Environment
 
 **Quick setup:**
+
 ```bash
 bash scripts/setup_venv.sh
 source .venv/bin/activate
 ```
 
 **Install dependencies:**
+
 ```bash
 make init  # Installs dev + ML dependencies
 ```
@@ -24,11 +26,13 @@ make init  # Installs dev + ML dependencies
 The podcast scraper supports configuration via environment variables for flexible deployment. Many settings can be configured via environment variables or `.env` files.
 
 1. **Copy example `.env` file:**
+
    ```bash
    cp examples/.env.example .env
    ```
 
 2. **Edit `.env` and add your settings:**
+
    ```bash
    # OpenAI API key (required for OpenAI providers)
    OPENAI_API_KEY=sk-your-actual-key-here

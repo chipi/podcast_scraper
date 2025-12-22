@@ -176,6 +176,7 @@ class Config:
 ### Implementation Pattern
 
 **Workflow Level** (Episode Parallelism):
+
 ```python
 # workflow.py
 def _process_transcription_jobs_concurrent(...):
@@ -198,6 +199,7 @@ def _process_transcription_jobs_concurrent(...):
 ```
 
 **Provider Level** (Internal Handling):
+
 ```python
 # transcription/whisper_provider.py
 class WhisperTranscriptionProvider:

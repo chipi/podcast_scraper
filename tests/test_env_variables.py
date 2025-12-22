@@ -56,9 +56,9 @@ class TestEnvironmentVariables(unittest.TestCase):
 
     def test_output_dir_from_env(self):
         """Test OUTPUT_DIR environment variable loading."""
-        os.environ["OUTPUT_DIR"] = "/tmp/test_output"
+        os.environ["OUTPUT_DIR"] = "/tmp/test_output"  # nosec B108
         cfg = config.Config(rss_url="https://test.com")
-        self.assertEqual(cfg.output_dir, "/tmp/test_output")
+        self.assertEqual(cfg.output_dir, "/tmp/test_output")  # nosec B108
 
     def test_output_dir_config_overrides_env(self):
         """Test config file value takes precedence over OUTPUT_DIR env var."""
@@ -68,9 +68,9 @@ class TestEnvironmentVariables(unittest.TestCase):
 
     def test_log_file_from_env(self):
         """Test LOG_FILE environment variable loading."""
-        os.environ["LOG_FILE"] = "/tmp/test.log"
+        os.environ["LOG_FILE"] = "/tmp/test.log"  # nosec B108
         cfg = config.Config(rss_url="https://test.com")
-        self.assertEqual(cfg.log_file, "/tmp/test.log")
+        self.assertEqual(cfg.log_file, "/tmp/test.log")  # nosec B108
 
     def test_log_file_config_overrides_env(self):
         """Test config file value takes precedence over LOG_FILE env var."""
@@ -80,22 +80,22 @@ class TestEnvironmentVariables(unittest.TestCase):
 
     def test_summary_cache_dir_from_env(self):
         """Test SUMMARY_CACHE_DIR environment variable loading."""
-        os.environ["SUMMARY_CACHE_DIR"] = "/tmp/cache"
+        os.environ["SUMMARY_CACHE_DIR"] = "/tmp/cache"  # nosec B108
         cfg = config.Config(rss_url="https://test.com")
-        self.assertEqual(cfg.summary_cache_dir, "/tmp/cache")
+        self.assertEqual(cfg.summary_cache_dir, "/tmp/cache")  # nosec B108
 
     def test_cache_dir_alias(self):
         """Test CACHE_DIR environment variable (alias for SUMMARY_CACHE_DIR)."""
-        os.environ["CACHE_DIR"] = "/tmp/cache2"
+        os.environ["CACHE_DIR"] = "/tmp/cache2"  # nosec B108
         cfg = config.Config(rss_url="https://test.com")
-        self.assertEqual(cfg.summary_cache_dir, "/tmp/cache2")
+        self.assertEqual(cfg.summary_cache_dir, "/tmp/cache2")  # nosec B108
 
     def test_summary_cache_dir_precedence(self):
         """Test SUMMARY_CACHE_DIR takes precedence over CACHE_DIR."""
-        os.environ["SUMMARY_CACHE_DIR"] = "/tmp/cache1"
-        os.environ["CACHE_DIR"] = "/tmp/cache2"
+        os.environ["SUMMARY_CACHE_DIR"] = "/tmp/cache1"  # nosec B108
+        os.environ["CACHE_DIR"] = "/tmp/cache2"  # nosec B108
         cfg = config.Config(rss_url="https://test.com")
-        self.assertEqual(cfg.summary_cache_dir, "/tmp/cache1")
+        self.assertEqual(cfg.summary_cache_dir, "/tmp/cache1")  # nosec B108
 
     def test_workers_from_env(self):
         """Test WORKERS environment variable loading."""
@@ -187,7 +187,7 @@ class TestEnvironmentVariables(unittest.TestCase):
     def test_multiple_env_vars(self):
         """Test multiple environment variables loaded together."""
         os.environ["LOG_LEVEL"] = "DEBUG"
-        os.environ["OUTPUT_DIR"] = "/tmp/output"
+        os.environ["OUTPUT_DIR"] = "/tmp/output"  # nosec B108
         os.environ["WORKERS"] = "4"
         os.environ["TIMEOUT"] = "30"
         os.environ["SUMMARY_DEVICE"] = "cpu"
@@ -195,7 +195,7 @@ class TestEnvironmentVariables(unittest.TestCase):
         cfg = config.Config(rss_url="https://test.com")
 
         self.assertEqual(cfg.log_level, "DEBUG")
-        self.assertEqual(cfg.output_dir, "/tmp/output")
+        self.assertEqual(cfg.output_dir, "/tmp/output")  # nosec B108
         self.assertEqual(cfg.workers, 4)
         self.assertEqual(cfg.timeout, 30)
         self.assertEqual(cfg.summary_device, "cpu")

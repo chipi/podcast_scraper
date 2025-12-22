@@ -34,6 +34,7 @@ Downloads (4 workers) → Transcription (4 workers) → Processing (N workers)
 - ✅ As downloads complete, transcription jobs are **queued** (not immediately processed)
 
 **Code**:
+
 ```python
 # workflow.py:1133
 with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
@@ -51,6 +52,7 @@ with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
 - ⚠️ **Not truly parallel** - processes one job at a time
 
 **Code**:
+
 ```python
 # workflow.py:384-408
 # Transcription thread starts BEFORE downloads complete
@@ -81,6 +83,7 @@ if cfg.transcription_provider == "whisper":
 - ⚠️ **No independent parallelism**: Can't have N workers waiting for work
 
 **Code**:
+
 ```python
 # workflow.py:1106-1126
 # Metadata generation happens inline after download
@@ -173,6 +176,7 @@ with ThreadPoolExecutor(max_workers=cfg.processing_parallelism) as executor:
 - `download_queue` → `transcription_queue` → `processing_queue`
 
 **Flow**:
+
 ```text
 Episode → Download Pool → Transcription Queue → Transcription Pool → Processing Queue → Processing Pool → Complete
 ```

@@ -59,7 +59,7 @@ class TestSpeakerDetectorProtocol(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.cfg = config.Config(
-            rss_url="https://example.com/feed.xml", speaker_detector_type="ner"
+            rss_url="https://example.com/feed.xml", speaker_detector_provider="ner"
         )
         self.detector = create_speaker_detector(self.cfg)
 
@@ -157,7 +157,7 @@ class TestProtocolTypeHints(unittest.TestCase):
         hints = get_type_hints(TranscriptionProvider.transcribe)
         self.assertIn("return", hints)
 
-    def test_speaker_detector_type_hints(self):
+    def test_speaker_detector_provider_type_hints(self):
         """Test that SpeakerDetector protocol has type hints."""
         hints = get_type_hints(SpeakerDetector.detect_speakers)
         self.assertIn("return", hints)

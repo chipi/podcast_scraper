@@ -28,7 +28,10 @@ def create_speaker_detector(cfg: config.Config) -> SpeakerDetector:
     Note:
         Stage 3: Returns NERSpeakerDetector for "ner" provider type.
     """
-    provider_type = cfg.speaker_detector_type
+    # Support both new and deprecated field names for backward compatibility
+    provider_type = getattr(cfg, "speaker_detector_provider", None) or getattr(
+        cfg, "speaker_detector_type", "ner"
+    )
 
     if provider_type == "ner":
         from .ner_detector import NERSpeakerDetector

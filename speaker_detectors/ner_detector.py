@@ -172,6 +172,28 @@ class NERSpeakerDetector:
         """
         return self._heuristics
 
+    def cleanup(self) -> None:
+        """Cleanup provider resources.
+
+        This method releases any resources held by the provider.
+        For NER, we clear the spaCy model reference.
+        """
+        if not self._nlp:
+            return
+
+        logger.debug("Cleaning up NER speaker detection provider")
+        self._nlp = None
+        self._heuristics = None
+
+    def clear_cache(self) -> None:
+        """Clear the module-level spaCy model cache.
+
+        This clears the shared cache used by all NER providers,
+        which can free memory or force model reloads.
+        """
+        speaker_detection.clear_spacy_model_cache()
+        logger.debug("Cleared spaCy model cache via NER provider")
+
     @property
     def is_initialized(self) -> bool:
         """Check if provider is initialized.

@@ -103,6 +103,7 @@ openai_max_tokens: Optional[int] = Field(
 ### Recommended Hybrid Strategies
 
 **Cost-Optimized Hybrid ($0.55/100 episodes):**
+
 ```yaml
 speaker_detector_type: openai      # $0.14/100 (minimal cost)
 transcription_provider: whisper    # Free (local)
@@ -110,9 +111,10 @@ summary_provider: openai          # $0.41/100 (high value)
 ```
 
 **Privacy-Focused Hybrid ($0.41/100 episodes):**
+
 ```yaml
-speaker_detector_type: ner        # Free (local, private)
-transcription_provider: whisper   # Free (local, private)  
+speaker_detector_provider: ner        # Free (local, private)
+transcription_provider: whisper   # Free (local, private)
 summary_provider: openai         # $0.41/100 (convenience)
 ```
 
@@ -154,7 +156,7 @@ summary_provider: openai         # $0.41/100 (convenience)
 
 ### FR1: Provider Selection
 
-- **FR1.1**: Add `speaker_detector_type` config field with values `"ner"` (default), `"openai"`
+- **FR1.1**: Add `speaker_detector_provider` config field with values `"ner"` (default), `"openai"` (Note: `speaker_detector_type` is deprecated but still supported for backward compatibility)
 - **FR1.2**: Add `transcription_provider` config field with values `"whisper"` (default), `"openai"`
 - **FR1.3**: Add `summary_provider` config field with values `"transformers"` (default), `"openai"`
 - **FR1.4**: Provider selection is independent per capability (can mix providers)

@@ -129,6 +129,111 @@ class OpenAITranscriptionProvider:
             logger.error("OpenAI Whisper API error: %s", exc)
             raise ValueError(f"OpenAI transcription failed: {exc}") from exc
 
+    def transcribe_with_segments(
+        self, audio_path: str, language: str | None = None
+    ) -> tuple[dict[str, object], float]:
+        """Transcribe audio file and return full result with segments.
+
+        Returns the complete OpenAI transcription result including segments
+        and timestamps for screenplay formatting.
+
+        Args:
+            audio_path: Path to audio file
+            language: Optional language code (e.g., "en", "fr").
+                     If None, uses cfg.language or auto-detects
+
+        Returns:
+            Tuple of (result_dict, elapsed_time) where result_dict contains:
+            - "text": Full transcribed text
+            - "segments": List of segment dicts with start, end, text
+            - Other OpenAI API metadata
+        """
+        if not self._initialized:
+            raise RuntimeError(
+                "OpenAITranscriptionProvider not initialized. Call initialize() first."
+            )
+
+        import os
+        import time
+
+        if not os.path.exists(audio_path):
+            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+        # Use provided language or fall back to config
+        effective_language = language if language is not None else (self.cfg.language or None)
+
+        logger.debug(
+            "Transcribing audio file with segments via OpenAI API: %s (language: %s)",
+            audio_path,
+            effective_language or "auto",
+        )
+
+        start_time = time.time()
+        try:
+            with open(audio_path, "rb") as audio_file:
+                # Use verbose_json format to get segments
+                if effective_language is not None:
+                    response = self.client.audio.transcriptions.create(
+                        model=self.model,
+                        file=audio_file,
+                        language=effective_language,
+                        response_format="verbose_json",  # Get full response with segments
+                    )
+                else:
+                    response = self.client.audio.transcriptions.create(
+                        model=self.model,
+                        file=audio_file,
+                        response_format="verbose_json",  # Get full response with segments
+                    )
+
+            elapsed = time.time() - start_time
+
+            # OpenAI API returns a Transcription object with text and segments
+            # when verbose_json is used. Convert to dict format matching Whisper output.
+            # Response structure: response.text (str), response.segments (List[Segment])
+            # Each Segment has: start (float), end (float), text (str)
+            segments = []
+            if hasattr(response, "segments") and response.segments:
+                for seg in response.segments:
+                    # Handle both dict-like and object-like segment structures
+                    if isinstance(seg, dict):
+                        segments.append(
+                            {
+                                "start": float(seg.get("start", 0.0)),
+                                "end": float(seg.get("end", 0.0)),
+                                "text": seg.get("text", ""),
+                            }
+                        )
+                    else:
+                        # Object-like structure (OpenAI SDK TranscriptionSegment)
+                        segments.append(
+                            {
+                                "start": float(getattr(seg, "start", 0.0)),
+                                "end": float(getattr(seg, "end", 0.0)),
+                                "text": getattr(seg, "text", ""),
+                            }
+                        )
+
+            result_dict: dict[str, object] = {
+                "text": response.text if hasattr(response, "text") else str(response),
+                "segments": segments,
+            }
+
+            segments_list = result_dict.get("segments", [])
+            segment_count = len(segments_list) if isinstance(segments_list, list) else 0
+            logger.debug(
+                "OpenAI transcription with segments completed in %.2fs (%d segments)",
+                elapsed,
+                segment_count,
+            )
+
+            return result_dict, elapsed
+
+        except Exception as exc:
+            elapsed = time.time() - start_time
+            logger.error("OpenAI Whisper API error: %s", exc)
+            raise ValueError(f"OpenAI transcription failed: {exc}") from exc
+
     def cleanup(self) -> None:
         """Cleanup provider resources (no-op for API provider)."""
         # No resources to clean up for API provider

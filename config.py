@@ -133,7 +133,8 @@ class Config(BaseModel):
         summary_cache_dir: Custom cache directory for transformer models.
         summary_prompt: Optional custom prompt for summarization.
         save_cleaned_transcript: Save cleaned transcript to separate file.
-        speaker_detector_type: Speaker detection provider type ("ner" or "openai").
+        speaker_detector_provider: Speaker detection provider type ("ner" or "openai").
+        Deprecated: speaker_detector_type (use speaker_detector_provider instead).
         transcription_provider: Transcription provider type ("whisper" or "openai").
         openai_api_key: OpenAI API key (loaded from environment variable or .env file).
 
@@ -214,10 +215,17 @@ class Config(BaseModel):
     auto_speakers: bool = Field(default=True, alias="auto_speakers")
     cache_detected_hosts: bool = Field(default=True, alias="cache_detected_hosts")
     # Provider selection fields (Stage 0: Foundation)
-    speaker_detector_type: Literal["ner", "openai"] = Field(
+    speaker_detector_provider: Literal["ner", "openai"] = Field(
         default="ner",
-        alias="speaker_detector_type",
-        description="Speaker detection provider type (default: 'ner' for spaCy NER)",
+        alias="speaker_detector_provider",
+        description="Speaker detection provider type (default: 'ner' for spaCy NER). "
+        "Deprecated alias 'speaker_detector_type' is supported for backward compatibility.",
+    )
+    # Deprecated field for backward compatibility - handled in _preprocess_config_data
+    speaker_detector_type: Optional[Literal["ner", "openai"]] = Field(
+        default=None,
+        exclude=True,
+        description="Deprecated: use speaker_detector_provider instead.",
     )
     transcription_provider: Literal["whisper", "openai"] = Field(
         default="whisper",
@@ -430,26 +438,31 @@ class Config(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _load_env_variables(cls, data: Any) -> Any:
-        """Load configuration from environment variables before validation.
+    def _preprocess_config_data(cls, data: Any) -> Any:
+        """Preprocess configuration data before validation.
 
         Handles:
-        - LOG_LEVEL: Environment variable takes precedence (special case)
-        - OUTPUT_DIR: Config file takes precedence, env var as fallback
-        - LOG_FILE: Config file takes precedence, env var as fallback
-        - SUMMARY_CACHE_DIR/CACHE_DIR: Config file takes precedence, env var as fallback
-        - WORKERS: Config file takes precedence, env var as fallback
-        - TRANSCRIPTION_PARALLELISM: Config file takes precedence, env var as fallback
-        - PROCESSING_PARALLELISM: Config file takes precedence, env var as fallback
-        - SUMMARY_BATCH_SIZE: Config file takes precedence, env var as fallback
-        - SUMMARY_CHUNK_PARALLELISM: Config file takes precedence, env var as fallback
-        - TIMEOUT: Config file takes precedence, env var as fallback
-        - SUMMARY_DEVICE: Config file takes precedence, env var as fallback
+        - Mapping deprecated field names to new names
+        - Loading configuration from environment variables
         """
         if not isinstance(data, dict):
             return data
 
-        # LOG_LEVEL: Environment variable always takes precedence
+        # Map deprecated speaker_detector_type to speaker_detector_provider
+        if "speaker_detector_type" in data and "speaker_detector_provider" not in data:
+            import warnings
+
+            warnings.warn(
+                "speaker_detector_type is deprecated, use speaker_detector_provider instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            data["speaker_detector_provider"] = data["speaker_detector_type"]
+            # Remove deprecated key to avoid Pydantic extra field validation error
+            del data["speaker_detector_type"]
+
+        # Load configuration from environment variables
+        # LOG_LEVEL: Environment variable takes precedence (special case)
         env_log_level = os.getenv("LOG_LEVEL")
         if env_log_level:
             env_value = str(env_log_level).strip().upper()
@@ -472,8 +485,7 @@ class Config(BaseModel):
                 if env_value:
                     data["log_file"] = env_value
 
-        # SUMMARY_CACHE_DIR: Only set from env if not in config
-        # Support both SUMMARY_CACHE_DIR and CACHE_DIR
+        # SUMMARY_CACHE_DIR / CACHE_DIR: Only set from env if not in config
         if "summary_cache_dir" not in data or data.get("summary_cache_dir") is None:
             env_cache_dir = os.getenv("SUMMARY_CACHE_DIR") or os.getenv("CACHE_DIR")
             if env_cache_dir:
@@ -486,7 +498,7 @@ class Config(BaseModel):
             env_workers = os.getenv("WORKERS")
             if env_workers:
                 try:
-                    workers_value = int(env_workers.strip())
+                    workers_value = int(env_workers)
                     if workers_value > 0:
                         data["workers"] = workers_value
                 except (ValueError, TypeError):
@@ -494,10 +506,10 @@ class Config(BaseModel):
 
         # TRANSCRIPTION_PARALLELISM: Only set from env if not in config
         if "transcription_parallelism" not in data or data.get("transcription_parallelism") is None:
-            env_transcription_parallelism = os.getenv("TRANSCRIPTION_PARALLELISM")
-            if env_transcription_parallelism:
+            env_parallelism = os.getenv("TRANSCRIPTION_PARALLELISM")
+            if env_parallelism:
                 try:
-                    parallelism_value = int(env_transcription_parallelism.strip())
+                    parallelism_value = int(env_parallelism)
                     if parallelism_value > 0:
                         data["transcription_parallelism"] = parallelism_value
                 except (ValueError, TypeError):
@@ -505,10 +517,10 @@ class Config(BaseModel):
 
         # PROCESSING_PARALLELISM: Only set from env if not in config
         if "processing_parallelism" not in data or data.get("processing_parallelism") is None:
-            env_processing_parallelism = os.getenv("PROCESSING_PARALLELISM")
-            if env_processing_parallelism:
+            env_parallelism = os.getenv("PROCESSING_PARALLELISM")
+            if env_parallelism:
                 try:
-                    parallelism_value = int(env_processing_parallelism.strip())
+                    parallelism_value = int(env_parallelism)
                     if parallelism_value > 0:
                         data["processing_parallelism"] = parallelism_value
                 except (ValueError, TypeError):
@@ -519,7 +531,7 @@ class Config(BaseModel):
             env_batch_size = os.getenv("SUMMARY_BATCH_SIZE")
             if env_batch_size:
                 try:
-                    batch_size_value = int(env_batch_size.strip())
+                    batch_size_value = int(env_batch_size)
                     if batch_size_value > 0:
                         data["summary_batch_size"] = batch_size_value
                 except (ValueError, TypeError):
@@ -527,12 +539,12 @@ class Config(BaseModel):
 
         # SUMMARY_CHUNK_PARALLELISM: Only set from env if not in config
         if "summary_chunk_parallelism" not in data or data.get("summary_chunk_parallelism") is None:
-            env_chunk_parallelism = os.getenv("SUMMARY_CHUNK_PARALLELISM")
-            if env_chunk_parallelism:
+            env_parallelism = os.getenv("SUMMARY_CHUNK_PARALLELISM")
+            if env_parallelism:
                 try:
-                    chunk_parallelism_value = int(env_chunk_parallelism.strip())
-                    if chunk_parallelism_value > 0:
-                        data["summary_chunk_parallelism"] = chunk_parallelism_value
+                    parallelism_value = int(env_parallelism)
+                    if parallelism_value > 0:
+                        data["summary_chunk_parallelism"] = parallelism_value
                 except (ValueError, TypeError):
                     pass  # Invalid value, skip
 
@@ -541,8 +553,8 @@ class Config(BaseModel):
             env_timeout = os.getenv("TIMEOUT")
             if env_timeout:
                 try:
-                    timeout_value = int(env_timeout.strip())
-                    if timeout_value >= MIN_TIMEOUT_SECONDS:
+                    timeout_value = int(env_timeout)
+                    if timeout_value > 0:
                         data["timeout"] = timeout_value
                 except (ValueError, TypeError):
                     pass  # Invalid value, skip
@@ -551,12 +563,34 @@ class Config(BaseModel):
         if "summary_device" not in data or data.get("summary_device") is None:
             env_device = os.getenv("SUMMARY_DEVICE")
             if env_device:
-                device_value = str(env_device).strip().lower()
-                # Validate device value (cpu, cuda, mps, or empty string for None)
-                if device_value in ("cpu", "cuda", "mps") or device_value == "":
-                    data["summary_device"] = device_value if device_value else None
+                env_value = str(env_device).strip().lower()
+                if env_value in ("cpu", "cuda", "mps"):
+                    data["summary_device"] = env_value
 
         return data
+
+    @model_validator(mode="before")
+    @classmethod
+    def _load_env_variables(cls, data: Any) -> Any:
+        """Load configuration from environment variables before validation.
+
+        DEPRECATED: This method is kept for backward compatibility.
+        Use _preprocess_config_data instead.
+
+        Handles:
+        - LOG_LEVEL: Environment variable takes precedence (special case)
+        - OUTPUT_DIR: Config file takes precedence, env var as fallback
+        - LOG_FILE: Config file takes precedence, env var as fallback
+        - SUMMARY_CACHE_DIR/CACHE_DIR: Config file takes precedence, env var as fallback
+        - WORKERS: Config file takes precedence, env var as fallback
+        - TRANSCRIPTION_PARALLELISM: Config file takes precedence, env var as fallback
+        - PROCESSING_PARALLELISM: Config file takes precedence, env var as fallback
+        - SUMMARY_BATCH_SIZE: Config file takes precedence, env var as fallback
+        - SUMMARY_CHUNK_PARALLELISM: Config file takes precedence, env var as fallback
+        - TIMEOUT: Config file takes precedence, env var as fallback
+        - SUMMARY_DEVICE: Config file takes precedence, env var as fallback
+        """
+        return cls._preprocess_config_data(data)  # type: ignore[operator]
 
     @field_validator("log_level", mode="before")
     @classmethod
@@ -794,15 +828,33 @@ class Config(BaseModel):
             return env_key.strip() or None
         return None
 
-    @field_validator("speaker_detector_type", mode="before")
+    @model_validator(mode="before")
     @classmethod
-    def _validate_speaker_detector_type(cls, value: Any) -> Literal["ner", "openai"]:
-        """Validate speaker detector type."""
+    def _map_deprecated_speaker_detector_field(cls, data: Any) -> Any:
+        """Map deprecated speaker_detector_type to speaker_detector_provider."""
+        if isinstance(data, dict):
+            # If speaker_detector_type is provided but speaker_detector_provider is not,
+            # copy the value to the new field name
+            if "speaker_detector_type" in data and "speaker_detector_provider" not in data:
+                import warnings
+
+                warnings.warn(
+                    "speaker_detector_type is deprecated, use speaker_detector_provider instead",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                data["speaker_detector_provider"] = data["speaker_detector_type"]
+        return data
+
+    @field_validator("speaker_detector_provider", mode="before")
+    @classmethod
+    def _validate_speaker_detector_provider(cls, value: Any) -> Literal["ner", "openai"]:
+        """Validate speaker detector provider type."""
         if value is None or value == "":
             return "ner"
         value_str = str(value).strip().lower()
         if value_str not in ("ner", "openai"):
-            raise ValueError("speaker_detector_type must be 'ner' or 'openai'")
+            raise ValueError("speaker_detector_provider must be 'ner' or 'openai'")
         return value_str  # type: ignore[return-value]
 
     @field_validator("transcription_provider", mode="before")
@@ -847,7 +899,7 @@ class Config(BaseModel):
         openai_providers_used = []
         if self.transcription_provider == "openai":
             openai_providers_used.append("transcription")
-        if self.speaker_detector_type == "openai":
+        if self.speaker_detector_provider == "openai":
             openai_providers_used.append("speaker_detection")
         if self.summary_provider == "openai":
             openai_providers_used.append("summarization")

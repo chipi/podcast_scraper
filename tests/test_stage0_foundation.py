@@ -82,28 +82,43 @@ class TestStage0Protocols(unittest.TestCase):
 class TestStage0ConfigFields(unittest.TestCase):
     """Test that new config fields are accepted with correct defaults."""
 
-    def test_speaker_detector_type_default(self):
-        """Test that speaker_detector_type defaults to 'ner'."""
+    def test_speaker_detector_provider_default(self):
+        """Test that speaker_detector_provider defaults to 'ner'."""
         cfg = config.Config(rss_url="https://example.com/feed.xml")
-        self.assertEqual(cfg.speaker_detector_type, "ner")
+        self.assertEqual(cfg.speaker_detector_provider, "ner")
 
-    def test_speaker_detector_type_validation(self):
-        """Test that speaker_detector_type accepts valid values."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="ner")
-        self.assertEqual(cfg.speaker_detector_type, "ner")
+    def test_speaker_detector_provider_validation(self):
+        """Test that speaker_detector_provider accepts valid values."""
+        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
+        self.assertEqual(cfg.speaker_detector_provider, "ner")
 
         # OpenAI provider requires API key
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_type="openai",
+            speaker_detector_provider="openai",
             openai_api_key="sk-test123",
         )
-        self.assertEqual(cfg.speaker_detector_type, "openai")
+        self.assertEqual(cfg.speaker_detector_provider, "openai")
 
-    def test_speaker_detector_type_invalid(self):
-        """Test that speaker_detector_type rejects invalid values."""
+    def test_speaker_detector_provider_invalid(self):
+        """Test that speaker_detector_provider rejects invalid values."""
         with self.assertRaises(ValueError):
-            config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="invalid")
+            config.Config(
+                rss_url="https://example.com/feed.xml", speaker_detector_provider="invalid"
+            )
+
+    def test_speaker_detector_type_backward_compatibility(self):
+        """Test that deprecated speaker_detector_type still works (backward compatibility)."""
+        import warnings
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="ner")
+            # Verify deprecation warning was issued
+            self.assertEqual(len(w), 1)
+            self.assertTrue(issubclass(w[0].category, DeprecationWarning))
+            # Verify the value was mapped correctly
+            self.assertEqual(cfg.speaker_detector_provider, "ner")
 
     def test_transcription_provider_default(self):
         """Test that transcription_provider defaults to 'whisper'."""
@@ -179,7 +194,7 @@ class TestStage0Factories(unittest.TestCase):
         """Test that speaker detector factory creates detector (Stage 3)."""
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="ner")
+        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
         # Stage 3: Factory now creates NERSpeakerDetector
         detector = create_speaker_detector(cfg)
         self.assertIsNotNone(detector)
@@ -230,7 +245,7 @@ class TestStage0Factories(unittest.TestCase):
         # Test OpenAI speaker detector
         cfg_speaker = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_type="openai",
+            speaker_detector_provider="openai",
             openai_api_key="sk-test123",
             auto_speakers=True,
         )
@@ -274,7 +289,7 @@ class TestStage0BackwardCompatibility(unittest.TestCase):
         cfg = config.Config(rss_url="https://example.com/feed.xml")
 
         # Speaker detection: defaults to "ner" (current spaCy NER)
-        self.assertEqual(cfg.speaker_detector_type, "ner")
+        self.assertEqual(cfg.speaker_detector_provider, "ner")
 
         # Transcription: defaults to "whisper" (current Whisper integration)
         self.assertEqual(cfg.transcription_provider, "whisper")

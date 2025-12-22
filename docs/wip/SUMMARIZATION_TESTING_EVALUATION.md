@@ -189,7 +189,7 @@ Use this to:
 
 ---
 
-## 5. Reference-Free Checks (even if you have no reference)
+## 1. Reference-Free Checks (even if you have no reference)
 
 Often you won't have reference summaries for everything.
 You can still do cheap, automatic sanity checks:
@@ -230,7 +230,7 @@ Even these naive checks help you catch really bad outputs automatically.
 
 ---
 
-## 6. Regression Testing Strategy
+## 2. Regression Testing Strategy
 
 Once you have:
 
@@ -272,7 +272,7 @@ You can create a simple regression test workflow:
     "model": "bart_map_reduce",
     "mean_rougeL_f": 0.29,
     "episodes": 8,
-    "avg_runtime_seconds": 45.2
+    "avg_runtime_seconds": 41.2
     }
     ```
 

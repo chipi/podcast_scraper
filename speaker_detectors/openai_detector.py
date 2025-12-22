@@ -67,6 +67,46 @@ class OpenAISpeakerDetector:
         self._initialized = True
         logger.debug("OpenAI speaker detection provider initialized successfully")
 
+    def detect_hosts(
+        self,
+        feed_title: str | None,
+        feed_description: str | None,
+        feed_authors: list[str] | None = None,
+    ) -> Set[str]:
+        """Detect host names from feed-level metadata using OpenAI API.
+
+        Args:
+            feed_title: Feed title
+            feed_description: Optional feed description
+            feed_authors: Optional list of author names from RSS feed (preferred source)
+
+        Returns:
+            Set of detected host names
+        """
+        if not self._initialized:
+            raise RuntimeError("OpenAISpeakerDetector not initialized. Call initialize() first.")
+
+        # Prefer RSS author tags if available
+        if feed_authors:
+            return set(feed_authors)
+
+        # Otherwise, use OpenAI API to detect hosts from feed metadata
+        # This is a simplified version - could be enhanced with dedicated prompt
+        if not feed_title:
+            return set()
+
+        try:
+            # Use detect_speakers with empty known_hosts to detect hosts
+            speakers, detected_hosts, _ = self.detect_speakers(
+                episode_title=feed_title,
+                episode_description=feed_description,
+                known_hosts=set(),
+            )
+            return detected_hosts
+        except Exception as exc:
+            logger.warning("Failed to detect hosts from feed metadata: %s", exc)
+            return set()
+
     def detect_speakers(
         self,
         episode_title: str,
@@ -317,4 +357,12 @@ class OpenAISpeakerDetector:
     def cleanup(self) -> None:
         """Cleanup provider resources (no-op for API provider)."""
         # No resources to clean up for API provider
+        pass
+
+    def clear_cache(self) -> None:
+        """Clear cache (no-op for API provider).
+
+        OpenAI provider doesn't use cached models, so this is a no-op.
+        """
+        # No cache to clear for API provider
         pass

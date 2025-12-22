@@ -22,8 +22,6 @@ from . import (
     metrics,
     models,
     progress,
-    speaker_detection,
-    whisper_integration as whisper,
 )
 from .episode_processor import (
     process_episode_download,
@@ -62,7 +60,6 @@ class _HostDetectionResult(NamedTuple):
 class _TranscriptionResources(NamedTuple):
     """Resources needed for transcription."""
 
-    whisper_model: Any  # Kept for backward compatibility
     transcription_provider: Any  # Stage 2: TranscriptionProvider instance
     temp_dir: Optional[str]
     transcription_jobs: List[models.TranscriptionJob]
@@ -121,8 +118,7 @@ def _call_generate_metadata(
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
     detected_names: Optional[List[str]],
-    summary_model,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (required)
     pipeline_metrics: Optional[metrics.Metrics] = None,
 ) -> None:
     """Call _generate_episode_metadata with common parameters.
@@ -137,12 +133,11 @@ def _call_generate_metadata(
         run_suffix: Optional run suffix
         transcript_path: Path to transcript file
         transcript_source: Source of transcript (direct_download or whisper_transcription)
-        whisper_model: Whisper model name if used
+        whisper_model: Whisper model name if used (for metadata, not for transcription)
         feed_metadata: Feed metadata tuple
         host_detection_result: Host detection result
         detected_names: Detected guest names
-        summary_model: Summary model instance (MAP model)
-        reduce_model: Optional REDUCE model instance (reused across episodes)
+        summary_provider: SummarizationProvider instance (required)
         pipeline_metrics: Metrics object
     """
     _generate_episode_metadata(
@@ -162,8 +157,7 @@ def _call_generate_metadata(
         feed_description=feed_metadata.description,
         feed_image_url=feed_metadata.image_url,
         feed_last_updated=feed_metadata.last_updated,
-        summary_model=summary_model,
-        reduce_model=reduce_model,
+        summary_provider=summary_provider,
         pipeline_metrics=pipeline_metrics,
     )
 
@@ -330,55 +324,26 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     # Step 6.5: Setup processing resources (metadata/summarization queue)
     processing_resources = _setup_processing_resources(cfg)
 
-    # Step 6.6: Setup summary models if summarization is enabled
-    # Load models once and reuse across all episodes to avoid memory leaks and redundant downloads
-    summary_model = None
-    reduce_model = None
+    # Step 6.6: Setup summary provider if summarization is enabled
     # Stage 4: Use provider pattern for summarization
     summary_provider = None
-    summary_model = None
-    reduce_model = None
 
     if cfg.generate_summaries and not cfg.dry_run:
         try:
             # Stage 4: Create and initialize summarization provider
             summary_provider = create_summarization_provider(cfg)
-            if hasattr(summary_provider, "initialize"):
-                summary_provider.initialize()  # type: ignore[attr-defined]
-                # Get models from provider for backward compatibility
-                summary_model = getattr(summary_provider, "map_model", None)
-                reduce_model = getattr(summary_provider, "reduce_model", None)
-                logger.debug(
-                    "Summarization provider initialized: %s (MAP: %s, REDUCE: %s)",
-                    type(summary_provider).__name__,
-                    summary_model.model_name if summary_model else None,
-                    reduce_model.model_name if reduce_model else None,
-                )
+            summary_provider.initialize()
+            logger.debug(
+                "Summarization provider initialized: %s",
+                type(summary_provider).__name__,
+            )
         except ImportError:
             logger.info("Summarization dependencies not available, skipping summary generation")
         except Exception as e:
             logger.error("Failed to initialize summarization provider: %s", e)
-            # Fallback to direct model loading for backward compatibility
-            try:
-                from . import summarizer  # noqa: PLC0415
-
-                model_name = summarizer.select_summary_model(cfg)
-                summary_model = summarizer.SummaryModel(
-                    model_name=model_name,
-                    device=cfg.summary_device,
-                    cache_dir=cfg.summary_cache_dir,
-                )
-                reduce_model_name = summarizer.select_reduce_model(cfg, model_name)
-                if reduce_model_name != model_name:
-                    reduce_model = summarizer.SummaryModel(
-                        model_name=reduce_model_name,
-                        device=cfg.summary_device,
-                        cache_dir=cfg.summary_cache_dir,
-                    )
-                else:
-                    reduce_model = summary_model
-            except Exception as fallback_error:
-                logger.error("Fallback model loading also failed: %s", fallback_error)
+            # Fail fast - provider initialization should succeed
+            # If provider creation fails, we cannot proceed with summarization
+            summary_provider = None
 
     # Wrap all processing in try-finally to ensure cleanup always happens
     # This prevents memory leaks if exceptions occur during processing
@@ -415,8 +380,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                     feed_metadata,
                     host_detection_result,
                     pipeline_metrics,
-                    summary_model,
-                    reduce_model,
+                    summary_provider,
                     transcription_complete_event,
                 ),
                 daemon=False,
@@ -444,8 +408,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                     host_detection_result,
                     processing_resources,
                     pipeline_metrics,
-                    summary_model,
-                    reduce_model,
+                    summary_provider,
                     transcription_complete_event,
                     transcription_saved,
                 ),
@@ -467,8 +430,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             transcription_resources,
             processing_resources,
             pipeline_metrics,
-            summary_model,
-            reduce_model,
+            summary_provider,
         )
 
         # Step 9: Wait for transcription to complete (if started)
@@ -492,8 +454,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 feed_metadata,
                 host_detection_result,
                 pipeline_metrics,
-                summary_model,
-                reduce_model,
+                summary_provider,
             )
         pipeline_metrics.record_stage("writing_storage", time.time() - writing_start)
 
@@ -509,10 +470,12 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         # Process episodes that need summarization in parallel for better performance
         # This runs after all episodes are processed and checks for episodes that might
         # have been skipped during inline processing or need summary regeneration
+        # Note: Parallel summarization uses direct model loading for thread safety
+        # (each worker needs its own model instance). This is intentional and not a fallback.
         if (
             cfg.generate_summaries
             and cfg.generate_metadata
-            and summary_model is not None
+            and summary_provider is not None
             and not cfg.dry_run
             and len(episodes) > 1
         ):
@@ -526,8 +489,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 run_suffix=run_suffix,
                 feed_metadata=feed_metadata,
                 host_detection_result=host_detection_result,
-                summary_model=summary_model,
-                reduce_model=reduce_model,
+                summary_provider=summary_provider,
                 download_args=download_args,
                 pipeline_metrics=pipeline_metrics,
             )
@@ -542,47 +504,29 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         ):
             try:
                 provider = transcription_resources.transcription_provider
-                if hasattr(provider, "cleanup"):
-                    provider.cleanup()  # type: ignore[attr-defined]
-                    logger.debug("Cleaned up transcription provider")
+                provider.cleanup()
+                logger.debug("Cleaned up transcription provider")
             except Exception as e:
                 logger.warning("Failed to cleanup transcription provider: %s", e)
 
         # Stage 4: Cleanup provider (which handles model unloading)
         if summary_provider is not None:
             try:
-                if hasattr(summary_provider, "cleanup"):
-                    summary_provider.cleanup()  # type: ignore[attr-defined]
-                    logger.debug("Cleaned up summarization provider")
+                summary_provider.cleanup()
+                logger.debug("Cleaned up summarization provider")
             except Exception as e:
                 logger.warning("Failed to cleanup summarization provider: %s", e)
 
-        # Fallback cleanup for direct models (backward compatibility)
-        if summary_model is not None and summary_provider is None:
-            try:
-                from . import summarizer  # noqa: PLC0415
-
-                summarizer.unload_model(summary_model)
-                logger.debug("Unloaded MAP summary model to free memory")
-            except Exception as e:
-                logger.warning("Failed to unload MAP summary model: %s", e)
-        if reduce_model is not None and reduce_model != summary_model and summary_provider is None:
-            try:
-                from . import summarizer  # noqa: PLC0415
-
-                summarizer.unload_model(reduce_model)
-                logger.debug("Unloaded REDUCE summary model to free memory")
-            except Exception as e:
-                logger.warning("Failed to unload REDUCE summary model: %s", e)
-
         # Clear spaCy model cache to free memory
         # Models are cached at module level, so we clear them after processing
-        if cfg.auto_speakers:
+        # Note: This is provider-specific (NERSpeakerDetector uses spaCy)
+        # The provider's cleanup() method handles model cleanup, but module-level cache
+        # needs explicit clearing
+        if cfg.auto_speakers and host_detection_result.speaker_detector:
             try:
-                from . import speaker_detection  # noqa: PLC0415
-
-                speaker_detection.clear_spacy_model_cache()
-                logger.debug("Cleared spaCy model cache to free memory")
+                # Clear cache via provider protocol method
+                host_detection_result.speaker_detector.clear_cache()
+                logger.debug("Cleared spaCy model cache via provider")
             except Exception as e:
                 logger.warning(f"Failed to clear spaCy model cache: {e}")
 
@@ -771,26 +715,14 @@ def _detect_feed_hosts_and_patterns(
     try:
         speaker_detector = create_speaker_detector(cfg)
         # Initialize provider (loads spaCy model)
-        if hasattr(speaker_detector, "initialize"):
-            speaker_detector.initialize()  # type: ignore[attr-defined]
+        speaker_detector.initialize()
 
         # Detect hosts: prefer RSS author tags, fall back to NER
-        # Use provider's detect_hosts method if available, otherwise fall back to direct call
-        if hasattr(speaker_detector, "detect_hosts"):
-            feed_hosts = speaker_detector.detect_hosts(  # type: ignore[attr-defined]
-                feed_title=feed.title,
-                feed_description=None,  # TODO: Extract from feed XML if needed
-                feed_authors=feed.authors if feed.authors else None,
-            )
-        else:
-            # Fallback to direct speaker_detection call
-            nlp = speaker_detection.get_ner_model(cfg) if not feed.authors else None
-            feed_hosts = speaker_detection.detect_hosts_from_feed(
-                feed_title=feed.title,
-                feed_description=None,
-                feed_authors=feed.authors if feed.authors else None,
-                nlp=nlp,
-            )
+        feed_hosts = speaker_detector.detect_hosts(
+            feed_title=feed.title,
+            feed_description=None,  # TODO: Extract from feed XML if needed
+            feed_authors=feed.authors if feed.authors else None,
+        )
 
         # Validate hosts with first episode: hosts should appear in first episode too
         # Skip validation if hosts came from author tags (they're already reliable)
@@ -798,38 +730,33 @@ def _detect_feed_hosts_and_patterns(
             # Only validate if we used NER (not author tags)
             first_episode = episodes[0]
             first_episode_description = extract_episode_description(first_episode.item)
-            # Use provider's nlp if available, otherwise get it directly
-            nlp = getattr(speaker_detector, "nlp", None) or speaker_detection.get_ner_model(cfg)
-            if nlp:
-                first_episode_persons: Set[str] = set()
-                title_persons = speaker_detection.extract_person_entities(first_episode.title, nlp)
-                first_episode_persons.update(name for name, _ in title_persons)
-                if first_episode_description:
-                    desc_persons = speaker_detection.extract_person_entities(
-                        first_episode_description, nlp
-                    )
-                    first_episode_persons.update(name for name, _ in desc_persons)
-                # Only keep hosts that also appear in first episode (validation)
-                validated_hosts = feed_hosts & first_episode_persons
-                if validated_hosts != feed_hosts:
+            # Validate hosts by checking if they appear in first episode
+            # Use provider's detect_speakers to extract persons from first episode
+            first_episode_speakers, _, _ = speaker_detector.detect_speakers(
+                episode_title=first_episode.title,
+                episode_description=first_episode_description,
+                known_hosts=set(),
+            )
+            first_episode_persons = set(first_episode_speakers)
+            # Only keep hosts that also appear in first episode (validation)
+            validated_hosts = feed_hosts & first_episode_persons
+            if validated_hosts != feed_hosts:
+                logger.debug(
+                    "Host validation: %d hosts from feed, %d validated with first episode",
+                    len(feed_hosts),
+                    len(validated_hosts),
+                )
+                if validated_hosts:
                     logger.debug(
-                        "Host validation: %d hosts from feed, %d validated with first episode",
-                        len(feed_hosts),
-                        len(validated_hosts),
+                        "Validated hosts (appear in feed and first episode): %s",
+                        list(validated_hosts),
                     )
-                    if validated_hosts:
-                        logger.debug(
-                            "Validated hosts (appear in feed and first episode): %s",
-                            list(validated_hosts),
-                        )
-                    if feed_hosts - validated_hosts:
-                        logger.debug(
-                            "Hosts from feed not found in first episode (discarded): %s",
-                            list(feed_hosts - validated_hosts),
-                        )
-                cached_hosts = validated_hosts
-            else:
-                cached_hosts = feed_hosts
+                if feed_hosts - validated_hosts:
+                    logger.debug(
+                        "Hosts from feed not found in first episode (discarded): %s",
+                        list(feed_hosts - validated_hosts),
+                    )
+            cached_hosts = validated_hosts if validated_hosts else feed_hosts
         else:
             # If hosts came from author tags, use them directly (no validation needed)
             cached_hosts = feed_hosts
@@ -844,53 +771,24 @@ def _detect_feed_hosts_and_patterns(
 
         # Analyze patterns from first few episodes to extract heuristics
         if cfg.auto_speakers and episodes:
-            # Use provider's analyze_patterns method if available
-            if hasattr(speaker_detector, "analyze_patterns"):
-                heuristics_dict = speaker_detector.analyze_patterns(  # type: ignore[attr-defined]
-                    episodes=episodes, known_hosts=cached_hosts
-                )
-                if heuristics_dict:
-                    heuristics = heuristics_dict
-                    if heuristics.get("title_position_preference"):
-                        logger.debug(
-                            "Pattern analysis: guest names typically appear at %s of title",
-                            heuristics["title_position_preference"],
-                        )
-            else:
-                # Fallback to direct speaker_detection call
-                nlp = getattr(speaker_detector, "nlp", None) or speaker_detection.get_ner_model(cfg)
-                if nlp:
-                    heuristics = speaker_detection.analyze_episode_patterns(
-                        episodes, nlp, cached_hosts, sample_size=5
+            heuristics_dict = speaker_detector.analyze_patterns(
+                episodes=episodes, known_hosts=cached_hosts
+            )
+            if heuristics_dict:
+                heuristics = heuristics_dict
+                if heuristics.get("title_position_preference"):
+                    logger.debug(
+                        "Pattern analysis: guest names typically appear at %s of title",
+                        heuristics["title_position_preference"],
                     )
-                    if heuristics.get("title_position_preference"):
-                        logger.debug(
-                            "Pattern analysis: guest names typically appear at %s of title",
-                            heuristics["title_position_preference"],
-                        )
 
         # Return result with provider instance
         return _HostDetectionResult(cached_hosts, heuristics, speaker_detector)
     except Exception as exc:
         logger.error("Failed to initialize speaker detector provider: %s", exc)
-        # Fallback to direct speaker_detection calls
-        nlp = speaker_detection.get_ner_model(cfg) if not feed.authors else None
-        feed_hosts = speaker_detection.detect_hosts_from_feed(
-            feed_title=feed.title,
-            feed_description=None,
-            feed_authors=feed.authors if feed.authors else None,
-            nlp=nlp,
-        )
-        cached_hosts = feed_hosts
-        if cfg.auto_speakers and episodes:
-            nlp = speaker_detection.get_ner_model(cfg)
-            if nlp:
-                heuristics = speaker_detection.analyze_episode_patterns(
-                    episodes, nlp, cached_hosts, sample_size=5
-                )
-
-        # Return result without provider (fallback mode)
-        return _HostDetectionResult(cached_hosts, heuristics, None)
+        # Fail fast - provider initialization should succeed
+        # Return empty result without provider
+        return _HostDetectionResult(set(), None, None)
 
 
 def _setup_transcription_resources(
@@ -905,28 +803,22 @@ def _setup_transcription_resources(
     Returns:
         _TranscriptionResources object
     """
-    whisper_model = None
     transcription_provider = None
 
     if cfg.transcribe_missing and not cfg.dry_run:
         # Stage 2: Use provider pattern
         try:
             transcription_provider = create_transcription_provider(cfg)
-            # Type check: TranscriptionProvider protocol doesn't require initialize(),
-            # but WhisperTranscriptionProvider does. Use hasattr to check.
-            if hasattr(transcription_provider, "initialize"):
-                transcription_provider.initialize()  # type: ignore[attr-defined]
-            # Keep whisper_model for backward compatibility (episode_processor still uses it)
-            whisper_model = getattr(transcription_provider, "model", None)
+            transcription_provider.initialize()
             logger.debug(
-                "Transcription provider initialized: %s (model: %s)",
+                "Transcription provider initialized: %s",
                 type(transcription_provider).__name__,
-                cfg.transcription_provider,
             )
         except Exception as exc:
             logger.error("Failed to initialize transcription provider: %s", exc)
-            # Fallback to direct whisper loading for backward compatibility
-            whisper_model = whisper.load_whisper_model(cfg)
+            # Fail fast - provider initialization should succeed
+            # If provider creation fails, we cannot proceed with transcription
+            transcription_provider = None
 
     temp_dir = None
     if cfg.transcribe_missing:
@@ -940,7 +832,6 @@ def _setup_transcription_resources(
     saved_counter_lock = threading.Lock() if cfg.workers > 1 else None
 
     return _TranscriptionResources(
-        whisper_model,
         transcription_provider,
         temp_dir,
         transcription_jobs,
@@ -1020,33 +911,23 @@ def _prepare_episode_download_args(
             # Guests are detected from episode title and description snippet
             extract_names_start = time.time()
 
-            # Stage 3: Use provider if available, otherwise fall back to direct call
+            # Stage 3: Use provider for speaker detection
             speaker_detector = host_detection_result.speaker_detector
-            if speaker_detector and hasattr(speaker_detector, "detect_speakers"):
-                # Use provider's detect_speakers method
+            if speaker_detector:
                 cached_hosts_for_detection = (
                     host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
                 )
                 detected_speakers, detected_hosts_set, detection_succeeded = (
-                    speaker_detector.detect_speakers(  # type: ignore[attr-defined]
+                    speaker_detector.detect_speakers(
                         episode_title=episode.title,
                         episode_description=episode_description,
                         known_hosts=cached_hosts_for_detection,
                     )
                 )
             else:
-                # Fallback to direct speaker_detection call
-                detected_speakers, detected_hosts_set, detection_succeeded = (
-                    speaker_detection.detect_speaker_names(
-                        episode_title=episode.title,
-                        episode_description=episode_description,
-                        cfg=cfg,
-                        cached_hosts=(
-                            host_detection_result.cached_hosts if cfg.cache_detected_hosts else None
-                        ),
-                        heuristics=host_detection_result.heuristics,
-                    )
-                )
+                # Fallback: No provider available (should not happen in normal flow)
+                logger.warning("Speaker detector not available, skipping speaker detection")
+                detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
             extract_names_elapsed = time.time() - extract_names_start
             # Record speaker detection time if metrics available
             if pipeline_metrics is not None:
@@ -1117,8 +998,7 @@ def _process_episodes(
     transcription_resources: _TranscriptionResources,
     processing_resources: _ProcessingResources,
     pipeline_metrics: metrics.Metrics,
-    summary_model=None,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (required)
 ) -> int:
     """Process episodes: download transcripts or queue transcription jobs.
 
@@ -1308,8 +1188,7 @@ def _process_transcription_jobs(
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
     pipeline_metrics: metrics.Metrics,
-    summary_model=None,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (required)
 ) -> int:
     """Process Whisper transcription jobs sequentially.
 
@@ -1347,7 +1226,7 @@ def _process_transcription_jobs(
                 success, transcript_path, bytes_downloaded = transcribe_media_to_text(
                     job,
                     cfg,
-                    transcription_resources.whisper_model,
+                    None,  # whisper_model no longer needed (use provider instead)
                     run_suffix,
                     effective_output_dir,
                     transcription_provider=transcription_resources.transcription_provider,
@@ -1379,11 +1258,11 @@ def _process_transcription_jobs(
                                 run_suffix=run_suffix,
                                 transcript_path=transcript_path,
                                 transcript_source="whisper_transcription",
-                                whisper_model=cfg.whisper_model,
+                                whisper_model=None,  # No longer needed (use provider instead)
                                 feed_metadata=feed_metadata,
                                 host_detection_result=host_detection_result,
                                 detected_names=detected_names_for_ep,
-                                summary_model=summary_model,
+                                summary_provider=summary_provider,
                                 pipeline_metrics=pipeline_metrics,
                             )
             except Exception as exc:  # pragma: no cover
@@ -1415,8 +1294,7 @@ def _process_transcription_jobs_concurrent(
     host_detection_result: _HostDetectionResult,
     processing_resources: _ProcessingResources,
     pipeline_metrics: metrics.Metrics,
-    summary_model=None,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (required)
     downloads_complete_event: Optional[threading.Event] = None,
     saved_counter: Optional[List[int]] = None,
 ) -> None:
@@ -1485,7 +1363,7 @@ def _process_transcription_jobs_concurrent(
             success, transcript_path, bytes_downloaded = transcribe_media_to_text(
                 job,
                 cfg,
-                transcription_resources.whisper_model,
+                None,  # whisper_model no longer needed (use provider instead)
                 run_suffix,
                 effective_output_dir,
                 transcription_provider=transcription_resources.transcription_provider,
@@ -1675,8 +1553,7 @@ def _process_processing_jobs_concurrent(
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
     pipeline_metrics: metrics.Metrics,
-    summary_model=None,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (required)
     transcription_complete_event: Optional[threading.Event] = None,
 ) -> None:
     """Process metadata/summarization jobs concurrently as they become available.
@@ -1715,12 +1592,11 @@ def _process_processing_jobs_concurrent(
                 run_suffix=run_suffix,
                 transcript_path=job.transcript_path,
                 transcript_source=job.transcript_source,
-                whisper_model=job.whisper_model,
+                whisper_model=None,  # No longer needed (use provider instead)
                 feed_metadata=feed_metadata,
                 host_detection_result=host_detection_result,
                 detected_names=job.detected_names,
-                summary_model=summary_model,
-                reduce_model=reduce_model,
+                summary_provider=summary_provider,
                 pipeline_metrics=pipeline_metrics,
             )
         except Exception as exc:  # pragma: no cover
@@ -1994,8 +1870,9 @@ def _generate_episode_metadata(
     feed_description: Optional[str],
     feed_image_url: Optional[str],
     feed_last_updated: Optional[datetime],
-    summary_model=None,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (preferred)
+    summary_model=None,  # Backward compatibility - deprecated
+    reduce_model=None,  # Backward compatibility - deprecated
     pipeline_metrics=None,
 ) -> None:
     """Generate and save episode metadata document.
@@ -2059,8 +1936,7 @@ def _generate_episode_metadata(
         transcript_file_path=transcript_file_path,
         transcript_source=transcript_source,
         whisper_model=whisper_model,
-        summary_model=summary_model,
-        reduce_model=reduce_model,
+        summary_provider=summary_provider,
         detected_hosts=detected_hosts,
         detected_guests=detected_guests,
         feed_description=feed_description,
@@ -2085,8 +1961,7 @@ def _parallel_episode_summarization(
     run_suffix: Optional[str],
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
-    summary_model,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance
     download_args: Optional[List[Tuple]] = None,
     pipeline_metrics: Optional[metrics.Metrics] = None,
 ) -> None:
@@ -2095,8 +1970,9 @@ def _parallel_episode_summarization(
     This function identifies episodes that have transcripts but may not have summaries yet,
     and processes them in parallel for better performance.
 
-    Each worker thread gets its own model instance to ensure thread safety, as HuggingFace
-    pipelines/models are not thread-safe and cannot be shared across threads.
+    For local transformers providers, each worker thread gets its own model instance to ensure
+    thread safety, as HuggingFace pipelines/models are not thread-safe and cannot be shared
+    across threads. For API providers (e.g., OpenAI), a single provider instance is used.
 
     Args:
         episodes: List of Episode objects
@@ -2106,8 +1982,7 @@ def _parallel_episode_summarization(
         run_suffix: Optional run suffix
         feed_metadata: Feed metadata tuple
         host_detection_result: Host detection result
-        summary_model: Pre-loaded summary model (used for configuration, each worker loads its own)
-        reduce_model: Optional REDUCE model (shared across all workers)
+        summary_provider: SummarizationProvider instance (required for parallel processing)
     """
     import os
 
@@ -2171,10 +2046,49 @@ def _parallel_episode_summarization(
         logger.debug("No episodes need summarization (all already have summaries)")
         return
 
+    if summary_provider is None:
+        logger.warning("Summary provider not available, skipping parallel summarization")
+        return
+
     logger.info(f"Processing summarization for {len(episodes_to_summarize)} episodes in parallel")
 
-    # Extract model configuration from the pre-loaded models
+    # Check if provider is local (transformers) or API-based
+    # For API providers, we can use a single provider instance (no parallelism needed)
+    # For local providers, we need multiple model instances for thread safety
+    from .summarization.local_provider import TransformersSummarizationProvider
+
+    is_local_provider = isinstance(summary_provider, TransformersSummarizationProvider)
+
+    if not is_local_provider:
+        # API provider (e.g., OpenAI) - use single provider instance sequentially
+        # API providers handle rate limiting internally, so parallelism isn't needed
+        logger.debug("Using API provider for sequential summarization")
+        for episode, transcript_path, metadata_path, detected_names in episodes_to_summarize:
+            _summarize_single_episode(
+                episode=episode,
+                transcript_path=transcript_path,
+                metadata_path=metadata_path,
+                feed=feed,
+                cfg=cfg,
+                effective_output_dir=effective_output_dir,
+                run_suffix=run_suffix,
+                feed_metadata=feed_metadata,
+                host_detection_result=host_detection_result,
+                summary_provider=summary_provider,
+                detected_names=detected_names,
+                pipeline_metrics=pipeline_metrics,
+            )
+        return
+
+    # Local provider - extract model configuration for parallel processing
     # Each worker will load its own model instance for thread safety
+    summary_model = getattr(summary_provider, "map_model", None)
+    reduce_model = getattr(summary_provider, "reduce_model", None)
+
+    if summary_model is None:
+        logger.error("Local provider has no map_model, cannot proceed with parallel summarization")
+        return
+
     model_name = summary_model.model_name
     model_device = summary_model.device
     model_cache_dir = summary_model.cache_dir
@@ -2212,7 +2126,7 @@ def _parallel_episode_summarization(
     has_separate_reduce_models = not reduce_model_is_same_as_map and reduce_model_name is not None
 
     if max_workers <= 1:
-        # Sequential processing - reuse existing model
+        # Sequential processing - use provider directly
         for episode, transcript_path, metadata_path, detected_names in episodes_to_summarize:
             _summarize_single_episode(
                 episode=episode,
@@ -2224,8 +2138,7 @@ def _parallel_episode_summarization(
                 run_suffix=run_suffix,
                 feed_metadata=feed_metadata,
                 host_detection_result=host_detection_result,
-                summary_model=summary_model,
-                reduce_model=reduce_model,
+                summary_provider=summary_provider,
                 detected_names=detected_names,
                 pipeline_metrics=pipeline_metrics,
             )
@@ -2238,6 +2151,7 @@ def _parallel_episode_summarization(
 
         # Pre-load model instances for all workers before starting parallel execution
         # This ensures all models are ready upfront and avoids lazy-loading overhead
+        # Use provider's internal summarizer module for model creation
         from . import summarizer  # noqa: PLC0415
 
         worker_models: List[Any] = []
@@ -2338,8 +2252,7 @@ def _parallel_episode_summarization(
                         run_suffix=run_suffix,
                         feed_metadata=feed_metadata,
                         host_detection_result=host_detection_result,
-                        summary_model=summary_model,
-                        reduce_model=reduce_model,
+                        summary_provider=summary_provider,
                         detected_names=detected_names,
                         pipeline_metrics=pipeline_metrics,
                     )
@@ -2376,6 +2289,9 @@ def _parallel_episode_summarization(
             """Wrapper to get worker-specific models and summarize episode."""
             episode, transcript_path, metadata_path, detected_names = args
             worker_map_model, worker_reduce_model = _get_worker_models()
+            # Create a temporary provider-like wrapper for this worker's models
+            # This allows _summarize_single_episode to use provider pattern
+            # For parallel processing, we pass models directly (backward compatibility)
             _summarize_single_episode(
                 episode=episode,
                 transcript_path=transcript_path,
@@ -2386,8 +2302,9 @@ def _parallel_episode_summarization(
                 run_suffix=run_suffix,
                 feed_metadata=feed_metadata,
                 host_detection_result=host_detection_result,
-                summary_model=worker_map_model,
-                reduce_model=worker_reduce_model,
+                summary_provider=None,  # Use models directly for parallel processing
+                summary_model=worker_map_model,  # Worker-specific model
+                reduce_model=worker_reduce_model,  # Worker-specific model
                 detected_names=detected_names,
                 pipeline_metrics=pipeline_metrics,
             )
@@ -2440,8 +2357,9 @@ def _summarize_single_episode(
     run_suffix: Optional[str],
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
-    summary_model,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (preferred)
+    summary_model=None,  # Backward compatibility for parallel processing
+    reduce_model=None,  # Backward compatibility for parallel processing
     detected_names: Optional[List[str]] = None,
     pipeline_metrics: Optional[metrics.Metrics] = None,
 ) -> None:
@@ -2457,8 +2375,9 @@ def _summarize_single_episode(
         run_suffix: Optional run suffix
         feed_metadata: Feed metadata tuple
         host_detection_result: Host detection result
-        summary_model: Pre-loaded MAP summary model (worker-specific for parallel processing)
-        reduce_model: Optional REDUCE model (worker-specific for parallel processing, or None)
+        summary_provider: SummarizationProvider instance (preferred)
+        summary_model: Pre-loaded MAP summary model (backward compatibility for parallel processing)
+        reduce_model: Optional REDUCE model (backward compatibility for parallel processing)
         detected_names: Detected guest names for this episode (optional)
     """
     import os
@@ -2493,8 +2412,9 @@ def _summarize_single_episode(
         transcript_file_path=os.path.relpath(transcript_path, effective_output_dir),
         transcript_source=transcript_source,
         whisper_model=None,
-        summary_model=summary_model,
-        reduce_model=reduce_model,
+        summary_provider=summary_provider,  # Use provider when available
+        summary_model=summary_model,  # Backward compatibility for parallel processing
+        reduce_model=reduce_model,  # Backward compatibility for parallel processing
         detected_hosts=(
             list(host_detection_result.cached_hosts) if host_detection_result.cached_hosts else None
         ),

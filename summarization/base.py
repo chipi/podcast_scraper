@@ -15,6 +15,14 @@ class SummarizationProvider(Protocol):
     consistent interface across different implementations (transformers, OpenAI, etc.).
     """
 
+    def initialize(self) -> None:
+        """Initialize provider (load models, setup API clients, etc.).
+
+        This method should be called before summarize() is used.
+        It may be called multiple times safely (idempotent).
+        """
+        ...
+
     def summarize(
         self,
         text: str,
@@ -39,6 +47,15 @@ class SummarizationProvider(Protocol):
             }
 
         Raises:
+            RuntimeError: If provider is not initialized
             ValueError: If summarization fails
+        """
+        ...
+
+    def cleanup(self) -> None:
+        """Cleanup provider resources (unload models, close connections, etc.).
+
+        This method should be called when the provider is no longer needed.
+        It may be called multiple times safely (idempotent).
         """
         ...

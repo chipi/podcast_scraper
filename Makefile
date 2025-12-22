@@ -41,7 +41,7 @@ lint:
 
 lint-markdown:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
-	markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site
+	markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json
 
 type:
 	mypy --config-file pyproject.toml .

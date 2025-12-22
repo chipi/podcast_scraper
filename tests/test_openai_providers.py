@@ -90,7 +90,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         """Set up test fixtures."""
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_type="openai",
+            speaker_detector_provider="openai",
             openai_api_key="sk-test123",
             auto_speakers=True,
         )
@@ -152,7 +152,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         with self.assertRaises(ValidationError) as cm:
             config.Config(
                 rss_url="https://example.com/feed.xml",
-                speaker_detector_type="openai",
+                speaker_detector_provider="openai",
                 auto_speakers=True,
             )
         self.assertIn("OpenAI API key required", str(cm.exception))

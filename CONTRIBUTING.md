@@ -106,11 +106,13 @@ The project uses automated formatting tools to ensure consistency:
 - **mypy**: Static type checking
 
 **Apply formatting automatically:**
+
 ```bash
 make format
 ```
 
 **Check formatting without modifying:**
+
 ```bash
 make format-check
 ```
@@ -902,6 +904,7 @@ def load_whisper():
 ### Before Creating PR
 
 **1. Ensure all checks pass:**
+
 ```bash
 make ci
 ```
@@ -922,11 +925,13 @@ make ci
 ### Creating the PR
 
 **1. Create feature branch:**
+
 ```bash
 git checkout -b feature/my-feature
 ```
 
 **2. Push branch:**
+
 ```bash
 git push -u origin feature/my-feature
 ```

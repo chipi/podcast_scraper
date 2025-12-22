@@ -57,16 +57,19 @@ make init  # Installs dev + ML dependencies
 ### Installation Options
 
 **Basic installation (core dependencies only):**
+
 ```bash
 pip install -e .
 ```
 
 **With ML dependencies** (spaCy, Whisper, transformers for speaker detection, transcription, and summarization):
+
 ```bash
 pip install -e ".[ml]"
 ```
 
 **With development dependencies** (for contributing):
+
 ```bash
 pip install -e ".[dev,ml]"
 # Or use: make init
@@ -77,6 +80,7 @@ pip install -e ".[dev,ml]"
 The podcast scraper supports configuration via environment variables for flexible deployment. Many settings can be configured via environment variables or `.env` files:
 
 **Quick setup:**
+
 ```bash
 # Copy example .env file
 cp examples/.env.example .env
@@ -341,12 +345,14 @@ save_cleaned_transcript: true  # Save cleaned transcript to .cleaned.txt file (d
 ### Virtual Environment
 
 **Quick setup:**
+
 ```bash
 bash scripts/setup_venv.sh
 source .venv/bin/activate
 ```
 
 **Install dependencies:**
+
 ```bash
 # For development (includes dev tools + ML dependencies)
 make init
@@ -356,6 +362,7 @@ pip install -e ".[dev,ml]"
 ```
 
 **Set up environment variables (if using OpenAI providers):**
+
 ```bash
 # Copy example .env file
 cp examples/.env.example .env
@@ -365,6 +372,7 @@ cp examples/.env.example .env
 ```
 
 **Run the CLI:**
+
 ```bash
 python -m podcast_scraper.cli <rss_url> [options]
 ```

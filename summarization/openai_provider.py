@@ -207,7 +207,8 @@ class OpenAISummarizationProvider:
             custom_prompt: Optional custom prompt (overrides default)
 
         Returns:
-            Tuple of (system_prompt, user_prompt, system_prompt_name, user_prompt_name, paragraphs_min, paragraphs_max)
+            Tuple of (system_prompt, user_prompt, system_prompt_name,
+            user_prompt_name, paragraphs_min, paragraphs_max)
         """
         from ..prompt_store import render_prompt
 

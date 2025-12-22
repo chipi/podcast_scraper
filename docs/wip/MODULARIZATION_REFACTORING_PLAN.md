@@ -36,6 +36,7 @@ This document outlines the refactoring plan to modularize the podcast scraper ar
 **Moderate Coupling Points:**
 
 1. **`workflow.py`** directly imports speaker detection:
+
    ```python
    from . import speaker_detection
    
@@ -44,6 +45,7 @@ This document outlines the refactoring plan to modularize the podcast scraper ar
    ```
 
 2. **`config.py`** has NER-specific fields:
+
    ```python
    ner_model: Optional[str] = Field(default=None, alias="ner_model")
    auto_speakers: bool = Field(default=True, alias="auto_speakers")
@@ -123,7 +125,7 @@ class SpeakerDetectorFactory:
         if not cfg.auto_speakers:
             return None
         
-        detector_type = cfg.speaker_detector_type  # 'ner', 'openai', etc.
+        detector_type = cfg.speaker_detector_provider  # 'ner', 'openai', etc. (renamed from speaker_detector_type)
         if detector_type == 'ner':
             from .ner_detector import NERSpeakerDetector
             return NERSpeakerDetector(cfg)
@@ -138,6 +140,7 @@ class SpeakerDetectorFactory:
 #### Phase 1: Quick Wins (No Breaking Changes)
 
 1. **Add provider type field to `config.py`:**
+
    ```python
    speaker_detector_type: Literal["ner", "openai"] = Field(default="ner")
    # Keep ner_model for backward compatibility
@@ -167,6 +170,7 @@ class SpeakerDetectorFactory:
    - Wrap existing functions as methods
 
 2. **Update `workflow.py`:**
+
    ```python
    from .speaker_detectors import SpeakerDetectorFactory
    
@@ -205,6 +209,7 @@ class SpeakerDetectorFactory:
 **Moderate Coupling Points:**
 
 1. **`workflow.py`** directly imports Whisper:
+
    ```python
    from . import whisper_integration as whisper
    
@@ -213,6 +218,7 @@ class SpeakerDetectorFactory:
    ```
 
 2. **`episode_processor.py`** has Whisper-specific code:
+
    ```python
    from . import whisper_integration as whisper
    
@@ -220,12 +226,14 @@ class SpeakerDetectorFactory:
    ```
 
 3. **`config.py`** has Whisper-specific fields:
+
    ```python
    whisper_model: str = Field(default="base", alias="whisper_model")
    transcribe_missing: bool = Field(default=False, alias="transcribe_missing")
    ```
 
 4. **`_TranscriptionResources`** has Whisper model hardcoded:
+
    ```python
    class _TranscriptionResources(NamedTuple):
        whisper_model: Any  # Whisper-specific type
@@ -315,6 +323,7 @@ class TranscriptionProviderFactory:
 #### Phase 1: Quick Wins - Transcription (No Breaking Changes)
 
 1. **Add provider type field to `config.py`:**
+
    ```python
    transcription_provider: Literal["whisper", "openai"] = Field(default="whisper")
    # Keep whisper_model for backward compatibility
@@ -342,6 +351,7 @@ class TranscriptionProviderFactory:
      - `_cleanup_temp_media()` - Cleanup logic
 
 2. **Update `workflow.py`:**
+
    ```python
    from .transcription import TranscriptionProviderFactory
    
@@ -352,6 +362,7 @@ class TranscriptionProviderFactory:
    ```
 
 3. **Update `_TranscriptionResources`:**
+
    ```python
    class _TranscriptionResources(NamedTuple):
        provider: Optional[TranscriptionProvider]
@@ -392,6 +403,7 @@ class TranscriptionProviderFactory:
 **Tight Coupling Points:**
 
 1. **`workflow.py`** directly imports summarizer:
+
    ```python
    from . import summarizer
    
@@ -400,6 +412,7 @@ class TranscriptionProviderFactory:
    ```
 
 2. **`metadata.py`** has summarization logic:
+
    ```python
    from . import summarizer
    
@@ -407,6 +420,7 @@ class TranscriptionProviderFactory:
    ```
 
 3. **`config.py`** has local model-specific fields:
+
    ```python
    summary_model: Optional[str] = Field(default=None, alias="summary_model")
    summary_provider: Literal["local"] = Field(default="local")
@@ -531,6 +545,7 @@ class SummarizationProviderFactory:
 #### Phase 1: Quick Wins - Summarization (No Breaking Changes)
 
 1. **Add provider type field to `config.py`:**
+
    ```python
    summary_provider: Literal["transformers", "openai"] = Field(default="transformers")
    # Keep summary_model for backward compatibility
@@ -566,6 +581,7 @@ class SummarizationProviderFactory:
      - `_build_processing_metadata()` - Construct ProcessingMetadata
 
 2. **Update `workflow.py`:**
+
    ```python
    from .summarization import SummarizationProviderFactory
    
@@ -632,9 +648,10 @@ class SummarizationProviderFactory:
 ### Quick Wins (Can Do Now - No Breaking Changes)
 
 1. **Add Provider Type Fields to Config:**
+
    ```python
    # config.py
-   speaker_detector_type: Literal["ner", "openai"] = Field(default="ner")
+   speaker_detector_provider: Literal["ner", "openai"] = Field(default="ner")  # Renamed from speaker_detector_type
    transcription_provider: Literal["whisper", "openai"] = Field(default="whisper")
    summary_provider: Literal["transformers", "openai"] = Field(default="transformers")
    ```

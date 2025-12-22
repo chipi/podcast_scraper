@@ -113,6 +113,7 @@ python3 -m podcast_scraper.cli --config config.yaml
 | **[Service Examples](#service-daemon-examples)** | systemd and supervisor configuration templates |
 | **[Advanced Features](#advanced-features)** | Speaker detection, summarization, language support |
 | **[Configuration Files](#configuration-files)** | JSON/YAML config examples |
+| **[Environment Variables](ENVIRONMENT_VARIABLES.md)** | Complete reference for all environment variables |
 
 ### For Developers
 
@@ -122,9 +123,20 @@ python3 -m podcast_scraper.cli --config config.yaml
 | **[Architecture Overview](ARCHITECTURE.md)** | High-level system design and module responsibilities |
 | **[Testing Strategy](TESTING_STRATEGY.md)** | Test coverage, quality assurance, and testing guidelines |
 | **[CI/CD Pipeline](CI_CD.md)** | GitHub Actions workflows, parallel execution, and pipeline visualization |
+| **[Development Notes](DEVELOPMENT_NOTES.md)** | Development environment setup and tooling |
 | **[API Boundaries](api/API_BOUNDARIES.md)** | API design principles and stability guarantees |
 | **[API Migration Guide](api/API_MIGRATION_GUIDE.md)** | Upgrading between versions |
 | **[API Versioning](api/API_VERSIONING.md)** | Versioning strategy and compatibility |
+
+### Provider System
+
+| Guide | Description |
+| ----- | ----------- |
+| **[Provider Migration Guide](PROVIDER_MIGRATION_GUIDE.md)** | Migrating code from direct calls to provider pattern |
+| **[Custom Provider Guide](CUSTOM_PROVIDER_GUIDE.md)** | Creating custom providers for transcription, speaker detection, or summarization |
+| **[Protocol Extension Guide](PROTOCOL_EXTENSION_GUIDE.md)** | Extending protocols and adding new methods to providers |
+| **[Provider Attributes](PROVIDER_ATTRIBUTES.md)** | Understanding provider internal attributes and backward compatibility |
+| **[Fallback Behavior](FALLBACK_BEHAVIOR.md)** | Documentation of all fallback patterns and their status |
 
 ### API Reference
 
@@ -474,12 +486,13 @@ MIT License - See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main/L
 
 | Category | Links |
 | -------- | ----- |
-| **Getting Started** | [Quick Start](#quick-start) • [Configuration](api/configuration.md) • [CLI Ref](api/cli.md) |
+| **Getting Started** | [Quick Start](#quick-start) • [Configuration](api/configuration.md) • [CLI Ref](api/cli.md) • [Environment Variables](ENVIRONMENT_VARIABLES.md) |
 | **Examples** | [Config YAML](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) • [Config JSON](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) • [systemd](https://github.com/chipi/podcast_scraper/blob/main/examples/systemd.service.example) • [supervisor](https://github.com/chipi/podcast_scraper/blob/main/examples/supervisor.conf.example) |
-| **Development** | [Contributing](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md) • [Architecture](ARCHITECTURE.md) • [Testing](TESTING_STRATEGY.md) • [CI/CD](CI_CD.md) • [Scripts](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md) |
+| **Development** | [Contributing](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md) • [Architecture](ARCHITECTURE.md) • [Testing](TESTING_STRATEGY.md) • [CI/CD](CI_CD.md) • [Development Notes](DEVELOPMENT_NOTES.md) • [Scripts](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md) |
+| **Provider System** | [Migration Guide](PROVIDER_MIGRATION_GUIDE.md) • [Custom Providers](CUSTOM_PROVIDER_GUIDE.md) • [Protocol Extension](PROTOCOL_EXTENSION_GUIDE.md) • [Provider Attributes](PROVIDER_ATTRIBUTES.md) • [Fallback Behavior](FALLBACK_BEHAVIOR.md) |
 | **Specifications** | [PRDs](prd/index.md) • [RFCs](rfc/index.md) • [Releases](releases/RELEASE_v2.3.0.md) |
 | **Legal** | [Legal Notice](legal.md) • [License](https://github.com/chipi/podcast_scraper/blob/main/LICENSE) |
 
 ---
 
-**Need help?** Check the [documentation](#-documentation), search [existing issues](https://github.com/chipi/podcast_scraper/issues), or open a new issue for support.
+**Need help?** Check the [documentation](#documentation), search [existing issues](https://github.com/chipi/podcast_scraper/issues), or open a new issue for support.
