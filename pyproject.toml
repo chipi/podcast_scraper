@@ -52,7 +52,14 @@ dev = [
 # Documentation - see docs/requirements.txt
 
 [tool.setuptools]
-packages = ["podcast_scraper"]
+# Include main package and all subpackages
+# With package-dir mapping, subdirectories need to be explicitly listed as subpackages
+packages = [
+    "podcast_scraper",
+    "podcast_scraper.speaker_detectors",
+    "podcast_scraper.summarization",
+    "podcast_scraper.transcription",
+]
 package-dir = {podcast_scraper = "."}
 
 [tool.black]
