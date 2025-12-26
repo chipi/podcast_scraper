@@ -71,8 +71,9 @@ if [ -n "$STAGED_PYTHON" ]; then
     run_check "isort import sorting" "isort --check-only $PYTHON_FILES"
     
     # Check linting on staged Python files
-    # E9: runtime errors, F63: print statements, F7: syntax errors, F82: undefined names, F401: unused imports, E501: line too long
-    run_check "flake8 linting" "flake8 --config .flake8 $PYTHON_FILES --count --select=E9,F63,F7,F82,F401,E501 --show-source --statistics"
+    # Run flake8 with full config (checks all errors, respects .flake8 config)
+    # This matches CI behavior: CI runs flake8 twice (critical + all), but pre-commit checks all at once
+    run_check "flake8 linting" "flake8 --config .flake8 $PYTHON_FILES --count --show-source --statistics"
     
     # Check types on staged Python files
     # Note: mypy works better when checking the whole project, but we can check specific files
