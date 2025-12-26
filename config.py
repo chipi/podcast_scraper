@@ -569,29 +569,6 @@ class Config(BaseModel):
 
         return data
 
-    @model_validator(mode="before")
-    @classmethod
-    def _load_env_variables(cls, data: Any) -> Any:
-        """Load configuration from environment variables before validation.
-
-        DEPRECATED: This method is kept for backward compatibility.
-        Use _preprocess_config_data instead.
-
-        Handles:
-        - LOG_LEVEL: Environment variable takes precedence (special case)
-        - OUTPUT_DIR: Config file takes precedence, env var as fallback
-        - LOG_FILE: Config file takes precedence, env var as fallback
-        - SUMMARY_CACHE_DIR/CACHE_DIR: Config file takes precedence, env var as fallback
-        - WORKERS: Config file takes precedence, env var as fallback
-        - TRANSCRIPTION_PARALLELISM: Config file takes precedence, env var as fallback
-        - PROCESSING_PARALLELISM: Config file takes precedence, env var as fallback
-        - SUMMARY_BATCH_SIZE: Config file takes precedence, env var as fallback
-        - SUMMARY_CHUNK_PARALLELISM: Config file takes precedence, env var as fallback
-        - TIMEOUT: Config file takes precedence, env var as fallback
-        - SUMMARY_DEVICE: Config file takes precedence, env var as fallback
-        """
-        return cls._preprocess_config_data(data)  # type: ignore[operator]
-
     @field_validator("log_level", mode="before")
     @classmethod
     def _normalize_log_level(cls, value: Any) -> str:
