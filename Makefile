@@ -53,7 +53,7 @@ security-bandit:
 
 security-audit:
 	$(PYTHON) -m pip install --upgrade setuptools
-	pip-audit --requirement requirements.txt --skip-editable || true
+	pip-audit --requirement requirements.txt --skip-editable
 
 docs:
 	mkdocs build --strict
