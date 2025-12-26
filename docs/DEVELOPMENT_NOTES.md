@@ -231,3 +231,85 @@ The GitHub Actions workflow runs `make lint-markdown` which includes:
 - ✅ Checks all markdown files
 - ✅ Fails build on any errors
 - ✅ Ensures consistency across all files
+
+## AI Coding Guidelines
+
+This project includes comprehensive AI coding guidelines to ensure consistent code quality and workflow when using AI assistants.
+
+### Overview
+
+**Primary reference:** `.ai-coding-guidelines.md` - This is the PRIMARY source of truth for all AI actions in this project.
+
+**Purpose:**
+
+- Provides project-specific context and patterns for AI assistants
+- Ensures consistent code quality and workflow
+- Prevents common mistakes (auto-committing, skipping CI, etc.)
+
+### Entry Points by AI Tool
+
+Different AI assistants load guidelines from different locations:
+
+| Tool | Entry Point | Auto-Loaded |
+|------|-------------|-------------|
+| **Cursor** | `.cursor/rules/ai-guidelines.mdc` | ✅ Yes (modern format) |
+| **Claude Desktop** | `CLAUDE.md` (root directory) | ✅ Yes |
+| **GitHub Copilot** | `.github/copilot-instructions.md` | ✅ Yes |
+
+**All entry points reference `.ai-coding-guidelines.md` as the primary source.**
+
+### Critical Workflow Rules
+
+**NEVER commit without:**
+
+- Showing user what files changed (`git status`)
+- Showing user the actual changes (`git diff`)
+- Getting explicit user approval
+- User deciding commit message
+
+**NEVER push to PR without:**
+
+- Running `make ci` locally first
+- Ensuring `make ci` passes completely
+- Fixing all failures before pushing
+
+### What's in `.ai-coding-guidelines.md`
+
+**Sections include:**
+
+- **Git Workflow** - Commit approval, PR workflow, branch naming
+- **Code Organization** - Module boundaries, when to create new files
+- **Testing Requirements** - Mocking patterns, test structure
+- **Documentation Standards** - PRDs, RFCs, docstrings
+- **Common Patterns** - Configuration, error handling, logging
+- **Decision Trees** - When to create modules, PRDs, RFCs
+- **When to Ask** - When AI should ask vs. act autonomously
+
+### For Developers
+
+**If you're using an AI assistant:**
+
+- The guidelines are automatically loaded (no setup needed)
+- AI assistants will follow project patterns and workflows
+- Guidelines ensure consistent code quality
+
+**If you're not using an AI assistant:**
+
+- You don't need to read these files
+- They're for AI tools, not human developers
+- Human contributors should follow [CONTRIBUTING.md](../CONTRIBUTING.md)
+
+### Maintenance
+
+**When to update `.ai-coding-guidelines.md`:**
+
+- New patterns or conventions are established
+- Workflow changes (e.g., new CI checks)
+- Architecture decisions that affect code organization
+- New tools or processes are added
+
+**Keep entry points in sync:**
+
+- When updating `.ai-coding-guidelines.md`, ensure entry points (`CLAUDE.md`, `.github/copilot-instructions.md`, `.cursor/rules/ai-guidelines.mdc`) still reference it correctly
+
+**See:** `.ai-coding-guidelines.md` for complete guidelines.

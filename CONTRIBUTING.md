@@ -1060,4 +1060,41 @@ See [`docs/CI_CD.md`](docs/CI_CD.md#automatic-pre-commit-checks) for more detail
 
 ---
 
+## AI Coding Guidelines
+
+This project includes comprehensive AI coding guidelines for developers using AI assistants (Cursor, Claude Desktop, GitHub Copilot, etc.).
+
+### For AI Assistants
+
+**Primary reference:** `.ai-coding-guidelines.md` - This is the PRIMARY source of truth for all AI actions.
+
+**Entry points by tool:**
+
+- **Cursor:** `.cursor/rules/ai-guidelines.mdc` - Automatically loaded by Cursor
+- **Claude Desktop:** `CLAUDE.md` - Automatically loaded when Claude runs in this directory
+- **GitHub Copilot:** `.github/copilot-instructions.md` - Read by GitHub Copilot
+
+**Critical workflow rules (from `.ai-coding-guidelines.md`):**
+
+- ❌ **NEVER commit without showing changes and getting user approval**
+- ❌ **NEVER push to PR without running `make ci` first**
+- ✅ Always show `git status` and `git diff` before committing
+- ✅ Always wait for explicit user approval before committing
+- ✅ Always run `make ci` before pushing to PR (new or updated)
+
+**What `.ai-coding-guidelines.md` contains:**
+
+- Git Workflow (commit approval, PR workflow)
+- Code Organization (module boundaries, patterns)
+- Testing Requirements (mocking, test structure)
+- Documentation Standards (PRDs, RFCs, docstrings)
+- Common Patterns (configuration, error handling, logging)
+- Decision Trees (when to create modules, PRDs, RFCs)
+
+**For human contributors:** These guidelines help ensure AI assistants follow project standards. You don't need to read them unless you're configuring AI tools.
+
+**See:** `.ai-coding-guidelines.md` for complete guidelines.
+
+---
+
 Thanks again for contributing! If you have questions, please open an issue or discussion.

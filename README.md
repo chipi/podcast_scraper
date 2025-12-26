@@ -545,6 +545,25 @@ This software is provided for educational and personal-use purposes only and is 
 
 For complete details, see [Legal Notice & Appropriate Use](docs/legal.md).
 
+## AI Coding Guidelines
+
+This project includes comprehensive AI coding guidelines to ensure consistent code quality and workflow when using AI assistants (Cursor, Claude Desktop, GitHub Copilot, etc.).
+
+**For AI assistants working on this project:**
+
+- **Primary reference:** `.ai-coding-guidelines.md` - Complete guidelines and patterns
+- **Cursor:** `.cursor/rules/ai-guidelines.mdc` - Cursor-specific rules
+- **Claude Desktop:** `CLAUDE.md` - Entry point for Claude Desktop
+- **GitHub Copilot:** `.github/copilot-instructions.md` - Copilot instructions
+
+**Key workflow rules:**
+
+- Always show changes (`git status`, `git diff`) before committing
+- Always get explicit user approval before committing
+- Always run `make ci` before pushing to PR (new or updated)
+
+**See:** `.ai-coding-guidelines.md` for complete guidelines, patterns, and best practices.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
