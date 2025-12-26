@@ -10,6 +10,14 @@ ExecStart=/usr/bin/python3 -m podcast_scraper.service --config /path/to/config.y
 StandardOutput=journal
 StandardError=journal
 
+# Environment variables can be set here or in EnvironmentFile
+# See docs/ENVIRONMENT_VARIABLES.md for complete list of supported variables
+# Environment="OPENAI_API_KEY=sk-your-key-here"
+# Environment="LOG_LEVEL=INFO"
+# Environment="OUTPUT_DIR=/var/lib/podcast_scraper/output"
+# Environment="LOG_FILE=/var/log/podcast_scraper.log"
+# Environment="WORKERS=4"
+
 ; For periodic execution, use a systemd timer instead:
 ; Create podcast-scraper.timer:
 ; [Unit]

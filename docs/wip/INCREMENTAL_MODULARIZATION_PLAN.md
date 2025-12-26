@@ -66,6 +66,7 @@ Each stage is **complete, tested, and fully working** before moving to the next.
    ```
 
 2. **Add config fields** (backward compatible defaults):
+
    ```python
    # config.py - Add new fields with defaults matching current behavior
    speaker_detector_type: Literal["ner", "openai"] = Field(default="ner")
@@ -228,7 +229,7 @@ Each stage is **complete, tested, and fully working** before moving to the next.
 
 2. **Create factory**:
    - `SpeakerDetectorFactory.create()` returns `NERSpeakerDetector` for `"ner"`
-   - Factory reads `speaker_detector_type` config field
+   - Factory reads `speaker_detector_provider` config field (renamed from speaker_detector_type)
 
 3. **Update `workflow.py`**:
    - Replace direct `speaker_detection` imports with factory
@@ -453,7 +454,7 @@ Each stage is **complete, tested, and fully working** before moving to the next.
 4. **API Key Management**:
    - Use `python-dotenv` to load `.env` files automatically
    - Support `OPENAI_API_KEY` environment variable
-   - Create `.env.example` template
+   - Create `examples/.env.example` template
    - Add `.env` to `.gitignore`
 
 5. **Tests**:

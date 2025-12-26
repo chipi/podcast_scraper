@@ -818,7 +818,11 @@ class TestMetadataIntegration(unittest.TestCase):
         """Test that non-local providers are skipped."""
         from podcast_scraper import metadata
 
-        cfg = create_test_config(generate_summaries=True, summary_provider="openai")
+        cfg = create_test_config(
+            generate_summaries=True,
+            summary_provider="openai",
+            openai_api_key="sk-test123",  # Required for OpenAI provider
+        )
         result = metadata._generate_episode_summary(
             transcript_file_path="test.txt",
             output_dir=self.temp_dir,
@@ -829,8 +833,8 @@ class TestMetadataIntegration(unittest.TestCase):
         self.assertIsNone(result)
         mock_summarizer.assert_not_called()
 
-    @patch("podcast_scraper.metadata.summarizer")
-    def test_generate_episode_summary_validates_function_signature(self, mock_summarizer):
+    @patch("podcast_scraper.summarizer.summarize_long_text")
+    def test_generate_episode_summary_validates_function_signature(self, mock_summarize_long_text):
         """Test that summarize_long_text is called with correct signature including min_length."""
         from podcast_scraper import metadata
 
@@ -839,14 +843,23 @@ class TestMetadataIntegration(unittest.TestCase):
         with open(transcript_path, "w", encoding="utf-8") as f:
             f.write("This is a test transcript with enough content to be summarized. " * 20)
 
-        # Mock the summarizer functions
-        mock_summarize_long_text = Mock(return_value="Test summary")
+        # Mock summarize_long_text to return a string (the function checks if result is not None)
+        mock_summarize_long_text.return_value = "Test summary"
+
+        # Create a mock summary model with required attributes
         mock_summary_model = Mock()
         mock_summary_model.model_name = "facebook/bart-base"
-
-        mock_summarizer.select_summary_model = Mock(return_value="facebook/bart-base")
-        mock_summarizer.SummaryModel = Mock(return_value=mock_summary_model)
-        mock_summarizer.summarize_long_text = mock_summarize_long_text
+        mock_summary_model.device = "cpu"
+        # Add tokenizer attribute that summarize_long_text needs
+        mock_tokenizer = Mock()
+        mock_tokenizer.encode = Mock(return_value=[1, 2, 3, 4, 5])  # Return list for len()
+        mock_summary_model.tokenizer = mock_tokenizer
+        # Add model attribute with config for model_max_tokens calculation
+        mock_model_config = Mock()
+        mock_model_config.max_position_embeddings = 1024
+        mock_model = Mock()
+        mock_model.config = mock_model_config
+        mock_summary_model.model = mock_model
 
         cfg = create_test_config(
             generate_summaries=True,
@@ -860,6 +873,7 @@ class TestMetadataIntegration(unittest.TestCase):
             output_dir=self.temp_dir,
             cfg=cfg,
             episode_idx=1,
+            summary_model=mock_summary_model,  # Backward compatibility path
         )
 
         # Verify summarize_long_text was called with correct signature including min_length

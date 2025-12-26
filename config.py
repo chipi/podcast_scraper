@@ -7,7 +7,19 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 import yaml
+from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+# Load .env file if it exists (RFC-013: OpenAI API key management)
+# Check for .env in project root (where config.py is located)
+# Note: With package-dir = {podcast_scraper = "."}, config.py is at project root,
+# so we use parent (not parent.parent) to get the project root directory
+env_path = Path(__file__).parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path, override=False)
+else:
+    # Also check current working directory (for flexibility)
+    load_dotenv(override=False)
 
 DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_NUM_SPEAKERS = 2
@@ -114,13 +126,19 @@ class Config(BaseModel):
         summary_max_length: Maximum summary length in tokens.
         summary_min_length: Minimum summary length in tokens.
         summary_device: Device for model execution ("cpu", "cuda", "mps", or None).
-        summary_batch_size: Batch size for parallel processing.
+        summary_batch_size: Batch size for episode-level parallel processing (episodes in parallel).
+        summary_chunk_parallelism: Number of chunks to process in parallel within a single episode
+            (CPU-bound, local providers only).
         summary_chunk_size: Chunk size in tokens for long transcripts.
         summary_word_chunk_size: Chunk size in words for word-based chunking.
         summary_word_overlap: Overlap in words for word-based chunking.
         summary_cache_dir: Custom cache directory for transformer models.
         summary_prompt: Optional custom prompt for summarization.
         save_cleaned_transcript: Save cleaned transcript to separate file.
+        speaker_detector_provider: Speaker detection provider type ("ner" or "openai").
+        Deprecated: speaker_detector_type (use speaker_detector_provider instead).
+        transcription_provider: Transcription provider type ("whisper" or "openai").
+        openai_api_key: OpenAI API key (loaded from environment variable or .env file).
 
     Example:
         Create configuration programmatically:
@@ -160,7 +178,12 @@ class Config(BaseModel):
     """
 
     rss_url: Optional[str] = Field(default=None, alias="rss")
-    output_dir: Optional[str] = Field(default=None, alias="output_dir")
+    output_dir: Optional[str] = Field(
+        default=None,
+        alias="output_dir",
+        description="Output directory path. Auto-generated from RSS URL if not provided. "
+        "Can be set via OUTPUT_DIR environment variable.",
+    )
     max_episodes: Optional[int] = Field(default=None, alias="max_episodes")
     user_agent: str = Field(default=DEFAULT_USER_AGENT, alias="user_agent")
     timeout: int = Field(default=DEFAULT_TIMEOUT_SECONDS, alias="timeout")
@@ -177,7 +200,8 @@ class Config(BaseModel):
     log_file: Optional[str] = Field(
         default=None,
         alias="log_file",
-        description="Path to log file (logs will be written to both console and file)",
+        description="Path to log file (logs will be written to both console and file). "
+        "Can be set via LOG_FILE environment variable.",
     )
     workers: int = Field(default=DEFAULT_WORKERS, alias="workers")
     skip_existing: bool = Field(default=False, alias="skip_existing")
@@ -192,6 +216,106 @@ class Config(BaseModel):
     ner_model: Optional[str] = Field(default=None, alias="ner_model")
     auto_speakers: bool = Field(default=True, alias="auto_speakers")
     cache_detected_hosts: bool = Field(default=True, alias="cache_detected_hosts")
+    # Provider selection fields (Stage 0: Foundation)
+    speaker_detector_provider: Literal["ner", "openai"] = Field(
+        default="ner",
+        alias="speaker_detector_provider",
+        description="Speaker detection provider type (default: 'ner' for spaCy NER). "
+        "Deprecated alias 'speaker_detector_type' is supported for backward compatibility.",
+    )
+    # Deprecated field for backward compatibility - handled in _preprocess_config_data
+    speaker_detector_type: Optional[Literal["ner", "openai"]] = Field(
+        default=None,
+        exclude=True,
+        description="Deprecated: use speaker_detector_provider instead.",
+    )
+    transcription_provider: Literal["whisper", "openai"] = Field(
+        default="whisper",
+        alias="transcription_provider",
+        description="Transcription provider type (default: 'whisper' for local Whisper)",
+    )
+    transcription_parallelism: int = Field(
+        default=1,
+        alias="transcription_parallelism",
+        description=(
+            "Episode-level parallelism: Number of episodes to transcribe in parallel "
+            "(default: 1 for sequential. Whisper ignores >1, OpenAI uses for parallel API calls)"
+        ),
+    )
+    processing_parallelism: int = Field(
+        default=2,
+        alias="processing_parallelism",
+        description=(
+            "Episode-level parallelism: Number of episodes to process "
+            "(metadata/summarization) in parallel (default: 2)"
+        ),
+    )
+    # OpenAI API configuration (RFC-013)
+    openai_api_key: Optional[str] = Field(
+        default=None,
+        alias="openai_api_key",
+        description="OpenAI API key (prefer OPENAI_API_KEY env var or .env file)",
+    )
+    openai_transcription_model: str = Field(
+        default="whisper-1",
+        alias="openai_transcription_model",
+        description="OpenAI Whisper API model version (default: 'whisper-1')",
+    )
+    openai_speaker_model: str = Field(
+        default="gpt-4o-mini",
+        alias="openai_speaker_model",
+        description="OpenAI model for speaker detection (default: 'gpt-4o-mini')",
+    )
+    openai_summary_model: str = Field(
+        default="gpt-4o-mini",
+        alias="openai_summary_model",
+        description="OpenAI model for summarization (default: 'gpt-4o-mini')",
+    )
+    openai_temperature: float = Field(
+        default=0.3,
+        alias="openai_temperature",
+        description="Temperature for OpenAI generation (0.0-2.0, lower = more deterministic)",
+    )
+    openai_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="openai_max_tokens",
+        description="Max tokens for OpenAI generation (None = model default)",
+    )
+    # Prompt configuration (RFC-017)
+    openai_summary_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="openai_summary_system_prompt",
+        description="System prompt name for summarization (e.g. 'summarization/system_v1'). "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    openai_summary_user_prompt: str = Field(
+        default="summarization/long_v1",
+        alias="openai_summary_user_prompt",
+        description="User prompt name for summarization. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    summary_prompt_params: Dict[str, Any] = Field(
+        default_factory=dict,
+        alias="summary_prompt_params",
+        description="Template parameters for summary prompts (passed to Jinja2 templates).",
+    )
+    openai_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="openai_speaker_system_prompt",
+        description="System prompt name for speaker detection/NER. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    openai_speaker_user_prompt: str = Field(
+        default="ner/guest_host_v1",
+        alias="openai_speaker_user_prompt",
+        description="User prompt name for speaker detection/NER. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    ner_prompt_params: Dict[str, Any] = Field(
+        default_factory=dict,
+        alias="ner_prompt_params",
+        description="Template parameters for NER prompts (passed to Jinja2 templates).",
+    )
     generate_metadata: bool = Field(default=False, alias="generate_metadata")
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
@@ -211,7 +335,23 @@ class Config(BaseModel):
     summary_max_length: int = Field(default=DEFAULT_SUMMARY_MAX_LENGTH, alias="summary_max_length")
     summary_min_length: int = Field(default=DEFAULT_SUMMARY_MIN_LENGTH, alias="summary_min_length")
     summary_device: Optional[str] = Field(default=None, alias="summary_device")
-    summary_batch_size: int = Field(default=DEFAULT_SUMMARY_BATCH_SIZE, alias="summary_batch_size")
+    summary_batch_size: int = Field(
+        default=DEFAULT_SUMMARY_BATCH_SIZE,
+        alias="summary_batch_size",
+        description=(
+            "Episode-level parallelism: Number of episodes to summarize in parallel "
+            "(memory-bound for local, rate-limited for API providers)"
+        ),
+    )
+    summary_chunk_parallelism: int = Field(
+        default=1,
+        alias="summary_chunk_parallelism",
+        description=(
+            "Chunk-level parallelism: Number of chunks to process in parallel "
+            "within a single episode (CPU-bound, local providers only. "
+            "API providers handle internally via rate limiting)"
+        ),
+    )
     summary_chunk_size: Optional[int] = Field(default=None, alias="summary_chunk_size")
     summary_word_chunk_size: Optional[int] = Field(
         default=DEFAULT_SUMMARY_WORD_CHUNK_SIZE,
@@ -223,7 +363,12 @@ class Config(BaseModel):
         alias="summary_word_overlap",
         description="Overlap in words for word-based chunking (100-200 recommended)",
     )
-    summary_cache_dir: Optional[str] = Field(default=None, alias="summary_cache_dir")
+    summary_cache_dir: Optional[str] = Field(
+        default=None,
+        alias="summary_cache_dir",
+        description="Custom cache directory for transformer models. "
+        "Can be set via SUMMARY_CACHE_DIR or CACHE_DIR environment variable.",
+    )
     summary_prompt: Optional[str] = Field(default=None, alias="summary_prompt")
     save_cleaned_transcript: bool = Field(
         default=True, alias="save_cleaned_transcript"
@@ -241,11 +386,25 @@ class Config(BaseModel):
 
     @field_validator("output_dir", mode="before")
     @classmethod
-    def _strip_output_dir(cls, value: Any) -> Optional[str]:
-        if value is None:
-            return None
-        value = str(value).strip()
-        return value or None
+    def _load_output_dir_from_env(cls, value: Any) -> Optional[str]:
+        """Load output directory from environment variable if not provided."""
+        # Check environment variable first (loaded from .env by dotenv)
+        # This allows env var to be used when value is None (default)
+        env_output_dir = os.getenv("OUTPUT_DIR")
+        if env_output_dir:
+            env_value = str(env_output_dir).strip()
+            if env_value:
+                # If explicitly provided in config, config takes precedence
+                if value is not None and str(value).strip():
+                    return str(value).strip() or None
+                return env_value
+
+        # If explicitly provided in config, use it
+        if value is not None:
+            value_str = str(value).strip()
+            return value_str or None
+
+        return None
 
     @field_validator("whisper_model", "language", mode="before")
     @classmethod
@@ -279,9 +438,143 @@ class Config(BaseModel):
             raise ValueError(f"whisper_model must be one of {VALID_WHISPER_MODELS}, got: {value}")
         return value
 
+    @model_validator(mode="before")
+    @classmethod
+    def _preprocess_config_data(cls, data: Any) -> Any:
+        """Preprocess configuration data before validation.
+
+        Handles:
+        - Mapping deprecated field names to new names
+        - Loading configuration from environment variables
+        """
+        if not isinstance(data, dict):
+            return data
+
+        # Map deprecated speaker_detector_type to speaker_detector_provider
+        if "speaker_detector_type" in data and "speaker_detector_provider" not in data:
+            import warnings
+
+            warnings.warn(
+                "speaker_detector_type is deprecated, use speaker_detector_provider instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            data["speaker_detector_provider"] = data["speaker_detector_type"]
+            # Remove deprecated key to avoid Pydantic extra field validation error
+            del data["speaker_detector_type"]
+
+        # Load configuration from environment variables
+        # LOG_LEVEL: Environment variable takes precedence (special case)
+        env_log_level = os.getenv("LOG_LEVEL")
+        if env_log_level:
+            env_value = str(env_log_level).strip().upper()
+            if env_value and env_value in VALID_LOG_LEVELS:
+                data["log_level"] = env_value
+
+        # OUTPUT_DIR: Only set from env if not in config
+        if "output_dir" not in data or data.get("output_dir") is None:
+            env_output_dir = os.getenv("OUTPUT_DIR")
+            if env_output_dir:
+                env_value = str(env_output_dir).strip()
+                if env_value:
+                    data["output_dir"] = env_value
+
+        # LOG_FILE: Only set from env if not in config
+        if "log_file" not in data or data.get("log_file") is None:
+            env_log_file = os.getenv("LOG_FILE")
+            if env_log_file:
+                env_value = str(env_log_file).strip()
+                if env_value:
+                    data["log_file"] = env_value
+
+        # SUMMARY_CACHE_DIR / CACHE_DIR: Only set from env if not in config
+        if "summary_cache_dir" not in data or data.get("summary_cache_dir") is None:
+            env_cache_dir = os.getenv("SUMMARY_CACHE_DIR") or os.getenv("CACHE_DIR")
+            if env_cache_dir:
+                env_value = str(env_cache_dir).strip()
+                if env_value:
+                    data["summary_cache_dir"] = env_value
+
+        # WORKERS: Only set from env if not in config
+        if "workers" not in data or data.get("workers") is None:
+            env_workers = os.getenv("WORKERS")
+            if env_workers:
+                try:
+                    workers_value = int(env_workers)
+                    if workers_value > 0:
+                        data["workers"] = workers_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+        # TRANSCRIPTION_PARALLELISM: Only set from env if not in config
+        if "transcription_parallelism" not in data or data.get("transcription_parallelism") is None:
+            env_parallelism = os.getenv("TRANSCRIPTION_PARALLELISM")
+            if env_parallelism:
+                try:
+                    parallelism_value = int(env_parallelism)
+                    if parallelism_value > 0:
+                        data["transcription_parallelism"] = parallelism_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+        # PROCESSING_PARALLELISM: Only set from env if not in config
+        if "processing_parallelism" not in data or data.get("processing_parallelism") is None:
+            env_parallelism = os.getenv("PROCESSING_PARALLELISM")
+            if env_parallelism:
+                try:
+                    parallelism_value = int(env_parallelism)
+                    if parallelism_value > 0:
+                        data["processing_parallelism"] = parallelism_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+        # SUMMARY_BATCH_SIZE: Only set from env if not in config
+        if "summary_batch_size" not in data or data.get("summary_batch_size") is None:
+            env_batch_size = os.getenv("SUMMARY_BATCH_SIZE")
+            if env_batch_size:
+                try:
+                    batch_size_value = int(env_batch_size)
+                    if batch_size_value > 0:
+                        data["summary_batch_size"] = batch_size_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+        # SUMMARY_CHUNK_PARALLELISM: Only set from env if not in config
+        if "summary_chunk_parallelism" not in data or data.get("summary_chunk_parallelism") is None:
+            env_parallelism = os.getenv("SUMMARY_CHUNK_PARALLELISM")
+            if env_parallelism:
+                try:
+                    parallelism_value = int(env_parallelism)
+                    if parallelism_value > 0:
+                        data["summary_chunk_parallelism"] = parallelism_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+        # TIMEOUT: Only set from env if not in config
+        if "timeout" not in data or data.get("timeout") is None:
+            env_timeout = os.getenv("TIMEOUT")
+            if env_timeout:
+                try:
+                    timeout_value = int(env_timeout)
+                    if timeout_value > 0:
+                        data["timeout"] = timeout_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+        # SUMMARY_DEVICE: Only set from env if not in config
+        if "summary_device" not in data or data.get("summary_device") is None:
+            env_device = os.getenv("SUMMARY_DEVICE")
+            if env_device:
+                env_value = str(env_device).strip().lower()
+                if env_value in ("cpu", "cuda", "mps"):
+                    data["summary_device"] = env_value
+
+        return data
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _normalize_log_level(cls, value: Any) -> str:
+        """Normalize log level value."""
         if value is None:
             return DEFAULT_LOG_LEVEL
         return str(value).strip().upper() or DEFAULT_LOG_LEVEL
@@ -293,6 +586,28 @@ class Config(BaseModel):
         if value not in VALID_LOG_LEVELS:
             raise ValueError(f"log_level must be one of {VALID_LOG_LEVELS}, got: {value}")
         return value
+
+    @field_validator("log_file", mode="before")
+    @classmethod
+    def _load_log_file_from_env(cls, value: Any) -> Optional[str]:
+        """Load log file path from environment variable if not provided."""
+        # Check environment variable first (loaded from .env by dotenv)
+        # This allows env var to be used when value is None (default)
+        env_log_file = os.getenv("LOG_FILE")
+        if env_log_file:
+            env_value = str(env_log_file).strip()
+            if env_value:
+                # If explicitly provided in config, config takes precedence
+                if value is not None and str(value).strip():
+                    return str(value).strip() or None
+                return env_value
+
+        # If explicitly provided in config, use it
+        if value is not None:
+            value_str = str(value).strip()
+            return value_str or None
+
+        return None
 
     @field_validator("run_id", mode="before")
     @classmethod
@@ -480,6 +795,40 @@ class Config(BaseModel):
             raise ValueError("metadata_subdirectory cannot contain control characters")
         return value
 
+    @field_validator("openai_api_key", mode="before")
+    @classmethod
+    def _load_openai_api_key_from_env(cls, value: Any) -> Optional[str]:
+        """Load OpenAI API key from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_key = os.getenv("OPENAI_API_KEY")
+        if env_key:
+            return env_key.strip() or None
+        return None
+
+    @field_validator("speaker_detector_provider", mode="before")
+    @classmethod
+    def _validate_speaker_detector_provider(cls, value: Any) -> Literal["ner", "openai"]:
+        """Validate speaker detector provider type."""
+        if value is None or value == "":
+            return "ner"
+        value_str = str(value).strip().lower()
+        if value_str not in ("ner", "openai"):
+            raise ValueError("speaker_detector_provider must be 'ner' or 'openai'")
+        return value_str  # type: ignore[return-value]
+
+    @field_validator("transcription_provider", mode="before")
+    @classmethod
+    def _validate_transcription_provider(cls, value: Any) -> Literal["whisper", "openai"]:
+        """Validate transcription provider."""
+        if value is None or value == "":
+            return "whisper"
+        value_str = str(value).strip().lower()
+        if value_str not in ("whisper", "openai"):
+            raise ValueError("transcription_provider must be 'whisper' or 'openai'")
+        return value_str  # type: ignore[return-value]
+
     @field_validator("summary_provider", mode="before")
     @classmethod
     def _validate_summary_provider(cls, value: Any) -> Literal["local", "openai", "anthropic"]:
@@ -490,6 +839,40 @@ class Config(BaseModel):
         if value_str not in ("local", "openai", "anthropic"):
             raise ValueError("summary_provider must be 'local', 'openai', or 'anthropic'")
         return value_str  # type: ignore[return-value]
+
+    @field_validator("openai_temperature", mode="before")
+    @classmethod
+    def _validate_openai_temperature(cls, value: Any) -> float:
+        """Validate OpenAI temperature is in valid range (0.0-2.0)."""
+        if value is None or value == "":
+            return 0.3
+        try:
+            temp = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("openai_temperature must be a number") from exc
+        if temp < 0.0 or temp > 2.0:
+            raise ValueError("openai_temperature must be between 0.0 and 2.0")
+        return temp
+
+    @model_validator(mode="after")
+    def _validate_openai_provider_requirements(self) -> "Config":
+        """Validate that OpenAI API key is provided when OpenAI providers are selected."""
+        openai_providers_used = []
+        if self.transcription_provider == "openai":
+            openai_providers_used.append("transcription")
+        if self.speaker_detector_provider == "openai":
+            openai_providers_used.append("speaker_detection")
+        if self.summary_provider == "openai":
+            openai_providers_used.append("summarization")
+
+        if openai_providers_used and not self.openai_api_key:
+            providers_str = ", ".join(openai_providers_used)
+            raise ValueError(
+                f"OpenAI API key required for OpenAI providers: {providers_str}. "
+                "Set OPENAI_API_KEY environment variable or openai_api_key in config."
+            )
+
+        return self
 
     @field_validator("summary_model", mode="before")
     @classmethod
@@ -540,6 +923,34 @@ class Config(BaseModel):
             raise ValueError("summary_device must be 'cuda', 'mps', 'cpu', or 'auto'")
         return value_str
 
+    @field_validator("transcription_parallelism", mode="before")
+    @classmethod
+    def _ensure_transcription_parallelism(cls, value: Any) -> int:
+        """Ensure transcription parallelism is a positive integer."""
+        if value is None or value == "":
+            return 1
+        try:
+            parallelism = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("transcription_parallelism must be an integer") from exc
+        if parallelism < 1:
+            raise ValueError("transcription_parallelism must be at least 1")
+        return parallelism
+
+    @field_validator("processing_parallelism", mode="before")
+    @classmethod
+    def _ensure_processing_parallelism(cls, value: Any) -> int:
+        """Ensure processing parallelism is a positive integer."""
+        if value is None or value == "":
+            return 2
+        try:
+            parallelism = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("processing_parallelism must be an integer") from exc
+        if parallelism < 1:
+            raise ValueError("processing_parallelism must be at least 1")
+        return parallelism
+
     @field_validator("summary_batch_size", mode="before")
     @classmethod
     def _ensure_batch_size(cls, value: Any) -> int:
@@ -553,6 +964,20 @@ class Config(BaseModel):
         if batch_size < 1:
             raise ValueError("summary_batch_size must be at least 1")
         return batch_size
+
+    @field_validator("summary_chunk_parallelism", mode="before")
+    @classmethod
+    def _ensure_chunk_parallelism(cls, value: Any) -> int:
+        """Ensure chunk parallelism is a positive integer."""
+        if value is None or value == "":
+            return 1
+        try:
+            chunk_parallelism = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("summary_chunk_parallelism must be an integer") from exc
+        if chunk_parallelism < 1:
+            raise ValueError("summary_chunk_parallelism must be at least 1")
+        return chunk_parallelism
 
     @field_validator("summary_chunk_size", mode="before")
     @classmethod

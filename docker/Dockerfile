@@ -16,26 +16,34 @@ RUN mkdir -p "${XDG_CACHE_HOME}"
 
 WORKDIR /tmp/build
 
-COPY . .
+# Copy minimal files needed for dependency installation
+COPY pyproject.toml .
+COPY README.md .
+# Copy Python source files and package subdirectories
+# Note: package-dir maps podcast_scraper to root directory, so files go to root
+COPY __init__.py cli.py config.py downloader.py episode_processor.py filesystem.py metadata.py metrics.py preprocessing.py progress.py prompt_store.py rss_parser.py service.py speaker_detection.py summarizer.py whisper_integration.py workflow.py models.py experiment_config.py ./
+COPY speaker_detectors/ ./speaker_detectors/
+COPY summarization/ ./summarization/
+COPY transcription/ ./transcription/
+COPY prompts/ ./prompts/
 
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Install torch CPU-only (much smaller than CUDA version, ~150MB vs 4GB+)
+# Install torch CPU-only first (optimization: smaller than CUDA version, ~150MB vs 4GB+)
+# This will be replaced by the version from pyproject.toml if needed, but CPU version is preferred
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     rm -rf /root/.cache/pip
 
-# Install remaining ML dependencies (without torch, already installed above)
-# hadolint ignore=SC2261
-RUN pip install --no-cache-dir \
-    openai-whisper>=20231117 \
-    spacy>=3.7.0 \
-    transformers>=4.30.0 \
-    sentencepiece>=0.1.99 \
-    accelerate>=0.20.0 \
-    protobuf>=3.20.0 && \
+# Install all dependencies from pyproject.toml (core + ML extras)
+# All versions come from pyproject.toml - no hardcoded versions
+RUN pip install --no-cache-dir .[ml] && \
+    pip uninstall -y podcast-scraper && \
     rm -rf /root/.cache/pip
 
-# Install the podcast_scraper package itself (without reinstalling ML deps)
+# Ensure torch CPU-only version is used (reinstall CPU version to override any CUDA version)
+RUN pip install --no-cache-dir --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu && \
+    rm -rf /root/.cache/pip
+
+# Copy all remaining files and install the podcast_scraper package itself (without reinstalling deps)
+COPY . .
 RUN pip install --no-cache-dir --no-deps .
 
 # hadolint ignore=SC2261

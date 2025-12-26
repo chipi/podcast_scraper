@@ -7,28 +7,52 @@
 ### Virtual Environment
 
 **Quick setup:**
+
 ```bash
 bash scripts/setup_venv.sh
 source .venv/bin/activate
 ```
 
 **Install dependencies:**
+
 ```bash
 make init  # Installs dev + ML dependencies
 ```
 
 ### Environment Variables
 
-**For OpenAI providers** (see PRD-006, RFC-013):
+**Supported environment variables:**
+
+The podcast scraper supports configuration via environment variables for flexible deployment. Many settings can be configured via environment variables or `.env` files.
 
 1. **Copy example `.env` file:**
+
    ```bash
-   cp .env.example .env
+   cp examples/.env.example .env
    ```
 
-2. **Edit `.env` and add your API key:**
+2. **Edit `.env` and add your settings:**
+
    ```bash
+   # OpenAI API key (required for OpenAI providers)
    OPENAI_API_KEY=sk-your-actual-key-here
+
+   # Logging
+   LOG_LEVEL=DEBUG
+
+   # Paths
+   OUTPUT_DIR=/data/transcripts
+   LOG_FILE=/var/log/podcast_scraper.log
+   CACHE_DIR=/cache/models
+
+   # Performance tuning
+   WORKERS=4
+   TRANSCRIPTION_PARALLELISM=3
+   PROCESSING_PARALLELISM=4
+   SUMMARY_BATCH_SIZE=2
+   SUMMARY_CHUNK_PARALLELISM=2
+   TIMEOUT=60
+   SUMMARY_DEVICE=cpu
    ```
 
 3. **The `.env` file is automatically loaded** via `python-dotenv` when `podcast_scraper.config` module is imported.
@@ -36,12 +60,20 @@ make init  # Installs dev + ML dependencies
 **Security notes:**
 
 - ✅ `.env` is in `.gitignore` (never committed)
-- ✅ `.env.example` is safe to commit (template only)
+- ✅ `examples/.env.example` is safe to commit (template only)
 - ✅ API keys are never logged or exposed
 - ✅ Environment variables take precedence over `.env` file
 
+**Priority order:**
+
+- Config file field (highest priority)
+- Environment variable
+- Default value
+- Exception: `LOG_LEVEL` (env var takes precedence)
+
 **See also:**
 
+- `docs/ENVIRONMENT_VARIABLES.md` - Complete environment variable documentation
 - `docs/rfc/RFC-013-openai-provider-implementation.md` - API key management details
 - `docs/prd/PRD-006-openai-provider-integration.md` - OpenAI provider requirements
 
@@ -199,3 +231,85 @@ The GitHub Actions workflow runs `make lint-markdown` which includes:
 - ✅ Checks all markdown files
 - ✅ Fails build on any errors
 - ✅ Ensures consistency across all files
+
+## AI Coding Guidelines
+
+This project includes comprehensive AI coding guidelines to ensure consistent code quality and workflow when using AI assistants.
+
+### Overview
+
+**Primary reference:** `.ai-coding-guidelines.md` - This is the PRIMARY source of truth for all AI actions in this project.
+
+**Purpose:**
+
+- Provides project-specific context and patterns for AI assistants
+- Ensures consistent code quality and workflow
+- Prevents common mistakes (auto-committing, skipping CI, etc.)
+
+### Entry Points by AI Tool
+
+Different AI assistants load guidelines from different locations:
+
+| Tool | Entry Point | Auto-Loaded |
+| ------ | ----------- | ----------- |
+| **Cursor** | `.cursor/rules/ai-guidelines.mdc` | ✅ Yes (modern format) |
+| **Claude Desktop** | `CLAUDE.md` (root directory) | ✅ Yes |
+| **GitHub Copilot** | `.github/copilot-instructions.md` | ✅ Yes |
+
+**All entry points reference `.ai-coding-guidelines.md` as the primary source.**
+
+### Critical Workflow Rules
+
+**NEVER commit without:**
+
+- Showing user what files changed (`git status`)
+- Showing user the actual changes (`git diff`)
+- Getting explicit user approval
+- User deciding commit message
+
+**NEVER push to PR without:**
+
+- Running `make ci` locally first
+- Ensuring `make ci` passes completely
+- Fixing all failures before pushing
+
+### What's in `.ai-coding-guidelines.md`
+
+**Sections include:**
+
+- **Git Workflow** - Commit approval, PR workflow, branch naming
+- **Code Organization** - Module boundaries, when to create new files
+- **Testing Requirements** - Mocking patterns, test structure
+- **Documentation Standards** - PRDs, RFCs, docstrings
+- **Common Patterns** - Configuration, error handling, logging
+- **Decision Trees** - When to create modules, PRDs, RFCs
+- **When to Ask** - When AI should ask vs. act autonomously
+
+### For Developers
+
+**If you're using an AI assistant:**
+
+- The guidelines are automatically loaded (no setup needed)
+- AI assistants will follow project patterns and workflows
+- Guidelines ensure consistent code quality
+
+**If you're not using an AI assistant:**
+
+- You don't need to read these files
+- They're for AI tools, not human developers
+- Human contributors should follow [CONTRIBUTING.md](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)
+
+### Maintenance
+
+**When to update `.ai-coding-guidelines.md`:**
+
+- New patterns or conventions are established
+- Workflow changes (e.g., new CI checks)
+- Architecture decisions that affect code organization
+- New tools or processes are added
+
+**Keep entry points in sync:**
+
+- When updating `.ai-coding-guidelines.md`, ensure entry points (`CLAUDE.md`, `.github/copilot-instructions.md`, `.cursor/rules/ai-guidelines.mdc`) still reference it correctly
+
+**See:** `.ai-coding-guidelines.md` for complete guidelines.

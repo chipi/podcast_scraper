@@ -71,8 +71,9 @@ if [ -n "$STAGED_PYTHON" ]; then
     run_check "isort import sorting" "isort --check-only $PYTHON_FILES"
     
     # Check linting on staged Python files
-    # E9: runtime errors, F63: print statements, F7: syntax errors, F82: undefined names, E501: line too long
-    run_check "flake8 linting" "flake8 --config .flake8 $PYTHON_FILES --count --select=E9,F63,F7,F82,E501 --show-source --statistics"
+    # Run flake8 with full config (checks all errors, respects .flake8 config)
+    # This matches CI behavior: CI runs flake8 twice (critical + all), but pre-commit checks all at once
+    run_check "flake8 linting" "flake8 --config .flake8 $PYTHON_FILES --count --show-source --statistics"
     
     # Check types on staged Python files
     # Note: mypy works better when checking the whole project, but we can check specific files
@@ -106,7 +107,7 @@ if [ -n "$STAGED_MARKDOWN" ]; then
         # Check if auto-fix is requested via environment variable
         if [ "$MARKDOWNLINT_FIX" = "1" ]; then
             echo "→ Auto-fixing markdown linting issues..."
-            if markdownlint --fix $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site > /tmp/precommit_md_$$.log 2>&1; then
+            if markdownlint --fix $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json > /tmp/precommit_md_$$.log 2>&1; then
                 echo -e "${GREEN}✓${NC} Markdown auto-fix completed"
                 # Re-stage fixed files
                 echo "$MARKDOWN_FILES" | xargs git add 2>/dev/null || true
@@ -118,7 +119,8 @@ if [ -n "$STAGED_MARKDOWN" ]; then
             echo ""
         fi
         # Run linting check (after auto-fix if enabled)
-        run_check "Markdown linting" "markdownlint $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site"
+        # Use same config as CI (make lint-markdown) to ensure consistency
+        run_check "Markdown linting" "markdownlint $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json"
     else
         echo -e "${RED}✗${NC} markdownlint not found but markdown files are staged"
         echo ""

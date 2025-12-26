@@ -125,6 +125,7 @@ v2.3.2 is a **patch release** focused on **comprehensive security test coverage*
 ### Thread-Safety Implementation
 
 **Before (Thread-Unsafe)**:
+
 ```python
 # Single REDUCE model shared across all workers
 reduce_model = summarizer.SummaryModel(...)
@@ -133,6 +134,7 @@ for episode in episodes:
 ```
 
 **After (Thread-Safe)**:
+
 ```python
 # Preload per-worker REDUCE models
 worker_reduce_models = []
@@ -176,6 +178,7 @@ def _get_worker_models():
 ### REDUCE Model Reuse
 
 **Before**:
+
 ```python
 # REDUCE model created per episode
 def _generate_episode_summary(...):
@@ -185,6 +188,7 @@ def _generate_episode_summary(...):
 ```
 
 **After**:
+
 ```python
 # REDUCE model loaded once, reused across episodes
 reduce_model = None

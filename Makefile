@@ -41,7 +41,7 @@ lint:
 
 lint-markdown:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
-	markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site
+	markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json
 
 type:
 	mypy --config-file pyproject.toml .
@@ -53,6 +53,10 @@ security-bandit:
 
 security-audit:
 	$(PYTHON) -m pip install --upgrade setuptools
+	# Install ML dependencies to ensure they are audited
+	# This ensures production dependencies like torch, transformers, spacy, openai-whisper are audited
+	$(PYTHON) -m pip install --quiet -e .[ml] || $(PYTHON) -m pip install --quiet .[ml]
+	# Audit all installed packages (including ML dependencies from pyproject.toml)
 	pip-audit --skip-editable
 
 docs:

@@ -36,6 +36,32 @@ cfg = Config(
       show_root_heading: true
       heading_level: 3
 
+## Environment Variables
+
+Many configuration options can be set via environment variables for flexible deployment:
+
+```bash
+# Set environment variables
+export OUTPUT_DIR=/data/transcripts
+export LOG_LEVEL=DEBUG
+export WORKERS=4
+export TIMEOUT=60
+
+# Or use .env file
+cp examples/.env.example .env
+# Edit .env with your settings
+```
+
+**Priority order**:
+
+1. Config file field (highest priority)
+2. Environment variable
+3. Default value
+
+**Exception**: `LOG_LEVEL` environment variable takes precedence over config file.
+
+See `docs/ENVIRONMENT_VARIABLES.md` for complete documentation of all supported environment variables.
+
 ## Configuration Files
 
 ### JSON Example
@@ -48,8 +74,12 @@ cfg = Config(
   "transcribe_missing": true,
   "whisper_model": "base",
   "workers": 8,
+  "transcription_parallelism": 1,
+  "processing_parallelism": 2,
   "generate_metadata": true,
-  "generate_summaries": true
+  "generate_summaries": true,
+  "summary_batch_size": 1,
+  "summary_chunk_parallelism": 1
 }
 ```
 
@@ -62,8 +92,12 @@ max_episodes: 50
 transcribe_missing: true
 whisper_model: base
 workers: 8
+transcription_parallelism: 1  # Number of episodes to transcribe in parallel (Whisper ignores >1, OpenAI uses for parallel API calls)
+processing_parallelism: 2  # Number of episodes to process (metadata/summarization) in parallel
 generate_metadata: true
 generate_summaries: true
+summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summarize in parallel
+summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode
 ```
 
 ## Field Aliases

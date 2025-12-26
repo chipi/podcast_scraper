@@ -1,0 +1,69 @@
+# AI Coding Guidelines - Primary Reference
+
+## ⚠️ MANDATORY: Read .ai-coding-guidelines.md First
+
+**Before taking ANY action, you MUST:**
+1. Read `.ai-coding-guidelines.md` - This is the PRIMARY source of truth
+2. Follow ALL CRITICAL rules marked in that file
+3. Reference it for all decisions about code, workflow, and patterns
+
+## 🚨 CRITICAL: Git Commit Workflow - MANDATORY CHECKLIST
+
+**YOU MUST FOLLOW THIS EXACT SEQUENCE BEFORE EVERY COMMIT:**
+
+### Step-by-Step Commit Process (MANDATORY):
+
+1. **Make code changes** ✅
+2. **MANDATORY: Run `git status`** - Show user what files changed
+3. **MANDATORY: Run `git diff`** - Show user the actual changes  
+4. **MANDATORY: Wait for explicit approval** - User must say "commit", "yes", "go ahead", etc.
+5. **MANDATORY: Get commit message** - User provides message OR you ask for one
+6. **THEN commit** - Only after steps 2-5 are complete
+
+### ❌ NEVER commit when:
+- You haven't shown `git status` first
+- You haven't shown `git diff` first  
+- User hasn't explicitly approved
+- User said "don't commit" or "wait"
+- You're assuming approval from context
+
+### ✅ Example CORRECT workflow:
+```
+AI: I've fixed the issue. Let me show you what changed:
+
+[Runs: git status]
+[Shows: Modified: config.py]
+
+[Runs: git diff config.py]
+[Shows: actual diff]
+
+Should I commit these changes?
+
+User: Yes, commit with message "fix: ..."
+
+AI: [Commits with user's message]
+```
+
+### ❌ Example INCORRECT workflow (DO NOT DO THIS):
+```
+AI: I've fixed the issue. [Commits immediately]
+```
+
+## 🚨 CRITICAL: PR Push Workflow - MANDATORY CHECKLIST
+
+**YOU MUST FOLLOW THIS BEFORE EVERY PUSH TO PR:**
+
+1. **MANDATORY: Run `make ci`** - Full CI suite locally
+2. **MANDATORY: Verify all checks pass** - No failures allowed
+3. **MANDATORY: Fix any failures** - Before pushing
+4. **THEN push** - Only after `make ci` passes completely
+
+### ❌ NEVER push to PR when:
+- `make ci` hasn't been run
+- `make ci` has failures
+- You're skipping CI checks
+
+## Primary Reference
+
+**All guidelines, patterns, and rules are in `.ai-coding-guidelines.md`**
+**Read it at the start of every session and reference it constantly.**

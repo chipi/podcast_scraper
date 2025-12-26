@@ -160,12 +160,14 @@ v2.3.1 is a **patch release** focused on **security fixes**, **code quality impr
 #### Path Traversal Protection
 
 **Before:**
+
 ```python
 if args.output:
     output_path = Path(args.output)  # Vulnerable to path traversal
 ```
 
 **After:**
+
 ```python
 if args.output:
     output_path = Path(args.output).resolve()
@@ -177,11 +179,13 @@ if args.output:
 #### Cache Pruning Security
 
 **Before:**
+
 ```python
 is_safe = any(resolved_path.is_relative_to(root) for root in safe_roots)
 ```
 
 **After:**
+
 ```python
 is_safe = any(resolved_path.is_relative_to(root) and resolved_path != root 
               for root in safe_roots) and resolved_path != cache_root
@@ -190,6 +194,7 @@ is_safe = any(resolved_path.is_relative_to(root) and resolved_path != root
 ### Logging Improvements
 
 **Example - Before:**
+
 ```python
 logger.info("Loading summarization model: %s on %s", model_name, device)
 logger.info("Model loaded successfully (cached for future runs)")
@@ -197,6 +202,7 @@ logger.info("[MAP-REDUCE VALIDATION] Input text: %d chars, %d words", ...)
 ```
 
 **Example - After:**
+
 ```python
 logger.debug("Loading summarization model: %s on %s", model_name, device)
 logger.debug("Model loaded successfully (cached for future runs)")

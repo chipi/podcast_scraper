@@ -386,8 +386,9 @@ def _generate_episode_summary(
     output_dir: str,
     cfg: config.Config,
     episode_idx: int,
-    summary_model=None,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance
+    summary_model=None,  # Backward compatibility - deprecated
+    reduce_model=None,  # Backward compatibility - deprecated
 ) -> Optional[SummaryMetadata]:
     """Generate summary for an episode transcript.
 
@@ -396,7 +397,9 @@ def _generate_episode_summary(
         output_dir: Output directory path
         cfg: Configuration object
         episode_idx: Episode index for logging
-        summary_model: Pre-loaded summary model (optional, will load if None)
+        summary_provider: SummarizationProvider instance (preferred)
+        summary_model: Pre-loaded summary model (deprecated, for backward compatibility)
+        reduce_model: Pre-loaded reduce model (deprecated, for backward compatibility)
 
     Returns:
         SummaryMetadata object or None if generation failed/skipped
@@ -413,31 +416,6 @@ def _generate_episode_summary(
             transcript_file_path,
         )
         return None
-
-    if cfg.summary_provider != "local":
-        # API-based providers (OpenAI, Anthropic) not implemented yet
-        logger.info(
-            "[%s] Summary provider '%s' not yet implemented, skipping summary generation",
-            episode_idx,
-            cfg.summary_provider,
-        )
-        return None
-
-    # Lazy import check - only import summarizer module if not already imported
-    # This prevents PyTorch initialization in dry-run mode
-    # Import happens AFTER dry-run check to avoid loading torch/transformers unnecessarily
-    global summarizer
-    if summarizer is None:
-        try:
-            from . import summarizer as _summarizer  # noqa: PLC0415
-
-            summarizer = _summarizer
-        except ImportError:
-            logger.info(
-                "[%s] Summarization dependencies not available, skipping summary generation",
-                episode_idx,
-            )
-            return None
 
     # Read transcript file
     full_transcript_path = os.path.join(output_dir, transcript_file_path)
@@ -456,235 +434,211 @@ def _generate_episode_summary(
         logger.debug("[%s] Transcript too short for summarization, skipping", episode_idx)
         return None
 
-    # Load model if not provided
-    if summary_model is None:
+    # Use provider if available (preferred path)
+    if summary_provider is not None:
         try:
-            # MAP model (chunk summaries)
-            model_name = summarizer.select_summary_model(cfg)
+            import time
+
+            summary_start = time.time()
+            transcript_length = len(transcript_text)
+            word_count_approx = len(transcript_text.split())
             logger.debug(
-                "[%s] Selected MAP model: %s (from config: %s)",
+                "[%s] Generating summary using provider (transcript: ~%d words, %d chars)...",
                 episode_idx,
-                model_name,
-                cfg.summary_model or "default (bart-large)",
+                word_count_approx,
+                transcript_length,
+            )
+
+            # Clean transcript before summarization
+            logger.debug("[%s] Cleaning transcript before summarization...", episode_idx)
+            from . import preprocessing
+
+            cleaned_text = preprocessing.clean_transcript(
+                transcript_text,
+                remove_timestamps=True,
+                normalize_speakers=True,
+                collapse_blank_lines=True,
+                remove_fillers=False,
             )
             logger.debug(
-                "[%s] Loading MAP model for chunk summarization: %s",
+                "[%s] Transcript cleaned: %d -> %d chars",
                 episode_idx,
-                model_name,
+                len(transcript_text),
+                len(cleaned_text),
             )
-            summary_model = summarizer.SummaryModel(
-                model_name=model_name,
-                device=cfg.summary_device,
-                cache_dir=cfg.summary_cache_dir,
+
+            # Save cleaned transcript to separate file if configured
+            if cfg.save_cleaned_transcript:
+                try:
+                    transcript_path_obj = Path(full_transcript_path)
+                    cleaned_path = transcript_path_obj.parent / (
+                        transcript_path_obj.stem + ".cleaned" + transcript_path_obj.suffix
+                    )
+                    with open(cleaned_path, "w", encoding="utf-8") as f:
+                        f.write(cleaned_text)
+                    logger.debug(
+                        "[%s] Saved cleaned transcript to: %s",
+                        episode_idx,
+                        cleaned_path.name,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "[%s] Failed to save cleaned transcript: %s",
+                        episode_idx,
+                        e,
+                    )
+
+            # Use provider's summarize method
+            params: Dict[str, Any] = {
+                "max_length": cfg.summary_max_length,
+                "min_length": cfg.summary_min_length,
+            }
+            if cfg.summary_chunk_size:
+                params["chunk_size"] = cfg.summary_chunk_size
+            if cfg.summary_word_chunk_size:
+                params["word_chunk_size"] = cfg.summary_word_chunk_size
+            if cfg.summary_word_overlap:
+                params["word_overlap"] = cfg.summary_word_overlap
+            if cfg.summary_chunk_parallelism:
+                params["batch_size"] = cfg.summary_chunk_parallelism
+            if cfg.summary_prompt:
+                params["prompt"] = str(cfg.summary_prompt)
+
+            result = summary_provider.summarize(
+                text=cleaned_text,
+                episode_title=None,  # Not available in this context
+                episode_description=None,  # Not available in this context
+                params=params,
             )
-            logger.debug(
-                "[%s] MAP model loaded successfully: %s",
+
+            summary_elapsed = time.time() - summary_start
+            short_summary = result.get("summary")
+            metadata_dict = result.get("metadata", {})
+            model_used = metadata_dict.get("model_used", cfg.summary_provider)
+
+            logger.info(
+                "[%s] Summary generated in %.1fs (length: %d chars)",
                 episode_idx,
-                summary_model.model_name,
+                summary_elapsed,
+                len(short_summary) if short_summary else 0,
+            )
+
+            if not short_summary:
+                logger.warning("[%s] Summary generation returned empty result", episode_idx)
+                return None
+
+            word_count = len(transcript_text.split())
+
+            return SummaryMetadata(
+                short_summary=short_summary,
+                generated_at=datetime.now(),
+                model_used=model_used,
+                provider=cfg.summary_provider,
+                word_count=word_count,
             )
         except Exception as e:
             logger.error(
-                "[%s] Failed to load summary model: %s",
+                "[%s] Failed to generate summary using provider: %s",
                 episode_idx,
                 e,
+                exc_info=True,
             )
             return None
 
-    # Optional REDUCE model (final combine, can be different from MAP model)
-    # Use provided reduce_model if available (reused across episodes), otherwise create one
-    if reduce_model is None:
-        reduce_model = summary_model
-        try:
-            reduce_model_name = summarizer.select_reduce_model(cfg, summary_model.model_name)
+    # Require summary_provider - no fallback to direct model loading
+    # This ensures consistent provider pattern usage
+    # Note: summary_model/reduce_model parameters are kept for backward compatibility
+    # with parallel processing, but should not be used for new code
+    if summary_provider is None:
+        if summary_model is not None:
+            # Backward compatibility: Use models directly for parallel processing
+            # This path is only used when parallel processing passes models directly
             logger.debug(
-                "[%s] Selected REDUCE model: %s (from config: %s)",
+                "[%s] Using models directly for parallel processing (backward compatibility)",
                 episode_idx,
-                reduce_model_name,
-                getattr(cfg, "summary_reduce_model", None) or "default (long-fast/LED)",
             )
-            if reduce_model_name != summary_model.model_name:
-                logger.debug(
-                    "[%s] Loading separate REDUCE model for final combine: %s",
-                    episode_idx,
-                    reduce_model_name,
-                )
-                reduce_model = summarizer.SummaryModel(
-                    model_name=reduce_model_name,
-                    device=cfg.summary_device,
-                    cache_dir=cfg.summary_cache_dir,
-                )
-                logger.debug(
-                    "[%s] REDUCE model loaded successfully: %s",
-                    episode_idx,
-                    reduce_model.model_name,
-                )
-            else:
-                logger.debug(
-                    "[%s] Using MAP model for REDUCE phase: %s",
-                    episode_idx,
-                    summary_model.model_name,
-                )
-        except Exception as e:
-            logger.warning(
-                "[%s] Failed to load separate reduce model (%s), falling back to map model: %s",
-                episode_idx,
-                e,
-                summary_model.model_name,
-            )
-            reduce_model = summary_model
-    else:
-        logger.debug(
-            "[%s] Using provided REDUCE model (reused from pipeline): %s",
-            episode_idx,
-            reduce_model.model_name,
-        )
-
-    # Generate summary
-    try:
-        import time
-
-        summary_start = time.time()
-        transcript_length = len(transcript_text)
-        word_count_approx = len(transcript_text.split())
-        logger.debug(
-            "[%s] Generating summary (transcript: ~%d words, %d chars)...",
-            episode_idx,
-            word_count_approx,
-            transcript_length,
-        )
-
-        # Always use chunking for long transcripts to avoid buffer size errors
-        # Clean transcript before summarization (Option B architecture)
-        # This improves summarization quality by removing noise
-        # Conservative cleaning: preserves speaker names (detected via NER)
-        # and works with any language
-        logger.debug("[%s] Cleaning transcript before summarization...", episode_idx)
-        cleaned_text = summarizer.clean_transcript(
-            transcript_text,
-            remove_timestamps=True,  # Language-agnostic (numbers work for all languages)
-            normalize_speakers=True,  # Only removes generic patterns, preserves actual names
-            collapse_blank_lines=True,  # Language-agnostic
-            # Disabled: English-only, won't work for multi-language transcripts
-            remove_fillers=False,
-        )
-        logger.debug(
-            "[%s] Transcript cleaned: %d -> %d chars",
-            episode_idx,
-            len(transcript_text),
-            len(cleaned_text),
-        )
-
-        # Save cleaned transcript to separate file if configured
-        if cfg.save_cleaned_transcript:
             try:
-                # Create cleaned transcript filename by inserting .cleaned before extension
-                transcript_path_obj = Path(full_transcript_path)
-                cleaned_path = transcript_path_obj.parent / (
-                    transcript_path_obj.stem + ".cleaned" + transcript_path_obj.suffix
+                import time
+
+                summary_start = time.time()
+                from . import preprocessing, summarizer as summarizer_module
+
+                cleaned_text = preprocessing.clean_transcript(
+                    transcript_text,
+                    remove_timestamps=True,
+                    normalize_speakers=True,
+                    collapse_blank_lines=True,
+                    remove_fillers=False,
                 )
-                with open(cleaned_path, "w", encoding="utf-8") as f:
-                    f.write(cleaned_text)
-                logger.debug(
-                    "[%s] Saved cleaned transcript to: %s",
+
+                chunk_size = cfg.summary_chunk_size or config.DEFAULT_SUMMARY_CHUNK_SIZE
+                word_chunk_size = (
+                    cfg.summary_word_chunk_size
+                    if cfg.summary_word_chunk_size is not None
+                    else summarizer_module.DEFAULT_WORD_CHUNK_SIZE
+                )
+                word_overlap = (
+                    cfg.summary_word_overlap
+                    if cfg.summary_word_overlap is not None
+                    else summarizer_module.DEFAULT_WORD_OVERLAP
+                )
+                chunk_parallelism = (
+                    cfg.summary_chunk_parallelism if summary_model.device == "cpu" else None
+                )
+
+                short_summary = summarizer_module.summarize_long_text(
+                    model=summary_model,
+                    text=cleaned_text,
+                    chunk_size=chunk_size,
+                    max_length=cfg.summary_max_length,
+                    min_length=cfg.summary_min_length,
+                    batch_size=chunk_parallelism,
+                    prompt=cfg.summary_prompt,
+                    use_word_chunking=any(
+                        model_keyword in summary_model.model_name.lower()
+                        for model_keyword in ["bart", "pegasus", "distilbart"]
+                    ),
+                    word_chunk_size=word_chunk_size,
+                    word_overlap=word_overlap,
+                    reduce_model=reduce_model or summary_model,
+                )
+
+                summary_elapsed = time.time() - summary_start
+                logger.info(
+                    "[%s] Summary generated in %.1fs (length: %d chars)",
                     episode_idx,
-                    cleaned_path.name,
+                    summary_elapsed,
+                    len(short_summary) if short_summary else 0,
                 )
+
+                if not short_summary:
+                    logger.warning("[%s] Summary generation returned empty result", episode_idx)
+                    return None
+
+                word_count = len(transcript_text.split())
+
+                return SummaryMetadata(
+                    short_summary=short_summary,
+                    generated_at=datetime.now(),
+                    model_used=summary_model.model_name,
+                    provider=cfg.summary_provider,
+                    word_count=word_count,
+                )
+
             except Exception as e:
                 logger.error(
-                    "[%s] Failed to save cleaned transcript: %s",
+                    "[%s] Failed to generate summary: %s",
                     episode_idx,
                     e,
+                    exc_info=True,
                 )
-
-        # Determine if we should use word-based chunking for encoder-decoder models
-        # Word-based chunking is recommended for BART/PEGASUS models (Option B)
-        model_name = summary_model.model_name if hasattr(summary_model, "model_name") else ""
-        use_word_chunking = any(
-            model_keyword in model_name.lower()
-            for model_keyword in ["bart", "pegasus", "distilbart"]
-        )
-        if use_word_chunking:
-            logger.debug(
-                "[%s] Using word-based chunking for encoder-decoder model: %s",
+                return None
+        else:
+            logger.info(
+                "[%s] Summary provider not available, skipping summary generation",
                 episode_idx,
-                model_name,
             )
-
-        # Use configured chunk_size or default to larger value for efficiency
-        # Larger chunks = fewer chunks = faster processing
-        # Default to DEFAULT_SUMMARY_CHUNK_SIZE tokens (BART models support up to
-        # 1024, but we can use larger chunks safely by letting the model handle
-        # truncation internally)
-        chunk_size = cfg.summary_chunk_size or config.DEFAULT_SUMMARY_CHUNK_SIZE
-        word_chunk_size = (
-            cfg.summary_word_chunk_size
-            if cfg.summary_word_chunk_size is not None
-            else summarizer.DEFAULT_WORD_CHUNK_SIZE
-        )
-        word_overlap = (
-            cfg.summary_word_overlap
-            if cfg.summary_word_overlap is not None
-            else summarizer.DEFAULT_WORD_OVERLAP
-        )
-        logger.debug(
-            "[%s] Summarization config: "
-            f"max_length={cfg.summary_max_length}, min_length={cfg.summary_min_length}, "
-            f"word_chunk_size={word_chunk_size if use_word_chunking else 'N/A'}, "
-            f"word_overlap={word_overlap if use_word_chunking else 'N/A'}, "
-            f"token_chunk_size={chunk_size if not use_word_chunking else 'N/A'}, "
-            f"batch_size={cfg.summary_batch_size if summary_model.device == 'cpu' else 'N/A'}, "
-            f"map_model={summary_model.model_name}, reduce_model={reduce_model.model_name}, "
-            f"device={summary_model.device}",
-            episode_idx,
-        )
-        short_summary = summarizer.summarize_long_text(
-            model=summary_model,
-            text=cleaned_text,  # Use cleaned text
-            chunk_size=chunk_size,
-            max_length=cfg.summary_max_length,
-            min_length=cfg.summary_min_length,
-            batch_size=cfg.summary_batch_size if summary_model.device == "cpu" else None,
-            prompt=cfg.summary_prompt,
-            use_word_chunking=use_word_chunking,
-            word_chunk_size=word_chunk_size,
-            word_overlap=word_overlap,
-            reduce_model=reduce_model,
-        )
-
-        summary_elapsed = time.time() - summary_start
-        logger.info(
-            "[%s] Summary generated in %.1fs (length: %d chars)",
-            episode_idx,
-            summary_elapsed,
-            len(short_summary) if short_summary else 0,
-        )
-
-        # Record summary generation time if metrics available
-        # Note: pipeline_metrics is passed through generate_episode_metadata
-        # We'll record it there after checking if summary was generated
-
-        if not short_summary:
-            logger.warning("[%s] Summary generation returned empty result", episode_idx)
             return None
-
-        word_count = len(transcript_text.split())
-
-        return SummaryMetadata(
-            short_summary=short_summary,
-            generated_at=datetime.now(),
-            model_used=summary_model.model_name,
-            provider=cfg.summary_provider,
-            word_count=word_count,
-        )
-
-    except Exception as e:
-        logger.error(
-            "[%s] Failed to generate summary: %s",
-            episode_idx,
-            e,
-            exc_info=True,
-        )
-        return None
 
 
 def _determine_metadata_path(
@@ -765,8 +719,9 @@ def generate_episode_metadata(
     episode_duration_seconds: Optional[int] = None,
     episode_number: Optional[int] = None,
     episode_image_url: Optional[str] = None,
-    summary_model=None,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (required)
+    summary_model=None,  # Backward compatibility for parallel processing only
+    reduce_model=None,  # Backward compatibility for parallel processing only
     pipeline_metrics=None,
 ) -> Optional[str]:
     """Generate metadata document for an episode.
@@ -865,8 +820,9 @@ def generate_episode_metadata(
             output_dir=output_dir,
             cfg=cfg,
             episode_idx=episode.idx,
-            summary_model=summary_model,
-            reduce_model=reduce_model,
+            summary_provider=summary_provider,
+            summary_model=summary_model,  # Backward compatibility for parallel processing
+            reduce_model=reduce_model,  # Backward compatibility for parallel processing
         )
         summary_elapsed = time.time() - summary_start
         # Record summary generation time if metrics available

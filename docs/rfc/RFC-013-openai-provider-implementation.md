@@ -180,7 +180,7 @@ def validate_openai_config(self) -> 'Config':
     """Validate OpenAI provider configuration."""
     # Check if OpenAI provider is selected but API key is missing
     needs_key = (
-        self.speaker_detector_type == "openai" or
+        self.speaker_detector_provider == "openai" or
         self.transcription_provider == "openai" or
         self.summary_provider == "openai"
     )
@@ -213,10 +213,10 @@ OPENAI_ORGANIZATION=org-your-org-id
 LOG_LEVEL=INFO
 ```
 
-2. **Create `.env.example`** template (commit this to git):
+2. **Create `examples/.env.example`** template (commit this to git):
 
 ```bash
-# .env.example
+# examples/.env.example
 # Copy this file to .env and fill in your actual values
 # DO NOT commit .env to git!
 
@@ -276,7 +276,7 @@ load_dotenv(env_file, override=False)
 **Security Best Practices:**
 
 - ✅ **Never commit `.env` to git** - Add to `.gitignore`
-- ✅ **Use `.env.example`** - Template file with placeholder values (safe to commit)
+- ✅ **Use `examples/.env.example`** - Template file with placeholder values (safe to commit)
 - ✅ **Load at startup** - `.env` loaded automatically when config module imports
 - ✅ **Don't override existing vars** - `override=False` respects system environment variables
 - ✅ **Never log API keys** - Sanitize logs, never print full keys
@@ -298,10 +298,10 @@ Update `docs/DEVELOPMENT_NOTES.md` or create `docs/SETUP.md` with the following 
 
 **Environment Setup:**
 
-1. Copy `.env.example` to `.env`:
+1. Copy `examples/.env.example` to `.env`:
 
    ```bash
-   cp .env.example .env
+   cp examples/.env.example .env
    ```
 
 2. Edit `.env` and add your OpenAI API key:
@@ -1114,7 +1114,7 @@ class Config(BaseModel):
     """Configuration model - public API for provider selection."""
     
     # Public fields for provider selection
-    speaker_detector_type: Literal["ner", "openai", "custom"] = Field(default="ner")
+    speaker_detector_provider: Literal["ner", "openai", "custom"] = Field(default="ner")
     transcription_provider: Literal["whisper", "openai", "custom"] = Field(default="whisper")
     summary_provider: Literal["transformers", "openai", "custom"] = Field(default="transformers")
     
@@ -1241,11 +1241,11 @@ def test_speaker_detector_protocol():
 # tests/test_factories.py
 def test_factory_provider_selection():
     """Test factory correctly selects providers."""
-    cfg = Config(speaker_detector_type="ner")
+    cfg = Config(speaker_detector_provider="ner")
     detector = SpeakerDetectorFactory.create(cfg)
     assert isinstance(detector, NERSpeakerDetector)
     
-    cfg = Config(speaker_detector_type="openai", openai_api_key="test")
+    cfg = Config(speaker_detector_provider="openai", openai_api_key="test")
     detector = SpeakerDetectorFactory.create(cfg)
     assert isinstance(detector, OpenAISpeakerDetector)
 ```
@@ -1517,6 +1517,7 @@ The following documentation should be created during Stages 1-5 to support Stage
 - Example test cases for each provider type
 
 **Example:**
+
 ```python
 def test_summarization_provider_protocol_compliance():
     """Verify provider implements SummarizationProvider protocol."""
@@ -1561,6 +1562,7 @@ def test_summarization_provider_protocol_compliance():
   3. **Custom Config Example** (provider with custom configuration)
 
 **Example Structure:**
+
 ```markdown
 # Custom Provider Guide
 
@@ -1624,6 +1626,7 @@ def create(cfg: config.Config):
 - Docker/container environment setup
 
 **Example Structure:**
+
 ```markdown
 # Environment Variables
 
@@ -1740,6 +1743,7 @@ summary_provider: Literal["local", "openai"]             # ❌ Location-based (a
 **Principle:** Name providers by the **core technology** they use, not by location or company.
 
 **Standardized Naming:**
+
 ```python
 speaker_detector_type: Literal["ner", "openai"] = "ner"
 transcription_provider: Literal["whisper", "openai"] = "whisper"  
@@ -1754,6 +1758,7 @@ summary_provider: Literal["transformers", "openai"] = "transformers"  # CHANGED
 4. **User Understanding:** Users immediately know what technology they're selecting
 
 **Future Extensibility:**
+
 ```python
 # Examples of future additions:
 speaker_detector_type: Literal["ner", "openai", "aws-comprehend", "google-nlp"]
@@ -1860,27 +1865,33 @@ openai_timeout: int = Field(
 ### Recommended Defaults by Tier
 
 **Conservative (Tier 1 - Default):**
+
 ```python
 openai_max_concurrent_requests: 5
 openai_requests_per_minute: 50
 openai_tokens_per_minute: 100000
 ```
+
 **Use Case:** Development, testing, small batches
 
 **Balanced (Tier 2+):**
+
 ```python
 openai_max_concurrent_requests: 10
 openai_requests_per_minute: 500
 openai_tokens_per_minute: 500000
 ```
+
 **Use Case:** Production, moderate volume
 
 **Aggressive (Tier 4+):**
+
 ```python
 openai_max_concurrent_requests: 20
 openai_requests_per_minute: 1000
 openai_tokens_per_minute: 1000000
 ```
+
 **Use Case:** High-volume production, large batches
 
 ### Implementation Strategy

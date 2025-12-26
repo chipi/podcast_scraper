@@ -22,8 +22,6 @@ from . import (
     metrics,
     models,
     progress,
-    speaker_detection,
-    whisper_integration as whisper,
 )
 from .episode_processor import (
     process_episode_download,
@@ -36,6 +34,9 @@ from .rss_parser import (
     extract_episode_published_date,
     extract_feed_metadata,
 )
+from .speaker_detectors.factory import create_speaker_detector
+from .summarization.factory import create_summarization_provider
+from .transcription.factory import create_transcription_provider
 
 logger = logging.getLogger(__name__)
 
@@ -53,16 +54,35 @@ class _HostDetectionResult(NamedTuple):
 
     cached_hosts: Set[str]
     heuristics: Optional[Dict[str, Any]]
+    speaker_detector: Any = None  # Stage 3: Optional SpeakerDetector instance
 
 
 class _TranscriptionResources(NamedTuple):
     """Resources needed for transcription."""
 
-    whisper_model: Any
+    transcription_provider: Any  # Stage 2: TranscriptionProvider instance
     temp_dir: Optional[str]
     transcription_jobs: List[models.TranscriptionJob]
     transcription_jobs_lock: Optional[threading.Lock]
     saved_counter_lock: Optional[threading.Lock]
+
+
+class _ProcessingJob(NamedTuple):
+    """Job for processing (metadata/summarization) stage."""
+
+    episode: models.Episode
+    transcript_path: str
+    transcript_source: Literal["direct_download", "whisper_transcription"]
+    detected_names: Optional[List[str]]
+    whisper_model: Optional[str]
+
+
+class _ProcessingResources(NamedTuple):
+    """Resources needed for processing stage."""
+
+    processing_jobs: List[_ProcessingJob]
+    processing_jobs_lock: Optional[threading.Lock]
+    processing_complete_event: Optional[threading.Event]
 
 
 def _update_metric_safely(
@@ -98,8 +118,7 @@ def _call_generate_metadata(
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
     detected_names: Optional[List[str]],
-    summary_model,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (required)
     pipeline_metrics: Optional[metrics.Metrics] = None,
 ) -> None:
     """Call _generate_episode_metadata with common parameters.
@@ -114,12 +133,11 @@ def _call_generate_metadata(
         run_suffix: Optional run suffix
         transcript_path: Path to transcript file
         transcript_source: Source of transcript (direct_download or whisper_transcription)
-        whisper_model: Whisper model name if used
+        whisper_model: Whisper model name if used (for metadata, not for transcription)
         feed_metadata: Feed metadata tuple
         host_detection_result: Host detection result
         detected_names: Detected guest names
-        summary_model: Summary model instance (MAP model)
-        reduce_model: Optional REDUCE model instance (reused across episodes)
+        summary_provider: SummarizationProvider instance (required)
         pipeline_metrics: Metrics object
     """
     _generate_episode_metadata(
@@ -139,8 +157,7 @@ def _call_generate_metadata(
         feed_description=feed_metadata.description,
         feed_image_url=feed_metadata.image_url,
         feed_last_updated=feed_metadata.last_updated,
-        summary_model=summary_model,
-        reduce_model=reduce_model,
+        summary_provider=summary_provider,
         pipeline_metrics=pipeline_metrics,
     )
 
@@ -304,44 +321,29 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     # Step 6: Setup transcription resources (Whisper model, temp dir)
     transcription_resources = _setup_transcription_resources(cfg, effective_output_dir)
 
-    # Step 6.5: Setup summary models if summarization is enabled
-    # Load models once and reuse across all episodes to avoid memory leaks and redundant downloads
-    summary_model = None
-    reduce_model = None
+    # Step 6.5: Setup processing resources (metadata/summarization queue)
+    processing_resources = _setup_processing_resources(cfg)
+
+    # Step 6.6: Setup summary provider if summarization is enabled
+    # Stage 4: Use provider pattern for summarization
+    summary_provider = None
+
     if cfg.generate_summaries and not cfg.dry_run:
         try:
-            # Lazy import to avoid loading torch in dry-run mode
-            from . import summarizer  # noqa: PLC0415
-
-            # Load MAP model (for chunk summarization)
-            model_name = summarizer.select_summary_model(cfg)
-            summary_model = summarizer.SummaryModel(
-                model_name=model_name,
-                device=cfg.summary_device,
-                cache_dir=cfg.summary_cache_dir,
+            # Stage 4: Create and initialize summarization provider
+            summary_provider = create_summarization_provider(cfg)
+            summary_provider.initialize()
+            logger.debug(
+                "Summarization provider initialized: %s",
+                type(summary_provider).__name__,
             )
-            logger.debug("Loaded MAP summary model for reuse across all episodes")
-
-            # Load REDUCE model if different from MAP model (for final combine)
-            reduce_model_name = summarizer.select_reduce_model(cfg, model_name)
-            if reduce_model_name != model_name:
-                reduce_model = summarizer.SummaryModel(
-                    model_name=reduce_model_name,
-                    device=cfg.summary_device,
-                    cache_dir=cfg.summary_cache_dir,
-                )
-                logger.debug(
-                    f"Loaded REDUCE summary model ({reduce_model_name}) "
-                    f"for reuse across all episodes"
-                )
-            else:
-                # Use MAP model for REDUCE phase if they're the same
-                reduce_model = summary_model
-                logger.debug("Using MAP model for REDUCE phase (same model)")
         except ImportError:
             logger.info("Summarization dependencies not available, skipping summary generation")
         except Exception as e:
-            logger.error(f"Failed to load summary model: {e}")
+            logger.error("Failed to initialize summarization provider: %s", e)
+            # Fail fast - provider initialization should succeed
+            # If provider creation fails, we cannot proceed with summarization
+            summary_provider = None
 
     # Wrap all processing in try-finally to ensure cleanup always happens
     # This prevents memory leaks if exceptions occur during processing
@@ -359,7 +361,63 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         pipeline_metrics.record_stage("normalizing", time.time() - normalizing_start)
 
         # Step 8: Process episodes (download transcripts or queue transcription jobs)
+        # Start processing stage concurrently (metadata/summarization)
         writing_start = time.time()
+        transcription_complete_event = threading.Event()
+        transcription_saved = [0]  # Use list to allow modification from thread
+
+        # Start processing thread if metadata generation is enabled
+        processing_thread = None
+        if cfg.generate_metadata:
+            processing_thread = threading.Thread(
+                target=_process_processing_jobs_concurrent,
+                args=(
+                    processing_resources,
+                    feed,
+                    cfg,
+                    effective_output_dir,
+                    run_suffix,
+                    feed_metadata,
+                    host_detection_result,
+                    pipeline_metrics,
+                    summary_provider,
+                    transcription_complete_event,
+                ),
+                daemon=False,
+                name="ProcessingProcessor",
+            )
+            processing_thread.start()
+            logger.debug(
+                "Started concurrent processing thread (parallelism=%d)", cfg.processing_parallelism
+            )
+
+        # Start transcription processing concurrently if transcription is enabled
+        if cfg.transcribe_missing and not cfg.dry_run:
+            # Start transcription processing in background thread
+            transcription_thread = threading.Thread(
+                target=_process_transcription_jobs_concurrent,
+                args=(
+                    transcription_resources,
+                    download_args,
+                    episodes,
+                    feed,
+                    cfg,
+                    effective_output_dir,
+                    run_suffix,
+                    feed_metadata,
+                    host_detection_result,
+                    processing_resources,
+                    pipeline_metrics,
+                    summary_provider,
+                    transcription_complete_event,
+                    transcription_saved,
+                ),
+                daemon=False,
+                name="TranscriptionProcessor",
+            )
+            transcription_thread.start()
+            logger.debug("Started concurrent transcription processing thread")
+
         saved = _process_episodes(
             download_args,
             episodes,
@@ -370,36 +428,54 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             feed_metadata,
             host_detection_result,
             transcription_resources,
+            processing_resources,
             pipeline_metrics,
-            summary_model,
-            reduce_model,
+            summary_provider,
         )
 
-        # Step 9: Process transcription jobs sequentially
-        saved += _process_transcription_jobs(
-            transcription_resources,
-            download_args,
-            episodes,
-            feed,
-            cfg,
-            effective_output_dir,
-            run_suffix,
-            feed_metadata,
-            host_detection_result,
-            pipeline_metrics,
-            summary_model,
-            reduce_model,
-        )
+        # Step 9: Wait for transcription to complete (if started)
+        if cfg.transcribe_missing and not cfg.dry_run:
+            # Signal that downloads are complete
+            transcription_complete_event.set()
+            # Wait for transcription thread to finish processing remaining jobs
+            transcription_thread.join()
+            saved += transcription_saved[0]
+            logger.debug("Concurrent transcription processing completed")
+        elif cfg.transcribe_missing:
+            # Dry-run mode: process transcription jobs sequentially after downloads
+            saved += _process_transcription_jobs(
+                transcription_resources,
+                download_args,
+                episodes,
+                feed,
+                cfg,
+                effective_output_dir,
+                run_suffix,
+                feed_metadata,
+                host_detection_result,
+                pipeline_metrics,
+                summary_provider,
+            )
         pipeline_metrics.record_stage("writing_storage", time.time() - writing_start)
 
-        # Step 9: Parallel episode summarization (if enabled and multiple episodes)
+        # Step 9.5: Wait for processing to complete (if started)
+        if processing_thread is not None:
+            # Signal that transcription is complete (processing waits for this)
+            transcription_complete_event.set()
+            # Wait for processing thread to finish
+            processing_thread.join()
+            logger.debug("Concurrent processing completed")
+
+        # Step 10: Parallel episode summarization (if enabled and multiple episodes)
         # Process episodes that need summarization in parallel for better performance
         # This runs after all episodes are processed and checks for episodes that might
         # have been skipped during inline processing or need summary regeneration
+        # Note: Parallel summarization uses direct model loading for thread safety
+        # (each worker needs its own model instance). This is intentional and not a fallback.
         if (
             cfg.generate_summaries
             and cfg.generate_metadata
-            and summary_model is not None
+            and summary_provider is not None
             and not cfg.dry_run
             and len(episodes) > 1
         ):
@@ -413,8 +489,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 run_suffix=run_suffix,
                 feed_metadata=feed_metadata,
                 host_detection_result=host_detection_result,
-                summary_model=summary_model,
-                reduce_model=reduce_model,
+                summary_provider=summary_provider,
                 download_args=download_args,
                 pipeline_metrics=pipeline_metrics,
             )
@@ -422,31 +497,36 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     finally:
         # Step 9.5: Unload models to free memory
         # This runs even if exceptions occur above, preventing memory leaks
-        if summary_model is not None:
+        # Stage 2: Cleanup transcription provider (which handles model unloading)
+        if (
+            transcription_resources is not None
+            and transcription_resources.transcription_provider is not None
+        ):
             try:
-                from . import summarizer  # noqa: PLC0415
-
-                summarizer.unload_model(summary_model)
-                logger.debug("Unloaded MAP summary model to free memory")
+                provider = transcription_resources.transcription_provider
+                provider.cleanup()
+                logger.debug("Cleaned up transcription provider")
             except Exception as e:
-                logger.warning(f"Failed to unload MAP summary model: {e}")
-        if reduce_model is not None and reduce_model != summary_model:
+                logger.warning("Failed to cleanup transcription provider: %s", e)
+
+        # Stage 4: Cleanup provider (which handles model unloading)
+        if summary_provider is not None:
             try:
-                from . import summarizer  # noqa: PLC0415
-
-                summarizer.unload_model(reduce_model)
-                logger.debug("Unloaded REDUCE summary model to free memory")
+                summary_provider.cleanup()
+                logger.debug("Cleaned up summarization provider")
             except Exception as e:
-                logger.warning(f"Failed to unload REDUCE summary model: {e}")
+                logger.warning("Failed to cleanup summarization provider: %s", e)
 
         # Clear spaCy model cache to free memory
         # Models are cached at module level, so we clear them after processing
-        if cfg.auto_speakers:
+        # Note: This is provider-specific (NERSpeakerDetector uses spaCy)
+        # The provider's cleanup() method handles model cleanup, but module-level cache
+        # needs explicit clearing
+        if cfg.auto_speakers and host_detection_result.speaker_detector:
             try:
-                from . import speaker_detection  # noqa: PLC0415
-
-                speaker_detection.clear_spacy_model_cache()
-                logger.debug("Cleared spaCy model cache to free memory")
+                # Clear cache via provider protocol method
+                host_detection_result.speaker_detector.clear_cache()
+                logger.debug("Cleared spaCy model cache via provider")
             except Exception as e:
                 logger.warning(f"Failed to clear spaCy model cache: {e}")
 
@@ -629,32 +709,35 @@ def _detect_feed_hosts_and_patterns(
     heuristics: Optional[Dict[str, Any]] = None
 
     if not cfg.auto_speakers or not cfg.cache_detected_hosts:
-        return _HostDetectionResult(cached_hosts, heuristics)
+        return _HostDetectionResult(cached_hosts, heuristics, None)
 
-    # Detect hosts: prefer RSS author tags, fall back to NER
-    nlp = speaker_detection.get_ner_model(cfg) if not feed.authors else None
-    feed_hosts = speaker_detection.detect_hosts_from_feed(
-        feed_title=feed.title,
-        feed_description=None,  # TODO: Extract from feed XML if needed
-        feed_authors=feed.authors if feed.authors else None,
-        nlp=nlp,
-    )
+    # Stage 3: Use provider pattern for speaker detection
+    try:
+        speaker_detector = create_speaker_detector(cfg)
+        # Initialize provider (loads spaCy model)
+        speaker_detector.initialize()
 
-    # Validate hosts with first episode: hosts should appear in first episode too
-    # Skip validation if hosts came from author tags (they're already reliable)
-    if feed_hosts and episodes and not feed.authors:
-        # Only validate if we used NER (not author tags)
-        first_episode = episodes[0]
-        first_episode_description = extract_episode_description(first_episode.item)
-        if nlp:
-            first_episode_persons: Set[str] = set()
-            title_persons = speaker_detection.extract_person_entities(first_episode.title, nlp)
-            first_episode_persons.update(name for name, _ in title_persons)
-            if first_episode_description:
-                desc_persons = speaker_detection.extract_person_entities(
-                    first_episode_description, nlp
-                )
-                first_episode_persons.update(name for name, _ in desc_persons)
+        # Detect hosts: prefer RSS author tags, fall back to NER
+        feed_hosts = speaker_detector.detect_hosts(
+            feed_title=feed.title,
+            feed_description=None,  # TODO: Extract from feed XML if needed
+            feed_authors=feed.authors if feed.authors else None,
+        )
+
+        # Validate hosts with first episode: hosts should appear in first episode too
+        # Skip validation if hosts came from author tags (they're already reliable)
+        if feed_hosts and episodes and not feed.authors:
+            # Only validate if we used NER (not author tags)
+            first_episode = episodes[0]
+            first_episode_description = extract_episode_description(first_episode.item)
+            # Validate hosts by checking if they appear in first episode
+            # Use provider's detect_speakers to extract persons from first episode
+            first_episode_speakers, _, _ = speaker_detector.detect_speakers(
+                episode_title=first_episode.title,
+                episode_description=first_episode_description,
+                known_hosts=set(),
+            )
+            first_episode_persons = set(first_episode_speakers)
             # Only keep hosts that also appear in first episode (validation)
             validated_hosts = feed_hosts & first_episode_persons
             if validated_hosts != feed_hosts:
@@ -673,41 +756,45 @@ def _detect_feed_hosts_and_patterns(
                         "Hosts from feed not found in first episode (discarded): %s",
                         list(feed_hosts - validated_hosts),
                     )
-            cached_hosts = validated_hosts
+            cached_hosts = validated_hosts if validated_hosts else feed_hosts
         else:
+            # If hosts came from author tags, use them directly (no validation needed)
             cached_hosts = feed_hosts
-    else:
-        # If hosts came from author tags, use them directly (no validation needed)
-        cached_hosts = feed_hosts
 
-    if cached_hosts:
-        source = "RSS author tags" if feed.authors else "feed metadata (NER)"
-        logger.info("=" * 60)
-        logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
-        logger.info("=" * 60)
-    elif cfg.auto_speakers:
-        logger.debug("No hosts detected from feed metadata")
+        if cached_hosts:
+            source = "RSS author tags" if feed.authors else "feed metadata (NER)"
+            logger.info("=" * 60)
+            logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
+            logger.info("=" * 60)
+        elif cfg.auto_speakers:
+            logger.debug("No hosts detected from feed metadata")
 
-    # Analyze patterns from first few episodes to extract heuristics
-    if cfg.auto_speakers and episodes:
-        nlp = speaker_detection.get_ner_model(cfg)
-        if nlp:
-            heuristics = speaker_detection.analyze_episode_patterns(
-                episodes, nlp, cached_hosts, sample_size=5
+        # Analyze patterns from first few episodes to extract heuristics
+        if cfg.auto_speakers and episodes:
+            heuristics_dict = speaker_detector.analyze_patterns(
+                episodes=episodes, known_hosts=cached_hosts
             )
-            if heuristics.get("title_position_preference"):
-                logger.debug(
-                    "Pattern analysis: guest names typically appear at %s of title",
-                    heuristics["title_position_preference"],
-                )
+            if heuristics_dict:
+                heuristics = heuristics_dict
+                if heuristics.get("title_position_preference"):
+                    logger.debug(
+                        "Pattern analysis: guest names typically appear at %s of title",
+                        heuristics["title_position_preference"],
+                    )
 
-    return _HostDetectionResult(cached_hosts, heuristics)
+        # Return result with provider instance
+        return _HostDetectionResult(cached_hosts, heuristics, speaker_detector)
+    except Exception as exc:
+        logger.error("Failed to initialize speaker detector provider: %s", exc)
+        # Fail fast - provider initialization should succeed
+        # Return empty result without provider
+        return _HostDetectionResult(set(), None, None)
 
 
 def _setup_transcription_resources(
     cfg: config.Config, effective_output_dir: str
 ) -> _TranscriptionResources:
-    """Setup Whisper model and temp directory for transcription.
+    """Setup transcription provider and temp directory for transcription.
 
     Args:
         cfg: Configuration object
@@ -716,9 +803,22 @@ def _setup_transcription_resources(
     Returns:
         _TranscriptionResources object
     """
-    whisper_model = None
+    transcription_provider = None
+
     if cfg.transcribe_missing and not cfg.dry_run:
-        whisper_model = whisper.load_whisper_model(cfg)
+        # Stage 2: Use provider pattern
+        try:
+            transcription_provider = create_transcription_provider(cfg)
+            transcription_provider.initialize()
+            logger.debug(
+                "Transcription provider initialized: %s",
+                type(transcription_provider).__name__,
+            )
+        except Exception as exc:
+            logger.error("Failed to initialize transcription provider: %s", exc)
+            # Fail fast - provider initialization should succeed
+            # If provider creation fails, we cannot proceed with transcription
+            transcription_provider = None
 
     temp_dir = None
     if cfg.transcribe_missing:
@@ -732,7 +832,35 @@ def _setup_transcription_resources(
     saved_counter_lock = threading.Lock() if cfg.workers > 1 else None
 
     return _TranscriptionResources(
-        whisper_model, temp_dir, transcription_jobs, transcription_jobs_lock, saved_counter_lock
+        transcription_provider,
+        temp_dir,
+        transcription_jobs,
+        transcription_jobs_lock,
+        saved_counter_lock,
+    )
+
+
+def _setup_processing_resources(cfg: config.Config) -> _ProcessingResources:
+    """Set up resources for processing stage (metadata/summarization).
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        _ProcessingResources with processing queue and locks
+    """
+    processing_jobs: List[_ProcessingJob] = []
+    processing_jobs_lock = (
+        threading.Lock()
+        if (cfg.workers > 1 or cfg.transcription_parallelism > 1 or cfg.processing_parallelism > 1)
+        else None
+    )
+    processing_complete_event = threading.Event()
+
+    return _ProcessingResources(
+        processing_jobs,
+        processing_jobs_lock,
+        processing_complete_event,
     )
 
 
@@ -782,17 +910,24 @@ def _prepare_episode_download_args(
             # Detect speaker names from episode title and first 20 chars of description
             # Guests are detected from episode title and description snippet
             extract_names_start = time.time()
-            detected_speakers, detected_hosts_set, detection_succeeded = (
-                speaker_detection.detect_speaker_names(
-                    episode_title=episode.title,
-                    episode_description=episode_description,
-                    cfg=cfg,
-                    cached_hosts=(
-                        host_detection_result.cached_hosts if cfg.cache_detected_hosts else None
-                    ),
-                    heuristics=host_detection_result.heuristics,
+
+            # Stage 3: Use provider for speaker detection
+            speaker_detector = host_detection_result.speaker_detector
+            if speaker_detector:
+                cached_hosts_for_detection = (
+                    host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
                 )
-            )
+                detected_speakers, detected_hosts_set, detection_succeeded = (
+                    speaker_detector.detect_speakers(
+                        episode_title=episode.title,
+                        episode_description=episode_description,
+                        known_hosts=cached_hosts_for_detection,
+                    )
+                )
+            else:
+                # Fallback: No provider available (should not happen in normal flow)
+                logger.warning("Speaker detector not available, skipping speaker detection")
+                detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
             extract_names_elapsed = time.time() - extract_names_start
             # Record speaker detection time if metrics available
             if pipeline_metrics is not None:
@@ -861,9 +996,9 @@ def _process_episodes(
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
     transcription_resources: _TranscriptionResources,
+    processing_resources: _ProcessingResources,
     pipeline_metrics: metrics.Metrics,
-    summary_model=None,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (required)
 ) -> int:
     """Process episodes: download transcripts or queue transcription jobs.
 
@@ -921,6 +1056,32 @@ def _process_episodes(
                     if transcript_source == "direct_download":
                         _update_metric_safely(pipeline_metrics, "transcripts_downloaded", 1)
                     logger.debug("Episode %s yielded transcript (saved=%s)", episode.idx, saved)
+
+                    # Queue processing job if metadata generation enabled and transcript available
+                    # Skip if transcript_source is None (Whisper pending) - queued after
+                    if cfg.generate_metadata and transcript_source is not None:
+                        transcript_source_typed = cast(
+                            Literal["direct_download", "whisper_transcription"],
+                            transcript_source,
+                        )
+                        processing_job = _ProcessingJob(
+                            episode=episode,
+                            transcript_path=transcript_path or "",
+                            transcript_source=transcript_source_typed,
+                            detected_names=detected_names,
+                            whisper_model=None,  # Direct downloads don't use Whisper
+                        )
+                        # Queue processing job (processing thread will pick it up)
+                        if processing_resources.processing_jobs_lock:
+                            with processing_resources.processing_jobs_lock:
+                                processing_resources.processing_jobs.append(processing_job)
+                        else:
+                            processing_resources.processing_jobs.append(processing_job)
+                        logger.debug(
+                            "Queued processing job for episode %s (transcript_source=%s)",
+                            episode.idx,
+                            transcript_source_typed,
+                        )
                 elif transcript_path is None and transcript_source is None:
                     # Episode was skipped (skip_existing)
                     _update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
@@ -929,34 +1090,10 @@ def _process_episodes(
                 logger.error(
                     f"[{episode.idx}] episode processing raised an unexpected error: {exc}"
                 )
-
-            # Generate metadata if enabled and transcript_source is available
-            # Skip if transcript_source is None (Whisper pending) - will be generated after
-            # transcription
-            if cfg.generate_metadata and transcript_source is not None:
-                transcript_source_typed = cast(
-                    Optional[Literal["direct_download", "whisper_transcription"]],
-                    transcript_source,
-                )
-                _call_generate_metadata(
-                    episode=episode,
-                    feed=feed,
-                    cfg=cfg,
-                    effective_output_dir=output_dir_arg,
-                    run_suffix=run_suffix_arg,
-                    transcript_path=transcript_path,
-                    transcript_source=transcript_source_typed,
-                    whisper_model=None,  # Will be updated after transcription
-                    feed_metadata=feed_metadata,
-                    host_detection_result=host_detection_result,
-                    detected_names=detected_names,
-                    summary_model=summary_model,
-                    reduce_model=reduce_model,
-                    pipeline_metrics=pipeline_metrics,
-                )
     else:
         # Concurrent processing
         saved_counter_lock = transcription_resources.saved_counter_lock
+        # Note: processing_resources is accessed via closure
         with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
             future_map = {
                 executor.submit(
@@ -1000,9 +1137,8 @@ def _process_episodes(
                             pipeline_metrics, "episodes_skipped_total", 1, saved_counter_lock
                         )
 
-                    # Generate metadata if enabled and transcript_source is available
-                    # Skip if transcript_source is None (Whisper pending) - will be generated
-                    # after transcription
+                    # Queue processing job if metadata generation enabled and transcript available
+                    # Skip if transcript_source is None (Whisper pending) - queued after
                     if cfg.generate_metadata and transcript_source is not None:
                         episode_obj = next((ep for ep in episodes if ep.idx == idx), None)
                         if episode_obj:
@@ -1013,23 +1149,26 @@ def _process_episodes(
                                     detected_names_for_ep = args[7]
                                     break
                             transcript_source_typed = cast(
-                                Optional[Literal["direct_download", "whisper_transcription"]],
+                                Literal["direct_download", "whisper_transcription"],
                                 transcript_source,
                             )
-                            _call_generate_metadata(
+                            processing_job = _ProcessingJob(
                                 episode=episode_obj,
-                                feed=feed,
-                                cfg=cfg,
-                                effective_output_dir=effective_output_dir,
-                                run_suffix=run_suffix,
-                                transcript_path=transcript_path,
+                                transcript_path=transcript_path or "",
                                 transcript_source=transcript_source_typed,
-                                whisper_model=None,  # Will be updated after transcription
-                                feed_metadata=feed_metadata,
-                                host_detection_result=host_detection_result,
                                 detected_names=detected_names_for_ep,
-                                summary_model=summary_model,
-                                pipeline_metrics=pipeline_metrics,
+                                whisper_model=None,  # Direct downloads don't use Whisper
+                            )
+                            # Queue processing job (processing thread will pick it up)
+                            if processing_resources.processing_jobs_lock:
+                                with processing_resources.processing_jobs_lock:
+                                    processing_resources.processing_jobs.append(processing_job)
+                            else:
+                                processing_resources.processing_jobs.append(processing_job)
+                            logger.debug(
+                                "Queued processing job for episode %s (transcript_source=%s)",
+                                episode_obj.idx,
+                                transcript_source_typed,
                             )
                 except Exception as exc:  # pragma: no cover
                     _update_metric_safely(pipeline_metrics, "errors_total", 1, saved_counter_lock)
@@ -1049,8 +1188,7 @@ def _process_transcription_jobs(
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
     pipeline_metrics: metrics.Metrics,
-    summary_model=None,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (required)
 ) -> int:
     """Process Whisper transcription jobs sequentially.
 
@@ -1082,12 +1220,16 @@ def _process_transcription_jobs(
         jobs_processed = 0
         for job in transcription_resources.transcription_jobs:
             try:
+                # Stage 2: Use provider if available, otherwise fall back to direct model
+                # For backward compatibility, we pass both provider and model
+                # transcribe_media_to_text will use provider if available
                 success, transcript_path, bytes_downloaded = transcribe_media_to_text(
                     job,
                     cfg,
-                    transcription_resources.whisper_model,
+                    None,  # whisper_model no longer needed (use provider instead)
                     run_suffix,
                     effective_output_dir,
+                    transcription_provider=transcription_resources.transcription_provider,
                     pipeline_metrics=pipeline_metrics,
                 )
                 if bytes_downloaded:
@@ -1116,11 +1258,11 @@ def _process_transcription_jobs(
                                 run_suffix=run_suffix,
                                 transcript_path=transcript_path,
                                 transcript_source="whisper_transcription",
-                                whisper_model=cfg.whisper_model,
+                                whisper_model=None,  # No longer needed (use provider instead)
                                 feed_metadata=feed_metadata,
                                 host_detection_result=host_detection_result,
                                 detected_names=detected_names_for_ep,
-                                summary_model=summary_model,
+                                summary_provider=summary_provider,
                                 pipeline_metrics=pipeline_metrics,
                             )
             except Exception as exc:  # pragma: no cover
@@ -1138,6 +1280,456 @@ def _process_transcription_jobs(
             )
 
     return saved
+
+
+def _process_transcription_jobs_concurrent(
+    transcription_resources: _TranscriptionResources,
+    download_args: List[Tuple],
+    episodes: List[models.Episode],
+    feed: models.RssFeed,
+    cfg: config.Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    feed_metadata: _FeedMetadata,
+    host_detection_result: _HostDetectionResult,
+    processing_resources: _ProcessingResources,
+    pipeline_metrics: metrics.Metrics,
+    summary_provider=None,  # SummarizationProvider instance (required)
+    downloads_complete_event: Optional[threading.Event] = None,
+    saved_counter: Optional[List[int]] = None,
+) -> None:
+    """Process transcription jobs concurrently as they become available.
+
+    This function runs in a separate thread and processes transcription jobs
+    from the queue as downloads complete, rather than waiting for all downloads
+    to finish before starting transcription.
+
+    Uses transcription_parallelism config to control episode-level parallelism:
+    - Whisper provider: Always sequential (parallelism = 1, ignores config > 1)
+    - OpenAI provider: Parallel with rate limiting (uses parallelism config)
+
+    Args:
+        transcription_resources: Transcription resources
+        download_args: List of download argument tuples
+        episodes: List of Episode objects
+        feed: Parsed RssFeed object
+        cfg: Configuration object (uses transcription_parallelism)
+        effective_output_dir: Output directory path
+        run_suffix: Optional run suffix
+        feed_metadata: Feed metadata tuple
+        host_detection_result: Host detection result
+        pipeline_metrics: Metrics collector
+        summary_model: Optional summary model
+        reduce_model: Optional reduce model
+        downloads_complete_event: Event to signal when downloads are complete
+        saved_counter: List to store count of saved transcripts (for thread communication)
+    """
+    if saved_counter is None:
+        saved_counter = [0]
+
+    # Get parallelism from config (provider-specific behavior)
+    # Whisper: Always sequential (parallelism = 1)
+    # OpenAI: Uses parallelism config (default: 5)
+    max_workers = cfg.transcription_parallelism
+    if cfg.transcription_provider == "whisper":
+        # Whisper is memory/CPU bound - always sequential
+        max_workers = 1
+        logger.debug(
+            "Whisper provider: Using sequential processing (parallelism=%d ignored)",
+            cfg.transcription_parallelism,
+        )
+    else:
+        # Other providers (OpenAI) can use parallelism
+        logger.debug(
+            "Transcription provider '%s': Using parallelism=%d",
+            cfg.transcription_provider,
+            max_workers,
+        )
+
+    saved = 0
+    jobs_processed = 0
+    processed_job_indices = set()  # Track which jobs we've processed
+    processed_job_indices_lock = threading.Lock()  # Lock for thread-safe access
+
+    logger.debug("Concurrent transcription processor started (max_workers=%d)", max_workers)
+
+    def _process_single_job(job: models.TranscriptionJob) -> tuple[bool, Optional[str], int]:
+        """Process a single transcription job.
+
+        Returns:
+            Tuple of (success, transcript_path, bytes_downloaded)
+        """
+        try:
+            success, transcript_path, bytes_downloaded = transcribe_media_to_text(
+                job,
+                cfg,
+                None,  # whisper_model no longer needed (use provider instead)
+                run_suffix,
+                effective_output_dir,
+                transcription_provider=transcription_resources.transcription_provider,
+                pipeline_metrics=pipeline_metrics,
+            )
+            if bytes_downloaded:
+                _update_metric_safely(pipeline_metrics, "bytes_downloaded_total", bytes_downloaded)
+            if success:
+                _update_metric_safely(pipeline_metrics, "transcripts_transcribed", 1)
+
+                # Queue processing job if metadata generation is enabled
+                if cfg.generate_metadata:
+                    episode_obj = next((ep for ep in episodes if ep.idx == job.idx), None)
+                    if episode_obj:
+                        # Find detected names for this episode
+                        detected_names_for_ep = None
+                        for args in download_args:
+                            if args[0].idx == job.idx:
+                                detected_names_for_ep = args[7]
+                                break
+                        processing_job = _ProcessingJob(
+                            episode=episode_obj,
+                            transcript_path=transcript_path or "",
+                            transcript_source="whisper_transcription",
+                            detected_names=detected_names_for_ep,
+                            whisper_model=cfg.whisper_model,
+                        )
+                        # Queue processing job (processing thread will pick it up)
+                        if processing_resources.processing_jobs_lock:
+                            with processing_resources.processing_jobs_lock:
+                                processing_resources.processing_jobs.append(processing_job)
+                        else:
+                            processing_resources.processing_jobs.append(processing_job)
+                        logger.debug(
+                            "Queued processing job for episode %s (whisper_transcription)",
+                            episode_obj.idx,
+                        )
+            return success, transcript_path, bytes_downloaded
+        except Exception as exc:  # pragma: no cover
+            _update_metric_safely(pipeline_metrics, "errors_total", 1)
+            logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
+            return False, None, 0
+
+    # Process jobs as they become available
+    # Continue until downloads are complete AND queue is empty
+    if max_workers <= 1:
+        # Sequential processing (Whisper default)
+        while True:
+            # Check for new jobs in the queue
+            job_found = False
+            current_job = None
+
+            if transcription_resources.transcription_jobs_lock:
+                with transcription_resources.transcription_jobs_lock:
+                    # Find first unprocessed job
+                    with processed_job_indices_lock:
+                        for job in transcription_resources.transcription_jobs:
+                            if job.idx not in processed_job_indices:
+                                job_found = True
+                                processed_job_indices.add(job.idx)
+                                current_job = job
+                                break
+            else:
+                # Single-threaded mode
+                with processed_job_indices_lock:
+                    for job in transcription_resources.transcription_jobs:
+                        if job.idx not in processed_job_indices:
+                            job_found = True
+                            processed_job_indices.add(job.idx)
+                            current_job = job
+                            break
+
+            if job_found and current_job:
+                success, transcript_path, bytes_downloaded = _process_single_job(current_job)
+                if success:
+                    saved += 1
+                jobs_processed += 1
+                logger.debug(
+                    "Processed transcription job idx=%s (saved=%s, processed=%s)",
+                    current_job.idx,
+                    saved,
+                    jobs_processed,
+                )
+                continue
+
+            # No job found - check if we should continue waiting
+            if downloads_complete_event and downloads_complete_event.is_set():
+                # Downloads are complete, check if queue is empty
+                with processed_job_indices_lock:
+                    if transcription_resources.transcription_jobs_lock:
+                        with transcription_resources.transcription_jobs_lock:
+                            total_jobs = len(transcription_resources.transcription_jobs)
+                    else:
+                        total_jobs = len(transcription_resources.transcription_jobs)
+                    queue_empty = total_jobs == len(processed_job_indices)
+
+                if queue_empty:
+                    # All jobs processed, exit
+                    break
+
+            # Wait a bit before checking again (avoid busy-waiting)
+            if not (downloads_complete_event and downloads_complete_event.is_set()):
+                time.sleep(0.1)
+            else:
+                # Downloads complete but might have more jobs - check more frequently
+                time.sleep(0.05)
+    else:
+        # Parallel processing (OpenAI provider)
+        from concurrent.futures import as_completed, ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {}
+            while True:
+                # Submit new jobs as they become available
+                if transcription_resources.transcription_jobs_lock:
+                    with transcription_resources.transcription_jobs_lock:
+                        with processed_job_indices_lock:
+                            for job in transcription_resources.transcription_jobs:
+                                if job.idx not in processed_job_indices and job.idx not in futures:
+                                    processed_job_indices.add(job.idx)
+                                    future = executor.submit(_process_single_job, job)
+                                    futures[future] = job.idx
+                else:
+                    with processed_job_indices_lock:
+                        for job in transcription_resources.transcription_jobs:
+                            if job.idx not in processed_job_indices and job.idx not in futures:
+                                processed_job_indices.add(job.idx)
+                                future = executor.submit(_process_single_job, job)
+                                futures[future] = job.idx
+
+                # Process completed futures
+                for future in as_completed(list(futures.keys()), timeout=0.1):
+                    job_idx = futures.pop(future)
+                    try:
+                        success, transcript_path, bytes_downloaded = future.result()
+                        if success:
+                            saved += 1
+                        jobs_processed += 1
+                        logger.debug(
+                            "Processed transcription job idx=%s (saved=%s, processed=%s)",
+                            job_idx,
+                            saved,
+                            jobs_processed,
+                        )
+                    except Exception as exc:  # pragma: no cover
+                        logger.error(f"[{job_idx}] transcription future raised error: {exc}")
+
+                # Check if we should continue
+                if downloads_complete_event and downloads_complete_event.is_set():
+                    # Downloads complete - check if all jobs are submitted and completed
+                    with processed_job_indices_lock:
+                        if transcription_resources.transcription_jobs_lock:
+                            with transcription_resources.transcription_jobs_lock:
+                                total_jobs = len(transcription_resources.transcription_jobs)
+                        else:
+                            total_jobs = len(transcription_resources.transcription_jobs)
+                        all_submitted = total_jobs == len(processed_job_indices)
+                    if all_submitted and len(futures) == 0:
+                        # All jobs submitted and completed
+                        break
+
+                # Wait a bit before checking again
+                if not (downloads_complete_event and downloads_complete_event.is_set()):
+                    time.sleep(0.1)
+                else:
+                    time.sleep(0.05)
+
+    # Update saved counter
+    saved_counter[0] = saved
+    total_jobs = (
+        len(transcription_resources.transcription_jobs)
+        if transcription_resources.transcription_jobs
+        else 0
+    )
+    logger.info(
+        f"Concurrent transcription processing completed: {saved}/{total_jobs} "
+        f"transcripts saved (parallelism={max_workers})"
+    )
+
+
+def _process_processing_jobs_concurrent(
+    processing_resources: _ProcessingResources,
+    feed: models.RssFeed,
+    cfg: config.Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    feed_metadata: _FeedMetadata,
+    host_detection_result: _HostDetectionResult,
+    pipeline_metrics: metrics.Metrics,
+    summary_provider=None,  # SummarizationProvider instance (required)
+    transcription_complete_event: Optional[threading.Event] = None,
+) -> None:
+    """Process metadata/summarization jobs concurrently as they become available.
+
+    This function runs in a separate thread and processes jobs from the processing
+    queue as transcripts become available from downloads or transcription.
+
+    Args:
+        processing_resources: Processing resources with queue and locks
+        feed: Parsed RssFeed object
+        cfg: Configuration object (uses processing_parallelism)
+        effective_output_dir: Output directory path
+        run_suffix: Optional run suffix
+        feed_metadata: Feed metadata tuple
+        host_detection_result: Host detection result
+        pipeline_metrics: Metrics collector
+        summary_model: Optional summary model
+        reduce_model: Optional reduce model
+        transcription_complete_event: Event to signal when transcription is complete
+    """
+    max_workers = cfg.processing_parallelism
+    logger.debug("Concurrent processing processor started (max_workers=%d)", max_workers)
+
+    jobs_processed = 0
+    processed_job_indices = set()  # Track which jobs we've processed
+    processed_job_indices_lock = threading.Lock()  # Lock for thread-safe access
+
+    def _process_single_processing_job(job: _ProcessingJob) -> None:
+        """Process a single processing job (metadata/summarization)."""
+        try:
+            _call_generate_metadata(
+                episode=job.episode,
+                feed=feed,
+                cfg=cfg,
+                effective_output_dir=effective_output_dir,
+                run_suffix=run_suffix,
+                transcript_path=job.transcript_path,
+                transcript_source=job.transcript_source,
+                whisper_model=None,  # No longer needed (use provider instead)
+                feed_metadata=feed_metadata,
+                host_detection_result=host_detection_result,
+                detected_names=job.detected_names,
+                summary_provider=summary_provider,
+                pipeline_metrics=pipeline_metrics,
+            )
+        except Exception as exc:  # pragma: no cover
+            _update_metric_safely(pipeline_metrics, "errors_total", 1)
+            logger.error(f"[{job.episode.idx}] processing raised an unexpected error: {exc}")
+
+    # Process jobs as they become available
+    if max_workers <= 1:
+        # Sequential processing
+        while True:
+            # Check for new jobs in the queue
+            job_found = False
+            current_job = None
+
+            if processing_resources.processing_jobs_lock:
+                with processing_resources.processing_jobs_lock:
+                    with processed_job_indices_lock:
+                        for job in processing_resources.processing_jobs:
+                            if job.episode.idx not in processed_job_indices:
+                                job_found = True
+                                processed_job_indices.add(job.episode.idx)
+                                current_job = job
+                                break
+            else:
+                with processed_job_indices_lock:
+                    for job in processing_resources.processing_jobs:
+                        if job.episode.idx not in processed_job_indices:
+                            job_found = True
+                            processed_job_indices.add(job.episode.idx)
+                            current_job = job
+                            break
+
+            if job_found and current_job:
+                _process_single_processing_job(current_job)
+                jobs_processed += 1
+                logger.debug(
+                    "Processed processing job idx=%s (processed=%s)",
+                    current_job.episode.idx,
+                    jobs_processed,
+                )
+                continue
+
+            # No job found - check if we should continue waiting
+            if transcription_complete_event and transcription_complete_event.is_set():
+                # Transcription complete - check if queue is empty
+                with processed_job_indices_lock:
+                    if processing_resources.processing_jobs_lock:
+                        with processing_resources.processing_jobs_lock:
+                            total_jobs = len(processing_resources.processing_jobs)
+                    else:
+                        total_jobs = len(processing_resources.processing_jobs)
+                    queue_empty = total_jobs == len(processed_job_indices)
+
+                if queue_empty:
+                    # All jobs processed, exit
+                    break
+
+            # Wait a bit before checking again
+            if not (transcription_complete_event and transcription_complete_event.is_set()):
+                time.sleep(0.1)
+            else:
+                time.sleep(0.05)
+    else:
+        # Parallel processing
+        from concurrent.futures import as_completed, ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {}
+            while True:
+                # Submit new jobs as they become available
+                if processing_resources.processing_jobs_lock:
+                    with processing_resources.processing_jobs_lock:
+                        with processed_job_indices_lock:
+                            for job in processing_resources.processing_jobs:
+                                if (
+                                    job.episode.idx not in processed_job_indices
+                                    and job.episode.idx not in futures
+                                ):
+                                    processed_job_indices.add(job.episode.idx)
+                                    future = executor.submit(_process_single_processing_job, job)
+                                    futures[future] = job.episode.idx
+                else:
+                    with processed_job_indices_lock:
+                        for job in processing_resources.processing_jobs:
+                            if (
+                                job.episode.idx not in processed_job_indices
+                                and job.episode.idx not in futures
+                            ):
+                                processed_job_indices.add(job.episode.idx)
+                                future = executor.submit(_process_single_processing_job, job)
+                                futures[future] = job.episode.idx
+
+                # Process completed futures
+                for future in as_completed(list(futures.keys()), timeout=0.1):
+                    episode_idx = futures.pop(future)
+                    try:
+                        future.result()
+                        jobs_processed += 1
+                        logger.debug(
+                            "Processed processing job idx=%s (processed=%s)",
+                            episode_idx,
+                            jobs_processed,
+                        )
+                    except Exception as exc:  # pragma: no cover
+                        logger.error(f"[{episode_idx}] processing future raised error: {exc}")
+
+                # Check if we should continue
+                if transcription_complete_event and transcription_complete_event.is_set():
+                    # Transcription complete - check if all jobs are submitted and completed
+                    with processed_job_indices_lock:
+                        if processing_resources.processing_jobs_lock:
+                            with processing_resources.processing_jobs_lock:
+                                total_jobs = len(processing_resources.processing_jobs)
+                        else:
+                            total_jobs = len(processing_resources.processing_jobs)
+                        all_submitted = total_jobs == len(processed_job_indices)
+                    if all_submitted and len(futures) == 0:
+                        # All jobs submitted and completed
+                        break
+
+                # Wait a bit before checking again
+                if not (transcription_complete_event and transcription_complete_event.is_set()):
+                    time.sleep(0.1)
+                else:
+                    time.sleep(0.05)
+
+    total_jobs = (
+        len(processing_resources.processing_jobs) if processing_resources.processing_jobs else 0
+    )
+    logger.info(
+        f"Concurrent processing completed: {jobs_processed}/{total_jobs} "
+        f"jobs processed (parallelism={max_workers})"
+    )
 
 
 def _cleanup_pipeline(temp_dir: Optional[str]) -> None:
@@ -1278,8 +1870,9 @@ def _generate_episode_metadata(
     feed_description: Optional[str],
     feed_image_url: Optional[str],
     feed_last_updated: Optional[datetime],
-    summary_model=None,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (preferred)
+    summary_model=None,  # Backward compatibility - deprecated
+    reduce_model=None,  # Backward compatibility - deprecated
     pipeline_metrics=None,
 ) -> None:
     """Generate and save episode metadata document.
@@ -1343,8 +1936,7 @@ def _generate_episode_metadata(
         transcript_file_path=transcript_file_path,
         transcript_source=transcript_source,
         whisper_model=whisper_model,
-        summary_model=summary_model,
-        reduce_model=reduce_model,
+        summary_provider=summary_provider,
         detected_hosts=detected_hosts,
         detected_guests=detected_guests,
         feed_description=feed_description,
@@ -1369,8 +1961,7 @@ def _parallel_episode_summarization(
     run_suffix: Optional[str],
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
-    summary_model,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance
     download_args: Optional[List[Tuple]] = None,
     pipeline_metrics: Optional[metrics.Metrics] = None,
 ) -> None:
@@ -1379,8 +1970,9 @@ def _parallel_episode_summarization(
     This function identifies episodes that have transcripts but may not have summaries yet,
     and processes them in parallel for better performance.
 
-    Each worker thread gets its own model instance to ensure thread safety, as HuggingFace
-    pipelines/models are not thread-safe and cannot be shared across threads.
+    For local transformers providers, each worker thread gets its own model instance to ensure
+    thread safety, as HuggingFace pipelines/models are not thread-safe and cannot be shared
+    across threads. For API providers (e.g., OpenAI), a single provider instance is used.
 
     Args:
         episodes: List of Episode objects
@@ -1390,8 +1982,7 @@ def _parallel_episode_summarization(
         run_suffix: Optional run suffix
         feed_metadata: Feed metadata tuple
         host_detection_result: Host detection result
-        summary_model: Pre-loaded summary model (used for configuration, each worker loads its own)
-        reduce_model: Optional REDUCE model (shared across all workers)
+        summary_provider: SummarizationProvider instance (required for parallel processing)
     """
     import os
 
@@ -1455,10 +2046,49 @@ def _parallel_episode_summarization(
         logger.debug("No episodes need summarization (all already have summaries)")
         return
 
+    if summary_provider is None:
+        logger.warning("Summary provider not available, skipping parallel summarization")
+        return
+
     logger.info(f"Processing summarization for {len(episodes_to_summarize)} episodes in parallel")
 
-    # Extract model configuration from the pre-loaded models
+    # Check if provider is local (transformers) or API-based
+    # For API providers, we can use a single provider instance (no parallelism needed)
+    # For local providers, we need multiple model instances for thread safety
+    from .summarization.local_provider import TransformersSummarizationProvider
+
+    is_local_provider = isinstance(summary_provider, TransformersSummarizationProvider)
+
+    if not is_local_provider:
+        # API provider (e.g., OpenAI) - use single provider instance sequentially
+        # API providers handle rate limiting internally, so parallelism isn't needed
+        logger.debug("Using API provider for sequential summarization")
+        for episode, transcript_path, metadata_path, detected_names in episodes_to_summarize:
+            _summarize_single_episode(
+                episode=episode,
+                transcript_path=transcript_path,
+                metadata_path=metadata_path,
+                feed=feed,
+                cfg=cfg,
+                effective_output_dir=effective_output_dir,
+                run_suffix=run_suffix,
+                feed_metadata=feed_metadata,
+                host_detection_result=host_detection_result,
+                summary_provider=summary_provider,
+                detected_names=detected_names,
+                pipeline_metrics=pipeline_metrics,
+            )
+        return
+
+    # Local provider - extract model configuration for parallel processing
     # Each worker will load its own model instance for thread safety
+    summary_model = getattr(summary_provider, "map_model", None)
+    reduce_model = getattr(summary_provider, "reduce_model", None)
+
+    if summary_model is None:
+        logger.error("Local provider has no map_model, cannot proceed with parallel summarization")
+        return
+
     model_name = summary_model.model_name
     model_device = summary_model.device
     model_cache_dir = summary_model.cache_dir
@@ -1496,7 +2126,7 @@ def _parallel_episode_summarization(
     has_separate_reduce_models = not reduce_model_is_same_as_map and reduce_model_name is not None
 
     if max_workers <= 1:
-        # Sequential processing - reuse existing model
+        # Sequential processing - use provider directly
         for episode, transcript_path, metadata_path, detected_names in episodes_to_summarize:
             _summarize_single_episode(
                 episode=episode,
@@ -1508,8 +2138,7 @@ def _parallel_episode_summarization(
                 run_suffix=run_suffix,
                 feed_metadata=feed_metadata,
                 host_detection_result=host_detection_result,
-                summary_model=summary_model,
-                reduce_model=reduce_model,
+                summary_provider=summary_provider,
                 detected_names=detected_names,
                 pipeline_metrics=pipeline_metrics,
             )
@@ -1522,6 +2151,7 @@ def _parallel_episode_summarization(
 
         # Pre-load model instances for all workers before starting parallel execution
         # This ensures all models are ready upfront and avoids lazy-loading overhead
+        # Use provider's internal summarizer module for model creation
         from . import summarizer  # noqa: PLC0415
 
         worker_models: List[Any] = []
@@ -1622,8 +2252,7 @@ def _parallel_episode_summarization(
                         run_suffix=run_suffix,
                         feed_metadata=feed_metadata,
                         host_detection_result=host_detection_result,
-                        summary_model=summary_model,
-                        reduce_model=reduce_model,
+                        summary_provider=summary_provider,
                         detected_names=detected_names,
                         pipeline_metrics=pipeline_metrics,
                     )
@@ -1660,6 +2289,9 @@ def _parallel_episode_summarization(
             """Wrapper to get worker-specific models and summarize episode."""
             episode, transcript_path, metadata_path, detected_names = args
             worker_map_model, worker_reduce_model = _get_worker_models()
+            # Create a temporary provider-like wrapper for this worker's models
+            # This allows _summarize_single_episode to use provider pattern
+            # For parallel processing, we pass models directly (backward compatibility)
             _summarize_single_episode(
                 episode=episode,
                 transcript_path=transcript_path,
@@ -1670,8 +2302,9 @@ def _parallel_episode_summarization(
                 run_suffix=run_suffix,
                 feed_metadata=feed_metadata,
                 host_detection_result=host_detection_result,
-                summary_model=worker_map_model,
-                reduce_model=worker_reduce_model,
+                summary_provider=None,  # Use models directly for parallel processing
+                summary_model=worker_map_model,  # Worker-specific model
+                reduce_model=worker_reduce_model,  # Worker-specific model
                 detected_names=detected_names,
                 pipeline_metrics=pipeline_metrics,
             )
@@ -1724,8 +2357,9 @@ def _summarize_single_episode(
     run_suffix: Optional[str],
     feed_metadata: _FeedMetadata,
     host_detection_result: _HostDetectionResult,
-    summary_model,
-    reduce_model=None,
+    summary_provider=None,  # SummarizationProvider instance (preferred)
+    summary_model=None,  # Backward compatibility for parallel processing
+    reduce_model=None,  # Backward compatibility for parallel processing
     detected_names: Optional[List[str]] = None,
     pipeline_metrics: Optional[metrics.Metrics] = None,
 ) -> None:
@@ -1741,8 +2375,9 @@ def _summarize_single_episode(
         run_suffix: Optional run suffix
         feed_metadata: Feed metadata tuple
         host_detection_result: Host detection result
-        summary_model: Pre-loaded MAP summary model (worker-specific for parallel processing)
-        reduce_model: Optional REDUCE model (worker-specific for parallel processing, or None)
+        summary_provider: SummarizationProvider instance (preferred)
+        summary_model: Pre-loaded MAP summary model (backward compatibility for parallel processing)
+        reduce_model: Optional REDUCE model (backward compatibility for parallel processing)
         detected_names: Detected guest names for this episode (optional)
     """
     import os
@@ -1777,8 +2412,9 @@ def _summarize_single_episode(
         transcript_file_path=os.path.relpath(transcript_path, effective_output_dir),
         transcript_source=transcript_source,
         whisper_model=None,
-        summary_model=summary_model,
-        reduce_model=reduce_model,
+        summary_provider=summary_provider,  # Use provider when available
+        summary_model=summary_model,  # Backward compatibility for parallel processing
+        reduce_model=reduce_model,  # Backward compatibility for parallel processing
         detected_hosts=(
             list(host_detection_result.cached_hosts) if host_detection_result.cached_hosts else None
         ),

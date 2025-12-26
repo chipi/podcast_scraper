@@ -27,7 +27,7 @@ Next steps:
    # Or manually: pip install -e .[dev,ml]
 
 3. Set up environment variables (if using OpenAI providers):
-   cp .env.example .env
+   cp examples/.env.example .env
    # Edit .env and add your OPENAI_API_KEY
 
 4. Run the CLI:

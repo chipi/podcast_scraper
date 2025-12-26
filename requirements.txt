@@ -5,6 +5,10 @@
 #
 # Note: rouge-score (required for scripts/eval_summaries.py) is included in
 # dev optional dependencies. Install with: pip install -e .[dev]
+#
+# NOTE: Docker builds now use pyproject.toml directly (see docker/Dockerfile).
+# This file is kept for backward compatibility and tools that require it
+# (e.g., pip-audit). The source of truth for dependencies is pyproject.toml.
 requests>=2.31.0,<3.0.0
 urllib3>=2.6.0,<3.0.0
 tqdm>=4.66.0,<5.0.0
@@ -13,3 +17,7 @@ platformdirs>=3.11.0,<5.0.0
 pydantic>=2.6.0,<3.0.0
 PyYAML>=6.0,<7.0.0
 types-PyYAML>=6.0.12,<7.0.0
+python-dotenv>=1.0.0,<2.0.0  # For .env file support (RFC-013)
+zipp>=3.19.1,<4.0.0  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
+jinja2>=3.1.0,<4.0.0  # For prompt templating (RFC-017)
+openai>=1.0.0,<2.0.0  # For OpenAI API providers (RFC-013)

@@ -39,17 +39,20 @@ make init
 
 > `make init` upgrades pip, installs lint/test/type/security tooling, installs runtime requirements (if `requirements.txt` exists), and then installs `podcast_scraper` in editable mode with `[dev,ml]` extras. It matches the dependencies used in CI.
 
-**Optional: Set up environment variables** (if testing OpenAI providers):
+**Optional: Set up environment variables** (if testing OpenAI providers or configuring deployment settings):
 
 ```bash
 # Copy example .env file
-cp .env.example .env
+cp examples/.env.example .env
 
-# Edit .env and add your OPENAI_API_KEY
+# Edit .env and add your settings
 # OPENAI_API_KEY=sk-your-actual-key-here
+# LOG_LEVEL=DEBUG
+# OUTPUT_DIR=/tmp/test_output
+# WORKERS=2
 ```
 
-The `.env` file is automatically loaded via `python-dotenv` when the package is imported. See `docs/rfc/RFC-013-openai-provider-implementation.md` for details.
+The `.env` file is automatically loaded via `python-dotenv` when the package is imported. See `docs/ENVIRONMENT_VARIABLES.md` for complete list of supported environment variables.
 
 ### 2. Run the full check suite (matches CI)
 
@@ -103,11 +106,13 @@ The project uses automated formatting tools to ensure consistency:
 - **mypy**: Static type checking
 
 **Apply formatting automatically:**
+
 ```bash
 make format
 ```
 
 **Check formatting without modifying:**
+
 ```bash
 make format-check
 ```
@@ -899,6 +904,7 @@ def load_whisper():
 ### Before Creating PR
 
 **1. Ensure all checks pass:**
+
 ```bash
 make ci
 ```
@@ -919,11 +925,13 @@ make ci
 ### Creating the PR
 
 **1. Create feature branch:**
+
 ```bash
 git checkout -b feature/my-feature
 ```
 
 **2. Push branch:**
+
 ```bash
 git push -u origin feature/my-feature
 ```
@@ -1049,6 +1057,43 @@ See [`docs/CI_CD.md`](docs/CI_CD.md#automatic-pre-commit-checks) for more detail
 **Additional Resources:**
 
 - [`docs/DEVELOPMENT_NOTES.md`](docs/DEVELOPMENT_NOTES.md) - Detailed notes on linting, formatting, and development workflows (updated as tooling evolves)
+
+---
+
+## AI Coding Guidelines
+
+This project includes comprehensive AI coding guidelines for developers using AI assistants (Cursor, Claude Desktop, GitHub Copilot, etc.).
+
+### For AI Assistants
+
+**Primary reference:** `.ai-coding-guidelines.md` - This is the PRIMARY source of truth for all AI actions.
+
+**Entry points by tool:**
+
+- **Cursor:** `.cursor/rules/ai-guidelines.mdc` - Automatically loaded by Cursor
+- **Claude Desktop:** `CLAUDE.md` - Automatically loaded when Claude runs in this directory
+- **GitHub Copilot:** `.github/copilot-instructions.md` - Read by GitHub Copilot
+
+**Critical workflow rules (from `.ai-coding-guidelines.md`):**
+
+- ❌ **NEVER commit without showing changes and getting user approval**
+- ❌ **NEVER push to PR without running `make ci` first**
+- ✅ Always show `git status` and `git diff` before committing
+- ✅ Always wait for explicit user approval before committing
+- ✅ Always run `make ci` before pushing to PR (new or updated)
+
+**What `.ai-coding-guidelines.md` contains:**
+
+- Git Workflow (commit approval, PR workflow)
+- Code Organization (module boundaries, patterns)
+- Testing Requirements (mocking, test structure)
+- Documentation Standards (PRDs, RFCs, docstrings)
+- Common Patterns (configuration, error handling, logging)
+- Decision Trees (when to create modules, PRDs, RFCs)
+
+**For human contributors:** These guidelines help ensure AI assistants follow project standards. You don't need to read them unless you're configuring AI tools.
+
+**See:** `.ai-coding-guidelines.md` for complete guidelines.
 
 ---
 

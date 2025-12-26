@@ -57,16 +57,19 @@ make init  # Installs dev + ML dependencies
 ### Installation Options
 
 **Basic installation (core dependencies only):**
+
 ```bash
 pip install -e .
 ```
 
 **With ML dependencies** (spaCy, Whisper, transformers for speaker detection, transcription, and summarization):
+
 ```bash
 pip install -e ".[ml]"
 ```
 
 **With development dependencies** (for contributing):
+
 ```bash
 pip install -e ".[dev,ml]"
 # Or use: make init
@@ -74,19 +77,39 @@ pip install -e ".[dev,ml]"
 
 ### Environment Variables (Optional)
 
-If you plan to use OpenAI providers (see PRD-006), set up environment variables:
+The podcast scraper supports configuration via environment variables for flexible deployment. Many settings can be configured via environment variables or `.env` files:
+
+**Quick setup:**
 
 ```bash
 # Copy example .env file
-cp .env.example .env
+cp examples/.env.example .env
 
-# Edit .env and add your API key
+# Edit .env and add your settings
 # OPENAI_API_KEY=sk-your-actual-key-here
+# OUTPUT_DIR=/data/transcripts
+# LOG_LEVEL=DEBUG
+# WORKERS=4
 ```
 
-The `.env` file is automatically loaded via `python-dotenv` when the package is imported. See `docs/rfc/RFC-013-openai-provider-implementation.md` for details.
+**Supported environment variables:**
 
-**Note:** The `.env` file should never be committed to git (it's in `.gitignore`). Use `.env.example` as a template.
+- `OPENAI_API_KEY` - OpenAI API key (required for OpenAI providers)
+- `LOG_LEVEL` - Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `OUTPUT_DIR` - Output directory path
+- `LOG_FILE` - Log file path
+- `CACHE_DIR` / `SUMMARY_CACHE_DIR` - Model cache directory
+- `WORKERS` - Number of parallel download workers
+- `TRANSCRIPTION_PARALLELISM` - Episode-level transcription parallelism
+- `PROCESSING_PARALLELISM` - Episode-level processing parallelism
+- `SUMMARY_BATCH_SIZE` - Episode-level summarization batch size
+- `SUMMARY_CHUNK_PARALLELISM` - Chunk-level parallelism for summarization
+- `TIMEOUT` - Request timeout in seconds
+- `SUMMARY_DEVICE` - Device for model execution (cpu, cuda, mps)
+
+The `.env` file is automatically loaded via `python-dotenv` when the package is imported. See `docs/ENVIRONMENT_VARIABLES.md` for complete documentation.
+
+**Note:** The `.env` file should never be committed to git (it's in `.gitignore`). Use `examples/.env.example` as a template.
 
 ### Additional Setup
 
@@ -265,6 +288,8 @@ python3 -m podcast_scraper.cli --config config.json
   "prefer_type": ["text/vtt", ".srt"],
   "run_id": "experiment",
   "workers": 4,
+  "transcription_parallelism": 1,
+  "processing_parallelism": 2,
   "skip_existing": true,
   "reuse_media": false,
   "dry_run": false,
@@ -273,6 +298,8 @@ python3 -m podcast_scraper.cli --config config.json
   "generate_summaries": true,
   "summary_provider": "local",
   "summary_model": "facebook/bart-base",
+  "summary_batch_size": 1,
+  "summary_chunk_parallelism": 1,
   "summary_max_length": 150,
   "summary_max_takeaways": 10,
   "summary_cache_dir": null
@@ -292,7 +319,9 @@ auto_speakers: true
 speaker_names:  # Optional: manual override (takes precedence over auto-detection)
   - Host
   - Guest
-workers: 6
+workers: 6  # Number of parallel download workers
+transcription_parallelism: 1  # Number of episodes to transcribe in parallel (Whisper ignores >1, OpenAI uses for parallel API calls)
+processing_parallelism: 2  # Number of episodes to process (metadata/summarization) in parallel
 skip_existing: true
 reuse_media: false  # Reuse existing media files instead of re-downloading (for faster testing)
 dry_run: false
@@ -305,6 +334,8 @@ summary_model: null  # Optional: MAP model (defaults to bart-large for chunk sum
 summary_reduce_model: null  # Optional: REDUCE model (defaults to long-fast/LED for final combine)
 summary_max_length: 160  # Maximum summary length in tokens (default: 160)
 summary_min_length: 60  # Minimum summary length in tokens (default: 60)
+summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summarize in parallel
+summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode
 summary_chunk_size: null  # Optional: token chunk size (defaults to 2048)
 summary_device: null  # Optional: cuda, mps, cpu, or null for auto-detection
 summary_cache_dir: null  # Optional: custom cache directory for transformer models (default: ~/.cache/huggingface/hub)
@@ -314,12 +345,14 @@ save_cleaned_transcript: true  # Save cleaned transcript to .cleaned.txt file (d
 ### Virtual Environment
 
 **Quick setup:**
+
 ```bash
 bash scripts/setup_venv.sh
 source .venv/bin/activate
 ```
 
 **Install dependencies:**
+
 ```bash
 # For development (includes dev tools + ML dependencies)
 make init
@@ -329,15 +362,17 @@ pip install -e ".[dev,ml]"
 ```
 
 **Set up environment variables (if using OpenAI providers):**
+
 ```bash
 # Copy example .env file
-cp .env.example .env
+cp examples/.env.example .env
 
 # Edit .env and add your OPENAI_API_KEY
 # OPENAI_API_KEY=sk-your-actual-key-here
 ```
 
 **Run the CLI:**
+
 ```bash
 python -m podcast_scraper.cli <rss_url> [options]
 ```
@@ -509,6 +544,25 @@ Users are responsible for ensuring compliance with:
 This software is provided for educational and personal-use purposes only and is not intended to power a public dataset, index, or any commercial service without explicit permission from rights holders.
 
 For complete details, see [Legal Notice & Appropriate Use](docs/legal.md).
+
+## AI Coding Guidelines
+
+This project includes comprehensive AI coding guidelines to ensure consistent code quality and workflow when using AI assistants (Cursor, Claude Desktop, GitHub Copilot, etc.).
+
+**For AI assistants working on this project:**
+
+- **Primary reference:** `.ai-coding-guidelines.md` - Complete guidelines and patterns
+- **Cursor:** `.cursor/rules/ai-guidelines.mdc` - Cursor-specific rules
+- **Claude Desktop:** `CLAUDE.md` - Entry point for Claude Desktop
+- **GitHub Copilot:** `.github/copilot-instructions.md` - Copilot instructions
+
+**Key workflow rules:**
+
+- Always show changes (`git status`, `git diff`) before committing
+- Always get explicit user approval before committing
+- Always run `make ci` before pushing to PR (new or updated)
+
+**See:** `.ai-coding-guidelines.md` for complete guidelines, patterns, and best practices.
 
 ## License
 

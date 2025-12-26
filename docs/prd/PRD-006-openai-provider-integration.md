@@ -103,6 +103,7 @@ openai_max_tokens: Optional[int] = Field(
 ### Recommended Hybrid Strategies
 
 **Cost-Optimized Hybrid ($0.55/100 episodes):**
+
 ```yaml
 speaker_detector_type: openai      # $0.14/100 (minimal cost)
 transcription_provider: whisper    # Free (local)
@@ -110,9 +111,10 @@ summary_provider: openai          # $0.41/100 (high value)
 ```
 
 **Privacy-Focused Hybrid ($0.41/100 episodes):**
+
 ```yaml
-speaker_detector_type: ner        # Free (local, private)
-transcription_provider: whisper   # Free (local, private)  
+speaker_detector_provider: ner        # Free (local, private)
+transcription_provider: whisper   # Free (local, private)
 summary_provider: openai         # $0.41/100 (convenience)
 ```
 
@@ -154,7 +156,7 @@ summary_provider: openai         # $0.41/100 (convenience)
 
 ### FR1: Provider Selection
 
-- **FR1.1**: Add `speaker_detector_type` config field with values `"ner"` (default), `"openai"`
+- **FR1.1**: Add `speaker_detector_provider` config field with values `"ner"` (default), `"openai"` (Note: `speaker_detector_type` is deprecated but still supported for backward compatibility)
 - **FR1.2**: Add `transcription_provider` config field with values `"whisper"` (default), `"openai"`
 - **FR1.3**: Add `summary_provider` config field with values `"transformers"` (default), `"openai"`
 - **FR1.4**: Provider selection is independent per capability (can mix providers)
@@ -167,7 +169,7 @@ summary_provider: openai         # $0.41/100 (convenience)
 - **FR2.2**: Support `.env` file via `python-dotenv` for convenient per-environment configuration
 - **FR2.3**: API key is never stored in source code, config files, or committed files
 - **FR2.4**: `.env` file automatically loaded when `config.py` module is imported
-- **FR2.5**: `.env.example` template file provided (safe to commit) with placeholder values
+- **FR2.5**: `examples/.env.example` template file provided (safe to commit) with placeholder values
 - **FR2.6**: Missing API key when OpenAI provider is selected results in clear error message
 - **FR2.7**: API key validation occurs at provider initialization (fail fast)
 - **FR2.8**: Support for development and production environments via separate `.env` files

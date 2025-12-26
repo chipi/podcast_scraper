@@ -1,0 +1,19 @@
+Analyze the following podcast episode metadata and identify all speakers (hosts and guests).
+
+Episode Title: {{ episode_title }}
+{% if episode_description %}
+Episode Description: {{ episode_description }}
+{% endif %}
+{% if known_hosts %}
+Known Hosts: {{ known_hosts }}
+{% endif %}
+
+Instructions:
+1. Extract all speaker names mentioned in the title and description
+2. Identify which speakers are hosts (from known_hosts) and which are guests
+3. Return a JSON object with:
+   - "speakers": ["Name1", "Name2", ...] (all speakers found)
+   - "hosts": ["Host1", "Host2", ...] (subset of speakers that are hosts)
+   - "guests": ["Guest1", "Guest2", ...] (subset of speakers that are guests)
+
+Return only the JSON object, no additional text.
