@@ -107,7 +107,7 @@ if [ -n "$STAGED_MARKDOWN" ]; then
         # Check if auto-fix is requested via environment variable
         if [ "$MARKDOWNLINT_FIX" = "1" ]; then
             echo "→ Auto-fixing markdown linting issues..."
-            if markdownlint --fix $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site > /tmp/precommit_md_$$.log 2>&1; then
+            if markdownlint --fix $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json > /tmp/precommit_md_$$.log 2>&1; then
                 echo -e "${GREEN}✓${NC} Markdown auto-fix completed"
                 # Re-stage fixed files
                 echo "$MARKDOWN_FILES" | xargs git add 2>/dev/null || true
@@ -119,7 +119,8 @@ if [ -n "$STAGED_MARKDOWN" ]; then
             echo ""
         fi
         # Run linting check (after auto-fix if enabled)
-        run_check "Markdown linting" "markdownlint $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site"
+        # Use same config as CI (make lint-markdown) to ensure consistency
+        run_check "Markdown linting" "markdownlint $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json"
     else
         echo -e "${RED}✗${NC} markdownlint not found but markdown files are staged"
         echo ""

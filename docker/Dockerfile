@@ -18,8 +18,14 @@ WORKDIR /tmp/build
 
 # Copy minimal files needed for dependency installation
 COPY pyproject.toml .
-COPY podcast_scraper/ ./podcast_scraper/
 COPY README.md .
+# Copy Python source files and package subdirectories
+# Note: package-dir maps podcast_scraper to root directory, so files go to root
+COPY __init__.py cli.py config.py downloader.py episode_processor.py filesystem.py metadata.py metrics.py preprocessing.py progress.py prompt_store.py rss_parser.py service.py speaker_detection.py summarizer.py whisper_integration.py workflow.py models.py experiment_config.py .
+COPY speaker_detectors/ ./speaker_detectors/
+COPY summarization/ ./summarization/
+COPY transcription/ ./transcription/
+COPY prompts/ ./prompts/
 
 # Install torch CPU-only first (optimization: smaller than CUDA version, ~150MB vs 4GB+)
 # This will be replaced by the version from pyproject.toml if needed, but CPU version is preferred
