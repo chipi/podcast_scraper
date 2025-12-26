@@ -805,24 +805,6 @@ class Config(BaseModel):
             return env_key.strip() or None
         return None
 
-    @model_validator(mode="before")
-    @classmethod
-    def _map_deprecated_speaker_detector_field(cls, data: Any) -> Any:
-        """Map deprecated speaker_detector_type to speaker_detector_provider."""
-        if isinstance(data, dict):
-            # If speaker_detector_type is provided but speaker_detector_provider is not,
-            # copy the value to the new field name
-            if "speaker_detector_type" in data and "speaker_detector_provider" not in data:
-                import warnings
-
-                warnings.warn(
-                    "speaker_detector_type is deprecated, use speaker_detector_provider instead",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                data["speaker_detector_provider"] = data["speaker_detector_type"]
-        return data
-
     @field_validator("speaker_detector_provider", mode="before")
     @classmethod
     def _validate_speaker_detector_provider(cls, value: Any) -> Literal["ner", "openai"]:
