@@ -1,6 +1,6 @@
 # RFC-001: Workflow Orchestration
 
-- **Status**: Accepted
+- **Status**: Completed
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Project maintainers, pipeline integrators
 - **Related PRD**: `docs/prd/PRD-001-transcript-pipeline.md`

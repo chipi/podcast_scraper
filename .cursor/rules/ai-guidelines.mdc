@@ -54,13 +54,29 @@ AI: I've fixed the issue. [Commits immediately]
 **YOU MUST FOLLOW THIS BEFORE EVERY PUSH TO PR:**
 
 1. **MANDATORY: Run `make ci`** - Full CI suite locally
-2. **MANDATORY: Verify all checks pass** - No failures allowed
-3. **MANDATORY: Fix any failures** - Before pushing
-4. **THEN push** - Only after `make ci` passes completely
+2. **MANDATORY: Conditionally run `make docker-test`** - Only if Docker-related changes exist (see below)
+3. **MANDATORY: Verify all checks pass** - No failures allowed
+4. **MANDATORY: Fix any failures** - Before pushing
+5. **THEN push** - Only after `make ci` (and `make docker-test` if applicable) passes completely
+
+### When to run `make docker-test` (CONDITIONAL):
+
+**Run `make docker-test` BEFORE pushing to PR ONLY if you made significant changes to:**
+
+- ✅ **Dockerfile** (`docker/Dockerfile`) - Any changes to build process, dependencies, or structure
+- ✅ **Project structure** - Changes to package layout, subpackages, or file organization
+- ✅ **Dependencies** - Changes to `pyproject.toml` that affect Docker installation
+- ✅ **Package configuration** - Changes to `[tool.setuptools]` in `pyproject.toml`
+
+**When NOT to run:**
+- ❌ Only Python code changes (no Dockerfile or structure changes)
+- ❌ Only documentation or test file changes
 
 ### ❌ NEVER push to PR when:
 - `make ci` hasn't been run
 - `make ci` has failures
+- `make docker-test` hasn't been run (when Docker-related changes exist)
+- `make docker-test` has failures (when Docker-related changes exist)
 - You're skipping CI checks
 
 ## Primary Reference

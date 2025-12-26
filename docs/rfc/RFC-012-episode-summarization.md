@@ -1,6 +1,6 @@
 # RFC-012: Episode Summarization Using Local Transformers
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**:
 - **Stakeholders**: Maintainers, users generating episode summaries, developers integrating summarization
 - **Related PRDs**: `docs/prd/PRD-005-episode-summarization.md` (to be created), `docs/prd/PRD-004-metadata-generation.md`
@@ -77,14 +77,14 @@ Add CLI flags:
 
 #### 2.1 Dependency Management
 
-Add dependencies to `requirements.txt` and `pyproject.toml`:
+Add dependencies to `pyproject.toml` in the `[project.optional-dependencies.ml]` section:
 
-```python
-# requirements.txt
-torch>=2.0.0  # PyTorch core
-transformers>=4.30.0  # Hugging Face Transformers library
-sentencepiece>=0.1.99  # Tokenizer dependency for some models
-accelerate>=0.20.0  # Optional: for model loading optimizations
+```toml
+# pyproject.toml [project.optional-dependencies.ml]
+"torch>=2.0.0,<3.0.0",  # PyTorch core
+"transformers>=4.30.0,<5.0.0",  # Hugging Face Transformers library
+"sentencepiece>=0.1.99,<1.0.0",  # Tokenizer dependency for some models
+"accelerate>=0.20.0,<1.0.0",  # Optional: for model loading optimizations
 ```
 
 **Optional dependencies** (for GPU support):

@@ -1,6 +1,6 @@
 # RFC-007: CLI Interface & Validation
 
-- **Status**: Accepted
+- **Status**: Completed
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, operators, documentation writers
 - **Related PRD**: `docs/prd/PRD-003-user-interface-config.md`

@@ -46,6 +46,7 @@ except ImportError:
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.workflow_e2e
 class TestModelSelection(unittest.TestCase):
     """Test model selection logic."""
 
@@ -112,6 +113,7 @@ class TestModelSelection(unittest.TestCase):
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.workflow_e2e
 class TestSummaryModel(unittest.TestCase):
     """Test SummaryModel class."""
 
@@ -287,6 +289,7 @@ class TestSummaryModel(unittest.TestCase):
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.workflow_e2e
 class TestChunking(unittest.TestCase):
     """Test text chunking for long transcripts."""
 
@@ -520,6 +523,7 @@ class TestChunking(unittest.TestCase):
         self.assertIsNotNone(result)
 
 
+@pytest.mark.workflow_e2e
 class TestSponsorCleanup(unittest.TestCase):
     """Ensure sponsor removal cleans obvious ad blocks."""
 
@@ -536,6 +540,7 @@ class TestSponsorCleanup(unittest.TestCase):
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.workflow_e2e
 class TestSafeSummarize(unittest.TestCase):
     """Test safe summarization with error handling."""
 
@@ -625,6 +630,7 @@ class TestSafeSummarize(unittest.TestCase):
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.workflow_e2e
 class TestMemoryOptimization(unittest.TestCase):
     """Test memory optimization functions."""
 
@@ -749,6 +755,7 @@ class TestMemoryOptimization(unittest.TestCase):
         self.assertIsNone(model.pipeline)
 
 
+@pytest.mark.workflow_e2e
 class TestMetadataIntegration(unittest.TestCase):
     """Test integration with metadata generation."""
 
@@ -886,6 +893,7 @@ class TestMetadataIntegration(unittest.TestCase):
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.workflow_e2e
 class TestWorkflowIntegration(unittest.TestCase):
     """Test integration with workflow.py (model loading/reuse/unloading)."""
 
@@ -952,6 +960,7 @@ class TestWorkflowIntegration(unittest.TestCase):
 @pytest.mark.slow
 @pytest.mark.integration
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.workflow_e2e
 class TestModelIntegration(unittest.TestCase):
     """Integration tests to verify all defined models can be loaded.
 

@@ -8,6 +8,8 @@ import types
 import unittest
 from unittest.mock import Mock, patch
 
+import pytest
+
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
@@ -25,6 +27,7 @@ except ImportError:
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.workflow_e2e
 class TestModelLoadingFailures(unittest.TestCase):
     """Test error conditions during model loading."""
 
@@ -109,6 +112,7 @@ class TestModelLoadingFailures(unittest.TestCase):
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.workflow_e2e
 class TestMemoryCleanup(unittest.TestCase):
     """Test memory cleanup and model unloading."""
 

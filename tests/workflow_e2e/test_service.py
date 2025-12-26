@@ -9,6 +9,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
@@ -39,6 +41,7 @@ from conftest import (  # noqa: E402
 from podcast_scraper import downloader  # noqa: E402
 
 
+@pytest.mark.workflow_e2e
 class TestServiceResult(unittest.TestCase):
     """Tests for ServiceResult dataclass."""
 
@@ -80,6 +83,7 @@ class TestServiceResult(unittest.TestCase):
         self.assertIsNone(result.error)  # Default is None
 
 
+@pytest.mark.workflow_e2e
 class TestServiceRun(unittest.TestCase):
     """Tests for service.run()."""
 
@@ -222,6 +226,7 @@ class TestServiceRun(unittest.TestCase):
             self.assertIn("dry run", result.summary.lower())
 
 
+@pytest.mark.workflow_e2e
 class TestServiceRunFromConfigFile(unittest.TestCase):
     """Tests for service.run_from_config_file()."""
 
@@ -386,6 +391,7 @@ class TestServiceRunFromConfigFile(unittest.TestCase):
             self.assertGreater(result.episodes_processed, 0)
 
 
+@pytest.mark.workflow_e2e
 class TestServiceMain(unittest.TestCase):
     """Tests for service.main() CLI entry point."""
 
@@ -463,6 +469,7 @@ class TestServiceMain(unittest.TestCase):
                 service_module.main()
 
 
+@pytest.mark.workflow_e2e
 class TestServiceAPIIntegration(unittest.TestCase):
     """Integration tests for service API with public API."""
 

@@ -1,6 +1,6 @@
 # RFC-011: Per-Episode Metadata Document Generation
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: GPT-5 Codex
 - **Stakeholders**: Maintainers, archivists, developers building integrations
 - **Related PRDs**: `docs/prd/PRD-004-metadata-generation.md`

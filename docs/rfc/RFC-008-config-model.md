@@ -1,6 +1,6 @@
 # RFC-008: Configuration Model & Validation
 
-- **Status**: Accepted
+- **Status**: Completed
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, API consumers, automation engineers
 - **Related PRDs**: `docs/prd/PRD-001-transcript-pipeline.md`, `docs/prd/PRD-002-whisper-fallback.md`, `docs/prd/PRD-003-user-interface-config.md`

@@ -11,9 +11,12 @@ These tests verify that Stage 0 infrastructure is correctly set up:
 import unittest
 from typing import get_type_hints
 
+import pytest
+
 from podcast_scraper import config
 
 
+@pytest.mark.integration
 class TestStage0PackageStructure(unittest.TestCase):
     """Test that new package structure exists and can be imported."""
 
@@ -45,6 +48,7 @@ class TestStage0PackageStructure(unittest.TestCase):
         self.assertIsNotNone(factory)
 
 
+@pytest.mark.integration
 class TestStage0Protocols(unittest.TestCase):
     """Test that Protocol definitions are valid and type-checkable."""
 
@@ -79,6 +83,7 @@ class TestStage0Protocols(unittest.TestCase):
         self.assertIn("params", hints)
 
 
+@pytest.mark.integration
 class TestStage0ConfigFields(unittest.TestCase):
     """Test that new config fields are accepted with correct defaults."""
 
@@ -187,6 +192,7 @@ class TestStage0ConfigFields(unittest.TestCase):
         self.assertEqual(cfg.openai_api_key, "sk-test123")
 
 
+@pytest.mark.integration
 class TestStage0Factories(unittest.TestCase):
     """Test that factory functions exist but raise NotImplementedError (Stage 0)."""
 
@@ -266,6 +272,7 @@ class TestStage0Factories(unittest.TestCase):
         self.assertEqual(provider.__class__.__name__, "OpenAISummarizationProvider")
 
 
+@pytest.mark.integration
 class TestStage0BackwardCompatibility(unittest.TestCase):
     """Test that Stage 0 changes don't break existing functionality."""
 

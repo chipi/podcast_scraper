@@ -37,7 +37,7 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 make init
 ```
 
-> `make init` upgrades pip, installs lint/test/type/security tooling, installs runtime requirements (if `requirements.txt` exists), and then installs `podcast_scraper` in editable mode with `[dev,ml]` extras. It matches the dependencies used in CI.
+> `make init` upgrades pip, installs lint/test/type/security tooling, and then installs `podcast_scraper` in editable mode with `[dev,ml]` extras. It matches the dependencies used in CI.
 
 **Optional: Set up environment variables** (if testing OpenAI providers or configuring deployment settings):
 
@@ -458,24 +458,80 @@ class TestEpisodeProcessor(unittest.TestCase):
 
 ### Running Tests
 
+**Test Structure:**
+
+The test suite is organized into three categories (see `docs/TESTING_STRATEGY.md` for details):
+
+- **`tests/unit/`** - Fast unit tests (fully mocked, no network, no filesystem I/O)
+- **`tests/integration/`** - Integration tests (component interactions)
+- **`tests/workflow_e2e/`** - Workflow E2E tests (complete workflows)
+
+**Test Execution:**
+
 ```bash
-# Run all tests
+# Run all tests (default: unit tests only for fast feedback)
 make test
 
+# Run specific test type
+make test-unit          # Unit tests only
+make test-integration   # Integration tests only
+make test-workflow-e2e  # Workflow E2E tests only
+make test-all           # All tests (unit + integration + workflow_e2e)
+
+# Run with parallel execution (faster)
+make test-parallel      # Run tests in parallel (-n auto)
+
+# Run with flaky test reruns
+make test-reruns        # Retry failed tests (2 retries, 1s delay)
+
 # Run specific test file
-pytest tests/test_summarizer.py
+pytest tests/unit/podcast_scraper/test_config.py
 
 # Run specific test
-pytest tests/test_summarizer.py::TestModelSelection::test_select_model_with_explicit_model
+pytest tests/unit/podcast_scraper/test_config.py::TestSummaryValidation::test_summary_max_greater_than_min
 
 # Run with verbose output
 pytest -v
 
-# Skip slow tests
-pytest -m "not slow"
+# Run by marker
+pytest -m integration           # Integration tests only
+pytest -m workflow_e2e         # Workflow E2E tests only
+pytest -m "not slow"           # Skip slow tests
+pytest -m "not network"        # Skip network tests
 
-# Run only integration tests
-pytest -m integration
+# Combine options
+pytest tests/unit/ -n auto -v  # Unit tests, parallel, verbose
+```
+
+**Network and Filesystem I/O Isolation:**
+
+Unit tests automatically block network calls and filesystem I/O operations. This ensures unit tests remain fast and isolated:
+
+- **Network calls**: If a unit test makes a network call, it will fail with `NetworkCallDetectedError`
+- **Filesystem I/O**: If a unit test performs filesystem I/O (outside temp directories), it will fail with `FilesystemIODetectedError`
+- **Exceptions**: `tempfile` operations, cache directories, site-packages, and Python cache files are allowed
+
+If your test needs to perform file operations, use `tempfile` operations (which are allowed), or move the test to `tests/integration/` or `tests/workflow_e2e/`.
+
+**Parallel Execution:**
+
+Tests can run in parallel for faster feedback:
+
+```bash
+# Auto-detect CPU count
+pytest -n auto
+
+# Use specific number of workers
+pytest -n 4
+```
+
+**Flaky Test Reruns:**
+
+For tests that occasionally fail due to timing or external factors:
+
+```bash
+# Retry failed tests (2 retries, 1 second delay)
+pytest --reruns 2 --reruns-delay 1
 ```
 
 ---

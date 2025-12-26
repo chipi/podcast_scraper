@@ -1,6 +1,6 @@
 # RFC-013: OpenAI Provider Implementation
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**:
 - **Stakeholders**: Maintainers, users wanting OpenAI API integration, developers implementing providers
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
@@ -286,10 +286,10 @@ load_dotenv(env_file, override=False)
 
 **Dependencies:**
 
-Add to `requirements.txt`:
+Add to `pyproject.toml` dependencies:
 
-```text
-python-dotenv>=1.0.0
+```toml
+"python-dotenv>=1.0.0,<2.0.0",  # For .env file support
 ```
 
 **Development Setup Documentation:**
@@ -1935,9 +1935,9 @@ Get your API key: https://platform.openai.com/api-keys
 
 ### Dependencies
 
-```python
-# Add to requirements.txt
-tenacity>=8.2.0,<9.0.0  # For retry logic with exponential backoff
+```toml
+# Add to pyproject.toml dependencies
+"tenacity>=8.2.0,<9.0.0",  # For retry logic with exponential backoff
 ```
 
 ### Testing

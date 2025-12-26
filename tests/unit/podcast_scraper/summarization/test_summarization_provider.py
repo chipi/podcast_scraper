@@ -25,6 +25,21 @@ class TestSummarizationProviderFactory(unittest.TestCase):
         self.assertIsNotNone(provider)
         self.assertEqual(provider.__class__.__name__, "TransformersSummarizationProvider")
 
+    def test_create_anthropic_provider_not_implemented(self):
+        """Test that factory raises NotImplementedError for 'anthropic' provider."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="anthropic",
+            generate_summaries=False,
+        )
+        with self.assertRaises(NotImplementedError) as context:
+            create_summarization_provider(cfg)
+
+        self.assertIn(
+            "Anthropic summarization provider is not yet implemented", str(context.exception)
+        )
+        self.assertIn("Currently supported providers: 'local', 'openai'", str(context.exception))
+
     def test_create_invalid_provider(self):
         """Test that factory raises ValueError for invalid provider type."""
         with self.assertRaises(ValueError) as context:

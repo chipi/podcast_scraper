@@ -5,6 +5,8 @@ import os
 import sys
 import unittest
 
+import pytest
+
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
@@ -14,6 +16,7 @@ if PROJECT_ROOT not in sys.path:
 from podcast_scraper import config
 
 
+@pytest.mark.workflow_e2e
 class TestEnvironmentVariables(unittest.TestCase):
     """Test environment variable loading for Config."""
 

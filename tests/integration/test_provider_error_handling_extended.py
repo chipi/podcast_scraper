@@ -11,6 +11,7 @@ These tests verify comprehensive error handling scenarios including:
 import unittest
 from unittest.mock import Mock, patch
 
+import pytest
 from pydantic import ValidationError
 
 from podcast_scraper import config
@@ -19,6 +20,7 @@ from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
 
+@pytest.mark.integration
 class TestTranscriptionProviderErrorHandling(unittest.TestCase):
     """Test error handling for transcription providers."""
 
@@ -92,6 +94,7 @@ class TestTranscriptionProviderErrorHandling(unittest.TestCase):
         provider.cleanup()
 
 
+@pytest.mark.integration
 class TestSpeakerDetectorErrorHandling(unittest.TestCase):
     """Test error handling for speaker detectors."""
 
@@ -161,6 +164,7 @@ class TestSpeakerDetectorErrorHandling(unittest.TestCase):
                 detector.clear_cache()
 
 
+@pytest.mark.integration
 class TestSummarizationProviderErrorHandling(unittest.TestCase):
     """Test error handling for summarization providers."""
 
@@ -235,6 +239,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
             )
 
 
+@pytest.mark.integration
 class TestProviderSwitchingErrorHandling(unittest.TestCase):
     """Test error handling when switching providers."""
 
@@ -278,6 +283,7 @@ class TestProviderSwitchingErrorHandling(unittest.TestCase):
             )
 
 
+@pytest.mark.integration
 class TestGracefulDegradation(unittest.TestCase):
     """Test graceful degradation scenarios."""
 

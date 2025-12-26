@@ -8,12 +8,15 @@ fallbacks doesn't break functionality.
 import unittest
 from unittest.mock import Mock, patch
 
+import pytest
+
 from podcast_scraper import config
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
 
+@pytest.mark.integration
 class TestTranscriptionProviderFallback(unittest.TestCase):
     """Test transcription provider fallback behavior."""
 
@@ -55,6 +58,7 @@ class TestTranscriptionProviderFallback(unittest.TestCase):
         self.assertEqual(provider.__class__.__name__, "WhisperTranscriptionProvider")
 
 
+@pytest.mark.integration
 class TestSpeakerDetectorFallback(unittest.TestCase):
     """Test speaker detector fallback behavior."""
 
@@ -91,6 +95,7 @@ class TestSpeakerDetectorFallback(unittest.TestCase):
         self.assertIsInstance(result, set)
 
 
+@pytest.mark.integration
 class TestSummarizationProviderFallback(unittest.TestCase):
     """Test summarization provider fallback behavior."""
 
@@ -113,6 +118,7 @@ class TestSummarizationProviderFallback(unittest.TestCase):
         self.assertEqual(provider.__class__.__name__, "TransformersSummarizationProvider")
 
 
+@pytest.mark.integration
 class TestCacheClearingFallback(unittest.TestCase):
     """Test cache clearing fallback behavior."""
 
@@ -147,6 +153,7 @@ class TestCacheClearingFallback(unittest.TestCase):
         mock_clear_cache.assert_called_once()
 
 
+@pytest.mark.integration
 class TestBackwardCompatibilityFallbacks(unittest.TestCase):
     """Test backward compatibility fallback patterns."""
 
@@ -185,6 +192,7 @@ class TestBackwardCompatibilityFallbacks(unittest.TestCase):
         # This is intentional for backward compatibility during migration
 
 
+@pytest.mark.integration
 class TestFallbackRemovalImpact(unittest.TestCase):
     """Test that removing fallbacks doesn't break functionality."""
 

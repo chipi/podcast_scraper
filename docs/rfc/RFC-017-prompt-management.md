@@ -1,6 +1,6 @@
 # RFC-017: Prompt Management and Loading
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**:
 - **Stakeholders**: Maintainers, developers implementing AI features, researchers running experiments
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`

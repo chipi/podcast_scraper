@@ -7,6 +7,7 @@ These tests verify that all providers work together correctly in the workflow.
 import unittest
 from unittest.mock import Mock, patch
 
+import pytest
 from pydantic import ValidationError
 
 from podcast_scraper import config
@@ -15,6 +16,7 @@ from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
 
+@pytest.mark.integration
 class TestProviderIntegration(unittest.TestCase):
     """Test that all providers work together."""
 
@@ -157,6 +159,7 @@ class TestProviderIntegration(unittest.TestCase):
             self.assertFalse(summarization_provider.is_initialized)  # type: ignore[attr-defined]
 
 
+@pytest.mark.integration
 class TestProviderSwitching(unittest.TestCase):
     """Test provider switching via configuration."""
 
@@ -233,6 +236,7 @@ class TestProviderSwitching(unittest.TestCase):
             )
 
 
+@pytest.mark.integration
 class TestProviderErrorHandling(unittest.TestCase):
     """Test error handling when providers fail."""
 
@@ -291,6 +295,7 @@ class TestProviderErrorHandling(unittest.TestCase):
                 provider.summarize("test text")
 
 
+@pytest.mark.integration
 class TestBackwardCompatibility(unittest.TestCase):
     """Test backward compatibility with default configurations."""
 

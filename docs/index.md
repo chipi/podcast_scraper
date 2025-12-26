@@ -418,7 +418,7 @@ Build and preview documentation locally:
 
 ```bash
 # Install dependencies
-pip install -r docs/requirements.txt
+pip install mkdocs mkdocs-material pymdown-extensions mkdocstrings mkdocstrings-python
 
 # Serve with live reload
 mkdocs serve

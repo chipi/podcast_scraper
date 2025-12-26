@@ -288,6 +288,31 @@ The testing strategy follows a three-tier pyramid:
 - **File System**: `tempfile.TemporaryDirectory` for isolated test runs
 - **spaCy**: Mock NER extraction for unit tests; real spaCy required for integration tests (spaCy is a required dependency)
 
+**Network and Filesystem I/O Isolation for Unit Tests:**
+
+- Unit tests are automatically prevented from making network calls and filesystem I/O operations
+- A pytest plugin (`tests/unit/conftest.py`) blocks:
+  - **Network libraries:**
+    - `requests.get()`, `requests.post()`, `requests.Session()` methods
+    - `urllib.request.urlopen()`
+    - `urllib3.PoolManager()`
+    - `socket.create_connection()`
+  - **Filesystem operations:**
+    - `open()` for file operations (outside temp directories)
+    - `os.makedirs()`, `os.remove()`, `os.unlink()`, `os.rmdir()`, etc.
+    - `shutil.copy()`, `shutil.move()`, `shutil.rmtree()`, etc.
+    - `Path.write_text()`, `Path.write_bytes()`, `Path.mkdir()`, `Path.unlink()`, etc.
+- If a unit test attempts a network call, it fails with `NetworkCallDetectedError`
+- If a unit test attempts filesystem I/O, it fails with `FilesystemIODetectedError`
+- **Exceptions (allowed in unit tests):**
+  - `tempfile.mkdtemp()`, `tempfile.NamedTemporaryFile()` (designed for testing)
+  - Operations within temp directories (detected automatically)
+  - Cache directories (`~/.cache/`, `~/.local/share/`) for model loading
+  - Site-packages (read-only access to installed packages)
+  - Python cache files (`.pyc`, `__pycache__`) created during imports
+  - `test_filesystem.py` tests (they need to test filesystem operations)
+- Integration and workflow_e2e tests are not affected by network/filesystem isolation
+
 ### Test Fixtures
 
 - **RSS XML Samples**: Various feed structures, namespaces, edge cases
@@ -297,53 +322,194 @@ The testing strategy follows a three-tier pyramid:
 
 ### Test Organization
 
-- **Current**: `tests/test_podcast_scraper.py` (integration-focused suite)
-- **Future**: Consider splitting into:
-  - `tests/unit/` - Unit tests per module
-  - `tests/integration/` - Integration tests
-  - `tests/e2e/` - End-to-end tests
-  - `tests/fixtures/` - Shared test fixtures
+The test suite is organized into three main categories (RFC-018):
+
+- **`tests/unit/`** - Unit tests per module
+  - Fast, isolated tests (< 100ms each)
+  - Fully mocked dependencies
+  - No network calls (enforced by pytest plugin)
+  - No filesystem I/O (enforced by pytest plugin, except tempfile operations)
+  - Mirrors `src/podcast_scraper/` structure
+  - Example: `tests/unit/podcast_scraper/test_config.py`
+
+- **`tests/integration/`** - Integration tests
+  - Test component interactions
+  - May use real implementations (not mocked) for some components
+  - Still isolated from external services
+  - Example: `tests/integration/test_provider_integration.py`
+
+- **`tests/workflow_e2e/`** - Workflow end-to-end tests
+  - Test complete workflows from entry point to output
+  - Test CLI commands, service mode, full pipelines
+  - May use real implementations and real data (mocked where appropriate)
+  - Slowest tests (may take seconds to minutes)
+  - Example: `tests/workflow_e2e/test_workflow_e2e.py`
+
+**Shared Test Utilities:**
+
+- **`tests/conftest.py`** - Shared fixtures and test utilities available to all tests
+- **`tests/unit/conftest.py`** - Network and filesystem I/O isolation enforcement for unit tests
 
 ### Test Markers
 
-- `@pytest.mark.e2e` - End-to-end tests (optional in CI)
-- `@pytest.mark.whisper` - Requires Whisper dependency
-- `@pytest.mark.spacy` - Requires spaCy dependency
-- `@pytest.mark.slow` - Slow-running tests
+- `@pytest.mark.integration` - Integration tests (test component interactions)
+- `@pytest.mark.workflow_e2e` - Workflow end-to-end tests (test complete workflows)
+- `@pytest.mark.network` - Tests that hit the network (off by default)
+- `@pytest.mark.slow` - Slow-running tests (existing)
+- `@pytest.mark.whisper` - Requires Whisper dependency (existing)
+- `@pytest.mark.spacy` - Requires spaCy dependency (existing)
+
+**Marker Usage:**
+
+- All integration tests must have `@pytest.mark.integration`
+- All workflow_e2e tests must have `@pytest.mark.workflow_e2e`
+- Unit tests should NOT have integration/workflow_e2e markers
+- Tests that make network calls should have `@pytest.mark.network` (if allowed)
 
 ## CI/CD Integration
 
 ### Continuous Integration Strategy
 
-**On Every PR**:
+**On Every PR** (GitHub Actions):
 
-- Run all unit tests
-- Run integration tests (with mocks)
-- Run linting and type checking
-- Skip E2E tests (too slow for PR feedback)
+- **`test-unit` job**: Fast unit tests (no ML deps), network and filesystem I/O isolation enforced, parallel execution
+- **`test-integration` job**: Integration tests with ML dependencies, parallel execution, flaky test reruns
+- **`test` job**: Full test suite (unit + integration) with coverage for PRs
+- **`lint` job**: Formatting, linting, type checking, security scans
+- **`docs` job**: Documentation build
+- **`build` job**: Package build validation
 
-**On Main Branch / Scheduled**:
+**On Main Branch**:
 
-- Run full test suite including E2E tests
-- Run E2E tests with real Whisper (if available)
-- Generate coverage reports
+- **`test-unit` job**: Unit tests (same as PR)
+- **`test-integration` job**: Integration tests (same as PR)
+- **`test-workflow-e2e` job**: Workflow E2E tests (runs only on main branch), parallel execution, flaky test reruns
+- All other jobs run as on PRs
 
-**Manual Trigger**:
+**Test Execution Strategy**:
 
-- Full E2E test suite with `--run-whisper-e2e` flag
-- Performance benchmarks
+- **Unit tests**: Run on every PR and push (fast feedback, ~30 seconds)
+- **Integration tests**: Run on every PR and push (moderate speed, ~2-5 minutes)
+- **Workflow E2E tests**: Run only on main branch pushes (slowest, ~5-10 minutes)
+- **Parallel execution**: Enabled for all test jobs (`-n auto`)
+- **Flaky test reruns**: Enabled for integration and workflow_e2e tests (`--reruns 2 --reruns-delay 1`)
+- **Network isolation**: Enforced for unit tests (automatic failure if network call detected)
+- **Filesystem I/O isolation**: Enforced for unit tests (automatic failure if filesystem I/O detected, except tempfile operations)
 
 ### Test Execution
 
+**Default (unit tests only - fast feedback):**
+
 ```bash
-# Unit and integration tests (fast, always run)
-python -m pytest tests/unit tests/integration
+# Run unit tests only (default pytest behavior)
+pytest
 
-# E2E tests (slow, optional)
-pytest tests/e2e -m e2e
+# Or explicitly:
+pytest tests/unit/
+```
 
-# Full suite with Whisper
-pytest --run-whisper-e2e
+**By test type:**
+
+```bash
+# Unit tests only
+pytest tests/unit/
+make test-unit
+
+# Integration tests only
+pytest tests/integration/ -m integration
+make test-integration
+
+# Workflow E2E tests only
+pytest tests/workflow_e2e/ -m workflow_e2e
+make test-workflow-e2e
+
+# All tests (excluding network tests)
+pytest -m "not network"
+make test-all
+```
+
+**Parallel execution (faster feedback):**
+
+```bash
+# Run tests in parallel (auto-detects CPU count)
+pytest -n auto
+make test-parallel
+
+# Run with specific number of workers
+pytest -n 4
+```
+
+**Flaky test reruns:**
+
+```bash
+# Retry failed tests (2 retries, 1 second delay)
+pytest --reruns 2 --reruns-delay 1
+make test-reruns
+
+# Combine with parallel execution
+pytest -n auto --reruns 2 --reruns-delay 1
+```
+
+**Network and Filesystem I/O Isolation:**
+
+```bash
+# Unit tests automatically block network calls and filesystem I/O
+# If a unit test makes a network call, it will fail with NetworkCallDetectedError
+# If a unit test performs filesystem I/O, it will fail with FilesystemIODetectedError
+# Exceptions: tempfile operations, cache directories, site-packages, Python cache files
+pytest tests/unit/
+
+# Integration and workflow_e2e tests can use network and filesystem I/O (if marked)
+pytest tests/integration/ -m integration
+pytest tests/workflow_e2e/ -m workflow_e2e
+```
+
+### Network Isolation
+
+Unit tests are automatically prevented from making network calls. The pytest plugin (`tests/unit/conftest.py`) blocks common network libraries:
+
+- `requests.get()`, `requests.post()`, `requests.Session()` methods
+- `urllib.request.urlopen()`
+- `urllib3.PoolManager()`
+- `socket.create_connection()`
+
+If a unit test attempts a network call, it fails with `NetworkCallDetectedError`. Integration and workflow_e2e tests are not affected by network isolation.
+
+### Filesystem I/O Isolation
+
+Unit tests are automatically prevented from performing filesystem I/O operations. The pytest plugin (`tests/unit/conftest.py`) blocks:
+
+- `open()` for file operations (outside temp directories)
+- `os.makedirs()`, `os.remove()`, `os.unlink()`, `os.rmdir()`, `os.rename()`, etc.
+- `shutil.copy()`, `shutil.move()`, `shutil.rmtree()`, etc.
+- `Path.write_text()`, `Path.write_bytes()`, `Path.mkdir()`, `Path.unlink()`, `Path.rmdir()`, etc.
+
+If a unit test attempts filesystem I/O, it fails with `FilesystemIODetectedError`.
+
+**Exceptions (allowed in unit tests):**
+
+- **`tempfile` operations**: `tempfile.mkdtemp()`, `tempfile.NamedTemporaryFile()` (designed for testing)
+- **Operations within temp directories**: Automatically detected and allowed
+- **Cache directories**: `~/.cache/`, `~/.local/share/`, etc. (for model loading)
+- **Site-packages**: Read-only access to installed packages (e.g., spaCy models)
+- **Python cache files**: `.pyc`, `__pycache__/` (created during imports)
+- **`test_filesystem.py`**: Tests that need to test filesystem operations
+
+**Why filesystem I/O isolation?**
+
+- Ensures unit tests are fast and isolated
+- Prevents tests from affecting each other through filesystem state
+- Forces proper mocking of file operations
+- Makes tests more deterministic and reproducible
+
+Integration and workflow_e2e tests are not affected by filesystem I/O isolation.
+
+**Coverage:**
+
+```bash
+# Run tests with coverage report
+pytest --cov=podcast_scraper --cov-report=term-missing
+make test
 ```
 
 ### Coverage Requirements
@@ -373,6 +539,8 @@ pytest --run-whisper-e2e
 - Tests clean up after themselves
 - No shared state between tests
 - Mock external services (HTTP, file system)
+- No network calls in unit tests (enforced by pytest plugin)
+- No filesystem I/O in unit tests (enforced by pytest plugin, except tempfile operations)
 
 ### Error Testing
 
@@ -522,8 +690,9 @@ pytest --run-whisper-e2e
 
 ## References
 
-- Current test suite: `tests/test_podcast_scraper.py`
+- Test structure reorganization: `docs/rfc/RFC-018-test-structure-reorganization.md`
 - CI workflow: `.github/workflows/python-app.yml`
-- Related RFCs: RFC-001 through RFC-010 (individual testing strategies)
-- Related Issues: #14 (E2E testing), #16 (Library API E2E tests)
+- Related RFCs: RFC-001 through RFC-018 (testing strategies and reorganization)
+- Related Issues: #14 (E2E testing), #16 (Library API E2E tests), #94 (src/ layout), #98 (Test structure reorganization)
 - Architecture: `docs/ARCHITECTURE.md` (Testing Notes section)
+- Contributing guide: `CONTRIBUTING.md` (Testing Requirements section)

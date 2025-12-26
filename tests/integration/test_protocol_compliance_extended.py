@@ -9,12 +9,15 @@ import inspect
 import unittest
 from unittest.mock import Mock, patch
 
+import pytest
+
 from podcast_scraper import config
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
 
+@pytest.mark.integration
 class TestProtocolLifecycleMethods(unittest.TestCase):
     """Test initialize() and cleanup() methods for all providers."""
 
@@ -130,6 +133,7 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
             self.assertFalse(provider.is_initialized)
 
 
+@pytest.mark.integration
 class TestSpeakerDetectorDetectHosts(unittest.TestCase):
     """Test detect_hosts() method for SpeakerDetector protocol."""
 
@@ -192,6 +196,7 @@ class TestSpeakerDetectorDetectHosts(unittest.TestCase):
         self.assertIn("Jane Smith", result)
 
 
+@pytest.mark.integration
 class TestTranscriptionProviderTranscribeWithSegments(unittest.TestCase):
     """Test transcribe_with_segments() method for TranscriptionProvider protocol."""
 
@@ -261,6 +266,7 @@ class TestTranscriptionProviderTranscribeWithSegments(unittest.TestCase):
         self.assertIsInstance(result_dict["segments"], list)
 
 
+@pytest.mark.integration
 class TestSpeakerDetectorClearCache(unittest.TestCase):
     """Test clear_cache() method for SpeakerDetector protocol."""
 
@@ -317,6 +323,7 @@ class TestSpeakerDetectorClearCache(unittest.TestCase):
         detector.clear_cache()
 
 
+@pytest.mark.integration
 class TestProtocolMethodCompleteness(unittest.TestCase):
     """Test that all protocol methods are implemented by all providers."""
 

@@ -1,6 +1,6 @@
 # RFC-006: Whisper Screenplay Formatting
 
-- **Status**: Accepted
+- **Status**: Completed
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, operators formatting transcripts for dialog review
 - **Related PRD**: `docs/prd/PRD-002-whisper-fallback.md`

@@ -1,7 +1,7 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
-.PHONY: help init format format-check lint lint-markdown type security security-bandit security-audit test coverage docs build ci clean docker-build docker-test docker-clean install-hooks
+.PHONY: help init format format-check lint lint-markdown type security security-bandit security-audit test test-unit test-integration test-workflow-e2e test-all test-parallel test-reruns coverage docs build ci clean docker-build docker-test docker-clean install-hooks
 
 help:
 	@echo "Common developer commands:"
@@ -12,7 +12,17 @@ help:
 	@echo "  make lint-markdown   Run markdownlint on markdown files"
 	@echo "  make type            Run mypy type checks"
 	@echo "  make security        Run bandit & pip-audit security scans"
-	@echo "  make test            Run pytest with coverage"
+	@echo ""
+	@echo "Test commands:"
+	@echo "  make test            Run pytest with coverage (default: unit tests only)"
+	@echo "  make test-unit       Run unit tests only"
+	@echo "  make test-integration Run integration tests only"
+	@echo "  make test-workflow-e2e Run workflow E2E tests only"
+	@echo "  make test-all        Run all tests (unit + integration + workflow_e2e)"
+	@echo "  make test-parallel   Run tests with parallel execution (-n auto)"
+	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
+	@echo ""
+	@echo "Other commands:"
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
 	@echo "  make build           Build source and wheel distributions (outputs to .build/dist/)"
 	@echo "  make ci              Run the full CI suite locally"
@@ -55,7 +65,9 @@ security-audit:
 	$(PYTHON) -m pip install --upgrade setuptools
 	# Install ML dependencies to ensure they are audited
 	# This ensures production dependencies like torch, transformers, spacy, openai-whisper are audited
-	$(PYTHON) -m pip install --quiet -e .[ml] || $(PYTHON) -m pip install --quiet .[ml]
+	$(PYTHON) -m pip install --quiet -e .[ml] || \
+		(echo "⚠️  Editable install failed, using non-editable install" && \
+		 $(PYTHON) -m pip install --quiet .[ml])
 	# Audit all installed packages (including ML dependencies from pyproject.toml)
 	pip-audit --skip-editable
 
@@ -64,6 +76,24 @@ docs:
 
 test:
 	pytest --cov=$(PACKAGE) --cov-report=term-missing
+
+test-unit:
+	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing
+
+test-integration:
+	pytest tests/integration/ -m integration
+
+test-workflow-e2e:
+	pytest tests/workflow_e2e/ -m workflow_e2e
+
+test-all:
+	pytest tests/ -m "not network" --cov=$(PACKAGE) --cov-report=term-missing
+
+test-parallel:
+	pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing
+
+test-reruns:
+	pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing
 
 coverage: test
 

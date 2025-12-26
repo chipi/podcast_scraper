@@ -8,6 +8,8 @@ import inspect
 import unittest
 from typing import get_type_hints
 
+import pytest
+
 from podcast_scraper import config
 from podcast_scraper.speaker_detectors.base import SpeakerDetector
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
@@ -17,6 +19,7 @@ from podcast_scraper.transcription.base import TranscriptionProvider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
 
+@pytest.mark.integration
 class TestTranscriptionProviderProtocol(unittest.TestCase):
     """Test TranscriptionProvider protocol compliance."""
 
@@ -53,6 +56,7 @@ class TestTranscriptionProviderProtocol(unittest.TestCase):
             )
 
 
+@pytest.mark.integration
 class TestSpeakerDetectorProtocol(unittest.TestCase):
     """Test SpeakerDetector protocol compliance."""
 
@@ -102,6 +106,7 @@ class TestSpeakerDetectorProtocol(unittest.TestCase):
             )
 
 
+@pytest.mark.integration
 class TestSummarizationProviderProtocol(unittest.TestCase):
     """Test SummarizationProvider protocol compliance."""
 
@@ -149,6 +154,7 @@ class TestSummarizationProviderProtocol(unittest.TestCase):
             )
 
 
+@pytest.mark.integration
 class TestProtocolTypeHints(unittest.TestCase):
     """Test that protocols have proper type hints."""
 

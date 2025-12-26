@@ -2,6 +2,48 @@
 
 > **Maintenance Note**: This document should be kept up-to-date as linting rules, Makefile targets, pre-commit hooks, CI/CD workflows, or development setup procedures evolve. When adding new checks, tools, workflows, or environment setup steps, update this document accordingly.
 
+## Test Structure
+
+The test suite is organized into three main categories (RFC-018):
+
+- **`tests/unit/`** - Unit tests (fast, isolated, fully mocked)
+- **`tests/integration/`** - Integration tests (component interactions)
+- **`tests/workflow_e2e/`** - Workflow E2E tests (complete workflows)
+
+**Key Features:**
+
+- **Network Isolation**: Unit tests automatically block network calls (enforced by `tests/unit/conftest.py`)
+- **Filesystem I/O Isolation**: Unit tests automatically block filesystem I/O operations (enforced by `tests/unit/conftest.py`)
+  - Blocks: `open()`, `os.makedirs()`, `os.unlink()`, `shutil.rmtree()`, `Path.write_text()`, etc.
+  - Allows: `tempfile` operations, operations within temp directories, cache directories, site-packages, Python cache files
+- **Parallel Execution**: Tests can run in parallel using `pytest-xdist` (`-n auto`)
+- **Flaky Test Reruns**: Failed tests can be automatically retried using `pytest-rerunfailures` (`--reruns 2 --reruns-delay 1`)
+- **Test Markers**: All integration tests have `@pytest.mark.integration`, all workflow_e2e tests have `@pytest.mark.workflow_e2e`
+
+**Running Tests:**
+
+```bash
+# Unit tests only (default, fast feedback)
+make test-unit
+
+# Integration tests
+make test-integration
+
+# Workflow E2E tests
+make test-workflow-e2e
+
+# All tests
+make test-all
+
+# Parallel execution
+make test-parallel
+
+# With reruns for flaky tests
+make test-reruns
+```
+
+See `docs/TESTING_STRATEGY.md` for comprehensive testing guidelines and `CONTRIBUTING.md` for test running examples.
+
 ## Environment Setup
 
 ### Virtual Environment

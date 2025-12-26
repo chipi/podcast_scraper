@@ -18,6 +18,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 import requests
 
 import podcast_scraper
@@ -66,6 +67,7 @@ from conftest import (  # noqa: F401, E402
 )
 
 
+@pytest.mark.workflow_e2e
 class TestIntegrationMain(unittest.TestCase):
     """Higher-level integration tests using mocked HTTP responses."""
 
@@ -297,6 +299,7 @@ class TestIntegrationMain(unittest.TestCase):
                 self.assertIn("Guest:", log_text)
 
 
+@pytest.mark.workflow_e2e
 class TestLibraryAPIE2E(unittest.TestCase):
     """E2E tests for library API (podcast_scraper.run_pipeline())."""
 

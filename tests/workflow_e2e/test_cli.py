@@ -18,6 +18,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import pytest
+
 import podcast_scraper.cli as cli
 
 # Add tests directory to path for conftest import
@@ -62,6 +64,7 @@ from conftest import (  # noqa: F401, E402
 )
 
 
+@pytest.mark.workflow_e2e
 class TestConfigFileSupport(unittest.TestCase):
     """Tests for configuration file loading."""
 

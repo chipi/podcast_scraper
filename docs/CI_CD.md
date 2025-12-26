@@ -117,7 +117,6 @@ graph TB
 - `**.py` - All Python source files
 - `tests/**` - Test files
 - `pyproject.toml` - Project configuration
-- `requirements.txt` - Dependencies
 - `Makefile` - Build configuration
 - `docker/**` - Docker files (Dockerfile, docker-compose, etc.)
 - `.github/workflows/python-app.yml` - Workflow itself
@@ -429,7 +428,6 @@ schedule:
 
 - `docker/**` - Docker-related files
 - `Dockerfile` - Main Dockerfile
-- `requirements.txt` - Python dependencies
 - `pyproject.toml` - Project configuration
 - `*.py` - Python source files
 
@@ -495,7 +493,6 @@ Validates that Docker images can be built correctly and pass basic smoke tests. 
 
 - `**.py` - Python source files
 - `pyproject.toml` - Project configuration
-- `requirements.txt` - Dependencies
 - `docker/**` - Docker files
 - `Dockerfile` - Main Dockerfile
 
@@ -517,9 +514,9 @@ Provides comprehensive security scanning for both Python dependencies and Docker
 
 1. Checkout code
 2. Set up Python 3.11 with pip caching
-3. Install dependencies (`pip install -e .[dev]`)
+3. Install dependencies (`pip install -e .[dev,ml]`)
 4. Run Snyk scan on Python dependencies
-   - Scans `requirements.txt`
+   - Scans installed packages from `pyproject.toml`
    - Severity threshold: `high` (only reports high/critical issues)
    - Generates SARIF file for GitHub Code Scanning integration
 5. Upload results to GitHub Code Scanning

@@ -12,11 +12,14 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts import eval_cleaning, eval_summaries
 
 
+@pytest.mark.workflow_e2e
 class TestEvalCleaning(unittest.TestCase):
     """Tests for eval_cleaning.py"""
 
@@ -119,6 +122,7 @@ class TestEvalCleaning(unittest.TestCase):
             self.assertIn("flags", result)
 
 
+@pytest.mark.workflow_e2e
 class TestEvalSummaries(unittest.TestCase):
     """Tests for eval_summaries.py"""
 
@@ -260,6 +264,7 @@ class TestEvalSummaries(unittest.TestCase):
             self.assertIn("checks", result)
 
 
+@pytest.mark.workflow_e2e
 class TestEvalScriptsIntegration(unittest.TestCase):
     """Integration tests for eval scripts (require minimal setup)."""
 

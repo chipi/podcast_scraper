@@ -10,6 +10,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pytest
+
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
@@ -66,6 +68,7 @@ def _create_test_transcript_files(episodes, temp_dir, cfg):
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.integration
 class TestParallelSummarizationPreLoading(unittest.TestCase):
     """Test model pre-loading before parallel execution."""
 
@@ -204,6 +207,7 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.integration
 class TestParallelSummarizationThreadSafety(unittest.TestCase):
     """Test thread safety of parallel summarization."""
 
@@ -293,6 +297,7 @@ class TestParallelSummarizationThreadSafety(unittest.TestCase):
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.integration
 class TestParallelSummarizationFallback(unittest.TestCase):
     """Test fallback behavior when model loading fails."""
 
@@ -371,6 +376,7 @@ class TestParallelSummarizationFallback(unittest.TestCase):
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.integration
 class TestParallelSummarizationCleanup(unittest.TestCase):
     """Test cleanup of worker models after parallel execution."""
 
@@ -491,6 +497,7 @@ class TestParallelSummarizationCleanup(unittest.TestCase):
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+@pytest.mark.integration
 class TestParallelSummarizationEdgeCases(unittest.TestCase):
     """Test edge cases for parallel summarization."""
 
