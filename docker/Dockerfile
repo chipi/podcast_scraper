@@ -16,26 +16,34 @@ RUN mkdir -p "${XDG_CACHE_HOME}"
 
 WORKDIR /tmp/build
 
-COPY . .
+COPY pyproject.toml .
+COPY podcast_scraper/ ./podcast_scraper/
+COPY README.md .
 
-RUN pip install --no-cache-dir -r requirements.txt
+# Install core dependencies from pyproject.toml (without ML extras)
+# This installs only the core dependencies listed in [project.dependencies]
+RUN pip install --no-cache-dir . && \
+    pip uninstall -y podcast-scraper && \
+    rm -rf /root/.cache/pip
 
 # Install torch CPU-only (much smaller than CUDA version, ~150MB vs 4GB+)
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     rm -rf /root/.cache/pip
 
-# Install remaining ML dependencies (without torch, already installed above)
+# Install remaining ML dependencies from pyproject.toml optional-dependencies
+# (torch is already installed above as CPU-only version)
 # hadolint ignore=SC2261
 RUN pip install --no-cache-dir \
     openai-whisper>=20231117 \
-    spacy>=3.7.0 \
-    transformers>=4.30.0 \
-    sentencepiece>=0.1.99 \
-    accelerate>=0.20.0 \
-    protobuf>=3.20.0 && \
+    spacy>=3.7.0,<4.0.0 \
+    transformers>=4.30.0,<5.0.0 \
+    sentencepiece>=0.1.99,<1.0.0 \
+    accelerate>=0.20.0,<1.0.0 \
+    protobuf>=3.20.0,<5.0.0 && \
     rm -rf /root/.cache/pip
 
-# Install the podcast_scraper package itself (without reinstalling ML deps)
+# Copy all files and install the podcast_scraper package itself (without reinstalling deps)
+COPY . .
 RUN pip install --no-cache-dir --no-deps .
 
 # hadolint ignore=SC2261

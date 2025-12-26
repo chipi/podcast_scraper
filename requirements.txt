@@ -5,6 +5,10 @@
 #
 # Note: rouge-score (required for scripts/eval_summaries.py) is included in
 # dev optional dependencies. Install with: pip install -e .[dev]
+#
+# NOTE: Docker builds now use pyproject.toml directly (see docker/Dockerfile).
+# This file is kept for backward compatibility and tools that require it
+# (e.g., pip-audit). The source of truth for dependencies is pyproject.toml.
 requests>=2.31.0,<3.0.0
 urllib3>=2.6.0,<3.0.0
 tqdm>=4.66.0,<5.0.0
