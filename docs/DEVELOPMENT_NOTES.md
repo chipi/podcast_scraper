@@ -297,7 +297,7 @@ Different AI assistants load guidelines from different locations:
 
 - You don't need to read these files
 - They're for AI tools, not human developers
-- Human contributors should follow [CONTRIBUTING.md](../CONTRIBUTING.md)
+- Human contributors should follow [CONTRIBUTING.md](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)
 
 ### Maintenance
 
