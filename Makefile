@@ -53,7 +53,11 @@ security-bandit:
 
 security-audit:
 	$(PYTHON) -m pip install --upgrade setuptools
-	pip-audit --requirement requirements.txt --skip-editable
+	# Install ML dependencies to ensure they are audited
+	# This ensures production dependencies like torch, transformers, spacy, openai-whisper are audited
+	$(PYTHON) -m pip install --quiet -e .[ml] || $(PYTHON) -m pip install --quiet .[ml]
+	# Audit all installed packages (including ML dependencies from pyproject.toml)
+	pip-audit --skip-editable
 
 docs:
 	mkdocs build --strict
