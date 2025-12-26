@@ -251,7 +251,7 @@ This project includes comprehensive AI coding guidelines to ensure consistent co
 Different AI assistants load guidelines from different locations:
 
 | Tool | Entry Point | Auto-Loaded |
-|------|-------------|-------------|
+| ------ | ----------- | ----------- |
 | **Cursor** | `.cursor/rules/ai-guidelines.mdc` | ✅ Yes (modern format) |
 | **Claude Desktop** | `CLAUDE.md` (root directory) | ✅ Yes |
 | **GitHub Copilot** | `.github/copilot-instructions.md` | ✅ Yes |

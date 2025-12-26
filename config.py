@@ -12,7 +12,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 # Load .env file if it exists (RFC-013: OpenAI API key management)
 # Check for .env in project root (where config.py is located)
-env_path = Path(__file__).parent.parent / ".env"
+# Note: With package-dir = {podcast_scraper = "."}, config.py is at project root,
+# so we use parent (not parent.parent) to get the project root directory
+env_path = Path(__file__).parent / ".env"
 if env_path.exists():
     load_dotenv(env_path, override=False)
 else:
