@@ -159,8 +159,9 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][0], "John")
 
+    @patch("spacy.load")
     @patch("podcast_scraper.speaker_detection._load_spacy_model")
-    def test_extract_person_entities_filters_short_names(self, mock_load):
+    def test_extract_person_entities_filters_short_names(self, mock_load, mock_spacy_load):
         """Test that very short names are filtered out."""
         # Clear cache to ensure fresh load
         speaker_detection.clear_spacy_model_cache()
@@ -505,9 +506,10 @@ class TestSpeakerDetectionHelpers(unittest.TestCase):
 class TestSpeakerDetectionCaching(unittest.TestCase):
     """Additional tests for speaker detection caching and CLI precedence."""
 
+    @patch("spacy.load")
     @patch("podcast_scraper.speaker_detection.get_ner_model")
     @patch("podcast_scraper.speaker_detection.extract_person_entities")
-    def test_cli_override_precedence(self, mock_extract, mock_get_model):
+    def test_cli_override_precedence(self, mock_extract, mock_get_model, mock_spacy_load):
         """Test that CLI speaker names override detected names."""
         mock_nlp = unittest.mock.MagicMock()
         mock_get_model.return_value = mock_nlp

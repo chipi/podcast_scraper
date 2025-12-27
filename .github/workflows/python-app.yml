@@ -91,7 +91,8 @@ jobs:
           exit 1
         fi
         # Verify minimum test count (unit tests should have many tests)
-        TEST_COUNT=$(echo "$OUTPUT" | grep -oP "(\d+) passed" | head -1 | grep -oP "\d+" || echo "0")
+        # Extract test count from output (handles formats like "229 passed" or "3 failed, 226 passed")
+        TEST_COUNT=$(echo "$OUTPUT" | grep -oE "[0-9]+ passed" | head -1 | grep -oE "[0-9]+" || echo "0")
         if [ "$TEST_COUNT" -lt 50 ]; then
           echo "ERROR: Only $TEST_COUNT tests passed, expected at least 50 unit tests"
           exit 1
@@ -145,7 +146,8 @@ jobs:
           exit 1
         fi
         # Verify minimum test count (integration tests should have many tests)
-        TEST_COUNT=$(echo "$OUTPUT" | grep -oP "(\d+) passed" | head -1 | grep -oP "\d+" || echo "0")
+        # Extract test count from output (handles formats like "229 passed" or "3 failed, 226 passed")
+        TEST_COUNT=$(echo "$OUTPUT" | grep -oE "[0-9]+ passed" | head -1 | grep -oE "[0-9]+" || echo "0")
         if [ "$TEST_COUNT" -lt 10 ]; then
           echo "ERROR: Only $TEST_COUNT tests passed, expected at least 10 integration tests"
           exit 1
@@ -199,7 +201,8 @@ jobs:
           exit 1
         fi
         # Verify minimum test count (workflow_e2e tests should have many tests)
-        TEST_COUNT=$(echo "$OUTPUT" | grep -oP "(\d+) passed" | head -1 | grep -oP "\d+" || echo "0")
+        # Extract test count from output (handles formats like "229 passed" or "3 failed, 226 passed")
+        TEST_COUNT=$(echo "$OUTPUT" | grep -oE "[0-9]+ passed" | head -1 | grep -oE "[0-9]+" || echo "0")
         if [ "$TEST_COUNT" -lt 5 ]; then
           echo "ERROR: Only $TEST_COUNT tests passed, expected at least 5 workflow_e2e tests"
           exit 1
@@ -247,7 +250,8 @@ jobs:
           exit 1
         fi
         # Verify minimum test count (should have many tests from both unit and integration)
-        TEST_COUNT=$(echo "$OUTPUT" | grep -oP "(\d+) passed" | head -1 | grep -oP "\d+" || echo "0")
+        # Extract test count from output (handles formats like "229 passed" or "3 failed, 226 passed")
+        TEST_COUNT=$(echo "$OUTPUT" | grep -oE "[0-9]+ passed" | head -1 | grep -oE "[0-9]+" || echo "0")
         if [ "$TEST_COUNT" -lt 60 ]; then
           echo "ERROR: Only $TEST_COUNT tests passed, expected at least 60 tests (unit + integration)"
           exit 1

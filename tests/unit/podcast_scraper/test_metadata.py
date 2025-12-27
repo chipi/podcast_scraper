@@ -409,8 +409,9 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][0], "John")
 
+    @patch("spacy.load")
     @patch("podcast_scraper.speaker_detection._load_spacy_model")
-    def test_extract_person_entities_filters_short_names(self, mock_load):
+    def test_extract_person_entities_filters_short_names(self, mock_load, mock_spacy_load):
         """Test that very short names are filtered out."""
         # Clear cache to ensure fresh load
         speaker_detection.clear_spacy_model_cache()
