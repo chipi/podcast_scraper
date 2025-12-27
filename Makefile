@@ -1,7 +1,7 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test test-unit test-unit-no-ml test-integration test-ci test-workflow-e2e test-all test-parallel test-reruns coverage docs build ci ci-fast clean docker-build docker-test docker-clean install-hooks
+.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test test-unit test-unit-no-ml test-integration test-ci test-workflow-e2e test-all test-parallel test-reruns coverage docs build ci ci-fast clean clean-cache docker-build docker-test docker-clean install-hooks
 
 help:
 	@echo "Common developer commands:"
@@ -34,6 +34,7 @@ help:
 	@echo "  make docker-clean    Remove Docker test images"
 	@echo "  make install-hooks   Install git pre-commit hook for automatic linting"
 	@echo "  make clean           Remove build artifacts (.build/, .mypy_cache/, .pytest_cache/)"
+	@echo "  make clean-cache     Remove ML model caches (Whisper, spaCy) to test network isolation"
 
 init:
 	$(PYTHON) -m pip install --upgrade pip setuptools
@@ -165,3 +166,23 @@ install-hooks:
 
 clean:
 	rm -rf build .build .mypy_cache .pytest_cache
+
+clean-cache:
+	@echo "Cleaning ML model caches..."
+	@if [ -d "$$HOME/.cache/whisper" ]; then \
+		echo "  Removing Whisper cache: $$HOME/.cache/whisper"; \
+		rm -rf "$$HOME/.cache/whisper"; \
+	fi
+	@if [ -d "$$HOME/.cache/spacy" ]; then \
+		echo "  Removing spaCy cache: $$HOME/.cache/spacy"; \
+		rm -rf "$$HOME/.cache/spacy"; \
+	fi
+	@if [ -d "$$HOME/.cache/huggingface" ]; then \
+		echo "  Removing HuggingFace cache: $$HOME/.cache/huggingface"; \
+		rm -rf "$$HOME/.cache/huggingface"; \
+	fi
+	@if [ -d "$$HOME/.cache/torch" ]; then \
+		echo "  Removing PyTorch cache: $$HOME/.cache/torch"; \
+		rm -rf "$$HOME/.cache/torch"; \
+	fi
+	@echo "Cache cleaning complete. Run 'make test-unit' to verify network isolation."
