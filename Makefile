@@ -1,7 +1,7 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test test-unit test-unit-no-ml test-integration test-ci test-workflow-e2e test-all test-parallel test-reruns coverage docs build ci ci-fast clean clean-cache docker-build docker-test docker-clean install-hooks
+.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test test-unit test-unit-no-ml test-integration test-ci test-workflow-e2e test-all test-parallel test-reruns coverage docs build ci ci-fast clean clean-cache clean-all docker-build docker-test docker-clean install-hooks
 
 help:
 	@echo "Common developer commands:"
@@ -35,6 +35,7 @@ help:
 	@echo "  make install-hooks   Install git pre-commit hook for automatic linting"
 	@echo "  make clean           Remove build artifacts (.build/, .mypy_cache/, .pytest_cache/)"
 	@echo "  make clean-cache     Remove ML model caches (Whisper, spaCy) to test network isolation"
+	@echo "  make clean-all       Remove both build artifacts and ML model caches"
 
 init:
 	$(PYTHON) -m pip install --upgrade pip setuptools
