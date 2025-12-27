@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Git pre-commit hook to check linting before commits
+# Git pre-commit hook template
 # 
 # This hook runs checks ONLY on staged files:
 # - Black & isort formatting checks (Python files)
@@ -9,6 +9,18 @@
 # - JSON syntax validation (JSON files)
 # - YAML syntax validation (YAML/YML files)
 # - mypy type checking (Python files)
+#
+# To customize this template:
+# 1. Copy this file to .github/hooks/pre-commit
+# 2. Replace the placeholders below with your project-specific values:
+#    - podcast_scraper - Your project name
+#    - tests/integration - Path to integration tests (e.g., tests/integration)
+#    - tests/workflow_e2e - Path to E2E tests (e.g., tests/workflow_e2e)
+#    - integration - pytest marker for integration tests (e.g., integration)
+#    - workflow_e2e - pytest marker for E2E tests (e.g., workflow_e2e)
+#    - .flake8 - Path to flake8 config (e.g., .flake8)
+#    - pyproject.toml - Path to mypy config (e.g., pyproject.toml)
+#    - .markdownlint.json - Path to markdownlint config (e.g., .markdownlint.json)
 #
 # To install: run `make install-hooks` or manually:
 #   cp .github/hooks/pre-commit .git/hooks/pre-commit
@@ -165,13 +177,18 @@ else
 fi
 
 # Validate test infrastructure (when pytest config or test files change)
+# Customize these patterns based on your project structure
 STAGED_PYPROJECT=$(echo "$STAGED_FILES" | grep -E '(pyproject\.toml|Makefile|\.github/workflows/.*\.yml)$' || true)
 STAGED_TEST_FILES=$(echo "$STAGED_FILES" | grep -E 'tests/.*\.py$' || true)
 
 if [ -n "$STAGED_PYPROJECT" ] || [ -n "$STAGED_TEST_FILES" ]; then
     echo "→ Validating test infrastructure..."
     # Check that integration marker works
-    INTEGRATION_COUNT=$(python3 -m pytest tests/integration/ -m integration --collect-only -q 2>&1 | grep -c "^tests/" || echo "0")
+    # Note: grep -c outputs "0" on no matches but returns exit code 1, so we use || true to suppress the exit code
+    INTEGRATION_COUNT=$(python3 -m pytest tests/integration/ -m integration --collect-only -q 2>&1 | grep -c "^tests/" || true)
+    # Strip any newlines and ensure we have a valid number (default to 0 if empty)
+    INTEGRATION_COUNT=${INTEGRATION_COUNT//$'\n'/}
+    INTEGRATION_COUNT=${INTEGRATION_COUNT:-0}
     if [ "$INTEGRATION_COUNT" -eq 0 ]; then
         echo -e "${RED}✗${NC} Integration marker not working! No tests collected with -m integration"
         echo "  Check pyproject.toml addopts for marker conflicts"
@@ -180,14 +197,18 @@ if [ -n "$STAGED_PYPROJECT" ] || [ -n "$STAGED_TEST_FILES" ]; then
         echo -e "  ${GREEN}✓${NC} Integration marker: $INTEGRATION_COUNT tests"
     fi
     
-    # Check that workflow_e2e marker works
-    E2E_COUNT=$(python3 -m pytest tests/workflow_e2e/ -m workflow_e2e --collect-only -q 2>&1 | grep -c "^tests/" || echo "0")
+    # Check that E2E marker works
+    # Note: grep -c outputs "0" on no matches but returns exit code 1, so we use || true to suppress the exit code
+    E2E_COUNT=$(python3 -m pytest tests/workflow_e2e/ -m workflow_e2e --collect-only -q 2>&1 | grep -c "^tests/" || true)
+    # Strip any newlines and ensure we have a valid number (default to 0 if empty)
+    E2E_COUNT=${E2E_COUNT//$'\n'/}
+    E2E_COUNT=${E2E_COUNT:-0}
     if [ "$E2E_COUNT" -eq 0 ]; then
-        echo -e "${RED}✗${NC} Workflow E2E marker not working! No tests collected with -m workflow_e2e"
+        echo -e "${RED}✗${NC} E2E marker not working! No tests collected with -m workflow_e2e"
         echo "  Check pyproject.toml addopts for marker conflicts"
         ERRORS=$((ERRORS + 1))
     else
-        echo -e "  ${GREEN}✓${NC} Workflow E2E marker: $E2E_COUNT tests"
+        echo -e "  ${GREEN}✓${NC} E2E marker: $E2E_COUNT tests"
     fi
     
     if [ $ERRORS -eq 0 ]; then
@@ -271,3 +292,4 @@ else
     echo "═══════════════════════════════════════════════"
     exit 1
 fi
+
