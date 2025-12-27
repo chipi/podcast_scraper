@@ -11,9 +11,11 @@ import sys
 import threading
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-import spacy
-
 from . import config
+
+# Note: spacy is imported lazily in _load_spacy_model() to avoid requiring ML dependencies
+# at module import time. This allows unit tests to import this module without spacy installed.
+
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +93,10 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
     Returns:
         Loaded spaCy nlp object or None if download/load fails
     """
+    # Lazy import: Only import spacy when this function is called
+    # This allows the module to be imported without ML dependencies installed
+    import spacy  # noqa: F401
+
     # Validate model name to prevent command injection
     if not _validate_model_name(model_name):
         logger.error("Invalid spaCy model name: %s (contains invalid characters)", model_name)

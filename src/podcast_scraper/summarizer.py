@@ -26,7 +26,11 @@ import logging
 import re
 import warnings
 from pathlib import Path
-from typing import cast, Dict, List, Optional, Set, Tuple
+from typing import cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Type hints only - these are not imported at runtime
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Pipeline
 
 # IMPORTANT: Set warning filters BEFORE importing transformers
 # Suppress transformers max_new_tokens/max_length warning globally
@@ -54,13 +58,10 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
-import torch
-from transformers import (
-    AutoModelForSeq2SeqLM,
-    AutoTokenizer,
-    Pipeline,
-    pipeline,
-)
+# Note: torch and transformers are imported lazily in methods that use them
+# (e.g., _detect_device(), _load_model()) to avoid requiring ML dependencies
+# at module import time. This allows unit tests to import this module without
+# torch/transformers installed.
 
 from . import preprocessing
 
@@ -515,9 +516,11 @@ class SummaryModel:
                 self.cache_dir = str(HF_CACHE_DIR)
             else:
                 self.cache_dir = str(HF_CACHE_DIR_LEGACY)
-        self.tokenizer: Optional[AutoTokenizer] = None
-        self.model: Optional[AutoModelForSeq2SeqLM] = None
-        self.pipeline: Optional[Pipeline] = None
+        # Type hints use TYPE_CHECKING imports above
+        # Runtime imports happen lazily in _load_model()
+        self.tokenizer: Optional["AutoTokenizer"] = None
+        self.model: Optional["AutoModelForSeq2SeqLM"] = None
+        self.pipeline: Optional["Pipeline"] = None
         self._batch_size: Optional[int] = None  # For parallel chunk processing (CPU only)
         self._load_model()
 
@@ -532,6 +535,10 @@ class SummaryModel:
         Returns:
             Device string
         """
+        # Lazy import: Only import torch when this method is called
+        # This allows the module to be imported without ML dependencies installed
+        import torch  # noqa: F401
+
         if device:
             return device
 
@@ -547,6 +554,16 @@ class SummaryModel:
 
     def _load_model(self) -> None:
         """Load model and tokenizer from cache or download."""
+        # Lazy import: Only import transformers when this method is called
+        # This allows the module to be imported without ML dependencies installed
+        import torch  # noqa: F401
+        from transformers import (  # noqa: F401
+            AutoModelForSeq2SeqLM,
+            AutoTokenizer,
+            Pipeline,
+            pipeline,
+        )
+
         try:
             # Log device detection details for debugging
             device_info = f"{self.device}"
@@ -748,7 +765,7 @@ class SummaryModel:
 
 def chunk_text_for_summarization(
     text: str,
-    tokenizer: AutoTokenizer,
+    tokenizer: "AutoTokenizer",
     chunk_size: int,
     # Default token overlap (will be adjusted based on chunk_size)
     overlap: int = DEFAULT_TOKEN_OVERLAP,
@@ -799,7 +816,7 @@ def chunk_text_for_summarization(
     return chunks
 
 
-def _chunk_by_tokens(text: str, tokenizer: AutoTokenizer, max_tokens: int = 600) -> List[str]:
+def _chunk_by_tokens(text: str, tokenizer: "AutoTokenizer", max_tokens: int = 600) -> List[str]:
     """Simple token-based chunking without overlap (for mini map-reduce).
 
     This function ensures chunks never exceed max_tokens, preventing truncation.
@@ -2115,14 +2132,17 @@ def safe_summarize(
     """
     try:
         return model.summarize(text, max_length=max_length, prompt=prompt)
-    except (torch.cuda.OutOfMemoryError, RuntimeError) as e:
+    except Exception as e:
+        # Lazy import torch for error handling
+        import torch  # noqa: F401
+
         # Handle both CUDA and MPS out-of-memory errors
-        if "out of memory" in str(e).lower() or "mps" in str(e).lower():
+        if isinstance(e, RuntimeError) and (
+            "out of memory" in str(e).lower() or "mps" in str(e).lower()
+        ):
             logger.error(f"Device out of memory during summarization ({model.device}): {e}")
             # Fallback: use CPU or smaller model
             return ""
-        raise
-    except Exception as e:
         logger.error(f"Summarization error: {e}")
         return ""
 
@@ -2146,9 +2166,15 @@ def optimize_model_memory(model: SummaryModel) -> None:
         # Use half precision (FP16) to reduce memory
         model.model = model.model.half()  # type: ignore[attr-defined,assignment]
 
+        # Lazy import torch for CUDA operations
+        import torch  # noqa: F401
+
         # Clear cache
         torch.cuda.empty_cache()
     elif model.device == "mps":
+        # Lazy import torch for MPS operations
+        import torch  # noqa: F401
+
         # Apple Silicon MPS backend
         # MPS supports FP16 natively, but may have different optimizations
         # For M4 Pro with 48GB, memory is less constrained, but still optimize
@@ -2182,6 +2208,9 @@ def unload_model(model: Optional[SummaryModel]) -> None:
     model.model = None
     model.tokenizer = None
     model.pipeline = None
+
+    # Lazy import torch for cache clearing
+    import torch  # noqa: F401
 
     # Clear device-specific cache
     if torch.cuda.is_available():
