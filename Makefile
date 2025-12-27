@@ -127,7 +127,7 @@ build:
 	$(PYTHON) -m build
 	@if [ -d dist ]; then mkdir -p .build && rm -rf .build/dist && mv dist .build/ && echo "Moved dist to .build/dist/"; fi
 
-ci: clean-cache format-check lint lint-markdown type security test-ci docs build
+ci: clean-all format-check lint lint-markdown type security test-ci docs build
 
 ci-fast: format-check lint lint-markdown type security test docs build
 
