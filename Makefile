@@ -75,10 +75,10 @@ docs:
 	mkdocs build --strict
 
 test:
-	pytest --cov=$(PACKAGE) --cov-report=term-missing
+	pytest --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
 
 test-unit:
-	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing
+	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
 
 test-integration:
 	pytest tests/integration/ -m integration
@@ -90,10 +90,10 @@ test-all:
 	pytest tests/ -m "not network" --cov=$(PACKAGE) --cov-report=term-missing
 
 test-parallel:
-	pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing
+	pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
 
 test-reruns:
-	pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing
+	pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
 
 coverage: test
 

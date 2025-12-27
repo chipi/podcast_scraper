@@ -111,7 +111,9 @@ precision = 2
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Default: run only unit tests (fast feedback)
-addopts = "-q -ra -m 'not integration and not workflow_e2e and not network'"
+# Note: -m marker filter removed from addopts to avoid conflicts with explicit -m flags
+# Use explicit -m flags in Makefile/CI commands instead
+addopts = "-q -ra"
 # Parallel execution: use -n auto to enable, or -n 0 to disable
 # Reruns: use --reruns 2 --reruns-delay 1 for flaky tests
 markers = [
