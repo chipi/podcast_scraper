@@ -393,7 +393,7 @@ This RFC documents the comprehensive improvements made to the integration test s
 ### Original Gaps vs. Current State
 
 | Original Gap | Status | Evidence |
-|-------------|--------|----------|
+| ----------- | ------ | -------- |
 | ML Model Loading is Mocked | ✅ **RESOLVED** | `test_provider_real_models.py` (7 tests), `test_full_pipeline.py` with real models |
 | No Real Component Workflow Testing | ✅ **RESOLVED** | `test_component_workflows.py` (5 tests), `test_full_pipeline.py` (13 tests) |
 | No Real HTTP Integration Testing | ✅ **RESOLVED** | `test_http_integration.py` (12 tests), HTTP tests in pipeline context |
@@ -405,7 +405,7 @@ This RFC documents the comprehensive improvements made to the integration test s
 ### Additional Achievements Beyond Original Gaps
 
 | Improvement | Status | Evidence |
-|------------|--------|----------|
+| ----------- | ------ | -------- |
 | Error Recovery and Edge Cases | ✅ **COMPREHENSIVE** | `test_pipeline_error_recovery.py` (9 tests), `test_fallback_behavior.py` (11 tests) |
 | Concurrent Execution Testing | ✅ **COMPREHENSIVE** | `test_pipeline_concurrent.py` (7 tests), `test_parallel_summarization.py` (9 tests) |
 | OpenAI Provider Integration | ✅ **COMPREHENSIVE** | `test_openai_provider_integration.py` (8 tests) |

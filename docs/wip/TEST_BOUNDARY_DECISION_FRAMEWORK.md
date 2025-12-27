@@ -74,7 +74,7 @@ This document provides clear criteria and decision frameworks to determine wheth
 **Example Coverage:**
 
 | Scenario | E2E Test? | Integration Test? | Unit Test? |
-|----------|-----------|-------------------|------------|
+| -------- | --------- | ----------------- | ---------- |
 | `podcast-scraper <url>` (happy path) | ✅ Yes | ❌ No | ❌ No |
 | `podcast-scraper <url> --max-episodes=5` | ✅ Yes (if different workflow) | ✅ Yes (config validation) | ✅ Yes (config parsing) |
 | `podcast-scraper <url> --timeout=30` | ❌ No (same workflow) | ✅ Yes (timeout behavior) | ✅ Yes (timeout parsing) |
@@ -206,7 +206,7 @@ Start: What are you testing?
 ## Detailed Comparison
 
 | Aspect | Integration Tests | E2E Tests |
-|--------|------------------|-----------|
+| ------ | ------------------ | --------- |
 | **Purpose** | Test component interactions | Test complete user workflows |
 | **Entry Point** | Component-level (functions, classes) | User-level (CLI, library API, service API) |
 | **Scope** | Multiple components working together | Full pipeline from entry to output |

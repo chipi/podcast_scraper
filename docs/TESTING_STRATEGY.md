@@ -37,7 +37,7 @@ The testing strategy follows a three-tier pyramid:
 ### Key Distinction
 
 | Test Type | What It Tests | Entry Point | HTTP Client | Data Files | ML Models |
-|-----------|---------------|-------------|-------------|------------|-----------|
+| --------- | ------------- | ----------- | ----------- | ---------- | --------- |
 | **Unit** | Individual functions/modules | Function/class level | Mocked | Mocked | Mocked |
 | **Integration** | Component interactions | Component level | Local test server (or mocked) | Test fixtures | Real (optional) |
 | **E2E** | Complete user workflows | User level (CLI/API) | Real HTTP client (local server) | Real data files | Real (in workflow) |
