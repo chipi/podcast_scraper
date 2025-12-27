@@ -187,3 +187,6 @@ clean-cache:
 		rm -rf "$$HOME/.cache/torch"; \
 	fi
 	@echo "Cache cleaning complete. Run 'make test-unit' to verify network isolation."
+
+clean-all: clean clean-cache
+	@echo "All cleaning complete."
