@@ -168,12 +168,45 @@ The podcast scraper supports configuration via environment variables for flexibl
 
 ## Markdown Linting
 
+### Automated Markdown Fixing
+
+**Recommended:** Use `scripts/fix_markdown.py` to automatically fix common markdown linting issues:
+
+```bash
+# Fix all markdown files in the project
+python scripts/fix_markdown.py
+
+# Fix specific files
+python scripts/fix_markdown.py docs/TESTING_STRATEGY.md docs/rfc/RFC-020.md
+
+# Dry run (see what would be fixed)
+python scripts/fix_markdown.py --dry-run
+```
+
+**What it fixes:**
+
+- Table separator formatting (MD060) - adds spaces around pipes
+- Trailing spaces (MD009)
+- Blank lines around lists (MD032)
+- Code block language specifiers (MD040) - when detectable
+
+**When to use:**
+
+- Before committing markdown files
+- After bulk documentation edits
+- When CI fails on markdown linting errors
+
+See `scripts/README.md` for full documentation.
+
 ### Catching Table Formatting Issues Locally
 
 To catch markdown table formatting issues (MD060) before pushing:
 
 ```bash
-# Run markdown linting locally
+# Run automated fixer (recommended)
+python scripts/fix_markdown.py
+
+# Or run markdown linting locally
 make lint-markdown
 
 # Or directly with markdownlint
@@ -304,9 +337,10 @@ The GitHub Actions workflow runs `make lint-markdown` which includes:
 **Local Development:**
 
 1. Edit markdown files
-2. Stage files: `git add docs/...`
-3. Commit: `git commit` (pre-commit hook runs automatically)
-4. If errors: Fix manually or use `markdownlint --fix`
+2. **Fix common issues automatically:** `python scripts/fix_markdown.py`
+3. Stage files: `git add docs/...`
+4. Commit: `git commit` (pre-commit hook runs automatically)
+5. If errors: Fix manually or use `markdownlint --fix`
 
 **Pre-commit Hook:**
 

@@ -727,7 +727,7 @@ If CI fails on your PR:
 | Type errors | Add missing type hints |
 | Test failures | Fix or update tests |
 | Coverage drop | Add tests for new code |
-| Markdown linting | Fix markdown syntax or run `markdownlint --fix` |
+| Markdown linting | Run `python scripts/fix_markdown.py` or `markdownlint --fix` |
 
 **Prevent failures with pre-commit hooks:**
 
@@ -1080,7 +1080,8 @@ The pre-commit hook automatically runs before each commit and **only checks stag
 
 > **Note:** If you're committing markdown files, `markdownlint` must be installed. Install it with: `npm install -g markdownlint-cli`  
 > **Note:** For better YAML validation, install `yamllint` with: `pip install yamllint` (optional - Python yaml module is used as fallback)  
-> **Note:** The hook only checks files that are staged for commit, not the entire codebase. This makes it much faster and ensures you're only checking what you're actually committing.
+> **Note:** The hook only checks files that are staged for commit, not the entire codebase. This makes it much faster and ensures you're only checking what you're actually committing.  
+> **Tip:** Use `python scripts/fix_markdown.py` before committing to automatically fix common markdown linting issues (table formatting, trailing spaces, blank lines, etc.)
 
 **If any check fails, the commit is blocked** until you fix the issues.
 
