@@ -56,7 +56,12 @@ dev = [
 
 [tool.setuptools]
 # Package is now in src/ directory (src-layout)
-packages = ["podcast_scraper", "podcast_scraper.speaker_detectors", "podcast_scraper.summarization", "podcast_scraper.transcription"]
+packages = [
+    "podcast_scraper",
+    "podcast_scraper.speaker_detectors",
+    "podcast_scraper.summarization",
+    "podcast_scraper.transcription",
+]
 package-dir = {"" = "src"}
 
 [tool.black]
