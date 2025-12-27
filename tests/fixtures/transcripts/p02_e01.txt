@@ -1,0 +1,106 @@
+Practical Systems — Episode 1
+
+On-Call That Doesn’t Break People
+
+Host: Ethan Park
+Guest: Priya Nair
+
+⸻
+
+[00:00]
+
+Ethan:
+Welcome to Practical Systems. I’m Ethan Park. Today we’re talking about on-call—specifically, how to do it without burning people out. My guest is Priya Nair, an SRE who’s spent years designing on-call rotations that actually work. Priya, welcome.
+
+Priya:
+Thanks, Ethan. I’m glad we’re talking about this in human terms.
+
+⸻
+
+[01:05]
+
+Ethan:
+Let’s start simple. When on-call goes wrong, what does that usually look like?
+
+Priya:
+Too many alerts, unclear ownership, and no time to recover. People think the problem is that incidents happen, but the real issue is that engineers never get a break from them.
+
+⸻
+
+[02:10]
+
+Ethan:
+So the pager isn’t the problem—the system behind it is.
+
+Priya:
+Exactly. If your system pages for things no one needs to act on, you’re training people to ignore alerts. That’s dangerous and exhausting.
+
+⸻
+
+[03:05]
+
+Ethan:
+What’s the first thing you look at when you join a team with painful on-call?
+
+Priya:
+Alert volume. I ask, “How many pages per week?” If the answer is more than a handful, that’s a smell. Then we ask which alerts actually require a human to wake up.
+
+⸻
+
+[04:20]
+
+Ethan:
+How do you convince teams to delete alerts? People get nervous about that.
+
+Priya:
+We frame it as improving signal, not reducing safety. If an alert hasn’t led to action in months, it’s noise. Removing it makes the remaining alerts more meaningful.
+
+⸻
+
+[05:30]
+
+Ethan:
+What about error budgets? They’re often misunderstood.
+
+Priya:
+Yeah. Error budgets aren’t permission to be sloppy. They’re a way to balance reliability work with feature work. If you’re burning budget too fast, it’s a signal to slow down and fix things.
+
+⸻
+
+[06:40]
+
+Ethan:
+One thing I hear from engineers is fear—fear of being the one on call when something breaks.
+
+Priya:
+That’s usually a sign of poor documentation and unclear escalation paths. On-call should never feel like you’re alone in the dark at 3 a.m.
+
+⸻
+
+[07:55]
+
+Ethan:
+What’s one small improvement teams can make quickly?
+
+Priya:
+Write down “what good looks like” for alerts. What condition triggers a page, who responds, and what the first step is. Even that alone reduces stress.
+
+⸻
+
+[09:10]
+
+Ethan:
+Last question: how do you know when on-call is healthy?
+
+Priya:
+When people can go on vacation without dread. When incidents are learning moments, not trauma. That’s the goal.
+
+⸻
+
+[10:05]
+
+Ethan:
+Priya, thanks for sharing your experience.
+
+Priya:
+Thanks, Ethan.

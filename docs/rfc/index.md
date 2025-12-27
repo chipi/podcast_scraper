@@ -33,11 +33,14 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-009](RFC-009-progress-integration.md) | Progress Reporting Integration | PRD-001 | v2.0.0 | ✅ Accepted | Pluggable progress reporting interface |
 | [RFC-010](RFC-010-speaker-name-detection.md) | Automatic Speaker Name Detection | - | v2.1.0 | ✅ Accepted | NER-based host and guest identification |
 | [RFC-011](RFC-011-metadata-generation.md) | Per-Episode Metadata Generation | PRD-004 | v2.2.0 | ✅ Accepted | Structured metadata document generation |
-| [RFC-012](RFC-012-episode-summarization.md) | Episode Summarization Using Local Transformers | PRD-005 | v2.3.0 | ✅ Accepted | Local transformer-based summarization |
-| [RFC-013](RFC-013-openai-provider-implementation.md) | OpenAI Provider Implementation | PRD-006 | - | 📋 Draft | Technical design for OpenAI API providers (speaker detection, transcription, summarization) |
+| [RFC-012](RFC-012-episode-summarization.md) | Episode Summarization Using Local Transformers | PRD-005 | v2.3.0 | ✅ Completed | Local transformer-based summarization |
+| [RFC-013](RFC-013-openai-provider-implementation.md) | OpenAI Provider Implementation | PRD-006 | - | ✅ Completed | Technical design for OpenAI API providers (speaker detection, transcription, summarization) |
 | [RFC-015](RFC-015-ai-experiment-pipeline.md) | AI Experiment Pipeline | PRD-007 | - | 📋 Draft | Technical design for configuration-driven experiment pipeline |
 | [RFC-016](RFC-016-modularization-for-ai-experiments.md) | Modularization for AI Experiments | PRD-007 | - | 📋 Draft | Provider system architecture to support AI experiment pipeline |
-| [RFC-017](RFC-017-prompt-management.md) | Prompt Management | PRD-007 | - | 📋 Draft | Versioned, parameterized prompt management system |
+| [RFC-017](RFC-017-prompt-management.md) | Prompt Management | PRD-007 | - | ✅ Completed | Versioned, parameterized prompt management system |
+| [RFC-018](RFC-018-test-structure-reorganization.md) | Test Structure Reorganization | - | - | ✅ Completed | Reorganize test suite into unit/integration/workflow_e2e directories |
+| [RFC-019](RFC-019-e2e-test-improvements.md) | E2E Test Infrastructure and Coverage Improvements | PRD-001, PRD-002, PRD-003, PRD-004, PRD-005 | - | 📋 Draft | Comprehensive plan to improve E2E test infrastructure and coverage |
+| [RFC-020](RFC-020-integration-test-improvements.md) | Integration Test Infrastructure and Coverage Improvements | PRD-001, PRD-002, PRD-003, PRD-004, PRD-005, PRD-006 | - | ✅ Completed | Comprehensive improvements to integration test suite (10 stages, 182 tests) |
 
 ## Quick Links
 

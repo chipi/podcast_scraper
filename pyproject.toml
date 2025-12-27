@@ -22,6 +22,7 @@ dependencies = [
   "zipp>=3.19.1,<4.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.0,<4.0.0",  # For prompt templating (RFC-017)
   "openai>=1.0.0,<2.0.0",  # For OpenAI API providers (RFC-013)
+  "filelock>=3.20.1,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
 ]
 
 [project.optional-dependencies]
@@ -42,6 +43,8 @@ dev = [
   "flake8>=6.0.0,<8.0.0",
   "pytest>=7.4.0,<9.0.0",
   "pytest-cov>=4.1.0,<6.0.0",
+  "pytest-xdist>=3.5.0,<4.0.0",  # Parallel test execution (RFC-018)
+  "pytest-rerunfailures>=14.0,<15.0",  # Flaky test reruns (RFC-018)
   "mypy>=1.5.0,<2.0.0",
   "types-PyYAML>=6.0.12,<7.0.0",
   "bandit>=1.7.5,<2.0.0",
@@ -52,15 +55,14 @@ dev = [
 # Documentation - see docs/requirements.txt
 
 [tool.setuptools]
-# Include main package and all subpackages
-# With package-dir mapping, subdirectories need to be explicitly listed as subpackages
+# Package is now in src/ directory (src-layout)
 packages = [
     "podcast_scraper",
     "podcast_scraper.speaker_detectors",
     "podcast_scraper.summarization",
     "podcast_scraper.transcription",
 ]
-package-dir = {podcast_scraper = "."}
+package-dir = {"" = "src"}
 
 [tool.black]
 line-length = 100
@@ -112,7 +114,24 @@ skip_covered = true
 precision = 2
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
+# Default: run only unit tests (fast feedback)
+# Note: -m marker filter removed from addopts to avoid conflicts with explicit -m flags
+# Use explicit -m flags in Makefile/CI commands instead
+addopts = "-q -ra"
+# Parallel execution: use -n auto to enable, or -n 0 to disable
+# Reruns: use --reruns 2 --reruns-delay 1 for flaky tests
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests (may require network/downloads)",
+    "integration: integration tests (slower, test component interactions)",
+    "workflow_e2e: end-to-end workflow tests (slowest, test full workflows)",
+    "network: hits the network (off by default, use -m network to enable)",
+    "ml_models: requires ML dependencies and real model loading (slow, requires openai-whisper, spacy, transformers)",
+    "integration_http: HTTP integration tests (use real HTTP client with test server, not external network)",
 ]
+# Parallel execution configuration (pytest-xdist)
+# Use -n auto to automatically detect CPU count, or -n N for specific number
+# Use -n 0 to disable parallel execution
+# Reruns configuration (pytest-rerunfailures)
+# Use --reruns N to retry failed tests N times
+# Use --reruns-delay N to wait N seconds between retries

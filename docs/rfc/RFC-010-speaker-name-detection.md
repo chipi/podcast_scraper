@@ -1,6 +1,6 @@
 # RFC-010: Automatic Speaker Name Detection
 
-- **Status**: Implemented
+- **Status**: Completed
 - **Authors**: GPT-5 Codex
 - **Stakeholders**: Maintainers, Whisper integration owners, CLI users
 - **Related PRDs**: `docs/prd/PRD-001-transcript-pipeline.md`, `docs/prd/PRD-002-whisper-fallback.md`

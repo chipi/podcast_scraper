@@ -2,6 +2,95 @@
 
 > **Maintenance Note**: This document should be kept up-to-date as linting rules, Makefile targets, pre-commit hooks, CI/CD workflows, or development setup procedures evolve. When adding new checks, tools, workflows, or environment setup steps, update this document accordingly.
 
+## Test Structure
+
+The test suite is organized into three main categories (RFC-018):
+
+- **`tests/unit/`** - Unit tests (fast, isolated, fully mocked, no I/O)
+- **`tests/integration/`** - Integration tests (component interactions, real internal implementations, mocked external services)
+- **`tests/workflow_e2e/`** - Workflow E2E tests (complete workflows, should use real network and I/O)
+
+**I/O Policy by Test Type:**
+
+- **Unit Tests** (`tests/unit/`):
+  - ❌ **Network calls**: BLOCKED (enforced by `tests/unit/conftest.py`)
+  - ❌ **Filesystem I/O**: BLOCKED (enforced by `tests/unit/conftest.py`)
+  - ✅ **Allows**: `tempfile` operations, operations within temp directories, cache directories
+  - **Purpose**: Fast, isolated, fully mocked
+
+- **Integration Tests** (`tests/integration/`):
+  - ⚠️ **Network calls**: MOCKED (for speed/reliability, not blocked)
+  - ✅ **Filesystem I/O**: ALLOWED (real file operations in temp directories)
+  - ✅ **Real implementations**: Real Config, real providers, real component interactions
+  - **Purpose**: Test how components work together
+
+- **E2E Tests** (`tests/workflow_e2e/`):
+  - ✅ **Network calls**: ALLOWED (should use real network, marked with `@pytest.mark.network`)
+  - ✅ **Filesystem I/O**: ALLOWED (real file operations, real output directories)
+  - ✅ **Real implementations**: Real HTTP clients, real ML models, real file operations
+  - **Purpose**: Test complete workflows as users would use them
+  - **Note**: Currently some E2E tests still use mocks (historical), but target is real network/I/O
+
+**Key Features:**
+
+- **Parallel Execution**: Tests can run in parallel using `pytest-xdist` (`-n auto`)
+- **Flaky Test Reruns**: Failed tests can be automatically retried using `pytest-rerunfailures` (`--reruns 2 --reruns-delay 1`)
+- **Test Markers**: All integration tests have `@pytest.mark.integration`, all workflow_e2e tests have `@pytest.mark.workflow_e2e`
+- **Network Marker**: E2E tests that make real network calls should have `@pytest.mark.network`
+
+**Running Tests:**
+
+```bash
+# Unit tests only (default, fast feedback)
+make test-unit
+
+# Unit tests without ML dependencies (matches CI, verifies no ML imports at module level)
+make test-unit-no-ml
+
+# Integration tests
+make test-integration
+
+# Workflow E2E tests
+make test-workflow-e2e
+
+# All tests
+make test-all
+
+# Parallel execution
+make test-parallel
+
+# With reruns for flaky tests
+make test-reruns
+```
+
+**ML Dependency Handling in Unit Tests:**
+
+Unit tests run **without ML dependencies** (spacy, torch, transformers) installed in CI. This ensures:
+
+- Fast test execution (no heavy ML package installation)
+- Tests remain isolated from ML dependencies
+- CI can run unit tests quickly
+
+**Important:** Modules that import ML dependencies at the **top level** (module import time) will cause unit tests to fail in CI. To prevent this:
+
+1. **Mock ML dependencies in unit tests** (already done in most tests):
+
+   ```python
+   from unittest.mock import MagicMock, patch
+   
+   # Mock ML dependencies before importing modules that need them
+   with patch.dict("sys.modules", {"spacy": MagicMock()}):
+       from podcast_scraper import speaker_detection
+   ```
+
+2. **Use lazy imports** (future improvement): Import ML dependencies inside functions, not at module level
+
+3. **Verify imports work without ML deps**: Run `make test-unit-no-ml` or `python scripts/check_unit_test_imports.py` before pushing
+
+The CI automatically checks that unit tests can import modules without ML dependencies before running tests.
+
+See `docs/TESTING_STRATEGY.md` for comprehensive testing guidelines and `CONTRIBUTING.md` for test running examples.
+
 ## Environment Setup
 
 ### Virtual Environment
@@ -79,12 +168,45 @@ The podcast scraper supports configuration via environment variables for flexibl
 
 ## Markdown Linting
 
+### Automated Markdown Fixing
+
+**Recommended:** Use `scripts/fix_markdown.py` to automatically fix common markdown linting issues:
+
+```bash
+# Fix all markdown files in the project
+python scripts/fix_markdown.py
+
+# Fix specific files
+python scripts/fix_markdown.py docs/TESTING_STRATEGY.md docs/rfc/RFC-020.md
+
+# Dry run (see what would be fixed)
+python scripts/fix_markdown.py --dry-run
+```
+
+**What it fixes:**
+
+- Table separator formatting (MD060) - adds spaces around pipes
+- Trailing spaces (MD009)
+- Blank lines around lists (MD032)
+- Code block language specifiers (MD040) - when detectable
+
+**When to use:**
+
+- Before committing markdown files
+- After bulk documentation edits
+- When CI fails on markdown linting errors
+
+See `scripts/README.md` for full documentation.
+
 ### Catching Table Formatting Issues Locally
 
 To catch markdown table formatting issues (MD060) before pushing:
 
 ```bash
-# Run markdown linting locally
+# Run automated fixer (recommended)
+python scripts/fix_markdown.py
+
+# Or run markdown linting locally
 make lint-markdown
 
 # Or directly with markdownlint
@@ -215,9 +337,10 @@ The GitHub Actions workflow runs `make lint-markdown` which includes:
 **Local Development:**
 
 1. Edit markdown files
-2. Stage files: `git add docs/...`
-3. Commit: `git commit` (pre-commit hook runs automatically)
-4. If errors: Fix manually or use `markdownlint --fix`
+2. **Fix common issues automatically:** `python scripts/fix_markdown.py`
+3. Stage files: `git add docs/...`
+4. Commit: `git commit` (pre-commit hook runs automatically)
+5. If errors: Fix manually or use `markdownlint --fix`
 
 **Pre-commit Hook:**
 

@@ -1,0 +1,96 @@
+Practical Systems — Episode 2
+
+Staff Engineer Communication Patterns
+
+Host: Ethan Park
+Guest: Jonas Meijer
+
+⸻
+
+[00:00]
+
+Ethan:
+Welcome back to Practical Systems. Today we’re talking about communication at the staff engineer level—how decisions get made, documented, and shared. My guest is Jonas Meijer. Jonas, welcome.
+
+Jonas:
+Thanks, Ethan. Happy to be here.
+
+⸻
+
+[01:00]
+
+Ethan:
+When people think about staff engineers, they often focus on technical depth. But communication seems to matter just as much.
+
+Jonas:
+It does. At that level, your impact comes less from writing code and more from aligning people around good decisions.
+
+⸻
+
+[02:05]
+
+Ethan:
+Let’s talk about RFCs. Everyone has opinions about them.
+
+Jonas:
+Yeah. A good RFC isn’t about being right. It’s about making tradeoffs visible. If people understand why a decision was made, they’re more likely to support it—even if they disagree.
+
+⸻
+
+[03:20]
+
+Ethan:
+What’s a common mistake you see in design documents?
+
+Jonas:
+Overconfidence. Documents that pretend there are no downsides. That erodes trust quickly. I prefer explicitly listing risks and open questions.
+
+⸻
+
+[04:35]
+
+Ethan:
+How do you avoid turning everything into meetings?
+
+Jonas:
+Write first. Async discussion scales better and gives quieter people space to think. Meetings should be for resolving disagreements, not discovering them.
+
+⸻
+
+[05:50]
+
+Ethan:
+There’s also the challenge of influencing without authority.
+
+Jonas:
+Right. You can’t mandate. You persuade. That means understanding other teams’ constraints and framing proposals in terms of shared goals.
+
+⸻
+
+[06:55]
+
+Ethan:
+What about review fatigue? People get tired of reading long docs.
+
+Jonas:
+That’s on the author. Lead with the summary. Make it skimmable. Respect people’s time, and they’ll engage more deeply when it matters.
+
+⸻
+
+[08:10]
+
+Ethan:
+Any habit that helped you personally?
+
+Jonas:
+I end most documents with “What I need from you.” A decision, feedback, or just awareness. Clarity reduces friction.
+
+⸻
+
+[09:20]
+
+Ethan:
+That’s a great tip. Jonas, thanks for the conversation.
+
+Jonas:
+Thanks, Ethan.

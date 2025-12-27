@@ -1,6 +1,6 @@
 # RFC-004: Filesystem Layout & Run Management
 
-- **Status**: Accepted
+- **Status**: Completed
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, operators concerned with storage hygiene
 - **Related PRDs**: `docs/prd/PRD-001-transcript-pipeline.md`, `docs/prd/PRD-002-whisper-fallback.md`

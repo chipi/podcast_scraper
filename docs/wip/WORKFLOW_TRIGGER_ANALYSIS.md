@@ -13,7 +13,6 @@ Adding a single markdown file (`docs/DOCKER_BASE_IMAGE_ANALYSIS.md`) triggered 1
 - `**.py` (any Python file)
 - `tests/**` (test files)
 - `pyproject.toml`
-- `requirements.txt`
 - `Makefile`
 - `docker/**`
 - `.github/workflows/python-app.yml` (self-reference)
@@ -26,7 +25,6 @@ Adding a single markdown file (`docs/DOCKER_BASE_IMAGE_ANALYSIS.md`) triggered 1
 
 - `**.py`
 - `pyproject.toml`
-- `requirements.txt`
 - `docker/**`
 - `Dockerfile`
 - `.github/workflows/snyk.yml` (self-reference)
@@ -39,7 +37,6 @@ Adding a single markdown file (`docs/DOCKER_BASE_IMAGE_ANALYSIS.md`) triggered 1
 
 - `docker/**`
 - `Dockerfile`
-- `requirements.txt`
 - `pyproject.toml`
 - `*.py`
 - `.github/workflows/docker.yml` (self-reference)

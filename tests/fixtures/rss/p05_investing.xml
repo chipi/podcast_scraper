@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Long Horizon Notes</title>
+    <link>http://localhost/</link>
+    <description>Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.</description>
+    <language>en-us</language>
+
+    <itunes:author>Nora Bakker</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p05_cover.jpg"/>
+
+    <item>
+      <title>Episode 1: Index Investing Without the Myths (with Daniel Cho)</title>
+      <guid isPermaLink="false">p05_e01</guid>
+      <pubDate>Fri, 05 Sep 2025 07:00:00 +0000</pubDate>
+      <description>What indexing does well, where people still make mistakes, and how to think about fees and behavior.</description>
+      <enclosure url="/audio/p05_e01.mp3" length="3900000" type="audio/mpeg"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:10:45</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Episode 2: Real Estate: Numbers Before Narratives (with Isabel Martins)</title>
+      <guid isPermaLink="false">p05_e02</guid>
+      <pubDate>Fri, 12 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Cap rates, maintenance, vacancy, leverage, and the difference between “cash flow” and “stress test.”</description>
+      <enclosure url="/audio/p05_e02.mp3" length="3600000" type="audio/mpeg"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:09:50</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Episode 3: Risk Management for People Who Hate Spreadsheets (with Kasper Jansen)</title>
+      <guid isPermaLink="false">p05_e03</guid>
+      <pubDate>Fri, 19 Sep 2025 07:00:00 +0000</pubDate>
+      <description>A longer conversation on risk: position sizing, drawdowns, diversification that actually diversifies, and decision rules you can follow when emotions spike.</description>
+      <enclosure url="/audio/p05_e03.mp3" length="11900000" type="audio/mpeg"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:32:10</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

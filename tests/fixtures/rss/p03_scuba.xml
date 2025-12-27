@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Below the Surface</title>
+    <link>http://localhost/</link>
+    <description>Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.</description>
+    <language>en-us</language>
+
+    <itunes:author>Rina Okafor</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p03_cover.jpg"/>
+
+    <item>
+      <title>Episode 1: Wreck Diving Fundamentals (with Marco Silva)</title>
+      <guid isPermaLink="false">p03_e01</guid>
+      <pubDate>Wed, 03 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Marco Silva shares planning, lines, lights, and how to avoid “task loading” when the visibility drops.</description>
+      <enclosure url="/audio/p03_e01.mp3" length="3800000" type="audio/mpeg"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:10:15</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Episode 2: Marine Biology for Divers (with Hanna de Wit)</title>
+      <guid isPermaLink="false">p03_e02</guid>
+      <pubDate>Wed, 10 Sep 2025 07:00:00 +0000</pubDate>
+      <description>What divers often misidentify, how reefs recover, and how to be a better observer without touching anything.</description>
+      <enclosure url="/audio/p03_e02.mp3" length="3600000" type="audio/mpeg"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:09:30</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Episode 3: Calm Under Pressure (with Owen Chen)</title>
+      <guid isPermaLink="false">p03_e03</guid>
+      <pubDate>Wed, 17 Sep 2025 07:00:00 +0000</pubDate>
+      <description>A longer training-style chat: gas planning, buoyancy drills, navigation, and decision-making when a dive doesn’t go to plan.</description>
+      <enclosure url="/audio/p03_e03.mp3" length="11800000" type="audio/mpeg"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:32:30</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

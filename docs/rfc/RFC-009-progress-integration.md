@@ -1,6 +1,6 @@
 # RFC-009: Progress Reporting Integration
 
-- **Status**: Accepted
+- **Status**: Completed
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, UX contributors, embedding applications
 - **Related PRDs**: `docs/prd/PRD-001-transcript-pipeline.md`, `docs/prd/PRD-003-user-interface-config.md`

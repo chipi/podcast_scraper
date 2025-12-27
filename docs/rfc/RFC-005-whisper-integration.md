@@ -1,6 +1,6 @@
 # RFC-005: Whisper Integration Lifecycle
 
-- **Status**: Accepted
+- **Status**: Completed
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, operators enabling transcription fallback
 - **Related PRD**: `docs/prd/PRD-002-whisper-fallback.md`

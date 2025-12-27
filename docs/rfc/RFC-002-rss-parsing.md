@@ -1,6 +1,6 @@
 # RFC-002: RSS Parsing & Episode Modeling
 
-- **Status**: Accepted
+- **Status**: Completed
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, data ingestion contributors
 - **Related PRD**: `docs/prd/PRD-001-transcript-pipeline.md`

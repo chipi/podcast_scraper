@@ -5,6 +5,7 @@ This module contains:
 - Helper functions for creating test objects
 - Mock classes and fixtures
 - Shared test utilities
+- Pytest hooks for validating marker behavior
 
 All test files can import from this module using pytest's conftest.py mechanism.
 """
@@ -14,6 +15,8 @@ import unittest.mock
 
 # Bandit: tests construct safe XML elements
 import xml.etree.ElementTree as ET  # nosec B405
+
+import pytest
 
 from podcast_scraper import config, models
 
@@ -332,3 +335,49 @@ class MockHTTPResponse:
 
     def close(self):
         return None
+
+
+def pytest_collection_modifyitems(config, items):
+    """Validate that markers are working correctly.
+
+    This hook checks that when running with explicit markers (e.g., -m integration),
+    tests with those markers are actually collected. This helps catch configuration
+    bugs like marker conflicts in addopts.
+    """
+    marker_expr = config.getoption("-m", default=None)
+
+    # Only validate if an explicit marker expression is provided
+    if marker_expr:
+        # Check for integration marker
+        if marker_expr == "integration":
+            integration_items = [item for item in items if item.get_closest_marker("integration")]
+            if not integration_items:
+                pytest.fail(
+                    "ERROR: Running with -m integration but no integration tests collected! "
+                    "Check that:\n"
+                    "  1. Tests have @pytest.mark.integration decorator\n"
+                    "  2. addopts in pyproject.toml doesn't conflict with -m flags\n"
+                    "  3. Marker configuration is correct"
+                )
+
+        # Check for workflow_e2e marker
+        elif marker_expr == "workflow_e2e":
+            workflow_e2e_items = [item for item in items if item.get_closest_marker("workflow_e2e")]
+            if not workflow_e2e_items:
+                pytest.fail(
+                    "ERROR: Running with -m workflow_e2e but no workflow_e2e tests collected! "
+                    "Check that:\n"
+                    "  1. Tests have @pytest.mark.workflow_e2e decorator\n"
+                    "  2. addopts in pyproject.toml doesn't conflict with -m flags\n"
+                    "  3. Marker configuration is correct"
+                )
+
+        # Check for "not network" marker (common in test-all)
+        elif marker_expr == "not network":
+            # Should collect tests that don't have network marker
+            non_network_items = [item for item in items if not item.get_closest_marker("network")]
+            if not non_network_items:
+                pytest.fail(
+                    "ERROR: Running with -m 'not network' but no tests collected! "
+                    "Check marker configuration."
+                )

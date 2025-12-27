@@ -231,3 +231,78 @@ After running `setup_venv.sh`:
    ```
 
 See `README.md` and `CONTRIBUTING.md` for more details.
+
+---
+
+## fix_markdown.py
+
+Automatically fixes common markdown linting issues that can be corrected programmatically.
+
+### Usage
+
+Fix all markdown files in the project:
+
+```bash
+python scripts/fix_markdown.py
+```
+
+Fix specific files:
+
+```bash
+python scripts/fix_markdown.py docs/TESTING_STRATEGY.md docs/rfc/RFC-020.md
+```
+
+Dry run (show what would be fixed without making changes):
+
+```bash
+python scripts/fix_markdown.py --dry-run
+```
+
+### What It Fixes
+
+1. **Table Separator Formatting** (MD060):
+   - Adds spaces around pipes in table separator rows
+   - Converts `|-------------|--------|` to `| ----------- | ------ |`
+
+2. **Trailing Spaces** (MD009):
+   - Removes trailing whitespace from all lines
+
+3. **Blank Lines Around Lists** (MD032):
+   - Adds blank lines before and after lists when missing
+
+4. **Code Block Language Specifiers** (MD040):
+   - Adds language specifiers to code blocks when detectable (Python, JavaScript, etc.)
+
+### When to Use
+
+Run this script regularly, especially:
+
+- Before committing markdown files
+- After bulk edits to documentation
+- When CI fails on markdown linting errors
+- As part of your pre-commit workflow
+
+### Integration with Pre-commit
+
+The pre-commit hook runs `markdownlint` which catches issues, but doesn't auto-fix them. Use this script to fix issues before committing:
+
+```bash
+# Fix all markdown issues
+python scripts/fix_markdown.py
+
+# Then commit
+git add -A
+git commit -m "your message"
+```
+
+Or use markdownlint's auto-fix feature:
+
+```bash
+# Enable auto-fix in pre-commit hook
+export MARKDOWNLINT_FIX=1
+git commit -m "your message"
+```
+
+### Note
+
+This script handles common, safe-to-fix issues. Some markdownlint errors (like content issues, heading levels, etc.) still need manual review.

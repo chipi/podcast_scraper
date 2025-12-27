@@ -1,6 +1,6 @@
 # RFC-003: Transcript Download Processing
 
-- **Status**: Accepted
+- **Status**: Completed
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, networking contributors
 - **Related PRD**: `docs/prd/PRD-001-transcript-pipeline.md`

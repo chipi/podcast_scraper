@@ -14,7 +14,7 @@ Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. I
 - Local preview:
 
   ```bash
-  pip install -r docs/requirements.txt
+  pip install mkdocs mkdocs-material pymdown-extensions mkdocstrings mkdocstrings-python
   mkdocs serve
   ```
 

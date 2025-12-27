@@ -1,0 +1,181 @@
+Long Horizon Notes — Episode 3
+
+Risk Management for People Who Hate Spreadsheets
+
+Host: Nora Bakker
+Guest: Kasper Jansen
+
+⸻
+
+[00:00]
+
+Nora:
+Welcome back to Long Horizon Notes. Today’s episode is a longer conversation about risk—how to think about it without turning everything into a spreadsheet. My guest is Kasper Jansen, a risk management specialist. Kasper, welcome.
+
+Kasper:
+Thanks, Nora. I promise we’ll keep spreadsheets to a minimum.
+
+⸻
+
+[01:20]
+
+Nora:
+Let’s start broad. What do people misunderstand about risk?
+
+Kasper:
+They think risk is volatility. Volatility is visible, but risk is about the chance of permanent loss.
+
+⸻
+
+[02:45]
+
+Nora:
+So smooth returns aren’t necessarily safe.
+
+Kasper:
+Exactly. Some of the riskiest strategies look calm—until they don’t.
+
+⸻
+
+[04:10]
+
+Nora:
+How do you talk about risk with people who dislike numbers?
+
+Kasper:
+With scenarios. “What happens if X goes wrong?” Stories stick better than formulas.
+
+⸻
+
+[05:35]
+
+Nora:
+Diversification is often misunderstood.
+
+Kasper:
+True diversification means different failure modes. Owning many assets that fail together isn’t diversification.
+
+⸻
+
+[07:00]
+
+Nora:
+What about drawdowns? People underestimate them.
+
+Kasper:
+Yes. A 50% loss requires a 100% gain to recover. That math surprises people emotionally.
+
+⸻
+
+[08:30]
+
+Nora:
+How do you size positions without spreadsheets?
+
+Kasper:
+Rules. Maximum percentage per position, maximum exposure per idea. Simple limits beat complex models most of the time.
+
+⸻
+
+[10:05]
+
+Nora:
+What role does behavior play?
+
+Kasper:
+A huge one. Most risk comes from reacting badly under stress.
+
+⸻
+
+[12:00]
+
+Nora:
+Let’s pause briefly.
+Short break.
+
+⸻
+
+[12:30]
+
+Nora:
+We’re back. Let’s talk about tail risks.
+
+Kasper:
+Tail risks are rare but severe. You don’t predict them—you prepare for them.
+
+⸻
+
+[14:00]
+
+Nora:
+How do people prepare without over-hedging?
+
+Kasper:
+By accepting uncertainty. Avoid leverage, keep liquidity, and don’t optimize for perfection.
+
+⸻
+
+[15:40]
+
+Nora:
+Any myths you’d like to debunk?
+
+Kasper:
+That risk can be eliminated. It can only be managed.
+
+⸻
+
+[17:05]
+
+Nora:
+What’s a sign of a resilient portfolio?
+
+Kasper:
+It survives bad years without forcing you to change plans.
+
+⸻
+
+[18:40]
+
+Nora:
+How should investors think about time?
+
+Kasper:
+Longer horizons forgive many mistakes—but only if you stay invested.
+
+⸻
+
+[20:10]
+
+Nora:
+Advice for listeners overwhelmed by risk discussions?
+
+Kasper:
+Start simple. Define rules you can follow when emotions run high.
+
+⸻
+
+[22:00]
+
+Nora:
+Last question: what’s your personal guiding principle?
+
+Kasper:
+Avoid ruin first. Everything else comes after.
+
+⸻
+
+[23:30]
+
+Nora:
+Kasper, thanks for the perspective.
+
+Kasper:
+Thanks, Nora.
+
+⸻
+
+[24:50]
+
+Nora:
+That’s it for this episode of Long Horizon Notes. See you next time.
