@@ -159,28 +159,32 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][0], "John")
 
-    @patch("spacy.load")
     @patch("podcast_scraper.speaker_detection._load_spacy_model")
-    def test_extract_person_entities_filters_short_names(self, mock_load, mock_spacy_load):
+    def test_extract_person_entities_filters_short_names(self, mock_load):
         """Test that very short names are filtered out."""
         # Clear cache to ensure fresh load
         speaker_detection.clear_spacy_model_cache()
 
-        mock_nlp = unittest.mock.MagicMock()
-        mock_doc = unittest.mock.MagicMock()
-        mock_ent = unittest.mock.MagicMock()
-        mock_ent.label_ = "PERSON"
-        mock_ent.text = "A"  # Too short
-        mock_ent.score = 0.8
-        mock_doc.ents = [mock_ent]
-        mock_nlp.return_value = mock_doc
-        mock_load.return_value = mock_nlp
+        # Ensure spacy exists in sys.modules and patch load to prevent filesystem I/O
+        if "spacy" not in sys.modules:
+            sys.modules["spacy"] = MagicMock()
+        spacy_module = sys.modules["spacy"]
+        with patch.object(spacy_module, "load", create=True):
+            mock_nlp = unittest.mock.MagicMock()
+            mock_doc = unittest.mock.MagicMock()
+            mock_ent = unittest.mock.MagicMock()
+            mock_ent.label_ = "PERSON"
+            mock_ent.text = "A"  # Too short
+            mock_ent.score = 0.8
+            mock_doc.ents = [mock_ent]
+            mock_nlp.return_value = mock_doc
+            mock_load.return_value = mock_nlp
 
-        nlp = speaker_detection.get_ner_model(self.cfg)
-        result = speaker_detection.extract_person_entities("A", nlp)
+            nlp = speaker_detection.get_ner_model(self.cfg)
+            result = speaker_detection.extract_person_entities("A", nlp)
 
-        # Should filter out short names
-        self.assertEqual(len(result), 0)
+            # Should filter out short names
+            self.assertEqual(len(result), 0)
 
     def test_detect_hosts_from_feed_authors(self):
         """Test detecting hosts from RSS feed authors."""
@@ -506,26 +510,30 @@ class TestSpeakerDetectionHelpers(unittest.TestCase):
 class TestSpeakerDetectionCaching(unittest.TestCase):
     """Additional tests for speaker detection caching and CLI precedence."""
 
-    @patch("spacy.load")
     @patch("podcast_scraper.speaker_detection.get_ner_model")
     @patch("podcast_scraper.speaker_detection.extract_person_entities")
-    def test_cli_override_precedence(self, mock_extract, mock_get_model, mock_spacy_load):
+    def test_cli_override_precedence(self, mock_extract, mock_get_model):
         """Test that CLI speaker names override detected names."""
-        mock_nlp = unittest.mock.MagicMock()
-        mock_get_model.return_value = mock_nlp
-        mock_extract.return_value = [("Detected Guest", 0.9)]
+        # Ensure spacy exists in sys.modules and patch load to prevent filesystem I/O
+        if "spacy" not in sys.modules:
+            sys.modules["spacy"] = MagicMock()
+        spacy_module = sys.modules["spacy"]
+        with patch.object(spacy_module, "load", create=True):
+            mock_nlp = unittest.mock.MagicMock()
+            mock_get_model.return_value = mock_nlp
+            mock_extract.return_value = [("Detected Guest", 0.9)]
 
-        cfg = create_test_config(
-            auto_speakers=True,
-            screenplay_speaker_names=["Manual Host", "Manual Guest"],
-        )
+            cfg = create_test_config(
+                auto_speakers=True,
+                screenplay_speaker_names=["Manual Host", "Manual Guest"],
+            )
 
-        speakers, hosts, succeeded = speaker_detection.detect_speaker_names(
-            episode_title="Interview with Detected Guest",
-            episode_description=None,
-            cfg=cfg,
-            known_hosts=None,
-        )
+            speakers, hosts, succeeded = speaker_detection.detect_speaker_names(
+                episode_title="Interview with Detected Guest",
+                episode_description=None,
+                cfg=cfg,
+                known_hosts=None,
+            )
 
         # When manual names are provided, they should be used
         # Note: This tests the integration, actual precedence is tested in workflow

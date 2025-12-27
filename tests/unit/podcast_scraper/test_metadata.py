@@ -409,28 +409,32 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][0], "John")
 
-    @patch("spacy.load")
     @patch("podcast_scraper.speaker_detection._load_spacy_model")
-    def test_extract_person_entities_filters_short_names(self, mock_load, mock_spacy_load):
+    def test_extract_person_entities_filters_short_names(self, mock_load):
         """Test that very short names are filtered out."""
         # Clear cache to ensure fresh load
         speaker_detection.clear_spacy_model_cache()
 
-        mock_nlp = unittest.mock.MagicMock()
-        mock_doc = unittest.mock.MagicMock()
-        mock_ent = unittest.mock.MagicMock()
-        mock_ent.label_ = "PERSON"
-        mock_ent.text = "A"  # Too short
-        mock_ent.score = 0.8
-        mock_doc.ents = [mock_ent]
-        mock_nlp.return_value = mock_doc
-        mock_load.return_value = mock_nlp
+        # Ensure spacy exists in sys.modules and patch load to prevent filesystem I/O
+        if "spacy" not in sys.modules:
+            sys.modules["spacy"] = MagicMock()
+        spacy_module = sys.modules["spacy"]
+        with patch.object(spacy_module, "load", create=True):
+            mock_nlp = unittest.mock.MagicMock()
+            mock_doc = unittest.mock.MagicMock()
+            mock_ent = unittest.mock.MagicMock()
+            mock_ent.label_ = "PERSON"
+            mock_ent.text = "A"  # Too short
+            mock_ent.score = 0.8
+            mock_doc.ents = [mock_ent]
+            mock_nlp.return_value = mock_doc
+            mock_load.return_value = mock_nlp
 
-        nlp = speaker_detection.get_ner_model(self.cfg)
-        result = speaker_detection.extract_person_entities("A", nlp)
+            nlp = speaker_detection.get_ner_model(self.cfg)
+            result = speaker_detection.extract_person_entities("A", nlp)
 
-        # Should filter out short names
-        self.assertEqual(len(result), 0)
+            # Should filter out short names
+            self.assertEqual(len(result), 0)
 
     def test_detect_hosts_from_feed_authors(self):
         """Test detecting hosts from RSS feed authors."""
