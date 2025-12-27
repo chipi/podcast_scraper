@@ -131,8 +131,8 @@ def _is_temp_path(path: str) -> bool:  # noqa: C901
 
         # Check common temp patterns (case-insensitive for Windows compatibility)
         temp_patterns = [
-            "/tmp/",
-            "/var/tmp/",
+            "/tmp/",  # nosec B108 - intentional for test isolation detection
+            "/var/tmp/",  # nosec B108 - intentional for test isolation detection
             "/var/folders/",  # macOS temp directories
             tempfile.gettempdir(),
         ]
@@ -147,8 +147,8 @@ def _is_temp_path(path: str) -> bool:  # noqa: C901
         # Check if path is under any temp directory
         temp_dirs = [
             Path(tempfile.gettempdir()),
-            Path("/tmp"),
-            Path("/var/tmp"),
+            Path("/tmp"),  # nosec B108 - intentional for test isolation detection
+            Path("/var/tmp"),  # nosec B108 - intentional for test isolation detection
         ]
 
         for temp_dir in temp_dirs:
@@ -602,5 +602,5 @@ def block_network_and_filesystem_io(request):  # noqa: C901
     for patcher in network_patches + filesystem_patches:
         try:
             patcher.stop()
-        except Exception:
+        except Exception:  # nosec B110 - intentional: ignore cleanup errors
             pass  # Ignore errors during cleanup

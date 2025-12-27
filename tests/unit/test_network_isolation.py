@@ -16,7 +16,9 @@ class TestNetworkIsolation(unittest.TestCase):
         import requests
 
         with self.assertRaises(Exception) as context:
-            requests.get("https://example.com")
+            requests.get(
+                "https://example.com", timeout=1
+            )  # nosec B113 - intentional: testing network blocking
 
         # Verify it's our NetworkCallDetectedError
         self.assertIn("Network call detected", str(context.exception))
@@ -27,7 +29,9 @@ class TestNetworkIsolation(unittest.TestCase):
         import requests
 
         with self.assertRaises(Exception) as context:
-            requests.post("https://example.com", data={"test": "data"})
+            requests.post(
+                "https://example.com", data={"test": "data"}, timeout=1
+            )  # nosec B113 - intentional: testing network blocking
 
         self.assertIn("Network call detected", str(context.exception))
 
@@ -47,7 +51,9 @@ class TestNetworkIsolation(unittest.TestCase):
         import urllib.request
 
         with self.assertRaises(Exception) as context:
-            urllib.request.urlopen("https://example.com")
+            urllib.request.urlopen(
+                "https://example.com"
+            )  # nosec B310 - intentional: testing network blocking
 
         self.assertIn("Network call detected", str(context.exception))
         self.assertIn("urllib.request", str(context.exception))

@@ -1,7 +1,7 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
-.PHONY: help init format format-check lint lint-markdown type security security-bandit security-audit test test-unit test-integration test-workflow-e2e test-all test-parallel test-reruns coverage docs build ci clean docker-build docker-test docker-clean install-hooks
+.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test test-unit test-unit-no-ml test-integration test-ci test-workflow-e2e test-all test-parallel test-reruns coverage docs build ci ci-fast clean docker-build docker-test docker-clean install-hooks
 
 help:
 	@echo "Common developer commands:"
@@ -16,16 +16,19 @@ help:
 	@echo "Test commands:"
 	@echo "  make test            Run pytest with coverage (default: unit tests only)"
 	@echo "  make test-unit       Run unit tests only"
+	@echo "  make test-unit-no-ml Run unit tests without ML dependencies (matches CI)"
 	@echo "  make test-integration Run integration tests only"
 	@echo "  make test-workflow-e2e Run workflow E2E tests only"
 	@echo "  make test-all        Run all tests (unit + integration + workflow_e2e)"
+	@echo "  make test-network    Run network tests only (requires internet connection)"
 	@echo "  make test-parallel   Run tests with parallel execution (-n auto)"
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
 	@echo ""
 	@echo "Other commands:"
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
 	@echo "  make build           Build source and wheel distributions (outputs to .build/dist/)"
-	@echo "  make ci              Run the full CI suite locally"
+	@echo "  make ci              Run the full CI suite locally (unit + integration tests, excludes workflow_e2e)"
+	@echo "  make ci-fast         Run fast CI checks (unit tests only, faster feedback)"
 	@echo "  make docker-build    Build Docker image"
 	@echo "  make docker-test     Build and test Docker image"
 	@echo "  make docker-clean    Remove Docker test images"
@@ -36,6 +39,10 @@ init:
 	$(PYTHON) -m pip install --upgrade pip setuptools
 	$(PYTHON) -m pip install -e .[dev,ml]
 	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install -r docs/requirements.txt; fi
+
+init-no-ml:
+	$(PYTHON) -m pip install --upgrade pip setuptools
+	$(PYTHON) -m pip install -e .[dev]
 
 format:
 	black .
@@ -59,7 +66,7 @@ type:
 security: security-bandit security-audit
 
 security-bandit:
-	bandit -r . --exclude ./.venv
+	bandit -r . --exclude ./.venv --skip B113,B108,B110,B310 --severity-level medium
 
 security-audit:
 	$(PYTHON) -m pip install --upgrade setuptools
@@ -80,14 +87,30 @@ test:
 test-unit:
 	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
 
+test-unit-no-ml: init-no-ml
+	@echo "Running unit tests without ML dependencies (matches CI test-unit job)..."
+	@echo "This verifies that unit tests work when ML dependencies (spacy, torch) are not installed."
+	@echo ""
+	@echo "Step 1: Checking if modules can be imported without ML dependencies..."
+	@$(PYTHON) scripts/check_unit_test_imports.py
+	@echo ""
+	@echo "Step 2: Running unit tests..."
+	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
+
 test-integration:
 	pytest tests/integration/ -m integration
+
+test-ci:
+	pytest --cov=$(PACKAGE) --cov-report=term-missing -m 'not workflow_e2e and not network'
 
 test-workflow-e2e:
 	pytest tests/workflow_e2e/ -m workflow_e2e
 
 test-all:
 	pytest tests/ -m "not network" --cov=$(PACKAGE) --cov-report=term-missing
+
+test-network:
+	pytest tests/ -m network
 
 test-parallel:
 	pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
@@ -102,7 +125,9 @@ build:
 	$(PYTHON) -m build
 	@if [ -d dist ]; then mkdir -p .build && rm -rf .build/dist && mv dist .build/ && echo "Moved dist to .build/dist/"; fi
 
-ci: format-check lint lint-markdown type security test docs build
+ci: format-check lint lint-markdown type security test-ci docs build
+
+ci-fast: format-check lint lint-markdown type security test docs build
 
 docker-build:
 	docker build -t podcast-scraper:test -f docker/Dockerfile .

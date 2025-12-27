@@ -127,24 +127,27 @@ This is the main CI pipeline that ensures code quality, runs tests, builds docum
 
 ### Parallel Execution Strategy
 
-All four jobs run **completely in parallel** for maximum speed:
+The Python Application workflow has **five parallel jobs** for maximum speed:
 
 ```mermaid
 graph LR
     A[Workflow Start] --> B[Lint Job]
-    A --> C[Test Job]
-    A --> D[Docs Job]
-    A --> E[Build Job]
+    A --> C[Unit Test Job]
+    A --> D[Integration Test Job]
+    A --> E[Docs Job]
+    A --> F[Build Job]
     
-    B --> F[✓ All Complete]
-    C --> F
-    D --> F
-    E --> F
+    B --> G[✓ All Complete]
+    C --> G
+    D --> G
+    E --> G
+    F --> G
     
     style B fill:#90EE90
     style C fill:#90EE90
     style D fill:#90EE90
     style E fill:#90EE90
+    style F fill:#90EE90
 ```
 
 ### Job Details
@@ -171,9 +174,32 @@ graph LR
 
 **Why separate from test?** Linting is much faster without ML dependencies, providing quick feedback.
 
-#### 2. Test Job (Full - Includes ML Dependencies)
+#### 1.5. Unit Test Job (Fast - No ML Dependencies)
 
-**Purpose:** Run the complete test suite with all dependencies
+**Purpose:** Run unit tests quickly without heavy ML dependencies
+
+**Duration:** ~2-3 minutes
+
+**Steps:**
+
+1. Checkout code
+2. Set up Python 3.11 with pip caching
+3. Install dev dependencies (excluding ML packages): `pip install -e .[dev]`
+4. **Verify imports work without ML dependencies** - Runs `scripts/check_unit_test_imports.py` to ensure modules don't require ML deps at import time
+5. Run unit tests with network and filesystem I/O isolation enforced
+6. Verify network isolation with dedicated test
+
+**Key Features:**
+
+- **No ML dependencies** - Fast execution, matches production unit test environment
+- **Import verification** - Automatically checks that modules can be imported without ML deps
+- **Network/filesystem isolation** - Enforced by `tests/unit/conftest.py`
+- **Parallel execution** - Uses `pytest-xdist` for faster test runs
+- **Test count validation** - Verifies at least 50 unit tests run (prevents silent failures)
+
+#### 2. Integration Test Job (Full - Includes ML Dependencies)
+
+**Purpose:** Run integration tests with all ML dependencies
 
 **Duration:** ~10-15 minutes (includes ML package installation)
 
@@ -183,10 +209,10 @@ graph LR
 2. Free disk space (removes unnecessary system packages)
 3. Set up Python 3.11 with pip caching
 4. Install **full dependencies** including ML packages (`pip install -e .[dev,ml]`)
-5. Run test suite: `make test`
+5. Run integration tests: `pytest tests/integration/ -m integration`
    - Runs pytest with coverage reporting
-   - Includes integration tests
-   - Tests Whisper integration, summarization, etc.
+   - Includes all integration tests
+   - Tests Whisper integration, summarization, provider interactions, etc.
 6. Post-build cleanup (cache cleanup for disk space management)
 
 **Disk Space Management:**
@@ -235,13 +261,17 @@ graph TD
     A[pyproject.toml] --> B{Job Type}
     
     B -->|Lint Job| C[dev dependencies only]
-    C --> C1[pytest]
-    C --> C2[black]
-    C --> C3[flake8]
-    C --> C4[mypy]
-    C --> C5[bandit]
+    C --> C1[black]
+    C --> C2[flake8]
+    C --> C3[mypy]
+    C --> C4[bandit]
     
-    B -->|Test Job| D[dev + ml dependencies]
+    B -->|Unit Test Job| C2[dev dependencies only]
+    C2 --> C2A[pytest]
+    C2 --> C2B[No ML deps - fast]
+    C2 --> C2C[Import check script]
+    
+    B -->|Integration Test Job| D[dev + ml dependencies]
     D --> D1[pytest]
     D --> D2[transformers]
     D --> D3[torch]
@@ -590,7 +620,7 @@ schedule:
 
 All workflows run independently and in parallel when triggered:
 
-- **Python Application Workflow** (4 parallel jobs: lint, test, docs, build)
+- **Python Application Workflow** (5 parallel jobs: lint, unit test, integration test, docs, build)
 - **Documentation Deployment Workflow** (sequential: build → deploy)
 - **CodeQL Workflow** (matrix: Python + Actions analysis in parallel)
 - **Docker Workflow** (single job: build → test → validate)
@@ -615,12 +645,13 @@ This maximizes parallelism and reduces total CI time.
 
 ```text
 ├── Lint Job (2-3 min)
-├── Test Job (10-15 min)
+├── Unit Test Job (2-3 min) - No ML deps, fast
+├── Integration Test Job (10-15 min) - With ML deps
 ├── Docs Job (3-5 min)
 └── Build Job (2-3 min)
 ```
 
-All four jobs start simultaneously and run independently.
+All five jobs start simultaneously and run independently. Unit tests run quickly without ML dependencies, while integration tests run in parallel with full ML stack.
 
 **Within CodeQL Workflow:**
 
@@ -828,13 +859,22 @@ The system now passes the "minimal docs CI/CD" requirement:
    - ~70% reduction in runner minutes for documentation updates
 
 2. **Parallel Job Execution**
-   - Separated lint, test, docs, and build into independent parallel jobs
+   - Separated lint, unit tests, integration tests, docs, and build into independent parallel jobs
    - Reduced total CI time from ~20 minutes sequential to ~15 minutes parallel (limited by slowest job)
+   - Unit tests run fast (2-3 min) without ML dependencies, integration tests run in parallel (10-15 min)
 
 3. **Smart Dependency Management**
    - Lint job runs without ML dependencies for fast feedback (2-3 min)
-   - Test job includes full ML stack for complete validation
+   - Unit test job runs without ML dependencies for fast feedback (2-3 min)
+   - Integration test job includes full ML stack for complete validation
    - Separate dependency groups in `pyproject.toml`: `[dev]`, `[ml]`, `[docs]`
+
+4. **ML Dependency Import Verification** ⭐ NEW
+   - Automatic check that unit tests can import modules without ML dependencies
+   - Prevents modules from importing ML deps at top level (which would break CI)
+   - Script: `scripts/check_unit_test_imports.py`
+   - Runs before unit tests in CI, catches issues early
+   - Local command: `make test-unit-no-ml` to verify locally
 
 4. **Comprehensive Security Scanning**
    - CodeQL for static analysis (Python + Actions)
@@ -848,12 +888,12 @@ The system now passes the "minimal docs CI/CD" requirement:
    - Automatic deployment to GitHub Pages on merge
    - API documentation auto-generated from docstrings
 
-6. **Resource Optimization**
+7. **Resource Optimization**
    - Pip caching reduces dependency install time
    - Proactive disk space management
    - Post-test cache cleanup
 
-7. **Developer Experience**
+8. **Developer Experience**
    - Fast lint feedback (~2-3 min)
    - Clear separation of concerns (lint vs test)
    - `make ci` command to run full CI suite locally

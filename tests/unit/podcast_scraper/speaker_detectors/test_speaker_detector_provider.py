@@ -5,10 +5,13 @@ These tests verify that the speaker detector provider pattern works correctly.
 """
 
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
-from podcast_scraper import config, models
-from podcast_scraper.speaker_detectors.factory import create_speaker_detector
+# Mock ML dependencies before importing modules that require them
+# Unit tests run without ML dependencies installed
+with patch.dict("sys.modules", {"spacy": MagicMock()}):
+    from podcast_scraper import config, models
+    from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 
 
 class TestSpeakerDetectorFactory(unittest.TestCase):

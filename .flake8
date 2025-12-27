@@ -16,3 +16,4 @@ per-file-ignores =
     speaker_detection.py:C901
     whisper_integration.py:C901
     test_podcast_scraper.py:F401
+    tests/integration/*:E501

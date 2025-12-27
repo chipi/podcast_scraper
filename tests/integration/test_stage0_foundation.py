@@ -9,78 +9,14 @@ These tests verify that Stage 0 infrastructure is correctly set up:
 """
 
 import unittest
-from typing import get_type_hints
 
 import pytest
 
 from podcast_scraper import config
 
-
-@pytest.mark.integration
-class TestStage0PackageStructure(unittest.TestCase):
-    """Test that new package structure exists and can be imported."""
-
-    def test_preprocessing_module_importable(self):
-        """Test that preprocessing.py can be imported."""
-        import podcast_scraper.preprocessing
-
-        self.assertIsNotNone(podcast_scraper.preprocessing)
-
-    def test_speaker_detectors_package_importable(self):
-        """Test that speaker_detectors package can be imported."""
-        from podcast_scraper.speaker_detectors import base, factory
-
-        self.assertIsNotNone(base)
-        self.assertIsNotNone(factory)
-
-    def test_transcription_package_importable(self):
-        """Test that transcription package can be imported."""
-        from podcast_scraper.transcription import base, factory
-
-        self.assertIsNotNone(base)
-        self.assertIsNotNone(factory)
-
-    def test_summarization_package_importable(self):
-        """Test that summarization package can be imported."""
-        from podcast_scraper.summarization import base, factory
-
-        self.assertIsNotNone(base)
-        self.assertIsNotNone(factory)
-
-
-@pytest.mark.integration
-class TestStage0Protocols(unittest.TestCase):
-    """Test that Protocol definitions are valid and type-checkable."""
-
-    def test_speaker_detector_protocol_exists(self):
-        """Test that SpeakerDetector protocol is defined."""
-        from podcast_scraper.speaker_detectors.base import SpeakerDetector
-
-        # Verify protocol has required methods
-        hints = get_type_hints(SpeakerDetector.detect_speakers)
-        self.assertIn("episode_title", hints)
-        self.assertIn("episode_description", hints)
-        self.assertIn("known_hosts", hints)
-
-    def test_transcription_provider_protocol_exists(self):
-        """Test that TranscriptionProvider protocol is defined."""
-        from podcast_scraper.transcription.base import TranscriptionProvider
-
-        # Verify protocol has required methods
-        hints = get_type_hints(TranscriptionProvider.transcribe)
-        self.assertIn("audio_path", hints)
-        self.assertIn("language", hints)
-
-    def test_summarization_provider_protocol_exists(self):
-        """Test that SummarizationProvider protocol is defined."""
-        from podcast_scraper.summarization.base import SummarizationProvider
-
-        # Verify protocol has required methods
-        hints = get_type_hints(SummarizationProvider.summarize)
-        self.assertIn("text", hints)
-        self.assertIn("episode_title", hints)
-        self.assertIn("episode_description", hints)
-        self.assertIn("params", hints)
+# Note: Import tests moved to tests/unit/test_package_imports.py
+# Note: Protocol definition tests moved to tests/unit/test_protocol_definitions.py
+# Integration tests should focus on component interactions, not import/protocol verification.
 
 
 @pytest.mark.integration

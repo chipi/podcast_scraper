@@ -70,10 +70,29 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e .[dev]
+    - name: Verify unit tests can import without ML dependencies
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        python scripts/check_unit_test_imports.py
+      env:
+        PACKAGE: podcast_scraper
     - name: Run unit tests (network isolation enforced, parallel execution)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        pytest tests/unit/ -v --tb=short -n auto
+        # Run tests and capture output
+        OUTPUT=$(pytest tests/unit/ -v --tb=short -n auto 2>&1)
+        echo "$OUTPUT"
+        # Verify tests were collected and run
+        if echo "$OUTPUT" | grep -q "no tests collected"; then
+          echo "ERROR: No tests were collected!"
+          exit 1
+        fi
+        # Verify minimum test count (unit tests should have many tests)
+        TEST_COUNT=$(echo "$OUTPUT" | grep -oP "(\d+) passed" | head -1 | grep -oP "\d+" || echo "0")
+        if [ "$TEST_COUNT" -lt 50 ]; then
+          echo "ERROR: Only $TEST_COUNT tests passed, expected at least 50 unit tests"
+          exit 1
+        fi
     - name: Verify network isolation
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -106,7 +125,25 @@ jobs:
     - name: Run integration tests (parallel execution, with reruns for flaky tests)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        pytest tests/integration/ -v -m integration -n auto --reruns 2 --reruns-delay 1
+        # Run tests and capture output
+        OUTPUT=$(pytest tests/integration/ -v -m integration -n auto --reruns 2 --reruns-delay 1 2>&1)
+        echo "$OUTPUT"
+        # Verify tests were collected and run
+        if echo "$OUTPUT" | grep -q "no tests collected"; then
+          echo "ERROR: No tests were collected!"
+          exit 1
+        fi
+        # Verify at least some tests passed
+        if echo "$OUTPUT" | grep -q "passed = 0"; then
+          echo "ERROR: No tests passed!"
+          exit 1
+        fi
+        # Verify minimum test count (integration tests should have many tests)
+        TEST_COUNT=$(echo "$OUTPUT" | grep -oP "(\d+) passed" | head -1 | grep -oP "\d+" || echo "0")
+        if [ "$TEST_COUNT" -lt 10 ]; then
+          echo "ERROR: Only $TEST_COUNT tests passed, expected at least 10 integration tests"
+          exit 1
+        fi
     - name: Post-build cleanup
       if: always()
       run: |
@@ -139,7 +176,25 @@ jobs:
     - name: Run workflow E2E tests (parallel execution, with reruns for flaky tests)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        pytest tests/workflow_e2e/ -v -m workflow_e2e -n auto --reruns 2 --reruns-delay 1
+        # Run tests and capture output
+        OUTPUT=$(pytest tests/workflow_e2e/ -v -m workflow_e2e -n auto --reruns 2 --reruns-delay 1 2>&1)
+        echo "$OUTPUT"
+        # Verify tests were collected and run
+        if echo "$OUTPUT" | grep -q "no tests collected"; then
+          echo "ERROR: No tests were collected!"
+          exit 1
+        fi
+        # Verify at least some tests passed
+        if echo "$OUTPUT" | grep -q "passed = 0"; then
+          echo "ERROR: No tests passed!"
+          exit 1
+        fi
+        # Verify minimum test count (workflow_e2e tests should have many tests)
+        TEST_COUNT=$(echo "$OUTPUT" | grep -oP "(\d+) passed" | head -1 | grep -oP "\d+" || echo "0")
+        if [ "$TEST_COUNT" -lt 5 ]; then
+          echo "ERROR: Only $TEST_COUNT tests passed, expected at least 5 workflow_e2e tests"
+          exit 1
+        fi
     - name: Post-build cleanup
       if: always()
       run: |
@@ -166,7 +221,20 @@ jobs:
     - name: Run all tests (unit + integration, parallel execution)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        pytest tests/unit/ tests/integration/ -v --cov=podcast_scraper --cov-report=term-missing -n auto
+        # Run tests and capture output
+        OUTPUT=$(pytest tests/unit/ tests/integration/ -v --cov=podcast_scraper --cov-report=term-missing -n auto 2>&1)
+        echo "$OUTPUT"
+        # Verify tests were collected and run
+        if echo "$OUTPUT" | grep -q "no tests collected"; then
+          echo "ERROR: No tests were collected!"
+          exit 1
+        fi
+        # Verify minimum test count (should have many tests from both unit and integration)
+        TEST_COUNT=$(echo "$OUTPUT" | grep -oP "(\d+) passed" | head -1 | grep -oP "\d+" || echo "0")
+        if [ "$TEST_COUNT" -lt 60 ]; then
+          echo "ERROR: Only $TEST_COUNT tests passed, expected at least 60 tests (unit + integration)"
+          exit 1
+        fi
       env:
         PACKAGE: podcast_scraper
     - name: Post-build cleanup

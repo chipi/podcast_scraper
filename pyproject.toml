@@ -126,6 +126,8 @@ markers = [
     "integration: integration tests (slower, test component interactions)",
     "workflow_e2e: end-to-end workflow tests (slowest, test full workflows)",
     "network: hits the network (off by default, use -m network to enable)",
+    "ml_models: requires ML dependencies and real model loading (slow, requires openai-whisper, spacy, transformers)",
+    "integration_http: HTTP integration tests (use real HTTP client with test server, not external network)",
 ]
 # Parallel execution configuration (pytest-xdist)
 # Use -n auto to automatically detect CPU count, or -n N for specific number

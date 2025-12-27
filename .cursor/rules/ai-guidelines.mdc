@@ -2,6 +2,21 @@
 
 ## ⚠️ MANDATORY: Read .ai-coding-guidelines.md First
 
+## 🚨 START-OF-SESSION CHECKLIST (MANDATORY - DO THIS FIRST)
+
+**Before taking ANY action in this project, you MUST:**
+
+1. ✅ **Read `.ai-coding-guidelines.md`** - This is the PRIMARY source of truth
+2. ✅ **Acknowledge you've read it** - Say "I've read the AI guidelines" or similar
+3. ✅ **Confirm when asked** - If user asks "Did you read the guidelines?", answer honestly
+4. ✅ **Reference it constantly** - For all decisions about code, workflow, and patterns
+
+**If the user asks "Did you read the guidelines?" or "Check the guidelines first":**
+- ✅ **STOP what you're doing**
+- ✅ **Read `.ai-coding-guidelines.md` immediately**
+- ✅ **Acknowledge what you read**
+- ✅ **Then proceed with the task**
+
 **Before taking ANY action, you MUST:**
 1. Read `.ai-coding-guidelines.md` - This is the PRIMARY source of truth
 2. Follow ALL CRITICAL rules marked in that file
@@ -51,13 +66,19 @@ AI: I've fixed the issue. [Commits immediately]
 
 ## 🚨 CRITICAL: PR Push Workflow - MANDATORY CHECKLIST
 
-**YOU MUST FOLLOW THIS BEFORE EVERY PUSH TO PR:**
+**YOU MUST FOLLOW THIS EXACT SEQUENCE BEFORE EVERY PUSH TO PR:**
 
-1. **MANDATORY: Run `make ci`** - Full CI suite locally
-2. **MANDATORY: Conditionally run `make docker-test`** - Only if Docker-related changes exist (see below)
-3. **MANDATORY: Verify all checks pass** - No failures allowed
-4. **MANDATORY: Fix any failures** - Before pushing
-5. **THEN push** - Only after `make ci` (and `make docker-test` if applicable) passes completely
+### Step-by-Step Push Process (MANDATORY):
+
+1. **MANDATORY: Show `git status`** - Show user what will be pushed
+2. **MANDATORY: Show `git diff` or change summary** - Show user the actual changes
+3. **MANDATORY: Run `make ci`** - Full CI suite locally
+4. **MANDATORY: Conditionally run `make docker-test`** - Only if Docker-related changes exist (see below)
+5. **MANDATORY: Verify all checks pass** - No failures allowed
+6. **MANDATORY: Fix any failures** - Before pushing
+7. **MANDATORY: Ask user for explicit approval** - User must say "push", "yes", "go ahead", etc.
+8. **MANDATORY: Wait for user approval** - DO NOT push until user explicitly approves
+9. **THEN push** - Only after steps 1-8 are complete AND user has approved
 
 ### When to run `make docker-test` (CONDITIONAL):
 
@@ -73,11 +94,40 @@ AI: I've fixed the issue. [Commits immediately]
 - ❌ Only documentation or test file changes
 
 ### ❌ NEVER push to PR when:
+- **User hasn't explicitly approved** (MOST IMPORTANT - CHECK THIS FIRST)
+- You haven't shown `git status` first
+- You haven't shown `git diff` or change summary first
+- User said "don't push" or "wait"
 - `make ci` hasn't been run
 - `make ci` has failures
 - `make docker-test` hasn't been run (when Docker-related changes exist)
 - `make docker-test` has failures (when Docker-related changes exist)
 - You're skipping CI checks
+
+### ✅ Example CORRECT push workflow:
+```
+AI: I've resolved all conflicts and fixed linting errors. Let me show you what will be pushed:
+
+[Runs: git status]
+[Shows: Modified files, new files, etc.]
+
+[Runs: git diff --stat]
+[Shows: Summary of changes]
+
+[Runs: make ci]
+[Shows: All checks passed ✓]
+
+Should I push these changes to the PR?
+
+User: Yes, go ahead
+
+AI: [Pushes to PR]
+```
+
+### ❌ Example INCORRECT push workflow (DO NOT DO THIS):
+```
+AI: I've resolved all conflicts. [Pushes immediately without showing changes or asking]
+```
 
 ## Primary Reference
 

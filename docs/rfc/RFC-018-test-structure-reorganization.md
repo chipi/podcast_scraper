@@ -4,7 +4,11 @@
 - **Authors**:
 - **Stakeholders**: Maintainers, developers writing tests, CI/CD pipeline maintainers
 - **Related PRDs**: N/A
-- **Related RFCs**: `docs/rfc/RFC-001-workflow-orchestration.md` (workflow tests), `docs/rfc/RFC-013-openai-provider-implementation.md` (provider tests)
+- **Related RFCs**:
+  - `docs/rfc/RFC-001-workflow-orchestration.md` (workflow tests)
+  - `docs/rfc/RFC-013-openai-provider-implementation.md` (provider tests)
+  - `docs/rfc/RFC-019-e2e-test-improvements.md` (E2E test improvements - follow-up work)
+  - `docs/rfc/RFC-020-integration-test-improvements.md` (Integration test improvements - follow-up work)
 - **Related Issues**: Issue #98
 
 ## Abstract
@@ -671,9 +675,24 @@ paths:
 2. Should we enforce test naming conventions? (e.g., `test_<module>.py` in unit tests)
 3. Should we add a script to help categorize tests? (Nice to have, not required)
 
+## Relationship to Other Test RFCs
+
+This RFC (RFC-018) establishes the **foundation** for the test suite structure. It was followed by two comprehensive improvement efforts:
+
+1. **RFC-020: Integration Test Improvements** - Built upon RFC-018's structure to add comprehensive integration test coverage (182 tests across 15 files) with real component workflows, real ML models, real HTTP client testing, error handling, concurrent execution, and OpenAI provider integration.
+
+2. **RFC-019: E2E Test Improvements** - Plans comprehensive E2E test infrastructure improvements, including local HTTP server, real data files, and complete coverage of all major user-facing entry points.
+
+Together, these three RFCs form a complete testing strategy:
+
+- **RFC-018**: Establishes test structure and boundaries ✅ **Completed**
+- **RFC-020**: Comprehensive integration test improvements ✅ **Completed**
+- **RFC-019**: Comprehensive E2E test improvements 📋 **Planned**
+
 ## References
 
 - Issue #98: Test structure reorganization
 - Issue #94: Move Python files to src/ (completed - enables this RFC)
 - [pytest-xdist documentation](https://pytest-xdist.readthedocs.io/)
 - [pytest-rerunfailures documentation](https://pytest-rerunfailures.readthedocs.io/)
+- Follow-up work: `docs/rfc/RFC-019-e2e-test-improvements.md`, `docs/rfc/RFC-020-integration-test-improvements.md`

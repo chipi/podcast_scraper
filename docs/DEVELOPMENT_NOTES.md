@@ -6,25 +6,46 @@
 
 The test suite is organized into three main categories (RFC-018):
 
-- **`tests/unit/`** - Unit tests (fast, isolated, fully mocked)
-- **`tests/integration/`** - Integration tests (component interactions)
-- **`tests/workflow_e2e/`** - Workflow E2E tests (complete workflows)
+- **`tests/unit/`** - Unit tests (fast, isolated, fully mocked, no I/O)
+- **`tests/integration/`** - Integration tests (component interactions, real internal implementations, mocked external services)
+- **`tests/workflow_e2e/`** - Workflow E2E tests (complete workflows, should use real network and I/O)
+
+**I/O Policy by Test Type:**
+
+- **Unit Tests** (`tests/unit/`):
+  - ❌ **Network calls**: BLOCKED (enforced by `tests/unit/conftest.py`)
+  - ❌ **Filesystem I/O**: BLOCKED (enforced by `tests/unit/conftest.py`)
+  - ✅ **Allows**: `tempfile` operations, operations within temp directories, cache directories
+  - **Purpose**: Fast, isolated, fully mocked
+
+- **Integration Tests** (`tests/integration/`):
+  - ⚠️ **Network calls**: MOCKED (for speed/reliability, not blocked)
+  - ✅ **Filesystem I/O**: ALLOWED (real file operations in temp directories)
+  - ✅ **Real implementations**: Real Config, real providers, real component interactions
+  - **Purpose**: Test how components work together
+
+- **E2E Tests** (`tests/workflow_e2e/`):
+  - ✅ **Network calls**: ALLOWED (should use real network, marked with `@pytest.mark.network`)
+  - ✅ **Filesystem I/O**: ALLOWED (real file operations, real output directories)
+  - ✅ **Real implementations**: Real HTTP clients, real ML models, real file operations
+  - **Purpose**: Test complete workflows as users would use them
+  - **Note**: Currently some E2E tests still use mocks (historical), but target is real network/I/O
 
 **Key Features:**
 
-- **Network Isolation**: Unit tests automatically block network calls (enforced by `tests/unit/conftest.py`)
-- **Filesystem I/O Isolation**: Unit tests automatically block filesystem I/O operations (enforced by `tests/unit/conftest.py`)
-  - Blocks: `open()`, `os.makedirs()`, `os.unlink()`, `shutil.rmtree()`, `Path.write_text()`, etc.
-  - Allows: `tempfile` operations, operations within temp directories, cache directories, site-packages, Python cache files
 - **Parallel Execution**: Tests can run in parallel using `pytest-xdist` (`-n auto`)
 - **Flaky Test Reruns**: Failed tests can be automatically retried using `pytest-rerunfailures` (`--reruns 2 --reruns-delay 1`)
 - **Test Markers**: All integration tests have `@pytest.mark.integration`, all workflow_e2e tests have `@pytest.mark.workflow_e2e`
+- **Network Marker**: E2E tests that make real network calls should have `@pytest.mark.network`
 
 **Running Tests:**
 
 ```bash
 # Unit tests only (default, fast feedback)
 make test-unit
+
+# Unit tests without ML dependencies (matches CI, verifies no ML imports at module level)
+make test-unit-no-ml
 
 # Integration tests
 make test-integration
@@ -41,6 +62,32 @@ make test-parallel
 # With reruns for flaky tests
 make test-reruns
 ```
+
+**ML Dependency Handling in Unit Tests:**
+
+Unit tests run **without ML dependencies** (spacy, torch, transformers) installed in CI. This ensures:
+
+- Fast test execution (no heavy ML package installation)
+- Tests remain isolated from ML dependencies
+- CI can run unit tests quickly
+
+**Important:** Modules that import ML dependencies at the **top level** (module import time) will cause unit tests to fail in CI. To prevent this:
+
+1. **Mock ML dependencies in unit tests** (already done in most tests):
+
+   ```python
+   from unittest.mock import MagicMock, patch
+   
+   # Mock ML dependencies before importing modules that need them
+   with patch.dict("sys.modules", {"spacy": MagicMock()}):
+       from podcast_scraper import speaker_detection
+   ```
+
+2. **Use lazy imports** (future improvement): Import ML dependencies inside functions, not at module level
+
+3. **Verify imports work without ML deps**: Run `make test-unit-no-ml` or `python scripts/check_unit_test_imports.py` before pushing
+
+The CI automatically checks that unit tests can import modules without ML dependencies before running tests.
 
 See `docs/TESTING_STRATEGY.md` for comprehensive testing guidelines and `CONTRIBUTING.md` for test running examples.
 

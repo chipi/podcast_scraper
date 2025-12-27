@@ -164,6 +164,38 @@ else
     echo ""
 fi
 
+# Validate test infrastructure (when pytest config or test files change)
+STAGED_PYPROJECT=$(echo "$STAGED_FILES" | grep -E '(pyproject\.toml|Makefile|\.github/workflows/.*\.yml)$' || true)
+STAGED_TEST_FILES=$(echo "$STAGED_FILES" | grep -E 'tests/.*\.py$' || true)
+
+if [ -n "$STAGED_PYPROJECT" ] || [ -n "$STAGED_TEST_FILES" ]; then
+    echo "→ Validating test infrastructure..."
+    # Check that integration marker works
+    INTEGRATION_COUNT=$(python3 -m pytest tests/integration/ -m integration --collect-only -q 2>&1 | grep -c "^tests/" || echo "0")
+    if [ "$INTEGRATION_COUNT" -eq 0 ]; then
+        echo -e "${RED}✗${NC} Integration marker not working! No tests collected with -m integration"
+        echo "  Check pyproject.toml addopts for marker conflicts"
+        ERRORS=$((ERRORS + 1))
+    else
+        echo -e "  ${GREEN}✓${NC} Integration marker: $INTEGRATION_COUNT tests"
+    fi
+    
+    # Check that workflow_e2e marker works
+    E2E_COUNT=$(python3 -m pytest tests/workflow_e2e/ -m workflow_e2e --collect-only -q 2>&1 | grep -c "^tests/" || echo "0")
+    if [ "$E2E_COUNT" -eq 0 ]; then
+        echo -e "${RED}✗${NC} Workflow E2E marker not working! No tests collected with -m workflow_e2e"
+        echo "  Check pyproject.toml addopts for marker conflicts"
+        ERRORS=$((ERRORS + 1))
+    else
+        echo -e "  ${GREEN}✓${NC} Workflow E2E marker: $E2E_COUNT tests"
+    fi
+    
+    if [ $ERRORS -eq 0 ]; then
+        echo -e "${GREEN}✓${NC} Test infrastructure validation passed"
+    fi
+    echo ""
+fi
+
 # Check YAML syntax validation (required when YAML files are staged)
 if [ -n "$STAGED_YAML" ]; then
     echo "→ Running YAML syntax validation..."

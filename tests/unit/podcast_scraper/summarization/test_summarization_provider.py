@@ -5,10 +5,13 @@ These tests verify that the summarization provider pattern works correctly.
 """
 
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
-from podcast_scraper import config
-from podcast_scraper.summarization.factory import create_summarization_provider
+# Mock ML dependencies before importing modules that require them
+# Unit tests run without ML dependencies installed
+with patch.dict("sys.modules", {"torch": MagicMock(), "transformers": MagicMock()}):
+    from podcast_scraper import config
+    from podcast_scraper.summarization.factory import create_summarization_provider
 
 
 class TestSummarizationProviderFactory(unittest.TestCase):
