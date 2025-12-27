@@ -27,7 +27,7 @@ help:
 	@echo "Other commands:"
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
 	@echo "  make build           Build source and wheel distributions (outputs to .build/dist/)"
-	@echo "  make ci              Run the full CI suite locally (unit + integration tests, excludes workflow_e2e)"
+	@echo "  make ci              Run the full CI suite locally (cleans cache, unit + integration tests, excludes workflow_e2e)"
 	@echo "  make ci-fast         Run fast CI checks (unit tests only, faster feedback)"
 	@echo "  make docker-build    Build Docker image"
 	@echo "  make docker-test     Build and test Docker image"
@@ -126,7 +126,7 @@ build:
 	$(PYTHON) -m build
 	@if [ -d dist ]; then mkdir -p .build && rm -rf .build/dist && mv dist .build/ && echo "Moved dist to .build/dist/"; fi
 
-ci: format-check lint lint-markdown type security test-ci docs build
+ci: clean-cache format-check lint lint-markdown type security test-ci docs build
 
 ci-fast: format-check lint lint-markdown type security test docs build
 
