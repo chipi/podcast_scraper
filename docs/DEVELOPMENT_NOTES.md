@@ -89,7 +89,7 @@ Unit tests run **without ML dependencies** (spacy, torch, transformers) installe
 
 The CI automatically checks that unit tests can import modules without ML dependencies before running tests.
 
-See `docs/TESTING_STRATEGY.md` for comprehensive testing guidelines and `CONTRIBUTING.md` for test running examples.
+See `TESTING_STRATEGY.md` for comprehensive testing guidelines and `../CONTRIBUTING.md` for test running examples.
 
 ## Environment Setup
 
@@ -177,7 +177,7 @@ The podcast scraper supports configuration via environment variables for flexibl
 python scripts/fix_markdown.py
 
 # Fix specific files
-python scripts/fix_markdown.py docs/TESTING_STRATEGY.md docs/rfc/RFC-020.md
+python scripts/fix_markdown.py TESTING_STRATEGY.md rfc/RFC-020.md
 
 # Dry run (see what would be fixed)
 python scripts/fix_markdown.py --dry-run
@@ -392,9 +392,11 @@ Different AI assistants load guidelines from different locations:
 
 **NEVER push to PR without:**
 
-- Running `make ci` locally first
+- Running `make ci` locally first (full validation)
 - Ensuring `make ci` passes completely
 - Fixing all failures before pushing
+
+**Note:** Use `make ci-fast` for quick feedback during development, but always run `make ci` before pushing to ensure full validation.
 
 ### What's in `.ai-coding-guidelines.md`
 
@@ -410,7 +412,14 @@ Different AI assistants load guidelines from different locations:
 
 ### For Developers
 
-**If you're using an AI assistant:**
+**If you're using Cursor AI:**
+
+- The guidelines are automatically loaded (no setup needed)
+- AI assistants will follow project patterns and workflows
+- Guidelines ensure consistent code quality
+- **See also:** [`docs/CURSOR_AI_BEST_PRACTICES.md`](CURSOR_AI_BEST_PRACTICES.md) - Best practices for using Cursor AI effectively, including model selection, workflow optimization, and project-specific recommendations
+
+**If you're using other AI assistants:**
 
 - The guidelines are automatically loaded (no setup needed)
 - AI assistants will follow project patterns and workflows
@@ -436,3 +445,806 @@ Different AI assistants load guidelines from different locations:
 - When updating `.ai-coding-guidelines.md`, ensure entry points (`CLAUDE.md`, `.github/copilot-instructions.md`, `.cursor/rules/ai-guidelines.mdc`) still reference it correctly
 
 **See:** `.ai-coding-guidelines.md` for complete guidelines.
+
+## Code Style Guidelines
+
+### Formatting Tools
+
+The project uses automated formatting tools to ensure consistency:
+
+- **Black**: Code formatting (line length: 100 characters)
+- **isort**: Import statement organization
+- **flake8**: Linting and style enforcement
+- **mypy**: Static type checking
+
+**Apply formatting automatically:**
+
+```bash
+make format
+```
+
+**Check formatting without modifying:**
+
+```bash
+make format-check
+```
+
+### Naming Conventions
+
+#### Variables and Functions
+
+- Use `snake_case` for variables, functions, and methods
+- Use descriptive names that indicate purpose
+- Avoid single-letter names except for common iterators (`i`, `j`, `k`)
+
+```python
+# Good
+def fetch_rss_feed(url: str) -> RssFeed:
+    episode_count = len(feed.episodes)
+    
+# Bad
+def fetchRSSFeed(url: str):  # camelCase
+    x = len(feed.episodes)  # non-descriptive name
+```
+
+#### Classes
+
+- Use `PascalCase` for class names
+- Use descriptive nouns that represent entities
+
+```python
+# Good
+class RssFeed:
+    pass
+
+class TranscriptionJob:
+    pass
+
+# Bad
+class rss_feed:  # snake_case
+    pass
+```
+
+#### Constants
+
+- Use `UPPER_SNAKE_CASE` for module-level constants
+
+```python
+# Good
+DEFAULT_TIMEOUT = 20
+MAX_RETRIES = 3
+
+# Bad
+default_timeout = 20  # lowercase
+maxRetries = 3  # camelCase
+```
+
+#### Private Members
+
+- Prefix with single underscore for internal use
+
+```python
+class SummaryModel:
+    def __init__(self):
+        self._device = "cpu"  # Internal attribute
+    
+    def _load_model(self):  # Internal method
+        pass
+```
+
+### Type Hints
+
+**All public functions and methods must have type hints:**
+
+```python
+# Good
+def sanitize_filename(filename: str, max_length: int = 255) -> str:
+    """Sanitize filename for safe filesystem use."""
+    pass
+
+# Bad
+def sanitize_filename(filename, max_length=255):
+    """Sanitize filename for safe filesystem use."""
+    pass
+```
+
+**Use Optional, Union, List, Dict from typing:**
+
+```python
+from typing import Optional, List, Dict, Union
+
+def process_episode(
+    episode: Episode,
+    cfg: Config,
+    progress: Optional[ProgressBar] = None
+) -> Dict[str, Union[str, int]]:
+    pass
+```
+
+### Docstrings
+
+**Use Google-style or NumPy-style docstrings for all public functions:**
+
+```python
+def run_pipeline(cfg: Config, progress_factory=None) -> None:
+    """Run the complete podcast scraping pipeline.
+    
+    Args:
+        cfg: Configuration object containing RSS URL and processing options.
+        progress_factory: Optional custom progress reporter (default: tqdm).
+        
+    Raises:
+        ValueError: If configuration is invalid.
+        HTTPError: If RSS feed cannot be fetched.
+        
+    Example:
+        >>> from podcast_scraper import Config, run_pipeline
+        >>> cfg = Config(rss="https://example.com/feed.xml")
+        >>> run_pipeline(cfg)
+    """
+    pass
+```
+
+**Module-level docstrings:**
+
+```python
+"""Podcast transcript downloading and processing.
+
+This module provides functionality for downloading podcast transcripts
+from RSS feeds with optional Whisper fallback for missing transcripts.
+"""
+```
+
+### Import Organization
+
+**Order imports in three groups (isort handles this automatically):**
+
+1. Standard library imports
+2. Third-party imports
+3. Local application imports
+
+```python
+# Standard library
+import os
+import sys
+from pathlib import Path
+from typing import Optional, List
+
+# Third-party
+import requests
+from pydantic import BaseModel
+
+# Local
+from podcast_scraper import config
+from podcast_scraper.models import Episode
+```
+
+## Testing Requirements
+
+> **See also:** [`TESTING_STRATEGY.md`](TESTING_STRATEGY.md) for comprehensive testing guidelines.
+
+### Every New Function Needs
+
+✅ **Unit test with mocks for external dependencies:**
+
+```python
+@patch("podcast_scraper.downloader.requests.Session")
+def test_fetch_url_with_retry(self, mock_session):
+    """Test that fetch_url retries on network failure."""
+    mock_session.get.side_effect = [
+        requests.ConnectionError("Network error"),
+        MockHTTPResponse(content="Success", status_code=200)
+    ]
+    result = fetch_url("https://example.com/feed.xml")
+    self.assertEqual(result, "Success")
+```
+
+✅ **Test both happy path and error cases:**
+
+```python
+def test_sanitize_filename_valid(self):
+    """Test filename sanitization with valid input."""
+    result = sanitize_filename("Episode 1: Great Content")
+    self.assertEqual(result, "Episode 1 Great Content")
+
+def test_sanitize_filename_invalid_chars(self):
+    """Test filename sanitization removes invalid characters."""
+    result = sanitize_filename("Episode<>:\"/\\|?*")
+    self.assertEqual(result, "Episode")
+```
+
+✅ **Use descriptive test names:**
+
+```python
+# Good
+def test_config_validation_raises_error_for_negative_workers(self):
+    pass
+
+def test_whisper_model_selection_prefers_en_variant_for_english(self):
+    pass
+
+# Bad
+def test_config(self):
+    pass
+
+def test_whisper(self):
+    pass
+```
+
+### Every New Feature Needs
+
+- **Integration test** (can be marked `@pytest.mark.slow` or `@pytest.mark.integration`)
+- **Documentation update** (README, API docs, or relevant guide)
+- **Examples** if user-facing
+
+### Mock External Dependencies
+
+Always mock external dependencies in tests:
+
+- **HTTP requests**: Mock `requests` module
+- **Whisper models**: Mock `whisper.load_model()` and `whisper.transcribe()`
+- **File I/O**: Use `tempfile.TemporaryDirectory` for isolated tests
+- **spaCy models**: Mock NER extraction for unit tests
+
+```python
+import tempfile
+from unittest.mock import patch, Mock
+
+class TestEpisodeProcessor(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+    
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    @patch("podcast_scraper.whisper_integration.whisper")
+    def test_transcription(self, mock_whisper):
+        mock_whisper.load_model.return_value = Mock()
+        mock_whisper.transcribe.return_value = {"text": "Test transcript"}
+        # ... test code ...
+```
+
+### Running Tests
+
+**Test Structure:**
+
+The test suite is organized into three categories (see `TESTING_STRATEGY.md` for details):
+
+- **`tests/unit/`** - Fast unit tests (fully mocked, no network, no filesystem I/O)
+- **`tests/integration/`** - Integration tests (component interactions)
+- **`tests/workflow_e2e/`** - Workflow E2E tests (complete workflows)
+
+**Test Execution:**
+
+```bash
+# Run all tests (default: unit tests only for fast feedback)
+make test
+
+# Run specific test type
+make test-unit          # Unit tests only
+make test-integration   # Integration tests only
+make test-workflow-e2e  # Workflow E2E tests only
+make test-all           # All tests (unit + integration + workflow_e2e)
+
+# Run with parallel execution (faster)
+make test-parallel      # Run tests in parallel (-n auto)
+
+# Run with flaky test reruns
+make test-reruns        # Retry failed tests (2 retries, 1s delay)
+
+# Run specific test file
+pytest tests/unit/podcast_scraper/test_config.py
+
+# Run specific test
+pytest tests/unit/podcast_scraper/test_config.py::TestSummaryValidation::test_summary_max_greater_than_min
+
+# Run with verbose output
+pytest -v
+
+# Run by marker
+pytest -m integration           # Integration tests only
+pytest -m workflow_e2e         # Workflow E2E tests only
+pytest -m "not slow"           # Skip slow tests
+pytest -m "not network"        # Skip network tests
+
+# Combine options
+pytest tests/unit/ -n auto -v  # Unit tests, parallel, verbose
+```
+
+**Network and Filesystem I/O Isolation:**
+
+Unit tests automatically block network calls and filesystem I/O operations. This ensures unit tests remain fast and isolated:
+
+- **Network calls**: If a unit test makes a network call, it will fail with `NetworkCallDetectedError`
+- **Filesystem I/O**: If a unit test performs filesystem I/O (outside temp directories), it will fail with `FilesystemIODetectedError`
+- **Exceptions**: `tempfile` operations, cache directories, site-packages, and Python cache files are allowed
+
+If your test needs to perform file operations, use `tempfile` operations (which are allowed), or move the test to `tests/integration/` or `tests/workflow_e2e/`.
+
+**Parallel Execution (Default):**
+
+Tests run in parallel by default for faster feedback (2-4x speedup for unit tests). This matches CI behavior and provides faster iteration during development.
+
+```bash
+# Default: parallel execution (auto-detects CPU count)
+make test
+pytest -n auto
+
+# Sequential execution (slower but clearer output, useful for debugging)
+make test-sequential
+pytest  # No -n flag
+
+# Use specific number of workers
+pytest -n 4
+```
+
+**When to Use Sequential Execution:**
+
+- **Debugging test failures**: Sequential output is easier to read and debug
+- **Investigating flaky tests**: Sequential execution can help identify timing issues
+- **Resource-constrained environments**: If your machine is low on CPU/memory
+
+**Note:** Parallel execution creates `.coverage.*` files (one per worker process) which are automatically merged into `.coverage`. These files are gitignored and can be cleaned with `make clean`.
+
+**Flaky Test Reruns:**
+
+For tests that occasionally fail due to timing or external factors:
+
+```bash
+# Retry failed tests (2 retries, 1 second delay)
+pytest --reruns 2 --reruns-delay 1
+```
+
+## Documentation Standards
+
+### When to Create PRD (Product Requirements Document)
+
+Create a PRD for:
+
+- New user-facing features
+- Significant functionality additions
+- Changes that affect user workflows
+
+**Template:** `docs/prd/PRD-XXX-feature-name.md`
+
+**Examples:**
+
+- PRD-004: Metadata Generation
+- PRD-005: Episode Summarization
+
+### When to Create RFC (Request for Comments)
+
+Create an RFC for:
+
+- Architectural changes
+- Breaking API changes
+- Design decisions that need discussion
+- Technical implementation approaches
+
+**Template:** `docs/rfc/RFC-XXX-feature-name.md`
+
+**Examples:**
+
+- RFC-010: Speaker Name Detection
+- RFC-012: Episode Summarization
+
+### When to Skip PRD/RFC
+
+You can proceed without PRD/RFC for:
+
+- Bug fixes
+- Small enhancements (< 100 lines of code)
+- Internal refactoring that doesn't affect API
+- Documentation-only updates
+- Test improvements
+
+### Always Update
+
+**README** if:
+
+- CLI flags change
+- New features are user-facing
+- Installation requirements change
+- Usage examples need updates
+
+**`docs/ARCHITECTURE.md`** if:
+
+- Module responsibilities change
+- New modules are added
+- Data flow changes
+- Design decisions are made
+
+**`TESTING_STRATEGY.md`** if:
+
+- Testing approach changes
+- New test categories are added
+- Test infrastructure is updated
+
+**API docs** if:
+
+- Public API changes (functions, classes, parameters)
+- New public modules are added
+- API contracts change
+
+### ⚠️ Before Pushing Documentation Changes
+
+**Always check `mkdocs.yml` and verify all links when adding, moving, or deleting documentation files:**
+
+- [ ] **New files added?** → Add to `nav` configuration in `mkdocs.yml`
+- [ ] **Files moved?** → Update path in `nav` configuration
+- [ ] **Files deleted?** → Remove from `nav` configuration
+- [ ] **Links updated?** → Use relative paths (e.g., `rfc/RFC-019.md` not `docs/rfc/RFC-019.md`)
+- [ ] **All links verified?** → Check that all internal links point to existing files
+- [ ] **No broken links?** → Run `make docs` to catch broken links before CI
+- [ ] **Test locally?** → Run `make docs` to verify build succeeds
+
+**Common issues:**
+
+- Missing files in `nav` → Build will warn about pages not in nav
+- Broken links → Build will fail if links point to non-existent files
+- Wrong path format → Use relative paths from `docs/` directory
+
+**Why this matters:**
+
+- Broken links waste CI build time (~3-5 min per failed build)
+- Fixing locally with `make docs` takes seconds vs. waiting for CI
+- Prevents unnecessary CI failures and re-runs
+
+**Example:** When adding a new RFC:
+
+```yaml
+# mkdocs.yml
+nav:
+  - RFCs:
+      - RFC-023 README Acceptance Tests: rfc/RFC-023-readme-acceptance-tests.md
+```
+
+## CI/CD Integration
+
+> **See also:** [`CI_CD.md`](CI_CD.md) for complete CI/CD pipeline documentation with visualizations.
+
+### What Runs in CI
+
+The GitHub Actions workflows use **intelligent path-based filtering** to run only when necessary. This means:
+
+- **Documentation-only changes:** Only the docs workflow runs (~3-5 min)
+- **Python code changes:** All workflows run for full validation (~15-20 min)
+- **README changes:** Only the docs workflow runs (~3-5 min)
+
+**Python Application Workflow** (4 parallel jobs) - **Runs only when Python/config files change:**
+
+1. **Lint Job** (2-3 min, no ML deps):
+   - Black/isort formatting checks
+   - Flake8 linting
+   - Markdownlint for docs
+   - Mypy type checking
+   - Bandit + pip-audit security scanning
+
+2. **Test Job** (10-15 min, full ML stack):
+   - Full pytest suite with coverage
+   - Integration tests (mocked)
+
+3. **Docs Job** (3-5 min):
+   - MkDocs build (strict mode)
+   - API documentation generation
+
+4. **Build Job** (2-3 min):
+   - Build source distribution
+   - Build wheel distribution
+
+**Documentation Deployment** (sequential) - **Runs when docs or Python files change:**
+
+- Build MkDocs site
+- Deploy to GitHub Pages (on push to main)
+
+**CodeQL Security** (parallel language analysis) - **Runs only when code/workflow files change:**
+
+- Python security scanning
+- GitHub Actions security scanning
+
+### Path-Based CI Optimization
+
+Workflows are configured to skip when irrelevant files change:
+
+| Files Changed | Python App | Docs | CodeQL | Time Savings |
+| ------------- | ---------- | ---- | ------ | ------------ |
+| Only `docs/` | ❌ Skip | ✅ Run | ❌ Skip | ~18 minutes |
+| Only `.py` | ✅ Run | ✅ Run | ✅ Run | - |
+| Only `README.md` | ❌ Skip | ✅ Run | ❌ Skip | ~18 minutes |
+| `pyproject.toml` | ✅ Run | ❌ Skip | ❌ Skip | ~5 minutes |
+| `Dockerfile` | ✅ Run | ❌ Skip | ❌ Skip | ~5 minutes |
+
+This optimization provides fast feedback for documentation updates while maintaining full validation for code changes.
+
+### CI Failure Response
+
+If CI fails on your PR:
+
+1. **Check the CI logs** to identify the failure
+2. **Reproduce locally:** Run `make ci` to see the same failure
+3. **Fix the issue** and test locally
+4. **Push the fix** - CI will re-run automatically
+
+**CI Command Differences:**
+
+- **`make ci`**: Full CI suite
+  - Runs `clean-all` first (removes build artifacts + ML caches)
+  - Runs `test-ci` (unit + integration tests)
+  - Full validation matching GitHub Actions
+  - Use before commits/PRs
+
+- **`make ci-fast`**: Fast CI checks
+  - Skips cleanup step (faster startup)
+  - Runs `test` (unit tests only, skips integration tests)
+  - Quick feedback during development
+  - Use for rapid iteration, but always run `make ci` before pushing
+
+**Common failures:**
+
+| Issue | Solution |
+| ----- | -------- |
+| Formatting issues | Run `make format` to auto-fix |
+| Linting errors | Fix code style issues or run `make format` |
+| Type errors | Add missing type hints |
+| Test failures | Fix or update tests |
+| Coverage drop | Add tests for new code |
+| Markdown linting | Run `python scripts/fix_markdown.py` or `markdownlint --fix` |
+
+**Prevent failures with pre-commit hooks:**
+
+```bash
+# Install once
+make install-hooks
+
+# Now linting failures are caught before commit!
+```
+
+See [`CI_CD.md`](CI_CD.md) for more details.
+
+## Architecture Principles
+
+### Modularity
+
+- **Single Responsibility:** Each module should have one clear purpose
+- **Loose Coupling:** Modules should depend on abstractions, not concrete implementations
+- **High Cohesion:** Related functionality should be grouped together
+
+### Configuration
+
+**All runtime options flow through the `Config` model:**
+
+```python
+from podcast_scraper import Config
+
+# Good - centralized configuration
+cfg = Config(
+    rss="https://example.com/feed.xml",
+    output_dir="./output",
+    transcribe_missing=True
+)
+run_pipeline(cfg)
+
+# Bad - scattered configuration
+fetch_rss(url, timeout=30)
+download_transcripts(episodes, workers=8)
+transcribe_missing(jobs, model="base")
+```
+
+**Adding new configuration:**
+
+1. Add to `Config` model in `config.py`
+2. Add CLI argument in `cli.py`
+3. Document in README options section
+4. Update config examples in `examples/`
+
+### Error Handling
+
+**Follow these patterns:**
+
+```python
+# Recoverable errors - log warnings, continue
+try:
+    transcript = download_transcript(url)
+except requests.RequestException as e:
+    logger.warning(f"Failed to download transcript: {e}")
+    return None
+
+# Unrecoverable errors - raise specific exceptions
+if not cfg.rss:
+    raise ValueError("RSS URL is required")
+
+# Validation errors - use ValueError with clear message
+if cfg.workers < 1:
+    raise ValueError(f"Workers must be >= 1, got: {cfg.workers}")
+
+# Graceful degradation for optional features
+try:
+    import whisper
+    WHISPER_AVAILABLE = True
+except ImportError:
+    WHISPER_AVAILABLE = False
+    logger.warning("Whisper not available, transcription disabled")
+```
+
+### Logging Guidelines
+
+**Use appropriate log levels to keep service/daemon logs manageable:**
+
+The project follows a principle of **minimal INFO verbosity** - INFO logs should focus on high-level operations and important user-facing events, while detailed technical information belongs in DEBUG.
+
+#### Log Level Guidelines
+
+**Use `logger.info()` for:**
+
+- High-level operations that users care about
+- Important state changes and milestones
+- User-facing progress updates
+- Important results (e.g., "Summary generated", "saved transcript")
+- Episode processing start/completion
+- Major pipeline stages (e.g., "Starting Whisper transcription", "Processing summarization")
+
+**Use `logger.debug()` for:**
+
+- Detailed internal operations
+- Model loading/unloading details
+- Configuration details and parameter values
+- Per-item processing details
+- Technical implementation details
+- Validation metrics and statistics
+- Chunking, mapping, and reduction details
+- File handle management and cleanup
+- Fallback attempts and retries
+
+**Use `logger.warning()` for:**
+
+- Recoverable errors
+- Degraded functionality
+- Missing optional dependencies
+- Non-critical failures
+
+**Use `logger.error()` for:**
+
+- Unrecoverable errors
+- Critical failures
+- Validation failures
+
+#### Examples
+
+```python
+# Good - INFO for high-level operation
+logger.info("Processing summarization for %d episodes in parallel", len(episodes))
+
+# Good - DEBUG for detailed technical info
+logger.debug("Pre-loading %d model instances for thread safety", max_workers)
+logger.debug("Successfully pre-loaded %d model instances", len(worker_models))
+
+# Good - INFO for important results
+logger.info("Summary generated in %.1fs (length: %d chars)", elapsed, len(summary))
+logger.info("saved transcript: %s (transcribed in %.1fs)", rel_path, elapsed)
+
+# Bad - INFO for technical details
+logger.info("Loading summarization model: %s on %s", model_name, device)  # Should be DEBUG
+logger.info("Model loaded successfully (cached for future runs)")  # Should be DEBUG
+logger.info("[MAP-REDUCE VALIDATION] Input text: %d chars, %d words", ...)  # Should be DEBUG
+
+# Good - DEBUG for technical details
+logger.debug("Loading summarization model: %s on %s", model_name, device)
+logger.debug("Model loaded successfully (cached for future runs)")
+logger.debug("[MAP-REDUCE VALIDATION] Input text: %d chars, %d words", ...)
+```
+
+#### Module-Specific Patterns
+
+**Workflow (`workflow.py`):**
+
+- INFO: Episode titles, episode counts, major stages, progress milestones
+- DEBUG: Model loading/unloading, host detection details, cleanup operations
+
+**Summarization (`summarizer.py`, `metadata.py`):**
+
+- INFO: Summary generation start/completion, important results
+- DEBUG: Model selection, loading details, chunking stats, validation metrics, config details
+
+**Whisper (`whisper_integration.py`):**
+
+- INFO: Transcription start ("transcribing with Whisper")
+- DEBUG: Model loading, fallback attempts, device details
+
+**Episode Processing (`episode_processor.py`):**
+
+- INFO: File save operations ("saved transcript", "saved")
+- DEBUG: Download details, file reuse, speaker names
+
+**Speaker Detection (`speaker_detection.py`):**
+
+- INFO: Detection results ("→ Guest: %s")
+- DEBUG: Model download attempts, detection failures
+
+#### Rationale
+
+This approach ensures:
+
+- **Service/daemon logs** remain focused and readable
+- **Production monitoring** shows high-level progress without noise
+- **Debugging** still has access to detailed information when needed
+- **Log file sizes** stay manageable during long runs
+
+When in doubt, prefer DEBUG over INFO - it's easier to promote a log level than to demote it.
+
+### Progress Reporting
+
+**Use the `progress.py` abstraction:**
+
+```python
+from podcast_scraper import progress
+
+# Good - uses progress abstraction
+with progress.make_progress(
+    total=len(episodes),
+    desc="Downloading transcripts"
+) as pbar:
+    for episode in episodes:
+        process_episode(episode)
+        pbar.update(1)
+
+# Bad - direct tqdm usage
+from tqdm import tqdm
+for episode in tqdm(episodes):
+    process_episode(episode)
+```
+
+### Lazy Loading for Optional Dependencies
+
+```python
+# At module level
+_whisper = None
+
+def load_whisper():
+    """Lazy load Whisper library."""
+    global _whisper
+    if _whisper is None:
+        try:
+            import whisper
+            _whisper = whisper
+        except ImportError:
+            raise ImportError(
+                "Whisper not installed. "
+                "Install with: pip install openai-whisper"
+            )
+    return _whisper
+```
+
+### Module Boundaries
+
+Respect established module boundaries (see `docs/ARCHITECTURE.md`):
+
+- **`cli.py`**: CLI only, no business logic
+- **`service.py`**: Service API, structured results for daemon use
+- **`workflow.py`**: Orchestration only, no HTTP/IO details
+- **`config.py`**: Configuration models and validation
+- **`downloader.py`**: HTTP operations only
+- **`filesystem.py`**: File system utilities only
+- **`rss_parser.py`**: RSS parsing, episode creation
+- **`episode_processor.py`**: Episode-level processing logic
+- **`whisper_integration.py`**: Whisper transcription interface
+- **`speaker_detection.py`**: NER-based speaker extraction
+- **`summarizer.py`**: Transcript summarization
+- **`metadata.py`**: Metadata document generation
+- **`progress.py`**: Progress reporting abstraction
+- **`models.py`**: Shared data models
+
+**Keep concerns separated** - don't mix HTTP calls in CLI, don't put business logic in config, etc.
+
+### When to Create New Files
+
+**Create new modules when:**
+
+- Implementing a new major feature (e.g., new summarization provider)
+- A module has distinct responsibility following Single Responsibility Principle
+- An existing module exceeds ~1000 lines and can be logically split
+
+**Modify existing files when:**
+
+- Fixing bugs
+- Enhancing existing functionality
+- Refactoring within the same module

@@ -305,7 +305,7 @@ podcast_scraper.run_pipeline(cfg)
 The Docker image uses the service API, which requires a configuration file:
 
 ```bash
-docker build -t podcast-scraper -f docker/Dockerfile .
+docker build -t podcast-scraper -f Dockerfile .
 
 docker run --rm \
   -v "$(pwd)/output_docker:/app/output" \
@@ -373,7 +373,6 @@ Experimental and draft documentation:
 - [Summarization Testing Evaluation](wip/SUMMARIZATION_TESTING_EVALUATION.md)
 - [Summary Review](wip/SUMMARY_REVIEW.md)
 - [Whisper Progress Analysis](wip/WHISPER_PROGRESS_ANALYSIS.md)
-- [Metrics Review](wip/METRICS_REVIEW.md)
 - [Type Hints Analysis](wip/TYPE_HINTS_ANALYSIS.md)
 
 > ⚠️ **Note:** WIP documents are temporary, may be incomplete, and are not part of official documentation.

@@ -14,7 +14,6 @@ This folder contains temporary documentation, ideas, references, and work-in-pro
 - `SUMMARIZATION_TESTING_EVALUATION.md` - Testing and evaluation strategies for summarization
 - `SUMMARY_REVIEW.md` - Review of summarization implementation
 - `WHISPER_PROGRESS_ANALYSIS.md` - Analysis of Whisper transcription progress reporting
-- `METRICS_REVIEW.md` - Review of metrics and monitoring
 - `TYPE_HINTS_ANALYSIS.md` - Analysis of type hints usage
 
 ## Guidelines

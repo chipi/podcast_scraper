@@ -43,6 +43,11 @@ nav:
       - RFC-020 Integration Test Improvements: rfc/RFC-020-integration-test-improvements.md
       - RFC-021 Modularization Refactoring Plan: rfc/RFC-021-modularization-refactoring-plan.md
       - RFC-022 Environment Variable Candidates Analysis: rfc/RFC-022-environment-variable-candidates-analysis.md
+      - RFC-023 README Acceptance Tests: rfc/RFC-023-readme-acceptance-tests.md
+      - RFC-024 Test Execution Optimization: rfc/RFC-024-test-execution-optimization.md
+      - RFC-025 Test Metrics and Health Tracking: rfc/RFC-025-test-metrics-and-health-tracking.md
+      - RFC-026 Metrics Consumption and Dashboards: rfc/RFC-026-metrics-consumption-and-dashboards.md
+      - RFC-027 Pipeline Metrics Improvements: rfc/RFC-027-pipeline-metrics-improvements.md
   - API:
       - API Overview: api/API_REFERENCE.md
       - Core API: api/core.md
@@ -64,13 +69,13 @@ nav:
       - v1.0.0 - Initial Release: releases/RELEASE_v1.0.0.md
   - Work In Progress:
       - WIP Overview: wip/WIP_README.md
-      - Metrics Review: wip/METRICS_REVIEW.md
       - Summarization Testing Evaluation: wip/SUMMARIZATION_TESTING_EVALUATION.md
       - Summary Review: wip/SUMMARY_REVIEW.md
       - Type Hints Analysis: wip/TYPE_HINTS_ANALYSIS.md
       - Whisper Progress Analysis: wip/WHISPER_PROGRESS_ANALYSIS.md
   - Guides:
       - Custom Provider Guide: CUSTOM_PROVIDER_GUIDE.md
+      - Cursor AI Best Practices: CURSOR_AI_BEST_PRACTICES.md
       - Development Notes: DEVELOPMENT_NOTES.md
       - Environment Variables: ENVIRONMENT_VARIABLES.md
       - Fallback Behavior: FALLBACK_BEHAVIOR.md
