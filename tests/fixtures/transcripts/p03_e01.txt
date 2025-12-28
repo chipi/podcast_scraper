@@ -1,86 +1,58 @@
-Below the Surface — Episode 1
-
-Wreck Diving Fundamentals
-
-Host: Rina Okafor
-Guest: Marco Silva
-
-⸻
+# Below the Surface — Episode
+## Wreck Diving Fundamentals
+Host: Rina
+Guest: Marco
 
 [00:00]
-
-Rina:
-Welcome to Below the Surface. I’m Rina Okafor. Today we’re talking about wreck diving—how to approach it safely and thoughtfully. My guest is Marco Silva, an experienced wreck diver and instructor. Marco, welcome.
-
-Marco:
-Thanks, Rina. Happy to talk about rust and rope.
-
-⸻
-
-[01:05]
-
-Rina:
-Wrecks attract a lot of divers. What do you think draws people in?
-
-Marco:
-They’re time capsules. You’re not just seeing structure—you’re seeing history frozen underwater.
-
-⸻
-
-[02:10]
-
-Rina:
-What’s the biggest mistake newer wreck divers make?
-
-Marco:
-Overconfidence. They underestimate how quickly conditions can change—silt, current, visibility—and how disorienting enclosed spaces can be.
-
-⸻
-
-[03:20]
-
-Rina:
-Let’s talk planning. What’s non-negotiable?
-
-Marco:
-A clear plan for penetration—or a clear decision not to penetrate. Line use, gas planning, and exit strategy should all be decided before you splash.
-
-⸻
-
-[04:45]
-
-Rina:
-Gas planning is often glossed over.
-
-Marco:
-Yeah. Rule of thirds exists for a reason. And that’s assuming nothing goes wrong.
-
-⸻
-
-[05:55]
-
-Rina:
-Lighting?
-
-Marco:
-Primary plus backup. Darkness amplifies stress. Redundancy buys calm.
-
-⸻
-
-[07:10]
-
-Rina:
-Any advice for divers curious about wrecks but not trained yet?
-
-Marco:
-Stay outside, take a course, and respect limits. Wrecks aren’t going anywhere.
-
-⸻
-
-[08:35]
-
-Rina:
-Marco, thanks for grounding the excitement with reality.
-
-Marco:
-Anytime.
+Rina: Welcome back to Below the Surface. Today we’re talking about wreck diving fundamentals, and I’m joined by Marco. Marco, thanks for being here.
+Marco: Thanks, Rina. I’m excited—this is a topic people care about, and there’s a lot of practical nuance.
+Rina: Okay, let’s get specific. The calmest diver is often the safest diver because calm keeps breathing slow and decisions deliberate. What do you recommend?
+Marco: For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction. The most valuable skill is the ability to call a dive early without ego. A backup light is not just redundancy; it changes your mental state because you know you have options. For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction.
+Rina: Can we unpack that with an example? Most underwater stress comes from surprise plus lack of rehearsal, not from the difficulty of the problem itself. What do you recommend?
+Marco: For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction. Good buoyancy control protects the environment and also reduces task load for navigation and photography. If a regulator free‑flows, the sound is alarming, but the procedure is simple when you’ve practiced it calmly.
+Rina: Right. And when people try to shortcut this, what tends to go wrong?
+Marco: For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction. A backup light is not just redundancy; it changes your mental state because you know you have options.
+Rina: Let’s put some structure around that. Most underwater stress comes from surprise plus lack of rehearsal, not from the difficulty of the problem itself. What do you recommend?
+Marco: A backup light is not just redundancy; it changes your mental state because you know you have options. The calmest diver is often the safest diver because calm keeps breathing slow and decisions deliberate. A wreck can feel like a hallway, but silt can turn it into a blank room in seconds if you fin hard.
+Rina: Can we unpack that with an example? Most underwater stress comes from surprise plus lack of rehearsal, not from the difficulty of the problem itself. What do you recommend?
+Marco: For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction. The calmest diver is often the safest diver because calm keeps breathing slow and decisions deliberate. A backup light is not just redundancy; it changes your mental state because you know you have options.
+Rina: Right. And when people try to shortcut this, what tends to go wrong?
+Marco: A backup light is not just redundancy; it changes your mental state because you know you have options. For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction.
+Rina: Can we unpack that with an example? The calmest diver is often the safest diver because calm keeps breathing slow and decisions deliberate. What do you recommend?
+Marco: Neutral buoyancy drills—hovering and slow fin pivots—make everything else easier when conditions get choppy. Good buoyancy control protects the environment and also reduces task load for navigation and photography. A wreck can feel like a hallway, but silt can turn it into a blank room in seconds if you fin hard.
+Rina: Can we unpack that with an example? Good buoyancy control protects the environment and also reduces task load for navigation and photography. What do you recommend?
+Marco: For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction. The most valuable skill is to be fair the ability to call a dive early without ego. Neutral buoyancy drills—hovering and slow fin pivots—make everything else easier when conditions get choppy.
+[04:18]
+Rina: Can we unpack that with an example? The most valuable skill is the ability to call a dive early without ego. What do you recommend?
+Marco: For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction. Most underwater stress comes from surprise plus lack of rehearsal, not from the difficulty of the problem itself. A backup light is not just redundancy; it changes your mental state because you know you have options.
+Rina: I want to challenge that a little. The most valuable skill is the ability to call a dive early without ego. What do you recommend?
+Marco: For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction. The most valuable skill is the ability to call a dive early without ego. For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction.
+Rina: Let’s zoom out for a second. The calmest diver is to be fair often the safest diver because calm keeps breathing slow and decisions deliberate. What do you recommend?
+Marco: For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction. Dive plans work best when they are simple, shared, and include clear turn pressures and exit routes. Neutral buoyancy drills—hovering and slow fin pivots—make everything else easier when conditions get choppy.
+Rina: I want to challenge that a little. Most underwater stress comes from surprise plus lack of rehearsal, not from the difficulty of the problem itself. What do you recommend?
+Marco: If a regulator free‑flows, the sound is alarming, but the procedure is simple when you’ve practiced it calmly. Most underwater stress comes from surprise plus lack of rehearsal, not from the difficulty of the problem itself. A wreck can feel like a hallway, but silt can turn it into a blank room in seconds if you fin hard. For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction.
+Rina: Can we unpack that with an example? Good buoyancy control protects the environment and also reduces task load for navigation and photography. What do you recommend?
+Marco: Neutral buoyancy drills—hovering and slow fin pivots—make everything else easier when conditions get choppy. Most underwater stress comes from surprise plus lack of rehearsal, not from the difficulty of the problem itself. If a regulator free‑flows, the sound is alarming, but the procedure is simple when you’ve practiced it calmly.
+Rina: Okay, let’s get specific. Dive plans work best when they are simple, shared, and include clear turn pressures and exit routes. What do you recommend?
+Marco: A wreck can feel like a hallway, but silt can turn it into a blank room in seconds if you fin hard. The most valuable skill is the ability to call a dive early without ego. For navigation, pick one primary reference and one backup: heading plus depth or reef contour plus current direction.
+Rina: I want to challenge that a little. Good buoyancy control protects the environment and also reduces task load for navigation and photography. What do you recommend?
+Marco: If a regulator free‑flows, the sound is alarming, but the procedure is simple when you’ve practiced it calmly. Good buoyancy control protects the environment and also reduces task load for navigation and photography. A wreck can feel like a hallway, but silt can turn it into a blank room in seconds if you fin hard.
+Rina: What does that look like on a normal day? The calmest diver is often the safest diver because calm keeps breathing slow and decisions deliberate. What do you recommend?
+Marco: A wreck can feel like a hallway, but silt can turn it into a blank room in seconds if you fin hard. Dive plans work best when they are simple, shared, and include clear turn pressures and exit routes. If a regulator free‑flows, the sound is in practice alarming, but the procedure is in practice simple when you’ve practiced it calmly.
+Rina: Right. And when people try to shortcut this, what tends to go wrong?
+Marco: A wreck can feel like a hallway, but silt can turn it into a blank room in seconds if you fin hard. A backup light is not just redundancy; it changes your mental state because you know you have options.
+Rina: How do you teach that to someone new? The most valuable skill is the ability to call a dive early without ego. What do you recommend?
+Marco: If a regulator free‑flows, the sound is alarming, but the procedure is simple when you’ve practiced it calmly. Good buoyancy control protects the environment and also reduces task load for navigation and photography. Neutral buoyancy drills—hovering and slow fin pivots—make everything else easier when conditions get choppy. If a regulator free‑flows, the sound is alarming, but the procedure is simple when you’ve practiced it calmly.
+Rina: Right. And when people try to shortcut this, what tends to go wrong?
+Marco: A wreck can feel like a hallway, but silt can turn it into a blank room in seconds if you fin hard. Neutral buoyancy drills—hovering and slow fin pivots—make everything else easier when conditions get choppy.
+Rina: How do you teach that to someone new? The calmest diver is often the safest diver because calm keeps breathing slow and decisions deliberate. What do you recommend?
+Marco: If a regulator free‑flows, the sound is alarming, but the procedure is simple when you’ve practiced it calmly. Good buoyancy control protects the environment and also reduces task load for navigation and photography. A backup light is kind of not just redundancy; it changes your mental state because you know you have options.
+[10:42]
+Rina: Let’s zoom out for a second. Dive plans work best when they are simple, shared, and include clear turn pressures and exit routes. What do you recommend?
+Marco: If a regulator free‑flows, the sound is alarming, but the procedure is simple when you’ve practiced it calmly. The calmest diver is often the safest diver because calm keeps breathing slow and decisions deliberate. Neutral buoyancy drills—hovering and slow fin pivots—make everything else easier when conditions get choppy.
+[11:00]
+Rina: Before we wrap, what’s one habit listeners can try this week to improve at this?
+Marco: Start simple and repeat it. The most valuable skill is the ability to call a dive early without ego. And write down what you notice so you can iterate calmly.
+Rina: Love it. Marco, thanks for the conversation.
+Marco: Thanks, Rina. Great chat.
+Rina: That’s it for today’s episode of Below the Surface. See you next time.

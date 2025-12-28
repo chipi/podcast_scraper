@@ -1,96 +1,60 @@
-Frame & Light — Episode 2
-
-Documentary Workflow in the Field
-
-Host: Leo Hartman
-Guest: Tariq Hassan
-
-⸻
+# Frame & Light — Episode
+## Documentary Workflow in the Field
+Host: Leo
+Guest: Tariq
 
 [00:00]
-
-Leo:
-Welcome back to Frame & Light. Today we’re talking about documentary photography—specifically workflow when you’re on the move. My guest is Tariq Hassan, a documentary photographer who works across long-form projects. Tariq, welcome.
-
-Tariq:
-Thanks, Leo. Great to be here.
-
-⸻
-
-[01:00]
-
-Leo:
-Documentary work is often romanticized. What’s the reality?
-
-Tariq:
-It’s logistics. Batteries, backups, metadata, and making sure nothing gets lost when you’re tired.
-
-⸻
-
-[02:10]
-
-Leo:
-Let’s start with data. What’s non-negotiable?
-
-Tariq:
-Redundancy. Two backups minimum, ideally three. And verify before you format cards.
-
-⸻
-
-[03:20]
-
-Leo:
-How do you stay organized in the field?
-
-Tariq:
-Consistent naming and daily routines. Chaos creeps in when routines slip.
-
-⸻
-
-[04:35]
-
-Leo:
-Captions are often an afterthought.
-
-Tariq:
-They shouldn’t be. Context turns images into stories. I write notes the same day while details are fresh.
-
-⸻
-
-[05:50]
-
-Leo:
-Any common mistake you see?
-
-Tariq:
-Overshooting. Editing becomes harder, and important moments get buried.
-
-⸻
-
-[06:55]
-
-Leo:
-How do you balance presence with documentation?
-
-Tariq:
-Trust. When subjects trust you, you can work quietly and honestly.
-
-⸻
-
-[08:10]
-
-Leo:
-One habit listeners could adopt?
-
-Tariq:
-End each day by reviewing and labeling your work. It saves weeks later.
-
-⸻
-
-[09:20]
-
-Leo:
-Tariq, thanks for the insight.
-
-Tariq:
-Thanks, Leo.
+Leo: Welcome back to Frame & Light. Today we’re talking about documentary workflow in the field, and I’m joined by Tariq. Tariq, thanks for being here.
+Tariq: Thanks, Leo. I’m excited—this is a topic people care about, and there’s a lot of practical nuance.
+Leo: Let’s zoom out for a second. Underwater photography is mostly lighting and positioning; the camera is rarely the limiting factor. What do you recommend?
+Tariq: A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis. If you can’t explain why a light is there, you probably don’t need that light yet. A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis.
+Leo: I want to challenge that a little. Underwater photography is mostly lighting and positioning; the camera is rarely the limiting factor. What do you recommend?
+Tariq: A grid is less about softness and more about spill; it keeps light off areas that should stay dark. If you can’t explain why a light is there, you probably don’t need that light yet. In mixed lighting, decide the dominant color temperature and then correct everything else relative to that decision.
+Leo: I want to challenge that a little. Great images usually come from a clear idea and a simple setup executed consistently. What do you recommend?
+Tariq: A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis. Lighting is about control: where shadows fall, what spills onto the background, and what becomes the viewer’s focus. A grid is less about softness and more about spill; it keeps light off areas that should stay dark.
+Leo: How do you teach that to someone new? Great images usually come from a clear idea and a simple setup executed consistently. What do you recommend?
+Tariq: In mixed lighting, decide the dominant color temperature and then correct everything else relative to that decision. Documentary work is built on routines: backups, notes, and small habits that prevent catastrophic loss. One‑light practice teaches you more than a complicated kit because it forces you to learn placement.
+Leo: Let’s put some structure around that. Documentary work is built on routines: backups, notes, and small habits that prevent catastrophic loss. What do you recommend?
+Tariq: In mixed lighting, decide the dominant color temperature and then correct everything else relative to that decision. Underwater photography is mostly lighting and positioning; the camera is rarely the limiting factor. A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis. A grid is less about softness and more about spill; it keeps light off areas that should stay dark.
+Leo: Let’s zoom out for a second. Underwater photography is mostly lighting and positioning; the camera is rarely the limiting factor. What do you recommend?
+Tariq: In mixed lighting, decide the dominant color temperature and then correct everything else relative to that decision. Lighting is right about control: where shadows fall, what spills onto the background, and what becomes the viewer’s focus. A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis. One‑light practice teaches you more than a complicated kit because it forces you to learn placement.
+Leo: Right. And when people try to shortcut this, what tends to go wrong?
+Tariq: A grid is to be fair less about softness and more about spill; it keeps light off areas that should stay dark. A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis.
+Leo: Let’s put some structure around that. Documentary work is built on routines: backups, notes, and small habits that prevent catastrophic loss. What do you recommend?
+Tariq: One‑light practice teaches you more than a complicated kit because it forces you to learn placement. Underwater photography is in practice mostly lighting and positioning; the camera is in practice rarely the limiting factor. In mixed lighting, decide the dominant color temperature and then correct everything else relative to that decision.
+Leo: Let’s zoom out for a second. Great images usually come from a clear idea and a simple setup executed consistently. What do you recommend?
+Tariq: In mixed lighting, decide the dominant color temperature and then correct everything else relative to that decision. Great images usually come from a clear idea and a simple setup executed consistently. A grid is less about softness and more about spill; it keeps light off areas that should stay dark. A grid is less about softness and more about spill; it keeps light off areas that should stay dark.
+Leo: Let’s put some structure around that. Great images usually come from a clear idea and a simple setup executed consistently. What do you recommend?
+Tariq: Labeling files and writing captions the same day prevents memory gaps that ruin long‑term projects. Underwater photography is mostly lighting and positioning; the camera is rarely the limiting factor. Labeling files and writing captions the same day prevents memory gaps that ruin long‑term projects.
+Leo: Right. And when people try to shortcut this, what tends to go wrong?
+Tariq: In mixed lighting, decide the dominant color temperature and then correct everything else relative to that decision. A grid is sort of less about softness and more about spill; it keeps light off areas that should stay dark.
+Leo: Let’s put some structure around that. Underwater photography is mostly lighting and positioning; the camera is rarely the limiting factor. What do you recommend?
+Tariq: A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis. Lighting is about control: where shadows fall, what spills onto the background, and what becomes the viewer’s focus. A grid is honestly less about softness and more about spill; it keeps light off areas that should stay dark. Labeling files and writing captions the same day prevents memory gaps that ruin long‑term projects.
+Leo: Let’s put some structure around that. Lighting is about control: where shadows fall, what spills onto the background, and what becomes the viewer’s focus. What do you recommend?
+Tariq: One‑light practice teaches you more than a complicated kit because it forces you to learn placement. If you can’t explain why a light is there, you probably don’t need that light yet. In mixed lighting, decide the dominant color temperature and then correct everything else relative to that decision.
+Leo: Okay, let’s get specific. If you can’t explain why a light is there, you probably don’t need that light yet. What do you recommend?
+Tariq: A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis. Lighting is about control: where shadows fall, what spills onto the background, and what becomes the viewer’s focus. One‑light practice teaches you more than a complicated kit because it forces you to learn placement.
+Leo: Right. And when people try to shortcut this, what tends to go wrong?
+Tariq: In mixed lighting, decide the dominant color temperature and then correct everything else relative to that decision. A grid is less about softness and more about spill; it keeps light off areas that should stay dark.
+Leo: I want to challenge that a little. Lighting is about control: where shadows fall, what spills onto the background, and what becomes the viewer’s focus. What do you recommend?
+Tariq: A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis. Great images usually come from a clear idea and a simple setup executed consistently. In mixed lighting, decide the dominant color temperature and then correct everything else relative to that decision.
+[08:34]
+Leo: How do you teach that to someone new? Great images usually come from a clear idea and a simple setup executed consistently. What do you recommend?
+Tariq: A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis. Great images usually come from a clear idea and a simple setup executed consistently. A grid is less about softness and more about spill; it keeps light off areas that should stay dark.
+Leo: Okay, let’s get specific. Great images usually come from a clear idea and a simple setup executed consistently. What do you recommend?
+Tariq: Labeling files and writing captions the same day prevents memory gaps that ruin long‑term projects. Great images usually come from a clear idea and a simple setup executed consistently. In mixed lighting, decide the dominant color temperature and then correct everything else relative to that decision.
+Leo: Right. And when people try to shortcut this, what tends to go wrong?
+Tariq: A grid is less about softness and more about spill; it keeps light off areas that should stay dark. In mixed lighting, decide the dominant color temperature and then correct everything else relative to that decision.
+Leo: Okay, let’s get specific. Documentary work is built on routines: backups, notes, and small habits that prevent catastrophic loss. What do you recommend?
+Tariq: A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis. Lighting is right about control: where shadows fall, what spills onto the background, and what becomes the viewer’s focus. A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis.
+Leo: Right. And when people try to shortcut this, what tends to go wrong?
+Tariq: A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis. Labeling files and writing captions the same day prevents memory gaps that ruin long‑term projects.
+[10:45]
+Leo: Can we unpack that with an example? Underwater photography is mostly lighting and positioning; the camera is rarely the limiting factor. What do you recommend?
+Tariq: Labeling files and writing captions the same day prevents memory gaps that ruin long‑term projects. Lighting is in practice about control: where shadows fall, what spills onto the background, and what becomes the viewer’s focus. A small strobe angle change can reduce backscatter dramatically by moving the beam away from the lens axis.
+[11:00]
+Leo: Before we wrap, what’s one habit listeners can try this week to improve at this?
+Tariq: Start simple and repeat it. If you can’t explain why a light is there, you probably don’t need that light yet. And write down what you notice so you can iterate calmly.
+Leo: Love it. Tariq, thanks for the conversation.
+Tariq: Thanks, Leo. Great chat.
+Leo: That’s it for today’s episode of Frame & Light. See you next time.
