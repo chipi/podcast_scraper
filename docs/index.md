@@ -305,7 +305,7 @@ podcast_scraper.run_pipeline(cfg)
 The Docker image uses the service API, which requires a configuration file:
 
 ```bash
-docker build -t podcast-scraper -f docker/Dockerfile .
+docker build -t podcast-scraper -f Dockerfile .
 
 docker run --rm \
   -v "$(pwd)/output_docker:/app/output" \

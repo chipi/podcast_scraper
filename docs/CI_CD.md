@@ -118,7 +118,7 @@ graph TB
 - `tests/**` - Test files
 - `pyproject.toml` - Project configuration
 - `Makefile` - Build configuration
-- `docker/**` - Docker files (Dockerfile, docker-compose, etc.)
+- `Dockerfile`, `.dockerignore` - Docker files
 - `.github/workflows/python-app.yml` - Workflow itself
 
 **Skips when:** Only documentation, markdown, or non-code files change
@@ -456,7 +456,7 @@ schedule:
 
 **Path Filters:**
 
-- `docker/**` - Docker-related files
+- `Dockerfile`, `.dockerignore` - Docker-related files
 - `Dockerfile` - Main Dockerfile
 - `pyproject.toml` - Project configuration
 - `*.py` - Python source files
@@ -481,7 +481,7 @@ Validates that Docker images can be built correctly and pass basic smoke tests. 
 2. Free disk space (removes unnecessary system packages)
 3. Set up Docker Buildx
 4. Build Docker image (default configuration)
-   - Uses `docker/Dockerfile`
+   - Uses `Dockerfile`
    - Caches layers using GitHub Actions cache
    - Tags as `podcast-scraper:test`
 5. Build Docker image (multiple Whisper models)
@@ -523,7 +523,7 @@ Validates that Docker images can be built correctly and pass basic smoke tests. 
 
 - `**.py` - Python source files
 - `pyproject.toml` - Project configuration
-- `docker/**` - Docker files
+- `Dockerfile`, `.dockerignore` - Docker files
 - `Dockerfile` - Main Dockerfile
 
 **Skips when:** Only documentation or unrelated files change
@@ -763,7 +763,7 @@ When you change files, here's what runs:
 | **Only `.py` files** | ✅ Run | ✅ Run | ✅ Run | Code changes need full validation + API docs rebuild |
 | **Only `README.md`** | ❌ Skip | ✅ Run | ❌ Skip | README is included in docs site |
 | **`pyproject.toml`** | ✅ Run | ❌ Skip | ❌ Skip | Config changes affect dependencies/build |
-| **`docker/Dockerfile`** | ✅ Run | ❌ Skip | ❌ Skip | Docker builds depend on package validation |
+| **`Dockerfile`** | ✅ Run | ❌ Skip | ❌ Skip | Docker builds depend on package validation |
 | **`.github/workflows/`** | ✅ (if python-app.yml) | ✅ (if docs.yml) | ✅ Run | Workflow changes need validation |
 | **Mixed changes** | ✅ Run | ✅ Run | ✅ Run | Any match triggers the workflow |
 
@@ -946,7 +946,16 @@ The project provides a `Makefile` that mirrors the CI workflow:
 
 ```bash
 # Run full CI suite (matches GitHub Actions)
+# - Cleans build artifacts and ML caches first
+# - Runs unit + integration tests
+# - Full validation before commits/PRs
 make ci
+
+# Fast CI checks (quick feedback during development)
+# - Skips cleanup step (faster)
+# - Runs unit tests only (skips integration tests)
+# - Use for quick validation during development
+make ci-fast
 
 # Individual checks (same as CI)
 make format-check  # Black & isort
@@ -954,10 +963,16 @@ make lint          # flake8
 make lint-markdown # markdownlint
 make type          # mypy
 make security      # bandit & safety
-make test          # pytest with coverage
+make test          # pytest with coverage (parallel, unit tests only)
+make test-sequential  # pytest sequentially (for debugging)
 make docs          # mkdocs build
 make build         # package build
 ```
+
+**When to Use Each:**
+
+- **`make ci`**: Full validation before commits/PRs, matches GitHub Actions exactly
+- **`make ci-fast`**: Quick feedback during development, faster iteration
 
 ### Local CI Validation Flow
 
@@ -1030,6 +1045,7 @@ graph TD
 
 - **Fast feedback:** Lint results in 2-3 minutes
 - **Local parity:** `make ci` runs same checks as GitHub
+- **Quick iteration:** `make ci-fast` for rapid development feedback
 - **Clear errors:** Strict mode for docs and type checking
 
 ---
@@ -1142,8 +1158,8 @@ git push
 
 ```bash
 # Edit Dockerfile
-echo "# Test comment" >> docker/Dockerfile
-git add docker/Dockerfile
+echo "# Test comment" >> Dockerfile
+git add Dockerfile
 git commit -m "chore: test docker path filtering"
 git push
 ```

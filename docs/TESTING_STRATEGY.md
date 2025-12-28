@@ -489,14 +489,30 @@ pytest -m network
 make test-network
 ```
 
+**Parallel Execution (Default):**
+
+Tests run in parallel by default for faster feedback (2-4x speedup for unit tests). This matches CI behavior:
+
 ```bash
-# Run tests in parallel (auto-detects CPU count)
+# Default: parallel execution (auto-detects CPU count)
+make test
 pytest -n auto
-make test-parallel
+
+# Sequential execution (slower but clearer output, useful for debugging)
+make test-sequential
+pytest  # No -n flag
 
 # Run with specific number of workers
 pytest -n 4
 ```
+
+**When to Use Sequential Execution:**
+
+- **Debugging test failures**: Sequential output is easier to read and debug
+- **Investigating flaky tests**: Sequential execution can help identify timing issues
+- **Resource-constrained environments**: If your machine is low on CPU/memory
+
+**Note:** Parallel execution creates `.coverage.*` files (one per worker process) which are automatically merged into `.coverage`. These files are gitignored and can be cleaned with `make clean`.
 
 After changing pytest configuration (especially `pyproject.toml` `addopts`), verify markers work:
 
