@@ -6,15 +6,15 @@ on:
     paths:
       - '**.py'
       - 'pyproject.toml'
-      - 'docker/**'
       - 'Dockerfile'
+      - '.dockerignore'
   pull_request:
     branches: [ "main" ]
     paths:
       - '**.py'
       - 'pyproject.toml'
-      - 'docker/**'
       - 'Dockerfile'
+      - '.dockerignore'
   schedule:
     # Run weekly on Mondays at 00:00 UTC
     - cron: '0 0 * * 1'
@@ -84,7 +84,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/Dockerfile
+          file: Dockerfile
           push: false
           load: true
           tags: podcast-scraper:snyk-scan

@@ -41,6 +41,6 @@ Next steps:
 For more information, see:
 - README.md - Usage and installation
 - CONTRIBUTING.md - Development setup
-- docs/DEVELOPMENT_NOTES.md - Development tips
+- docs/DEVELOPMENT_GUIDE.md - Development tips
 INSTRUCTIONS
 

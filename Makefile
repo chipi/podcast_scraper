@@ -1,7 +1,7 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test test-unit test-unit-no-ml test-integration test-ci test-workflow-e2e test-all test-parallel test-reruns coverage docs build ci ci-fast clean clean-cache clean-all docker-build docker-test docker-clean install-hooks
+.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test test-sequential test-unit test-unit-no-ml test-integration test-ci test-workflow-e2e test-all test-parallel test-reruns coverage docs build ci ci-fast clean clean-cache clean-all docker-build docker-test docker-clean install-hooks
 
 help:
 	@echo "Common developer commands:"
@@ -14,14 +14,17 @@ help:
 	@echo "  make security        Run bandit & pip-audit security scans"
 	@echo ""
 	@echo "Test commands:"
-	@echo "  make test            Run pytest with coverage (default: unit tests only)"
-	@echo "  make test-unit       Run unit tests only"
+	@echo "  make test            Run pytest with coverage in parallel (default: unit tests only, matches CI)"
+	@echo "  make test-sequential Run pytest sequentially (for debugging, slower but clearer output)"
+	@echo "  make test-unit       Run unit tests only (sequential - faster for fast tests)"
 	@echo "  make test-unit-no-ml Run unit tests without ML dependencies (matches CI)"
-	@echo "  make test-integration Run integration tests only"
-	@echo "  make test-workflow-e2e Run workflow E2E tests only"
+	@echo "  make test-integration Run integration tests only (parallel - 3.4x faster)"
+	@echo "  make test-workflow-e2e Run all workflow E2E tests (parallel, with network guard)"
+	@echo "  make test-e2e-fast   Run fast E2E tests only (excludes slow/ml_models)"
+	@echo "  make test-e2e-slow   Run slow E2E tests only (includes slow/ml_models, requires ML deps)"
 	@echo "  make test-all        Run all tests (unit + integration + workflow_e2e)"
 	@echo "  make test-network    Run network tests only (requires internet connection)"
-	@echo "  make test-parallel   Run tests with parallel execution (-n auto)"
+	@echo "  make test-parallel   Run tests with parallel execution (-n auto) [same as 'make test']"
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
 	@echo ""
 	@echo "Other commands:"
@@ -84,9 +87,15 @@ docs:
 	mkdocs build --strict
 
 test:
+	# Default: parallel execution (fast, matches CI behavior)
+	pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
+
+test-sequential:
+	# Sequential execution (slower but clearer output, useful for debugging)
 	pytest --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
 
 test-unit:
+	# Unit tests: sequential execution (faster for fast tests, overhead dominates in parallel)
 	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
 
 test-unit-no-ml: init-no-ml
@@ -100,13 +109,24 @@ test-unit-no-ml: init-no-ml
 	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
 
 test-integration:
-	pytest tests/integration/ -m integration
+	# Integration tests: parallel execution (3.4x faster, significant benefit)
+	pytest tests/integration/ -m integration -n auto
 
 test-ci:
-	pytest --cov=$(PACKAGE) --cov-report=term-missing -m 'not workflow_e2e and not network'
+	# CI test suite: parallel execution (matches CI behavior)
+	pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing -m 'not workflow_e2e and not network'
 
 test-workflow-e2e:
-	pytest tests/workflow_e2e/ -m workflow_e2e
+	# E2E tests: parallel execution with network guard (faster for slow tests)
+	pytest tests/workflow_e2e/ -m workflow_e2e -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
+
+test-e2e-fast:
+	# Fast E2E tests: excludes slow/ml_models tests (faster CI feedback)
+	pytest tests/workflow_e2e/ -m "workflow_e2e and not slow and not ml_models" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
+
+test-e2e-slow:
+	# Slow E2E tests: includes slow/ml_models tests (requires ML dependencies)
+	pytest tests/workflow_e2e/ -m "workflow_e2e and (slow or ml_models)" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-all:
 	pytest tests/ -m "not network" --cov=$(PACKAGE) --cov-report=term-missing
@@ -132,7 +152,7 @@ ci: clean-all format-check lint lint-markdown type security test-ci docs build
 ci-fast: format-check lint lint-markdown type security test docs build
 
 docker-build:
-	docker build -t podcast-scraper:test -f docker/Dockerfile .
+	docker build -t podcast-scraper:test -f Dockerfile .
 
 docker-test: docker-build
 	@echo "Running Docker smoke tests..."
@@ -143,7 +163,7 @@ docker-test: docker-build
 	@echo "Test 3: No args (should error)"
 	@docker run --rm podcast-scraper:test 2>&1 | grep -q "required" && echo "[OK] Error handling works"
 	@echo "Test 4: Building with multiple Whisper models..."
-	@docker build --quiet --build-arg WHISPER_PRELOAD_MODELS="tiny.en,base.en" -t podcast-scraper:multi-model -f docker/Dockerfile . > /dev/null
+	@docker build --quiet --build-arg WHISPER_PRELOAD_MODELS="tiny.en,base.en" -t podcast-scraper:multi-model -f Dockerfile . > /dev/null
 	@docker run --rm podcast-scraper:multi-model --help > /dev/null
 	@echo "[OK] All Docker tests passed"
 
@@ -167,6 +187,8 @@ install-hooks:
 
 clean:
 	rm -rf build .build .mypy_cache .pytest_cache
+	# Coverage files: .coverage.* are created during parallel test execution (pytest -n auto)
+	rm -f .coverage .coverage.*
 
 clean-cache:
 	@echo "Cleaning ML model caches..."

@@ -40,19 +40,19 @@ pip install -e .
 # Ubuntu: sudo apt install ffmpeg
 ```
 
-# Limit episodes and use custom output directory
+## Limit episodes and use custom output directory
 
 python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
   --max-episodes 10 \
   --output-dir ./my_transcripts
 
-# Use Whisper when transcripts are missing
+## Use Whisper when transcripts are missing
 
 python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
   --transcribe-missing \
   --whisper-model base
 
-# Generate metadata and summaries
+## Generate metadata and summaries
 
 python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
   --generate-metadata \
@@ -275,13 +275,13 @@ python scripts/eval_cleaning.py --episode ep01
 python scripts/eval_summaries.py --map-model bart-large --reduce-model long-fast
 ```
 
-# Set up development environment
+## Set up development environment
 
 bash scripts/setup_venv.sh
 source .venv/bin/activate
 pip install -e .
 
-# Run full CI suite locally
+## Run full CI suite locally
 
 ```bash
 make ci

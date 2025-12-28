@@ -11,7 +11,8 @@ on:
       - 'tests/**'
       - 'pyproject.toml'
       - 'Makefile'
-      - 'docker/**'
+      - 'Dockerfile'
+      - '.dockerignore'
   pull_request:
     branches: [ "main" ]
     paths:
@@ -19,7 +20,8 @@ on:
       - 'tests/**'
       - 'pyproject.toml'
       - 'Makefile'
-      - 'docker/**'
+      - 'Dockerfile'
+      - '.dockerignore'
 
 permissions:
   contents: read
@@ -163,8 +165,67 @@ jobs:
         rm -rf ~/.cache/huggingface ~/.cache/torch ~/.cache/whisper
         rm -rf .pytest_cache .mypy_cache .build dist
 
-  # Workflow E2E tests - needs ML dependencies, runs on main branch only
-  test-workflow-e2e:
+  # Fast E2E tests - excludes slow/ml_models tests, runs on every commit
+  # Skip for documentation-only PRs
+  test-e2e-fast:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' && !contains(github.event.pull_request.head.ref, 'docs/'))
+    steps:
+    - uses: actions/checkout@v4
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
+        docker image prune -af || true
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+        df -h
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+    - name: Install dev dependencies (pytest-socket for network guard)
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+        pip install pytest-socket
+    - name: Run fast E2E tests (excludes slow/ml_models, with network guard)
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        # Run tests with network guard: --disable-socket --allow-hosts=127.0.0.1,localhost
+        # Exclude slow and ml_models tests for faster CI feedback
+        set +e  # Don't exit on non-zero return code yet
+        OUTPUT=$(pytest tests/workflow_e2e/ -v -m "workflow_e2e and not slow and not ml_models" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
+        PYTEST_EXIT_CODE=$?
+        set -e  # Re-enable exit on error
+        echo "$OUTPUT"
+        # Verify tests were collected and run
+        if echo "$OUTPUT" | grep -q "no tests collected"; then
+          echo "ERROR: No tests were collected!"
+          exit 1
+        fi
+        # Verify minimum test count (fast E2E tests should have many tests)
+        # Extract test count from output (handles formats like "229 passed" or "3 failed, 226 passed")
+        TEST_COUNT=$(echo "$OUTPUT" | grep -oE "[0-9]+ passed" | head -1 | grep -oE "[0-9]+" || echo "0")
+        if [ "$TEST_COUNT" -lt 50 ]; then
+          echo "ERROR: Only $TEST_COUNT tests passed, expected at least 50 fast E2E tests"
+          exit 1
+        fi
+        # Exit with pytest's exit code (fails if any tests failed)
+        if [ $PYTEST_EXIT_CODE -ne 0 ]; then
+          echo "ERROR: pytest exited with code $PYTEST_EXIT_CODE (some tests failed)"
+          exit $PYTEST_EXIT_CODE
+        fi
+    - name: Post-build cleanup
+      if: always()
+      run: |
+        rm -rf .pytest_cache .mypy_cache .build dist
+
+  # Slow E2E tests - includes slow/ml_models tests, runs on main branch only
+  test-e2e-slow:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
@@ -186,12 +247,13 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e .[dev,ml]
-    - name: Run workflow E2E tests (parallel execution, with reruns for flaky tests)
+        pip install pytest-socket
+    - name: Run slow E2E tests (includes slow/ml_models, with network guard)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        # Run tests and capture output and exit code
+        # Run all E2E tests including slow/ml_models with network guard
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/workflow_e2e/ -v -m workflow_e2e -n auto --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(pytest tests/workflow_e2e/ -v -m workflow_e2e -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -200,11 +262,11 @@ jobs:
           echo "ERROR: No tests were collected!"
           exit 1
         fi
-        # Verify minimum test count (workflow_e2e tests should have many tests)
+        # Verify minimum test count (all E2E tests should have 99+ tests)
         # Extract test count from output (handles formats like "229 passed" or "3 failed, 226 passed")
         TEST_COUNT=$(echo "$OUTPUT" | grep -oE "[0-9]+ passed" | head -1 | grep -oE "[0-9]+" || echo "0")
-        if [ "$TEST_COUNT" -lt 5 ]; then
-          echo "ERROR: Only $TEST_COUNT tests passed, expected at least 5 workflow_e2e tests"
+        if [ "$TEST_COUNT" -lt 90 ]; then
+          echo "ERROR: Only $TEST_COUNT tests passed, expected at least 90 E2E tests"
           exit 1
         fi
         # Exit with pytest's exit code (fails if any tests failed)
