@@ -15,8 +15,8 @@
   - `rfc/RFC-020-integration-test-improvements.md` (integration test improvements)
   - `rfc/RFC-007-cli-interface.md` (CLI interface)
 - **Related Documents**:
-  - `../README.md` - Main project README (source of truth for examples)
-  - `../TESTING_STRATEGY.md` - Overall testing strategy and test categories
+  - [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md) - Main project README (source of truth for examples)
+  - [TESTING_STRATEGY.md](../TESTING_STRATEGY.md) - Overall testing strategy and test categories
 
 ## Abstract
 
@@ -111,8 +111,7 @@ This RFC defines a new category of **Acceptance Tests** that verify all examples
 
 **Test Structure:**
 
-```
-tests/acceptance/
+```text
 ├── __init__.py
 ├── conftest.py              # Shared fixtures (reuse E2E server)
 ├── test_readme_installation.py    # Installation examples
@@ -120,8 +119,6 @@ tests/acceptance/
 ├── test_readme_key_features.py     # Key features validation
 └── README.md                # Acceptance test documentation
 ```
-
-### Stage 1: Installation Examples Testing
 
 **Goal**: Verify all installation commands from README work correctly.
 
@@ -296,6 +293,7 @@ tests/acceptance/
    - **Parallel Execution**: Disabled (acceptance tests should run sequentially)
 
 3. **Test Execution**:
+
    ```bash
    pytest tests/acceptance/ -v -m acceptance --disable-socket --allow-hosts=127.0.0.1,localhost
    ```
@@ -306,6 +304,7 @@ tests/acceptance/
    - Link to README section that failed
 
 5. **Makefile Target**:
+
    ```makefile
    test-acceptance:
        pytest tests/acceptance/ -v -m acceptance
@@ -319,22 +318,26 @@ test-acceptance:
   needs: [test-unit, test-integration, test-workflow-e2e]
   if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
   steps:
+
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
       uses: actions/setup-python@v5
+
       with:
         python-version: "3.11"
+
     - name: Install full dependencies (including ML)
       run: |
+
         pip install -e ".[dev,ml]"
+
     - name: Run acceptance tests (final validation gate)
       timeout-minutes: 30
+
       run: |
         pytest tests/acceptance/ -v -m acceptance \
           --disable-socket --allow-hosts=127.0.0.1,localhost
 ```
-
-**Deliverables:**
 
 - GitHub Actions workflow update
 - Makefile target for acceptance tests
@@ -346,7 +349,7 @@ test-acceptance:
 **README Sections Covered:**
 
 | Section | Lines | Tests | Status |
-|---------|-------|-------|--------|
+| --------- | ------- | ------- | -------- |
 | Installation | 35-58 | `test_readme_installation.py` | ⏳ Planned |
 | Basic Usage | 60-75 | `test_readme_basic_usage.py` | ⏳ Planned |
 | Key Features | 10-21 | `test_readme_key_features.py` | ⏳ Planned |
@@ -376,21 +379,25 @@ test-acceptance:
 ## Risks & Mitigations
 
 **Risk 1: Slow Test Execution**
+
 - **Mitigation**: Acceptance tests run only on main branch, after all other tests pass
 - **Mitigation**: Clear timeout configuration (30 minutes)
 - **Mitigation**: Tests are marked as `slow` for local development filtering
 
 **Risk 2: Installation Test Flakiness**
+
 - **Mitigation**: Use isolated virtual environments
 - **Mitigation**: Skip tests if system dependencies are missing
 - **Mitigation**: Clear error messages for installation failures
 
 **Risk 3: Test Duplication with E2E Tests**
+
 - **Mitigation**: Clear distinction: E2E tests verify features, acceptance tests verify README
 - **Mitigation**: Acceptance tests use exact README examples
 - **Mitigation**: Some overlap is acceptable (different purposes)
 
 **Risk 4: README Changes Breaking Tests**
+
 - **Mitigation**: Tests are documentation-driven (README is source of truth)
 - **Mitigation**: When README changes, tests must be updated
 - **Mitigation**: This is a feature, not a bug (catches documentation drift)
@@ -426,5 +433,4 @@ test-acceptance:
 - [RFC-019: E2E Test Infrastructure](RFC-019-e2e-test-improvements.md)
 - [RFC-018: Test Structure Reorganization](RFC-018-test-structure-reorganization.md)
 - [Testing Strategy](../TESTING_STRATEGY.md)
-- [README.md](../../README.md)
-
+- [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md)
