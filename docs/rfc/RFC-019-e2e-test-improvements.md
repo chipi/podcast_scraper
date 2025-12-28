@@ -16,10 +16,7 @@
   - `docs/rfc/RFC-003-transcript-downloads.md` (HTTP client)
   - `docs/rfc/RFC-005-whisper-integration.md` (Whisper tests)
 - **Related Documents**:
-  - `docs/wip/TEST_BOUNDARY_DECISION_FRAMEWORK.md` - Decision framework for Integration vs E2E tests
-  - `docs/wip/E2E_TEST_GAPS.md` - Analysis of current E2E test gaps
-  - `docs/wip/E2E_HTTP_MOCKING_SERVER_PLAN.md` - HTTP server infrastructure plan
-  - `docs/wip/E2E_TEST_IMPLEMENTATION_PLAN.md` - Staged implementation plan
+  - `docs/TESTING_STRATEGY.md` - Overall testing strategy, test pyramid, and test boundary decision framework
 
 ## Abstract
 
@@ -104,23 +101,52 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 
 ## Design & Implementation
 
-### 1. Network Guard (Stage 0)
+### 0. Network Guard + OpenAI Mocking (Stage 0) - 🚨 NON-NEGOTIABLE
 
-**Goal**: Prevent accidental external network calls in E2E tests.
+**Goal**: Prevent accidental external network calls and mock OpenAI API calls in E2E tests.
+
+**Network Guard Requirements (NON-NEGOTIABLE):**
+
+- ❌ **NO external HTTP requests** should be made during E2E tests
+- ✅ **Block outbound network** in tests (except localhost/127.0.0.1)
+- ✅ **All RSS and audio** must be served from the local mock server
+- ✅ **Fail hard** if a real URL is hit (immediate test failure with clear error message)
 
 **Implementation:**
 
-- Add `pytest-socket` to dev dependencies (or implement custom network blocker)
-- Create `tests/workflow_e2e/conftest.py` with network blocking fixture
+- Add `pytest-socket` to dev dependencies (recommended)
+- Create `tests/workflow_e2e/conftest.py` with network blocking fixture (autouse=True)
 - Block all outbound sockets except localhost/127.0.0.1
+- Network guard must be active for ALL E2E tests (no opt-out)
+- Test failure must occur immediately when external network call is attempted
+- Error message must clearly indicate which URL was blocked and why
 - Add test to verify network blocking works
+
+**OpenAI API Mocking:**
+
+- Create `tests/workflow_e2e/fixtures/openai_mock.py` with mock OpenAI client
+- Implement realistic mock responses for all OpenAI provider methods:
+  - `OpenAISummarizationProvider.summarize()` → mock summary response
+  - `OpenAITranscriptionProvider.transcribe()` → mock transcription response
+  - `OpenAISpeakerDetector.detect_speakers()` → mock speaker detection response
+- Create pytest fixture `openai_mock` that patches OpenAI client initialization
+- Document that OpenAI providers are mocked in E2E tests (intentional)
+
+**Rationale:**
+
+- Network guard ensures local fixtures are actually used
+- OpenAI mocking prevents costs, rate limits, and flakiness
+- E2E tests use real implementations for internal components (HTTP client, ML models) but mock external paid services
 
 **Deliverables:**
 
-- Network blocking fixture in `tests/workflow_e2e/conftest.py`
+- Network blocking fixture in `tests/workflow_e2e/conftest.py` (autouse=True)
+- OpenAI mock fixture in `tests/workflow_e2e/fixtures/openai_mock.py`
 - Test verifying network blocking (`test_network_guard.py`)
+- Test verifying OpenAI mocking works
+- Documentation of network guard and OpenAI mocking strategy
 
-### 2. HTTP Server Infrastructure (Stage 1)
+### Stage 1: HTTP Server Infrastructure
 
 **Goal**: Create reusable local HTTP server fixture for E2E tests.
 
@@ -144,83 +170,152 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 - `e2e_server` pytest fixture in `tests/workflow_e2e/conftest.py`
 - Basic test verifying server functionality
 
-### 3. Test Fixtures (Stage 2)
+### Stage 2: Test Fixtures - Keep Flat Structure with URL Mapping
 
-**Goal**: Create manually maintained test fixtures (RSS feeds, transcripts, audio files).
+**Goal**: Use existing flat fixture structure with E2E server URL mapping (no file reorganization needed).
 
-**Implementation:**
+**RSS Linkage Requirements:**
 
-- Create `tests/fixtures/e2e_server/` directory structure:
+For any episode:
 
-  ```text
-  tests/fixtures/e2e_server/
-  ├── feeds/
-  │   ├── podcast1/
-  │   │   ├── feed.xml
-  │   │   └── episodes/
-  │   │       ├── episode1/
-  │   │       │   ├── transcript.vtt
-  │   │       │   ├── transcript.srt
-  │   │       │   ├── transcript.json
-  │   │       │   ├── transcript.txt
-  │   │       │   └── audio.mp3
-  │   │       └── episode2/
-  │   │           └── ...
-  │   ├── podcast2/
-  │   │   └── ... (with relative URLs)
-  │   └── edge_cases/
-  │       ├── malformed_rss.xml
-  │       ├── missing_transcript.xml
-  │       └── special_chars.xml
-  ├── transcripts/
-  │   ├── sample.vtt
-  │   ├── sample.srt
-  │   └── sample.json
-  ├── audio/
-  │   ├── short_test.mp3  (< 10 seconds)
-  │   └── short_test.m4a
-  ├── manifest.json (optional documentation)
-  └── README.md
-  ```
+- ✅ RSS `<guid>` == transcript filename == audio filename (e.g., `p01_e01`)
+- ✅ RSS `<enclosure>` URL points to `/audio/pXX_eYY.mp3` (flat URL, matches existing structure)
+- ✅ RSS `<podcast:transcript>` URL points to `/transcripts/pXX_eYY.txt` (flat URL, matches existing structure)
 
-- Create RSS feed files (standard, relative URLs, edge cases)
-- Create transcript files (VTT, SRT, JSON, TXT formats)
-- Create audio files (small test files < 10 seconds)
+**Current Fixture Structure (Keep As-Is):**
 
-**Deliverables:**
+```text
+tests/fixtures/
+├── rss/
+│   ├── p01_mtb.xml
+│   ├── p02_software.xml
+│   ├── p03_scuba.xml
+│   ├── p04_photo.xml
+│   └── p05_investing.xml
+├── audio/
+│   ├── p01_e01.mp3
+│   ├── p01_e02.mp3
+│   ├── p01_e03.mp3
+│   └── ... (p02-p05 episodes)
+└── transcripts/
+    ├── p01_e01.txt
+    ├── p01_e02.txt
+    ├── p01_e03.txt
+    └── ... (p02-p05 episodes)
+```
 
-- Complete `tests/fixtures/e2e_server/` directory structure
-- RSS feed files (standard, relative URLs, edge cases)
-- Transcript files (multiple formats)
-- Audio files (small test files)
-- Documentation (`README.md`, optional `manifest.json`)
+- `/feeds/podcast1/feed.xml` → `tests/fixtures/rss/p01_mtb.xml` (mapping)
+- `/audio/p01_e01.mp3` → `tests/fixtures/audio/p01_e01.mp3` (direct)
+- `/transcripts/p01_e01.txt` → `tests/fixtures/transcripts/p01_e01.txt` (direct)
 
-### 4. HTTP Server Integration with Fixtures (Stage 3)
+**Benefits:**
 
-**Goal**: Integrate HTTP server with fixture files and verify end-to-end file serving.
+- ✅ No file reorganization needed - keep your existing flat structure
+- ✅ No script changes - generation scripts continue to work
+- ✅ RSS linkage already works - GUID `p01_e01` matches filename `p01_e01.mp3`
+- ✅ Flexible routing - server maps any URL pattern to flat files
 
 **Implementation:**
 
-- Update `E2EHTTPRequestHandler` to serve files from `tests/fixtures/e2e_server/`
-- Implement routing:
-
-  - `/feeds/{podcast}/feed.xml` → serve RSS feed
-  - `/feeds/{podcast}/episodes/{episode}/transcript.{ext}` → serve transcript
-  - `/feeds/{podcast}/episodes/{episode}/audio.{ext}` → serve audio
-  - `/transcripts/{filename}` → serve standalone transcripts
-  - `/audio/{filename}` → serve standalone audio
-
-- Implement path traversal protection
-- Add URL helper methods to `e2e_server` fixture
+- Keep existing flat fixture structure (no reorganization)
+- E2E server implements URL mapping logic:
+  - Map `/feeds/{podcast}/feed.xml` → `rss/pXX_*.xml` (using podcast mapping)
+  - Map `/audio/pXX_eYY.mp3` → `audio/pXX_eYY.mp3` (direct)
+  - Map `/transcripts/pXX_eYY.txt` → `transcripts/pXX_eYY.txt` (direct)
+- Update RSS feeds to use E2E server base URL (template-based, optional)
+- Create edge case fixtures if needed (can stay in `rss/` folder or separate `edge_cases/`)
 
 **Deliverables:**
 
-- Updated `E2EHTTPRequestHandler` with file serving
+- E2E server URL mapping implementation
+- RSS feed updates (optional - can keep current URLs)
+- Edge case fixtures (if needed)
+- Documentation of URL mapping logic
+
+### Stage 3: HTTP Server Integration with Fixtures
+
+**Goal**: Integrate HTTP server with flat fixture structure and verify end-to-end file serving.
+
+**Implementation:**
+
+- Update `E2EHTTPRequestHandler` to serve files from existing `tests/fixtures/` structure
+- Implement URL routing that maps to flat structure:
+
+  **RSS Feed Routing:**
+  - `/feeds/podcast1/feed.xml` → `tests/fixtures/rss/p01_mtb.xml`
+  - `/feeds/podcast2/feed.xml` → `tests/fixtures/rss/p02_software.xml`
+  - (Mapping: `podcast1` → `p01_mtb.xml`, `podcast2` → `p02_software.xml`, etc.)
+
+  **Direct Flat URL Routing:**
+  - `/audio/p01_e01.mp3` → `tests/fixtures/audio/p01_e01.mp3` (direct)
+  - `/transcripts/p01_e01.txt` → `tests/fixtures/transcripts/p01_e01.txt` (direct)
+
+  **Optional Hierarchical URL Routing:**
+  - `/feeds/podcast1/episodes/episode1/audio.mp3` → `tests/fixtures/audio/p01_e01.mp3` (mapping)
+  - `/feeds/podcast1/episodes/episode1/transcript.txt` → `tests/fixtures/transcripts/p01_e01.txt` (mapping)
+
+- Implement path traversal protection (verify paths are within fixture root)
+- Add URL helper methods to `e2e_server` fixture:
+  - `e2e_server.urls.feed("podcast1")` → `http://localhost:8000/feeds/podcast1/feed.xml`
+  - `e2e_server.urls.audio("p01_e01")` → `http://localhost:8000/audio/p01_e01.mp3`
+  - `e2e_server.urls.transcript("p01_e01")` → `http://localhost:8000/transcripts/p01_e01.txt`
+
+**URL Mapping Implementation Example:**
+
+```python
+class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    """E2E HTTP server that maps URLs to flat fixture structure."""
+
+    FIXTURE_ROOT = Path(__file__).parent.parent.parent / "fixtures"
+
+    # Mapping: podcast name -> RSS filename
+    PODCAST_RSS_MAP = {
+        "podcast1": "p01_mtb.xml",
+        "podcast2": "p02_software.xml",
+        "podcast3": "p03_scuba.xml",
+        "podcast4": "p04_photo.xml",
+        "podcast5": "p05_investing.xml",
+    }
+
+    def do_GET(self):
+        """Handle GET requests with URL mapping."""
+        path = self.path.split('?')[0]  # Remove query string
+
+        # Route 1: RSS feeds
+        # /feeds/podcast1/feed.xml -> rss/p01_mtb.xml
+        if path.startswith("/feeds/") and path.endswith("/feed.xml"):
+            podcast_name = path.split("/")[2]  # Extract "podcast1"
+            rss_file = self.PODCAST_RSS_MAP.get(podcast_name)
+            if rss_file:
+                file_path = self.FIXTURE_ROOT / "rss" / rss_file
+                self._serve_file(file_path, content_type="application/xml")
+                return
+
+        # Route 2: Direct flat URLs (keep existing RSS URLs)
+        # /audio/p01_e01.mp3 -> audio/p01_e01.mp3
+        if path.startswith("/audio/"):
+            filename = path.split("/")[-1]  # Extract "p01_e01.mp3"
+            file_path = self.FIXTURE_ROOT / "audio" / filename
+            self._serve_file(file_path, content_type="audio/mpeg")
+            return
+
+        if path.startswith("/transcripts/"):
+            filename = path.split("/")[-1]  # Extract "p01_e01.txt"
+            file_path = self.FIXTURE_ROOT / "transcripts" / filename
+            self._serve_file(file_path, content_type="text/plain")
+            return
+
+        # 404 if not found
+        self.send_error(404, "File not found")
+```
+
+- Updated `E2EHTTPRequestHandler` with flat structure file serving
+- URL mapping logic (podcast name → RSS file, episode name → flat files)
 - URL helper methods
 - Tests verifying file serving
 - Security tests (path traversal protection)
 
-### 5. E2E Test Coverage (Stages 4-12)
+### Stages 4-12: E2E Test Coverage
 
 **Goal**: Create comprehensive E2E tests for all major user-facing entry points.
 
@@ -277,10 +372,18 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 - Create `tests/workflow_e2e/test_edge_cases_e2e.py` with edge case scenarios
 - Use edge case fixtures from `tests/fixtures/e2e_server/feeds/edge_cases/`
 
-**Stage 12: HTTP Behaviors E2E Tests**
+**Stage 12: HTTP Behaviors E2E Tests - Realistic Large File Testing**
 
 - Create `tests/workflow_e2e/test_http_behaviors_e2e.py` with HTTP behavior scenarios
 - Test Range requests, redirects, retries, timeouts
+- **REQUIRED: Add realistic large file tests (exploit large audio files):**
+  - `test_e2e_audio_streaming_with_range_requests` - Stream audio instead of downloading whole file
+  - `test_e2e_audio_download_timeout_handling` - Enforce timeouts with large files
+  - `test_e2e_audio_download_retry_logic` - Handle retries with large files
+  - `test_e2e_audio_partial_reads` - Handle partial reads / range requests
+- Use real large audio files from fixtures (not small test files)
+- Verify streaming behavior, range request support, timeout handling, retry logic
+- **Rationale**: Large audio files enable testing of real-world scenarios (streaming, timeouts, retries)
 
 **Deliverables:**
 
@@ -289,7 +392,7 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 - All tests use real data files
 - All tests pass
 
-### 6. Migration and Cleanup (Stage 13)
+### Stage 13: Migration and Cleanup
 
 **Goal**: Migrate existing E2E tests to use real HTTP client and remove mocks.
 
@@ -314,7 +417,7 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 - All tests pass
 - Documentation updated
 
-### 7. CI/CD Integration (Stage 14)
+### Stage 14: CI/CD Integration
 
 **Goal**: Integrate E2E tests into CI/CD pipeline.
 
@@ -368,6 +471,14 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
    - **Decision**: Create clear decision framework for Integration vs E2E tests
    - **Rationale**: Eliminates ambiguity, provides clear guidance for future test development
 
+7. **Fixture Structure: Flat vs Hierarchical**
+   - **Decision**: Keep existing flat structure, use URL mapping in E2E server
+   - **Rationale**: No file reorganization needed, generation scripts continue to work, RSS linkage already works
+
+8. **OpenAI API Mocking**
+   - **Decision**: Mock OpenAI client in E2E tests (don't call real APIs)
+   - **Rationale**: Fast, reliable, no cost, no rate limits, no flakiness. E2E tests should use real implementations for internal components but mock external paid services
+
 ## Alternatives Considered
 
 1. **pytest-httpserver Library**
@@ -389,6 +500,14 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 5. **Function-Scoped Server**
    - **Alternative**: Create new HTTP server for each test
    - **Rejected**: Slower test execution, session-scoped with reset provides better performance
+
+6. **Hierarchical Fixture Structure**
+   - **Alternative**: Reorganize fixtures into hierarchical structure (`feeds/podcast1/episodes/episode1/`)
+   - **Rejected**: Requires file reorganization, breaks generation scripts, unnecessary complexity. URL mapping achieves same result with flat structure.
+
+7. **Real OpenAI API Calls in E2E Tests**
+   - **Alternative**: Call real OpenAI APIs in E2E tests
+   - **Rejected**: Costly, rate-limited, flaky, slow. Mock OpenAI client instead (tests provider integration without API costs)
 
 ## Testing Strategy
 
@@ -423,6 +542,8 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 4. **Stage 13-14**: Migration, cleanup, CI/CD integration - 1-2 weeks
 
 **Total Estimated Time**: 6-10 weeks
+
+**Detailed Implementation Plan**: See `docs/rfc/RFC-019-IMPLEMENTATION-PLAN.md` for a comprehensive, staged implementation plan with detailed tasks, deliverables, and success criteria for each stage.
 
 **Monitoring:**
 
@@ -462,11 +583,10 @@ Together, these three RFCs provide:
 
 ## References
 
-- **Implementation Plan**: `docs/wip/E2E_TEST_IMPLEMENTATION_PLAN.md`
-- **Gap Analysis**: `docs/wip/E2E_TEST_GAPS.md`
-- **HTTP Server Plan**: `docs/wip/E2E_HTTP_MOCKING_SERVER_PLAN.md`
-- **Decision Framework**: `docs/wip/TEST_BOUNDARY_DECISION_FRAMEWORK.md`
-- **Test Strategy**: `docs/TESTING_STRATEGY.md`
+- **Implementation Plan**: `docs/rfc/RFC-019-IMPLEMENTATION-PLAN.md` - Detailed staged implementation plan with tasks, deliverables, and success criteria
+- **Test Boundary Decision Framework**: `docs/TESTING_STRATEGY.md` (Test Boundary Decision Framework section)
+- **Test Strategy**: `docs/TESTING_STRATEGY.md` - Overall testing strategy and test pyramid
 - **Test Structure RFC**: `docs/rfc/RFC-018-test-structure-reorganization.md` (foundation)
 - **Integration Test RFC**: `docs/rfc/RFC-020-integration-test-improvements.md` (related work)
-- **Source Code**: `tests/workflow_e2e/`, `tests/fixtures/e2e_server/`
+- **Source Code**: `tests/workflow_e2e/`, `tests/fixtures/`
+- **Fixture Specification**: `tests/fixtures/FIXTURES_SPEC.md` - How fixtures are generated

@@ -5,7 +5,7 @@
 - **Stakeholders**: Maintainers, users wanting OpenAI API integration, developers implementing providers
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
 - **Related RFCs**: `docs/rfc/RFC-017-prompt-management.md`
-- **Related Documents**: `docs/wip/MODULARIZATION_REFACTORING_PLAN.md`
+- **Related RFCs**: `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference - modularization plan)
 - **Related Issues**: (to be created)
 
 ## Abstract
@@ -32,7 +32,7 @@ Requirements:
 
 ## Constraints & Assumptions
 
-- **Prerequisite**: Modularization refactoring (MODULARIZATION_REFACTORING_PLAN.md) must be completed first
+- **Prerequisite**: Modularization refactoring (RFC-021) must be completed first (✅ **Completed**)
 - **Backward Compatibility**: Default providers (transformers/local) must remain unchanged
 - **API Key Security**: API keys must never be in source code or committed files
 - **Environment Support**: Must work in both development and production environments

@@ -1,6 +1,18 @@
-# Environment Variable Candidates Analysis
+# RFC-022: Environment Variable Candidates Analysis
 
-**Date**: 2025-12-22  
+- **Status**: Completed (Historical Reference)
+- **Authors**:
+- **Date**: 2025-12-22
+- **Stakeholders**: Maintainers, developers, DevOps engineers
+- **Related RFCs**:
+  - `docs/rfc/RFC-013-openai-provider-implementation.md` - OpenAI provider implementation (uses environment variables)
+- **Related Documents**:
+  - `docs/ENVIRONMENT_VARIABLES.md` - Complete documentation of implemented environment variables
+
+## Overview
+
+**Note**: This RFC documents the analysis and implementation plan for environment variable support. All recommended high and medium priority environment variables have been implemented. This document is kept as a historical reference for understanding the design decisions.
+
 **Purpose**: Analyze all configuration options to identify good candidates for environment variable support
 
 ## Current State
@@ -200,29 +212,33 @@ We evaluate candidates based on:
 26. **`OPENAI_MAX_TOKENS`** - Better in config (workflow-specific)
 27. **Summary chunking parameters** - Better in config (workflow-specific)
 
-## Recommended Implementation Priority
+## Implementation Status
 
-### Phase 1: High Priority (Deployment Essentials)
+**All recommended environment variables (Phase 1 and Phase 2) have been implemented.**
 
-1. ✅ `OUTPUT_DIR` - Critical for Docker/CI/CD
-2. ✅ `CACHE_DIR` / `SUMMARY_CACHE_DIR` - Critical for Docker/CI/CD
-3. ✅ `LOG_FILE` - Common deployment need
+### Phase 1: High Priority (Deployment Essentials) - ✅ COMPLETED
 
-### Phase 2: Medium Priority (Performance Tuning)
+1. ✅ `OUTPUT_DIR` - Critical for Docker/CI/CD - **IMPLEMENTED**
+2. ✅ `CACHE_DIR` / `SUMMARY_CACHE_DIR` - Critical for Docker/CI/CD - **IMPLEMENTED**
+3. ✅ `LOG_FILE` - Common deployment need - **IMPLEMENTED**
 
-4. ✅ `WORKERS` - Performance tuning
-5. ✅ `TRANSCRIPTION_PARALLELISM` - OpenAI provider tuning
-6. ✅ `PROCESSING_PARALLELISM` - Performance tuning
-7. ✅ `SUMMARY_BATCH_SIZE` - Memory management
-8. ✅ `SUMMARY_CHUNK_PARALLELISM` - CPU tuning
-9. ✅ `TIMEOUT` - Network flexibility
-10. ✅ `SUMMARY_DEVICE` - Hardware flexibility
+### Phase 2: Medium Priority (Performance Tuning) - ✅ COMPLETED
 
-### Phase 3: Low Priority (Convenience)
+4. ✅ `WORKERS` - Performance tuning - **IMPLEMENTED**
+5. ✅ `TRANSCRIPTION_PARALLELISM` - OpenAI provider tuning - **IMPLEMENTED**
+6. ✅ `PROCESSING_PARALLELISM` - Performance tuning - **IMPLEMENTED**
+7. ✅ `SUMMARY_BATCH_SIZE` - Memory management - **IMPLEMENTED**
+8. ✅ `SUMMARY_CHUNK_PARALLELISM` - CPU tuning - **IMPLEMENTED**
+9. ✅ `TIMEOUT` - Network flexibility - **IMPLEMENTED**
+10. ✅ `SUMMARY_DEVICE` - Hardware flexibility - **IMPLEMENTED**
 
-11. ⚠️ `DRY_RUN` - Testing convenience
-12. ⚠️ `SKIP_EXISTING` - Resumption convenience
-13. ⚠️ `CLEAN_OUTPUT` - Safety control
+### Phase 3: Low Priority (Convenience) - ⚠️ NOT IMPLEMENTED (As Recommended)
+
+11. ⚠️ `DRY_RUN` - Testing convenience - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
+12. ⚠️ `SKIP_EXISTING` - Resumption convenience - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
+13. ⚠️ `CLEAN_OUTPUT` - Safety control - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
+
+**Note**: Phase 3 variables were marked as "maybe" in the original analysis and were intentionally not implemented, as they are better suited for config files or CLI flags.
 
 ## Implementation Notes
 
@@ -251,14 +267,22 @@ We evaluate candidates based on:
 
 ## Summary
 
-**Recommended to add**: 10 fields (3 high priority, 7 medium priority)  
-**Maybe add**: 3 fields (low priority, convenience)  
-**Not recommended**: 27+ fields (better suited for config files)
+**Implementation Status**: ✅ **COMPLETED**
 
-The recommended fields focus on:
+- **Implemented**: 10 fields (3 high priority, 7 medium priority) - **ALL COMPLETED**
+- **Not implemented**: 3 fields (low priority, convenience) - **As recommended** (marked as "maybe")
+- **Not recommended**: 27+ fields (better suited for config files) - **As recommended**
 
-- **Deployment flexibility** (paths, cache locations)
-- **Performance tuning** (parallelism, workers, timeouts)
-- **Hardware adaptation** (device selection)
+The implemented fields focus on:
+
+- **Deployment flexibility** (paths, cache locations) - ✅ All implemented
+- **Performance tuning** (parallelism, workers, timeouts) - ✅ All implemented
+- **Hardware adaptation** (device selection) - ✅ All implemented
 
 These align with common use cases in Docker, CI/CD, and multi-environment deployments.
+
+**Documentation**: All implemented environment variables are documented in `docs/ENVIRONMENT_VARIABLES.md`.
+
+**See Also**:
+- `docs/ENVIRONMENT_VARIABLES.md` - Complete documentation of all supported environment variables
+- `src/podcast_scraper/config.py` - Implementation in `_preprocess_config_data()` method

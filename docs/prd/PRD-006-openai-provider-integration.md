@@ -2,7 +2,7 @@
 
 ## Summary
 
-Add OpenAI API as an optional provider for speaker detection (NER), transcription, and summarization capabilities, enabling users to choose between local on-device processing and cloud-based API services. This builds on the modularization refactoring (MODULARIZATION_REFACTORING_PLAN.md) to provide seamless provider switching without changing end-user experience or workflow behavior.
+Add OpenAI API as an optional provider for speaker detection (NER), transcription, and summarization capabilities, enabling users to choose between local on-device processing and cloud-based API services. This builds on the modularization refactoring (RFC-021) to provide seamless provider switching without changing end-user experience or workflow behavior.
 
 ## Background & Context
 
@@ -279,7 +279,7 @@ summary_provider: openai         # $0.41/100 (convenience)
 
 ## Dependencies
 
-- **Prerequisite**: Modularization refactoring must be completed (MODULARIZATION_REFACTORING_PLAN.md)
+- **Prerequisite**: Modularization refactoring must be completed (RFC-021) (✅ **Completed**)
 - **External**: OpenAI API access and API key
 - **Internal**: Provider abstraction interfaces (from refactoring)
 
