@@ -866,6 +866,31 @@ You can proceed without PRD/RFC for:
 - New public modules are added
 - API contracts change
 
+### ⚠️ Before Pushing Documentation Changes
+
+**Always check `mkdocs.yml` when adding, moving, or deleting documentation files:**
+
+- [ ] **New files added?** → Add to `nav` configuration in `mkdocs.yml`
+- [ ] **Files moved?** → Update path in `nav` configuration
+- [ ] **Files deleted?** → Remove from `nav` configuration
+- [ ] **Links updated?** → Use relative paths (e.g., `rfc/RFC-019.md` not `docs/rfc/RFC-019.md`)
+- [ ] **Test locally?** → Run `make docs` to verify build succeeds
+
+**Common issues:**
+
+- Missing files in `nav` → Build will warn about pages not in nav
+- Broken links → Build will fail if links point to non-existent files
+- Wrong path format → Use relative paths from `docs/` directory
+
+**Example:** When adding a new RFC:
+
+```yaml
+# mkdocs.yml
+nav:
+  - RFCs:
+      - RFC-023 README Acceptance Tests: rfc/RFC-023-readme-acceptance-tests.md
+```
+
 ## CI/CD Integration
 
 > **See also:** [`CI_CD.md`](CI_CD.md) for complete CI/CD pipeline documentation with visualizations.
