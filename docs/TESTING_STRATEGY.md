@@ -30,10 +30,6 @@ The testing strategy follows a three-tier pyramid:
   /----------------\
 ```
 
-## Quick Reference: Test Type Decision
-
-**For detailed decision framework, see `docs/wip/TEST_BOUNDARY_DECISION_FRAMEWORK.md`**
-
 ### Key Distinction
 
 | Test Type | What It Tests | Entry Point | HTTP Client | Data Files | ML Models |
@@ -471,8 +467,6 @@ pytest
 pytest tests/unit/
 ```
 
-**By test type:**
-
 ```bash
 # Unit tests only
 pytest tests/unit/
@@ -495,8 +489,6 @@ pytest -m network
 make test-network
 ```
 
-**Parallel execution (faster feedback):**
-
 ```bash
 # Run tests in parallel (auto-detects CPU count)
 pytest -n auto
@@ -505,8 +497,6 @@ make test-parallel
 # Run with specific number of workers
 pytest -n 4
 ```
-
-**Verifying Marker Behavior:**
 
 After changing pytest configuration (especially `pyproject.toml` `addopts`), verify markers work:
 
@@ -520,8 +510,6 @@ pytest tests/workflow_e2e/ -m workflow_e2e --collect-only -q | wc -l
 # Should collect unit tests (default)
 pytest tests/unit/ --collect-only -q | wc -l
 ```
-
-**Expected minimum counts:**
 
 - Integration tests: > 50
 - Workflow E2E tests: > 20
@@ -539,8 +527,6 @@ make test-reruns
 # Combine with parallel execution
 pytest -n auto --reruns 2 --reruns-delay 1
 ```
-
-**Network and Filesystem I/O Policy:**
 
 ```bash
 # Unit tests: Network and filesystem I/O are BLOCKED
@@ -566,21 +552,231 @@ pytest tests/workflow_e2e/ -m workflow_e2e
 pytest tests/workflow_e2e/ -m "workflow_e2e and network"
 ```
 
-## Test Boundary Decision Framework
+This section provides clear criteria and decision frameworks to determine whether a test should be an **Integration Test** or an **E2E Test**. The goal is to eliminate ambiguity and provide clear guidance for future test development.
 
-For clear guidance on deciding whether a test should be an Integration Test or E2E Test, see:
+### Key Distinction
 
-- **`docs/wip/TEST_BOUNDARY_DECISION_FRAMEWORK.md`** - Comprehensive decision framework with criteria, decision trees, and examples
+**Integration Tests** = Test how **components work together** (component interactions, data flow between modules)
 
-**Quick Reference**:
+**E2E Tests** = Test **complete user workflows** from entry point to final output (CLI commands, library API calls, full pipelines)
 
-- **Integration Tests**: Test how components work together (component interactions, data flow)
-- **E2E Tests**: Test complete user workflows (CLI commands, library API calls, full pipelines)
+### E2E Test Coverage Goals
+
+**Every major user-facing entry point should have at least one E2E test:**
+
+1. **CLI Commands** - Each main CLI command should have E2E tests:
+   - `podcast-scraper <rss_url>` - Basic transcript download
+   - `podcast-scraper <rss_url> --transcribe-missing` - Whisper fallback workflow
+   - `podcast-scraper --config <config_file>` - Config file workflow
+   - `podcast-scraper <rss_url> --dry-run` - Dry run workflow
+   - `podcast-scraper <rss_url> --generate-metadata` - Metadata generation workflow
+   - `podcast-scraper <rss_url> --summarize` - Summarization workflow
+
+2. **Library API Endpoints** - Each public API function should have E2E tests:
+   - `run_pipeline(config)` - Main pipeline execution
+   - `service.run(config)` - Service API execution
+   - `service.run_from_config_file(path)` - Config file execution
+
+3. **Critical User Scenarios** - Important workflows should have E2E tests:
+   - Happy path (RSS → transcript download → file output)
+   - Whisper fallback (RSS → no transcript → audio download → Whisper → file output)
+   - Full pipeline with all features (RSS → transcript → metadata → summary → file output)
+   - Error handling in complete workflow (malformed RSS, network errors, etc.)
+
+**What Doesn't Need E2E Tests:**
+
+- Not every CLI flag combination needs an E2E test
+- Every possible `--max-episodes` value (tested in integration/unit tests)
+- Every possible `--timeout` value (tested in integration/unit tests)
+- Every possible config file format variation (tested in integration/unit tests)
+- Edge cases in specific components (tested in integration tests)
+
+**Rule of Thumb**: E2E tests should cover "as a user, I want to..." scenarios, not every possible configuration combination.
+
+### Decision Criteria
+
+#### Integration Tests (`tests/integration/`)
+
+**Use Integration Tests When:**
+
+1. **Testing Component Interactions**
+   - Testing how multiple internal components work together
+   - Verifying data flow between components (e.g., RSS parser → Episode → Provider → File output)
+   - Testing component integration without full pipeline execution
+
+2. **Testing Internal Implementations**
+   - Using real internal implementations (Config, factories, providers, workflow logic)
+   - Testing real filesystem I/O (temp directories, real file operations)
+   - Testing real component logic (not mocked)
+
+3. **Mocking External Services**
+   - Mocking HTTP calls (using local test server for speed/reliability)
+   - Mocking external APIs (OpenAI, etc.)
+   - Mocking ML models (for speed, or testing model integration separately)
+
+4. **Fast Feedback**
+   - Tests should run quickly (< 5s each for fast tests)
+   - Focused on specific component interactions
+   - Can run in parallel
+
+5. **Isolated Scenarios**
+   - Testing specific scenarios (error handling, edge cases, specific component combinations)
+   - Not testing complete user workflows
+
+#### E2E Tests (`tests/workflow_e2e/`)
+
+**Use E2E Tests When:**
+
+1. **Testing Complete User Workflows**
+   - Testing CLI commands (`podcast-scraper <rss_url>`)
+   - Testing library API calls (`run_pipeline(config)`)
+   - Testing service API calls (`service.run(config)`)
+   - Testing complete pipelines from entry point to final output
+
+2. **Testing Real HTTP Client in Full Context**
+   - Using real HTTP client (`downloader.fetch_url`) without mocking
+   - Using local HTTP server (but real HTTP stack, no external network)
+   - Testing HTTP behavior in full workflow context (headers, redirects, timeouts, retries)
+
+3. **Testing Real Data Files**
+   - Using real RSS feed files (manually maintained in `tests/fixtures/`)
+   - Using real transcript files (VTT, SRT, JSON)
+   - Using real audio files (small test files for Whisper)
+
+4. **Testing Real ML Models in Full Workflows**
+   - Using real ML models (Whisper, spaCy, Transformers) in complete pipeline workflows
+   - Testing model loading, initialization, and cleanup in full context
+   - Testing that models work correctly together in full pipelines
+
+5. **Testing Production-Like Scenarios**
+   - Testing scenarios as users would actually use the system
+   - Testing complete workflows with realistic data
+   - Testing error recovery in full workflow context
+
+6. **Slower, More Comprehensive**
+   - Tests may be slower (< 60s each, may be minutes for full workflows)
+   - More comprehensive coverage of complete workflows
+   - May include performance/scale tests (marked as slow)
+
+### Decision Tree
+
+```text
+Start: What are you testing?
+
+├─ Is it testing a complete user workflow (CLI command, library API call, service API call)?
+│  └─ YES → E2E Test
+│     └─ Does it use real HTTP client without mocking?
+│        └─ YES → E2E Test
+│        └─ NO → Still E2E Test (but consider using real HTTP client)
+│
+├─ Is it testing how multiple components work together?
+│  └─ YES → Integration Test
+│     └─ Does it test complete pipeline from entry to output?
+│        └─ YES → E2E Test (if it's a user workflow)
+│        └─ NO → Integration Test
+│
+├─ Is it testing component interactions (RSS parser → Episode → Provider)?
+│  └─ YES → Integration Test
+│
+├─ Is it testing error handling in pipeline context?
+│  └─ Does it test complete workflow with errors?
+│     └─ YES → E2E Test
+│     └─ NO → Integration Test (if focused on specific error scenarios)
+│
+└─ Is it testing concurrent execution, thread safety, resource sharing?
+   └─ Does it test in full pipeline context?
+      └─ YES → E2E Test
+      └─ NO → Integration Test
+```
+
+| Aspect | Integration Tests | E2E Tests |
+| ------ | ------------------ | --------- |
+| **Purpose** | Test component interactions | Test complete user workflows |
+| **Entry Point** | Component-level (functions, classes) | User-level (CLI, library API, service API) |
+| **Scope** | Multiple components working together | Full pipeline from entry to output |
+| **HTTP Client** | Mocked or local test server (for speed) | Real HTTP client with local server (no external network) |
+| **Data Files** | May use in-memory data or test fixtures | Real data files (RSS feeds, transcripts, audio) |
+| **ML Models** | May be mocked (for speed) or real (for model testing) | Real ML models in full workflow context |
+| **Speed** | Fast (< 5s each for fast tests) | Slower (< 60s each, may be minutes) |
+| **Focus** | Component interactions, data flow | Complete workflows, user scenarios |
+| **Examples** | Provider factory → Provider → Usage | CLI command → Full pipeline → Output files |
+
+### Edge Cases and How to Handle Them
+
+#### Edge Case 1: HTTP Testing
+
+**Question**: Both integration and E2E tests use local HTTP servers. What's the difference?
+
+**Answer**:
+
+- **Integration Tests**: Use local HTTP server to test HTTP client behavior in isolation (e.g., `test_http_integration.py`). Focus is on HTTP client functionality, not full workflow.
+- **E2E Tests**: Use local HTTP server to test HTTP client in full workflow context. Focus is on complete workflow with real HTTP client.
+
+**Decision**: If testing HTTP client behavior in isolation → Integration Test. If testing HTTP client in complete workflow → E2E Test.
+
+#### Edge Case 2: Pipeline Error Handling
+
+**Question**: Should error handling tests be integration or E2E?
+
+**Answer**:
+
+- **Integration Test**: If testing specific error scenarios with mocked HTTP
+- **E2E Test**: If testing error handling in complete workflow with real HTTP client and real data files
+
+**Decision**: If testing error handling in complete workflow with real HTTP client → E2E Test. If testing specific error scenarios with mocked HTTP → Integration Test.
+
+#### Edge Case 3: Concurrent Execution
+
+**Question**: Is concurrent execution testing integration or E2E?
+
+**Answer**:
+
+- **Integration Test**: If testing concurrent execution behavior in isolation
+- **E2E Test**: If testing concurrent execution in complete workflow with real HTTP client and real data files
+
+**Decision**: If testing concurrent execution in complete workflow → E2E Test. If testing concurrent execution behavior in isolation → Integration Test.
+
+#### Edge Case 4: Real ML Models
+
+**Question**: Integration tests can use real ML models. How is that different from E2E tests?
+
+**Answer**:
+
+- **Integration Tests**: Use real ML models to test model integration (e.g., `test_provider_real_models.py`). Focus is on model loading, initialization, and basic functionality.
+- **E2E Tests**: Use real ML models in complete workflow context. Focus is on models working together in full pipelines.
+
+**Decision**: If testing model integration in isolation → Integration Test. If testing models in complete workflow → E2E Test.
+
+### Migration Guidelines
+
+#### When to Move a Test from Integration to E2E
+
+Move a test to E2E if:
+
+1. It tests a complete user workflow (CLI command, library API call)
+2. It uses real HTTP client without mocking
+3. It uses real data files (RSS feeds, transcripts, audio)
+4. It tests complete pipeline from entry to output
+
+#### When to Keep a Test as Integration
+
+Keep a test as integration if:
+
+1. It tests component interactions without full pipeline
+2. It focuses on specific scenarios (error handling, edge cases)
+3. It uses mocked HTTP for speed
+4. It tests component behavior in isolation
+
+### Summary
+
+**Integration Tests** = Component interactions, fast feedback, mocked external services
+
+**E2E Tests** = Complete user workflows, real HTTP client, real data files, real ML models in full context
 
 **Key Question**: "Am I testing how components work together, or am I testing a complete user workflow?"
 
-- Components together → Integration Test
-- Complete user workflow → E2E Test
+- **Components together** → Integration Test
+- **Complete user workflow** → E2E Test
 
 ## Current State vs. Ideal State
 
@@ -675,8 +871,6 @@ Integration and workflow_e2e tests are not affected by filesystem I/O isolation.
 pytest --cov=podcast_scraper --cov-report=term-missing
 make test
 ```
-
-### Coverage Requirements
 
 - **Target**: >80% code coverage overall
 - **Critical Modules**: >90% (config, workflow, episode_processor)

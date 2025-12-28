@@ -930,7 +930,7 @@ experiments/               # Experiment configs
 
 ## Architecture Alignment with Modularization Plan
 
-This prompt management system aligns with the modularization refactoring plan (see `docs/wip/MODULARIZATION_REFACTORING_PLAN.md`) by following these principles:
+This prompt management system aligns with the modularization refactoring plan (see `docs/rfc/RFC-021-modularization-refactoring-plan.md`) by following these principles:
 
 ### 1. Provider-Specific Concern
 
@@ -992,7 +992,7 @@ This prompt management system aligns with the modularization refactoring plan (s
 
 ## Relationship to Modularization Plan
 
-This RFC implements prompt management as part of the broader modularization effort described in `docs/wip/MODULARIZATION_REFACTORING_PLAN.md`. Key alignment points:
+This RFC implements prompt management as part of the broader modularization effort described in `docs/rfc/RFC-021-modularization-refactoring-plan.md`. Key alignment points:
 
 ### Provider Pattern Integration
 
@@ -1020,6 +1020,6 @@ Following the modularization plan's incremental approach:
 - RFC-015: AI Experiment Pipeline
 - RFC-013: OpenAI Provider Implementation
 - RFC-016: Modularization for AI Experiments
-- MODULARIZATION_REFACTORING_PLAN.md: Overall modularization strategy
+- RFC-021: Modularization Refactoring Plan - Overall modularization strategy (historical reference)
 - [Jinja2 Documentation](https://jinja.palletsprojects.com/)
 - [Pydantic Documentation](https://docs.pydantic.dev/)

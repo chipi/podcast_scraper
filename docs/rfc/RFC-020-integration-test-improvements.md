@@ -19,8 +19,7 @@
   - `docs/rfc/RFC-005-whisper-integration.md` (Whisper tests)
   - `docs/rfc/RFC-013-openai-provider-implementation.md` (OpenAI providers)
 - **Related Documents**:
-  - `docs/wip/INTEGRATION_TEST_FINAL_ANALYSIS.md` - Final analysis of integration test improvements
-  - `docs/wip/TEST_BOUNDARY_DECISION_FRAMEWORK.md` - Decision framework for Integration vs E2E tests
+  - `docs/TESTING_STRATEGY.md` - Overall testing strategy, test pyramid, and test boundary decision framework
 
 ## Abstract
 
@@ -539,9 +538,7 @@ Together, these three RFCs provide:
 
 ## References
 
-- **Final Analysis**: `docs/wip/INTEGRATION_TEST_FINAL_ANALYSIS.md`
-- **Decision Framework**: `docs/wip/TEST_BOUNDARY_DECISION_FRAMEWORK.md`
-- **Test Strategy**: `docs/TESTING_STRATEGY.md`
+- **Test Strategy**: `docs/TESTING_STRATEGY.md` - Overall testing strategy, test pyramid, and test boundary decision framework
 - **Test Structure RFC**: `docs/rfc/RFC-018-test-structure-reorganization.md` (foundation)
 - **E2E Test RFC**: `docs/rfc/RFC-019-e2e-test-improvements.md` (related work)
 - **Source Code**: `tests/integration/`

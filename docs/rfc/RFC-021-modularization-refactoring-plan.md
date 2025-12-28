@@ -1,6 +1,18 @@
-# Modularization Refactoring Plan
+# RFC-021: Modularization Refactoring Plan
+
+- **Status**: Completed (Historical Reference)
+- **Authors**:
+- **Stakeholders**: Maintainers, developers implementing OpenAI providers
+- **Related RFCs**:
+  - `docs/rfc/RFC-013-openai-provider-implementation.md` - OpenAI provider implementation (built on this plan)
+  - `docs/rfc/RFC-016-modularization-for-ai-experiments.md` - Provider system architecture
+  - `docs/rfc/RFC-017-prompt-management.md` - Prompt management (aligned with this plan)
+- **Related PRDs**:
+  - `docs/prd/PRD-006-openai-provider-integration.md` - OpenAI provider product requirements
 
 ## Overview
+
+**Note**: This RFC documents the modularization refactoring plan that was implemented to enable OpenAI provider integration. The refactoring is complete, and this document is kept as a historical reference for understanding the architecture decisions.
 
 This document outlines the refactoring plan to modularize the podcast scraper architecture, enabling easy integration of OpenAI API as a replacement for on-device AI/ML components.
 
@@ -39,7 +51,7 @@ This document outlines the refactoring plan to modularize the podcast scraper ar
 
    ```python
    from . import speaker_detection
-   
+
    nlp = speaker_detection.get_ner_model(cfg)  # NER-specific
    hosts = speaker_detection.detect_hosts_from_feed(...)  # NER-specific
    ```
@@ -77,7 +89,7 @@ from .. import config, models
 
 class SpeakerDetector(Protocol):
     """Protocol for speaker detection providers."""
-    
+
     def detect_hosts(
         self,
         feed_title: str,
@@ -86,7 +98,7 @@ class SpeakerDetector(Protocol):
     ) -> Set[str]:
         """Detect hosts from feed metadata."""
         ...
-    
+
     def detect_speakers(
         self,
         episode_title: str,
@@ -94,12 +106,12 @@ class SpeakerDetector(Protocol):
         known_hosts: Set[str],
     ) -> Tuple[List[str], Set[str], bool]:
         """Detect speakers for an episode.
-        
+
         Returns:
             (speaker_names, detected_hosts, success)
         """
         ...
-    
+
     def analyze_patterns(
         self,
         episodes: List[models.Episode],
@@ -109,8 +121,6 @@ class SpeakerDetector(Protocol):
         ...
 ```
 
-**Factory Pattern:**
-
 ```python
 # podcast_scraper/speaker_detectors/factory.py
 from typing import Optional
@@ -119,12 +129,12 @@ from .base import SpeakerDetector
 
 class SpeakerDetectorFactory:
     """Factory for creating speaker detectors."""
-    
+
     @staticmethod
     def create(cfg: config.Config) -> Optional[SpeakerDetector]:
         if not cfg.auto_speakers:
             return None
-        
+
         detector_type = cfg.speaker_detector_provider  # 'ner', 'openai', etc. (renamed from speaker_detector_type)
         if detector_type == 'ner':
             from .ner_detector import NERSpeakerDetector
@@ -134,8 +144,6 @@ class SpeakerDetectorFactory:
             return OpenAISpeakerDetector(cfg)
         return None
 ```
-
-### Implementation Steps
 
 #### Phase 1: Quick Wins (No Breaking Changes)
 
@@ -173,7 +181,7 @@ class SpeakerDetectorFactory:
 
    ```python
    from .speaker_detectors import SpeakerDetectorFactory
-   
+
    detector = SpeakerDetectorFactory.create(cfg)
    if detector:
        hosts = detector.detect_hosts(feed.title, feed.description, feed.authors)
@@ -212,7 +220,7 @@ class SpeakerDetectorFactory:
 
    ```python
    from . import whisper_integration as whisper
-   
+
    whisper_model = whisper.load_whisper_model(cfg)  # Whisper-specific
    result, elapsed = whisper.transcribe_with_whisper(...)  # Whisper-specific
    ```
@@ -221,7 +229,7 @@ class SpeakerDetectorFactory:
 
    ```python
    from . import whisper_integration as whisper
-   
+
    result, tc_elapsed = whisper.transcribe_with_whisper(whisper_model, temp_media, cfg)
    ```
 
@@ -259,15 +267,15 @@ from .. import config
 
 class TranscriptionProvider(Protocol):
     """Protocol for transcription providers."""
-    
+
     def initialize(self, cfg: config.Config) -> Optional[Any]:
         """Initialize provider (load model, setup API client, etc.).
-        
+
         Returns:
             Provider-specific resource object or None if initialization fails
         """
         ...
-    
+
     def transcribe(
         self,
         media_path: str,
@@ -275,24 +283,22 @@ class TranscriptionProvider(Protocol):
         resource: Any,  # Provider-specific resource
     ) -> Tuple[Dict[str, Any], float]:
         """Transcribe media file.
-        
+
         Args:
             media_path: Path to media file
             cfg: Configuration object
             resource: Provider-specific resource (model, client, etc.)
-        
+
         Returns:
             Tuple of (result_dict, elapsed_seconds)
             result_dict should have 'text' and optionally 'segments'
         """
         ...
-    
+
     def cleanup(self, resource: Any) -> None:
         """Cleanup provider resources."""
         ...
 ```
-
-**Factory Pattern:**
 
 ```python
 # podcast_scraper/transcription/factory.py
@@ -302,12 +308,12 @@ from .base import TranscriptionProvider
 
 class TranscriptionProviderFactory:
     """Factory for creating transcription providers."""
-    
+
     @staticmethod
     def create(cfg: config.Config) -> Optional[TranscriptionProvider]:
         if not cfg.transcribe_missing:
             return None
-        
+
         provider_type = cfg.transcription_provider  # 'whisper', 'openai', etc.
         if provider_type == 'whisper':
             from .whisper_provider import WhisperTranscriptionProvider
@@ -317,8 +323,6 @@ class TranscriptionProviderFactory:
             return OpenAITranscriptionProvider(cfg)
         return None
 ```
-
-### Implementation Steps (Transcription)
 
 #### Phase 1: Quick Wins - Transcription (No Breaking Changes)
 
@@ -354,7 +358,7 @@ class TranscriptionProviderFactory:
 
    ```python
    from .transcription import TranscriptionProviderFactory
-   
+
    provider = TranscriptionProviderFactory.create(cfg)
    if provider:
        resource = provider.initialize(cfg)
@@ -406,7 +410,7 @@ class TranscriptionProviderFactory:
 
    ```python
    from . import summarizer
-   
+
    model_name = summarizer.select_summary_model(cfg)  # Local model-specific
    summary_model = summarizer.SummaryModel(...)  # Local model-specific
    ```
@@ -415,7 +419,7 @@ class TranscriptionProviderFactory:
 
    ```python
    from . import summarizer
-   
+
    summary_metadata = _generate_episode_summary(...)  # Uses local models
    ```
 
@@ -452,15 +456,15 @@ from .. import config
 
 class SummarizationProvider(Protocol):
     """Protocol for summarization providers."""
-    
+
     def initialize(self, cfg: config.Config) -> Optional[Any]:
         """Initialize provider (load model, setup API client, etc.).
-        
+
         Returns:
             Provider-specific resource object or None if initialization fails
         """
         ...
-    
+
     def summarize(
         self,
         text: str,
@@ -470,19 +474,19 @@ class SummarizationProvider(Protocol):
         min_length: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Summarize text.
-        
+
         Args:
             text: Text to summarize
             cfg: Configuration object
             resource: Provider-specific resource (model, client, etc.)
             max_length: Maximum summary length
             min_length: Minimum summary length
-        
+
         Returns:
             Dictionary with 'summary' and optionally 'chunks', 'metadata'
         """
         ...
-    
+
     def summarize_chunks(
         self,
         chunks: List[str],
@@ -490,12 +494,12 @@ class SummarizationProvider(Protocol):
         resource: Any,
     ) -> List[str]:
         """Summarize multiple text chunks (MAP phase).
-        
+
         Returns:
             List of chunk summaries
         """
         ...
-    
+
     def combine_summaries(
         self,
         summaries: List[str],
@@ -503,18 +507,16 @@ class SummarizationProvider(Protocol):
         resource: Any,
     ) -> str:
         """Combine multiple summaries into final summary (REDUCE phase).
-        
+
         Returns:
             Final combined summary
         """
         ...
-    
+
     def cleanup(self, resource: Any) -> None:
         """Cleanup provider resources."""
         ...
 ```
-
-**Factory Pattern:**
 
 ```python
 # podcast_scraper/summarization/factory.py
@@ -524,12 +526,12 @@ from .base import SummarizationProvider
 
 class SummarizationProviderFactory:
     """Factory for creating summarization providers."""
-    
+
     @staticmethod
     def create(cfg: config.Config) -> Optional[SummarizationProvider]:
         if not cfg.generate_summaries:
             return None
-        
+
         provider_type = cfg.summary_provider  # 'transformers', 'openai', etc.
         if provider_type == 'transformers':
             from .transformers_provider import TransformersSummarizationProvider
@@ -539,8 +541,6 @@ class SummarizationProviderFactory:
             return OpenAISummarizationProvider(cfg)
         return None
 ```
-
-### Implementation Steps (Summarization)
 
 #### Phase 1: Quick Wins - Summarization (No Breaking Changes)
 
@@ -584,7 +584,7 @@ class SummarizationProviderFactory:
 
    ```python
    from .summarization import SummarizationProviderFactory
-   
+
    provider = SummarizationProviderFactory.create(cfg)
    if provider:
        resource = provider.initialize(cfg)
@@ -704,8 +704,6 @@ podcast_scraper/
 └── ...
 ```
 
----
-
 ## Key Principles
 
 1. **Backward Compatibility First**
@@ -772,12 +770,12 @@ podcast_scraper/
 
 ## Success Criteria
 
-✅ Can add OpenAI API providers without modifying core workflow  
-✅ All existing functionality preserved  
-✅ Tests pass with both old and new providers  
-✅ Config remains backward compatible  
-✅ Code is more maintainable (smaller functions, clearer structure)  
-✅ Ready for OpenAI API integration as next step  
+✅ Can add OpenAI API providers without modifying core workflow
+✅ All existing functionality preserved
+✅ Tests pass with both old and new providers
+✅ Config remains backward compatible
+✅ Code is more maintainable (smaller functions, clearer structure)
+✅ Ready for OpenAI API integration as next step
 
 ---
 

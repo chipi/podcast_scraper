@@ -39,11 +39,6 @@ pip install -e .
 # macOS: brew install ffmpeg
 # Ubuntu: sudo apt install ffmpeg
 ```
-
-### Basic Usage
-
-```bash
-# Download transcripts from a podcast RSS feed
 python3 -m podcast_scraper.cli https://example.com/feed.xml
 
 # Limit episodes and use custom output directory
@@ -61,11 +56,6 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-metadata \
   --generate-summaries
 ```
-
-### Configuration Files
-
-Use JSON or YAML configuration files for complex workflows:
-
 ```yaml
 # config.yaml
 rss: https://example.com/feed.xml
@@ -81,13 +71,7 @@ generate_summaries: true
 workers: 4
 skip_existing: true
 ```
-
-```bash
-python3 -m podcast_scraper.cli --config config.yaml
 ```
-
-**Configuration examples:**
-
 - [config.example.json](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) - JSON format with all options
 - [config.example.yaml](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) - YAML format with comments
 
@@ -230,11 +214,6 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 ```
-
-[Full systemd example →](https://github.com/chipi/podcast_scraper/blob/main/examples/systemd.service.example)
-
-### Supervisor Configuration
-
 ```ini
 [program:podcast_scraper]
 command=python -m podcast_scraper.service --config /path/to/config.yaml
@@ -245,11 +224,6 @@ autorestart=true
 stdout_logfile=/var/log/podcast_scraper/stdout.log
 stderr_logfile=/var/log/podcast_scraper/stderr.log
 ```
-
-[Full supervisor example →](https://github.com/chipi/podcast_scraper/blob/main/examples/supervisor.conf.example)
-
----
-
 ## 🛠️ Advanced Features
 
 ### Automatic Speaker Detection
@@ -261,11 +235,6 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --num-speakers 2 \
   --auto-speakers
 ```
-
-Speaker names are automatically extracted from episode metadata using Named Entity Recognition. Manual override available via `--speaker-names`.
-
-### Episode Summarization
-
 ```bash
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-metadata \
@@ -273,22 +242,12 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --summary-model bart-large \
   --summary-device mps
 ```
-
-Generates concise summaries using a hybrid map-reduce strategy with local transformer models. Supports GPU acceleration (CUDA/MPS).
-
-### Language Support
-
 ```bash
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --transcribe-missing \
   --language fr \
   --whisper-model base
 ```
-
-Automatic language-aware Whisper model selection and NER model matching.
-
----
-
 ## 🔬 Evaluation & Testing
 
 ### Evaluation Scripts
@@ -309,11 +268,6 @@ python scripts/eval_cleaning.py --episode ep01
 # Evaluate summarization quality
 python scripts/eval_summaries.py --map-model bart-large --reduce-model long-fast
 ```
-
-[Scripts documentation →](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md)
-
-### Development Setup
-
 ```bash
 # Set up development environment
 bash scripts/setup_venv.sh
@@ -323,11 +277,6 @@ pip install -e .
 # Run full CI suite locally
 make ci
 ```
-
----
-
-## 🐍 Python API
-
 The top-level package exposes a minimal stable API:
 
 ```python
@@ -343,9 +292,6 @@ cfg = podcast_scraper.Config(
 
 podcast_scraper.run_pipeline(cfg)
 ```
-
-**Utilities:**
-
 - `podcast_scraper.load_config_file(path)` — Parse JSON/YAML configuration
 - `podcast_scraper.run_pipeline(cfg)` — Run the full pipeline
 - `podcast_scraper.cli.main(argv)` — CLI entry point
@@ -367,11 +313,6 @@ docker run --rm \
   podcast-scraper \
   --config /app/config.yaml
 ```
-
----
-
-## 🤝 Contributing
-
 We welcome contributions! Here's how to get started:
 
 ### Quick Start
@@ -390,9 +331,6 @@ make type          # Type checking
 make test          # Run tests with coverage
 make docs          # Build documentation
 ```
-
-### What to Know
-
 - **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** — Complete development workflow, code style, testing requirements
 - **[Architecture](ARCHITECTURE.md)** — Module boundaries and design principles
 - **[Testing Strategy](TESTING_STRATEGY.md)** — Test coverage and quality standards
@@ -423,11 +361,6 @@ pip install mkdocs mkdocs-material pymdown-extensions mkdocstrings mkdocstrings-
 # Serve with live reload
 mkdocs serve
 ```
-
-Visit [http://localhost:8000](http://localhost:8000) to preview. The site updates automatically as you edit Markdown files.
-
-**Build output:** `.build/site/` (organized in `.build/` to keep root clean)
-
 ---
 
 ## 🔬 Work In Progress
@@ -435,15 +368,13 @@ Visit [http://localhost:8000](http://localhost:8000) to preview. The site update
 Experimental and draft documentation:
 
 - [WIP Overview](wip/WIP_README.md) — Purpose and guidelines for WIP docs
-- [Modularization Refactoring Plan](wip/MODULARIZATION_REFACTORING_PLAN.md) — Overall refactoring strategy for OpenAI provider integration
-- [Incremental Modularization Plan](wip/INCREMENTAL_MODULARIZATION_PLAN.md) — Incremental implementation plan (includes AI experiment pipeline stages)
+- [RFC-021: Modularization Refactoring Plan](rfc/RFC-021-modularization-refactoring-plan.md) — Historical reference: Refactoring strategy for OpenAI provider integration (completed)
+- [RFC-022: Environment Variable Candidates Analysis](rfc/RFC-022-environment-variable-candidates-analysis.md) — Historical reference: Analysis and implementation plan for environment variable support (completed)
 - [Summarization Testing Evaluation](wip/SUMMARIZATION_TESTING_EVALUATION.md)
 - [Summary Review](wip/SUMMARY_REVIEW.md)
 - [Whisper Progress Analysis](wip/WHISPER_PROGRESS_ANALYSIS.md)
 - [Metrics Review](wip/METRICS_REVIEW.md)
-- [Docker Base Image Analysis](wip/DOCKER_BASE_IMAGE_ANALYSIS.md)
 - [Type Hints Analysis](wip/TYPE_HINTS_ANALYSIS.md)
-- [Workflow Trigger Analysis](wip/WORKFLOW_TRIGGER_ANALYSIS.md)
 
 > ⚠️ **Note:** WIP documents are temporary, may be incomplete, and are not part of official documentation.
 
@@ -495,4 +426,4 @@ MIT License - See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main/L
 
 ---
 
-**Need help?** Check the [documentation](#documentation), search [existing issues](https://github.com/chipi/podcast_scraper/issues), or open a new issue for support.
+**Need help?** Check the [documentation](https://chipi.github.io/podcast_scraper/), search [existing issues](https://github.com/chipi/podcast_scraper/issues), or open a new issue for support.
