@@ -171,8 +171,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.event_name != 'pull_request' ||
-      contains(github.event.pull_request.head.ref, 'docs/') == false ||
-      contains(github.event.pull_request.head.ref, 'fix/ai-guidelines-linting') == false
+      (github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' && !contains(github.event.pull_request.head.ref, 'docs/'))
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
