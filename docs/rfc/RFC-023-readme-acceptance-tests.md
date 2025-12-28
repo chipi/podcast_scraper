@@ -10,13 +10,13 @@
   - `docs/prd/PRD-004-metadata-generation.md` (metadata)
   - `docs/prd/PRD-005-episode-summarization.md` (summarization)
 - **Related RFCs**:
-  - `docs/rfc/RFC-019-e2e-test-improvements.md` (E2E test infrastructure - foundation)
-  - `docs/rfc/RFC-018-test-structure-reorganization.md` (test structure - foundation)
-  - `docs/rfc/RFC-020-integration-test-improvements.md` (integration test improvements)
-  - `docs/rfc/RFC-007-cli-interface.md` (CLI interface)
+  - `rfc/RFC-019-e2e-test-improvements.md` (E2E test infrastructure - foundation)
+  - `rfc/RFC-018-test-structure-reorganization.md` (test structure - foundation)
+  - `rfc/RFC-020-integration-test-improvements.md` (integration test improvements)
+  - `rfc/RFC-007-cli-interface.md` (CLI interface)
 - **Related Documents**:
-  - `README.md` - Main project README (source of truth for examples)
-  - `docs/TESTING_STRATEGY.md` - Overall testing strategy and test categories
+  - `../README.md` - Main project README (source of truth for examples)
+  - `../TESTING_STRATEGY.md` - Overall testing strategy and test categories
 
 ## Abstract
 
@@ -423,8 +423,8 @@ test-acceptance:
 
 ## References
 
-- [RFC-019: E2E Test Infrastructure](docs/rfc/RFC-019-e2e-test-improvements.md)
-- [RFC-018: Test Structure Reorganization](docs/rfc/RFC-018-test-structure-reorganization.md)
-- [Testing Strategy](docs/TESTING_STRATEGY.md)
-- [README.md](README.md)
+- [RFC-019: E2E Test Infrastructure](RFC-019-e2e-test-improvements.md)
+- [RFC-018: Test Structure Reorganization](RFC-018-test-structure-reorganization.md)
+- [Testing Strategy](../TESTING_STRATEGY.md)
+- [README.md](../../README.md)
 

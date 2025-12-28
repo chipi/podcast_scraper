@@ -89,7 +89,7 @@ Unit tests run **without ML dependencies** (spacy, torch, transformers) installe
 
 The CI automatically checks that unit tests can import modules without ML dependencies before running tests.
 
-See `docs/TESTING_STRATEGY.md` for comprehensive testing guidelines and `CONTRIBUTING.md` for test running examples.
+See `TESTING_STRATEGY.md` for comprehensive testing guidelines and `../CONTRIBUTING.md` for test running examples.
 
 ## Environment Setup
 
@@ -177,7 +177,7 @@ The podcast scraper supports configuration via environment variables for flexibl
 python scripts/fix_markdown.py
 
 # Fix specific files
-python scripts/fix_markdown.py docs/TESTING_STRATEGY.md docs/rfc/RFC-020.md
+python scripts/fix_markdown.py TESTING_STRATEGY.md rfc/RFC-020.md
 
 # Dry run (see what would be fixed)
 python scripts/fix_markdown.py --dry-run
@@ -621,7 +621,7 @@ from podcast_scraper.models import Episode
 
 ## Testing Requirements
 
-> **See also:** [`docs/TESTING_STRATEGY.md`](docs/TESTING_STRATEGY.md) for comprehensive testing guidelines.
+> **See also:** [`TESTING_STRATEGY.md`](TESTING_STRATEGY.md) for comprehensive testing guidelines.
 
 ### Every New Function Needs
 
@@ -708,7 +708,7 @@ class TestEpisodeProcessor(unittest.TestCase):
 
 **Test Structure:**
 
-The test suite is organized into three categories (see `docs/TESTING_STRATEGY.md` for details):
+The test suite is organized into three categories (see `TESTING_STRATEGY.md` for details):
 
 - **`tests/unit/`** - Fast unit tests (fully mocked, no network, no filesystem I/O)
 - **`tests/integration/`** - Integration tests (component interactions)
@@ -854,7 +854,7 @@ You can proceed without PRD/RFC for:
 - Data flow changes
 - Design decisions are made
 
-**`docs/TESTING_STRATEGY.md`** if:
+**`TESTING_STRATEGY.md`** if:
 
 - Testing approach changes
 - New test categories are added
@@ -868,7 +868,7 @@ You can proceed without PRD/RFC for:
 
 ## CI/CD Integration
 
-> **See also:** [`docs/CI_CD.md`](docs/CI_CD.md) for complete CI/CD pipeline documentation with visualizations.
+> **See also:** [`CI_CD.md`](CI_CD.md) for complete CI/CD pipeline documentation with visualizations.
 
 ### What Runs in CI
 
@@ -966,7 +966,7 @@ make install-hooks
 # Now linting failures are caught before commit!
 ```
 
-See [`docs/CI_CD.md`](docs/CI_CD.md) for more details.
+See [`CI_CD.md`](CI_CD.md) for more details.
 
 ## Architecture Principles
 
