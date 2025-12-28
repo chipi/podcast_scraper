@@ -153,11 +153,11 @@ class ExperimentConfig(BaseModel):
     id: str  # Unique experiment identifier
     task: Literal["summarization", "ner", "transcription"]
     description: Optional[str] = None
-    
+
     models: Dict[str, ModelConfig]  # e.g., {"map": ModelConfig(...), "reduce": ModelConfig(...)}
     params: Dict[str, Any] = Field(default_factory=dict)
     prompts: Optional[Dict[str, str]] = Field(default_factory=dict)  # system, user paths
-    
+
     data: Dict[str, str]  # episodes_glob, gold_data_path
 ```
 
@@ -195,6 +195,7 @@ You are summarizing a podcast episode.
 
 Write a detailed, high-information narrative summary of the episode.
 Guidelines:
+
 - 3–6 paragraphs.
 - Focus on key decisions, arguments, and lessons.
 - Ignore sponsorships, ads, and host housekeeping.
@@ -209,6 +210,7 @@ You are summarizing a podcast episode.
 
 Write a detailed, narrative-style summary that reads like a story.
 Guidelines:
+
 - 3–6 paragraphs with narrative flow.
 - Focus on key decisions, arguments, and lessons.
 - Use transitions to connect ideas naturally.
@@ -303,12 +305,12 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
             config.prompts["system"],
             **config.prompts.get("params", {}),
         )
-    
+
     user_prompt = render_prompt(
         config.prompts["user"],
         **config.prompts.get("params", {}),
     )
-    
+
     # Get prompt metadata for tracking
     prompt_meta = {
         "system": (
@@ -318,7 +320,7 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
         ),
         "user": get_prompt_metadata(config.prompts["user"], config.prompts.get("params", {})),
     }
-    
+
     # Use prompts in backend calls
     backend = create_backend(config)
     # ... rest of generation logic
@@ -327,7 +329,7 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
 **Note**: The `prompt_store` module (RFC-017) provides:
 
 - Jinja2 templating for parameterization
-- LRU caching for performance  
+- LRU caching for performance
 - SHA256 hashing for reproducibility
 - Error handling and validation
 
@@ -409,7 +411,7 @@ def save_metrics(
     # Load prompts to compute hashes
     system_prompt = load_prompt(config.prompts["system"])
     user_prompt = load_prompt(config.prompts["user"])
-    
+
     metrics_with_prompts = {
         **metrics,
         "prompts": {
@@ -419,7 +421,7 @@ def save_metrics(
             "user_sha256": compute_prompt_hash(user_prompt),
         }
     }
-    
+
     metrics_file.write_text(
         json.dumps(metrics_with_prompts, indent=2),
         encoding="utf-8"
@@ -515,7 +517,7 @@ def summarize_with_openai(
 ) -> str:
     """
     Call OpenAI to summarize a single transcript.
-    
+
     Args:
         model: OpenAI model name (e.g., "gpt-4o-mini")
         system_prompt: System prompt (optional)
@@ -523,28 +525,28 @@ def summarize_with_openai(
         transcript: Transcript text to summarize
         max_output_tokens: Maximum tokens in response
         temperature: Sampling temperature
-        
+
     Returns:
         Summary text
     """
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
-    
+
     # Embed transcript into user message
     user_content = f"{user_prompt}\n\nTranscript:\n\"\"\"{transcript}\"\"\""
     messages.append({"role": "user", "content": user_content})
-    
+
     kwargs: Dict[str, Any] = {
         "model": model,
         "messages": messages,
     }
-    
+
     if max_output_tokens is not None:
         kwargs["max_tokens"] = max_output_tokens
     if temperature is not None:
         kwargs["temperature"] = temperature
-    
+
     response = client.chat.completions.create(**kwargs)
     return response.choices[0].message.content.strip()
 
@@ -552,17 +554,17 @@ def summarize_with_openai(
 def run_experiment(cfg: ExperimentConfig) -> None:
     """
     Run a single experiment described by ExperimentConfig.
-    
+
     Phase 1: Only supports OpenAI summarization.
     Future phases will add more backends and tasks.
     """
     run_id = cfg.id
     results_dir = Path("results") / run_id
     results_dir.mkdir(parents=True, exist_ok=True)
-    
+
     predictions_path = results_dir / "predictions.jsonl"
     metadata_path = results_dir / "run_metadata.json"
-    
+
     # --- Prepare prompts using prompt_store (RFC-017) ---
     system_prompt: str | None = None
     if cfg.prompts.system:
@@ -570,12 +572,12 @@ def run_experiment(cfg: ExperimentConfig) -> None:
             cfg.prompts.system,
             **cfg.prompts.params,
         )
-    
+
     user_prompt = render_prompt(
         cfg.prompts.user,
         **cfg.prompts.params,
     )
-    
+
     # Collect prompt metadata for reproducibility
     system_meta = (
         get_prompt_metadata(cfg.prompts.system, cfg.prompts.params)
@@ -583,16 +585,16 @@ def run_experiment(cfg: ExperimentConfig) -> None:
         else None
     )
     user_meta = get_prompt_metadata(cfg.prompts.user, cfg.prompts.params)
-    
+
     # --- Discover input files (episodes) ---
     input_files = discover_input_files(cfg.data)
     if not input_files:
         raise RuntimeError(
             f"No input files found for glob: {cfg.data.episodes_glob}"
         )
-    
+
     print(f"[{run_id}] Found {len(input_files)} episode file(s).")
-    
+
     # --- Validate backend (Phase 1: OpenAI only) ---
     if cfg.backend.type != "openai":
         raise NotImplementedError(
@@ -602,17 +604,17 @@ def run_experiment(cfg: ExperimentConfig) -> None:
         raise NotImplementedError(
             f"Phase 1 only supports summarization task. Got: {cfg.task}"
         )
-    
+
     openai_model = cfg.backend.model
     max_output_tokens = cfg.params.max_output_tokens
     temperature = cfg.params.temperature
-    
+
     # --- Run per-episode summarization ---
     start_time = time.time()
     num_episodes = 0
     total_chars_in = 0
     total_chars_out = 0
-    
+
     with predictions_path.open("w", encoding="utf-8") as pred_f:
         for path in input_files:
             episode_id = episode_id_from_path(path, cfg.data)
@@ -620,13 +622,13 @@ def run_experiment(cfg: ExperimentConfig) -> None:
             if not text:
                 print(f"[{run_id}] Skipping empty transcript: {path}")
                 continue
-            
+
             num_episodes += 1
             total_chars_in += len(text)
-            
+
             print(f"[{run_id}] Summarizing {episode_id} ({len(text)} chars)...")
             t0 = time.time()
-            
+
             summary = summarize_with_openai(
                 model=openai_model,
                 system_prompt=system_prompt,
@@ -635,11 +637,11 @@ def run_experiment(cfg: ExperimentConfig) -> None:
                 max_output_tokens=max_output_tokens,
                 temperature=temperature,
             )
-            
+
             dt = time.time() - t0
             total_chars_out += len(summary)
             print(f"[{run_id}]   Done in {dt:.1f}s, summary length={len(summary)} chars")
-            
+
             # Write one JSON object per line (JSONL format)
             record = {
                 "episode_id": episode_id,
@@ -647,15 +649,15 @@ def run_experiment(cfg: ExperimentConfig) -> None:
                 "summary": summary,
             }
             pred_f.write(json.dumps(record, ensure_ascii=False) + "\n")
-    
+
     total_time = time.time() - start_time
-    
+
     # --- Save run-level metadata ---
     avg_time = total_time / num_episodes if num_episodes > 0 else 0.0
     avg_compression = (
         (total_chars_in / total_chars_out) if total_chars_out > 0 else None
     )
-    
+
     metadata = {
         "run_id": run_id,
         "task": cfg.task,
@@ -681,12 +683,12 @@ def run_experiment(cfg: ExperimentConfig) -> None:
             "avg_compression": avg_compression,
         },
     }
-    
+
     metadata_path.write_text(
         json.dumps(metadata, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
-    
+
     print(f"[{run_id}] Done. Predictions: {predictions_path}")
     print(f"[{run_id}] Metadata: {metadata_path}")
     print(
@@ -708,16 +710,16 @@ def main() -> None:
         help="Path to experiment YAML config.",
     )
     args = parser.parse_args()
-    
+
     cfg = load_experiment_config(args.config)
-    
+
     # Validate API key
     if not os.getenv("OPENAI_API_KEY"):
         raise EnvironmentError(
             "OPENAI_API_KEY environment variable is not set. "
             "Export it before running this script."
         )
-    
+
     run_experiment(cfg)
 
 
@@ -805,7 +807,7 @@ def evaluate_experiment_predictions(
 ) -> Dict[str, Any]:
     """
     Evaluate experiment predictions against golden dataset.
-    
+
     Reuses existing eval_summaries.py logic.
     """
     # Load predictions from JSONL
@@ -814,17 +816,17 @@ def evaluate_experiment_predictions(
         for line in f:
             record = json.loads(line)
             predictions[record["episode_id"]] = record["summary"]
-    
+
     # Load golden summaries (existing function)
     gold_summaries = load_golden_summaries(gold_data_path)
-    
+
     # Compute metrics (existing functions)
     rouge_scores = compute_rouge_scores(predictions, gold_summaries)
     compression_ratios = {
         ep_id: compute_compression_ratio(pred, gold_summaries.get(ep_id, ""))
         for ep_id, pred in predictions.items()
     }
-    
+
     # Aggregate metrics
     global_metrics = {
         "rouge1_f": sum(s["rouge1_f"] for s in rouge_scores.values()) / len(rouge_scores),
@@ -832,7 +834,7 @@ def evaluate_experiment_predictions(
         "avg_compression": sum(compression_ratios.values()) / len(compression_ratios),
         "num_episodes": len(predictions),
     }
-    
+
     episode_metrics = {
         ep_id: {
             **rouge_scores.get(ep_id, {}),
@@ -840,7 +842,7 @@ def evaluate_experiment_predictions(
         }
         for ep_id in predictions.keys()
     }
-    
+
     return {
         "global": global_metrics,
         "episodes": episode_metrics,
@@ -879,13 +881,13 @@ def run_experiment(cfg: ExperimentConfig) -> None:
         resource = provider.initialize(cfg) if provider else None
     else:
         raise ValueError(f"Unknown task: {cfg.task}")
-    
+
     # Process episodes using provider protocol
     predictions = []
     for path in discover_input_files(cfg.data):
         episode_id = episode_id_from_path(path, cfg.data)
         text = path.read_text(encoding="utf-8").strip()
-        
+
         if cfg.task == "summarization" and provider:
             result = provider.summarize(
                 text=text,
@@ -899,11 +901,11 @@ def run_experiment(cfg: ExperimentConfig) -> None:
                 "summary": result["summary"],
             })
         # ... handle other tasks
-    
+
     # Cleanup
     if provider and resource:
         provider.cleanup(resource)
-    
+
     # Save predictions and metadata...
 ```
 
@@ -928,18 +930,18 @@ def run_experiment(
 ) -> None:
     """Run experiment with optional evaluation."""
     # ... generate predictions ...
-    
+
     if evaluate and gold_data_path:
         from scripts.eval_experiment import evaluate_experiment_predictions
-        
+
         metrics = evaluate_experiment_predictions(
             predictions_path,
             gold_data_path,
         )
-        
+
         # Add prompt metadata to metrics
         from podcast_scraper.prompt_store import get_prompt_metadata
-        
+
         metrics["prompts"] = {
             "system": (
                 get_prompt_metadata(cfg.prompts.system, cfg.prompts.params)
@@ -948,7 +950,7 @@ def run_experiment(
             ),
             "user": get_prompt_metadata(cfg.prompts.user, cfg.prompts.params),
         }
-        
+
         # Save metrics
         metrics_path = results_dir / "metrics.json"
         metrics_path.write_text(
@@ -979,13 +981,13 @@ def run_experiment(cfg: ExperimentConfig) -> None:
     # Create provider based on config
     provider = create_provider_for_experiment(cfg)
     resource = provider.initialize(cfg) if provider else None
-    
+
     # Process episodes based on task
     predictions = []
     for path in discover_input_files(cfg.data):
         episode_id = episode_id_from_path(path, cfg.data)
         episode_data = load_episode_data(path, cfg.task)
-        
+
         if cfg.task == "summarization":
             prediction = generate_summarization_prediction(
                 provider, resource, episode_data, cfg
@@ -998,12 +1000,12 @@ def run_experiment(cfg: ExperimentConfig) -> None:
             prediction = generate_transcription_prediction(
                 provider, resource, episode_data, cfg
             )
-        
+
         predictions.append({
             "episode_id": episode_id,
             "prediction": prediction,
         })
-    
+
     # Save predictions...
 ```
 
@@ -1025,7 +1027,7 @@ def run_experiment(
     force_regenerate: bool = False,
 ) -> None:
     """Run an AI experiment from a configuration file.
-    
+
     Args:
         config_file: Path to experiment YAML config
         mode: "gen" (generate only), "eval" (evaluate only), "gen+eval" (both)
@@ -1034,14 +1036,14 @@ def run_experiment(
     """
     # Load experiment config
     config = load_experiment_config(config_file)
-    
+
     # Create output directory
     experiment_output_dir = Path(output_dir) / config.id
     experiment_output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     predictions_file = experiment_output_dir / "predictions.jsonl"
     metrics_file = experiment_output_dir / "metrics.json"
-    
+
     # Generation phase
     if mode in ("gen", "gen+eval"):
         if predictions_file.exists() and not force_regenerate:
@@ -1051,16 +1053,16 @@ def run_experiment(
             print(f"Generating predictions for experiment: {config.id}")
             predictions = generate_predictions(config)
             save_predictions(predictions, predictions_file)
-    
+
     # Evaluation phase
     if mode in ("eval", "gen+eval"):
         if not predictions_file.exists():
             raise FileNotFoundError(f"Predictions file not found: {predictions_file}")
-        
+
         print(f"Evaluating predictions for experiment: {config.id}")
         metrics = evaluate_predictions(config, predictions_file)
         save_metrics(metrics, metrics_file)
-        
+
         # Print summary
         print_metrics_summary(metrics)
 
@@ -1076,7 +1078,7 @@ def run_experiments(
     include_golden: bool = False,
 ) -> None:
     """Run multiple AI experiments.
-    
+
     Args:
         config_files: List of config file paths (can be empty if config_dir provided)
         config_dir: Optional directory containing config files (glob pattern)
@@ -1090,10 +1092,10 @@ def run_experiments(
     """
     # Collect all config files
     all_config_files = []
-    
+
     # Add explicit config files
     all_config_files.extend(config_files)
-    
+
     # Add config files from directory/glob
     if config_dir:
         config_path = Path(config_dir)
@@ -1105,7 +1107,7 @@ def run_experiments(
             # Treat as glob pattern
             from glob import glob
             all_config_files.extend(glob(str(config_dir)))
-    
+
     # Filter by task type if specified
     if task_filter:
         filtered_configs = []
@@ -1114,7 +1116,7 @@ def run_experiments(
             if config.task == task_filter:
                 filtered_configs.append(config_file)
         all_config_files = filtered_configs
-    
+
     # Exclude golden experiments unless explicitly included
     if not include_golden:
         filtered_configs = []
@@ -1129,7 +1131,7 @@ def run_experiments(
                 config_file_str.endswith("_gold.yaml") or
                 config_file_str.endswith("_gold.yml")
             )
-            
+
             # Also check config file content if is_golden flag is set
             if not is_golden:
                 try:
@@ -1137,25 +1139,25 @@ def run_experiments(
                     is_golden = getattr(config, "is_golden", False)
                 except Exception:
                     pass  # If we can't load config, rely on filename
-            
+
             if not is_golden:
                 filtered_configs.append(config_file)
             else:
                 print(f"Skipping golden experiment: {config_file}")
-        
+
         all_config_files = filtered_configs
-    
+
     if not all_config_files:
         print("No experiment configs found (excluding golden experiments)")
         print("Use --include-golden to include golden experiments")
         return
-    
+
     print(f"Running {len(all_config_files)} experiment(s)...")
-    
+
     # Run experiments
     if parallel:
         from concurrent.futures import ThreadPoolExecutor, as_completed
-        
+
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(
@@ -1167,7 +1169,7 @@ def run_experiments(
                 ): config_file
                 for config_file in all_config_files
             }
-            
+
             for future in as_completed(futures):
                 config_file = futures[future]
                 try:
@@ -1194,7 +1196,7 @@ def run_experiments(
                 if not parallel:
                     # In sequential mode, optionally continue or stop
                     continue
-    
+
     print(f"\n{'='*60}")
     print(f"Completed {len(all_config_files)} experiment(s)")
     print(f"{'='*60}")
@@ -1205,25 +1207,25 @@ def run_experiments(
 ```python
 def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
     """Generate predictions for all episodes in the experiment.
-    
+
     Returns:
         List of prediction dictionaries, one per episode
     """
     # Load episodes
     episodes = load_episodes(config.data["episodes_glob"])
-    
+
     # Load prompts from files
     system_prompt = load_prompt(config.prompts["system"])
     user_prompt_template = load_prompt(config.prompts["user"])
-    
+
     # Initialize model backend based on config
     backend = create_backend(config)
-    
+
     predictions = []
     for episode in episodes:
         episode_id = episode["id"]
         print(f"Processing episode: {episode_id}")
-        
+
         # Apply preprocessing (provider-agnostic, RFC-012)
         if config.task == "summarization":
             # Preprocess transcript before summarization
@@ -1234,7 +1236,7 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
                 collapse_blank_lines=True,
             )
             cleaned_transcript = remove_sponsor_blocks(cleaned_transcript)
-        
+
         # Generate prediction based on task type
         if config.task == "summarization":
             # Format user prompt with episode data
@@ -1243,7 +1245,7 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
                 title=episode.get("title", ""),
                 description=episode.get("description", ""),
             )
-            
+
             prediction = backend.summarize(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
@@ -1256,7 +1258,7 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
                 feed_title=episode.get("feed_title", ""),
                 episode_title=episode.get("title", ""),
             )
-            
+
             prediction = backend.detect_speakers(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
@@ -1267,7 +1269,7 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
                 audio_file=episode["audio_file"],
                 params=config.params,
             )
-        
+
         predictions.append({
             "episode_id": episode_id,
             "experiment_id": config.id,
@@ -1282,7 +1284,7 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
                 }
             }
         })
-    
+
     return predictions
 ```
 
@@ -1293,7 +1295,7 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
 ```python
 def create_backend(config: ExperimentConfig):
     """Create appropriate backend based on experiment config.
-    
+
     Backends are implemented using the provider pattern (RFC-016).
     This function maps experiment configs to providers.
     """
@@ -1328,15 +1330,15 @@ def evaluate_predictions(
     predictions_file: Path,
 ) -> Dict[str, Any]:
     """Evaluate predictions against golden dataset.
-    
+
     Reuses existing eval scripts (eval_summaries.py, eval_ner.py, etc.)
     """
     # Load predictions
     predictions = load_predictions(predictions_file)
-    
+
     # Load golden data
     gold_data = load_golden_data(config.data["gold_data_path"])
-    
+
     # Route to appropriate eval script based on task
     if config.task == "summarization":
         from scripts.eval_summaries import evaluate_summaries
@@ -1347,10 +1349,10 @@ def evaluate_predictions(
     elif config.task == "transcription":
         from scripts.eval_transcription import evaluate_transcription
         metrics = evaluate_transcription(predictions, gold_data)
-    
+
     # Get prompt metadata for tracking (using prompt_store from RFC-017)
     from podcast_scraper.prompt_store import get_prompt_metadata
-    
+
     prompt_meta = {
         "system": (
             get_prompt_metadata(config.prompts["system"], config.prompts.get("params", {}))
@@ -1362,7 +1364,7 @@ def evaluate_predictions(
             config.prompts.get("params", {}),
         ),
     }
-    
+
     return {
         "experiment_id": config.id,
         "task": config.task,
@@ -1555,10 +1557,10 @@ from scripts.eval_summaries import (
 
 def load_predictions_from_jsonl(predictions_file: Path) -> Dict[str, str]:
     """Load predictions from experiment JSONL output.
-    
+
     Args:
         predictions_file: Path to predictions.jsonl
-        
+
     Returns:
         Dict mapping episode_id to summary text
     """
@@ -1576,28 +1578,28 @@ def evaluate_experiment_predictions(
 ) -> Dict[str, Any]:
     """
     Evaluate experiment predictions using existing eval logic.
-    
+
     Reuses functions from eval_summaries.py without modifying them.
     """
     # Load predictions from experiment output
     predictions = load_predictions_from_jsonl(predictions_file)
-    
+
     # Load golden summaries (existing function)
     gold_summaries = load_golden_summaries(gold_data_path)
-    
+
     # Compute metrics using existing functions
     episode_metrics = {}
     for ep_id, pred_summary in predictions.items():
         gold_summary = gold_summaries.get(ep_id)
         if not gold_summary:
             continue
-        
+
         # Use existing ROUGE computation
         rouge_scores = compute_rouge_scores(pred_summary, gold_summary)
-        
+
         # Use existing compression computation
         compression = compute_compression_ratio(pred_summary, gold_summary)
-        
+
         episode_metrics[ep_id] = {
             "rouge1_f": rouge_scores["rouge1"].fmeasure,
             "rouge1_p": rouge_scores["rouge1"].precision,
@@ -1610,7 +1612,7 @@ def evaluate_experiment_predictions(
             "rougeL_r": rouge_scores["rougeL"].recall,
             "compression": compression,
         }
-    
+
     # Aggregate global metrics
     if episode_metrics:
         global_metrics = {
@@ -1628,7 +1630,7 @@ def evaluate_experiment_predictions(
         }
     else:
         global_metrics = {}
-    
+
     return {
         "global": global_metrics,
         "episodes": episode_metrics,
@@ -1668,11 +1670,11 @@ def evaluate_summaries(
 ) -> Dict[str, Any]:
     """
     Evaluate summaries against golden dataset.
-    
+
     Args:
         predictions: Dict mapping episode_id to predicted summary
         gold_data: Dict mapping episode_id to gold summary
-        
+
     Returns:
         Metrics dictionary with global and per-episode metrics
     """
@@ -1681,10 +1683,10 @@ def evaluate_summaries(
         gold_summary = gold_data.get(ep_id)
         if not gold_summary:
             continue
-        
+
         rouge_scores = compute_rouge_scores(pred_summary, gold_summary)
         compression = compute_compression_ratio(pred_summary, gold_summary)
-        
+
         episode_metrics[ep_id] = {
             "rouge1_f": rouge_scores["rouge1"].fmeasure,
             "rouge1_p": rouge_scores["rouge1"].precision,
@@ -1697,7 +1699,7 @@ def evaluate_summaries(
             "rougeL_r": rouge_scores["rougeL"].recall,
             "compression": compression,
         }
-    
+
     # Aggregate global metrics
     if episode_metrics:
         global_metrics = {
@@ -1708,7 +1710,7 @@ def evaluate_summaries(
         }
     else:
         global_metrics = {}
-    
+
     return {
         "global": global_metrics,
         "episodes": episode_metrics,
@@ -1723,16 +1725,16 @@ def main():
     parser.add_argument("gold_data_path", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    
+
     # Load predictions
     predictions = load_predictions_from_jsonl(args.predictions_file)
-    
+
     # Load gold data
     gold_data = load_golden_summaries(args.gold_data_path)
-    
+
     # Evaluate
     metrics = evaluate_summaries(predictions, gold_data)
-    
+
     # Output
     if args.output:
         args.output.write_text(json.dumps(metrics, indent=2))
@@ -1761,7 +1763,7 @@ def run_experiment(
 ) -> None:
     """
     Run experiment with optional integrated evaluation.
-    
+
     Args:
         cfg: Experiment configuration
         mode: "gen" (generate only), "eval" (evaluate only), "gen+eval" (both)
@@ -1770,28 +1772,28 @@ def run_experiment(
     results_dir = Path("results") / cfg.id
     predictions_path = results_dir / "predictions.jsonl"
     metrics_path = results_dir / "metrics.json"
-    
+
     # Generation phase
     if mode in ("gen", "gen+eval"):
         # ... generate predictions ...
         save_predictions(predictions, predictions_path)
-    
+
     # Evaluation phase
     if mode in ("eval", "gen+eval"):
         if not gold_data_path:
             gold_data_path = Path(cfg.data.gold_data_path)
-        
+
         # Use refactored eval function
         from scripts.eval_summaries import evaluate_summaries
-        
+
         predictions = load_predictions_from_jsonl(predictions_path)
         gold_data = load_golden_summaries(gold_data_path)
-        
+
         metrics = evaluate_summaries(predictions, gold_data)
-        
+
         # Add prompt metadata
         from podcast_scraper.prompt_store import get_prompt_metadata
-        
+
         metrics["prompts"] = {
             "system": (
                 get_prompt_metadata(cfg.prompts.system, cfg.prompts.params)
@@ -1800,13 +1802,13 @@ def run_experiment(
             ),
             "user": get_prompt_metadata(cfg.prompts.user, cfg.prompts.params),
         }
-        
+
         # Save metrics
         metrics_path.write_text(
             json.dumps(metrics, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
-        
+
         # Print summary
         print_metrics_summary(metrics)
 ```
@@ -1916,28 +1918,33 @@ jobs:
   smoke-tests:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v3
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
+
         with:
           python-version: '3.10'
-      
+
       - name: Install dependencies
         run: |
+
           pip install -e ".[ml]"
-      
+
       - name: Run smoke test (single episode, baseline config)
         env:
+
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           python scripts/run_experiment.py \
             --config experiments/summarization_bart_led_v1.yaml \
             --episodes ep01 \
             --mode gen+eval
-      
+
       - name: Assert quality thresholds
         run: |
+
           python scripts/check_metrics.py \
             --metrics results/summarization_bart_led_v1/metrics.json \
             --assert rougeL_f ">=" 0.10 \
@@ -1967,10 +1974,13 @@ name: AI Experiments Full Pipeline
 
 on:
   schedule:
+
     - cron: '0 0 * * 0'  # Weekly runs
   workflow_dispatch:  # Manual trigger
+
   push:
     paths:
+
       - 'experiments/**'
       - 'prompts/**'
     branches: [main]
@@ -1979,48 +1989,56 @@ jobs:
   full-eval:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v3
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
+
         with:
           python-version: '3.10'
-      
+
       - name: Install dependencies
         run: |
+
           pip install -e ".[ml]"
-      
+
       - name: Run all experiments
         env:
+
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           python scripts/run_all_experiments.py \
             --config-dir experiments/ \
             --output-dir .build/experiment-results
-      
+
       - name: Generate summary report
         run: |
+
           python scripts/compare_experiments.py \
             --results-dir .build/experiment-results \
             --output .build/summary_report.md \
             --format markdown
-      
+
       - name: Compare with baseline
         run: |
+
           python scripts/compare_experiments.py \
             --baseline .build/baseline-results \
             --current .build/experiment-results \
             --output .build/comparison.json \
             --detect-regressions
-      
+
       - name: Upload results
         uses: actions/upload-artifact@v3
+
         with:
           name: experiment-results
           path: .build/experiment-results
-      
+
       - name: Comment PR with results (if PR)
         if: github.event_name == 'pull_request'
+
         uses: actions/github-script@v6
         with:
           script: |
@@ -2061,44 +2079,44 @@ def compare_experiments(
     format: Literal["table", "json", "markdown"] = "table",
 ) -> Dict[str, Any]:
     """Compare multiple experiments and generate report.
-    
+
     Args:
         experiment_dirs: List of experiment result directories to compare
         task: Filter by task type (summarization, ner, transcription)
         output_file: Optional file to save comparison report
         format: Output format ("table", "json", "markdown")
-    
+
     Returns:
         Comparison report dictionary
     """
     comparisons = {}
-    
+
     # Load metrics from all experiments
     for exp_dir in experiment_dirs:
         metrics_file = exp_dir / "metrics.json"
         if not metrics_file.exists():
             continue
-        
+
         metrics = json.loads(metrics_file.read_text())
-        
+
         # Filter by task if specified
         if task and metrics.get("task") != task:
             continue
-        
+
         comparisons[exp_dir.name] = {
             "experiment_id": metrics.get("experiment_id"),
             "task": metrics.get("task"),
             "metrics": metrics.get("global", {}),
             "metadata": metrics.get("metadata", {}),
         }
-    
+
     # Generate comparison report
     comparison_report = {
         "experiments": comparisons,
         "best_performing": find_best_experiment(comparisons),
         "regressions": find_regressions(comparisons),
     }
-    
+
     # Format output
     if format == "table":
         output = format_comparison_table(comparisons, task)
@@ -2109,10 +2127,10 @@ def compare_experiments(
     else:  # json
         output = json.dumps(comparison_report, indent=2)
         print(output)
-    
+
     if output_file:
         output_file.write_text(output)
-    
+
     return comparison_report
 
 def format_comparison_table(
@@ -2120,7 +2138,7 @@ def format_comparison_table(
     task: Optional[str] = None,
 ) -> str:
     """Format comparison results as a simple table.
-    
+
     Example output:
         Run                         ROUGE-L   Avg Compression
         -----------------------------------------------------
@@ -2132,7 +2150,7 @@ def format_comparison_table(
     if not task:
         first_exp = next(iter(comparisons.values()))
         task = first_exp.get("task", "summarization")
-    
+
     # Select metrics based on task type
     if task == "summarization":
         metric_columns = [
@@ -2152,17 +2170,17 @@ def format_comparison_table(
         ]
     else:
         metric_columns = []
-    
+
     # Build table
     lines = []
-    
+
     # Header
     header = "Run".ljust(30)
     for _, label in metric_columns:
         header += label.rjust(15)
     lines.append(header)
     lines.append("-" * len(header))
-    
+
     # Find best performing experiment for each metric
     best_experiments = {}
     for metric_key, _ in metric_columns:
@@ -2187,11 +2205,11 @@ def format_comparison_table(
                         best_exp = exp_name
         if best_exp:
             best_experiments[metric_key] = best_exp
-    
+
     # Overall best (based on primary metric)
     primary_metric = metric_columns[0][0] if metric_columns else None
     overall_best = best_experiments.get(primary_metric) if primary_metric else None
-    
+
     # Rows
     for exp_name, exp_data in sorted(comparisons.items()):
         row = exp_name.ljust(30)
@@ -2203,21 +2221,21 @@ def format_comparison_table(
                     formatted = f"{value:.3f}"
                 else:
                     formatted = str(value)
-                
+
                 # Add compression multiplier format
                 if metric_key == "avg_compression":
                     formatted = f"{value:.1f}×"
-                
+
                 row += formatted.rjust(15)
             else:
                 row += "N/A".rjust(15)
-        
+
         # Mark best performing
         if exp_name == overall_best:
             row += "   <-- best"
-        
+
         lines.append(row)
-    
+
     return "\n".join(lines)
 
 def format_comparison_markdown(
@@ -2289,7 +2307,7 @@ summarization_openai_gpt4_mini_promptB   0.152     37.5×   <-- best
 
 ```markdown
 | Run | ROUGE-L | Avg Compression |
-|-----|---------|-----------------|
+| ----- | --------- | ----------------- |
 | summarization_bart_led_v1 | 0.120 | 43.4× |
 | summarization_openai_gpt4_mini_v1 | 0.145 | 38.2× |
 | summarization_openai_gpt4_mini_promptB | **0.152** | 37.5× ⭐ |
@@ -2418,7 +2436,7 @@ def update_experiment_results(
     excel_file: Path = Path("results/experiment_results.xlsx"),
 ) -> None:
     """Update Excel workbook with experiment results.
-    
+
     Args:
         experiment_id: Unique experiment identifier
         task: Task type ("summarization", "ner", "transcription")
@@ -2435,11 +2453,11 @@ def update_experiment_results(
             "NER": pd.DataFrame(columns=["Experiment ID", "Precision", "Recall", "F1", "Date", "Notes"]),
             "Transcription": pd.DataFrame(columns=["Experiment ID", "WER", "CER", "Date", "Notes"]),
         }
-    
+
     # Select appropriate sheet
     sheet_name = task.capitalize()
     df = sheets[sheet_name]
-    
+
     # Extract metrics based on task type
     if task == "summarization":
         row = {
@@ -2468,7 +2486,7 @@ def update_experiment_results(
             "Date": pd.Timestamp.now().strftime("%Y-%m-%d"),
             "Notes": "",
         }
-    
+
     # Update or append row
     if experiment_id in df["Experiment ID"].values:
         # Update existing row
@@ -2478,9 +2496,9 @@ def update_experiment_results(
     else:
         # Append new row
         df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
-    
+
     sheets[sheet_name] = df
-    
+
     # Write back to Excel
     with pd.ExcelWriter(excel_file, engine="openpyxl") as writer:
         for sheet_name, df in sheets.items():
@@ -2494,7 +2512,7 @@ def update_experiment_results(
 if mode in ("eval", "gen+eval"):
     metrics = evaluate_predictions(config, predictions_file)
     save_metrics(metrics, metrics_file)
-    
+
     # Update Excel summary
     from .update_experiment_results import update_experiment_results
     update_experiment_results(

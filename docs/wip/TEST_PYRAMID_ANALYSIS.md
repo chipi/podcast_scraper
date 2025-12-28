@@ -14,8 +14,7 @@
 
 ### Test Pyramid Visualization
 
-```
-        ╱╲
+```text
        ╱  ╲      E2E: 31.5% (should be 5-10%)
       ╱    ╲
      ╱      ╲    Integration: 27.0% (should be 15-20%)
@@ -32,13 +31,13 @@ Ideal Pyramid:
    ╱          ╲  Unit: 70-80%
   ╱____________╲
 ```
-## Alignment with Testing Strategy
 
 This analysis is based on the definitions in [Testing Strategy](../TESTING_STRATEGY.md):
 
 ### Test Type Definitions (from Testing Strategy)
 
 **Unit Tests:**
+
 - Test individual functions/modules in isolation
 - Entry Point: Function/class level
 - All external dependencies mocked (HTTP, filesystem, ML models)
@@ -46,6 +45,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 - No network access, no filesystem I/O (except tempfile)
 
 **Integration Tests:**
+
 - Test multiple components working together
 - Entry Point: Component-level (functions, classes, not user-facing APIs)
 - Real internal implementations, real filesystem I/O
@@ -54,6 +54,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 - Fast feedback (< 5s each for fast tests)
 
 **E2E Tests:**
+
 - Test complete user workflows from entry point to final output
 - Entry Point: User-level (CLI commands, `run_pipeline()`, `service.run()`)
 - Real HTTP client (with local server, no external network)
@@ -79,6 +80,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 #### Missing Unit Test Coverage
 
 **Critical Modules with Zero Unit Tests:**
+
 - `workflow.py` - Core pipeline orchestration (0 unit tests, 2 integration, 3 E2E)
 - `cli.py` - CLI argument parsing and validation (0 unit tests, 0 integration, 4 E2E)
 - `service.py` - Service API (0 unit tests, 0 integration, 4 E2E)
@@ -89,6 +91,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 - `filesystem.py` - Filesystem utilities (0 unit tests)
 
 **Functions in `summarizer.py` with No Unit Tests:**
+
 - `clean_transcript()` - Text cleaning logic
 - `remove_sponsor_blocks()` - Sponsor removal
 - `remove_outro_blocks()` - Outro removal
@@ -102,6 +105,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 - `safe_summarize()` - Safe summarization wrapper
 
 **Functions in `workflow.py` with No Unit Tests:**
+
 - `_setup_pipeline_environment()` - Environment setup
 - `_fetch_and_parse_feed()` - Feed fetching logic
 - `_extract_feed_metadata_for_generation()` - Metadata extraction
@@ -113,6 +117,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 - `_call_generate_metadata()` - Metadata generation helper
 
 **Functions in `speaker_detection.py` with Limited Unit Tests:**
+
 - `detect_speaker_names()` - Core detection logic
 - `detect_hosts_from_feed()` - Host detection
 - `analyze_episode_patterns()` - Pattern analysis
@@ -122,6 +127,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 - `_score_speaker_candidates()` - Scoring logic
 
 **Current Unit Test Coverage:**
+
 - Config: 2 tests (minimal)
 - RSS Parser: 2 tests (minimal)
 - Downloader: 2 tests (minimal)
@@ -132,6 +138,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 #### E2E Tests Doing Unit Test Work (Violating Testing Strategy)
 
 **Analysis of Summarizer Tests (67 tests total):**
+
 - `test_summarizer.py` - 37 tests
 - `test_summarizer_edge_cases.py` - 6 tests
 - `test_summarizer_security.py` - 24 tests
@@ -142,6 +149,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 - **Current Location:** `tests/workflow_e2e/` with `@pytest.mark.workflow_e2e` ❌ **WRONG**
 
 **Analysis of `test_summarizer_edge_cases.py`:**
+
 - **Entry Point:** Function-level (individual summarizer functions)
 - **Dependencies:** Mocked or real ML models (for model integration testing)
 - **Scope:** Edge cases in individual functions
@@ -151,6 +159,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 - **Current Location:** `tests/workflow_e2e/` ❌ **WRONG**
 
 **Analysis of `test_summarizer_security.py`:**
+
 - **Entry Point:** Function-level (security testing of summarizer functions)
 - **Dependencies:** Mocked
 - **Scope:** Individual function security
@@ -158,6 +167,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 - **Current Location:** `tests/workflow_e2e/` ❌ **WRONG**
 
 **Impact:**
+
 - 67 summarizer tests at E2E level violate testing strategy (should be unit/integration)
 - These tests are slow, require full setup, and test isolated functions
 - Moving these to appropriate layers would: reduce E2E count by 67, increase unit/integration count appropriately
@@ -168,6 +178,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 **Root Cause:** Integration layer is underutilized. Many component interactions are tested at E2E level instead, violating the testing strategy definitions.
 
 **According to Testing Strategy:**
+
 - **Integration Tests** = Component interactions, component-level entry point, mocked external services
 - **E2E Tests** = Complete user workflows, user-level entry point (CLI/API), real HTTP client
 
@@ -224,6 +235,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
    - **Current:** Only tested at E2E level
 
 **Current Integration Test Coverage:**
+
 - Provider integration: ✅ Good (multiple test files)
 - Protocol compliance: ✅ Good
 - Component workflows: ✅ Good
@@ -235,6 +247,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 #### E2E Tests Doing Integration Test Work (Violating Testing Strategy)
 
 **Analysis of `test_error_handling_e2e.py`:**
+
 - **Entry Point:** Need to check - if component-level → Integration, if user-level → E2E
 - **Scope:** Error handling scenarios
 - **According to Testing Strategy:**
@@ -243,6 +256,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 - **Current Location:** `tests/workflow_e2e/` - Need to review each test
 
 **Analysis of `test_edge_cases_e2e.py`:**
+
 - **Entry Point:** Need to check
 - **Scope:** Edge cases
 - **According to Testing Strategy:**
@@ -251,6 +265,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 - **Current Location:** `tests/workflow_e2e/` - Need to review each test
 
 **Analysis of `test_http_behaviors_e2e.py`:**
+
 - **Entry Point:** Need to check
 - **Scope:** HTTP behavior testing
 - **According to Testing Strategy:**
@@ -259,6 +274,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 - **Current Location:** `tests/workflow_e2e/` - Need to review each test
 
 **Impact:**
+
 - Need to review each test to determine if it violates testing strategy
 - Tests that use component-level entry points with mocked HTTP should be integration tests
 - Tests that use user-level entry points with real HTTP should be E2E tests
@@ -296,6 +312,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
    - **Impact:** +8-13 new unit tests
 
 **Expected Result After Phase 1:**
+
 - Unit Tests: ~360-370 (50-51%) - +63-73 tests
 - Integration Tests: ~194-201 (27-28%) - +0-7 tests (if some edge cases use real models)
 - E2E Tests: ~159-163 (22-23%) - -63-67 tests
@@ -349,6 +366,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
    - **Total:** ~17-28 new unit tests
 
 **Expected Result After Phase 2:**
+
 - Unit Tests: ~500-600 (69-83%) ✅ (target: 70-80%)
 - Integration Tests: ~194-201 (27-28%) ⚠️ (target: 15-20%, still high)
 - E2E Tests: ~159-163 (22-23%) ⚠️ (target: 5-10%, still high)
@@ -384,6 +402,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
    - **Impact:** ~19-31 new integration tests
 
 **Expected Result After Phase 3:**
+
 - Unit Tests: ~500-600 (69-83%) ✅
 - Integration Tests: ~214-231 (30-32%) ⚠️ (target: 15-20%, still too high)
 - E2E Tests: ~119-139 (16-19%) ⚠️ (target: 5-10%, still too high)
@@ -409,6 +428,7 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
    - **Not:** Component interactions (that's integration tests)
 
 **Expected Final Result:**
+
 - Unit Tests: ~550-650 (70-80%) ✅
 - Integration Tests: ~120-150 (15-20%) ✅
 - E2E Tests: ~50-80 (5-10%) ✅
@@ -417,32 +437,38 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 ## Implementation Priority
 
 ### Immediate (Next Sprint)
+
 1. ✅ Move summarizer tests from E2E to unit (67 tests)
 2. ✅ Add unit tests for workflow helper functions (30-50 tests)
 3. ✅ Add unit tests for summarizer core functions (45-65 tests)
 
 ### Short Term (Next 2-3 Sprints)
+
 4. Add unit tests for speaker detection functions (19-31 tests)
 5. Add unit tests for other core functions (17-28 tests)
 6. Move component interaction tests from E2E to integration (30-40 tests)
 
 ### Medium Term (Next Quarter)
+
 7. Add missing integration tests for component interactions (19-31 tests)
 8. Review and reduce E2E tests to true E2E only (reduce by 50-100 tests)
 
 ## Success Metrics
 
 ### Target Distribution
+
 - **Unit Tests:** 70-80% (currently 39.3%, need +30-40%)
 - **Integration Tests:** 15-20% (currently 26.2%, need -6-11%)
 - **E2E Tests:** 5-10% (currently 34.4%, need -24-29%)
 
 ### Target Test Counts
+
 - **Unit Tests:** 500-600 tests (currently 297, need +203-303)
 - **Integration Tests:** 110-140 tests (currently 194, need -54-84)
 - **E2E Tests:** 50-80 tests (currently 226, need -146-176)
 
 ### Quality Metrics
+
 - Unit test execution time: < 30 seconds (currently ~10-15s, good)
 - Integration test execution time: < 5 minutes (currently ~3-4min, good)
 - E2E test execution time: < 20 minutes (currently ~15-20min, acceptable)
@@ -460,20 +486,24 @@ This analysis is based on the definitions in [Testing Strategy](../TESTING_STRAT
 ## Risks & Mitigations
 
 ### Risk 1: Breaking Existing Tests During Migration
+
 - **Mitigation:** Move tests incrementally, verify after each move
 - **Mitigation:** Keep E2E tests until unit tests are verified
 
 ### Risk 2: Missing Edge Cases During Migration
+
 - **Mitigation:** Review each test before moving to ensure coverage maintained
 - **Mitigation:** Add integration tests for complex interactions
 
 ### Risk 3: Increased Maintenance Burden
+
 - **Mitigation:** Unit tests are actually easier to maintain than E2E tests
 - **Mitigation:** Better organization makes tests easier to find and update
 
 ## Testing Strategy Alignment
 
 This analysis is based on and aligns with:
+
 - **[Testing Strategy](../TESTING_STRATEGY.md)** - Primary source for test type definitions
 - **Decision Tree:** Complete user workflow? → E2E | Component interactions? → Integration | Single function? → Unit
 - **Entry Point Criteria:** User-level (CLI/API) = E2E | Component-level = Integration | Function-level = Unit
@@ -486,4 +516,3 @@ This analysis is based on and aligns with:
 - [RFC-018: Test Structure Reorganization](../rfc/RFC-018-test-structure-reorganization.md)
 - [RFC-019: E2E Test Infrastructure](../rfc/RFC-019-e2e-test-improvements.md)
 - [RFC-024: Test Execution Optimization](../rfc/RFC-024-test-execution-optimization.md)
-

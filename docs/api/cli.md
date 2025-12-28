@@ -36,9 +36,12 @@ python -m podcast_scraper.cli --config config.yaml
       show_root_heading: true
       heading_level: 3
       members:
+
+```yaml
         - main
         - version_option
       show_source: false
+```
 
 ## Main Entry Point
 

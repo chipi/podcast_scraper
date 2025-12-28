@@ -53,6 +53,7 @@ This RFC defines a strategy for **consuming and visualizing test metrics** to en
 ### Primary Goal
 
 **Quick Metrics Consumption:**
+
 - Enable deviation detection in **< 60 seconds**
 - Multiple access methods (browser, API, PR checks)
 - Automatic alerts for regressions
@@ -142,7 +143,6 @@ This RFC defines a strategy for **consuming and visualizing test metrics** to en
   ]
 }
 ```
-**Consumption:**
 
 ```bash
 # Quick check (< 5 seconds)
@@ -151,7 +151,6 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.metri
 # Check for regressions
 curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.alerts[]'
 ```
-### 2. HTML Dashboard (Human-Readable)
 
 **Location:** `https://chipi.github.io/podcast_scraper/metrics/`
 
@@ -205,7 +204,6 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.alert
   </div>
 </div>
 ```
-### 3. Historical Data (JSONL Format)
 
 **Location:** `https://chipi.github.io/podcast_scraper/metrics/history.jsonl`
 
@@ -215,7 +213,6 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.alert
 {"timestamp":"2024-12-28T19:00:00Z","commit":"abc123","runtime":35.2,"coverage":65.1,"passed":248}
 {"timestamp":"2024-12-28T20:00:00Z","commit":"def456","runtime":35.7,"coverage":65.3,"passed":248}
 ```
-**Benefits:**
 
 - Easy to parse line-by-line
 - Efficient for streaming
@@ -248,7 +245,6 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.alert
     git commit -m "Update metrics: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     git push origin gh-pages
 ```
-## Quick Deviation Detection (< 60 seconds)
 
 ### Method 1: Browser Dashboard (10 seconds)
 
@@ -265,7 +261,6 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.alert
 # Compare with previous run
 curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.trends'
 ```
-### Method 3: GitHub Actions Job Summary (0 seconds)
 
 - View directly in PR checks
 - Shows key metrics and alerts
@@ -321,7 +316,6 @@ def detect_deviations(current, history):
 
     return alerts
 ```
-## Implementation Plan
 
 ### Phase 1: Basic JSON API (1-2 days)
 
@@ -461,4 +455,3 @@ def detect_deviations(current, history):
 - GitHub Pages must be enabled for the repository
 - Metrics are public (no authentication)
 - Historical data grows over time (consider retention policy)
-

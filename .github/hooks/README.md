@@ -24,7 +24,7 @@ The hook runs checks **only on staged files** (files you're committing), making 
 - **YAML syntax validation** (YAML/YML files - uses yamllint if available, otherwise Python yaml module)
 - **mypy** type checking (Python files)
 
-> **Note:** If you're committing markdown files, `markdownlint` must be installed. Install it with: `npm install -g markdownlint-cli`  
+> **Note:** If you're committing markdown files, `markdownlint` must be installed. Install it with: `npm install -g markdownlint-cli`
 > **Note:** For better YAML validation, install `yamllint` with: `pip install yamllint` (optional - Python yaml module is used as fallback)
 
 ### Behavior

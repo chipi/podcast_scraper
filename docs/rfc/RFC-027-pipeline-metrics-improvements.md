@@ -233,7 +233,7 @@ def log_metrics(self) -> None:
 @dataclass
 class Metrics:
     # ... existing metrics ...
-    
+
     # New metrics
     time_rss_fetch: float = 0.0  # RSS fetch time (separate from parsing)
     whisper_model_loading_time: float = 0.0  # Whisper model loading time

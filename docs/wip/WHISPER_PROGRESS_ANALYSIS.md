@@ -79,31 +79,31 @@
 ```python
 class WhisperProgressInterceptor:
     """Intercepts Whisper's tqdm calls and forwards to our progress bar."""
-    
+
     def __init__(self, our_progress_bar):
         self.our_bar = our_progress_bar
         self.original_tqdm = None
-        
+
     def __enter__(self):
         import tqdm
         self.original_tqdm = tqdm.tqdm
-        
+
         class InterceptedTqdm(tqdm.tqdm):
             def __init__(self, *args, **kwargs):
                 # Suppress tqdm's own output
                 kwargs['file'] = open(os.devnull, 'w')
                 kwargs['disable'] = True  # Disable tqdm's display
                 super().__init__(*args, **kwargs)
-                
+
             def update(self, n=1):
                 super().update(n)
                 # Forward to our progress bar
                 if self.our_bar:
                     self.our_bar.update(n)
-        
+
         tqdm.tqdm = InterceptedTqdm
         return self
-        
+
     def __exit__(self, *args):
         import tqdm
         tqdm.tqdm = self.original_tqdm

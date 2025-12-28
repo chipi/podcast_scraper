@@ -1,6 +1,6 @@
 # Release v2.2.0 - Metadata Generation & Code Quality Improvements
 
-**Release Date:** December 2024  
+**Release Date:** December 2024
 **Type:** Minor Release
 
 ## Summary

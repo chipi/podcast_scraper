@@ -195,4 +195,3 @@ The GitHub Actions workflow runs `make lint-markdown` which includes:
 
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices
 - [CI/CD](CI_CD.md) - Continuous integration pipeline details
-

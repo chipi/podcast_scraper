@@ -9,6 +9,7 @@ For high-level architectural decisions, see [Architecture](ARCHITECTURE.md). For
 The summarization feature generates concise summaries of podcast episode transcripts using local transformer models (BART, PEGASUS, LED). It implements a hybrid map-reduce strategy that efficiently handles transcripts of any length, from short episodes to very long multi-hour conversations.
 
 **Key Features:**
+
 - Local-first approach for privacy and cost-effectiveness
 - Automatic hardware detection (MPS/CUDA/CPU)
 - Hybrid MAP-REDUCE architecture for long transcripts
@@ -28,7 +29,7 @@ flowchart TD
     WriteCleaned --> CheckSize{Text Size<br/>Check}
     CheckSize -->|Fits in Context| DirectSummarize[Direct Summarization<br/>Single Pass]
     CheckSize -->|Too Long| StartMapReduce[Begin MAP-REDUCE Pipeline]
-    
+
     StartMapReduce --> ChunkText[Chunk Text<br/>Token-based or Word-based]
     ChunkText --> MapPhase[MAP PHASE<br/>Summarize Each Chunk]
     MapPhase --> MapModel[Use MAP Model<br/>Default: BART-large]
@@ -37,32 +38,32 @@ flowchart TD
     ParallelCheck -->|GPU/MPS| SequentialMap[Sequential Processing<br/>Avoid Thrashing]
     ParallelMap --> ChunkSummaries[Chunk Summaries<br/>Generated]
     SequentialMap --> ChunkSummaries
-    
+
     ChunkSummaries --> CombineSummaries[Combine Summaries]
     CombineSummaries --> CheckCombinedSize{Combined<br/>Token Count?}
-    
+
     CheckCombinedSize -->|≤800 tokens| SinglePass[SINGLE-PASS ABSTRACTIVE<br/>Direct Final Summary]
     CheckCombinedSize -->|800-4000 tokens| MiniMapReduce[HIERARCHICAL REDUCE<br/>Mini Map-Reduce]
     CheckCombinedSize -->|>4000 tokens| Extractive[EXTRACTIVE APPROACH<br/>Select Key Chunks]
-    
+
     MiniMapReduce --> RechunkSummaries[Re-chunk Combined Summaries<br/>3-5 sections, 650 words each]
     RechunkSummaries --> SummarizeSections[Summarize Each Section]
     SummarizeSections --> CheckIterations{More<br/>Iterations<br/>Needed?}
     CheckIterations -->|Yes, <4 passes| RechunkSummaries
     CheckIterations -->|No| FinalAbstractive[Final Abstractive Reduce]
-    
+
     Extractive --> SelectKeyChunks[Select Representative Chunks<br/>First, Middle, Last, Quartiles]
     SelectKeyChunks --> FinalExtractivePass{Still Too<br/>Long?}
     FinalExtractivePass -->|Yes| FinalExtractSummarize[Final Summarization Pass]
     FinalExtractivePass -->|No| UseExtractiveOutput[Use Selected Chunks]
     FinalExtractSummarize --> FinalSummary
     UseExtractiveOutput --> FinalSummary
-    
+
     SinglePass --> ReduceModel[Use REDUCE Model<br/>Default: LED long-fast]
     ReduceModel --> FinalAbstractive
     FinalAbstractive --> FinalSummary[Final Summary Generated]
     DirectSummarize --> FinalSummary
-    
+
     FinalSummary --> ValidateSummary[Validate Summary<br/>Check for repetition/leaks]
     ValidateSummary --> StripLeaks[Strip Instruction Leaks]
     StripLeaks --> FixRepetitive[Fix Repetitive Content]
@@ -70,7 +71,7 @@ flowchart TD
     CreateMetadata --> StoreInMetadata[Store in Episode Metadata<br/>JSON/YAML]
     StoreInMetadata --> Complete([Summarization Complete])
     Skip --> Complete
-    
+
     style Start fill:#e1f5ff
     style CleanTranscript fill:#fff3cd
     style MapPhase fill:#ffd4a3
@@ -219,4 +220,3 @@ See [Configuration Documentation](api/configuration.md) for complete configurati
 - [Custom Provider Guide](CUSTOM_PROVIDER_GUIDE.md) - Creating custom summarization providers
 - [PRD-005](prd/PRD-005-episode-summarization.md) - Product requirements for summarization
 - [RFC-012](rfc/RFC-012-episode-summarization.md) - Design decisions for summarization
-

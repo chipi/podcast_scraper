@@ -1,6 +1,6 @@
 # Release v2.1.0 - Automatic Speaker Detection & Metadata Generation Design
 
-**Release Date:** November 13, 2025  
+**Release Date:** November 13, 2025
 **Type:** Minor Release
 
 ## Summary

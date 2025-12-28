@@ -276,7 +276,7 @@ def process_episode(
 class EpisodeProcessor:
     def __init__(self, cfg: config.Config):
         self.whisper_model = whisper.load_whisper_model(cfg)
-    
+
     def transcribe(self, audio_path: str):
         return whisper.transcribe_with_whisper(self.whisper_model, audio_path, self.cfg)
 ```
@@ -288,11 +288,11 @@ class EpisodeProcessor:
     def __init__(self, cfg: config.Config):
         self.transcription_provider = create_transcription_provider(cfg)
         self.transcription_provider.initialize()
-    
+
     def transcribe(self, audio_path: str):
         result_dict, elapsed = self.transcription_provider.transcribe_with_segments(audio_path)
         return result_dict["text"]
-    
+
     def cleanup(self):
         self.transcription_provider.cleanup()
 ```
@@ -392,7 +392,7 @@ def test_with_mock_provider():
     mock_provider.transcribe_with_segments.return_value = (
         {"text": "mocked text"}, 1.0
     )
-    
+
     result_dict, elapsed = mock_provider.transcribe_with_segments("test.mp3")
     assert result_dict["text"] == "mocked text"
 ```
@@ -431,18 +431,18 @@ def process_episode(episode, cfg):
     whisper_model = whisper.load_whisper_model(cfg)
     nlp = speaker_detection.get_ner_model(cfg)
     summary_model = summarizer.SummaryModel(...)
-    
+
     # Transcribe
     result, elapsed = whisper.transcribe_with_whisper(whisper_model, episode.audio_path, cfg)
     text = result["text"]
-    
+
     # Detect speakers
     hosts = speaker_detection.detect_hosts_from_feed(...)
     speakers, _, _ = speaker_detection.detect_speaker_names(...)
-    
+
     # Summarize
     summary_result = summarizer.summarize_long_text(text, summary_model, ...)
-    
+
     return text, speakers, summary_result["summary"]
 ```
 
@@ -458,26 +458,26 @@ def process_episode(episode, cfg):
     transcription_provider = create_transcription_provider(cfg)
     speaker_detector = create_speaker_detector(cfg)
     summary_provider = create_summarization_provider(cfg)
-    
+
     # Initialize
     transcription_provider.initialize()
     speaker_detector.initialize()
     summary_provider.initialize()
-    
+
     try:
         # Transcribe
         result_dict, elapsed = transcription_provider.transcribe_with_segments(
             episode.audio_path
         )
         text = result_dict["text"]
-        
+
         # Detect speakers
         hosts = speaker_detector.detect_hosts(...)
         speakers, _, _ = speaker_detector.detect_speakers(...)
-        
+
         # Summarize
         summary_result = summary_provider.summarize(text, ...)
-        
+
         return text, speakers, summary_result["summary"]
     finally:
         # Cleanup

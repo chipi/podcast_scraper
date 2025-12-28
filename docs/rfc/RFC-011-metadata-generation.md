@@ -70,7 +70,7 @@ class FeedMetadata(BaseModel):
     authors: List[str] = Field(default_factory=list)
     image_url: Optional[str] = None
     last_updated: Optional[datetime] = None
-    
+
     @field_serializer('last_updated')
     def serialize_last_updated(self, value: Optional[datetime]) -> Optional[str]:
         """Serialize datetime as ISO 8601 string for database compatibility."""
@@ -87,7 +87,7 @@ class EpisodeMetadata(BaseModel):
     episode_number: Optional[int] = None
     image_url: Optional[str] = None
     episode_id: str  # Stable unique identifier for database primary keys
-    
+
     @field_serializer('published_date')
     def serialize_published_date(self, value: Optional[datetime]) -> Optional[str]:
         """Serialize datetime as ISO 8601 string for database compatibility."""
@@ -119,7 +119,7 @@ class ProcessingMetadata(BaseModel):
     run_id: Optional[str] = None
     config_snapshot: Dict[str, Any] = Field(default_factory=dict)
     schema_version: str = "1.0.0"
-    
+
     @field_serializer('processing_timestamp')
     def serialize_processing_timestamp(self, value: datetime) -> str:
         """Serialize datetime as ISO 8601 string for database compatibility."""
@@ -127,16 +127,16 @@ class ProcessingMetadata(BaseModel):
 
 class EpisodeMetadataDocument(BaseModel):
     """Complete episode metadata document.
-    
+
     Schema designed for direct ingestion into databases:
     - PostgreSQL JSONB: Nested structure works natively
     - MongoDB: Document structure matches MongoDB document model
     - Elasticsearch: Nested objects can be indexed and queried
     - ClickHouse: JSON column type supports nested queries
-    
+
     Field naming uses snake_case for database compatibility.
     All datetime fields are serialized as ISO 8601 strings.
-    
+
     The `feed.feed_id` and `episode.episode_id` fields provide stable, unique identifiers
     suitable for use as primary keys in all target databases. Optional `transcript_id` and
     `media_id` fields enable tracking individual content items separately if needed.
@@ -161,7 +161,7 @@ def generate_episode_metadata(
     run_suffix: Optional[str] = None,
 ) -> Optional[str]:
     """Generate metadata document for an episode.
-    
+
     Returns:
         Path to generated metadata file, or None if generation skipped
     """
@@ -272,20 +272,20 @@ from urllib.parse import urlparse
 
 def generate_feed_id(feed_url: str) -> str:
     """Generate stable unique identifier for feed.
-    
+
     Args:
         feed_url: RSS feed URL
-        
+
     Returns:
         Stable unique identifier string (format: sha256:<hex_digest>)
     """
     # Normalize feed URL (remove trailing slash, lowercase, remove query params/fragments)
     parsed = urlparse(feed_url)
     normalized = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip('/').lower()
-    
+
     # Generate SHA-256 hash
     hash_digest = hashlib.sha256(normalized.encode('utf-8')).hexdigest()
-    
+
     return f"sha256:{hash_digest}"
 ```
 
@@ -334,43 +334,43 @@ def generate_episode_id(
     episode_number: Optional[int] = None,
 ) -> str:
     """Generate stable unique identifier for episode.
-    
+
     Priority:
     1. RSS GUID if available
     2. Deterministic hash from feed URL + title + published_date + link
     3. Composite key as last resort
-    
+
     Returns:
         Stable unique identifier string
     """
     # Priority 1: Use RSS GUID if available
     if episode_guid:
         return episode_guid.strip()
-    
+
     # Priority 2: Generate deterministic hash
     # Normalize feed URL (remove trailing slash, lowercase)
     normalized_feed = urlparse(feed_url).geturl().rstrip('/').lower()
-    
+
     # Normalize title (lowercase, strip whitespace)
     normalized_title = episode_title.strip().lower()
-    
+
     # Build hash input from stable components
     hash_components = [
         normalized_feed,
         normalized_title,
     ]
-    
+
     if published_date:
         hash_components.append(published_date.isoformat())
-    
+
     if episode_link:
         normalized_link = urlparse(episode_link).geturl().rstrip('/').lower()
         hash_components.append(normalized_link)
-    
+
     # Generate SHA-256 hash
     hash_input = '|'.join(hash_components).encode('utf-8')
     hash_digest = hashlib.sha256(hash_input).hexdigest()
-    
+
     return f"sha256:{hash_digest}"
 ```
 
@@ -393,20 +393,20 @@ Content IDs are optional and only generated when needed for tracking individual 
 ```python
 def generate_content_id(content_url: str) -> str:
     """Generate stable unique identifier for content item (transcript or media).
-    
+
     Args:
         content_url: URL of the content item
-        
+
     Returns:
         Stable unique identifier string (format: sha256:<hex_digest>)
     """
     # Normalize URL (remove trailing slash, lowercase, remove query params/fragments)
     parsed = urlparse(content_url)
     normalized = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip('/').lower()
-    
+
     # Generate SHA-256 hash
     hash_digest = hashlib.sha256(normalized.encode('utf-8')).hexdigest()
-    
+
     return f"sha256:{hash_digest}"
 ```
 
@@ -617,7 +617,7 @@ CREATE INDEX idx_metadata_gin ON episode_metadata USING GIN (metadata);
 
 -- Load single file (using episode_id from metadata)
 INSERT INTO episode_metadata (episode_id, metadata)
-SELECT 
+SELECT
     metadata->'episode'->>'episode_id' as episode_id,
     metadata::jsonb
 FROM (SELECT '{"feed": {...}, "episode": {"episode_id": "sha256:abc123..."}, ...}'::jsonb as metadata) as m
@@ -731,7 +731,7 @@ CREATE TABLE episode_metadata (
 ORDER BY (metadata.episode.episode_id);
 
 -- Load from JSON file (JSONEachRow format)
-INSERT INTO episode_metadata 
+INSERT INTO episode_metadata
 SELECT * FROM file('/path/to/metadata.json', JSONEachRow);
 
 -- Create materialized columns for frequently queried fields
@@ -740,8 +740,8 @@ ADD COLUMN episode_title String MATERIALIZED metadata.episode.title,
 ADD COLUMN published_date Date MATERIALIZED toDate(metadata.episode.published_date);
 
 -- Query examples
-SELECT metadata.episode.title 
-FROM episode_metadata 
+SELECT metadata.episode.title
+FROM episode_metadata
 WHERE has(metadata.content.detected_guests, 'John Doe');
 
 SELECT * FROM episode_metadata

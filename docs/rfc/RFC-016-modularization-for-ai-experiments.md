@@ -118,7 +118,7 @@ from .. import config
 
 class SummarizationProvider(Protocol):
     """Protocol for summarization providers."""
-    
+
     def summarize(
         self,
         text: str,
@@ -127,13 +127,13 @@ class SummarizationProvider(Protocol):
         params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Summarize text.
-        
+
         Args:
             text: Transcript text to summarize
             episode_title: Optional episode title
             episode_description: Optional episode description
             params: Optional parameters (max_length, min_length, etc.)
-            
+
         Returns:
             Dictionary with summary results:
             {
@@ -157,12 +157,12 @@ from .. import config
 
 class LocalSummarizationProvider:
     """Local transformer-based summarization provider."""
-    
+
     def __init__(self, cfg: config.Config):
         """Initialize local summarization provider."""
         self.cfg = cfg
         self.model = self._load_model()
-    
+
     def summarize(
         self,
         text: str,
@@ -188,7 +188,7 @@ def generate_episode_metadata(
     ...
 ) -> Optional[str]:
     """Generate episode metadata.
-    
+
     Args:
         summarization_provider: Optional summarization provider.
                                If None, creates default provider from config.
@@ -197,7 +197,7 @@ def generate_episode_metadata(
         # Create default provider from config (backward compatibility)
         from .providers.summarization.factory import create_summarization_provider
         summarization_provider = create_summarization_provider(cfg)
-    
+
     # Use provider instead of direct summarizer calls
     summary_result = summarization_provider.summarize(
         text=transcript_text,
@@ -261,13 +261,13 @@ class OpenAISummarizationProvider:
             cfg.summary_system_prompt or "summarization/system_v1",
             **cfg.summary_prompt_params,
         ) if cfg.summary_system_prompt else None
-        
+
         user_prompt = render_prompt(
             cfg.summary_user_prompt or "summarization/long_v1",
             transcript=text,
             **cfg.summary_prompt_params,
         )
-        
+
         # Use prompts in API call...
 ```
 
@@ -311,17 +311,17 @@ from podcast_scraper import config
 
 class SummarizationBackend:
     """Backend adapter for experiment pipeline."""
-    
+
     def __init__(self, experiment_config: Dict[str, Any]):
         """Initialize backend from experiment config."""
         self.config = experiment_config
-        
+
         # Convert experiment config to Config object
         cfg = self._create_config_from_experiment(experiment_config)
-        
+
         # Create provider using factory
         self.provider = create_summarization_provider(cfg)
-    
+
     def summarize(
         self,
         transcript: str,
@@ -332,14 +332,14 @@ class SummarizationBackend:
         """Summarize transcript using configured provider."""
         # Merge experiment params with method params
         merged_params = {**(self.config.get("params", {})), **(params or {})}
-        
+
         return self.provider.summarize(
             text=transcript,
             episode_title=episode_title,
             episode_description=episode_description,
             params=merged_params,
         )
-    
+
     def _create_config_from_experiment(self, exp_config: Dict[str, Any]) -> config.Config:
         """Convert experiment config to Config object."""
         # Map experiment config to Config fields
@@ -360,7 +360,7 @@ def evaluate_summaries(
     gold_data: Dict[str, Dict[str, str]],
 ) -> Dict[str, Any]:
     """Evaluate summaries against golden dataset.
-    
+
     Args:
         predictions: List of prediction dicts with:
             {
@@ -377,7 +377,7 @@ def evaluate_summaries(
                     "summary_short": "..."
                 }
             }
-    
+
     Returns:
         Metrics dictionary:
         {
@@ -442,15 +442,15 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     summarization_provider = None
     if cfg.generate_summaries and not cfg.dry_run:
         summarization_provider = create_summarization_provider(cfg)
-    
+
     speaker_detector = None
     if cfg.auto_speakers:
         speaker_detector = create_speaker_detector(cfg)
-    
+
     transcription_provider = None
     if cfg.transcribe_missing:
         transcription_provider = create_transcription_provider(cfg)
-    
+
     # Pass providers to metadata generation
     # ...
 ```
@@ -466,7 +466,7 @@ from podcast_scraper import config
 
 def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config:
     """Map experiment config to Config object.
-    
+
     Example:
         experiment_config = {
             "models": {
@@ -474,15 +474,16 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
             },
             "params": {"max_length": 500, "temperature": 0.7}
         }
-        
+
         Returns Config object with:
         - summary_provider = "openai"
         - openai_summarization_model = "gpt-4o-mini"
         - summary_max_length = 500
         - (temperature mapped to OpenAI-specific config if supported)
     """
+
     config_dict = {}
-    
+
     # Map models
     if "summarizer" in experiment_config.get("models", {}):
         model_config = experiment_config["models"]["summarizer"]
@@ -497,7 +498,7 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
                 reduce_config = experiment_config["models"]["reduce"]
                 if reduce_config["type"] == "hf_local":
                     config_dict["summary_reduce_model"] = reduce_config["name"]
-    
+
     # Map params
     if "params" in experiment_config:
         params = experiment_config["params"]
@@ -516,7 +517,7 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
         # OpenAI-specific params (if supported in Config)
         # Note: Some OpenAI params (temperature, etc.) may need to be passed
         # directly to provider, not via Config
-    
+
     # Map prompts (using prompt_store from RFC-017)
     if "prompts" in experiment_config:
         prompts = experiment_config["prompts"]
@@ -527,7 +528,7 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
             config_dict["summary_user_prompt"] = prompts["user"]
         if "params" in prompts:
             config_dict["summary_prompt_params"] = prompts["params"]
-    
+
     return config.Config(**config_dict)
 ```
 

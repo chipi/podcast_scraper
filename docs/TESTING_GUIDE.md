@@ -888,4 +888,3 @@ Keep a test as integration if:
 - CI workflow: `.github/workflows/python-app.yml`
 - Architecture: [ARCHITECTURE.md](ARCHITECTURE.md) (Testing Notes section)
 - Contributing guide: `CONTRIBUTING.md` (Testing Requirements section)
-

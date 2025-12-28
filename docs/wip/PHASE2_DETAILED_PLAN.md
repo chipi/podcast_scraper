@@ -4,8 +4,8 @@
 
 **Goal:** Add ~150-200 new unit tests for untested core functions to reach 70-80% unit test coverage.
 
-**Current State:** 356 unit tests (50.2%)  
-**Target State:** 500-600 unit tests (70-80%)  
+**Current State:** 356 unit tests (50.2%)
+**Target State:** 500-600 unit tests (70-80%)
 **Gap:** ~144-244 tests needed
 
 ## Strategy: Divide and Conquer
@@ -16,9 +16,9 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 
 ## Sub-Phase 2.1: Preprocessing Functions (Quick Win) ⭐
 
-**Priority:** High (Easy, High Impact)  
-**Estimated Time:** 2-3 hours  
-**Target Tests:** 15-20 tests  
+**Priority:** High (Easy, High Impact)
+**Estimated Time:** 2-3 hours
+**Target Tests:** 15-20 tests
 **File:** `tests/unit/podcast_scraper/test_preprocessing.py`
 
 ### Functions to Test
@@ -55,6 +55,7 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 4. Verify tests pass and are fast (< 100ms each)
 
 **Success Criteria:**
+
 - ✅ All 4 functions have unit tests
 - ✅ Tests run in < 1 second total
 - ✅ No network/filesystem I/O (unit test isolation)
@@ -63,9 +64,9 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 
 ## Sub-Phase 2.2: Filesystem Utilities (Quick Win) ⭐
 
-**Priority:** High (Easy, High Impact)  
-**Estimated Time:** 2-3 hours  
-**Target Tests:** 12-18 tests  
+**Priority:** High (Easy, High Impact)
+**Estimated Time:** 2-3 hours
+**Target Tests:** 12-18 tests
 **File:** `tests/unit/podcast_scraper/test_filesystem.py` (extend existing)
 
 ### Functions to Test
@@ -114,6 +115,7 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 3. Ensure all tests use mocks for filesystem operations (or tempfile)
 
 **Success Criteria:**
+
 - ✅ All 7 functions have unit tests
 - ✅ Tests use tempfile or mocks (no real filesystem I/O)
 - ✅ Tests run in < 1 second total
@@ -122,9 +124,9 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 
 ## Sub-Phase 2.3: Progress Reporting (Quick Win) ⭐
 
-**Priority:** High (Easy, Isolated)  
-**Estimated Time:** 1-2 hours  
-**Target Tests:** 8-12 tests  
+**Priority:** High (Easy, Isolated)
+**Estimated Time:** 1-2 hours
+**Target Tests:** 8-12 tests
 **File:** `tests/unit/podcast_scraper/test_progress.py` (new)
 
 ### Functions to Test
@@ -154,6 +156,7 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 3. Verify no external dependencies
 
 **Success Criteria:**
+
 - ✅ All progress functions have unit tests
 - ✅ Tests are fast and isolated
 - ✅ No external dependencies
@@ -162,9 +165,9 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 
 ## Sub-Phase 2.4: Metrics Collection (Quick Win) ⭐
 
-**Priority:** High (Easy, Isolated)  
-**Estimated Time:** 2-3 hours  
-**Target Tests:** 15-20 tests  
+**Priority:** High (Easy, Isolated)
+**Estimated Time:** 2-3 hours
+**Target Tests:** 15-20 tests
 **File:** `tests/unit/podcast_scraper/test_metrics.py` (new)
 
 ### Functions to Test
@@ -212,6 +215,7 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 3. Test each method in isolation
 
 **Success Criteria:**
+
 - ✅ All Metrics methods have unit tests
 - ✅ Tests are deterministic (mocked time)
 - ✅ Tests run in < 1 second total
@@ -220,9 +224,9 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 
 ## Sub-Phase 2.5: Episode Processor Utilities (Medium Complexity)
 
-**Priority:** Medium (Moderate Complexity)  
-**Estimated Time:** 3-4 hours  
-**Target Tests:** 10-15 tests  
+**Priority:** Medium (Moderate Complexity)
+**Estimated Time:** 3-4 hours
+**Target Tests:** 10-15 tests
 **File:** `tests/unit/podcast_scraper/test_episode_processor.py` (new)
 
 ### Functions to Test
@@ -251,6 +255,7 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 3. Focus on pure functions first (extension derivation)
 
 **Success Criteria:**
+
 - ✅ Extension derivation functions have unit tests
 - ✅ Tests use mocks for I/O operations
 - ✅ Tests run in < 2 seconds total
@@ -259,9 +264,9 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 
 ## Sub-Phase 2.6: CLI Argument Parsing (Medium Complexity)
 
-**Priority:** Medium (Moderate Complexity)  
-**Estimated Time:** 4-5 hours  
-**Target Tests:** 20-30 tests  
+**Priority:** Medium (Moderate Complexity)
+**Estimated Time:** 4-5 hours
+**Target Tests:** 20-30 tests
 **File:** `tests/unit/podcast_scraper/test_cli.py` (new)
 
 ### Functions to Test
@@ -315,6 +320,7 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 4. Test config building with mocked dependencies
 
 **Success Criteria:**
+
 - ✅ All validation functions have unit tests
 - ✅ Config loading/building has unit tests
 - ✅ Tests use mocks for filesystem operations
@@ -324,9 +330,9 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 
 ## Sub-Phase 2.7: Service API (Medium Complexity)
 
-**Priority:** Medium (Moderate Complexity)  
-**Estimated Time:** 2-3 hours  
-**Target Tests:** 8-12 tests  
+**Priority:** Medium (Moderate Complexity)
+**Estimated Time:** 2-3 hours
+**Target Tests:** 8-12 tests
 **File:** `tests/unit/podcast_scraper/test_service.py` (extend existing)
 
 ### Functions to Test
@@ -355,6 +361,7 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 3. Mock workflow.run_pipeline and config.load_config_file
 
 **Success Criteria:**
+
 - ✅ All service functions have unit tests
 - ✅ Tests mock workflow and config dependencies
 - ✅ Tests run in < 1 second total
@@ -363,9 +370,9 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 
 ## Sub-Phase 2.8: Workflow Helper Functions (High Complexity) 🔥
 
-**Priority:** High (Complex, Core Functionality)  
-**Estimated Time:** 8-12 hours  
-**Target Tests:** 30-50 tests  
+**Priority:** High (Complex, Core Functionality)
+**Estimated Time:** 8-12 hours
+**Target Tests:** 30-50 tests
 **File:** `tests/unit/podcast_scraper/test_workflow.py` (new)
 
 ### Functions to Test
@@ -449,6 +456,7 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 4. Use tempfile for any needed temporary directories
 
 **Success Criteria:**
+
 - ✅ All 10 helper functions have unit tests
 - ✅ All external dependencies are mocked
 - ✅ Tests use tempfile (no real filesystem I/O)
@@ -458,9 +466,9 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 
 ## Sub-Phase 2.9: Summarizer Core Functions (High Complexity) 🔥
 
-**Priority:** High (Complex, Many Functions)  
-**Estimated Time:** 10-15 hours  
-**Target Tests:** 45-65 tests  
+**Priority:** High (Complex, Many Functions)
+**Estimated Time:** 10-15 hours
+**Target Tests:** 45-65 tests
 **File:** `tests/unit/podcast_scraper/test_summarizer_functions.py` (new, or extend existing)
 
 ### Functions to Test
@@ -525,6 +533,7 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 4. Focus on logic testing, not model integration
 
 **Success Criteria:**
+
 - ✅ All summarizer core functions have unit tests
 - ✅ All ML dependencies are mocked
 - ✅ Tests run in < 5 seconds total
@@ -534,9 +543,9 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 
 ## Sub-Phase 2.10: Speaker Detection Functions (Medium Complexity)
 
-**Priority:** Medium (Some ML Dependencies)  
-**Estimated Time:** 4-6 hours  
-**Target Tests:** 19-31 tests  
+**Priority:** Medium (Some ML Dependencies)
+**Estimated Time:** 4-6 hours
+**Target Tests:** 19-31 tests
 **File:** `tests/unit/podcast_scraper/test_speaker_detection.py` (extend existing)
 
 ### Functions to Test
@@ -574,6 +583,7 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 4. Test pure logic functions without ML deps
 
 **Success Criteria:**
+
 - ✅ All speaker detection functions have unit tests
 - ✅ spacy is mocked (no real model loading)
 - ✅ Tests run in < 3 seconds total
@@ -599,6 +609,7 @@ This plan breaks Phase 2 into **8 sub-phases**, each focusing on a specific modu
 ### Tracking Progress
 
 For each sub-phase:
+
 - ✅ Create test file
 - ✅ Write test cases
 - ✅ Verify tests pass
@@ -617,7 +628,7 @@ For each sub-phase:
 ## Estimated Total Effort
 
 | Sub-Phase | Tests | Time | Priority |
-|-----------|-------|------|----------|
+| ----------- | ------- | ------ | ---------- |
 | 2.1: Preprocessing | 15-20 | 2-3h | ⭐ High |
 | 2.2: Filesystem | 12-18 | 2-3h | ⭐ High |
 | 2.3: Progress | 8-12 | 1-2h | ⭐ High |
@@ -650,4 +661,3 @@ For each sub-phase:
 - [Testing Strategy](../TESTING_STRATEGY.md) - Unit test requirements
 - [Phase 1 Plan](TEST_PYRAMID_PLAN.md) - Completed phase
 - [Full Analysis](TEST_PYRAMID_ANALYSIS.md) - Complete analysis
-

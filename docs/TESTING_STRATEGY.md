@@ -510,14 +510,14 @@ The test suite is organized into three main categories:
 The test pyramid shows our current distribution compared to the ideal:
 
 **Current Distribution:**
+
 - **Unit Tests**: ~41% (target: 70-80%) ⚠️ Too Low
 - **Integration Tests**: ~27% (target: 15-20%) ⚠️ Too High
 - **E2E Tests**: ~31% (target: 5-10%) ❌ Too High
 
 **Visual Representation:**
 
-```
-Current Pyramid (Inverted):
+```text
         ╱╲
        ╱  ╲      E2E: 31% (should be 5-10%)
       ╱    ╲
@@ -555,11 +555,13 @@ Ideal Pyramid:
 ### Goals and Targets
 
 **Target Distribution:**
+
 - **Unit Tests**: 70-80% (~550-650 tests)
 - **Integration Tests**: 15-20% (~120-150 tests)
 - **E2E Tests**: 5-10% (~50-80 tests)
 
 **Success Metrics:**
+
 - Unit test execution time: < 30 seconds
 - Integration test execution time: < 5 minutes
 - E2E test execution time: < 20 minutes
@@ -568,11 +570,13 @@ Ideal Pyramid:
 ### Improvement Strategy
 
 **Phase 1: Reclassify Misplaced Tests** (High Priority)
+
 - Move 67 summarizer tests from E2E to unit (they test individual functions with mocked dependencies)
 - Review and reclassify E2E tests that violate testing strategy definitions
 - **Expected Result**: Unit: ~50-51%, Integration: ~27-28%, E2E: ~22-23%
 
 **Phase 2: Add Missing Unit Tests** (High Priority)
+
 - Add unit tests for core functions currently untested:
   - `workflow.py` helper functions (8-10 tests)
   - `episode_processor.py` functions (5-8 tests)
@@ -584,11 +588,13 @@ Ideal Pyramid:
 - **Expected Result**: Unit: ~69-83%, Integration: ~27-28%, E2E: ~22-23%
 
 **Phase 3: Optimize Integration Layer** (Medium Priority)
+
 - Move component interaction tests from E2E to integration (~20-40 tests)
 - Add missing integration tests for component-to-component interactions (~19-31 tests)
 - **Expected Result**: Unit: ~69-83%, Integration: ~30-32%, E2E: ~16-19%
 
 **Phase 4: Reduce E2E to True E2E** (Low Priority)
+
 - Keep only true end-to-end user workflow tests
 - Focus on complete user journeys (CLI commands, library API calls, service API calls)
 - **Target**: ~50-80 true E2E tests (5-10% of total)
@@ -597,11 +603,13 @@ Ideal Pyramid:
 ### Priority Areas for Unit Test Coverage
 
 **High Priority Modules:**
+
 - `summarizer.py`: Text cleaning, chunking, validation functions (45-65 tests needed)
 - `workflow.py`: Pipeline orchestration helpers (8-10 tests needed)
 - `episode_processor.py`: Episode processing logic (5-8 tests needed)
 
 **Medium Priority Modules:**
+
 - `speaker_detection.py`: Detection and scoring logic (19-31 tests needed)
 - `cli.py` and `service.py`: Argument parsing and service logic (8-13 tests needed)
 - `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`: Utility functions (17-28 tests needed)

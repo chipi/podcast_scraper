@@ -1,7 +1,7 @@
 # Release v2.3.1 - Security Fixes & Code Quality Improvements
 
-**Release Date:** December 2025  
-**Type:** Patch Release  
+**Release Date:** December 2025
+**Type:** Patch Release
 **Last Updated:** December 10, 2025
 
 ## Summary
@@ -187,7 +187,7 @@ is_safe = any(resolved_path.is_relative_to(root) for root in safe_roots)
 **After:**
 
 ```python
-is_safe = any(resolved_path.is_relative_to(root) and resolved_path != root 
+is_safe = any(resolved_path.is_relative_to(root) and resolved_path != root
               for root in safe_roots) and resolved_path != cache_root
 ```
 
