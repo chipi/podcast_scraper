@@ -187,6 +187,6 @@ else:
 
 ## See Also
 
-- [Provider Protocols](../docs/api/) - Protocol definitions
+- [Provider Protocols](api/) - Protocol definitions
 - [Custom Provider Guide](./CUSTOM_PROVIDER_GUIDE.md) - How to create custom providers
 - [Provider Factory Functions](https://github.com/chipi/podcast_scraper/blob/main/podcast_scraper/speaker_detectors/factory.py) - Provider creation

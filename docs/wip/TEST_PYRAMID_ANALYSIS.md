@@ -5,7 +5,7 @@
 ### Test Counts by Layer
 
 | Layer | Test Files | Test Functions | Percentage | Ideal % | Status |
-|-------|------------|----------------|------------|---------|--------|
+| ------- | ------------ | ---------------- | ------------ | --------- | -------- |
 | **Unit Tests** | 22 | 297 | **41.4%** | 70-80% | ⚠️ Too Low |
 | **Integration Tests** | 16 | 194 | **27.0%** | 15-20% | ⚠️ Too High |
 | **E2E Tests** | 20 | 226 | **31.5%** | 5-10% | ❌ Too High |
@@ -15,7 +15,6 @@
 ### Test Pyramid Visualization
 
 ```
-Current Pyramid (Inverted!):
         ╱╲
        ╱  ╲      E2E: 31.5% (should be 5-10%)
       ╱    ╲
@@ -33,10 +32,9 @@ Ideal Pyramid:
    ╱          ╲  Unit: 70-80%
   ╱____________╲
 ```
-
 ## Alignment with Testing Strategy
 
-This analysis is based on the definitions in `docs/TESTING_STRATEGY.md`:
+This analysis is based on the definitions in [Testing Strategy](../TESTING_STRATEGY.md):
 
 ### Test Type Definitions (from Testing Strategy)
 
@@ -135,7 +133,7 @@ This analysis is based on the definitions in `docs/TESTING_STRATEGY.md`:
 
 **Analysis of Summarizer Tests (67 tests total):**
 - `test_summarizer.py` - 37 tests
-- `test_summarizer_edge_cases.py` - 6 tests  
+- `test_summarizer_edge_cases.py` - 6 tests
 - `test_summarizer_security.py` - 24 tests
 - **Entry Point:** Function-level (`select_summary_model()`, `SummaryModel()`, etc.)
 - **Dependencies:** All mocked (`@patch` for torch, AutoTokenizer, AutoModel, etc.)
@@ -147,7 +145,7 @@ This analysis is based on the definitions in `docs/TESTING_STRATEGY.md`:
 - **Entry Point:** Function-level (individual summarizer functions)
 - **Dependencies:** Mocked or real ML models (for model integration testing)
 - **Scope:** Edge cases in individual functions
-- **According to Testing Strategy:** 
+- **According to Testing Strategy:**
   - If using mocked models → **Unit Tests**
   - If using real models for model integration → **Integration Tests**
 - **Current Location:** `tests/workflow_e2e/` ❌ **WRONG**
@@ -476,7 +474,7 @@ This analysis is based on the definitions in `docs/TESTING_STRATEGY.md`:
 ## Testing Strategy Alignment
 
 This analysis is based on and aligns with:
-- **[Testing Strategy](TESTING_STRATEGY.md)** - Primary source for test type definitions
+- **[Testing Strategy](../TESTING_STRATEGY.md)** - Primary source for test type definitions
 - **Decision Tree:** Complete user workflow? → E2E | Component interactions? → Integration | Single function? → Unit
 - **Entry Point Criteria:** User-level (CLI/API) = E2E | Component-level = Integration | Function-level = Unit
 - **HTTP Client Criteria:** Real HTTP in full workflow = E2E | Mocked HTTP or isolated testing = Integration
@@ -484,8 +482,8 @@ This analysis is based on and aligns with:
 
 ## Related Documentation
 
-- [Testing Strategy](TESTING_STRATEGY.md) - **Primary reference for test type definitions**
-- [RFC-018: Test Structure Reorganization](rfc/RFC-018-test-structure-reorganization.md)
-- [RFC-019: E2E Test Infrastructure](rfc/RFC-019-e2e-test-improvements.md)
-- [RFC-024: Test Execution Optimization](rfc/RFC-024-test-execution-optimization.md)
+- [Testing Strategy](../TESTING_STRATEGY.md) - **Primary reference for test type definitions**
+- [RFC-018: Test Structure Reorganization](../rfc/RFC-018-test-structure-reorganization.md)
+- [RFC-019: E2E Test Infrastructure](../rfc/RFC-019-e2e-test-improvements.md)
+- [RFC-024: Test Execution Optimization](../rfc/RFC-024-test-execution-optimization.md)
 
