@@ -868,12 +868,14 @@ You can proceed without PRD/RFC for:
 
 ### ⚠️ Before Pushing Documentation Changes
 
-**Always check `mkdocs.yml` when adding, moving, or deleting documentation files:**
+**Always check `mkdocs.yml` and verify all links when adding, moving, or deleting documentation files:**
 
 - [ ] **New files added?** → Add to `nav` configuration in `mkdocs.yml`
 - [ ] **Files moved?** → Update path in `nav` configuration
 - [ ] **Files deleted?** → Remove from `nav` configuration
 - [ ] **Links updated?** → Use relative paths (e.g., `rfc/RFC-019.md` not `docs/rfc/RFC-019.md`)
+- [ ] **All links verified?** → Check that all internal links point to existing files
+- [ ] **No broken links?** → Run `make docs` to catch broken links before CI
 - [ ] **Test locally?** → Run `make docs` to verify build succeeds
 
 **Common issues:**
@@ -881,6 +883,12 @@ You can proceed without PRD/RFC for:
 - Missing files in `nav` → Build will warn about pages not in nav
 - Broken links → Build will fail if links point to non-existent files
 - Wrong path format → Use relative paths from `docs/` directory
+
+**Why this matters:**
+
+- Broken links waste CI build time (~3-5 min per failed build)
+- Fixing locally with `make docs` takes seconds vs. waiting for CI
+- Prevents unnecessary CI failures and re-runs
 
 **Example:** When adding a new RFC:
 
