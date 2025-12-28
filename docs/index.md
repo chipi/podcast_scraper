@@ -39,23 +39,25 @@ pip install -e .
 # macOS: brew install ffmpeg
 # Ubuntu: sudo apt install ffmpeg
 ```
-python3 -m podcast_scraper.cli https://example.com/feed.xml
 
 # Limit episodes and use custom output directory
-python3 -m podcast_scraper.cli https://example.com/feed.xml \
+
+python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
   --max-episodes 10 \
   --output-dir ./my_transcripts
 
 # Use Whisper when transcripts are missing
-python3 -m podcast_scraper.cli https://example.com/feed.xml \
+
+python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
   --transcribe-missing \
   --whisper-model base
 
 # Generate metadata and summaries
-python3 -m podcast_scraper.cli https://example.com/feed.xml \
+
+python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
   --generate-metadata \
   --generate-summaries
-```
+
 ```yaml
 # config.yaml
 rss: https://example.com/feed.xml
@@ -71,7 +73,7 @@ generate_summaries: true
 workers: 4
 skip_existing: true
 ```
-```
+
 - [config.example.json](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) - JSON format with all options
 - [config.example.yaml](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) - YAML format with comments
 
@@ -217,6 +219,7 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 ```
+
 ```ini
 [program:podcast_scraper]
 command=python -m podcast_scraper.service --config /path/to/config.yaml
@@ -227,7 +230,6 @@ autorestart=true
 stdout_logfile=/var/log/podcast_scraper/stdout.log
 stderr_logfile=/var/log/podcast_scraper/stderr.log
 ```
-## 🛠️ Advanced Features
 
 ### Automatic Speaker Detection
 
@@ -238,20 +240,21 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --num-speakers 2 \
   --auto-speakers
 ```
+
 ```bash
-python3 -m podcast_scraper.cli https://example.com/feed.xml \
+python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
   --generate-metadata \
   --generate-summaries \
   --summary-model bart-large \
   --summary-device mps
 ```
+
 ```bash
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --transcribe-missing \
   --language fr \
   --whisper-model base
 ```
-## 🔬 Evaluation & Testing
 
 ### Evaluation Scripts
 
@@ -271,16 +274,18 @@ python scripts/eval_cleaning.py --episode ep01
 # Evaluate summarization quality
 python scripts/eval_summaries.py --map-model bart-large --reduce-model long-fast
 ```
-```bash
+
 # Set up development environment
+
 bash scripts/setup_venv.sh
 source .venv/bin/activate
 pip install -e .
 
 # Run full CI suite locally
+
+```bash
 make ci
 ```
-The top-level package exposes a minimal stable API:
 
 ```python
 import podcast_scraper
@@ -295,6 +300,7 @@ cfg = podcast_scraper.Config(
 
 podcast_scraper.run_pipeline(cfg)
 ```
+
 - `podcast_scraper.load_config_file(path)` — Parse JSON/YAML configuration
 - `podcast_scraper.run_pipeline(cfg)` — Run the full pipeline
 - `podcast_scraper.cli.main(argv)` — CLI entry point
@@ -316,7 +322,6 @@ docker run --rm \
   podcast-scraper \
   --config /app/config.yaml
 ```
-We welcome contributions! Here's how to get started:
 
 ### Quick Start
 
@@ -334,6 +339,7 @@ make type          # Type checking
 make test          # Run tests with coverage
 make docs          # Build documentation
 ```
+
 - **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** — Complete development workflow, code style, testing requirements
 - **[Architecture](ARCHITECTURE.md)** — Module boundaries and design principles
 - **[Testing Strategy](TESTING_STRATEGY.md)** — Test coverage and quality standards
@@ -364,7 +370,6 @@ pip install mkdocs mkdocs-material pymdown-extensions mkdocstrings mkdocstrings-
 # Serve with live reload
 mkdocs serve
 ```
----
 
 ## 🔬 Work In Progress
 

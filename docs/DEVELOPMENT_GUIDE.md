@@ -79,7 +79,7 @@ Unit tests run **without ML dependencies** (spacy, torch, transformers) installe
 
    ```python
    from unittest.mock import MagicMock, patch
-   
+
    # Mock ML dependencies before importing modules that need them
    with patch.dict("sys.modules", {"spacy": MagicMock()}):
        from podcast_scraper import speaker_detection
@@ -298,7 +298,7 @@ make format-check
 # Good
 def fetch_rss_feed(url: str) -> RssFeed:
     episode_count = len(feed.episodes)
-    
+
 # Bad
 def fetchRSSFeed(url: str):  # camelCase
     x = len(feed.episodes)  # non-descriptive name
@@ -344,7 +344,7 @@ maxRetries = 3  # camelCase
 class SummaryModel:
     def __init__(self):
         self._device = "cpu"  # Internal attribute
-    
+
     def _load_model(self):  # Internal method
         pass
 ```
@@ -385,15 +385,15 @@ def process_episode(
 ```python
 def run_pipeline(cfg: Config, progress_factory=None) -> None:
     """Run the complete podcast scraping pipeline.
-    
+
     Args:
         cfg: Configuration object containing RSS URL and processing options.
         progress_factory: Optional custom progress reporter (default: tqdm).
-        
+
     Raises:
         ValueError: If configuration is invalid.
         HTTPError: If RSS feed cannot be fetched.
-        
+
     Example:
         >>> from podcast_scraper import Config, run_pipeline
         >>> cfg = Config(rss="https://example.com/feed.xml")
@@ -510,10 +510,10 @@ from unittest.mock import patch, Mock
 class TestEpisodeProcessor(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.mkdtemp()
-    
+
     def tearDown(self):
         shutil.rmtree(self.temp_dir, ignore_errors=True)
-    
+
     @patch("podcast_scraper.whisper_integration.whisper")
     def test_transcription(self, mock_whisper):
         mock_whisper.load_model.return_value = Mock()
@@ -712,6 +712,7 @@ You can proceed without PRD/RFC for:
 ```yaml
 # mkdocs.yml
 nav:
+
   - RFCs:
       - RFC-023 README Acceptance Tests: rfc/RFC-023-readme-acceptance-tests.md
 ```

@@ -24,21 +24,21 @@ Add the new method signature to the protocol class:
 # transcription/base.py
 class TranscriptionProvider(Protocol):
     # ... existing methods ...
-    
+
     def new_method(
         self,
         param1: str,
         param2: int | None = None,
     ) -> dict[str, object]:
         """New method description.
-        
+
         Args:
             param1: Description of param1
             param2: Optional description of param2
-            
+
         Returns:
             Dictionary with results
-            
+
         Raises:
             RuntimeError: If provider is not initialized
             ValueError: If operation fails
@@ -58,7 +58,7 @@ Add the method implementation to all existing provider implementations:
 # transcription/whisper_provider.py
 class WhisperTranscriptionProvider:
     # ... existing methods ...
-    
+
     def new_method(
         self,
         param1: str,
@@ -67,7 +67,7 @@ class WhisperTranscriptionProvider:
         """Implementation of new_method for Whisper provider."""
         if not self.is_initialized:
             raise RuntimeError("Provider not initialized")
-        
+
         # Implementation here
         return {"result": "value"}
 ```
@@ -78,7 +78,7 @@ class WhisperTranscriptionProvider:
 # transcription/openai_provider.py
 class OpenAITranscriptionProvider:
     # ... existing methods ...
-    
+
     def new_method(
         self,
         param1: str,
@@ -87,7 +87,7 @@ class OpenAITranscriptionProvider:
         """Implementation of new_method for OpenAI provider."""
         if not self._initialized:
             raise RuntimeError("Provider not initialized")
-        
+
         # Implementation here (may differ from Whisper)
         return {"result": "value"}
 ```
@@ -101,7 +101,7 @@ If the new method requires different initialization or configuration, update fac
 def create_transcription_provider(cfg: config.Config) -> TranscriptionProvider:
     """Create transcription provider."""
     provider_type = cfg.transcription_provider
-    
+
     if provider_type == "whisper":
         from .whisper_provider import WhisperTranscriptionProvider
         return WhisperTranscriptionProvider(cfg)
@@ -122,9 +122,9 @@ class TestTranscriptionProvider(unittest.TestCase):
         """Test new_method implementation."""
         provider = create_transcription_provider(cfg)
         provider.initialize()
-        
+
         result = provider.new_method("test", param2=42)
-        
+
         self.assertIsInstance(result, dict)
         self.assertIn("result", result)
 ```
@@ -156,14 +156,14 @@ class TranscriptionProvider(Protocol):
     ) -> str:
         """Transcribe audio file to text."""
         ...
-    
+
     def transcribe_with_segments(
         self,
         audio_path: str,
         language: str | None = None,
     ) -> tuple[dict[str, object], float]:
         """Transcribe audio file and return full result with segments.
-        
+
         Returns:
             Tuple of (result_dict, elapsed_time)
         """
@@ -192,7 +192,7 @@ class WhisperTranscriptionProvider:
         """Transcribe with segments using Whisper."""
         if not self.is_initialized:
             raise RuntimeError("Provider not initialized")
-        
+
         # Use existing whisper integration
         result_dict, elapsed = whisper_integration.transcribe_with_whisper(
             self._model, audio_path, self.cfg
@@ -213,7 +213,7 @@ class OpenAITranscriptionProvider:
         """Transcribe with segments using OpenAI API."""
         if not self._initialized:
             raise RuntimeError("Provider not initialized")
-        
+
         # Use OpenAI API
         result_dict, elapsed = self._transcribe_with_openai(audio_path, language)
         return result_dict, elapsed
@@ -333,7 +333,7 @@ Some methods may behave differently per provider:
 class TranscriptionProvider(Protocol):
     def get_model_info(self) -> dict[str, object]:
         """Get information about the model being used.
-        
+
         Returns:
             Dictionary with model information.
             Structure may vary by provider.

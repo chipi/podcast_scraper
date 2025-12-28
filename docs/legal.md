@@ -30,15 +30,15 @@ These actions are generally considered low-risk and comparable to typical usage 
 
 You may **not** use this software to:
 
-- redistribute podcast audio files  
+- redistribute podcast audio files
 
-- republish full transcripts or show notes  
+- republish full transcripts or show notes
 
-- create a public API, index, or dataset of podcast content  
+- create a public API, index, or dataset of podcast content
 
-- expose copyrighted content to other users  
+- expose copyrighted content to other users
 
-- use podcast material in a commercial product or service  
+- use podcast material in a commercial product or service
 
 Such uses may violate copyright law or platform terms of service.
 
@@ -48,17 +48,17 @@ Such uses may violate copyright law or platform terms of service.
 
 The open-source license in this repository applies **only to the code**, not to any podcast data retrieved using the code.
 
-Podcast content remains the property of its respective rights holders.  
+Podcast content remains the property of its respective rights holders.
 
 This software does not grant any rights to:
 
-- reproduce  
+- reproduce
 
-- redistribute  
+- redistribute
 
-- publicly perform  
+- publicly perform
 
-- or commercially exploit  
+- or commercially exploit
 
 third-party content.
 
@@ -68,13 +68,13 @@ third-party content.
 
 Users of this software are solely responsible for ensuring that:
 
-- their local usage complies with applicable copyright laws  
+- their local usage complies with applicable copyright laws
 
-- they respect the terms of each podcast's RSS feed  
+- they respect the terms of each podcast's RSS feed
 
-- they do not misuse the tool to distribute copyrighted content  
+- they do not misuse the tool to distribute copyrighted content
 
-- any public or commercial use is authorized by rights holders  
+- any public or commercial use is authorized by rights holders
 
 The maintainers assume no liability for how this tool is used.
 
@@ -82,7 +82,7 @@ The maintainers assume no liability for how this tool is used.
 
 ## Intent of the Maintainers
 
-This project exists for educational purposes, research, and personal experimentation.  
+This project exists for educational purposes, research, and personal experimentation.
 
 It is **not** intended to bypass licensing restrictions or facilitate unauthorized redistribution of copyrighted works.
 

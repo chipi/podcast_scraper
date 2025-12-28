@@ -49,6 +49,7 @@ Create a resilient pipeline that ingests a podcast RSS feed, locates published t
 
 ## Success Metrics
 >
+
 - >=95% of episodes with published transcripts complete without manual retry (network errors aside).
 - Dry-run output matches real run output (file naming, counts) aside from disk writes.
 - End-to-end processing scales to feeds with 1k episodes using default settings without manual intervention.

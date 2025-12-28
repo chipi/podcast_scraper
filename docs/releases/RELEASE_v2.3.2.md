@@ -1,7 +1,7 @@
 # Release v2.3.2 - Security Tests & Thread-Safety Fixes
 
-**Release Date:** December 2025  
-**Type:** Patch Release  
+**Release Date:** December 2025
+**Type:** Patch Release
 **Last Updated:** December 10, 2025
 
 ## Summary

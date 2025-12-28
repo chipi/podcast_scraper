@@ -72,6 +72,7 @@ You are summarizing a podcast episode.
 
 Write a detailed, narrative summary with a clear story arc.
 Guidelines:
+
 - Aim for {{ paragraphs_min }}–{{ paragraphs_max }} paragraphs.
 - Focus on key decisions, arguments, and lessons.
 - Ignore sponsorships, ads, and housekeeping.
@@ -122,7 +123,7 @@ class PromptNotFoundError(FileNotFoundError):
 
 def set_prompt_dir(path: str | Path) -> None:
     """Set the root directory for prompt templates.
-    
+
     Useful for testing or custom prompt locations.
     """
     global _PROMPT_DIR
@@ -141,13 +142,13 @@ def _load_template(name: str) -> Template:
 
     Example:
         name="summarization/long_v1" -> prompts/summarization/long_v1.j2
-    
+
     Args:
         name: Logical name without .j2 extension
-        
+
     Returns:
         Jinja2 Template object
-        
+
     Raises:
         PromptNotFoundError: If template file doesn't exist
     """
@@ -196,7 +197,7 @@ def get_prompt_source(name: str) -> str:
 
     Args:
         name: Logical name, e.g. "summarization/long_v1"
-        
+
     Returns:
         Raw template source as string
     """
@@ -204,7 +205,7 @@ def get_prompt_source(name: str) -> str:
     # Jinja2 keeps original source text on template
     if hasattr(tmpl, "source") and tmpl.source is not None:
         return str(tmpl.source)
-    
+
     # Fallback: reload from disk
     if name.endswith(".j2"):
         rel_path = Path(name)
@@ -217,10 +218,10 @@ def get_prompt_source(name: str) -> str:
 def hash_text(text: str) -> str:
     """
     Return a SHA256 hex digest for arbitrary text.
-    
+
     Args:
         text: Text to hash
-        
+
     Returns:
         SHA256 hash as hex string
     """
@@ -243,7 +244,7 @@ def get_prompt_metadata(
     Args:
         name: Logical name, e.g. "summarization/long_v1"
         params: Optional template parameters
-        
+
     Returns:
         Dictionary with prompt metadata
     """
@@ -254,22 +255,22 @@ def get_prompt_metadata(
 
     path = _PROMPT_DIR / rel_path
     source = get_prompt_source(name)
-    
+
     metadata: Dict[str, Any] = {
         "name": name,
         "file": str(path.relative_to(_PROMPT_DIR)),
         "sha256": hash_text(source),
     }
-    
+
     if params:
         metadata["params"] = params
-    
+
     return metadata
 
 
 def clear_cache() -> None:
     """Clear the prompt template cache.
-    
+
     Useful for testing or when prompts are updated during development.
     """
     _load_template.cache_clear()
@@ -480,11 +481,11 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
 def discover_input_files(data_cfg: DataConfig, base_dir: Path | None = None) -> List[Path]:
     """
     Discover input files according to the experiment's data config.
-    
+
     Args:
         data_cfg: Data configuration
         base_dir: Base directory for glob (default: current directory)
-        
+
     Returns:
         List of discovered file paths, sorted
     """
@@ -497,11 +498,11 @@ def discover_input_files(data_cfg: DataConfig, base_dir: Path | None = None) -> 
 def episode_id_from_path(path: Path, data_cfg: DataConfig) -> str:
     """
     Convert a file path to an episode_id using the data config's id_from rule.
-    
+
     Args:
         path: File path
         data_cfg: Data configuration
-        
+
     Returns:
         Episode ID string
     """
@@ -533,16 +534,16 @@ from .base import SummarizationProvider
 
 class OpenAISummarizationProvider:
     """OpenAI provider for summarization (implements SummarizationProvider protocol)."""
-    
+
     def __init__(self, cfg: config.Config):
         self.cfg = cfg
         self.client = self._setup_openai_client()
         # Prompts are loaded on-demand, cached automatically via prompt_store
-        
+
     def initialize(self, cfg: config.Config) -> Optional[Any]:
         """Initialize OpenAI client (provider-specific resource)."""
         return self.client
-    
+
     def summarize(
         self,
         text: str,
@@ -552,7 +553,7 @@ class OpenAISummarizationProvider:
         min_length: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Summarize text using OpenAI API with prompts from prompt_store.
-        
+
         This method implements the SummarizationProvider protocol.
         Prompts are provider-specific implementation details.
         """
@@ -563,7 +564,7 @@ class OpenAISummarizationProvider:
                 cfg.summary_system_prompt,
                 **cfg.summary_prompt_params,
             )
-        
+
         user_prompt = render_prompt(
             cfg.summary_user_prompt or "summarization/long_v1",
             transcript=text,
@@ -572,7 +573,7 @@ class OpenAISummarizationProvider:
             paragraphs_max=(max_length or cfg.summary_max_length) // 100,
             **cfg.summary_prompt_params,
         )
-        
+
         # Call OpenAI API (provider-specific implementation)
         response = resource.chat.completions.create(
             model=cfg.summary_model,
@@ -583,7 +584,7 @@ class OpenAISummarizationProvider:
             max_tokens=max_length or cfg.summary_max_length,
             temperature=cfg.summary_temperature,
         )
-        
+
         return {
             "summary": response.choices[0].message.content,
             "metadata": {
@@ -607,11 +608,11 @@ from .base import SpeakerDetector
 
 class OpenAISpeakerDetector:
     """OpenAI provider for speaker detection (implements SpeakerDetector protocol)."""
-    
+
     def __init__(self, cfg: config.Config):
         self.cfg = cfg
         self.client = self._setup_openai_client()
-    
+
     def detect_speakers(
         self,
         episode_title: str,
@@ -619,7 +620,7 @@ class OpenAISpeakerDetector:
         known_hosts: Set[str],
     ) -> Tuple[List[str], Set[str], bool]:
         """Detect speakers using OpenAI API with prompts from prompt_store.
-        
+
         This method implements the SpeakerDetector protocol.
         Prompts are provider-specific implementation details.
         """
@@ -630,10 +631,10 @@ class OpenAISpeakerDetector:
             known_hosts=", ".join(known_hosts) if known_hosts else "",
             **self.cfg.ner_prompt_params,
         )
-        
+
         # Call OpenAI API (provider-specific implementation)
         # ... API call logic ...
-        
+
         return (detected_speakers, detected_hosts, success)
 ```
 
@@ -647,7 +648,7 @@ from .base import SummarizationProvider
 
 class TransformersSummarizationProvider:
     """Local HuggingFace transformers provider (implements SummarizationProvider protocol)."""
-    
+
     def summarize(
         self,
         text: str,
@@ -657,14 +658,14 @@ class TransformersSummarizationProvider:
         min_length: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Summarize text using local transformers model.
-        
+
         This method implements the SummarizationProvider protocol.
         Local models don't use prompts - they use model-specific tokenization.
         """
         # No prompts needed - local models work differently
         # Direct model inference
         summary = resource.generate(text, max_length=max_length, min_length=min_length)
-        
+
         return {
             "summary": summary,
             "metadata": {
@@ -707,10 +708,10 @@ from podcast_scraper.prompt_store import (
 def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
     """
     Run an experiment from a config file.
-    
+
     Args:
         cfg_path: Path to experiment YAML config
-        
+
     Returns:
         Dictionary with experiment results and metadata
     """
@@ -760,10 +761,10 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
     predictions = []
     for file_path in files:
         episode_id = episode_id_from_path(file_path, cfg.data)
-        
+
         # Load episode data
         episode_data = load_episode_data(file_path, cfg.task)
-        
+
         # Generate prediction using provider protocol
         # Provider handles prompts internally (provider-specific)
         if cfg.task == "summarization" and provider:
@@ -784,12 +785,12 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
             prediction = {"speakers": speakers, "hosts": hosts, "success": success}
         else:
             raise ValueError(f"Provider not available for task: {cfg.task}")
-        
+
         predictions.append({
             "episode_id": episode_id,
             "prediction": prediction,
         })
-    
+
     # Cleanup provider resources
     if provider and resource:
         provider.cleanup(resource)
@@ -822,7 +823,7 @@ Prompts can be configured via application config:
 ```python
 class Config(BaseModel):
     # ... existing fields ...
-    
+
     # Prompt configuration
     summary_system_prompt: Optional[str] = Field(
         default=None,
@@ -836,7 +837,7 @@ class Config(BaseModel):
         default_factory=dict,
         description="Template parameters for summary prompts",
     )
-    
+
     ner_system_prompt: Optional[str] = Field(
         default=None,
         description="System prompt name for NER",

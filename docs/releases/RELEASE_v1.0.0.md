@@ -1,6 +1,6 @@
 # Release v1.0.0 - Initial Stable Release
 
-**Release Date:** November 11, 2025  
+**Release Date:** November 11, 2025
 **Type:** Initial Release
 
 ## Summary
@@ -85,12 +85,16 @@ rss: https://example.com/feed.xml
 timeout: 30
 transcribe_missing: true
 prefer_type:
+
   - text/vtt
   - .srt
 speaker_names:
+
+
   - Host
   - Guest
 workers: 6
+
 skip_existing: true
 dry_run: false
 ```

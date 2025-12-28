@@ -254,12 +254,14 @@ summary:
     discussing how machine learning is transforming diagnostic accuracy. The conversation
     covers both the opportunities and ethical challenges of AI-assisted medicine.
   key_takeaways:
+
     - AI can improve diagnostic accuracy by up to 30% in radiology applications
     - Patient privacy remains the biggest challenge for healthcare AI adoption
     - Regulatory frameworks are struggling to keep pace with AI innovation
     - Hybrid human-AI workflows show the most promise for clinical adoption
     - Cost barriers prevent smaller hospitals from accessing advanced AI tools
   generated_at: "2024-01-15T10:30:00Z"
+
   model_used: "facebook/bart-large-cnn"
   provider: "local"
   word_count: 150

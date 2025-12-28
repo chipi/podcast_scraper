@@ -70,6 +70,7 @@ Once the token is added, the Snyk workflow will automatically run on:
 Currently set to `--severity-threshold=high` to focus on high and critical vulnerabilities. To change:
 
 Edit `.github/workflows/snyk.yml`:
+
 ```yaml
 args: --severity-threshold=medium  # or low, high, critical
 ```

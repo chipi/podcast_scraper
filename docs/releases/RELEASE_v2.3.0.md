@@ -1,7 +1,7 @@
 # Release v2.3.0 - Episode Summarization & Public API
 
-**Release Date:** November 2025  
-**Type:** Minor Release  
+**Release Date:** November 2025
+**Type:** Minor Release
 **Last Updated:** November 18, 2025
 
 ## Summary
@@ -182,6 +182,7 @@ class ServiceResult:
 
 ```text
 Pipeline Summary:
+
 - Episodes processed: 10
 - Transcripts downloaded: 8
 - Episodes transcribed: 2

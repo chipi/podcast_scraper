@@ -133,4 +133,3 @@ This installs all dependencies including ML libraries for transcription and summ
 - [Architecture](ARCHITECTURE.md) - High-level system design and dependency overview
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices
 - [Summarization Guide](SUMMARIZATION_GUIDE.md) - Details on ML dependencies for summarization
-

@@ -5,7 +5,7 @@
 ### Test Distribution
 
 | Layer | Files | Tests | Current % | Target % | Gap |
-|-------|-------|-------|-----------|----------|-----|
+| ------- | ------- | ------- | ----------- | ---------- | ----- |
 | **Unit Tests** | 22 | 297 | **41.4%** | 70-80% | **-28.6% to -38.6%** |
 | **Integration** | 16 | 194 | **27.0%** | 15-20% | **+7% to +12%** |
 | **E2E Tests** | 20 | 226 | **31.5%** | 5-10% | **+21.5% to +26.5%** |
@@ -13,8 +13,7 @@
 
 ### Current Pyramid (Inverted!)
 
-```
-        ╱╲
+```text
        ╱  ╲      E2E: 31.5% ❌ (should be 5-10%)
       ╱    ╲
      ╱      ╲    Integration: 27.0% ⚠️ (should be 15-20%)
@@ -76,6 +75,7 @@
    - **Expected:** Most likely Unit Tests (mocked dependencies)
 
 **Expected Result:**
+
 - Unit Tests: 297 → ~360-370 (+63-73 tests)
 - Integration Tests: 194 → ~194-201 (+0-7 tests)
 - E2E Tests: 226 → ~159-163 (-63-67 tests)
@@ -126,6 +126,7 @@
 - `speaker_detection.py` functions - 19-31 tests
 
 **Expected Result:**
+
 - Unit Tests: ~360 → ~500-600 (+140-240 tests)
 - **Distribution:** Unit 69-83% ✅, Integration 27-28%, E2E 22-23%
 
@@ -176,6 +177,7 @@
   - User-level entry points with real HTTP → E2E
 
 **Expected Result:**
+
 - Unit Tests: ~500-600 (unchanged)
 - Integration Tests: 194 → ~214-231 (+20-37 tests)
 - E2E Tests: ~159 → ~119-139 (-20-40 tests)
@@ -218,6 +220,7 @@
    - `test_fixture_mapping.py` - Fixture mapping ✅
 
 **Expected Result:**
+
 - Unit Tests: ~500-600 (unchanged)
 - Integration Tests: ~214-231 (unchanged)
 - E2E Tests: ~119-139 → ~50-80 (-69-89 tests)
@@ -232,7 +235,7 @@
 ### Final Target
 
 | Layer | Target Tests | Target % | Current | Gap |
-|-------|-------------|----------|---------|-----|
+| ------- | ------------- | ---------- | --------- | ----- |
 | **Unit Tests** | 500-600 | 70-80% | 297 (41.4%) | +203-303 |
 | **Integration** | 110-140 | 15-20% | 194 (27.0%) | -54-84 |
 | **E2E Tests** | 50-80 | 5-10% | 226 (31.5%) | -146-176 |
@@ -248,12 +251,12 @@
 
 ### Success Metrics
 
-✅ **Unit Tests:** 70-80% of total tests  
-✅ **Integration Tests:** 15-20% of total tests  
-✅ **E2E Tests:** 5-10% of total tests  
-✅ **All tests follow Testing Strategy definitions**  
-✅ **Faster feedback:** Unit tests run in seconds  
-✅ **Better isolation:** Easier to debug failures  
+✅ **Unit Tests:** 70-80% of total tests
+✅ **Integration Tests:** 15-20% of total tests
+✅ **E2E Tests:** 5-10% of total tests
+✅ **All tests follow Testing Strategy definitions**
+✅ **Faster feedback:** Unit tests run in seconds
+✅ **Better isolation:** Easier to debug failures
 
 ## Next Steps
 
@@ -268,4 +271,3 @@
 - [Testing Strategy](../TESTING_STRATEGY.md) - Test type definitions and decision tree
 - [RFC-018](../rfc/RFC-018-test-structure-reorganization.md) - Test structure reorganization
 - [RFC-019](../rfc/RFC-019-e2e-test-improvements.md) - E2E test infrastructure
-

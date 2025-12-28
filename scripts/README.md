@@ -14,17 +14,14 @@ Evaluate all episodes with auto-generated filename:
 python scripts/eval_cleaning.py
 # Outputs to: data/results/cleaning_eval_YYYYMMDD_HHMMSS.json
 ```
-Evaluate single episode:
 
 ```bash
 python scripts/eval_cleaning.py --episode ep01
 ```
-Specify custom output file:
 
 ```bash
 python scripts/eval_cleaning.py --output data/results/my_cleaning_eval.json
 ```
-### Options
 
 - `--eval-dir`: Directory containing evaluation episodes (default: `data/eval`)
 - `--episode`: Evaluate single episode only (e.g., `ep01`)
@@ -85,7 +82,6 @@ pip install -e .[dev]
 # Option 2: Install rouge-score directly
 pip install rouge-score
 ```
-### Usage (eval_summaries.py)
 
 Use defaults (BART-large for MAP, LED/long-fast for REDUCE - same as app) with auto-generated filename:
 
@@ -93,34 +89,28 @@ Use defaults (BART-large for MAP, LED/long-fast for REDUCE - same as app) with a
 python scripts/eval_summaries.py
 # Outputs to: data/results/eval_YYYYMMDD_HHMMSS.json
 ```
-Specify custom output file:
 
 ```bash
 python scripts/eval_summaries.py --output data/results/my_evaluation.json
 ```
-Specify MAP model only (REDUCE defaults to LED):
 
 ```bash
 python scripts/eval_summaries.py --map-model bart-large
 ```
-Specify both MAP and REDUCE models:
 
 ```bash
 python scripts/eval_summaries.py \
     --map-model bart-large \
     --reduce-model long-fast
 ```
-Using a config file (overrides CLI arguments):
 
 ```bash
 python scripts/eval_summaries.py --config config.yaml
 ```
-Use short reference summaries:
 
 ```bash
 python scripts/eval_summaries.py --use-short-reference
 ```
-### Options (eval_summaries.py)
 
 - `--eval-dir`: Directory containing evaluation episodes (default: `data/eval`)
 - `--map-model`: MAP model name/key (e.g., `bart-large`, `bart-small`,
@@ -148,7 +138,6 @@ When models are not specified, the script uses the same defaults as the main app
 - **MAP model**: `bart-large` (BART-large CNN) - fast, efficient chunk
   summarization
 
-
 - **REDUCE model**: `long-fast` (LED-base-16384) - accurate, long-context final summarization
 
 This hybrid approach (BART for map, LED for reduce) is widely used in
@@ -175,7 +164,6 @@ Each episode directory should contain:
 - `summary.gold.long.txt` - Detailed human-written reference summary
   (default for ROUGE)
 
-
 - `summary.gold.short.txt` - Optional concise reference summary
 - `metadata.json` - Optional episode metadata
 
@@ -191,7 +179,6 @@ Creates a Python virtual environment and installs the package in editable mode.
 bash scripts/setup_venv.sh
 source .venv/bin/activate
 ```
-### What It Does
 
 1. Creates `.venv/` virtual environment
 2. Upgrades pip
@@ -242,17 +229,14 @@ Fix all markdown files in the project:
 ```bash
 python scripts/fix_markdown.py
 ```
-Fix specific files:
 
 ```bash
 python scripts/fix_markdown.py docs/TESTING_STRATEGY.md docs/rfc/RFC-020.md
 ```
-Dry run (show what would be fixed without making changes):
 
 ```bash
 python scripts/fix_markdown.py --dry-run
 ```
-### What It Fixes
 
 1. **Table Separator Formatting** (MD060):
    - Adds spaces around pipes in table separator rows
@@ -288,13 +272,11 @@ python scripts/fix_markdown.py
 git add -A
 git commit -m "your message"
 ```
-Or use markdownlint's auto-fix feature:
 
 ```bash
 # Enable auto-fix in pre-commit hook
 export MARKDOWNLINT_FIX=1
 git commit -m "your message"
 ```
-### Note
 
 This script handles common, safe-to-fix issues. Some markdownlint errors (like content issues, heading levels, etc.) still need manual review.

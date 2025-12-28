@@ -554,23 +554,31 @@ jobs:
   test-unit:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
+
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
+
       - name: Install dependencies
         run: |
+
           python -m pip install --upgrade pip
           pip install -e .[dev,ml]
+
       - name: Run unit tests
         run: |
+
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/unit/ -n auto --cov=podcast_scraper --cov-report=term-missing
+
       - name: Verify no network calls or filesystem I/O in unit tests
         run: |
+
           # Plugin automatically detects network calls and filesystem I/O
           pytest tests/unit/ || exit 1
 
@@ -578,19 +586,25 @@ jobs:
   test-integration:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
+
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
+
       - name: Install dependencies
         run: |
+
           python -m pip install --upgrade pip
           pip install -e .[dev,ml]
+
       - name: Run integration tests
         run: |
+
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/integration/ -m integration -n auto --reruns 2 --reruns-delay 1
 
@@ -599,19 +613,25 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
+
       - uses: actions/checkout@v4
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
+
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
+
       - name: Install dependencies
         run: |
+
           python -m pip install --upgrade pip
           pip install -e .[dev,ml]
+
       - name: Run workflow E2E tests
         run: |
+
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/workflow_e2e/ -m workflow_e2e --reruns 2 --reruns-delay 1
 
@@ -619,19 +639,25 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
+
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
+
       - name: Install dependencies
         run: |
+
           python -m pip install --upgrade pip
           pip install -e .[dev,ml]
+
       - name: Run all tests (except network)
         run: |
+
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/ -m "not network" -n auto --cov=podcast_scraper --cov-report=term-missing --reruns 2 --reruns-delay 1
 ```
@@ -642,6 +668,7 @@ Update path triggers to include new test directories:
 
 ```yaml
 paths:
+
   - '**.py'
   - 'tests/**'  # Already covers all test subdirectories
   - 'pyproject.toml'

@@ -48,11 +48,11 @@ class TranscriptionProvider(Protocol):
         language: str | None = None,
     ) -> str:
         """Transcribe audio file to text.
-        
+
         Args:
             audio_path: Path to audio file
             language: Optional language code (e.g., 'en', 'es')
-            
+
         Returns:
             Transcribed text as string
         """
@@ -82,7 +82,7 @@ class YourCustomProvider:
 
     def __init__(self, cfg: config.Config):
         """Initialize provider with configuration.
-        
+
         Args:
             cfg: Configuration object
         """
@@ -93,7 +93,7 @@ class YourCustomProvider:
         """Initialize provider (load models, connect to API, etc.)."""
         if self._initialized:
             return
-        
+
         logger.debug("Initializing YourCustomProvider")
         # Your initialization logic here
         self._initialized = True
@@ -104,17 +104,17 @@ class YourCustomProvider:
         language: str | None = None,
     ) -> str:
         """Transcribe audio file to text.
-        
+
         Args:
             audio_path: Path to audio file
             language: Optional language code
-            
+
         Returns:
             Transcribed text
         """
         if not self._initialized:
             raise RuntimeError("Provider not initialized")
-        
+
         # Your transcription logic here
         return "transcribed text"
 
@@ -197,7 +197,7 @@ class TestYourCustomProvider(unittest.TestCase):
         """Test transcription."""
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
-        
+
         # Mock your transcription logic
         with patch.object(provider, "_your_transcription_method", return_value="test"):
             result = provider.transcribe("test_audio.mp3")
@@ -206,10 +206,10 @@ class TestYourCustomProvider(unittest.TestCase):
     def test_provider_protocol_compliance(self):
         """Test that provider implements protocol."""
         provider = create_transcription_provider(self.cfg)
-        
+
         # Verify required methods exist
         self.assertTrue(hasattr(provider, "transcribe"))
-        
+
         # Verify method signature
         import inspect
         sig = inspect.signature(provider.transcribe)
@@ -253,7 +253,7 @@ class FullFeaturedProvider:
     def transcribe(self, audio_path: str, language: str | None = None) -> str:
         if not self._initialized:
             raise RuntimeError("Provider not initialized")
-        
+
         try:
             return self._client.transcribe(audio_path, language=language)
         except Exception as e:

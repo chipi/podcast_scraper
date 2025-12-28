@@ -288,6 +288,7 @@ The project has `.cursor/rules/ai-guidelines.mdc` which references `.ai-coding-g
 
 ```text
 I'm debugging a CI failure in this project. The project has:
+
 - GitHub Actions workflows
 - Docker builds
 - Unit, integration, and E2E tests
@@ -307,6 +308,7 @@ Please:
 
 ```text
 I need to create an RFC for this project. The project follows:
+
 - RFC format in docs/rfc/
 - Related RFCs should be cross-referenced
 - Status: Draft → Accepted → Completed
@@ -325,6 +327,7 @@ Related: [list related RFCs/PRDs]
 
 ```text
 Review this code change for the podcast_scraper project. Check:
+
 - Follows .ai-coding-guidelines.md patterns
 - Module boundaries respected
 - Tests included (unit/integration/E2E as appropriate)
@@ -339,6 +342,7 @@ Review this code change for the podcast_scraper project. Check:
 
 ```text
 Analyze this GitHub issue and create an actionable plan. Consider:
+
 - Related RFCs/PRDs
 - Project guidelines
 - Testing requirements
@@ -594,4 +598,3 @@ This removes copy/paste entirely.
    - Test refactoring
 
 4. **Review and update** this guide based on experience
-

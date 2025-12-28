@@ -218,8 +218,11 @@ services:
   podcast-scraper:
     image: podcast-scraper:latest
     environment:
+
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
+
+
       - ./.env:/app/.env:ro
 ```
 

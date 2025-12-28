@@ -26,42 +26,42 @@ graph TB
         T3[Schedule: Weekly Thu 13:17 UTC]
         T4[Manual Dispatch]
     end
-    
+
     subgraph "Python Application Workflow"
         P1[Lint Job]
         P2[Test Job]
         P3[Docs Build Job]
         P4[Build Package Job]
-        
+
         P1 -->|Format Check| P1A[Black/isort]
         P1 -->|Linting| P1B[flake8]
         P1 -->|Markdown| P1C[markdownlint]
         P1 -->|Type Check| P1D[mypy]
         P1 -->|Security| P1E[bandit/safety]
-        
+
         P2 -->|Install ML deps| P2A[pytest + coverage]
-        
+
         P3 -->|Install docs deps| P3A[mkdocs build]
-        
+
         P4 -->|Install build tools| P4A[python -m build]
     end
-    
+
     subgraph "Documentation Workflow"
         D1[Build Docs]
         D2[Deploy to Pages]
-        
+
         D1 -->|mkdocs build| D1A[Generate Site]
         D1 -->|Upload| D1B[Pages Artifact]
         D1B -->|Only on push| D2
         D2 -->|Deploy| D2A[GitHub Pages]
     end
-    
+
     subgraph "CodeQL Workflow"
     C1[CodeQL Matrix]
     C1 -->|Python Analysis| C1A[Scan Python Code]
     C1 -->|Actions Analysis| C1B[Scan GitHub Actions]
     end
-    
+
     subgraph "Docker Workflow"
     DOCK1[Build Docker Image]
     DOCK2[Test Docker Image]
@@ -69,31 +69,31 @@ graph TB
     DOCK1 --> DOCK2
     DOCK1 --> DOCK3
     end
-    
+
     subgraph "Snyk Workflow"
     SNYK1[Dependencies Scan]
     SNYK2[Docker Scan]
     SNYK3[Monitor]
     end
-    
+
     T1 --> P1 & P2 & P3 & P4
     T2 --> P1 & P2 & P3 & P4
-    
+
     T1 --> D1
     T2 --> D1
     T4 --> D1
-    
+
     T1 --> C1
     T2 --> C1
     T3 --> C1
-    
+
     T1 --> DOCK1
     T2 --> DOCK1
-    
+
     T1 --> SNYK1 & SNYK2
     T2 --> SNYK1 & SNYK2
     T3 --> SNYK3
-    
+
     style P1 fill:#e1f5e1
     style P2 fill:#e1f5e1
     style P3 fill:#e1f5e1
@@ -109,7 +109,7 @@ graph TB
 
 ## Python Application Workflow
 
-**File:** `.github/workflows/python-app.yml`  
+**File:** `.github/workflows/python-app.yml`
 **Triggers:** Push and Pull Requests to `main` branch (only when relevant files change)
 
 **Path Filters:**
@@ -138,7 +138,7 @@ graph LR
     A --> F[Docs Job]
     A --> G[Build Job]
     A --> H[Slow E2E Test Job<br/>Main Only]
-    
+
     B --> I[✓ All Complete]
     C --> I
     D --> I
@@ -146,7 +146,7 @@ graph LR
     F --> I
     G --> I
     H --> I
-    
+
     style B fill:#90EE90
     style C fill:#90EE90
     style D fill:#90EE90
@@ -264,6 +264,7 @@ graph LR
 6. Post-build cleanup
 
 **Network Guard:**
+
 - All E2E tests run with `--disable-socket --allow-hosts=127.0.0.1,localhost`
 - Ensures no external network calls are made
 - All RSS and audio must be served from local E2E HTTP server
@@ -276,6 +277,7 @@ graph LR
 **Duration:** ~15-20 minutes (includes ML package installation and model loading)
 
 **Triggers:**
+
 - Push to `main` branch only (not on PRs)
 
 **Steps:**
@@ -292,6 +294,7 @@ graph LR
 6. Post-build cleanup (cache cleanup for disk space management)
 
 **Test Coverage:**
+
 - Network guard tests
 - OpenAI mock tests
 - E2E server tests
@@ -324,30 +327,30 @@ graph LR
 ```mermaid
 graph TD
     A[pyproject.toml] --> B{Job Type}
-    
+
     B -->|Lint Job| C[dev dependencies only]
     C --> C1[black]
     C --> C2[flake8]
     C --> C3[mypy]
     C --> C4[bandit]
-    
+
     B -->|Unit Test Job| C2[dev dependencies only]
     C2 --> C2A[pytest]
     C2 --> C2B[No ML deps - fast]
     C2 --> C2C[Import check script]
-    
+
     B -->|Integration Test Job| D[dev + ml dependencies]
     D --> D1[pytest]
     D --> D2[transformers]
     D --> D3[torch]
     D --> D4[whisper]
     D --> D5[spacy]
-    
+
     B -->|Fast E2E Test Job| E2[dev dependencies + pytest-socket]
     E2 --> E2A[pytest]
     E2 --> E2B[pytest-socket for network guard]
     E2 --> E2C[No ML deps - fast]
-    
+
     B -->|Slow E2E Test Job| E3[dev + ml dependencies + pytest-socket]
     E3 --> E3A[pytest]
     E3 --> E3B[pytest-socket for network guard]
@@ -355,12 +358,12 @@ graph TD
     E3 --> E3D[torch]
     E3 --> E3E[whisper]
     E3 --> E3F[spacy]
-    
+
     B -->|Docs Job| E[docs + ml dependencies]
     E --> E1[mkdocs-material]
     E --> E2D[mkdocstrings]
     E --> E3G[ML packages for API docs]
-    
+
     B -->|Build Job| F[build tools only]
     F --> F1[python -m build]
 ```
@@ -369,7 +372,7 @@ graph TD
 
 ## Documentation Deployment Workflow
 
-**File:** `.github/workflows/docs.yml`  
+**File:** `.github/workflows/docs.yml`
 **Triggers:**
 
 - Push to `main` branch (when docs or related files change)
@@ -394,7 +397,7 @@ graph LR
     B -->|Generate Site| C[Upload Artifact]
     C -->|Only on push to main| D[Deploy Job]
     D -->|Deploy| E[GitHub Pages]
-    
+
     style B fill:#87CEEB
     style D fill:#90EE90
 ```
@@ -448,7 +451,7 @@ Only one deployment runs at a time. If multiple pushes occur, older deployments 
 
 ## CodeQL Security Workflow
 
-**File:** `.github/workflows/codeql.yml`  
+**File:** `.github/workflows/codeql.yml`
 **Triggers:**
 
 - Push to `main` branch (only when code or workflow files change)
@@ -469,18 +472,18 @@ CodeQL analyzes multiple languages in parallel using a matrix:
 ```mermaid
 graph TB
     A[CodeQL Workflow] --> B{Matrix Strategy}
-    
+
     B --> C[Python Analysis]
     B --> D[GitHub Actions Analysis]
-    
+
     C --> C1[Initialize CodeQL]
     C --> C2[Analyze Python Code]
     C --> C3[Upload Results]
-    
+
     D --> D1[Initialize CodeQL]
     D --> D2[Analyze Actions YAML]
     D --> D3[Upload Results]
-    
+
     style C fill:#FFE4B5
     style D fill:#FFE4B5
 ```
@@ -519,17 +522,18 @@ graph TB
 
 ```yaml
 schedule:
+
   - cron: '17 13 * * 4'
 ```
 
-**Runs:** Every Thursday at 13:17 UTC  
+**Runs:** Every Thursday at 13:17 UTC
 **Purpose:** Catch newly discovered vulnerabilities in dependencies
 
 ---
 
 ## Docker Build & Test Workflow
 
-**File:** `.github/workflows/docker.yml`  
+**File:** `.github/workflows/docker.yml`
 **Triggers:** Push and Pull Requests to `main` branch (only when Docker or Python files change)
 
 **Path Filters:**
@@ -589,7 +593,7 @@ Validates that Docker images can be built correctly and pass basic smoke tests. 
 
 ## Snyk Security Scan Workflow
 
-**File:** `.github/workflows/snyk.yml`  
+**File:** `.github/workflows/snyk.yml`
 **Triggers:**
 
 - Push to `main` branch (only when code/Docker files change)
@@ -677,10 +681,11 @@ Provides comprehensive security scanning for both Python dependencies and Docker
 
 ```yaml
 schedule:
+
   - cron: '0 0 * * 1'
 ```
 
-**Runs:** Every Monday at 00:00 UTC  
+**Runs:** Every Monday at 00:00 UTC
 **Purpose:** Weekly security scan to catch newly discovered vulnerabilities
 
 ### Integration with GitHub Security
@@ -768,6 +773,7 @@ All workflows use pip caching to speed up dependency installation:
 ```yaml
 - uses: actions/setup-python@v5
   with:
+
     python-version: "3.11"
     cache: "pip"
     cache-dependency-path: pyproject.toml
@@ -783,7 +789,7 @@ graph TD
     A --> C[Test: dev + ml]
     A --> D[Docs: docs + ml]
     A --> E[Build: build tools only]
-    
+
     B --> F[Fast: 2-3 min]
     C --> G[Slow: 10-15 min]
     D --> H[Medium: 3-5 min]
@@ -1059,28 +1065,28 @@ make build         # package build
 ```mermaid
 graph TD
     A[Local Development] --> B{git commit}
-    
+
     B --> C[Pre-commit Hook]
     C --> C1[format-check]
     C --> C2[lint]
     C --> C3[lint-markdown]
     C --> C4[type]
-    
+
     C1 & C2 & C3 & C4 --> D{Hook Pass?}
     D -->|No| E[Commit Blocked]
     E --> F[make format to fix]
     F --> A
-    
+
     D -->|Yes| G[Commit Created]
     G --> H[git push]
-    
+
     H --> I{make ci}
     I --> J[All CI Checks]
     J --> K{CI Pass?}
     K -->|Yes| L[PR Ready]
     K -->|No| M[Fix Issues]
     M --> A
-    
+
     style L fill:#90EE90
     style E fill:#FFB6C6
     style M fill:#FFB6C6
@@ -1185,12 +1191,14 @@ make test-e2e-slow
 ```
 
 **Network Guard:**
+
 - All E2E tests run with `--disable-socket --allow-hosts=127.0.0.1,localhost`
 - Ensures no external network calls are made
 - All RSS and audio must be served from local E2E HTTP server
 - Tests fail hard if a real URL is hit
 
 **Test Markers:**
+
 - `workflow_e2e`: All E2E tests
 - `slow`: Slow tests (Whisper, ML models)
 - `ml_models`: Tests requiring ML dependencies

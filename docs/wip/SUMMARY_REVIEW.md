@@ -132,6 +132,7 @@ Assuming word-based approximation:
 
 - **Chunk size:** 800–1200 words for encoder–decoder models
   (for LLMs with larger context, you can go bigger: e.g. 2500–3500 words)
+
 - **Overlap:** 100–200 words to avoid boundary loss
 - **Map step:** summarize each chunk into:
   - 3–7 bullet points, or

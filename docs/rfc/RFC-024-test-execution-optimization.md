@@ -51,6 +51,7 @@ This RFC defines a strategy for **optimizing test execution speed** to keep loca
 ### Primary Goal
 
 **Fast Local Development Cycle:**
+
 - Default local test runs complete in ≤ 30 seconds
 - Clear test speed tiers with explicit execution strategies
 - Optimized parallel execution based on test characteristics
@@ -69,7 +70,7 @@ We explicitly group tests by **intent and speed** to optimize execution strategi
 
 ### Tier 0 – Ultra-fast (Default Local)
 
-**Target runtime:** ≤ 10–30 seconds  
+**Target runtime:** ≤ 10–30 seconds
 **Purpose:** Immediate feedback while coding
 
 **Characteristics:**
@@ -96,7 +97,7 @@ We explicitly group tests by **intent and speed** to optimize execution strategi
 
 ### Tier 1 – Fast Confidence
 
-**Target runtime:** ≤ 1–3 minutes  
+**Target runtime:** ≤ 1–3 minutes
 **Purpose:** Reasonable confidence before pushing
 
 **Characteristics:**
@@ -119,7 +120,7 @@ We explicitly group tests by **intent and speed** to optimize execution strategi
 
 ### Tier 2 – Full Validation
 
-**Target runtime:** 10+ minutes  
+**Target runtime:** 10+ minutes
 **Purpose:** End-to-end system confidence
 
 **Characteristics:**
@@ -234,4 +235,3 @@ test-workflow-e2e:
 
 - Test execution optimization based on empirical measurements
 - See `RFC-025-test-metrics-and-health-tracking.md` for metrics collection and health tracking strategy
-

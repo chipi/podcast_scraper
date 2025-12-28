@@ -1,6 +1,6 @@
 # Release v2.0.1 - Legal Notices and Usage Clarifications
 
-**Release Date:** November 13, 2025  
+**Release Date:** November 13, 2025
 **Type:** Patch Release
 
 ## Summary

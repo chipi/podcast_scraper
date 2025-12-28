@@ -80,7 +80,7 @@ flowchart TD
     Summarize --> AddSummaryToMetadata[Add Summary to Metadata]
     AddSummaryToMetadata --> Cleanup[Cleanup Temp Files]
     Cleanup --> End([Complete])
-    
+
     style Start fill:#e1f5ff
     style End fill:#d4edda
     style ProcessEpisodes fill:#fff3cd
@@ -114,26 +114,26 @@ graph TB
         Config[config.py]
         Workflow[workflow.py]
     end
-    
+
     subgraph "Core Processing"
         RSSParser[rss_parser.py]
         EpisodeProc[episode_processor.py]
         Downloader[downloader.py]
     end
-    
+
     subgraph "Support Modules"
         Filesystem[filesystem.py]
         Models[models.py]
         Progress[progress.py]
     end
-    
+
     subgraph "Optional Features"
         Whisper[whisper_integration.py]
         SpeakerDetect[speaker_detection.py]
         Metadata[metadata.py]
         Summarizer[summarizer.py]
     end
-    
+
     CLI --> Config
     CLI --> Workflow
     CLI --> Progress
@@ -157,7 +157,7 @@ graph TB
     Metadata --> Models
     Summarizer --> Models
     SpeakerDetect --> Models
-    
+
     style CLI fill:#e1f5ff
     style Config fill:#fff3cd
     style Workflow fill:#d1ecf1
@@ -214,7 +214,7 @@ flowchart TD
     Config --> SpeakerDetect[speaker_detection]
     Config --> Metadata[metadata]
     Config --> Summarizer[summarizer]
-    
+
     style Input fill:#e1f5ff
     style Config fill:#fff3cd
     style Validate fill:#f8d7da
@@ -246,7 +246,7 @@ graph TD
     Metadata -->|Yes| MetaFiles["0001 - Episode Title.json<br/>0001 - Episode Title.yaml"]
     Root --> TempDir[.tmp_media/]
     TempDir --> TempFiles[Temporary Media Files<br/>Cleaned Up After Use]
-    
+
     style Root fill:#e1f5ff
     style Episodes fill:#fff3cd
     style TempDir fill:#f8d7da

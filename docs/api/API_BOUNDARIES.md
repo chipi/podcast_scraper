@@ -168,13 +168,13 @@ The public API follows **semantic versioning** and is tied to the module version
   - Return types change
   - Required parameters added
   - Public classes/modules removed
-  
+
 - **Minor version (x.Y.z)**: New features, backward compatible
   - New functions/classes added
   - Optional parameters added
   - New return fields (with defaults)
   - Deprecation warnings (removed in next major)
-  
+
 - **Patch version (x.y.Z)**: Bug fixes, backward compatible
   - Bug fixes only
   - No API changes
