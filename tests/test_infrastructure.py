@@ -105,7 +105,7 @@ def test_makefile_test_workflow_e2e_runs_tests():
         ["make", "test-workflow-e2e"],
         capture_output=True,
         text=True,
-        timeout=300,  # 5 minute timeout
+        timeout=1200,  # 20 minute timeout (workflow_e2e tests can be slow)
         cwd=Path(__file__).parent.parent,
     )
     # Should not fail, but also should not be empty

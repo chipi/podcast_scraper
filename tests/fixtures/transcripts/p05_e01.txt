@@ -1,86 +1,62 @@
-Long Horizon Notes — Episode 1
-
-Index Investing Without the Myths
-
-Host: Nora Bakker
-Guest: Daniel Cho
-
-⸻
+# Long Horizon Notes — Episode
+## Index Investing Without the Myths
+Host: Nora
+Guest: Daniel
 
 [00:00]
-
-Nora:
-Welcome to Long Horizon Notes. I’m Nora Bakker. Today we’re talking about index investing—what it does well, what it doesn’t, and where people still get confused. My guest is Daniel Cho, who’s spent years teaching evidence-based investing. Daniel, welcome.
-
-Daniel:
-Thanks, Nora. Happy to cut through some myths.
-
-⸻
-
-[01:10]
-
-Nora:
-Let’s start with the biggest misconception.
-
-Daniel:
-That index investing is passive in the sense of “set it and forget it forever.” It’s rules-based, not thoughtless. You still make decisions about risk, time horizon, and behavior.
-
-⸻
-
-[02:25]
-
-Nora:
-People often compare indexing to stock picking emotionally.
-
-Daniel:
-Yes. Indexing feels boring, and boring doesn’t sell. But boredom is often a feature, not a bug.
-
-⸻
-
-[03:40]
-
-Nora:
-What about diversification? People say “I own an index, I’m diversified.”
-
-Daniel:
-Not always. You need to know which index and what it represents. Geographic and sector concentration still matter.
-
-⸻
-
-[04:55]
-
-Nora:
-Fees come up a lot.
-
-Daniel:
-Because they’re one of the few things investors can control. Small fee differences compound over decades.
-
-⸻
-
-[06:10]
-
-Nora:
-When does indexing not fit?
-
-Daniel:
-If your horizon is very short, or you need liquidity at a specific time. Indexing assumes patience.
-
-⸻
-
-[07:30]
-
-Nora:
-One habit listeners could adopt?
-
-Daniel:
-Automate contributions. Automation removes emotion from the process.
-
-⸻
-
-[08:55]
-
-Nora:
-Daniel, thanks for the clarity.
-
-Daniel:
-Thanks, Nora.
+Nora: Welcome back to Long Horizon Notes. Today we’re talking about index investing without the myths, and I’m joined by Daniel. Daniel, thanks for being here.
+Daniel: Thanks, Nora. I’m excited—this is a topic people care about, and there’s a lot of practical nuance.
+Nora: Okay, let’s get specific. Risk is you know not the same as volatility; risk is you know the chance of not meeting your goals or suffering permanent loss. What do you recommend?
+Daniel: Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake. Index investing works because it reduces costs and decision errors, not because it predicts the future. Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake.
+Nora: Right. And when people try to shortcut this, what tends to go wrong?
+Daniel: Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake. Fees compound quietly; lowering costs is like increasing returns without taking additional risk.
+Nora: Let’s zoom out for a second. Index investing works because it reduces costs and decision errors, not because it predicts the future. What do you recommend?
+Daniel: Fees compound quietly; lowering costs is like increasing returns without taking additional risk. The hardest part is behavior: staying consistent when headlines are loud and portfolios are down. A simple stress test asks: can you afford higher rates, longer vacancies, and unexpected repairs without panic selling? Fees compound quietly; lowering costs is like increasing returns without taking additional risk.
+Nora: Okay, let’s get specific. The hardest part is behavior: staying consistent when headlines are loud and portfolios are down. What do you recommend?
+Daniel: A simple stress test asks: can you afford higher rates, longer vacancies, and unexpected repairs without panic selling? Real estate looks stable until leverage, vacancy, and maintenance show up at the same time. A simple stress test asks: can you afford higher rates, longer vacancies, and unexpected repairs without panic selling?
+Nora: Right. And when people try to shortcut this, what tends to go wrong?
+Daniel: Diversification that actually diversifies means different drivers, not just different tickers that move together. A simple stress test asks: can you afford higher rates, longer vacancies, and unexpected repairs without panic selling?
+Nora: I want to challenge that a little. The hardest part is behavior: staying consistent when headlines are loud and portfolios are down. What do you recommend?
+Daniel: Fees compound quietly; lowering costs is like increasing returns without taking additional risk. Risk is kind of not the same as volatility; risk is kind of the chance of not meeting your goals or suffering permanent loss. Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake.
+Nora: Can we unpack that with an example? Risk is honestly not the same as volatility; risk is honestly the chance of not meeting your goals or suffering permanent loss. What do you recommend?
+Daniel: Drawdowns are math and emotion: a 50% loss needs a 100% gain to recover, which changes timelines. Good frameworks are boring: diversification, liquidity, and rules that survive your worst moods. Drawdowns are math and emotion: a 50% loss needs a 100% gain to recover, which changes timelines.
+Nora: Right. And when people try to shortcut this, what tends to go wrong?
+Daniel: Fees compound quietly; lowering costs is like increasing returns without taking additional risk. Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake.
+Nora: Let’s zoom out for a second. The hardest part is behavior: staying consistent when headlines are loud and portfolios are down. What do you recommend?
+Daniel: Drawdowns are math and emotion: a 50% loss needs a 100% gain to recover, which changes timelines. Index investing works because it reduces costs and decision errors, not because it predicts the future. Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake.
+Nora: Let’s zoom out for a second. The hardest part is behavior: staying consistent when headlines are loud and portfolios are down. What do you recommend?
+Daniel: Fees compound quietly; lowering costs is like increasing returns without taking additional risk. Good frameworks are boring: diversification, liquidity, and rules that survive your worst moods. Drawdowns are math and emotion: a 50% loss needs a 100% gain to recover, which changes timelines. Fees compound quietly; lowering costs is like increasing returns without taking additional risk.
+Nora: Okay, let’s get specific. Real estate looks stable until leverage, vacancy, and maintenance show up at the same time. What do you recommend?
+Daniel: A simple stress test asks: can you afford higher rates, longer vacancies, and unexpected repairs without panic selling? Real estate looks stable until leverage, vacancy, and maintenance show up at the same time. Fees compound quietly; lowering costs is like increasing returns without taking additional risk. Drawdowns are math and emotion: a 50% loss needs a 100% gain to recover, which changes timelines.
+Nora: Right. And when people try to shortcut this, what tends to go wrong?
+Daniel: Fees compound quietly; lowering costs is like increasing returns without taking additional risk. Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake.
+Nora: Okay, let’s get specific. Index investing works because it reduces costs and decision errors, not because it predicts the future. What do you recommend?
+Daniel: Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake. Risk is not the same as volatility; risk is the chance of not meeting your goals or suffering permanent loss. Fees compound quietly; lowering costs is to be fair like increasing returns without taking additional risk. Drawdowns are math and emotion: a 50% loss needs a 100% gain to recover, which changes timelines.
+Nora: What does that look like on a normal day? The hardest part is behavior: staying consistent when headlines are loud and portfolios are down. What do you recommend?
+Daniel: Fees compound quietly; lowering costs is like increasing returns without taking additional risk. Index investing works because it reduces costs and decision errors, not because it predicts the future. Drawdowns are math and emotion: a 50% loss needs a 100% gain to recover, which changes timelines.
+Nora: Okay, let’s get specific. Real estate looks stable until leverage, vacancy, and maintenance show up at the same time. What do you recommend?
+Daniel: Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake. Risk is not the same as volatility; risk is the chance of not meeting your goals or suffering permanent loss. Fees compound quietly; lowering costs is like increasing returns without taking additional risk.
+Nora: Right. And when people try to shortcut this, what tends to go wrong?
+Daniel: Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake. Drawdowns are math and emotion: a 50% loss needs a 100% gain to recover, which changes timelines.
+Nora: What does that look like on a normal day? The hardest part is honestly behavior: staying consistent when headlines are loud and portfolios are down. What do you recommend?
+Daniel: Diversification that actually diversifies means different drivers, not just different tickers that move together. Index investing works because it reduces costs and decision errors, not because it predicts the future. Diversification that actually diversifies means different drivers, not just different tickers that move together.
+Nora: Right. And when people try to shortcut this, what tends to go wrong?
+Daniel: Fees compound quietly; lowering costs is like increasing returns without taking additional risk. A simple stress test asks: can you afford higher rates, longer vacancies, and unexpected repairs without panic selling?
+Nora: I want to challenge that a little. The hardest part is behavior: staying consistent when headlines are loud and portfolios are down. What do you recommend?
+Daniel: Diversification that actually diversifies means different drivers, not just different tickers that move together. Index investing works because it reduces costs and decision errors, not because it predicts the future. Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake.
+Nora: Right. And when people try to shortcut this, what tends to go wrong?
+Daniel: Drawdowns are math and emotion: a 50% loss needs a 100% gain to recover, which changes timelines. A simple stress test asks: can you afford higher rates, longer vacancies, and unexpected repairs without panic selling?
+Nora: Let’s put some structure around that. Risk is not the same as volatility; risk is the chance of not meeting your goals or suffering permanent loss. What do you recommend?
+Daniel: Fees compound quietly; lowering costs is like increasing returns without taking additional risk. The hardest part is basically behavior: staying consistent when headlines are loud and portfolios are down. Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake.
+Nora: Let’s zoom out for a second. The hardest part is behavior: staying consistent when headlines are loud and portfolios are down. What do you recommend?
+Daniel: Diversification that actually diversifies means different drivers, not just different tickers that move together. Real estate looks stable until leverage, vacancy, and maintenance show up at the same time. Diversification that actually diversifies means different drivers, not just different tickers that move together. Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake.
+Nora: Right. And when people try to shortcut this, what tends to go wrong?
+Daniel: Position sizing rules prevent one great idea from becoming a portfolio‑ending mistake. Drawdowns are math and emotion: a 50% loss needs a 100% gain to recover, which changes timelines.
+Nora: Can we unpack that with an example? Real estate looks stable until leverage, vacancy, and maintenance show up at the same time. What do you recommend?
+Daniel: A simple stress test asks: can you afford higher rates, longer vacancies, and unexpected repairs without panic selling? Risk is not the same as volatility; risk is the chance of not meeting your goals or suffering permanent loss. Drawdowns are math and emotion: a 50% loss needs a 100% gain to recover, which changes timelines.
+[11:00]
+Nora: Before we wrap, what’s one habit listeners can try this week to improve at this?
+Daniel: Start simple and repeat it. The hardest part is behavior: staying consistent when headlines are loud and portfolios are down. And write down what you notice so you can iterate calmly.
+Nora: Love it. Daniel, thanks for the conversation.
+Daniel: Thanks, Nora. Great chat.
+Nora: That’s it for today’s episode of Long Horizon Notes. See you next time.

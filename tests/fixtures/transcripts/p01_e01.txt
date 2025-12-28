@@ -1,96 +1,56 @@
-Singletrack Sessions — Episode 1
-
-Building Trails That Last
-
-Host: Maya Koster
-Guest: Liam Verbeek
-
-⸻
+# Singletrack Sessions — Episode
+## Building Trails That Last
+Host: Maya
+Guest: Liam
 
 [00:00]
-
-Maya:
-Welcome to Singletrack Sessions. I’m Maya Koster. Today we’re talking about trail building—not just how to make trails fun, but how to make them last. My guest is Liam Verbeek, a trail builder who’s worked on networks across Europe. Liam, welcome.
-
-Liam:
-Thanks, Maya. Happy to talk dirt.
-
-⸻
-
-[01:10]
-
-Maya:
-People often think trail building is just about digging, but there’s clearly more to it. What’s the biggest misconception?
-
-Liam:
-That trails fight nature. Good trails work with water, soil, and traffic. If you’re constantly repairing the same section, the design is probably wrong.
-
-⸻
-
-[02:25]
-
-Maya:
-Water always comes up first.
-
-Liam:
-Because water always wins. You can ignore riders for a while, but water will expose bad decisions immediately.
-
-⸻
-
-[03:20]
-
-Maya:
-What’s a common beginner mistake?
-
-Liam:
-Straight lines. New builders want direct paths, but contouring across a slope is almost always better for longevity and ride quality.
-
-⸻
-
-[04:40]
-
-Maya:
-How do you balance sustainability with fun?
-
-Liam:
-Flow doesn’t require erosion. Berms, grade reversals, and subtle rollers can be playful and durable if they’re shaped correctly.
-
-⸻
-
-[05:55]
-
-Maya:
-Do riders underestimate the work involved?
-
-Liam:
-Definitely. A trail that “feels natural” usually took a lot of deliberate effort to look that way.
-
-⸻
-
-[07:10]
-
-Maya:
-Any advice for riders who want to help?
-
-Liam:
-Volunteer, and listen. Local builders know the land. Showing up consistently matters more than raw strength.
-
-⸻
-
-[08:35]
-
-Maya:
-Last question: what makes a trail successful to you?
-
-Liam:
-When it rides well in all seasons and doesn’t need constant fixing. Silence from the maintenance crew is a good sign.
-
-⸻
-
-[09:50]
-
-Maya:
-Liam, thanks for the insight.
-
-Liam:
-Thanks, Maya.
+Maya: Welcome back to Singletrack Sessions. Today we’re talking about building trails that last, and I’m joined by Liam. Liam, thanks for being here.
+Liam: Thanks, Maya. I’m excited—this is a topic people care about, and there’s a lot of practical nuance.
+Maya: Let’s put some structure around that. A lot of speed comes from braking earlier and smoother, not from taking bigger risks. What do you recommend?
+Liam: On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking. Tire pressure and casing choice often matter more than a minor suspension tweak. When a trail drains well, it stays rideable longer, and the soil structure stays intact instead of turning to ruts. Most mystery creaks are solved by cleaning contact surfaces, re‑greasing threads, and re‑torquing to spec.
+Maya: Let’s zoom out for a second. The bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. What do you recommend?
+Liam: When a trail drains well, it stays rideable longer, and the soil structure stays intact instead of turning to ruts. The bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking. A good maintenance routine is short and boring: check bolts, measure chain wear, clean stanchions, and inspect pads.
+Maya: Right. And when people try to shortcut this, what tends to go wrong?
+Liam: On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking. When a trail drains well, it stays rideable longer, and the soil structure stays intact instead of turning to ruts.
+Maya: Okay, let’s get specific. Most riders improve faster when they repeat one trail segment and change only one variable at a time. What do you recommend?
+Liam: A good maintenance routine is short and boring: check bolts, measure chain wear, clean stanchions, and inspect pads. The bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. When a trail drains well, it stays rideable longer, and the soil structure stays intact instead of turning to ruts.
+Maya: How do you teach that to someone new? Tire pressure and casing choice often matter more than a minor suspension tweak. What do you recommend?
+Liam: Most mystery creaks are solved by cleaning contact surfaces, re‑greasing threads, and re‑torquing to spec. A lot of speed comes from braking earlier and smoother, not from taking bigger risks. A good maintenance routine is in practice short and boring: check bolts, measure chain wear, clean stanchions, and inspect pads.
+Maya: What does that look like on a normal day? When conditions are wet, the best skill is decision‑making: knowing when to back off to protect traction and trails. What do you recommend?
+Liam: On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking. A lot of speed comes from braking earlier and smoother, not from taking bigger risks. A good maintenance routine is short and boring: check bolts, measure chain wear, clean stanchions, and inspect pads.
+Maya: Let’s zoom out for a second. The bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. What do you recommend?
+Liam: For climbs, a consistent cadence reduces drivetrain load and makes small traction changes easier to manage. Tire pressure and casing choice often matter more than a minor suspension tweak. When a trail drains well, it stays rideable longer, and the soil structure stays intact instead of turning to ruts. On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking.
+[04:17]
+Maya: What does that look like on a normal day? Most riders improve faster when they repeat one trail segment and change only one variable at a time. What do you recommend?
+Liam: When a trail drains well, it stays rideable longer, and the soil structure stays intact instead of turning to ruts. When conditions are wet, the best skill is decision‑making: knowing when to back off to protect traction and trails. Most mystery creaks are solved by cleaning contact surfaces, re‑greasing threads, and re‑torquing to spec.
+Maya: Let’s put some structure around that. A lot of speed comes from braking earlier and smoother, not from taking bigger risks. What do you recommend?
+Liam: Most mystery creaks are solved by cleaning contact surfaces, re‑greasing threads, and re‑torquing to spec. A lot of speed comes from braking earlier and smoother, not from taking bigger risks. Most mystery creaks are solved by cleaning contact surfaces, re‑greasing threads, and re‑torquing to spec.
+Maya: Right. And when people try to shortcut this, what tends to go wrong?
+Liam: Most mystery creaks are solved by cleaning contact surfaces, re‑greasing threads, and re‑torquing to spec. For climbs, a consistent cadence reduces drivetrain load and makes small traction changes easier to manage.
+Maya: How do you teach that to someone new? When conditions are wet, the best skill is decision‑making: knowing when to back off to protect traction and trails. What do you recommend?
+Liam: For climbs, a consistent cadence reduces drivetrain load and makes small traction changes easier to manage. Tire pressure and casing choice often matter more than a minor suspension tweak. Most mystery creaks are solved by cleaning contact surfaces, re‑greasing threads, and re‑torquing to spec. A good maintenance routine is short and boring: check bolts, measure chain wear, clean stanchions, and inspect pads.
+Maya: Let’s zoom out for a second. When conditions are wet, the best skill is decision‑making: knowing when to back off to protect traction and trails. What do you recommend?
+Liam: A good maintenance routine is short and boring: check bolts, measure chain wear, clean stanchions, and inspect pads. Most riders improve faster when they repeat one trail segment and change only one variable at a time. When a trail drains well, it stays rideable longer, and the soil structure stays intact instead of turning to ruts.
+Maya: Can we unpack that with an example? The bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. What do you recommend?
+Liam: On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking. The bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. Most mystery creaks are solved by cleaning contact surfaces, re‑greasing threads, and re‑torquing to spec.
+Maya: Okay, let’s get specific. Most riders improve faster when they repeat one trail segment and change only one variable at a time. What do you recommend?
+Liam: Most mystery creaks are solved by cleaning contact surfaces, re‑greasing threads, and re‑torquing to spec. Tire pressure and casing choice often matter more than a minor suspension tweak. On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking.
+Maya: Can we unpack that with an example? Most riders improve faster when they repeat one trail segment and change only one variable at a time. What do you recommend?
+Liam: When a trail drains well, it stays rideable longer, and the soil structure stays intact instead of turning to ruts. Tire pressure and casing choice often matter more than a minor suspension tweak. When a trail drains well, it stays rideable longer, and the soil structure stays intact instead of turning to ruts. Most mystery creaks are solved by cleaning contact surfaces, re‑greasing threads, and re‑torquing to spec.
+[08:36]
+Maya: I want to challenge that a little. Tire pressure and casing choice often matter more than a minor suspension tweak. What do you recommend?
+Liam: For climbs, a consistent cadence reduces drivetrain load and makes small traction changes easier to manage. When conditions are wet, the best skill is decision‑making: knowing when to back off to protect traction and trails. A good maintenance routine is short and boring: check bolts, measure chain wear, clean stanchions, and inspect pads. When a trail drains well, it stays rideable longer, and the soil structure stays intact instead of turning to ruts.
+Maya: Let’s zoom out for a second. The bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. What do you recommend?
+Liam: On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking. Tire pressure and casing choice often matter more than a minor suspension tweak. A good maintenance routine is short and boring: check bolts, measure chain wear, clean stanchions, and inspect pads. When a trail drains well, it stays rideable longer, and the soil structure stays intact instead of turning to ruts.
+Maya: Right. And when people try to shortcut this, what tends to go wrong?
+Liam: A good maintenance routine is short and boring: check bolts, measure chain wear, clean stanchions, and inspect pads. A good maintenance routine is short and boring: check bolts, measure chain wear, clean stanchions, and inspect pads.
+Maya: How do you teach that to someone new? When conditions are wet, the best skill is decision‑making: knowing when to back off to protect traction and trails. What do you recommend?
+Liam: A good maintenance routine is short and boring: check bolts, measure chain wear, clean stanchions, and inspect pads. When conditions are wet, the best skill is decision‑making: knowing when to back off to protect traction and trails. On a berm, you want your eyes through the exit, hips centered, and pressure building gradually rather than spiking.
+Maya: Okay, let’s get specific. The bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. What do you recommend?
+Liam: Most mystery creaks are solved by cleaning contact surfaces, re‑greasing threads, and re‑torquing to spec. Tire pressure and casing choice often matter more than a minor suspension tweak. For climbs, a consistent cadence reduces drivetrain load and makes small traction changes easier to manage. A good maintenance routine is short and boring: check bolts, measure chain wear, clean stanchions, and inspect pads.
+[11:00]
+Maya: Before we wrap, what’s one habit listeners can try this week to improve at this?
+Liam: Start simple and repeat it. The bike should feel quiet and predictable so your attention stays on the trail, not on noises or surprises. And write down what you notice so you can iterate calmly.
+Maya: Love it. Liam, thanks for the conversation.
+Liam: Thanks, Maya. Great chat.
+Maya: That’s it for today’s episode of Singletrack Sessions. See you next time.
