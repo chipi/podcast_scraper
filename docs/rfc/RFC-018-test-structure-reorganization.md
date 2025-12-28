@@ -300,7 +300,7 @@ pytest --reruns 2 --reruns-delay 1
 
 - Update `docs/TESTING_STRATEGY.md` with new test structure and organization
 - Update `CONTRIBUTING.md` with new test running examples and structure
-- Update `docs/DEVELOPMENT_NOTES.md` if it references test structure
+- Update `docs/DEVELOPMENT_GUIDE.md` if it references test structure
 - Update `README.md` if it has test-related sections
 - Document test type definitions and decision tree
 - Add examples of running different test suites
@@ -411,7 +411,7 @@ def block_network_and_filesystem_io(request):
 
 - `docs/TESTING_STRATEGY.md`: Update with new test structure, organization, and test type definitions
 - `CONTRIBUTING.md`: Update test running examples, add section on new test structure
-- `docs/DEVELOPMENT_NOTES.md`: Update any test-related references
+- `docs/DEVELOPMENT_GUIDE.md`: Update any test-related references
 - `README.md`: Update test running examples if present
 
 **New Documentation Sections:**

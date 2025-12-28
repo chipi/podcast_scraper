@@ -516,12 +516,92 @@ def process_episode(episode, cfg):
 
 ---
 
+## Fallback Behavior
+
+During migration to the provider pattern, the system includes fallback mechanisms to support backward compatibility and graceful degradation. Understanding these fallbacks is important for debugging and maintenance.
+
+### Fallback Categories
+
+1. **Intentional Fallbacks (Backward Compatibility)**: Documented fallbacks that support backward compatibility during migration
+2. **Graceful Degradation Fallbacks**: Allow the system to continue operating when provider initialization fails
+3. **Deprecated Fallbacks**: Temporary fallbacks that will be removed in future versions
+
+### Key Fallback Patterns
+
+#### Transcription Provider Fallback
+
+**Location**: `workflow.py:843-847`
+
+**Purpose**: Graceful degradation when transcription provider initialization fails
+
+**Behavior**: Falls back to direct Whisper loading if provider initialization fails
+
+**Status**: ✅ **Intentional** - Documented graceful degradation pattern
+
+**Future**: May be removed when providers are stable, or made configurable (fail-fast vs graceful)
+
+#### Episode Processor Transcription Fallback
+
+**Location**: `episode_processor.py:446-447`
+
+**Purpose**: Backward compatibility when provider is not available
+
+**Behavior**: Uses direct Whisper transcription if `transcription_provider` is `None`
+
+**Status**: ✅ **Intentional** - Backward compatibility pattern
+
+**Future**: Will be removed when all code paths use providers
+
+### Fallback Decision Matrix
+
+| Scenario | Provider Type | Fallback? | Reason |
+| --------- | -------------- | ----------- | -------- |
+| Transcription init fails | Transcription | ✅ Yes | Graceful degradation |
+| Speaker detector init fails | SpeakerDetector | ❌ No | Fail-fast (optional) |
+| Summarization init fails | Summarization | ❌ No | Fail-fast (optional) |
+| Provider not passed | Any | ✅ Yes | Backward compatibility |
+| Method not available | Any | ❌ No | Protocol method required |
+
+### Best Practices
+
+#### ✅ Do
+
+- **Document fallbacks**: Always document why fallbacks exist
+- **Log fallback usage**: Log when fallbacks are used for debugging
+- **Deprecate gradually**: Mark deprecated fallbacks with warnings
+- **Test fallbacks**: Ensure fallback paths are tested
+
+#### ❌ Don't
+
+- **Silent fallbacks**: Don't fail silently - always log
+- **Complex fallbacks**: Keep fallback logic simple
+- **Permanent fallbacks**: Plan to remove deprecated fallbacks
+- **Undocumented fallbacks**: Always document fallback behavior
+
+### Removing Fallbacks
+
+**When to Remove**:
+
+- All code paths use providers
+- No backward compatibility needed
+- Provider initialization is stable
+- Deprecation period has passed
+
+**How to Remove**:
+
+1. Identify all fallback paths
+2. Update code to require providers
+3. Remove fallback logic
+4. Update tests
+5. Update documentation
+
+---
+
 ## Related Documentation
 
 - [Custom Provider Guide](./CUSTOM_PROVIDER_GUIDE.md) - How to create custom providers
 - [Provider Attributes](./PROVIDER_ATTRIBUTES.md) - Provider-specific attributes
 - [Protocol Extension Guide](./PROTOCOL_EXTENSION_GUIDE.md) - How to extend protocols
-- [Fallback Behavior](./FALLBACK_BEHAVIOR.md) - Fallback patterns and behavior
 
 ---
 

@@ -7,7 +7,7 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-013-openai-provider-implementation.md` - OpenAI provider implementation (uses environment variables)
 - **Related Documents**:
-  - `docs/ENVIRONMENT_VARIABLES.md` - Complete documentation of implemented environment variables
+  - `docs/api/configuration.md` - Complete documentation of implemented environment variables
 
 ## Overview
 
@@ -261,7 +261,7 @@ We evaluate candidates based on:
 
 ### Documentation
 
-- Update `docs/ENVIRONMENT_VARIABLES.md` for each new variable
+- Update `docs/api/configuration.md` for each new variable
 - Update `examples/.env.example` template
 - Add examples in usage sections
 
@@ -281,8 +281,8 @@ The implemented fields focus on:
 
 These align with common use cases in Docker, CI/CD, and multi-environment deployments.
 
-**Documentation**: All implemented environment variables are documented in `docs/ENVIRONMENT_VARIABLES.md`.
+**Documentation**: All implemented environment variables are documented in `docs/api/configuration.md`.
 
 **See Also**:
-- `docs/ENVIRONMENT_VARIABLES.md` - Complete documentation of all supported environment variables
+- `docs/api/configuration.md` - Complete documentation of all supported environment variables
 - `src/podcast_scraper/config.py` - Implementation in `_preprocess_config_data()` method

@@ -252,7 +252,7 @@ Cursor is best thought of as:
 - Creating new RFCs (RFC-024, RFC-025, RFC-026)
 - Implementing complex features (E2E test improvements)
 - Multi-file refactors (pipeline refactoring)
-- Documentation updates (DEVELOPMENT_NOTES.md expansion)
+- Documentation updates (DEVELOPMENT_GUIDE.md expansion)
 
 ## Prompt Files in `.cursor/prompts/`
 
@@ -430,13 +430,13 @@ Issue: [paste issue content]
 **Before starting any task:**
 
 - Read `.ai-coding-guidelines.md` (or acknowledge you've read it)
-- Reference `docs/DEVELOPMENT_NOTES.md` for technical patterns
+- Reference `docs/DEVELOPMENT_GUIDE.md` for technical patterns
 - Check `docs/TESTING_STRATEGY.md` for test requirements
 - Review related RFCs/PRDs for feature context
 
 **Example prompt:**
 
-> "Implement RFC-025 Phase 1. Reference .ai-coding-guidelines.md for commit workflow and docs/DEVELOPMENT_NOTES.md for code patterns."
+> "Implement RFC-025 Phase 1. Reference .ai-coding-guidelines.md for commit workflow and docs/DEVELOPMENT_GUIDE.md for code patterns."
 
 ### 2. Mandatory Workflow Steps
 
@@ -481,13 +481,13 @@ Issue: [paste issue content]
 **When implementing features:**
 
 - Update relevant RFCs (status: Draft → Accepted → Completed)
-- Update `docs/DEVELOPMENT_NOTES.md` if adding new patterns
+- Update `docs/DEVELOPMENT_GUIDE.md` if adding new patterns
 - Update `docs/TESTING_STRATEGY.md` if adding new test categories
 - Update `mkdocs.yml` if adding new docs
 
 **Example prompt:**
 
-> "Implement this feature and update documentation: mark RFC-025 Phase 1 as Completed, add notes to DEVELOPMENT_NOTES.md"
+> "Implement this feature and update documentation: mark RFC-025 Phase 1 as Completed, add notes to DEVELOPMENT_GUIDE.md"
 
 ### 5. CI/CD Integration
 

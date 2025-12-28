@@ -39,7 +39,6 @@ nav:
       - RFC-017 Prompt Management: rfc/RFC-017-prompt-management.md
       - RFC-018 Test Structure Reorganization: rfc/RFC-018-test-structure-reorganization.md
       - RFC-019 E2E Test Improvements: rfc/RFC-019-e2e-test-improvements.md
-      - RFC-019 Implementation Plan: rfc/RFC-019-IMPLEMENTATION-PLAN.md
       - RFC-020 Integration Test Improvements: rfc/RFC-020-integration-test-improvements.md
       - RFC-021 Modularization Refactoring Plan: rfc/RFC-021-modularization-refactoring-plan.md
       - RFC-022 Environment Variable Candidates Analysis: rfc/RFC-022-environment-variable-candidates-analysis.md
@@ -76,12 +75,14 @@ nav:
   - Guides:
       - Custom Provider Guide: CUSTOM_PROVIDER_GUIDE.md
       - Cursor AI Best Practices: CURSOR_AI_BEST_PRACTICES.md
-      - Development Notes: DEVELOPMENT_NOTES.md
-      - Environment Variables: ENVIRONMENT_VARIABLES.md
-      - Fallback Behavior: FALLBACK_BEHAVIOR.md
+      - Dependencies: DEPENDENCIES.md
+      - Development Guide: DEVELOPMENT_GUIDE.md
+      - Markdown Linting: MARKDOWN_LINTING.md
       - Protocol Extension Guide: PROTOCOL_EXTENSION_GUIDE.md
       - Provider Attributes: PROVIDER_ATTRIBUTES.md
       - Provider Migration Guide: PROVIDER_MIGRATION_GUIDE.md
+      - Summarization Guide: SUMMARIZATION_GUIDE.md
+      - Testing Guide: TESTING_GUIDE.md
   - Legal Notice: legal.md
 theme:
   name: material

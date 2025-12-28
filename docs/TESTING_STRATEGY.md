@@ -1,8 +1,10 @@
 # Testing Strategy
 
+> **See also:** [Testing Guide](TESTING_GUIDE.md) for detailed implementation instructions, test execution commands, test file descriptions, fixtures, and coverage details.
+
 ## Overview
 
-This document defines a comprehensive testing strategy that ensures reliability, maintainability, and confidence in the podcast scraper codebase. It consolidates testing approaches across all modules, establishes test infrastructure requirements, and outlines CI/CD integration patterns.
+This document defines the testing strategy for the podcast scraper codebase. It establishes the test pyramid approach, decision criteria for choosing test types, and high-level testing patterns. For detailed implementation instructions on how to run tests, what test files exist, and how to work with the test suite, see the [Testing Guide](TESTING_GUIDE.md).
 
 ## Problem Statement
 
@@ -96,6 +98,16 @@ The testing strategy follows a three-tier pyramid:
 - **Coverage**: Complete user workflows, production-like scenarios
 - **Examples**: CLI command (`podcast-scraper <rss_url>`) → Full pipeline → Output files, Library API (`run_pipeline(config)`) → Full pipeline → Output files
 - **Key Distinction**: Tests complete user workflows, not just component interactions
+
+## Decision Criteria
+
+The decision questions above provide a quick way to determine test type. For detailed decision trees, edge cases, and migration guidelines, see [Testing Guide - Decision Trees and Edge Cases](TESTING_GUIDE.md#decision-trees-and-edge-cases).
+
+**Quick Reference:**
+
+- **Unit Test**: Single function/module in isolation, all dependencies mocked
+- **Integration Test**: Multiple components working together, real internal implementations, mocked external services
+- **E2E Test**: Complete user workflow from entry point to output, real HTTP client, real data files, real ML models
 
 ## Test Categories
 
@@ -213,6 +225,8 @@ The testing strategy follows a three-tier pyramid:
   - ServiceResult equality and string representation
   - Integration with public API (`Config`, `load_config_file`, `run_pipeline`)
 
+**For detailed unit test execution commands, test file descriptions, fixtures, requirements, and coverage, see [Testing Guide - Unit Test Implementation](TESTING_GUIDE.md#unit-test-implementation).**
+
 ### 2. Integration Tests
 
 #### CLI Integration (`cli.py` + `workflow.py`)
@@ -263,163 +277,58 @@ The testing strategy follows a three-tier pyramid:
   - Speaker name override precedence
   - Language-aware model selection
 
+**For detailed integration test execution commands, test file descriptions, fixtures, requirements, and coverage, see [Testing Guide - Integration Test Implementation](TESTING_GUIDE.md#integration-test-implementation).**
+
 ### 3. End-to-End Tests
 
-#### Current State
+#### E2E Test Coverage Goals
 
-- **Issue #14**: Current tests rely heavily on mocks; lack realistic E2E tests
-- **Issue #16**: No E2E tests for library API (`run_pipeline()`)
+**Every major user-facing entry point should have at least one E2E test:**
 
-#### E2E Test Infrastructure (Issue #14)
+1. **CLI Commands** - Each main CLI command should have E2E tests
+2. **Library API Endpoints** - Each public API function should have E2E tests
+3. **Critical User Scenarios** - Important workflows should have E2E tests
 
-**Test Fixtures & Mock Servers**:
+**What Doesn't Need E2E Tests:**
 
-- Local HTTP server (`http.server` or `pytest-httpserver`)
-- Serves realistic RSS feeds with various transcript formats
-- Serves transcript files (VTT, SRT, JSON, plain text)
-- Serves small test audio files (< 10 seconds)
+- Not every CLI flag combination needs an E2E test
+- Every possible configuration value (tested in integration/unit tests)
+- Edge cases in specific components (tested in integration tests)
 
-**Realistic Whisper Testing**:
+**Rule of Thumb**: E2E tests should cover "as a user, I want to..." scenarios, not every possible configuration combination.
 
-- Use actual Whisper models (smallest available, e.g., `tiny.en`)
-- Small test audio files for fast transcription
-- Gate expensive tests behind flag (`--run-whisper-e2e`)
-
-**Test Scenarios**:
-
-- **Full pipeline**: RSS fetch → episode parsing → transcript download → file writing
-- **Whisper fallback**: RSS fetch → no transcript → media download → Whisper transcription → file writing
-- **Error handling**: Network failures, malformed RSS, missing files
-- **Edge cases**: Special characters in titles, relative URLs, multiple transcript formats
-- **Configuration**: Various CLI/config combinations end-to-end
-
-**Test Infrastructure**:
-
-- Mark E2E tests with `@pytest.mark.e2e`
-- Make E2E tests optional in CI (run on schedule or manual trigger)
-- Ensure tests are isolated (clean temp directories, no side effects)
-- Add fixtures for common test scenarios
-
-#### Library API E2E Tests (Issue #16)
-
-**Test Scenarios**:
-
-1. **Basic Library Usage**: `Config` + `run_pipeline()` for transcript download
-2. **Library with Config File**: `load_config_file()` + `run_pipeline()`
-3. **Library with Whisper**: `Config` with `transcribe_missing=True` + `run_pipeline()`
-4. **Library Error Handling**: Invalid config, network failures
-
-**Implementation**:
-
-- Use same test fixtures/mock servers as CLI E2E tests
-- Mark tests with `@pytest.mark.e2e`
-- Ensure isolation from CLI tests
-- Test both success and error paths
-- Verify return values (`count`, `summary`) match documented API
+**For detailed E2E test execution commands, test file descriptions, fixtures, requirements, and coverage, see [Testing Guide - E2E Test Implementation](TESTING_GUIDE.md#e2e-test-implementation).**
 
 ## Test Infrastructure
 
 ### Test Framework
 
-- **Primary**: `unittest` (Python standard library)
-- **Future Consideration**: `pytest` for better fixtures and markers
+- **Primary**: pytest (with unittest compatibility)
+- **Fixtures**: pytest fixtures for test setup and teardown
+- **Markers**: pytest markers for test categorization
 
 ### Mocking Strategy
 
-- **HTTP Requests**: `unittest.mock.patch` with `MockHTTPResponse` fixtures
-- **Whisper Library**: Mock `whisper.load_model()` and `whisper.transcribe()`
-- **File System**: `tempfile.TemporaryDirectory` for isolated test runs
-- **ML Dependencies (spacy, torch, transformers)**:
-  - **Unit Tests**: Must mock ML dependencies before importing modules that use them
-  - **Integration Tests**: Real ML dependencies required and installed
-  - **Why**: Unit tests run without ML dependencies in CI for speed; modules that import ML deps at top level will fail
-  - **Solution**: Mock ML modules in `sys.modules` before importing dependent modules
-
-**Network and Filesystem I/O Isolation for Unit Tests:**
-
-- Unit tests are automatically prevented from making network calls and filesystem I/O operations
-- A pytest plugin (`tests/unit/conftest.py`) blocks:
-  - **Network libraries:**
-    - `requests.get()`, `requests.post()`, `requests.Session()` methods
-    - `urllib.request.urlopen()`
-    - `urllib3.PoolManager()`
-    - `socket.create_connection()`
-  - **Filesystem operations:**
-    - `open()` for file operations (outside temp directories)
-    - `os.makedirs()`, `os.remove()`, `os.unlink()`, `os.rmdir()`, etc.
-    - `shutil.copy()`, `shutil.move()`, `shutil.rmtree()`, etc.
-    - `Path.write_text()`, `Path.write_bytes()`, `Path.mkdir()`, `Path.unlink()`, etc.
-- If a unit test attempts a network call, it fails with `NetworkCallDetectedError`
-- If a unit test attempts filesystem I/O, it fails with `FilesystemIODetectedError`
-- **Exceptions (allowed in unit tests):**
-  - `tempfile.mkdtemp()`, `tempfile.NamedTemporaryFile()` (designed for testing)
-  - Operations within temp directories (detected automatically)
-  - Cache directories (`~/.cache/`, `~/.local/share/`) for model loading
-  - Site-packages (read-only access to installed packages)
-  - Python cache files (`.pyc`, `__pycache__`) created during imports
-  - `test_filesystem.py` tests (they need to test filesystem operations)
-- Integration and workflow_e2e tests are not affected by network/filesystem isolation
-
-### Test Fixtures
-
-- **RSS XML Samples**: Various feed structures, namespaces, edge cases
-- **HTTP Response Mocks**: Realistic headers, content types, error responses
-- **Whisper Mocks**: Fake model objects, transcription results
-- **Test Audio Files**: Small (< 10s) audio files for E2E Whisper tests
+- **Unit Tests**: Mock all external dependencies (HTTP, ML models, file system)
+- **Integration Tests**: Mock external services (HTTP APIs, external APIs), use real internal implementations
+- **E2E Tests**: Use real implementations (HTTP client, ML models, file system) with local test server
 
 ### Test Organization
 
-The test suite is organized into three main categories (RFC-018):
+The test suite is organized into three main categories:
 
-- **`tests/unit/`** - Unit tests per module
-  - Fast, isolated tests (< 100ms each)
-  - Fully mocked dependencies
-  - No network calls (enforced by pytest plugin)
-  - No filesystem I/O (enforced by pytest plugin, except tempfile operations)
-  - Mirrors `src/podcast_scraper/` structure
-  - Example: `tests/unit/podcast_scraper/test_config.py`
-
-- **`tests/integration/`** - Integration tests
-  - Test component interactions between multiple modules
-  - Use **real internal implementations** (real Config, real providers, real workflow logic)
-  - Use **real filesystem I/O** (temp directories, real file operations)
-  - **Mock external services** (HTTP APIs, external APIs) for speed and reliability
-  - Test how components work together, not just individual units
-  - Example: `tests/integration/test_provider_integration.py`
-
-- **`tests/workflow_e2e/`** - Workflow end-to-end tests
-  - Test complete workflows from entry point to output
-  - Test CLI commands, service mode, full pipelines
-  - **Use real network calls** (marked with `@pytest.mark.network` for tests that hit real APIs)
-  - **Use real filesystem I/O** (real file operations, real output directories)
-  - **Use real ML models** (Whisper, transformers, etc.)
-  - **Full system testing**: Tests the system as users would use it
-  - Slowest tests (may take seconds to minutes)
-  - **Note**: Some E2E tests may still use mocks for fast feedback, but full E2E tests should use real dependencies
-  - Example: `tests/workflow_e2e/test_workflow_e2e.py`
-
-**Shared Test Utilities:**
-
-- **`tests/conftest.py`** - Shared fixtures and test utilities available to all tests
-- **`tests/unit/conftest.py`** - Network and filesystem I/O isolation enforcement for unit tests
+- **`tests/unit/`** - Unit tests per module (fast, isolated, fully mocked)
+- **`tests/integration/`** - Integration tests (component interactions, real internal implementations, mocked external services)
+- **`tests/workflow_e2e/`** - E2E tests (complete workflows, real HTTP client, real ML models)
 
 ### Test Markers
 
-- `@pytest.mark.integration` - Integration tests (test component interactions)
-- `@pytest.mark.workflow_e2e` - Workflow end-to-end tests (test complete workflows)
-- `@pytest.mark.network` - Tests that hit the network (off by default)
-- `@pytest.mark.slow` - Slow-running tests (existing)
-- `@pytest.mark.whisper` - Requires Whisper dependency (existing)
-- `@pytest.mark.spacy` - Requires spaCy dependency (existing)
+- `@pytest.mark.integration` - Integration tests
+- `@pytest.mark.workflow_e2e` - E2E tests
+- `@pytest.mark.slow` - Slow-running tests
+- `@pytest.mark.ml_models` - Requires ML model dependencies
 
-**Marker Usage:**
-
-- All integration tests must have `@pytest.mark.integration`
-- All workflow_e2e tests must have `@pytest.mark.workflow_e2e`
-- Unit tests should NOT have integration/workflow_e2e markers
-- **E2E tests that make real network calls** should have `@pytest.mark.network`
-- **Integration tests** typically mock network calls (for speed), so they usually don't need `@pytest.mark.network`
-- **E2E tests** should use real network calls and be marked with `@pytest.mark.network` when they do
+**For detailed test infrastructure information, including network/filesystem isolation, fixtures, and marker usage, see [Testing Guide - Test Infrastructure Details](TESTING_GUIDE.md#test-infrastructure-details).**
 
 ## CI/CD Integration
 
@@ -429,468 +338,26 @@ The test suite is organized into three main categories (RFC-018):
 
 - **`test-unit` job**: Fast unit tests (no ML deps), network and filesystem I/O isolation enforced, parallel execution
 - **`test-integration` job**: Integration tests with ML dependencies, parallel execution, flaky test reruns
-- **`test` job**: Full test suite (unit + integration) with coverage for PRs
+- **`test-e2e-fast` job**: Fast E2E tests (excludes slow/ml_models), network guard active
 - **`lint` job**: Formatting, linting, type checking, security scans
 - **`docs` job**: Documentation build
 - **`build` job**: Package build validation
 
 **On Main Branch**:
 
-- **`test-unit` job**: Unit tests (same as PR)
-- **`test-integration` job**: Integration tests (same as PR)
-- **`test-workflow-e2e` job**: Workflow E2E tests (runs only on main branch), parallel execution, flaky test reruns
+- **`test-e2e-slow` job**: All E2E tests including slow/ml_models tests (runs only on main branch)
 - All other jobs run as on PRs
 
 **Test Execution Strategy**:
 
 - **Unit tests**: Run on every PR and push (fast feedback, ~30 seconds)
 - **Integration tests**: Run on every PR and push (moderate speed, ~2-5 minutes)
-- **Workflow E2E tests**: Run only on main branch pushes (slowest, ~5-10 minutes)
+- **Fast E2E tests**: Run on every PR (excludes slow/ml_models, ~5-10 minutes)
+- **Slow E2E tests**: Run only on main branch pushes (includes all E2E tests, ~15-20 minutes)
 - **Parallel execution**: Enabled for all test jobs (`-n auto`)
-- **Flaky test reruns**: Enabled for integration and workflow_e2e tests (`--reruns 2 --reruns-delay 1`)
-- **Network isolation**: Enforced for unit tests only (automatic failure if network call detected)
-  - Integration tests: Network calls are mocked (for speed/reliability)
-  - E2E tests: Network calls are allowed (marked with `@pytest.mark.network`)
-- **Filesystem I/O isolation**: Enforced for unit tests only (automatic failure if filesystem I/O detected, except tempfile operations)
-  - Integration tests: Real filesystem I/O allowed (temp directories, real file operations)
-  - E2E tests: Real filesystem I/O allowed (full file operations, real output directories)
+- **Flaky test reruns**: Enabled for integration and E2E tests (`--reruns 2 --reruns-delay 1`)
 
-### Test Execution
-
-**Default (unit tests only - fast feedback):**
-
-```bash
-# Run unit tests only (default pytest behavior)
-pytest
-
-# Or explicitly:
-pytest tests/unit/
-```
-
-```bash
-# Unit tests only
-pytest tests/unit/
-make test-unit
-
-# Integration tests only
-pytest tests/integration/ -m integration
-make test-integration
-
-# Workflow E2E tests only
-pytest tests/workflow_e2e/ -m workflow_e2e
-make test-workflow-e2e
-
-# All tests (excluding network tests)
-pytest -m "not network"
-make test-all
-
-# Network tests only (requires internet connection)
-pytest -m network
-make test-network
-```
-
-**Parallel Execution (Default):**
-
-Tests run in parallel by default for faster feedback (2-4x speedup for unit tests). This matches CI behavior:
-
-```bash
-# Default: parallel execution (auto-detects CPU count)
-make test
-pytest -n auto
-
-# Sequential execution (slower but clearer output, useful for debugging)
-make test-sequential
-pytest  # No -n flag
-
-# Run with specific number of workers
-pytest -n 4
-```
-
-**When to Use Sequential Execution:**
-
-- **Debugging test failures**: Sequential output is easier to read and debug
-- **Investigating flaky tests**: Sequential execution can help identify timing issues
-- **Resource-constrained environments**: If your machine is low on CPU/memory
-
-**Note:** Parallel execution creates `.coverage.*` files (one per worker process) which are automatically merged into `.coverage`. These files are gitignored and can be cleaned with `make clean`.
-
-After changing pytest configuration (especially `pyproject.toml` `addopts`), verify markers work:
-
-```bash
-# Should collect integration tests
-pytest tests/integration/ -m integration --collect-only -q | wc -l
-
-# Should collect workflow_e2e tests
-pytest tests/workflow_e2e/ -m workflow_e2e --collect-only -q | wc -l
-
-# Should collect unit tests (default)
-pytest tests/unit/ --collect-only -q | wc -l
-```
-
-- Integration tests: > 50
-- Workflow E2E tests: > 20
-- Unit tests: > 100
-
-If any count is 0, check for marker conflicts in `pyproject.toml` `addopts`. See `docs/wip/TEST_INFRASTRUCTURE_VALIDATION.md` for details.
-
-**Flaky test reruns:**
-
-```bash
-# Retry failed tests (2 retries, 1 second delay)
-pytest --reruns 2 --reruns-delay 1
-make test-reruns
-
-# Combine with parallel execution
-pytest -n auto --reruns 2 --reruns-delay 1
-```
-
-```bash
-# Unit tests: Network and filesystem I/O are BLOCKED
-# - Network calls → NetworkCallDetectedError
-# - Filesystem I/O → FilesystemIODetectedError
-# - Exceptions: tempfile operations, cache directories
-pytest tests/unit/
-
-# Integration tests: Real filesystem I/O allowed, network calls are MOCKED
-# - Real file operations in temp directories ✅
-# - Real component interactions ✅
-# - Network calls are mocked (for speed/reliability) ❌
-pytest tests/integration/ -m integration
-
-# E2E tests: Real network and filesystem I/O allowed
-# - Real network calls (marked with @pytest.mark.network) ✅
-# - Real filesystem I/O ✅
-# - Real ML models ✅
-# Note: Some E2E tests may still use mocks for fast feedback
-pytest tests/workflow_e2e/ -m workflow_e2e
-
-# Run E2E tests with real network calls
-pytest tests/workflow_e2e/ -m "workflow_e2e and network"
-```
-
-This section provides clear criteria and decision frameworks to determine whether a test should be an **Integration Test** or an **E2E Test**. The goal is to eliminate ambiguity and provide clear guidance for future test development.
-
-### Key Distinction
-
-**Integration Tests** = Test how **components work together** (component interactions, data flow between modules)
-
-**E2E Tests** = Test **complete user workflows** from entry point to final output (CLI commands, library API calls, full pipelines)
-
-### E2E Test Coverage Goals
-
-**Every major user-facing entry point should have at least one E2E test:**
-
-1. **CLI Commands** - Each main CLI command should have E2E tests:
-   - `podcast-scraper <rss_url>` - Basic transcript download
-   - `podcast-scraper <rss_url> --transcribe-missing` - Whisper fallback workflow
-   - `podcast-scraper --config <config_file>` - Config file workflow
-   - `podcast-scraper <rss_url> --dry-run` - Dry run workflow
-   - `podcast-scraper <rss_url> --generate-metadata` - Metadata generation workflow
-   - `podcast-scraper <rss_url> --summarize` - Summarization workflow
-
-2. **Library API Endpoints** - Each public API function should have E2E tests:
-   - `run_pipeline(config)` - Main pipeline execution
-   - `service.run(config)` - Service API execution
-   - `service.run_from_config_file(path)` - Config file execution
-
-3. **Critical User Scenarios** - Important workflows should have E2E tests:
-   - Happy path (RSS → transcript download → file output)
-   - Whisper fallback (RSS → no transcript → audio download → Whisper → file output)
-   - Full pipeline with all features (RSS → transcript → metadata → summary → file output)
-   - Error handling in complete workflow (malformed RSS, network errors, etc.)
-
-**What Doesn't Need E2E Tests:**
-
-- Not every CLI flag combination needs an E2E test
-- Every possible `--max-episodes` value (tested in integration/unit tests)
-- Every possible `--timeout` value (tested in integration/unit tests)
-- Every possible config file format variation (tested in integration/unit tests)
-- Edge cases in specific components (tested in integration tests)
-
-**Rule of Thumb**: E2E tests should cover "as a user, I want to..." scenarios, not every possible configuration combination.
-
-### Decision Criteria
-
-#### Integration Tests (`tests/integration/`)
-
-**Use Integration Tests When:**
-
-1. **Testing Component Interactions**
-   - Testing how multiple internal components work together
-   - Verifying data flow between components (e.g., RSS parser → Episode → Provider → File output)
-   - Testing component integration without full pipeline execution
-
-2. **Testing Internal Implementations**
-   - Using real internal implementations (Config, factories, providers, workflow logic)
-   - Testing real filesystem I/O (temp directories, real file operations)
-   - Testing real component logic (not mocked)
-
-3. **Mocking External Services**
-   - Mocking HTTP calls (using local test server for speed/reliability)
-   - Mocking external APIs (OpenAI, etc.)
-   - Mocking ML models (for speed, or testing model integration separately)
-
-4. **Fast Feedback**
-   - Tests should run quickly (< 5s each for fast tests)
-   - Focused on specific component interactions
-   - Can run in parallel
-
-5. **Isolated Scenarios**
-   - Testing specific scenarios (error handling, edge cases, specific component combinations)
-   - Not testing complete user workflows
-
-#### E2E Tests (`tests/workflow_e2e/`)
-
-**Use E2E Tests When:**
-
-1. **Testing Complete User Workflows**
-   - Testing CLI commands (`podcast-scraper <rss_url>`)
-   - Testing library API calls (`run_pipeline(config)`)
-   - Testing service API calls (`service.run(config)`)
-   - Testing complete pipelines from entry point to final output
-
-2. **Testing Real HTTP Client in Full Context**
-   - Using real HTTP client (`downloader.fetch_url`) without mocking
-   - Using local HTTP server (but real HTTP stack, no external network)
-   - Testing HTTP behavior in full workflow context (headers, redirects, timeouts, retries)
-
-3. **Testing Real Data Files**
-   - Using real RSS feed files (manually maintained in `tests/fixtures/`)
-   - Using real transcript files (VTT, SRT, JSON)
-   - Using real audio files (small test files for Whisper)
-
-4. **Testing Real ML Models in Full Workflows**
-   - Using real ML models (Whisper, spaCy, Transformers) in complete pipeline workflows
-   - Testing model loading, initialization, and cleanup in full context
-   - Testing that models work correctly together in full pipelines
-
-5. **Testing Production-Like Scenarios**
-   - Testing scenarios as users would actually use the system
-   - Testing complete workflows with realistic data
-   - Testing error recovery in full workflow context
-
-6. **Slower, More Comprehensive**
-   - Tests may be slower (< 60s each, may be minutes for full workflows)
-   - More comprehensive coverage of complete workflows
-   - May include performance/scale tests (marked as slow)
-
-### Decision Tree
-
-```text
-Start: What are you testing?
-
-├─ Is it testing a complete user workflow (CLI command, library API call, service API call)?
-│  └─ YES → E2E Test
-│     └─ Does it use real HTTP client without mocking?
-│        └─ YES → E2E Test
-│        └─ NO → Still E2E Test (but consider using real HTTP client)
-│
-├─ Is it testing how multiple components work together?
-│  └─ YES → Integration Test
-│     └─ Does it test complete pipeline from entry to output?
-│        └─ YES → E2E Test (if it's a user workflow)
-│        └─ NO → Integration Test
-│
-├─ Is it testing component interactions (RSS parser → Episode → Provider)?
-│  └─ YES → Integration Test
-│
-├─ Is it testing error handling in pipeline context?
-│  └─ Does it test complete workflow with errors?
-│     └─ YES → E2E Test
-│     └─ NO → Integration Test (if focused on specific error scenarios)
-│
-└─ Is it testing concurrent execution, thread safety, resource sharing?
-   └─ Does it test in full pipeline context?
-      └─ YES → E2E Test
-      └─ NO → Integration Test
-```
-
-| Aspect | Integration Tests | E2E Tests |
-| ------ | ------------------ | --------- |
-| **Purpose** | Test component interactions | Test complete user workflows |
-| **Entry Point** | Component-level (functions, classes) | User-level (CLI, library API, service API) |
-| **Scope** | Multiple components working together | Full pipeline from entry to output |
-| **HTTP Client** | Mocked or local test server (for speed) | Real HTTP client with local server (no external network) |
-| **Data Files** | May use in-memory data or test fixtures | Real data files (RSS feeds, transcripts, audio) |
-| **ML Models** | May be mocked (for speed) or real (for model testing) | Real ML models in full workflow context |
-| **Speed** | Fast (< 5s each for fast tests) | Slower (< 60s each, may be minutes) |
-| **Focus** | Component interactions, data flow | Complete workflows, user scenarios |
-| **Examples** | Provider factory → Provider → Usage | CLI command → Full pipeline → Output files |
-
-### Edge Cases and How to Handle Them
-
-#### Edge Case 1: HTTP Testing
-
-**Question**: Both integration and E2E tests use local HTTP servers. What's the difference?
-
-**Answer**:
-
-- **Integration Tests**: Use local HTTP server to test HTTP client behavior in isolation (e.g., `test_http_integration.py`). Focus is on HTTP client functionality, not full workflow.
-- **E2E Tests**: Use local HTTP server to test HTTP client in full workflow context. Focus is on complete workflow with real HTTP client.
-
-**Decision**: If testing HTTP client behavior in isolation → Integration Test. If testing HTTP client in complete workflow → E2E Test.
-
-#### Edge Case 2: Pipeline Error Handling
-
-**Question**: Should error handling tests be integration or E2E?
-
-**Answer**:
-
-- **Integration Test**: If testing specific error scenarios with mocked HTTP
-- **E2E Test**: If testing error handling in complete workflow with real HTTP client and real data files
-
-**Decision**: If testing error handling in complete workflow with real HTTP client → E2E Test. If testing specific error scenarios with mocked HTTP → Integration Test.
-
-#### Edge Case 3: Concurrent Execution
-
-**Question**: Is concurrent execution testing integration or E2E?
-
-**Answer**:
-
-- **Integration Test**: If testing concurrent execution behavior in isolation
-- **E2E Test**: If testing concurrent execution in complete workflow with real HTTP client and real data files
-
-**Decision**: If testing concurrent execution in complete workflow → E2E Test. If testing concurrent execution behavior in isolation → Integration Test.
-
-#### Edge Case 4: Real ML Models
-
-**Question**: Integration tests can use real ML models. How is that different from E2E tests?
-
-**Answer**:
-
-- **Integration Tests**: Use real ML models to test model integration (e.g., `test_provider_real_models.py`). Focus is on model loading, initialization, and basic functionality.
-- **E2E Tests**: Use real ML models in complete workflow context. Focus is on models working together in full pipelines.
-
-**Decision**: If testing model integration in isolation → Integration Test. If testing models in complete workflow → E2E Test.
-
-### Migration Guidelines
-
-#### When to Move a Test from Integration to E2E
-
-Move a test to E2E if:
-
-1. It tests a complete user workflow (CLI command, library API call)
-2. It uses real HTTP client without mocking
-3. It uses real data files (RSS feeds, transcripts, audio)
-4. It tests complete pipeline from entry to output
-
-#### When to Keep a Test as Integration
-
-Keep a test as integration if:
-
-1. It tests component interactions without full pipeline
-2. It focuses on specific scenarios (error handling, edge cases)
-3. It uses mocked HTTP for speed
-4. It tests component behavior in isolation
-
-### Summary
-
-**Integration Tests** = Component interactions, fast feedback, mocked external services
-
-**E2E Tests** = Complete user workflows, real HTTP client, real data files, real ML models in full context
-
-**Key Question**: "Am I testing how components work together, or am I testing a complete user workflow?"
-
-- **Components together** → Integration Test
-- **Complete user workflow** → E2E Test
-
-## Current State vs. Ideal State
-
-### Current Implementation
-
-**Current state** (as of this writing):
-
-- ✅ **Unit tests**: Correctly isolated, no I/O, fully mocked
-- ✅ **Integration tests**: Use real internal implementations, real filesystem I/O, local HTTP server for HTTP testing
-- ⚠️ **E2E tests**: Currently use mocked HTTP responses (`MockHTTPResponse`, `@patch` decorators) - **needs migration to real HTTP client**
-
-**Why E2E tests currently use mocks:**
-
-- Historical: Tests were written with mocks for speed and reliability
-- Practical: Avoids flakiness from external services
-- Trade-off: Faster tests but less realistic
-
-### Ideal State (Target)
-
-**Target state** (what we should work toward):
-
-- ✅ **Unit tests**: Fully isolated, no I/O (current state is correct)
-- ✅ **Integration tests**: Real internal implementations, real filesystem I/O, local HTTP server for HTTP testing, mocked external APIs (current state is correct)
-- 🎯 **E2E tests**: Real HTTP client (with local server, no external network), real data files, real ML models in full workflow context (needs work - see `docs/wip/E2E_TEST_GAPS.md`)
-
-**How to migrate E2E tests to real network calls:**
-
-1. Mark E2E tests that should use real network with `@pytest.mark.network`
-2. Remove `@patch` decorators for HTTP calls in those tests
-3. Use real RSS feeds or test servers for network tests
-4. Keep some fast E2E tests with mocks for quick feedback
-5. Run full E2E tests with `pytest -m "workflow_e2e and network"` for comprehensive testing
-
-**Benefits of real network calls in E2E tests:**
-
-- Tests the system as users actually use it
-- Catches integration issues with real APIs
-- Validates actual HTTP handling, timeouts, retries
-- More confidence in production readiness
-
-**Trade-offs:**
-
-- Slower test execution
-- Potential flakiness from network issues
-- Requires internet connection or test servers
-- May need retry logic for transient failures
-
-### Network Isolation
-
-Unit tests are automatically prevented from making network calls. The pytest plugin (`tests/unit/conftest.py`) blocks common network libraries:
-
-- `requests.get()`, `requests.post()`, `requests.Session()` methods
-- `urllib.request.urlopen()`
-- `urllib3.PoolManager()`
-- `socket.create_connection()`
-
-If a unit test attempts a network call, it fails with `NetworkCallDetectedError`. Integration and workflow_e2e tests are not affected by network isolation.
-
-### Filesystem I/O Isolation
-
-Unit tests are automatically prevented from performing filesystem I/O operations. The pytest plugin (`tests/unit/conftest.py`) blocks:
-
-- `open()` for file operations (outside temp directories)
-- `os.makedirs()`, `os.remove()`, `os.unlink()`, `os.rmdir()`, `os.rename()`, etc.
-- `shutil.copy()`, `shutil.move()`, `shutil.rmtree()`, etc.
-- `Path.write_text()`, `Path.write_bytes()`, `Path.mkdir()`, `Path.unlink()`, `Path.rmdir()`, etc.
-
-If a unit test attempts filesystem I/O, it fails with `FilesystemIODetectedError`.
-
-**Exceptions (allowed in unit tests):**
-
-- **`tempfile` operations**: `tempfile.mkdtemp()`, `tempfile.NamedTemporaryFile()` (designed for testing)
-- **Operations within temp directories**: Automatically detected and allowed
-- **Cache directories**: `~/.cache/`, `~/.local/share/`, etc. (for model loading)
-- **Site-packages**: Read-only access to installed packages (e.g., spaCy models)
-- **Python cache files**: `.pyc`, `__pycache__/` (created during imports)
-- **`test_filesystem.py`**: Tests that need to test filesystem operations
-
-**Why filesystem I/O isolation?**
-
-- Ensures unit tests are fast and isolated
-- Prevents tests from affecting each other through filesystem state
-- Forces proper mocking of file operations
-- Makes tests more deterministic and reproducible
-
-Integration and workflow_e2e tests are not affected by filesystem I/O isolation.
-
-**Coverage:**
-
-```bash
-# Run tests with coverage report
-pytest --cov=podcast_scraper --cov-report=term-missing
-make test
-```
-
-- **Target**: >80% code coverage overall
-- **Critical Modules**: >90% (config, workflow, episode_processor)
-- **Coverage Tools**: `coverage.py` with HTML reports
+**For detailed test execution commands, parallel execution, flaky test reruns, and coverage, see [Testing Guide - Test Execution Details](TESTING_GUIDE.md#test-execution-details).**
 
 ## Testing Patterns
 
@@ -1036,21 +503,124 @@ make test
 - [x] ServiceResult equality and string representation
 - [x] Integration with public API (`Config`, `load_config_file`, `run_pipeline`)
 
+## Test Pyramid Status
+
+### Current State vs. Ideal Distribution
+
+The test pyramid shows our current distribution compared to the ideal:
+
+**Current Distribution:**
+- **Unit Tests**: ~41% (target: 70-80%) ⚠️ Too Low
+- **Integration Tests**: ~27% (target: 15-20%) ⚠️ Too High
+- **E2E Tests**: ~31% (target: 5-10%) ❌ Too High
+
+**Visual Representation:**
+
+```
+Current Pyramid (Inverted):
+        ╱╲
+       ╱  ╲      E2E: 31% (should be 5-10%)
+      ╱    ╲
+     ╱      ╲    Integration: 27% (should be 15-20%)
+    ╱        ╲
+   ╱          ╲  Unit: 41% (should be 70-80%)
+  ╱____________╲
+
+Ideal Pyramid:
+        ╱╲
+       ╱  ╲      E2E: 5-10%
+      ╱    ╲
+     ╱      ╲    Integration: 15-20%
+    ╱        ╲
+   ╱          ╲  Unit: 70-80%
+  ╱____________╲
+```
+
+### Key Issues
+
+1. **Too Few Unit Tests**: Core business logic is being tested at E2E level instead of unit level
+   - **Critical modules with zero unit tests**: `workflow.py`, `cli.py`, `service.py`, `episode_processor.py`, `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`
+   - **67 summarizer tests misclassified**: Currently at E2E level but test individual functions with mocked dependencies → should be unit tests
+   - **Missing unit test coverage**: Many core functions in `summarizer.py`, `workflow.py`, and `speaker_detection.py` have no unit tests
+
+2. **Too Many E2E Tests**: Many tests are misclassified
+   - Tests that use function-level entry points with mocked dependencies should be unit tests
+   - Tests that use component-level entry points should be integration tests
+   - **Root cause**: Tests were written at E2E level for convenience, violating testing strategy definitions
+
+3. **Integration Layer Underutilized**: Component interactions are often tested at E2E level
+   - **Missing integration test coverage**: RSS Parser + Downloader, Downloader + Episode Processor, Progress Reporting + Workflow, Metrics + Workflow, Filesystem + Workflow
+   - Some E2E tests should be integration tests (component-level entry points with mocked HTTP)
+
+### Goals and Targets
+
+**Target Distribution:**
+- **Unit Tests**: 70-80% (~550-650 tests)
+- **Integration Tests**: 15-20% (~120-150 tests)
+- **E2E Tests**: 5-10% (~50-80 tests)
+
+**Success Metrics:**
+- Unit test execution time: < 30 seconds
+- Integration test execution time: < 5 minutes
+- E2E test execution time: < 20 minutes
+- Test coverage: Maintain > 80%
+
+### Improvement Strategy
+
+**Phase 1: Reclassify Misplaced Tests** (High Priority)
+- Move 67 summarizer tests from E2E to unit (they test individual functions with mocked dependencies)
+- Review and reclassify E2E tests that violate testing strategy definitions
+- **Expected Result**: Unit: ~50-51%, Integration: ~27-28%, E2E: ~22-23%
+
+**Phase 2: Add Missing Unit Tests** (High Priority)
+- Add unit tests for core functions currently untested:
+  - `workflow.py` helper functions (8-10 tests)
+  - `episode_processor.py` functions (5-8 tests)
+  - `summarizer.py` core functions (45-65 tests)
+  - `speaker_detection.py` functions (19-31 tests)
+  - `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py` (17-28 tests)
+  - `cli.py` and `service.py` (8-13 tests)
+- **Target**: +150-200 new unit tests
+- **Expected Result**: Unit: ~69-83%, Integration: ~27-28%, E2E: ~22-23%
+
+**Phase 3: Optimize Integration Layer** (Medium Priority)
+- Move component interaction tests from E2E to integration (~20-40 tests)
+- Add missing integration tests for component-to-component interactions (~19-31 tests)
+- **Expected Result**: Unit: ~69-83%, Integration: ~30-32%, E2E: ~16-19%
+
+**Phase 4: Reduce E2E to True E2E** (Low Priority)
+- Keep only true end-to-end user workflow tests
+- Focus on complete user journeys (CLI commands, library API calls, service API calls)
+- **Target**: ~50-80 true E2E tests (5-10% of total)
+- **Expected Final Result**: Unit: ~70-80%, Integration: ~15-20%, E2E: ~5-10% ✅
+
+### Priority Areas for Unit Test Coverage
+
+**High Priority Modules:**
+- `summarizer.py`: Text cleaning, chunking, validation functions (45-65 tests needed)
+- `workflow.py`: Pipeline orchestration helpers (8-10 tests needed)
+- `episode_processor.py`: Episode processing logic (5-8 tests needed)
+
+**Medium Priority Modules:**
+- `speaker_detection.py`: Detection and scoring logic (19-31 tests needed)
+- `cli.py` and `service.py`: Argument parsing and service logic (8-13 tests needed)
+- `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`: Utility functions (17-28 tests needed)
+
 ## Future Testing Enhancements
 
 ### E2E Test Infrastructure Improvements (Issue #14)
 
-- [ ] Local HTTP test server
-- [ ] Test audio file fixtures
-- [ ] Real Whisper integration tests
-- [ ] Test markers and CI integration
+- [x] Local HTTP test server
+- [x] Test audio file fixtures
+- [x] Real Whisper integration tests
+- [x] Test markers and CI integration
 
 ### Library API Tests (Issue #16)
 
-- [ ] `run_pipeline()` E2E tests
-- [ ] `load_config_file()` tests
-- [ ] Error handling tests
-- [ ] Return value validation
+- [x] `run_pipeline()` E2E tests
+- [x] `load_config_file()` tests
+- [x] Error handling tests
+- [x] Return value validation
 
 ### Performance Testing
 
@@ -1067,6 +637,7 @@ make test
 
 ## References
 
+- **[Testing Guide](TESTING_GUIDE.md)** - Detailed implementation instructions, test execution, fixtures, and coverage
 - Test structure reorganization: `docs/rfc/RFC-018-test-structure-reorganization.md`
 - CI workflow: `.github/workflows/python-app.yml`
 - Related RFCs: RFC-001 through RFC-018 (testing strategies and reorganization)

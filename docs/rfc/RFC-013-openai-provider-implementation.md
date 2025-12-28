@@ -294,7 +294,7 @@ Add to `pyproject.toml` dependencies:
 
 **Development Setup Documentation:**
 
-Update `docs/DEVELOPMENT_NOTES.md` or create `docs/SETUP.md` with the following content:
+Update `docs/DEVELOPMENT_GUIDE.md` or create `docs/SETUP.md` with the following content:
 
 **Environment Setup:**
 
@@ -1612,7 +1612,7 @@ def create(cfg: config.Config):
 
 ---
 
-### 3. Environment Variable Documentation (`docs/ENVIRONMENT_VARIABLES.md`)
+### 3. Environment Variable Documentation (`docs/api/configuration.md`)
 
 **Purpose:** Comprehensive reference for all environment variables
 

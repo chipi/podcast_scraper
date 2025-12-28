@@ -14,7 +14,7 @@
   - `docs/rfc/RFC-026-metrics-consumption-and-dashboards.md` (metrics consumption - complementary)
 - **Related Documents**:
   - `docs/TESTING_STRATEGY.md` - Overall testing strategy and test categories
-  - `docs/DEVELOPMENT_NOTES.md` - Development workflow and testing requirements
+  - `docs/DEVELOPMENT_GUIDE.md` - Development workflow and testing requirements
   - `.github/workflows/python-app.yml` - CI test jobs
 
 ## Abstract
@@ -371,7 +371,7 @@ date,commit,tier0_runtime,tier1_runtime,tier2_runtime,passed,failed,skipped,cove
 
 - `.github/workflows/python-app.yml`: CI test jobs
 - `docs/TESTING_STRATEGY.md`: Overall testing strategy
-- `docs/DEVELOPMENT_NOTES.md`: Development workflow
+- `docs/DEVELOPMENT_GUIDE.md`: Development workflow
 - `pyproject.toml`: Pytest configuration and markers
 
 ## Notes
