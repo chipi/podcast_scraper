@@ -17,10 +17,10 @@ File structure expected:
 Usage:
     # Use defaults (BART-large for MAP, LED/long-fast for REDUCE) with auto-generated filename
     python scripts/eval_summaries.py
-    # Outputs to: results/eval_YYYYMMDD_HHMMSS.json
+    # Outputs to: data/results/eval_YYYYMMDD_HHMMSS.json
 
     # Specify custom output file
-    python scripts/eval_summaries.py --output results/my_evaluation.json
+    python scripts/eval_summaries.py --output data/results/my_evaluation.json
 
     # Specify MAP model only (REDUCE defaults to LED)
     python scripts/eval_summaries.py --map-model bart-large
@@ -437,7 +437,7 @@ def main() -> None:
         "--output",
         type=str,
         default=None,
-        help="Output JSON file path for results (default: results/eval_<timestamp>.json)",
+        help="Output JSON file path for results (default: data/results/eval_<timestamp>.json)",
     )
     parser.add_argument(
         "--device",
@@ -604,33 +604,33 @@ def main() -> None:
         "episodes": results,
     }
 
-    # Determine output path (default to results/eval_<timestamp>.json if not provided)
+    # Determine output path (default to data/results/eval_<timestamp>.json if not provided)
     # with path traversal protection
     if args.output:
         # Resolve to absolute path to prevent path traversal attacks
         output_path = Path(args.output).resolve()
 
-        # Ensure output is within current working directory or results subdirectory
+        # Ensure output is within current working directory or data/results subdirectory
         cwd = Path.cwd().resolve()
-        results_dir = cwd / "results"
+        results_dir = cwd / "data" / "results"
 
-        # Allow paths within cwd or results/ subdirectory
+        # Allow paths within cwd or data/results/ subdirectory
         if not (output_path == cwd or output_path.is_relative_to(cwd)):
             raise ValueError(
                 f"Output path {output_path} is outside current working directory. "
                 f"Paths must be within {cwd} or its subdirectories."
             )
 
-        # Warn if writing outside results/ directory
+        # Warn if writing outside data/results/ directory
         if not (output_path == results_dir or output_path.is_relative_to(results_dir)):
             logger.warning(
-                f"Output path {output_path} is outside recommended 'results/' directory. "
-                f"Consider using 'results/' subdirectory instead."
+                f"Output path {output_path} is outside recommended 'data/results/' directory. "
+                f"Consider using 'data/results/' subdirectory instead."
             )
     else:
         # Generate default filename with timestamp
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        results_dir = Path("results")
+        results_dir = Path("data") / "results"
         results_dir.mkdir(parents=True, exist_ok=True)
         output_path = results_dir / f"eval_{timestamp}.json"
 

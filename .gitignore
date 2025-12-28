@@ -31,7 +31,7 @@ examples.txt
 data/eval/
 
 # Evaluation results
-results/
+data/results/
 
 # Environment variables
 .env

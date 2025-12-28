@@ -14,7 +14,7 @@ File structure expected:
 
 Usage:
     python scripts/eval_cleaning.py
-    python scripts/eval_cleaning.py --output results/cleaning_eval.json
+    python scripts/eval_cleaning.py --output data/results/cleaning_eval.json
     python scripts/eval_cleaning.py --episode ep01  # Evaluate single episode
 """
 
@@ -337,7 +337,7 @@ def main() -> None:
         "--output",
         type=str,
         default=None,
-        help="Output JSON file path (default: results/cleaning_eval_<timestamp>.json)",
+        help="Output JSON file path (default: data/results/cleaning_eval_<timestamp>.json)",
     )
     parser.add_argument(
         "--log-level",
@@ -470,26 +470,26 @@ def main() -> None:
         # Resolve to absolute path to prevent path traversal attacks
         output_path = Path(args.output).resolve()
 
-        # Ensure output is within current working directory or results subdirectory
+        # Ensure output is within current working directory or data/results subdirectory
         cwd = Path.cwd().resolve()
-        results_dir = cwd / "results"
+        results_dir = cwd / "data" / "results"
 
-        # Allow paths within cwd or results/ subdirectory
+        # Allow paths within cwd or data/results/ subdirectory
         if not (output_path == cwd or output_path.is_relative_to(cwd)):
             raise ValueError(
                 f"Output path {output_path} is outside current working directory. "
                 f"Paths must be within {cwd} or its subdirectories."
             )
 
-        # Warn if writing outside results/ directory
+        # Warn if writing outside data/results/ directory
         if not (output_path == results_dir or output_path.is_relative_to(results_dir)):
             logger.warning(
-                f"Output path {output_path} is outside recommended 'results/' directory. "
-                f"Consider using 'results/' subdirectory instead."
+                f"Output path {output_path} is outside recommended 'data/results/' directory. "
+                f"Consider using 'data/results/' subdirectory instead."
             )
     else:
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        results_dir = Path("results")
+        results_dir = Path("data") / "results"
         results_dir.mkdir(parents=True, exist_ok=True)
         output_path = results_dir / f"cleaning_eval_{timestamp}.json"
 
