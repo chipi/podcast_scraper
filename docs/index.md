@@ -426,4 +426,4 @@ MIT License - See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main/L
 
 ---
 
-**Need help?** Check the [documentation](#documentation), search [existing issues](https://github.com/chipi/podcast_scraper/issues), or open a new issue for support.
+**Need help?** Check the [documentation](https://chipi.github.io/podcast_scraper/), search [existing issues](https://github.com/chipi/podcast_scraper/issues), or open a new issue for support.
