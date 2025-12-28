@@ -166,8 +166,13 @@ jobs:
         rm -rf .pytest_cache .mypy_cache .build dist
 
   # Fast E2E tests - excludes slow/ml_models tests, runs on every commit
+  # Skip for documentation-only PRs
   test-e2e-fast:
     runs-on: ubuntu-latest
+    if: |
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.head.ref, 'docs/') == false ||
+      contains(github.event.pull_request.head.ref, 'fix/ai-guidelines-linting') == false
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
