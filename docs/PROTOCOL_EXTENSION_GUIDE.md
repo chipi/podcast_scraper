@@ -411,7 +411,7 @@ class OpenAITranscriptionProvider:
 - [Custom Provider Guide](./CUSTOM_PROVIDER_GUIDE.md) - How to create custom providers
 - [Provider Migration Guide](./PROVIDER_MIGRATION_GUIDE.md) - How to migrate to providers
 - [Provider Attributes](./PROVIDER_ATTRIBUTES.md) - Provider-specific attributes
-- [Fallback Behavior](./FALLBACK_BEHAVIOR.md) - Fallback patterns
+- [Provider Migration Guide](./PROVIDER_MIGRATION_GUIDE.md#fallback-behavior) - Fallback patterns and behavior
 
 ---
 

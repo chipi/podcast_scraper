@@ -9,7 +9,7 @@ Thanks for taking the time to contribute! This guide will help you get started q
 - [Pull Request Process](#pull-request-process)
 - [Getting Help](#getting-help)
 
-> **📚 For detailed technical information**, see [`docs/DEVELOPMENT_NOTES.md`](docs/DEVELOPMENT_NOTES.md) which covers:
+> **📚 For detailed technical information**, see [`docs/DEVELOPMENT_GUIDE.md`](docs/DEVELOPMENT_GUIDE.md) which covers:
 >
 > - Code style guidelines and formatting
 > - Testing requirements and test structure
@@ -42,7 +42,6 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 # Install development dependencies and the package itself
 make init
 ```
-> `make init` upgrades pip, installs lint/test/type/security tooling, and then installs `podcast_scraper` in editable mode with `[dev,ml]` extras. It matches the dependencies used in CI.
 
 **Optional: Set up environment variables** (if testing OpenAI providers or configuring deployment settings):
 
@@ -56,14 +55,12 @@ cp examples/.env.example .env
 # OUTPUT_DIR=/tmp/test_output
 # WORKERS=2
 ```
-The `.env` file is automatically loaded via `python-dotenv` when the package is imported. See `docs/ENVIRONMENT_VARIABLES.md` for complete list of supported environment variables.
 
 ### 2. Run the Full Check Suite (Matches CI)
 
 ```bash
 make ci
 ```
-This command executes the same steps as the GitHub Actions workflow:
 
 - `black`/`isort` formatting checks
 - `flake8` linting
@@ -94,7 +91,6 @@ make build         # Build sdist & wheel
 make ci            # Run the full CI suite locally
 make clean         # Remove build artifacts
 ```
-**See [`docs/DEVELOPMENT_NOTES.md`](docs/DEVELOPMENT_NOTES.md) for:**
 
 - Detailed code style guidelines
 - Testing requirements and test structure
@@ -124,7 +120,6 @@ git checkout -b fix/issue-19-progress-bars
 git checkout -b docs/update-api-reference
 git checkout -b docs/contributing-guide
 ```
-#### Commit Messages
 
 Follow conventional commit format:
 
@@ -135,7 +130,6 @@ Follow conventional commit format:
 
 Fixes #<issue-number>
 ```
-**Types:**
 
 - `feat`: New feature
 - `fix`: Bug fix
@@ -156,6 +150,7 @@ dumps from episode metadata. Includes schema templates and CLI flags.
 
 Fixes #40
 ```
+
 ```text
 fix: resolve double progress bar in Whisper transcription
 
@@ -164,7 +159,6 @@ Now shows single consolidated progress bar.
 
 Fixes #19
 ```
-### Before Pushing
 
 **Recommended workflow:**
 
@@ -185,7 +179,6 @@ make ci
 # 5. Push to remote
 git push
 ```
-**If you haven't installed the hook:**
 
 ```bash
 # Quick check before commit
@@ -195,7 +188,6 @@ make test
 # Full CI check before push
 make ci
 ```
-**Expected outcome:**
 
 - All formatting checks pass
 - All lints pass
@@ -205,7 +197,7 @@ make ci
 - Documentation builds successfully
 - Package builds successfully
 
-**See [`docs/DEVELOPMENT_NOTES.md`](docs/DEVELOPMENT_NOTES.md) for:**
+**See [`docs/DEVELOPMENT_GUIDE.md`](docs/DEVELOPMENT_GUIDE.md) for:**
 
 - Detailed CI/CD integration information
 - Pre-commit hooks configuration
@@ -223,7 +215,6 @@ make ci
 ```bash
 make ci
 ```
-**2. Update documentation:**
 
 - [ ] README if user-facing changes
 - [ ] API docs if public API changes
@@ -243,12 +234,10 @@ make ci
 ```bash
 git checkout -b feature/my-feature
 ```
-**2. Push branch:**
 
 ```bash
 git push -u origin feature/my-feature
 ```
-**3. Open PR with:**
 
 - **Clear title** (e.g., "Add PostgreSQL export adapter")
 - **Description** that includes:
@@ -286,7 +275,6 @@ Fixes #40
 
 None
 ```
-### PR Review Process
 
 1. **Automated checks run** (CI, linting, tests)
 2. **Maintainer reviews code**
@@ -300,7 +288,7 @@ None
 - Changes will be included in next release
 - Release notes will be updated
 
-**See [`docs/DEVELOPMENT_NOTES.md`](docs/DEVELOPMENT_NOTES.md) for:**
+**See [`docs/DEVELOPMENT_GUIDE.md`](docs/DEVELOPMENT_GUIDE.md) for:**
 
 - Code style guidelines and naming conventions
 - Testing requirements (unit, integration, E2E)
@@ -313,7 +301,7 @@ None
 ## Getting Help
 
 - **Documentation**: Check `docs/` directory first
-- **Development Notes**: See [`docs/DEVELOPMENT_NOTES.md`](docs/DEVELOPMENT_NOTES.md) for detailed technical information
+- **Development Guide**: See [`docs/DEVELOPMENT_GUIDE.md`](docs/DEVELOPMENT_GUIDE.md) for detailed technical information
 - **Issues**: Search existing issues or create a new one
 - **Architecture**: See `docs/ARCHITECTURE.md` for design principles
 - **Testing**: See `docs/TESTING_STRATEGY.md` for testing guidelines
@@ -352,7 +340,7 @@ This project includes comprehensive AI coding guidelines for developers using AI
 
 **For human contributors:** These guidelines help ensure AI assistants follow project standards. You don't need to read them unless you're configuring AI tools.
 
-**See:** `.ai-coding-guidelines.md` for complete guidelines. For detailed technical patterns, see [`docs/DEVELOPMENT_NOTES.md`](docs/DEVELOPMENT_NOTES.md).
+**See:** `.ai-coding-guidelines.md` for complete guidelines. For detailed technical patterns, see [`docs/DEVELOPMENT_GUIDE.md`](docs/DEVELOPMENT_GUIDE.md).
 
 ---
 

@@ -13,7 +13,7 @@
   - `docs/rfc/RFC-025-test-metrics-and-health-tracking.md` (test metrics - complementary)
 - **Related Documents**:
   - `docs/TESTING_STRATEGY.md` - Overall testing strategy and test categories
-  - `docs/DEVELOPMENT_NOTES.md` - Development workflow and testing requirements
+  - `docs/DEVELOPMENT_GUIDE.md` - Development workflow and testing requirements
   - `Makefile` - Test execution targets
 
 ## Abstract
@@ -227,7 +227,7 @@ test-workflow-e2e:
 - `Makefile`: Test execution targets (optimized per test type)
 - `.github/workflows/python-app.yml`: CI test jobs
 - `docs/TESTING_STRATEGY.md`: Overall testing strategy
-- `docs/DEVELOPMENT_NOTES.md`: Development workflow
+- `docs/DEVELOPMENT_GUIDE.md`: Development workflow
 - `pyproject.toml`: Pytest configuration and markers
 
 ## Notes

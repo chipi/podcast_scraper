@@ -127,27 +127,33 @@ This is the main CI pipeline that ensures code quality, runs tests, builds docum
 
 ### Parallel Execution Strategy
 
-The Python Application workflow has **five parallel jobs** for maximum speed:
+The Python Application workflow has **seven parallel jobs** for maximum speed:
 
 ```mermaid
 graph LR
     A[Workflow Start] --> B[Lint Job]
     A --> C[Unit Test Job]
     A --> D[Integration Test Job]
-    A --> E[Docs Job]
-    A --> F[Build Job]
+    A --> E[Fast E2E Test Job]
+    A --> F[Docs Job]
+    A --> G[Build Job]
+    A --> H[Slow E2E Test Job<br/>Main Only]
     
-    B --> G[✓ All Complete]
-    C --> G
-    D --> G
-    E --> G
-    F --> G
+    B --> I[✓ All Complete]
+    C --> I
+    D --> I
+    E --> I
+    F --> I
+    G --> I
+    H --> I
     
     style B fill:#90EE90
     style C fill:#90EE90
     style D fill:#90EE90
     style E fill:#90EE90
     style F fill:#90EE90
+    style G fill:#90EE90
+    style H fill:#FFE4B5
 ```
 
 ### Job Details
@@ -238,7 +244,66 @@ graph LR
 
 **Note:** This job runs in the main workflow (not the separate docs workflow) to validate docs on every PR, even if not touching doc files.
 
-#### 4. Build Package Job
+#### 4. Fast E2E Test Job
+
+**Purpose:** Run fast E2E tests (excludes slow/ml_models tests) on every commit
+
+**Duration:** ~5-10 minutes
+
+**Steps:**
+
+1. Checkout code
+2. Free disk space (removes unnecessary system packages)
+3. Set up Python 3.11 with pip caching
+4. Install dev dependencies (includes pytest-socket for network guard)
+5. Run fast E2E tests: `pytest tests/workflow_e2e/ -m "workflow_e2e and not slow and not ml_models" --disable-socket --allow-hosts=127.0.0.1,localhost`
+   - Runs with network guard active (blocks external network calls)
+   - Excludes slow and ml_models tests for faster CI feedback
+   - Uses parallel execution for speed
+   - Validates minimum test count (at least 50 fast E2E tests)
+6. Post-build cleanup
+
+**Network Guard:**
+- All E2E tests run with `--disable-socket --allow-hosts=127.0.0.1,localhost`
+- Ensures no external network calls are made
+- All RSS and audio must be served from local E2E HTTP server
+- Tests fail hard if a real URL is hit
+
+#### 5. Slow E2E Test Job (Main Branch Only)
+
+**Purpose:** Run all E2E tests including slow/ml_models tests on main branch
+
+**Duration:** ~15-20 minutes (includes ML package installation and model loading)
+
+**Triggers:**
+- Push to `main` branch only (not on PRs)
+
+**Steps:**
+
+1. Checkout code
+2. Free disk space (removes unnecessary system packages)
+3. Set up Python 3.11 with pip caching
+4. Install full dependencies including ML packages (`pip install -e .[dev,ml]`)
+5. Run all E2E tests: `pytest tests/workflow_e2e/ -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost`
+   - Runs with network guard active
+   - Includes all E2E tests (fast + slow + ml_models)
+   - Uses parallel execution for speed
+   - Validates minimum test count (at least 90 E2E tests)
+6. Post-build cleanup (cache cleanup for disk space management)
+
+**Test Coverage:**
+- Network guard tests
+- OpenAI mock tests
+- E2E server tests
+- Fixture mapping tests
+- Basic E2E tests (CLI, Library API, Service API)
+- Error handling tests
+- Edge case tests
+- HTTP behavior tests
+- Whisper E2E tests (slow, requires ML dependencies)
+- ML models E2E tests (slow, requires ML dependencies)
+
+#### 6. Build Package Job
 
 **Purpose:** Validate the package can be built for distribution
 
@@ -278,10 +343,23 @@ graph TD
     D --> D4[whisper]
     D --> D5[spacy]
     
+    B -->|Fast E2E Test Job| E2[dev dependencies + pytest-socket]
+    E2 --> E2A[pytest]
+    E2 --> E2B[pytest-socket for network guard]
+    E2 --> E2C[No ML deps - fast]
+    
+    B -->|Slow E2E Test Job| E3[dev + ml dependencies + pytest-socket]
+    E3 --> E3A[pytest]
+    E3 --> E3B[pytest-socket for network guard]
+    E3 --> E3C[transformers]
+    E3 --> E3D[torch]
+    E3 --> E3E[whisper]
+    E3 --> E3F[spacy]
+    
     B -->|Docs Job| E[docs + ml dependencies]
     E --> E1[mkdocs-material]
-    E --> E2[mkdocstrings]
-    E --> E3[ML packages for API docs]
+    E --> E2D[mkdocstrings]
+    E --> E3G[ML packages for API docs]
     
     B -->|Build Job| F[build tools only]
     F --> F1[python -m build]
@@ -620,7 +698,7 @@ schedule:
 
 All workflows run independently and in parallel when triggered:
 
-- **Python Application Workflow** (5 parallel jobs: lint, unit test, integration test, docs, build)
+- **Python Application Workflow** (7 parallel jobs: lint, unit test, integration test, fast E2E test, docs, build, slow E2E test (main only))
 - **Documentation Deployment Workflow** (sequential: build → deploy)
 - **CodeQL Workflow** (matrix: Python + Actions analysis in parallel)
 - **Docker Workflow** (single job: build → test → validate)
@@ -647,11 +725,13 @@ This maximizes parallelism and reduces total CI time.
 ├── Lint Job (2-3 min)
 ├── Unit Test Job (2-3 min) - No ML deps, fast
 ├── Integration Test Job (10-15 min) - With ML deps
+├── Fast E2E Test Job (5-10 min) - No ML deps, network guard
 ├── Docs Job (3-5 min)
-└── Build Job (2-3 min)
+├── Build Job (2-3 min)
+└── Slow E2E Test Job (15-20 min) - With ML deps, main branch only
 ```
 
-All five jobs start simultaneously and run independently. Unit tests run quickly without ML dependencies, while integration tests run in parallel with full ML stack.
+All seven jobs start simultaneously and run independently. Fast jobs (lint, unit tests, fast E2E tests) run quickly without ML dependencies, while slow jobs (integration tests, slow E2E tests) run in parallel with full ML stack.
 
 **Within CodeQL Workflow:**
 
@@ -1077,12 +1157,45 @@ make format-check lint lint-markdown type security
 # Reproduce test failures locally
 make test
 
+# Reproduce E2E test failures locally
+make test-workflow-e2e  # All E2E tests
+make test-e2e-fast      # Fast E2E tests only (excludes slow/ml_models)
+make test-e2e-slow      # Slow E2E tests only (requires ML dependencies)
+
 # Reproduce docs failures locally
 make docs
 
 # Run everything (matches full CI)
 make ci
 ```
+
+### Running E2E Tests Locally
+
+E2E tests require network guard to be active. Use the Makefile targets:
+
+```bash
+# Run all E2E tests (with network guard)
+make test-workflow-e2e
+
+# Run fast E2E tests only (excludes slow/ml_models, faster feedback)
+make test-e2e-fast
+
+# Run slow E2E tests only (includes slow/ml_models, requires ML dependencies)
+make test-e2e-slow
+```
+
+**Network Guard:**
+- All E2E tests run with `--disable-socket --allow-hosts=127.0.0.1,localhost`
+- Ensures no external network calls are made
+- All RSS and audio must be served from local E2E HTTP server
+- Tests fail hard if a real URL is hit
+
+**Test Markers:**
+- `workflow_e2e`: All E2E tests
+- `slow`: Slow tests (Whisper, ML models)
+- `ml_models`: Tests requiring ML dependencies
+
+See [Testing Guide](TESTING_GUIDE.md#e2e-test-implementation) for detailed E2E test documentation.
 
 ---
 

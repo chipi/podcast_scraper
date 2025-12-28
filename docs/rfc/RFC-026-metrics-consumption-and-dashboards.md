@@ -10,7 +10,7 @@
   - `docs/rfc/RFC-024-test-execution-optimization.md` (test execution optimization)
 - **Related Documents**:
   - `docs/TESTING_STRATEGY.md` - Overall testing strategy and test categories
-  - `docs/DEVELOPMENT_NOTES.md` - Development workflow and testing requirements
+  - `docs/DEVELOPMENT_GUIDE.md` - Development workflow and testing requirements
   - `.github/workflows/python-app.yml` - CI test jobs
 
 ## Abstract

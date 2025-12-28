@@ -49,7 +49,7 @@ pip install -e ".[ml]"
 # Or for development (includes dev tools + ML dependencies)
 make init
 ```
-**Installation options:**
+
 - `pip install -e .` — Core dependencies only
 - `pip install -e ".[ml]"` — Core + ML dependencies (Whisper, spaCy, transformers)
 - `pip install -e ".[dev,ml]"` — Core + ML + development tools
@@ -72,11 +72,11 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-metadata \
   --generate-summaries
 ```
-## 📚 Documentation
 
 **Full documentation:** [https://chipi.github.io/podcast_scraper/](https://chipi.github.io/podcast_scraper/)
 
 The documentation site includes:
+
 - **Getting Started Guide** — Installation, configuration, and first steps
 - **CLI Reference** — Complete command-line interface documentation
 - **Python API** — Public API for programmatic usage
@@ -92,11 +92,11 @@ The documentation site includes:
 pip install mkdocs mkdocs-material pymdown-extensions mkdocstrings mkdocstrings-python
 mkdocs serve
 ```
-Visit [http://localhost:8000](http://localhost:8000) to preview documentation locally.
 
 ## 🤝 Contributing
 
-We welcome contributions! See [Contributing Guide](CONTRIBUTING.md) and [Development Notes](docs/DEVELOPMENT_NOTES.md) for:
+We welcome contributions! See [Contributing Guide](CONTRIBUTING.md) and [Development Guide](docs/DEVELOPMENT_GUIDE.md) for:
+
 - Development setup and workflow
 - Code style and testing requirements
 - Architecture and design principles

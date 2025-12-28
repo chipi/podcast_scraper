@@ -1,6 +1,6 @@
 # RFC-019: E2E Test Infrastructure and Coverage Improvements
 
-- **Status**: Draft
+- **Status**: Complete
 - **Authors**:
 - **Stakeholders**: Maintainers, developers writing E2E tests, CI/CD pipeline maintainers, QA engineers
 - **Related PRDs**:
@@ -336,8 +336,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
   - `podcast-scraper --config <config_file>` - Config file workflow
   - `podcast-scraper <rss_url> --dry-run` - Dry run
   - `podcast-scraper <rss_url> --generate-metadata` - Metadata generation
-  - `podcast-scraper <rss_url> --summarize` - Summarization
-  - `podcast-scraper <rss_url> --transcribe-missing --generate-metadata --summarize` - All features
+  - `podcast-scraper <rss_url> --generate-summaries` - Summarization
+  - `podcast-scraper <rss_url> --transcribe-missing --generate-metadata --generate-summaries` - All features
 
 **Stage 6: Library API E2E Tests**
 
@@ -541,9 +541,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 3. **Stage 8-12**: Advanced E2E tests (Whisper, ML models, errors, edge cases, HTTP behaviors) - 2-3 weeks
 4. **Stage 13-14**: Migration, cleanup, CI/CD integration - 1-2 weeks
 
-**Total Estimated Time**: 6-10 weeks
-
-**Detailed Implementation Plan**: See `docs/rfc/RFC-019-IMPLEMENTATION-PLAN.md` for a comprehensive, staged implementation plan with detailed tasks, deliverables, and success criteria for each stage.
+**Total Estimated Time**: 6-10 weeks (completed)
 
 **Monitoring:**
 
@@ -579,11 +577,10 @@ Together, these three RFCs provide:
 
 - Clear test structure and boundaries (RFC-018) ✅ **Completed**
 - Comprehensive component interaction testing (RFC-020) ✅ **Completed**
-- Comprehensive user workflow testing (RFC-019) 📋 **Planned**
+- Comprehensive user workflow testing (RFC-019) ✅ **Completed**
 
 ## References
 
-- **Implementation Plan**: `docs/rfc/RFC-019-IMPLEMENTATION-PLAN.md` - Detailed staged implementation plan with tasks, deliverables, and success criteria
 - **Test Boundary Decision Framework**: `docs/TESTING_STRATEGY.md` (Test Boundary Decision Framework section)
 - **Test Strategy**: `docs/TESTING_STRATEGY.md` - Overall testing strategy and test pyramid
 - **Test Structure RFC**: `docs/rfc/RFC-018-test-structure-reorganization.md` (foundation)
