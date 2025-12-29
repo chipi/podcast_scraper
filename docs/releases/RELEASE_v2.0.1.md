@@ -47,7 +47,7 @@ v2.0.1 is a patch release that adds comprehensive legal notices and usage clarif
 
 ## Documentation
 
-- Legal Notice: [docs/LEGAL.md](../LEGAL.md)
+- Legal Notice: [docs/LEGAL.md](../../LEGAL.md)
 - Project Intent: See "Project Intent & Fair Use Notice" section in README.md
 
 ## Migration Notes
