@@ -48,15 +48,16 @@ nav:
       - RFC-026 Metrics Consumption and Dashboards: rfc/RFC-026-metrics-consumption-and-dashboards.md
       - RFC-027 Pipeline Metrics Improvements: rfc/RFC-027-pipeline-metrics-improvements.md
   - API:
-      - API Overview: api/API_REFERENCE.md
-      - Core API: api/core.md
-      - Configuration: api/configuration.md
-      - Service API: api/service.md
-      - CLI Interface: api/cli.md
-      - Models: api/models.md
-      - API Boundaries: api/API_BOUNDARIES.md
-      - API Migration Guide: api/API_MIGRATION_GUIDE.md
-      - API Versioning: api/API_VERSIONING.md
+      - API Overview: api/index.md
+      - API Reference: api/REFERENCE.md
+      - Core API: api/CORE.md
+      - Configuration: api/CONFIGURATION.md
+      - Service API: api/SERVICE.md
+      - CLI Interface: api/CLI.md
+      - Models: api/MODELS.md
+      - API Boundaries: api/BOUNDARIES.md
+      - API Migration Guide: api/MIGRATION_GUIDE.md
+      - API Versioning: api/VERSIONING.md
   - Releases:
       - v2.3.2 - Security Tests & Thread-Safety Fixes: releases/RELEASE_v2.3.2.md
       - v2.3.1 - Security Fixes & Code Quality Improvements: releases/RELEASE_v2.3.1.md
@@ -73,17 +74,18 @@ nav:
       - Type Hints Analysis: wip/TYPE_HINTS_ANALYSIS.md
       - Whisper Progress Analysis: wip/WHISPER_PROGRESS_ANALYSIS.md
   - Guides:
-      - Custom Provider Guide: CUSTOM_PROVIDER_GUIDE.md
-      - Cursor AI Best Practices: CURSOR_AI_BEST_PRACTICES.md
-      - Dependencies: DEPENDENCIES.md
-      - Development Guide: DEVELOPMENT_GUIDE.md
-      - Markdown Linting: MARKDOWN_LINTING.md
-      - Protocol Extension Guide: PROTOCOL_EXTENSION_GUIDE.md
-      - Provider Attributes: PROVIDER_ATTRIBUTES.md
-      - Provider Migration Guide: PROVIDER_MIGRATION_GUIDE.md
-      - Summarization Guide: SUMMARIZATION_GUIDE.md
-      - Testing Guide: TESTING_GUIDE.md
-  - Legal Notice: legal.md
+      - Custom Provider Guide: guides/CUSTOM_PROVIDER_GUIDE.md
+      - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md
+      - Dependencies: guides/DEPENDENCIES_GUIDE.md
+      - Development Guide: guides/DEVELOPMENT_GUIDE.md
+      - Markdown Linting: guides/MARKDOWN_LINTING_GUIDE.md
+      - Markdown Style Reference: guides/MD_STYLE_REFERENCE.md
+      - Protocol Extension Guide: guides/PROTOCOL_EXTENSION_GUIDE.md
+      - Provider Attributes: guides/PROVIDER_ATTRIBUTES_GUIDE.md
+      - Provider Migration Guide: guides/PROVIDER_MIGRATION_GUIDE.md
+      - Summarization Guide: guides/SUMMARIZATION_GUIDE.md
+      - Testing Guide: guides/TESTING_GUIDE.md
+  - Legal Notice: LEGAL.md
 theme:
   name: material
   features:

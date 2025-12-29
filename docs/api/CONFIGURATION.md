@@ -202,9 +202,9 @@ docker-compose up
 
 ```text
 
-### .env File Setup
+## .env File Setup
 
-#### Creating .env File
+### Creating .env File
 
 1. **Copy example template** (if available):
 

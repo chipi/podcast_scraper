@@ -6,6 +6,73 @@ integration.
 
 For general development practices, see [Development Guide](DEVELOPMENT_GUIDE.md).
 
+## Rules Configuration
+
+**Important:** The project uses `.markdownlint.json` with `"default": true`, which means **ALL default markdownlint rules are enabled** unless explicitly disabled.
+
+### Explicitly Enabled Rules
+
+These rules are explicitly configured in `.markdownlint.json`:
+
+- **MD013** - Line length (120 chars, with exceptions for code blocks, tables, headings)
+- **MD022** - Blanks around headings
+- **MD024** - No duplicate headings
+- **MD029** - Ordered list item prefix
+- **MD031** - Blanks around fenced code blocks
+- **MD032** - Blanks around lists
+- **MD040** - Fenced code language
+- **MD041** - First line heading
+- **MD047** - Single trailing newline
+
+### Explicitly Disabled Rules
+
+These rules are explicitly disabled:
+
+- **MD025** - Multiple top-level headings (disabled - allows multiple H1s)
+- **MD033** - HTML allowed (disabled - allows HTML in markdown)
+- **MD036** - Emphasis used for heading (disabled - allows bold/italic as headings)
+- **MD051** - Link fragments (disabled - can produce false positives)
+
+### Default Rules (All Enabled)
+
+Because `"default": true`, **all other default markdownlint rules are also enabled**. This includes rules like:
+
+- **MD001** - Heading levels should only increment by one level at a time
+- **MD003** - Heading style
+- **MD004** - Unordered list style
+- **MD005** - Inconsistent indentation for list items
+- **MD007** - Unordered list indentation
+- **MD009** - Trailing spaces
+- **MD010** - Hard tabs
+- **MD012** - Multiple consecutive blank lines
+- **MD014** - Dollar signs used before commands without showing output
+- **MD018** - No space after hash on atx style heading
+- **MD019** - Multiple spaces after hash on atx style heading
+- **MD020** - No space inside hashes on closed atx style heading
+- **MD021** - Multiple spaces inside hashes on closed atx style heading
+- **MD023** - Headings must start at the beginning of the line
+- **MD026** - Trailing punctuation in heading
+- **MD027** - Multiple spaces after blockquote symbol
+- **MD028** - Blank line inside blockquote
+- **MD030** - Spaces after list markers
+- **MD034** - Bare URL used
+- **MD035** - Horizontal rule style
+- **MD037** - Spaces inside emphasis markers
+- **MD038** - Spaces inside code span elements
+- **MD039** - Spaces inside link text
+- **MD042** - No empty links
+- **MD043** - Required heading structure
+- **MD044** - Proper names should have the correct capitalization
+- **MD045** - Images should have alternate text (alt text)
+- **MD046** - Code block style
+- **MD048** - Code fence style
+- **MD049** - Emphasis style should be consistent
+- **MD050** - Strong style should be consistent
+- **MD052** - Reference links should be used
+- **MD053** - Link and image reference definitions should be needed
+
+**Note:** The pre-commit hook and CI check **all of these rules**, not just the ones explicitly listed above. If you see an error from a rule not mentioned in this guide, it's likely from the default rule set.
+
 ## Automated Markdown Fixing
 
 **Recommended:** Use `scripts/fix_markdown.py` to automatically fix common markdown linting issues:
@@ -25,10 +92,17 @@ python scripts/fix_markdown.py TESTING_STRATEGY.md rfc/RFC-020.md
 python scripts/fix_markdown.py --dry-run
 ```text
 
+**What the script fixes automatically:**
+
 - Table separator formatting (MD060) - adds spaces around pipes
 - Trailing spaces (MD009)
 - Blank lines around lists (MD032)
+- Blank lines around code fences (MD031)
+- Blank lines around headings (MD022)
 - Code block language specifiers (MD040) - when detectable
+- Trailing newlines (MD047)
+
+**⚠️ Important:** The script only fixes a subset of rules. The pre-commit hook checks **ALL enabled rules** (including all default rules). If you see errors from rules not listed above, you'll need to fix them manually or use `markdownlint --fix`.
 
 **When to use:**
 
