@@ -8,7 +8,8 @@ For general development practices, see [Development Guide](DEVELOPMENT_GUIDE.md)
 
 ## Rules Configuration
 
-**Important:** The project uses `.markdownlint.json` with `"default": true`, which means **ALL default markdownlint rules are enabled** unless explicitly disabled.
+**Important:** The project uses `.markdownlint.json` with `"default": true`, which means
+**ALL default markdownlint rules are enabled** unless explicitly disabled.
 
 ### Explicitly Enabled Rules
 
@@ -71,7 +72,9 @@ Because `"default": true`, **all other default markdownlint rules are also enabl
 - **MD052** - Reference links should be used
 - **MD053** - Link and image reference definitions should be needed
 
-**Note:** The pre-commit hook and CI check **all of these rules**, not just the ones explicitly listed above. If you see an error from a rule not mentioned in this guide, it's likely from the default rule set.
+**Note:** The pre-commit hook and CI check **all of these rules**, not just the ones
+explicitly listed above. If you see an error from a rule not mentioned in this guide,
+it's likely from the default rule set.
 
 ## Automated Markdown Fixing
 
@@ -407,3 +410,4 @@ descriptions). Consider:
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices
 - [CI/CD](../CI_CD.md) - Continuous integration pipeline details
 - [Markdown Style Reference](MD_STYLE_REFERENCE.md) - Quick reference style guide
+````

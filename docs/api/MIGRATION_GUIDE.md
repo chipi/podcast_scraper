@@ -2,7 +2,8 @@
 
 ## Overview
 
-Version 2.0 refactors the monolithic v1.0 into a clean modular architecture with a **minimal public API of just 4 core items**, making the package easier to use and maintain.
+Version 2.0 refactors the monolithic v1.0 into a clean modular architecture with a
+**minimal public API of just 4 core items**, making the package easier to use and maintain.
 
 ## Changes
 

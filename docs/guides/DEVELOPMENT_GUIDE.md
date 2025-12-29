@@ -1,8 +1,12 @@
 # Development Guide
 
-> **Maintenance Note**: This document should be kept up-to-date as linting rules, Makefile targets, pre-commit hooks, CI/CD workflows, or development setup procedures evolve. When adding new checks, tools, workflows, or environment setup steps, update this document accordingly.
+> **Maintenance Note**: This document should be kept up-to-date as linting rules, Makefile
+> targets, pre-commit hooks, CI/CD workflows, or development setup procedures evolve. When
+> adding new checks, tools, workflows, or environment setup steps, update this document
+> accordingly.
 
-This guide provides detailed implementation instructions for developing the podcast scraper. For high-level architectural decisions and design principles, see [Architecture](../ARCHITECTURE.md).
+This guide provides detailed implementation instructions for developing the podcast scraper.
+For high-level architectural decisions and design principles, see [Architecture](../ARCHITECTURE.md).
 
 ## Test Structure
 
@@ -36,7 +40,8 @@ The test suite is organized into three main categories (RFC-018):
 **Key Features:**
 
 - **Test Execution**: Tests run sequentially by default (simpler, clearer output)
-- **Flaky Test Reruns**: Failed tests can be automatically retried using `pytest-rerunfailures` (`--reruns 2 --reruns-delay 1`)
+- **Flaky Test Reruns**: Failed tests can be automatically retried using
+  `pytest-rerunfailures` (`--reruns 2 --reruns-delay 1`)
 - **Test Markers**: All integration tests have `@pytest.mark.integration`, all e2e tests have `@pytest.mark.e2e`
 - **Network Marker**: E2E tests that make real network calls should have `@pytest.mark.network`
 
@@ -92,7 +97,8 @@ make test-reruns
 
 1. **Use lazy imports** (future improvement): Import ML dependencies inside functions, not at module level
 
-2. **Verify imports work without ML deps**: Run `make test-unit-no-ml` or `python scripts/check_unit_test_imports.py` before pushing
+2. **Verify imports work without ML deps**: Run `make test-unit-no-ml` or
+   `python scripts/check_unit_test_imports.py` before pushing
 
 The CI automatically checks that unit tests can import modules without ML dependencies before running tests.
 
@@ -172,7 +178,9 @@ source .venv/bin/activate
 
 ## Markdown Linting
 
-For detailed information about markdown linting, including automated fixing, table formatting solutions, pre-commit hooks, and CI/CD integration, see the [Markdown Linting Guide](MARKDOWN_LINTING_GUIDE.md).
+For detailed information about markdown linting, including automated fixing, table
+formatting solutions, pre-commit hooks, and CI/CD integration, see the [Markdown Linting
+Guide](MARKDOWN_LINTING_GUIDE.md).
 
 **Quick reference:**
 
@@ -181,7 +189,9 @@ For detailed information about markdown linting, including automated fixing, tab
 - **Pre-commit hook:** Automatically checks markdown files before commits
 - **CI/CD:** All markdown files are linted in CI - errors will fail the build
 
-**Lessons learned:** See the [Lessons Learned section](MARKDOWN_LINTING_GUIDE.md#lessons-learned-from-large-scale-cleanup) in the Markdown Linting Guide for best practices from our large-scale cleanup effort (fixed ~1,016 errors across 91 files).
+**Lessons learned:** See the [Lessons Learned section](MARKDOWN_LINTING_GUIDE.md#lessons-learned-from-large-scale-cleanup)
+in the Markdown Linting Guide for best practices from our large-scale cleanup effort
+(fixed ~1,016 errors across 91 files).
 
 ## AI Coding Guidelines
 
@@ -224,7 +234,8 @@ Different AI assistants load guidelines from different locations:
 - Ensuring `make ci` passes completely
 - Fixing all failures before pushing
 
-**Note:** Use `make ci-fast` for quick feedback during development, but always run `make ci` before pushing to ensure full validation.
+**Note:** Use `make ci-fast` for quick feedback during development, but always run
+`make ci` before pushing to ensure full validation.
 
 ### What's in `.ai-coding-guidelines.md`
 
@@ -245,8 +256,11 @@ Different AI assistants load guidelines from different locations:
 - The guidelines are automatically loaded (no setup needed)
 - AI assistants will follow project patterns and workflows
 - Guidelines ensure consistent code quality
-- **Prompt templates available:** `.cursor/prompts/` contains reusable prompt templates for CI debugging, RFC design, code reviews, and implementation planning
-- **See also:** [`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`](CURSOR_AI_BEST_PRACTICES_GUIDE.md) - Best practices for using Cursor AI effectively, including model selection, workflow optimization, prompt templates, and project-specific recommendations
+- **Prompt templates available:** `.cursor/prompts/` contains reusable prompt templates for
+  CI debugging, RFC design, code reviews, and implementation planning
+- **See also:** [`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`](CURSOR_AI_BEST_PRACTICES_GUIDE.md) -
+  Best practices for using Cursor AI effectively, including model selection, workflow
+  optimization, prompt templates, and project-specific recommendations
 
 **If you're using other AI assistants:**
 
@@ -271,7 +285,9 @@ Different AI assistants load guidelines from different locations:
 
 **Keep entry points in sync:**
 
-- When updating `.ai-coding-guidelines.md`, ensure entry points (`CLAUDE.md`, `.github/copilot-instructions.md`, `.cursor/rules/ai-guidelines.mdc`) still reference it correctly
+- When updating `.ai-coding-guidelines.md`, ensure entry points (`CLAUDE.md`,
+  `.github/copilot-instructions.md`, `.cursor/rules/ai-guidelines.mdc`) still reference
+  it correctly
 
 **See:** `.ai-coding-guidelines.md` for complete guidelines.
 

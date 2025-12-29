@@ -1,10 +1,14 @@
 # Custom Provider Guide
 
-This guide explains how to create custom providers for the podcast scraper. Providers allow you to extend the system with new implementations for transcription, speaker detection, or summarization.
+This guide explains how to create custom providers for the podcast scraper. Providers allow
+you to extend the system with new implementations for transcription, speaker detection, or
+summarization.
 
 ## Overview
 
-The podcast scraper uses a **protocol-based provider system** where each capability (transcription, speaker detection, summarization) has a protocol interface that all providers must implement. This design allows:
+The podcast scraper uses a **protocol-based provider system** where each capability
+(transcription, speaker detection, summarization) has a protocol interface that all
+providers must implement. This design allows:
 
 - **Pluggable implementations**: Swap providers via configuration
 - **Type safety**: Protocols ensure consistent interfaces
@@ -23,7 +27,7 @@ The podcast scraper uses a **protocol-based provider system** where each capabil
 
 Each provider type follows this pattern:
 
-```text
+````text
 podcast_scraper/
 ├── {capability}/
 │   ├── __init__.py
@@ -402,3 +406,4 @@ def _transcribe_cached(self, audio_path: str) -> str:
 - Review protocol definitions in `{capability}/base.py`
 - See `tests/test_{capability}_provider.py` for test examples
 - Open an issue for questions or clarifications
+````

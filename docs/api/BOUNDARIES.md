@@ -1,6 +1,7 @@
 # API Boundaries and Architecture Assessment
 
-This document describes the public API boundaries of `podcast_scraper` and identifies any API creeps (internal details that shouldn't be exposed).
+This document describes the public API boundaries of `podcast_scraper` and identifies any
+API creeps (internal details that shouldn't be exposed).
 
 ## Public API Surface
 
