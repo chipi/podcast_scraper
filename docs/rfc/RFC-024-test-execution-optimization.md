@@ -140,7 +140,7 @@ We explicitly group tests by **intent and speed** to optimize execution strategi
 
 **Current Implementation:**
 
-- `make test-workflow-e2e` (parallel - faster for slow tests)
+- `make test-e2e` (parallel - faster for slow tests)
 - CI runs on main branch only
 
 ## Test Execution Optimization
@@ -149,38 +149,37 @@ We explicitly group tests by **intent and speed** to optimize execution strategi
 
 Based on empirical testing:
 
-| Test Type | Sequential | Parallel | Speedup | Recommendation |
-| ----------- | ----------- | ---------- | --------- | ---------------- |
-| **Unit Tests** | 2.1s | 2.5s | -20% (slower) | Sequential (overhead dominates) |
-| **Integration Tests** | 115.7s | 33.6s | 3.4x faster | Parallel (significant benefit) |
-| **E2E Tests** | TBD | TBD | Expected similar to integration | Parallel (expected benefit) |
+| Test Type | Sequential | Parallel (4 workers) | Parallel (auto) | Speedup | Recommendation |
+| ----------- | ----------- | ---------- | ---------- | --------- | ---------------- |
+| **Unit Tests** | 2.16s | 1.91s | 2.19s | +11.6% (4 workers) | Parallel with 4 workers (optimal) |
+| **Integration Tests** | 115.7s | N/A | 33.6s | 3.4x faster | Parallel with auto workers (significant benefit) |
+| **E2E Tests** | TBD | N/A | TBD | Expected similar to integration | Parallel with auto workers (expected benefit) |
 
 ### Makefile Target Strategy
 
 **Optimized Execution:**
 
 ```makefile
-# Default: parallel (matches CI, reasonable for most cases)
+# Default: parallel with 4 workers (11.6% faster than sequential, optimal for unit tests)
 test:
-  pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
+  pytest -n 4 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e and not network'
 
 # Sequential: for debugging (cleaner output)
 test-sequential:
-  pytest --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
+  pytest --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e and not network'
 
-# Unit tests: sequential (faster for fast tests, overhead dominates in parallel)
+# Unit tests: parallel with 4 workers (11.6% faster than sequential, optimal balance)
 test-unit:
-  pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
+  pytest tests/unit/ -n 4 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e and not network'
 
 # Integration tests: parallel (3.4x faster, significant benefit)
 test-integration:
   pytest tests/integration/ -m integration -n auto
 
 # E2E tests: parallel (faster for slow tests, similar to integration)
-test-workflow-e2e:
-  pytest tests/workflow_e2e/ -m workflow_e2e -n auto
+test-e2e:
+  pytest tests/e2e/ -m e2e -n auto
 ```
-
 ## Implementation Plan
 
 ### Phase 1: Optimize Test Execution (Immediate)
@@ -200,9 +199,9 @@ test-workflow-e2e:
 
 **Rationale:**
 
-- Unit tests: Sequential is faster (overhead dominates)
-- Integration/E2E tests: Parallel is 3.4x faster (significant benefit)
-- Default: Parallel (matches CI, reasonable for most cases)
+- Unit tests: Parallel with 4 workers is 11.6% faster (optimal balance, avoids over-parallelization)
+- Integration/E2E tests: Parallel with auto workers is 3.4x faster (significant benefit)
+- Default: Parallel with 4 workers for unit tests (optimal performance)
 
 ### 2. Test Speed Tiers
 

@@ -115,7 +115,7 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 **Implementation:**
 
 - Add `pytest-socket` to dev dependencies (recommended)
-- Create `tests/workflow_e2e/conftest.py` with network blocking fixture (autouse=True)
+- Create `tests/e2e/conftest.py` with network blocking fixture (autouse=True)
 - Block all outbound sockets except localhost/127.0.0.1
 - Network guard must be active for ALL E2E tests (no opt-out)
 - Test failure must occur immediately when external network call is attempted
@@ -124,7 +124,7 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 
 **OpenAI API Mocking:**
 
-- Create `tests/workflow_e2e/fixtures/openai_mock.py` with mock OpenAI client
+- Create `tests/e2e/fixtures/openai_mock.py` with mock OpenAI client
 - Implement realistic mock responses for all OpenAI provider methods:
   - `OpenAISummarizationProvider.summarize()` → mock summary response
   - `OpenAITranscriptionProvider.transcribe()` → mock transcription response
@@ -140,8 +140,8 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 
 **Deliverables:**
 
-- Network blocking fixture in `tests/workflow_e2e/conftest.py` (autouse=True)
-- OpenAI mock fixture in `tests/workflow_e2e/fixtures/openai_mock.py`
+- Network blocking fixture in `tests/e2e/conftest.py` (autouse=True)
+- OpenAI mock fixture in `tests/e2e/fixtures/openai_mock.py`
 - Test verifying network blocking (`test_network_guard.py`)
 - Test verifying OpenAI mocking works
 - Documentation of network guard and OpenAI mocking strategy
@@ -152,7 +152,7 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 
 **Implementation:**
 
-- Create `tests/workflow_e2e/fixtures/e2e_http_server.py` with:
+- Create `tests/e2e/fixtures/e2e_http_server.py` with:
   - `E2EHTTPServer` class (session-scoped)
   - `E2EHTTPRequestHandler` class
   - Security hardening (path traversal protection, URL encoding safety)
@@ -166,8 +166,8 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 
 **Deliverables:**
 
-- `tests/workflow_e2e/fixtures/e2e_http_server.py`
-- `e2e_server` pytest fixture in `tests/workflow_e2e/conftest.py`
+- `tests/e2e/fixtures/e2e_http_server.py`
+- `e2e_server` pytest fixture in `tests/e2e/conftest.py`
 - Basic test verifying server functionality
 
 ### Stage 2: Test Fixtures - Keep Flat Structure with URL Mapping
@@ -203,7 +203,6 @@ tests/fixtures/
     ├── p01_e03.txt
     └── ... (p02-p05 episodes)
 ```
-
 - `/feeds/podcast1/feed.xml` → `tests/fixtures/rss/p01_mtb.xml` (mapping)
 - `/audio/p01_e01.mp3` → `tests/fixtures/audio/p01_e01.mp3` (direct)
 - `/transcripts/p01_e01.txt` → `tests/fixtures/transcripts/p01_e01.txt` (direct)
@@ -308,7 +307,6 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # 404 if not found
         self.send_error(404, "File not found")
 ```
-
 - Updated `E2EHTTPRequestHandler` with flat structure file serving
 - URL mapping logic (podcast name → RSS file, episode name → flat files)
 - URL helper methods
@@ -323,13 +321,13 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 **Stage 4: Basic E2E Tests (Happy Paths)**
 
-- Create `tests/workflow_e2e/test_basic_e2e.py` with basic CLI, library API, and service API tests
+- Create `tests/e2e/test_basic_e2e.py` with basic CLI, library API, and service API tests
 - Remove HTTP mocking from these tests
 - Use `e2e_server` fixture to serve RSS feeds and transcripts
 
 **Stage 5: CLI Command E2E Tests**
 
-- Create `tests/workflow_e2e/test_cli_e2e.py` with tests for:
+- Create `tests/e2e/test_cli_e2e.py` with tests for:
 
   - `podcast-scraper <rss_url>` - Basic transcript download
   - `podcast-scraper <rss_url> --transcribe-missing` - Whisper fallback
@@ -341,7 +339,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 **Stage 6: Library API E2E Tests**
 
-- Create `tests/workflow_e2e/test_library_api_e2e.py` with tests for:
+- Create `tests/e2e/test_library_api_e2e.py` with tests for:
 
   - `run_pipeline(config)` - Basic pipeline
   - `run_pipeline(config)` with all features
@@ -349,32 +347,32 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 **Stage 7: Service API E2E Tests**
 
-- Update `tests/workflow_e2e/test_service.py` to use real HTTP client
+- Update `tests/e2e/test_service.py` to use real HTTP client
 - Tests for `service.run(config)`, `service.run_from_config_file(path)`, `service.main()`
 
 **Stage 8: Real Whisper Transcription E2E Tests**
 
-- Create `tests/workflow_e2e/test_whisper_e2e.py` with real Whisper models and real audio files
+- Create `tests/e2e/test_whisper_e2e.py` with real Whisper models and real audio files
 - Mark tests as `@pytest.mark.slow` and `@pytest.mark.ml_models`
 
 **Stage 9: Real ML Models E2E Tests**
 
-- Create `tests/workflow_e2e/test_ml_models_e2e.py` with real spaCy and Transformers models
+- Create `tests/e2e/test_ml_models_e2e.py` with real spaCy and Transformers models
 - Mark tests as `@pytest.mark.slow` and `@pytest.mark.ml_models`
 
 **Stage 10: Error Handling E2E Tests**
 
-- Create `tests/workflow_e2e/test_error_handling_e2e.py` with error scenarios
+- Create `tests/e2e/test_error_handling_e2e.py` with error scenarios
 - Use `e2e_server` fixture with error scenarios (behavior registry)
 
 **Stage 11: Edge Cases E2E Tests**
 
-- Create `tests/workflow_e2e/test_edge_cases_e2e.py` with edge case scenarios
+- Create `tests/e2e/test_edge_cases_e2e.py` with edge case scenarios
 - Use edge case fixtures from `tests/fixtures/e2e_server/feeds/edge_cases/`
 
 **Stage 12: HTTP Behaviors E2E Tests - Realistic Large File Testing**
 
-- Create `tests/workflow_e2e/test_http_behaviors_e2e.py` with HTTP behavior scenarios
+- Create `tests/e2e/test_http_behaviors_e2e.py` with HTTP behavior scenarios
 - Test Range requests, redirects, retries, timeouts
 - **REQUIRED: Add realistic large file tests (exploit large audio files):**
   - `test_e2e_audio_streaming_with_range_requests` - Stream audio instead of downloading whole file
@@ -398,7 +396,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 **Implementation:**
 
-- Review all existing E2E tests in `tests/workflow_e2e/`
+- Review all existing E2E tests in `tests/e2e/`
 - Identify tests that still use HTTP mocking
 - Migrate tests to use `e2e_server` fixture:
 
@@ -425,14 +423,14 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 - Update `.github/workflows/python-app.yml`:
 
-  - Add E2E test job (or update existing `test-workflow-e2e` job)
-  - Ensure E2E tests run with proper markers (`-m workflow_e2e`)
+  - Add E2E test job (or update existing `test-e2e` job)
+  - Ensure E2E tests run with proper markers (`-m e2e`)
   - Add test count validation for E2E tests
   - Configure slow tests to run on schedule or manual trigger
 
 - Update `Makefile`:
 
-  - Ensure `test-workflow-e2e` target runs E2E tests
+  - Ensure `test-e2e` target runs E2E tests
   - Add `test-e2e-fast` target for fast E2E tests (exclude slow/ml_models)
   - Add `test-e2e-slow` target for slow E2E tests
 
@@ -520,8 +518,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 **Test Organization:**
 
-- E2E tests in `tests/workflow_e2e/` directory
-- Marked with `@pytest.mark.workflow_e2e`
+- E2E tests in `tests/e2e/` directory
+- Marked with `@pytest.mark.e2e`
 - Slow tests marked with `@pytest.mark.slow`
 - ML model tests marked with `@pytest.mark.ml_models`
 
@@ -564,7 +562,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 This RFC (RFC-019) is part of a comprehensive testing strategy that includes:
 
-1. **RFC-018: Test Structure Reorganization** - Established the foundation by organizing tests into `unit/`, `integration/`, and `workflow_e2e/` directories, adding pytest markers, and enabling test execution control. This RFC builds upon that structure.
+1. **RFC-018: Test Structure Reorganization** - Established the foundation by organizing tests into `unit/`, `integration/`, and `e2e/` directories, adding pytest markers, and enabling test execution control. This RFC builds upon that structure.
 
 2. **RFC-020: Integration Test Improvements** - Completed comprehensive improvements to integration tests (182 tests across 15 files). While integration tests focus on component interactions, E2E tests (this RFC) focus on complete user workflows.
 
@@ -585,5 +583,5 @@ Together, these three RFCs provide:
 - **Test Strategy**: `docs/TESTING_STRATEGY.md` - Overall testing strategy and test pyramid
 - **Test Structure RFC**: `docs/rfc/RFC-018-test-structure-reorganization.md` (foundation)
 - **Integration Test RFC**: `docs/rfc/RFC-020-integration-test-improvements.md` (related work)
-- **Source Code**: `tests/workflow_e2e/`, `tests/fixtures/`
+- **Source Code**: `tests/e2e/`, `tests/fixtures/`
 - **Fixture Specification**: `tests/fixtures/FIXTURES_SPEC.md` - How fixtures are generated

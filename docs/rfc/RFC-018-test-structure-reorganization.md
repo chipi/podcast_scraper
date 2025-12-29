@@ -13,11 +13,11 @@
 
 ## Abstract
 
-Reorganize the test suite structure to improve maintainability, test discoverability, and enable better test execution strategies. The new structure organizes tests by type (unit, integration, workflow_e2e) and mirrors the source code structure for unit tests, making it easier to locate tests and understand test coverage. This reorganization also enables parallel test execution, flaky test reruns, and stricter CI/CD enforcement of test isolation.
+Reorganize the test suite structure to improve maintainability, test discoverability, and enable better test execution strategies. The new structure organizes tests by type (unit, integration, e2e) and mirrors the source code structure for unit tests, making it easier to locate tests and understand test coverage. This reorganization also enables parallel test execution, flaky test reruns, and stricter CI/CD enforcement of test isolation.
 
 **Key Changes:**
 
-- Organize tests into `unit/`, `integration/`, and `workflow_e2e/` directories
+- Organize tests into `unit/`, `integration/`, and `e2e/` directories
 - Mirror `src/podcast_scraper/` structure in `tests/unit/podcast_scraper/`
 - Add pytest markers for test categorization and network usage
 - Enforce test isolation in CI/CD (unit tests must not hit network or perform filesystem I/O)
@@ -57,7 +57,7 @@ Reorganize the test suite structure to improve maintainability, test discoverabi
 
 ## Goals
 
-1. **Clear Test Organization**: Tests organized by type (unit/integration/workflow_e2e) and structure
+1. **Clear Test Organization**: Tests organized by type (unit/integration/e2e) and structure
 2. **Easy Navigation**: Unit tests mirror source structure for easy code-to-test navigation
 3. **Test Execution Control**: Ability to run specific test types, exclude network tests, run in parallel
 4. **CI/CD Enforcement**: Automated checks to ensure test isolation (unit tests don't hit network or perform filesystem I/O)
@@ -77,7 +77,7 @@ Reorganize the test suite structure to improve maintainability, test discoverabi
 
 - All tests use absolute imports from installed package (already true)
 - pytest is the primary test framework (some unittest.TestCase usage is acceptable)
-- Tests can be categorized into unit/integration/workflow_e2e with reasonable accuracy
+- Tests can be categorized into unit/integration/e2e with reasonable accuracy
 - Network tests can be identified and marked appropriately
 
 ## Design & Implementation
@@ -136,11 +136,11 @@ tests/
 │   ├── test_provider_error_handling_extended.py
 │   └── test_stage0_foundation.py         # Foundation stage tests
 │
-└── workflow_e2e/                  # Full workflow tests (renamed from integration)
+└── e2e/                  # Full workflow tests (renamed from integration)
     ├── __init__.py
     ├── test_cli.py                # CLI end-to-end
     ├── test_service.py            # Service mode end-to-end
-    ├── test_workflow_e2e.py       # Full workflow (renamed from test_integration.py)
+    ├── test_e2e.py       # Full workflow (renamed from test_integration.py)
     ├── test_podcast_scraper.py    # Main pipeline E2E
     ├── test_summarizer.py         # Full summarization workflow
     ├── test_summarizer_edge_cases.py
@@ -148,7 +148,6 @@ tests/
     ├── test_eval_scripts.py      # Evaluation script tests
     └── test_env_variables.py      # Environment variable E2E
 ```
-
 **Key Decisions:**
 
 - **Unit tests mirror src structure**: Makes navigation easy, clear test-to-code mapping
@@ -175,7 +174,7 @@ tests/
 - Can use real filesystem (temp directories)
 - Should not hit network unless explicitly marked
 
-**Workflow E2E Tests** (`tests/workflow_e2e/`):
+**Workflow E2E Tests** (`tests/e2e/`):
 
 - Test complete workflows from entry point to output
 - Test CLI commands, service mode, full pipelines
@@ -192,15 +191,14 @@ tests/
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Default: run only unit tests (fast feedback)
-addopts = "-q -ra -m 'not integration and not workflow_e2e and not network'"
+addopts = "-q -ra -m 'not integration and not e2e and not network'"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: integration tests (slower, test component interactions)",
-    "workflow_e2e: end-to-end workflow tests (slowest, test full workflows)",
+    "e2e: end-to-end workflow tests (slowest, test full workflows)",
     "network: hits the network (off by default, use -m network to enable)",
 ]
 ```
-
 **Test Execution Examples:**
 
 ```bash
@@ -214,7 +212,7 @@ pytest -m "not network"
 pytest -m integration
 
 # Only workflow e2e tests
-pytest -m workflow_e2e
+pytest -m e2e
 
 # All tests including network
 pytest -m network
@@ -225,13 +223,12 @@ pytest -n auto
 # With reruns for flaky tests (Stage 6)
 pytest --reruns 2 --reruns-delay 1
 ```
-
 ### 4. Test Markers and Enforcement
 
 **Marker Usage:**
 
 - All integration tests: `@pytest.mark.integration`
-- All workflow_e2e tests: `@pytest.mark.workflow_e2e`
+- All e2e tests: `@pytest.mark.e2e`
 - Tests that hit network: `@pytest.mark.network`
 - Slow tests: `@pytest.mark.slow` (existing)
 
@@ -240,7 +237,7 @@ pytest --reruns 2 --reruns-delay 1
 - Unit tests must not have `@pytest.mark.network`
 - CI will fail if unit test hits network (detected via pytest plugin)
 - CI will fail if unit test performs filesystem I/O (detected via pytest plugin)
-- Integration and workflow_e2e tests can use network and filesystem I/O if marked
+- Integration and e2e tests can use network and filesystem I/O if marked
 
 **Implementation:**
 
@@ -253,7 +250,7 @@ pytest --reruns 2 --reruns-delay 1
 
 **Stage 1: Setup Structure**
 
-- Create `tests/unit/`, `tests/integration/`, `tests/workflow_e2e/` directories
+- Create `tests/unit/`, `tests/integration/`, `tests/e2e/` directories
 - Create `tests/unit/podcast_scraper/` and subdirectories matching src structure
 - Add `__init__.py` files where needed
 - Update `pyproject.toml` pytest config
@@ -261,7 +258,7 @@ pytest --reruns 2 --reruns-delay 1
 **Stage 2: Categorize Tests**
 
 - Review each of 32 test files to determine type
-- Create mapping: `test_file.py` → `unit/integration/workflow_e2e`
+- Create mapping: `test_file.py` → `unit/integration/e2e`
 - Document categorization decisions
 - Identify tests that hit network
 
@@ -269,14 +266,14 @@ pytest --reruns 2 --reruns-delay 1
 
 - Move unit tests to `tests/unit/podcast_scraper/` (mirroring src structure)
 - Move integration tests to `tests/integration/`
-- Move workflow_e2e tests to `tests/workflow_e2e/`
-- Rename `test_integration.py` → `test_workflow_e2e.py`
+- Move e2e tests to `tests/e2e/`
+- Rename `test_integration.py` → `test_e2e.py`
 - Verify all imports still work (should - already using absolute imports)
 
 **Stage 4: Update Markers**
 
 - Add `@pytest.mark.integration` to all integration tests
-- Add `@pytest.mark.workflow_e2e` to all workflow_e2e tests
+- Add `@pytest.mark.e2e` to all e2e tests
 - Add `@pytest.mark.network` to tests that hit network
 - Update existing `@pytest.mark.slow` markers if needed
 
@@ -286,7 +283,7 @@ pytest --reruns 2 --reruns-delay 1
 - Create pytest plugin to detect filesystem I/O in unit tests
 - Add CI check that fails if unit test hits network or performs filesystem I/O
 - Update GitHub Actions workflows to run appropriate test suites
-- Add separate jobs for unit/integration/workflow_e2e if beneficial
+- Add separate jobs for unit/integration/e2e if beneficial
 
 **Stage 6: Parallel Execution & Reruns**
 
@@ -309,9 +306,9 @@ pytest --reruns 2 --reruns-delay 1
 
 - Update `Makefile` test target to work with new structure
 - Update GitHub Actions workflows (`.github/workflows/python-app.yml`) to:
-  - Use new test paths (`tests/unit/`, `tests/integration/`, `tests/workflow_e2e/`)
+  - Use new test paths (`tests/unit/`, `tests/integration/`, `tests/e2e/`)
   - Run unit tests by default (fast feedback)
-  - Run integration and workflow_e2e tests in separate jobs if beneficial
+  - Run integration and e2e tests in separate jobs if beneficial
   - Add network and filesystem I/O detection enforcement for unit tests
   - Enable parallel execution with `pytest-xdist`
   - Configure reruns for flaky tests
@@ -347,11 +344,11 @@ pytest --reruns 2 --reruns-delay 1
 - `test_provider_error_handling_extended.py`
 - `test_stage0_foundation.py`
 
-**Workflow E2E Tests** (move to `tests/workflow_e2e/`):
+**Workflow E2E Tests** (move to `tests/e2e/`):
 
 - `test_cli.py`
 - `test_service.py`
-- `test_integration.py` → `test_workflow_e2e.py` (rename)
+- `test_integration.py` → `test_e2e.py` (rename)
 - `test_podcast_scraper.py`
 - `test_summarizer.py`
 - `test_summarizer_edge_cases.py`
@@ -404,7 +401,6 @@ def block_network_and_filesystem_io(request):
     yield
     # Clean up patches
 ```
-
 ### 8. Documentation Updates
 
 **Files to Update:**
@@ -416,7 +412,7 @@ def block_network_and_filesystem_io(request):
 
 **New Documentation Sections:**
 
-- Test type decision tree (when to use unit vs integration vs workflow_e2e)
+- Test type decision tree (when to use unit vs integration vs e2e)
 - Examples of each test type with code samples
 - How to add new tests in correct location
 - Test execution patterns (running specific test suites)
@@ -438,7 +434,7 @@ def block_network_and_filesystem_io(request):
    ```bash
    pytest tests/unit/
    pytest tests/integration/
-   pytest tests/workflow_e2e/
+   pytest tests/e2e/
    ```
 
 3. **Marker Verification**: Verify markers work correctly
@@ -446,7 +442,7 @@ def block_network_and_filesystem_io(request):
    ```bash
    pytest -m unit
    pytest -m integration
-   pytest -m workflow_e2e
+   pytest -m e2e
    pytest -m network
    ```
 
@@ -512,7 +508,6 @@ def block_network_and_filesystem_io(request):
 test:
     pytest --cov=$(PACKAGE) --cov-report=term-missing
 ```
-
 **Updated `test` target (after reorganization):**
 
 ```makefile
@@ -525,8 +520,8 @@ test-unit:
 test-integration:
     pytest tests/integration/ -m integration
 
-test-workflow-e2e:
-    pytest tests/workflow_e2e/ -m workflow_e2e
+test-e2e:
+    pytest tests/e2e/ -m e2e
 
 test-all:
     pytest tests/ -m "not network" --cov=$(PACKAGE) --cov-report=term-missing
@@ -534,7 +529,6 @@ test-all:
 test-parallel:
     pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing
 ```
-
 **Note:** Default `test` target remains unchanged for backward compatibility. New targets added for specific test suites.
 
 ## GitHub Actions Workflow Updates
@@ -609,7 +603,7 @@ jobs:
           pytest tests/integration/ -m integration -n auto --reruns 2 --reruns-delay 1
 
   # Workflow E2E tests - run on main branch
-  test-workflow-e2e:
+  test-e2e:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
@@ -633,7 +627,7 @@ jobs:
         run: |
 
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-          pytest tests/workflow_e2e/ -m workflow_e2e --reruns 2 --reruns-delay 1
+          pytest tests/e2e/ -m e2e --reruns 2 --reruns-delay 1
 
   # Full test suite (backward compatibility)
   test:
@@ -661,7 +655,6 @@ jobs:
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/ -m "not network" -n auto --cov=podcast_scraper --cov-report=term-missing --reruns 2 --reruns-delay 1
 ```
-
 **Workflow Path Triggers:**
 
 Update path triggers to include new test directories:
@@ -674,7 +667,6 @@ paths:
   - 'pyproject.toml'
   - 'Makefile'
 ```
-
 **Note:** The existing `tests/**` pattern already covers all subdirectories, so no changes needed to path triggers.
 
 ## Alternatives Considered
@@ -682,11 +674,11 @@ paths:
 1. **Keep flat structure**: Rejected - doesn't solve navigation or execution control
 2. **Only organize by type (no mirroring)**: Rejected - loses code-to-test navigation benefit
 3. **Gradual migration with POC**: Rejected per requirements - direct migration preferred
-4. **Different naming**: Considered "e2e" vs "workflow_e2e" - chose "workflow_e2e" for clarity
+4. **Different naming**: Considered "e2e" vs "e2e" - chose "e2e" for clarity
 
 ## Success Criteria
 
-1. ✅ All tests organized into unit/integration/workflow_e2e
+1. ✅ All tests organized into unit/integration/e2e
 2. ✅ Unit tests mirror src structure
 3. ✅ Pytest markers correctly applied
 4. ✅ Default test run executes only unit tests (fast)

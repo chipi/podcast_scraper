@@ -31,7 +31,6 @@ pytest tests/unit/ -v
 # Or using Makefile
 make test-unit
 ```
-
 **Run Specific Test Files**:
 
 ```bash
@@ -75,7 +74,6 @@ pytest tests/unit/test_network_isolation.py -v
 pytest tests/unit/test_filesystem_isolation.py -v
 pytest tests/unit/test_package_imports.py -v
 ```
-
 ### Unit Test Files
 
 **Core Module Tests**:
@@ -166,7 +164,6 @@ pytest tests/integration/ -v -m integration
 # Or using Makefile
 make test-integration
 ```
-
 **Run Specific Test Files**:
 
 ```bash
@@ -214,7 +211,6 @@ pytest tests/integration/test_fallback_behavior.py -v -m integration
 # Stage 0 foundation tests
 pytest tests/integration/test_stage0_foundation.py -v -m integration
 ```
-
 ### Integration Test Files
 
 **Component Integration Tests**:
@@ -257,7 +253,6 @@ def test_http_integration(local_http_server):
     url = local_http_server.url_for("/test")
     # Test HTTP client with local server
 ```
-
 **Real Filesystem I/O**:
 
 Integration tests use real filesystem operations:
@@ -307,52 +302,50 @@ Integration tests use real filesystem operations:
 
 ```bash
 # Run all E2E tests with network guard
-pytest tests/workflow_e2e/ -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/ -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 ```
-
 **Run Specific Test Files**:
 
 ```bash
 # Network guard tests
-pytest tests/workflow_e2e/test_network_guard.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_network_guard.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # OpenAI mock tests
-pytest tests/workflow_e2e/test_openai_mock.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_openai_mock.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # E2E server tests
-pytest tests/workflow_e2e/test_e2e_server.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_e2e_server.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # Fixture mapping tests
-pytest tests/workflow_e2e/test_fixture_mapping.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_fixture_mapping.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # Basic E2E tests
-pytest tests/workflow_e2e/test_basic_e2e.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_basic_e2e.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # CLI E2E tests
-pytest tests/workflow_e2e/test_cli_e2e.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_cli_e2e.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # Library API E2E tests
-pytest tests/workflow_e2e/test_library_api_e2e.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_library_api_e2e.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # Service API E2E tests
-pytest tests/workflow_e2e/test_service_api_e2e.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_service_api_e2e.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # Whisper E2E tests
-pytest tests/workflow_e2e/test_whisper_e2e.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_whisper_e2e.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # ML models E2E tests
-pytest tests/workflow_e2e/test_ml_models_e2e.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_ml_models_e2e.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # Error handling E2E tests
-pytest tests/workflow_e2e/test_error_handling_e2e.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_error_handling_e2e.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # Edge cases E2E tests
-pytest tests/workflow_e2e/test_edge_cases_e2e.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_edge_cases_e2e.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 # HTTP behaviors E2E tests
-pytest tests/workflow_e2e/test_http_behaviors_e2e.py -v -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+pytest tests/e2e/test_http_behaviors_e2e.py -v -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 ```
-
 ### E2E Test Files
 
 **Infrastructure Tests**:
@@ -430,7 +423,6 @@ def test_example(e2e_server):
     transcript_url = e2e_server.urls.transcript("p01_e01")
     # Use URLs in tests...
 ```
-
 **Network Guard Fixture**:
 
 The `block_external_network` fixture (autouse=True) blocks all external network calls except localhost.
@@ -482,7 +474,6 @@ pytest
 # Or explicitly:
 pytest tests/unit/
 ```
-
 ### Running Different Test Types
 
 ```bash
@@ -495,8 +486,8 @@ pytest tests/integration/ -m integration
 make test-integration
 
 # Workflow E2E tests only
-pytest tests/workflow_e2e/ -m workflow_e2e
-make test-workflow-e2e
+pytest tests/e2e/ -m e2e
+make test-e2e
 
 # All tests (excluding network tests)
 pytest -m "not network"
@@ -506,7 +497,6 @@ make test-all
 pytest -m network
 make test-network
 ```
-
 ### Parallel Execution
 
 Tests run in parallel by default for faster feedback (2-4x speedup for unit tests). This matches CI behavior:
@@ -523,7 +513,6 @@ pytest  # No -n flag
 # Run with specific number of workers
 pytest -n 4
 ```
-
 **When to Use Sequential Execution:**
 
 - **Debugging test failures**: Sequential output is easier to read and debug
@@ -540,13 +529,12 @@ After changing pytest configuration (especially `pyproject.toml` `addopts`), ver
 # Should collect integration tests
 pytest tests/integration/ -m integration --collect-only -q | wc -l
 
-# Should collect workflow_e2e tests
-pytest tests/workflow_e2e/ -m workflow_e2e --collect-only -q | wc -l
+# Should collect e2e tests
+pytest tests/e2e/ -m e2e --collect-only -q | wc -l
 
 # Should collect unit tests (default)
 pytest tests/unit/ --collect-only -q | wc -l
 ```
-
 - Integration tests: > 50
 - Workflow E2E tests: > 20
 - Unit tests: > 100
@@ -563,7 +551,6 @@ make test-reruns
 # Combine with parallel execution
 pytest -n auto --reruns 2 --reruns-delay 1
 ```
-
 ### Test Execution by Type
 
 ```bash
@@ -584,12 +571,11 @@ pytest tests/integration/ -m integration
 # - Real filesystem I/O ✅
 # - Real ML models ✅
 # Note: Some E2E tests may still use mocks for fast feedback
-pytest tests/workflow_e2e/ -m workflow_e2e
+pytest tests/e2e/ -m e2e
 
 # Run E2E tests with real network calls
-pytest tests/workflow_e2e/ -m "workflow_e2e and network"
+pytest tests/e2e/ -m "e2e and network"
 ```
-
 ### Coverage
 
 ```bash
@@ -597,7 +583,6 @@ pytest tests/workflow_e2e/ -m "workflow_e2e and network"
 pytest --cov=podcast_scraper --cov-report=term-missing
 make test
 ```
-
 - **Target**: >80% code coverage overall
 - **Critical Modules**: >90% (config, workflow, episode_processor)
 - **Coverage Tools**: `coverage.py` with HTML reports
@@ -650,7 +635,7 @@ The test suite is organized into three main categories:
   - Test how components work together, not just individual units
   - Example: `tests/integration/test_provider_integration.py`
 
-- **`tests/workflow_e2e/`** - Workflow end-to-end tests
+- **`tests/e2e/`** - Workflow end-to-end tests
   - Test complete workflows from entry point to output
   - Test CLI commands, service mode, full pipelines
   - **Use real HTTP client** (with local server, no external network)
@@ -658,7 +643,7 @@ The test suite is organized into three main categories:
   - **Use real ML models** (Whisper, transformers, etc.)
   - **Full system testing**: Tests the system as users would use it
   - Slowest tests (may take seconds to minutes)
-  - Example: `tests/workflow_e2e/test_basic_e2e.py`
+  - Example: `tests/e2e/test_basic_e2e.py`
 
 **Shared Test Utilities:**
 
@@ -668,7 +653,7 @@ The test suite is organized into three main categories:
 ### Test Markers
 
 - `@pytest.mark.integration` - Integration tests (test component interactions)
-- `@pytest.mark.workflow_e2e` - Workflow end-to-end tests (test complete workflows)
+- `@pytest.mark.e2e` - Workflow end-to-end tests (test complete workflows)
 - `@pytest.mark.network` - Tests that hit the network (off by default)
 - `@pytest.mark.slow` - Slow-running tests (existing)
 - `@pytest.mark.whisper` - Requires Whisper dependency (existing)
@@ -678,11 +663,11 @@ The test suite is organized into three main categories:
 **Marker Usage:**
 
 - All integration tests must have `@pytest.mark.integration`
-- All workflow_e2e tests must have `@pytest.mark.workflow_e2e`
-- Unit tests should NOT have integration/workflow_e2e markers
+- All e2e tests must have `@pytest.mark.e2e`
+- Unit tests should NOT have integration/e2e markers
 - **E2E tests that make real network calls** should have `@pytest.mark.network`
 - **Integration tests** typically mock network calls (for speed), so they usually don't need `@pytest.mark.network`
-- **E2E tests** should use real HTTP client and be marked with `@pytest.mark.workflow_e2e`
+- **E2E tests** should use real HTTP client and be marked with `@pytest.mark.e2e`
 
 ---
 
@@ -697,7 +682,7 @@ Unit tests are automatically prevented from making network calls. The pytest plu
 - `urllib3.PoolManager()`
 - `socket.create_connection()`
 
-If a unit test attempts a network call, it fails with `NetworkCallDetectedError`. Integration and workflow_e2e tests are not affected by network isolation.
+If a unit test attempts a network call, it fails with `NetworkCallDetectedError`. Integration and e2e tests are not affected by network isolation.
 
 ### Filesystem I/O Isolation
 
@@ -726,7 +711,7 @@ If a unit test attempts filesystem I/O, it fails with `FilesystemIODetectedError
 - Forces proper mocking of file operations
 - Makes tests more deterministic and reproducible
 
-Integration and workflow_e2e tests are not affected by filesystem I/O isolation.
+Integration and e2e tests are not affected by filesystem I/O isolation.
 
 ---
 
@@ -762,7 +747,6 @@ Start: What are you testing?
       └─ YES → E2E Test
       └─ NO → Integration Test
 ```
-
 ### Edge Cases and How to Handle Them
 
 #### Edge Case 1: HTTP Testing

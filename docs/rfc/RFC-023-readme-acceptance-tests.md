@@ -29,7 +29,7 @@ This RFC defines a new category of **Acceptance Tests** that verify all examples
 - **Final Validation Gate**: Runs as last CI step, only after all other tests pass
 - **Slow but Thorough**: May take 10-20 minutes, but provides confidence that README is accurate
 - **User Journey Focus**: Tests the exact commands a new user would run following the README
-- **Separate Category**: New test category `acceptance` (not `workflow_e2e` or `integration`)
+- **Separate Category**: New test category `acceptance` (not `e2e` or `integration`)
 
 ## Problem Statement
 
@@ -76,7 +76,7 @@ This RFC defines a new category of **Acceptance Tests** that verify all examples
 3. **Feature Claims Validation**: All key features mentioned in README are tested
 4. **User Journey Testing**: Tests follow the exact path a new user would take
 5. **Final Validation Gate**: Acceptance tests run as last CI step, only after all other tests pass
-6. **Clear Test Category**: New `acceptance` test category, distinct from `workflow_e2e`
+6. **Clear Test Category**: New `acceptance` test category, distinct from `e2e`
 7. **Comprehensive Coverage**: All README sections with executable examples are tested
 8. **CI/CD Integration**: Acceptance tests run in CI with proper markers and timeouts
 
@@ -119,7 +119,6 @@ This RFC defines a new category of **Acceptance Tests** that verify all examples
 ├── test_readme_key_features.py     # Key features validation
 └── README.md                # Acceptance test documentation
 ```
-
 **Goal**: Verify all installation commands from README work correctly.
 
 **README Section**: Lines 35-58 (Installation)
@@ -315,7 +314,7 @@ This RFC defines a new category of **Acceptance Tests** that verify all examples
 ```yaml
 test-acceptance:
   runs-on: ubuntu-latest
-  needs: [test-unit, test-integration, test-workflow-e2e]
+  needs: [test-unit, test-integration, test-e2e]
   if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
   steps:
 
@@ -338,7 +337,6 @@ test-acceptance:
         pytest tests/acceptance/ -v -m acceptance \
           --disable-socket --allow-hosts=127.0.0.1,localhost
 ```
-
 - GitHub Actions workflow update
 - Makefile target for acceptance tests
 - CI/CD documentation updates

@@ -31,7 +31,6 @@ The testing strategy follows a three-tier pyramid:
    /    Unit      \   ← Many, fast unit tests
   /----------------\
 ```
-
 ### Key Distinction
 
 | Test Type | What It Tests | Entry Point | HTTP Client | Data Files | ML Models |
@@ -319,12 +318,12 @@ The test suite is organized into three main categories:
 
 - **`tests/unit/`** - Unit tests per module (fast, isolated, fully mocked)
 - **`tests/integration/`** - Integration tests (component interactions, real internal implementations, mocked external services)
-- **`tests/workflow_e2e/`** - E2E tests (complete workflows, real HTTP client, real ML models)
+- **`tests/e2e/`** - E2E tests (complete workflows, real HTTP client, real ML models)
 
 ### Test Markers
 
 - `@pytest.mark.integration` - Integration tests
-- `@pytest.mark.workflow_e2e` - E2E tests
+- `@pytest.mark.e2e` - E2E tests
 - `@pytest.mark.slow` - Slow-running tests
 - `@pytest.mark.ml_models` - Requires ML model dependencies
 
@@ -354,7 +353,7 @@ The test suite is organized into three main categories:
 - **Integration tests**: Run on every PR and push (moderate speed, ~2-5 minutes)
 - **Fast E2E tests**: Run on every PR (excludes slow/ml_models, ~5-10 minutes)
 - **Slow E2E tests**: Run only on main branch pushes (includes all E2E tests, ~15-20 minutes)
-- **Parallel execution**: Enabled for all test jobs (`-n auto`)
+- **Test execution**: Sequential by default (simpler, clearer output, easier debugging)
 - **Flaky test reruns**: Enabled for integration and E2E tests (`--reruns 2 --reruns-delay 1`)
 
 **For detailed test execution commands, parallel execution, flaky test reruns, and coverage, see [Testing Guide - Test Execution Details](TESTING_GUIDE.md#test-execution-details).**
@@ -535,7 +534,6 @@ Ideal Pyramid:
    ╱          ╲  Unit: 70-80%
   ╱____________╲
 ```
-
 ### Key Issues
 
 1. **Too Few Unit Tests**: Core business logic is being tested at E2E level instead of unit level
