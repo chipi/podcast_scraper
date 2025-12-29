@@ -14,8 +14,8 @@ programmatic interfaces, configuration options, data models, and migration guide
 | [Core API](CORE.md)                                              | Primary public API (`run_pipeline`, `Config`, package information)       |
 | [Service API](SERVICE.md)                                        | Non-interactive service interface for daemons and process management     |
 | [CLI Interface](CLI.md)                                          | Command-line interface documentation                                     |
-| [Configuration API](CONFIGURATION.md)                            | Configuration model, environment variables, and file formats              |
-| [Data Models](MODELS.md)                                         | Core data structures (Episode, RssFeed, TranscriptionJob)                 |
+| [Configuration API](CONFIGURATION.md)                            | Configuration model, environment variables, and file formats             |
+| [Data Models](MODELS.md)                                         | Core data structures (Episode, RssFeed, TranscriptionJob)                |
 
 ### API Reference & Guides
 
