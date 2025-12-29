@@ -521,7 +521,7 @@ This RFC documents the comprehensive improvements made to the integration test s
 
 This RFC (RFC-020) is part of a comprehensive testing strategy that includes:
 
-1. **RFC-018: Test Structure Reorganization** - Established the foundation by organizing tests into `unit/`, `integration/`, and `workflow_e2e/` directories, adding pytest markers, and enabling test execution control. This RFC built upon that structure to add comprehensive integration test coverage.
+1. **RFC-018: Test Structure Reorganization** - Established the foundation by organizing tests into `unit/`, `integration/`, and `e2e/` directories, adding pytest markers, and enabling test execution control. This RFC built upon that structure to add comprehensive integration test coverage.
 
 2. **RFC-019: E2E Test Improvements** - Plans comprehensive improvements to E2E tests, including local HTTP server, real data files, and complete coverage of all major user-facing entry points. While integration tests (this RFC) focus on component interactions, E2E tests (RFC-019) focus on complete user workflows.
 

@@ -10,7 +10,7 @@ The test suite is organized into three main categories (RFC-018):
 
 - **`tests/unit/`** - Unit tests (fast, isolated, fully mocked, no I/O)
 - **`tests/integration/`** - Integration tests (component interactions, real internal implementations, mocked external services)
-- **`tests/workflow_e2e/`** - Workflow E2E tests (complete workflows, should use real network and I/O)
+- **`tests/e2e/`** - Workflow E2E tests (complete workflows, should use real network and I/O)
 
 **I/O Policy by Test Type:**
 
@@ -26,7 +26,7 @@ The test suite is organized into three main categories (RFC-018):
   - ✅ **Real implementations**: Real Config, real providers, real component interactions
   - **Purpose**: Test how components work together
 
-- **E2E Tests** (`tests/workflow_e2e/`):
+- **E2E Tests** (`tests/e2e/`):
   - ✅ **Network calls**: ALLOWED (should use real network, marked with `@pytest.mark.network`)
   - ✅ **Filesystem I/O**: ALLOWED (real file operations, real output directories)
   - ✅ **Real implementations**: Real HTTP clients, real ML models, real file operations
@@ -35,9 +35,9 @@ The test suite is organized into three main categories (RFC-018):
 
 **Key Features:**
 
-- **Parallel Execution**: Tests can run in parallel using `pytest-xdist` (`-n auto`)
+- **Test Execution**: Tests run sequentially by default (simpler, clearer output)
 - **Flaky Test Reruns**: Failed tests can be automatically retried using `pytest-rerunfailures` (`--reruns 2 --reruns-delay 1`)
-- **Test Markers**: All integration tests have `@pytest.mark.integration`, all workflow_e2e tests have `@pytest.mark.workflow_e2e`
+- **Test Markers**: All integration tests have `@pytest.mark.integration`, all e2e tests have `@pytest.mark.e2e`
 - **Network Marker**: E2E tests that make real network calls should have `@pytest.mark.network`
 
 **Running Tests:**
@@ -53,7 +53,7 @@ make test-unit-no-ml
 make test-integration
 
 # Workflow E2E tests
-make test-workflow-e2e
+make test-e2e
 
 # All tests
 make test-all
@@ -64,7 +64,6 @@ make test-parallel
 # With reruns for flaky tests
 make test-reruns
 ```
-
 **ML Dependency Handling in Unit Tests:**
 
 Unit tests run **without ML dependencies** (spacy, torch, transformers) installed in CI. This ensures:
@@ -103,13 +102,11 @@ See `TESTING_STRATEGY.md` for comprehensive testing guidelines and `../CONTRIBUT
 bash scripts/setup_venv.sh
 source .venv/bin/activate
 ```
-
 **Install dependencies:**
 
 ```bash
 make init  # Installs dev + ML dependencies
 ```
-
 ### Environment Variables
 
 **Supported environment variables:**
@@ -279,13 +276,11 @@ The project uses automated formatting tools to ensure consistency:
 ```bash
 make format
 ```
-
 **Check formatting without modifying:**
 
 ```bash
 make format-check
 ```
-
 ### Naming Conventions
 
 #### Variables and Functions
@@ -303,7 +298,6 @@ def fetch_rss_feed(url: str) -> RssFeed:
 def fetchRSSFeed(url: str):  # camelCase
     x = len(feed.episodes)  # non-descriptive name
 ```
-
 #### Classes
 
 - Use `PascalCase` for class names
@@ -321,7 +315,6 @@ class TranscriptionJob:
 class rss_feed:  # snake_case
     pass
 ```
-
 #### Constants
 
 - Use `UPPER_SNAKE_CASE` for module-level constants
@@ -335,7 +328,6 @@ MAX_RETRIES = 3
 default_timeout = 20  # lowercase
 maxRetries = 3  # camelCase
 ```
-
 #### Private Members
 
 - Prefix with single underscore for internal use
@@ -348,7 +340,6 @@ class SummaryModel:
     def _load_model(self):  # Internal method
         pass
 ```
-
 ### Type Hints
 
 **All public functions and methods must have type hints:**
@@ -364,7 +355,6 @@ def sanitize_filename(filename, max_length=255):
     """Sanitize filename for safe filesystem use."""
     pass
 ```
-
 **Use Optional, Union, List, Dict from typing:**
 
 ```python
@@ -377,7 +367,6 @@ def process_episode(
 ) -> Dict[str, Union[str, int]]:
     pass
 ```
-
 ### Docstrings
 
 **Use Google-style or NumPy-style docstrings for all public functions:**
@@ -401,7 +390,6 @@ def run_pipeline(cfg: Config, progress_factory=None) -> None:
     """
     pass
 ```
-
 **Module-level docstrings:**
 
 ```python
@@ -411,7 +399,6 @@ This module provides functionality for downloading podcast transcripts
 from RSS feeds with optional Whisper fallback for missing transcripts.
 """
 ```
-
 ### Import Organization
 
 **Order imports in three groups (isort handles this automatically):**
@@ -435,7 +422,6 @@ from pydantic import BaseModel
 from podcast_scraper import config
 from podcast_scraper.models import Episode
 ```
-
 ## Testing Requirements
 
 > **See also:** [`TESTING_STRATEGY.md`](TESTING_STRATEGY.md) for comprehensive testing guidelines.
@@ -455,7 +441,6 @@ def test_fetch_url_with_retry(self, mock_session):
     result = fetch_url("https://example.com/feed.xml")
     self.assertEqual(result, "Success")
 ```
-
 ✅ **Test both happy path and error cases:**
 
 ```python
@@ -469,7 +454,6 @@ def test_sanitize_filename_invalid_chars(self):
     result = sanitize_filename("Episode<>:\"/\\|?*")
     self.assertEqual(result, "Episode")
 ```
-
 ✅ **Use descriptive test names:**
 
 ```python
@@ -487,7 +471,6 @@ def test_config(self):
 def test_whisper(self):
     pass
 ```
-
 ### Every New Feature Needs
 
 - **Integration test** (can be marked `@pytest.mark.slow` or `@pytest.mark.integration`)
@@ -520,7 +503,6 @@ class TestEpisodeProcessor(unittest.TestCase):
         mock_whisper.transcribe.return_value = {"text": "Test transcript"}
         # ... test code ...
 ```
-
 ### Running Tests
 
 **Test Structure:**
@@ -529,7 +511,7 @@ The test suite is organized into three categories (see `TESTING_STRATEGY.md` for
 
 - **`tests/unit/`** - Fast unit tests (fully mocked, no network, no filesystem I/O)
 - **`tests/integration/`** - Integration tests (component interactions)
-- **`tests/workflow_e2e/`** - Workflow E2E tests (complete workflows)
+- **`tests/e2e/`** - Workflow E2E tests (complete workflows)
 
 **Test Execution:**
 
@@ -540,11 +522,11 @@ make test
 # Run specific test type
 make test-unit          # Unit tests only
 make test-integration   # Integration tests only
-make test-workflow-e2e  # Workflow E2E tests only
-make test-all           # All tests (unit + integration + workflow_e2e)
+make test-e2e  # Workflow E2E tests only
+make test-all           # All tests (unit + integration + e2e)
 
-# Run with parallel execution (faster)
-make test-parallel      # Run tests in parallel (-n auto)
+# Run with parallel execution (if needed)
+make test-parallel      # Run tests in parallel (-n auto, deprecated)
 
 # Run with flaky test reruns
 make test-reruns        # Retry failed tests (2 retries, 1s delay)
@@ -560,14 +542,13 @@ pytest -v
 
 # Run by marker
 pytest -m integration           # Integration tests only
-pytest -m workflow_e2e         # Workflow E2E tests only
+pytest -m e2e         # Workflow E2E tests only
 pytest -m "not slow"           # Skip slow tests
 pytest -m "not network"        # Skip network tests
 
 # Combine options
-pytest tests/unit/ -n auto -v  # Unit tests, parallel, verbose
+pytest tests/unit/ -v  # Unit tests, sequential, verbose
 ```
-
 **Network and Filesystem I/O Isolation:**
 
 Unit tests automatically block network calls and filesystem I/O operations. This ensures unit tests remain fast and isolated:
@@ -576,32 +557,37 @@ Unit tests automatically block network calls and filesystem I/O operations. This
 - **Filesystem I/O**: If a unit test performs filesystem I/O (outside temp directories), it will fail with `FilesystemIODetectedError`
 - **Exceptions**: `tempfile` operations, cache directories, site-packages, and Python cache files are allowed
 
-If your test needs to perform file operations, use `tempfile` operations (which are allowed), or move the test to `tests/integration/` or `tests/workflow_e2e/`.
+If your test needs to perform file operations, use `tempfile` operations (which are allowed), or move the test to `tests/integration/` or `tests/e2e/`.
 
-**Parallel Execution (Default):**
+**Test Execution (Sequential by Default):**
 
-Tests run in parallel by default for faster feedback (2-4x speedup for unit tests). This matches CI behavior and provides faster iteration during development.
+All tests run sequentially by default for simpler execution and clearer output. This makes debugging easier and avoids parallel execution issues.
 
 ```bash
-# Default: parallel execution (auto-detects CPU count)
+# Default: sequential execution (simpler, clearer output)
 make test
-pytest -n auto
+pytest
 
-# Sequential execution (slower but clearer output, useful for debugging)
+# Explicitly sequential (same as default, for clarity)
 make test-sequential
 pytest  # No -n flag
 
-# Use specific number of workers
-pytest -n 4
+# Parallel execution (if needed, use with caution)
+make test-parallel
+pytest -n auto
 ```
+**Why Sequential Execution:**
 
-**When to Use Sequential Execution:**
+- **Simpler debugging**: Sequential output is easier to read and debug
+- **No parallel issues**: Avoids race conditions and timing problems
+- **Clearer test output**: Easier to identify which test failed
+- **Resource usage**: More predictable CPU and memory usage
 
-- **Debugging test failures**: Sequential output is easier to read and debug
-- **Investigating flaky tests**: Sequential execution can help identify timing issues
-- **Resource-constrained environments**: If your machine is low on CPU/memory
+**When to Use Parallel Execution:**
 
-**Note:** Parallel execution creates `.coverage.*` files (one per worker process) which are automatically merged into `.coverage`. These files are gitignored and can be cleaned with `make clean`.
+- **Large test suites**: If test execution time becomes a bottleneck
+- **CI/CD optimization**: When speed is critical and tests are stable
+- **Use with caution**: Parallel execution can mask timing issues and make debugging harder
 
 **Flaky Test Reruns:**
 
@@ -611,7 +597,6 @@ For tests that occasionally fail due to timing or external factors:
 # Retry failed tests (2 retries, 1 second delay)
 pytest --reruns 2 --reruns-delay 1
 ```
-
 ## Documentation Standards
 
 ### When to Create PRD (Product Requirements Document)
@@ -716,7 +701,6 @@ nav:
   - RFCs:
       - RFC-023 README Acceptance Tests: rfc/RFC-023-readme-acceptance-tests.md
 ```
-
 ## CI/CD Integration
 
 > **See also:** [`CI_CD.md`](CI_CD.md) for complete CI/CD pipeline documentation with visualizations.
@@ -816,7 +800,6 @@ make install-hooks
 
 # Now linting failures are caught before commit!
 ```
-
 See [`CI_CD.md`](CI_CD.md) for more details.
 
 ## Architecture Principles
@@ -847,7 +830,6 @@ fetch_rss(url, timeout=30)
 download_transcripts(episodes, workers=8)
 transcribe_missing(jobs, model="base")
 ```
-
 **Adding new configuration:**
 
 1. Add to `Config` model in `config.py`
@@ -883,7 +865,6 @@ except ImportError:
     WHISPER_AVAILABLE = False
     logger.warning("Whisper not available, transcription disabled")
 ```
-
 ### Logging Guidelines
 
 **Use appropriate log levels to keep service/daemon logs manageable:**
@@ -950,7 +931,6 @@ logger.debug("Loading summarization model: %s on %s", model_name, device)
 logger.debug("Model loaded successfully (cached for future runs)")
 logger.debug("[MAP-REDUCE VALIDATION] Input text: %d chars, %d words", ...)
 ```
-
 #### Module-Specific Patterns
 
 **Workflow (`workflow.py`):**
@@ -1010,7 +990,6 @@ from tqdm import tqdm
 for episode in tqdm(episodes):
     process_episode(episode)
 ```
-
 ### Lazy Loading for Optional Dependencies
 
 ```python
@@ -1031,7 +1010,6 @@ def load_whisper():
             )
     return _whisper
 ```
-
 ### Module Boundaries
 
 Respect established module boundaries (see `docs/ARCHITECTURE.md`):

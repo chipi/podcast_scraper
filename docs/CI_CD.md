@@ -104,7 +104,6 @@ graph TB
     style DOCK1 fill:#fff4e1
     style SNYK1 fill:#ffe1f5
 ```
-
 ---
 
 ## Python Application Workflow
@@ -155,7 +154,6 @@ graph LR
     style G fill:#90EE90
     style H fill:#FFE4B5
 ```
-
 ### Job Details
 
 #### 1. Lint Job (Fast - No ML Dependencies)
@@ -200,7 +198,7 @@ graph LR
 - **No ML dependencies** - Fast execution, matches production unit test environment
 - **Import verification** - Automatically checks that modules can be imported without ML deps
 - **Network/filesystem isolation** - Enforced by `tests/unit/conftest.py`
-- **Parallel execution** - Uses `pytest-xdist` for faster test runs
+- **Sequential execution** - Tests run sequentially for simpler execution and clearer output
 - **Test count validation** - Verifies at least 50 unit tests run (prevents silent failures)
 
 #### 2. Integration Test Job (Full - Includes ML Dependencies)
@@ -256,10 +254,10 @@ graph LR
 2. Free disk space (removes unnecessary system packages)
 3. Set up Python 3.11 with pip caching
 4. Install dev dependencies (includes pytest-socket for network guard)
-5. Run fast E2E tests: `pytest tests/workflow_e2e/ -m "workflow_e2e and not slow and not ml_models" --disable-socket --allow-hosts=127.0.0.1,localhost`
+5. Run fast E2E tests: `pytest tests/e2e/ -m "e2e and not slow and not ml_models" --disable-socket --allow-hosts=127.0.0.1,localhost`
    - Runs with network guard active (blocks external network calls)
    - Excludes slow and ml_models tests for faster CI feedback
-   - Uses parallel execution for speed
+   - Runs sequentially for simpler execution
    - Validates minimum test count (at least 50 fast E2E tests)
 6. Post-build cleanup
 
@@ -286,10 +284,10 @@ graph LR
 2. Free disk space (removes unnecessary system packages)
 3. Set up Python 3.11 with pip caching
 4. Install full dependencies including ML packages (`pip install -e .[dev,ml]`)
-5. Run all E2E tests: `pytest tests/workflow_e2e/ -m workflow_e2e --disable-socket --allow-hosts=127.0.0.1,localhost`
+5. Run all E2E tests: `pytest tests/e2e/ -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost`
    - Runs with network guard active
    - Includes all E2E tests (fast + slow + ml_models)
-   - Uses parallel execution for speed
+   - Runs sequentially for simpler execution
    - Validates minimum test count (at least 90 E2E tests)
 6. Post-build cleanup (cache cleanup for disk space management)
 
@@ -367,7 +365,6 @@ graph TD
     B -->|Build Job| F[build tools only]
     F --> F1[python -m build]
 ```
-
 ---
 
 ## Documentation Deployment Workflow
@@ -401,7 +398,6 @@ graph LR
     style B fill:#87CEEB
     style D fill:#90EE90
 ```
-
 ### Documentation Build Job Details
 
 #### 1. Build Job
@@ -444,7 +440,6 @@ concurrency:
   group: "pages"
   cancel-in-progress: true
 ```
-
 Only one deployment runs at a time. If multiple pushes occur, older deployments are cancelled.
 
 ---
@@ -487,7 +482,6 @@ graph TB
     style C fill:#FFE4B5
     style D fill:#FFE4B5
 ```
-
 ### Analysis Configuration
 
 **Languages Analyzed:**
@@ -525,7 +519,6 @@ schedule:
 
   - cron: '17 13 * * 4'
 ```
-
 **Runs:** Every Thursday at 13:17 UTC
 **Purpose:** Catch newly discovered vulnerabilities in dependencies
 
@@ -684,7 +677,6 @@ schedule:
 
   - cron: '0 0 * * 1'
 ```
-
 **Runs:** Every Monday at 00:00 UTC
 **Purpose:** Weekly security scan to catch newly discovered vulnerabilities
 
@@ -735,7 +727,6 @@ This maximizes parallelism and reduces total CI time.
 ├── Build Job (2-3 min)
 └── Slow E2E Test Job (15-20 min) - With ML deps, main branch only
 ```
-
 All seven jobs start simultaneously and run independently. Fast jobs (lint, unit tests, fast E2E tests) run quickly without ML dependencies, while slow jobs (integration tests, slow E2E tests) run in parallel with full ML stack.
 
 **Within CodeQL Workflow:**
@@ -744,7 +735,6 @@ All seven jobs start simultaneously and run independently. Fast jobs (lint, unit
 ├── Python Analysis
 └── Actions Analysis
 ```
-
 Both language analyses run in parallel via matrix strategy.
 
 **Across Workflows:**
@@ -759,7 +749,6 @@ Both language analyses run in parallel via matrix strategy.
 ```text
 Build Job → Deploy Job
 ```
-
 Deploy job waits for build job to complete and only runs on push to `main`.
 
 ---
@@ -778,7 +767,6 @@ All workflows use pip caching to speed up dependency installation:
     cache: "pip"
     cache-dependency-path: pyproject.toml
 ```
-
 **Benefit:** Reduces dependency installation from minutes to seconds on cache hit.
 
 ### 2. Dependency Splitting
@@ -795,7 +783,6 @@ graph TD
     D --> H[Medium: 3-5 min]
     E --> I[Fast: 2-3 min]
 ```
-
 **Benefit:** Lint feedback is fast (no waiting for large ML packages).
 
 ### 3. Disk Space Management
@@ -808,7 +795,6 @@ sudo rm -rf /usr/local/lib/android
 sudo rm -rf /opt/ghc
 # ... more cleanup
 ```
-
 **Benefit:** Prevents out-of-disk errors with large ML models.
 
 ### 4. Post-Test Cleanup
@@ -818,7 +804,6 @@ rm -rf ~/.cache/huggingface
 rm -rf ~/.cache/torch
 rm -rf ~/.cache/whisper
 ```
-
 **Benefit:** Recovers disk space, prevents cache bloat across runs.
 
 ---
@@ -881,7 +866,6 @@ When you change files, here's what runs:
 # You change only: docs/api/API_REFERENCE.md
 git commit -m "Update API documentation"
 ```
-
 **Result:**
 
 - ✅ `docs.yml` runs (3-5 min)
@@ -896,7 +880,6 @@ git commit -m "Update API documentation"
 # You change: downloader.py
 git commit -m "Fix download retry logic"
 ```
-
 **Result:**
 
 - ✅ `python-app.yml` runs (lint, test, docs, build)
@@ -911,7 +894,6 @@ git commit -m "Fix download retry logic"
 # You change: docs/index.md AND service.py
 git commit -m "Update docs and fix service"
 ```
-
 **Result:**
 
 - ✅ All workflows run (code changed = full validation needed)
@@ -998,7 +980,6 @@ Install the git pre-commit hook to automatically check your code before every co
 # One-time setup
 make install-hooks
 ```
-
 The pre-commit hook will automatically run before each commit:
 
 - ✅ **Black** formatting check
@@ -1015,7 +996,6 @@ The pre-commit hook will automatically run before each commit:
 # Skip pre-commit checks for a specific commit
 git commit --no-verify -m "your message"
 ```
-
 #### Auto-fix Issues
 
 ```bash
@@ -1025,7 +1005,6 @@ make format
 # Then try committing again
 git commit -m "your message"
 ```
-
 ### Running CI Checks Manually
 
 The project provides a `Makefile` that mirrors the CI workflow:
@@ -1049,12 +1028,11 @@ make lint          # flake8
 make lint-markdown # markdownlint
 make type          # mypy
 make security      # bandit & safety
-make test          # pytest with coverage (parallel, unit tests only)
+make test          # pytest with coverage (sequential, unit tests only)
 make test-sequential  # pytest sequentially (for debugging)
 make docs          # mkdocs build
 make build         # package build
 ```
-
 **When to Use Each:**
 
 - **`make ci`**: Full validation before commits/PRs, matches GitHub Actions exactly
@@ -1092,7 +1070,6 @@ graph TD
     style M fill:#FFB6C6
     style G fill:#87CEEB
 ```
-
 ---
 
 ## CI/CD Best Practices Implemented
@@ -1164,7 +1141,7 @@ make format-check lint lint-markdown type security
 make test
 
 # Reproduce E2E test failures locally
-make test-workflow-e2e  # All E2E tests
+make test-e2e  # All E2E tests
 make test-e2e-fast      # Fast E2E tests only (excludes slow/ml_models)
 make test-e2e-slow      # Slow E2E tests only (requires ML dependencies)
 
@@ -1174,14 +1151,13 @@ make docs
 # Run everything (matches full CI)
 make ci
 ```
-
 ### Running E2E Tests Locally
 
 E2E tests require network guard to be active. Use the Makefile targets:
 
 ```bash
 # Run all E2E tests (with network guard)
-make test-workflow-e2e
+make test-e2e
 
 # Run fast E2E tests only (excludes slow/ml_models, faster feedback)
 make test-e2e-fast
@@ -1189,7 +1165,6 @@ make test-e2e-fast
 # Run slow E2E tests only (includes slow/ml_models, requires ML dependencies)
 make test-e2e-slow
 ```
-
 **Network Guard:**
 
 - All E2E tests run with `--disable-socket --allow-hosts=127.0.0.1,localhost`
@@ -1199,7 +1174,7 @@ make test-e2e-slow
 
 **Test Markers:**
 
-- `workflow_e2e`: All E2E tests
+- `e2e`: All E2E tests
 - `slow`: Slow tests (Whisper, ML models)
 - `ml_models`: Tests requiring ML dependencies
 
@@ -1226,7 +1201,7 @@ See [Testing Guide](TESTING_GUIDE.md#e2e-test-implementation) for detailed E2E t
 
 1. **Test Sharding**
    - Split test suite across multiple jobs for faster execution
-   - Parallel test execution could reduce test time from 15min to <5min
+   - Parallel test execution could reduce test time (if needed, but sequential is simpler)
 
 2. **Artifact Caching**
    - Cache built wheels for dependencies
@@ -1260,7 +1235,6 @@ git add docs/CI_CD.md
 git commit -m "docs: test path filtering"
 git push
 ```
-
 **Expected:** Only `docs.yml` workflow runs (~3-5 minutes)
 
 ### Test 2: Python Code Change
@@ -1272,7 +1246,6 @@ git add downloader.py
 git commit -m "feat: test python path filtering"
 git push
 ```
-
 **Expected:** All 3 workflows run (`python-app.yml`, `docs.yml`, `codeql.yml`) (~15-20 minutes)
 
 ### Test 3: Docker File Change
@@ -1284,7 +1257,6 @@ git add Dockerfile
 git commit -m "chore: test docker path filtering"
 git push
 ```
-
 **Expected:** Only `python-app.yml` workflow runs (~15 minutes)
 
 ### Test 4: README Change
@@ -1296,7 +1268,6 @@ git add README.md
 git commit -m "docs: test readme path filtering"
 git push
 ```
-
 **Expected:** Only `docs.yml` workflow runs (~3-5 minutes)
 
 ---
@@ -1319,7 +1290,6 @@ git push
 ├── docs.yml          # Documentation deployment
 └── codeql.yml        # Security scanning
 ```
-
 ### Key Commands
 
 ```bash
@@ -1332,7 +1302,6 @@ make format-check lint type security test docs build
 # Auto-fix formatting
 make format
 ```
-
 ### Workflow URLs
 
 - [Python Application Workflow](https://github.com/chipi/podcast_scraper/actions/workflows/python-app.yml)

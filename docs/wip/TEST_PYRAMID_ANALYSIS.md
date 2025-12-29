@@ -1,28 +1,33 @@
 # Test Pyramid Analysis & Recommendations
 
+**Date:** 2024-12-19 (Updated)
+**Status:** Phase 1 & 2 Completed ✅ - Analysis Updated
+
 ## Current Test Distribution
 
-### Test Counts by Layer
+### Test Counts by Layer (Updated After E2E Duplicate Cleanup)
 
 | Layer | Test Files | Test Functions | Percentage | Ideal % | Status |
 | ------- | ------------ | ---------------- | ------------ | --------- | -------- |
-| **Unit Tests** | 22 | 297 | **41.4%** | 70-80% | ⚠️ Too Low |
-| **Integration Tests** | 16 | 194 | **27.0%** | 15-20% | ⚠️ Too High |
-| **E2E Tests** | 20 | 226 | **31.5%** | 5-10% | ❌ Too High |
-| **Infrastructure** | 1 | 7 | 1.0% | - | ✅ OK |
-| **Total** | 59 | 724 | 100% | - | - |
+| **Unit Tests** | 33 | 649 | **60.7%** | 70-80% | ⚠️ Below Target |
+| **Integration Tests** | 18 | 229 | **21.4%** | 15-20% | ⚠️ Above Target |
+| **E2E Tests** | 19 | 192 | **17.9%** | 5-10% | ⚠️ Above Target |
+| **Total** | 70 | 1,070 | 100% | - | - |
+
+*Note: Counts updated after removing 97 duplicate E2E summarizer tests*
 
 ### Test Pyramid Visualization
 
-```text
-       ╱  ╲      E2E: 31.5% (should be 5-10%)
-      ╱    ╲
-     ╱      ╲    Integration: 27.0% (should be 15-20%)
-    ╱        ╲
-   ╱          ╲  Unit: 41.4% (should be 70-80%)
-  ╱____________╲
+**Current Pyramid (After E2E Duplicate Cleanup):**
 
-Ideal Pyramid:
+```text
+       ╱  ╲      E2E: 17.9% ⚠️ (should be 5-10%, improved from 37.0% → 20.7% → 17.9%)
+      ╱    ╲
+     ╱      ╲    Integration: 21.4% ⚠️ (should be 15-20%, increased from 14.8%)
+    ╱        ╲
+   ╱          ╲  Unit: 60.7% ⚠️ (should be 70-80%, improved from 48.1% → 64.8% → 60.7%)
+  ╱____________╲
+```
         ╱╲
        ╱  ╲      E2E: 5-10%
       ╱    ╲
@@ -31,488 +36,252 @@ Ideal Pyramid:
    ╱          ╲  Unit: 70-80%
   ╱____________╲
 ```
+### E2E Duplicate Cleanup ✅ (Latest)
 
-This analysis is based on the definitions in [Testing Strategy](../TESTING_STRATEGY.md):
+**Removed 97 duplicate E2E summarizer tests:**
 
-### Test Type Definitions (from Testing Strategy)
+1. **Deleted from E2E:**
+   - `test_summarizer.py` - Removed 9 duplicate test classes (67 tests)
+   - `test_summarizer_security.py` - Removed 3 duplicate test classes (24 tests)
+   - `test_summarizer_edge_cases.py` - Removed 2 duplicate test classes (6 tests)
+   - **Total removed:** 97 duplicate tests
 
-**Unit Tests:**
-
-- Test individual functions/modules in isolation
-- Entry Point: Function/class level
-- All external dependencies mocked (HTTP, filesystem, ML models)
-- Fast execution (< 100ms each)
-- No network access, no filesystem I/O (except tempfile)
-
-**Integration Tests:**
-
-- Test multiple components working together
-- Entry Point: Component-level (functions, classes, not user-facing APIs)
-- Real internal implementations, real filesystem I/O
-- Mocked external services (HTTP APIs, external APIs)
-- May use real ML models for model integration testing (in isolation)
-- Fast feedback (< 5s each for fast tests)
-
-**E2E Tests:**
-
-- Test complete user workflows from entry point to final output
-- Entry Point: User-level (CLI commands, `run_pipeline()`, `service.run()`)
-- Real HTTP client (with local server, no external network)
-- Real data files (RSS feeds, transcripts, audio)
-- Real ML models in full workflow context
-- Slower (< 60s each, may be minutes)
-
-### Decision Tree (from Testing Strategy)
-
-1. **Is it testing a complete user workflow?** (CLI command, library API call, service API call)
-   - **YES** → E2E Test
-2. **Is it testing how multiple components work together?** (RSS parser → Episode → Provider)
-   - **YES** → Integration Test
-3. **Is it testing a single function/module in isolation?**
-   - **YES** → Unit Test
-
-## Problem Analysis
-
-### 1. Why So Few Unit Tests Compared to E2E Tests?
-
-**Root Cause:** Core business logic is being tested at E2E level instead of unit level, violating the testing strategy definitions.
-
-#### Missing Unit Test Coverage
-
-**Critical Modules with Zero Unit Tests:**
-
-- `workflow.py` - Core pipeline orchestration (0 unit tests, 2 integration, 3 E2E)
-- `cli.py` - CLI argument parsing and validation (0 unit tests, 0 integration, 4 E2E)
-- `service.py` - Service API (0 unit tests, 0 integration, 4 E2E)
-- `episode_processor.py` - Episode processing logic (0 unit tests)
-- `preprocessing.py` - Text preprocessing functions (0 unit tests)
-- `progress.py` - Progress reporting (0 unit tests)
-- `metrics.py` - Metrics collection (0 unit tests)
-- `filesystem.py` - Filesystem utilities (0 unit tests)
-
-**Functions in `summarizer.py` with No Unit Tests:**
-
-- `clean_transcript()` - Text cleaning logic
-- `remove_sponsor_blocks()` - Sponsor removal
-- `remove_outro_blocks()` - Outro removal
-- `clean_for_summarization()` - Pre-summarization cleaning
-- `chunk_text_for_summarization()` - Text chunking logic
-- `_validate_and_fix_repetitive_summary()` - Summary validation
-- `_strip_instruction_leak()` - Instruction leak detection
-- `_summarize_chunks_map()` - Map phase logic
-- `_summarize_chunks_reduce()` - Reduce phase logic
-- `_combine_summaries_*()` - Multiple combination strategies
-- `safe_summarize()` - Safe summarization wrapper
-
-**Functions in `workflow.py` with No Unit Tests:**
-
-- `_setup_pipeline_environment()` - Environment setup
-- `_fetch_and_parse_feed()` - Feed fetching logic
-- `_extract_feed_metadata_for_generation()` - Metadata extraction
-- `_prepare_episodes_from_feed()` - Episode preparation
-- `_detect_feed_hosts_and_patterns()` - Host detection orchestration
-- `_setup_transcription_resources()` - Transcription setup
-- `_setup_processing_resources()` - Processing setup
-- `_update_metric_safely()` - Metrics helper
-- `_call_generate_metadata()` - Metadata generation helper
-
-**Functions in `speaker_detection.py` with Limited Unit Tests:**
-
-- `detect_speaker_names()` - Core detection logic
-- `detect_hosts_from_feed()` - Host detection
-- `analyze_episode_patterns()` - Pattern analysis
-- `_validate_model_name()` - Model validation
-- `_load_spacy_model()` - Model loading
-- `_extract_names_from_text()` - Name extraction
-- `_score_speaker_candidates()` - Scoring logic
-
-**Current Unit Test Coverage:**
-
-- Config: 2 tests (minimal)
-- RSS Parser: 2 tests (minimal)
-- Downloader: 2 tests (minimal)
-- Metadata: 14 tests (good)
-- Providers (factories): 55 tests (good)
-- Utilities: 4 tests (minimal)
-
-#### E2E Tests Doing Unit Test Work (Violating Testing Strategy)
-
-**Analysis of Summarizer Tests (67 tests total):**
-
-- `test_summarizer.py` - 37 tests
-- `test_summarizer_edge_cases.py` - 6 tests
-- `test_summarizer_security.py` - 24 tests
-- **Entry Point:** Function-level (`select_summary_model()`, `SummaryModel()`, etc.)
-- **Dependencies:** All mocked (`@patch` for torch, AutoTokenizer, AutoModel, etc.)
-- **Scope:** Individual functions in isolation
-- **According to Testing Strategy:** These are **Unit Tests** (individual functions, mocked dependencies, function-level entry point)
-- **Current Location:** `tests/workflow_e2e/` with `@pytest.mark.workflow_e2e` ❌ **WRONG**
-
-**Analysis of `test_summarizer_edge_cases.py`:**
-
-- **Entry Point:** Function-level (individual summarizer functions)
-- **Dependencies:** Mocked or real ML models (for model integration testing)
-- **Scope:** Edge cases in individual functions
-- **According to Testing Strategy:**
-  - If using mocked models → **Unit Tests**
-  - If using real models for model integration → **Integration Tests**
-- **Current Location:** `tests/workflow_e2e/` ❌ **WRONG**
-
-**Analysis of `test_summarizer_security.py`:**
-
-- **Entry Point:** Function-level (security testing of summarizer functions)
-- **Dependencies:** Mocked
-- **Scope:** Individual function security
-- **According to Testing Strategy:** **Unit Tests**
-- **Current Location:** `tests/workflow_e2e/` ❌ **WRONG**
+2. **Moved to Integration:**
+   - `TestModelIntegration` (8 tests) → `tests/integration/test_summarizer_integration.py`
+   - **Total moved:** 8 tests
 
 **Impact:**
+- E2E: 280 → 192 tests (-88 tests, -2.8 percentage points)
+- Integration: 200 → 229 tests (+29 tests, +6.6 percentage points)
+- Unit: 649 tests (unchanged, but percentage decreased due to total reduction)
 
-- 67 summarizer tests at E2E level violate testing strategy (should be unit/integration)
-- These tests are slow, require full setup, and test isolated functions
-- Moving these to appropriate layers would: reduce E2E count by 67, increase unit/integration count appropriately
-- **Note:** Some E2E tests were already removed/moved (E2E count dropped from 255 to 226), but summarizer tests remain
+### Previous Improvements
 
-### 2. Why Fewer Integration Tests Than E2E Tests?
+**Unit Test Expansion ✅**
 
-**Root Cause:** Integration layer is underutilized. Many component interactions are tested at E2E level instead, violating the testing strategy definitions.
+**Added 58 new unit tests:**
 
-**According to Testing Strategy:**
+1. **`models.py`** - 21 tests
+2. **`whisper_integration.py`** - 20 tests
+3. **`downloader.py`** - 10 tests
+4. **`cli.py`** - 7 tests
 
-- **Integration Tests** = Component interactions, component-level entry point, mocked external services
-- **E2E Tests** = Complete user workflows, user-level entry point (CLI/API), real HTTP client
+**Phase 1: Summarizer Tests Moved ✅**
+- Moved 79 summarizer tests from E2E to Unit
+- Created unit test files for summarizer functions
 
-#### Missing Integration Test Coverage
+**Phase 2: Core Module Tests Added ✅**
+- Added 147 tests for core modules
 
-**Component Interactions Not Tested at Integration Level:**
+### Test Quality Improvements ✅
 
-1. **RSS Parser + Downloader Integration:**
-   - How RSS parser handles downloader responses
-   - Error handling when downloader fails
-   - Retry logic integration
-   - **Current:** Only tested at E2E level
+1. **Fixed all failing tests** - 0 failures (down from 19)
+2. **Suppressed expected warnings** - Clean test output
+3. **Improved test isolation** - All unit tests properly isolated
+4. **Optimized execution** - 4 workers for 11.6% speedup
 
-2. **Downloader + Episode Processor Integration:**
-   - How downloader feeds into episode processor
-   - Concurrent download + processing
-   - Error propagation
-   - **Current:** Only tested at E2E level
+## Key Issues Identified
 
-3. **Metadata + Workflow Integration:**
-   - How metadata generation integrates with workflow
-   - Metadata file writing during pipeline
-   - Metadata format validation
-   - **Current:** 2 integration tests, but gaps remain
+### 1. **Unit Tests Below Target** (60.7% vs 70-80% target)
 
-4. **Provider Switching Integration:**
-   - Switching between providers mid-workflow
-   - Provider fallback chains
-   - Provider initialization order
-   - **Current:** Some tests exist, but not comprehensive
+**Gap:** Need +107-207 more unit tests (or reduce total tests to improve percentage)
 
-5. **Concurrent Processing Integration:**
-   - Thread pool + episode processing
-   - Resource sharing between threads
-   - Error handling in concurrent context
-   - **Current:** `test_pipeline_concurrent.py` exists, but could be expanded
+**Root Causes:**
 
-6. **Progress Reporting + Workflow Integration:**
-   - How progress reporting integrates with workflow stages
-   - Progress updates during concurrent operations
-   - Progress reporting error handling
-   - **Current:** Not tested at integration level
+1. **E2E Summarizer Tests (Duplicates)**
+   - Status: ✅ **RESOLVED** - All 97 duplicate E2E summarizer tests removed
+   - Action: ✅ Completed - Duplicates removed, TestModelIntegration moved to integration
 
-7. **Metrics + Workflow Integration:**
-   - Metrics collection during pipeline execution
-   - Metrics aggregation across threads
-   - Metrics export/formatting
-   - **Current:** Not tested at integration level
+2. **Missing Unit Tests for Core Modules**
+   - `workflow.py`: Helper functions have some tests, but main functions need more
+   - `episode_processor.py`: Limited coverage
+   - `preprocessing.py`: Limited coverage
+   - `speaker_detection.py`: Some coverage, but could expand
 
-8. **Filesystem + Workflow Integration:**
-   - File writing during concurrent operations
-   - Directory creation and cleanup
-   - File naming and organization
-   - **Current:** Only tested at E2E level
+3. **Core Functions Without Unit Tests**
+   - Summarizer core functions (chunking, cleaning, combining)
+   - Workflow helper functions (some covered, but gaps remain)
+   - CLI argument parsing (recently expanded, but more needed)
+   - Service API (recently expanded, but more needed)
 
-**Current Integration Test Coverage:**
+### 2. **E2E Tests Improving** (17.9% vs 5-10% target)
 
-- Provider integration: ✅ Good (multiple test files)
-- Protocol compliance: ✅ Good
-- Component workflows: ✅ Good
-- Full pipeline: ✅ Good (but slow)
-- HTTP integration: ✅ Good
-- Error handling: ✅ Good
-- **Missing:** Many component-to-component interactions
+**Gap:** Need to reduce by ~85-135 tests (improved from ~350-400 → ~280 → 192)
 
-#### E2E Tests Doing Integration Test Work (Violating Testing Strategy)
+**Root Causes:**
 
-**Analysis of `test_error_handling_e2e.py`:**
+1. **Misclassified Tests**
+   - Function-level entry points with mocked dependencies → Should be Unit
+   - Component-level entry points → Should be Integration
+   - Only user-level entry points (CLI/API) should be E2E
 
-- **Entry Point:** Need to check - if component-level → Integration, if user-level → E2E
-- **Scope:** Error handling scenarios
-- **According to Testing Strategy:**
-  - If testing error handling in complete workflow with real HTTP → **E2E Test** ✅
-  - If testing specific error scenarios with mocked HTTP → **Integration Test** ✅
-- **Current Location:** `tests/workflow_e2e/` - Need to review each test
+2. **Summarizer Tests in E2E**
+   - ✅ **RESOLVED** - All 97 duplicate summarizer tests removed from E2E
+   - Remaining E2E tests are true E2E workflows
 
-**Analysis of `test_edge_cases_e2e.py`:**
+3. **Component Interaction Tests in E2E**
+   - Tests that verify component interactions
+   - Should be integration tests
 
-- **Entry Point:** Need to check
-- **Scope:** Edge cases
-- **According to Testing Strategy:**
-  - If testing edge cases in complete workflow → **E2E Test** ✅
-  - If testing edge cases in component interactions → **Integration Test** ✅
-- **Current Location:** `tests/workflow_e2e/` - Need to review each test
+### 3. **Integration Layer Status** (21.4% vs 15-20% target)
 
-**Analysis of `test_http_behaviors_e2e.py`:**
+**Status:** ⚠️ Above target (slightly over, but acceptable)
 
-- **Entry Point:** Need to check
-- **Scope:** HTTP behavior testing
-- **According to Testing Strategy:**
-  - If testing HTTP client in complete workflow → **E2E Test** ✅
-  - If testing HTTP client behavior in isolation → **Integration Test** ✅
-- **Current Location:** `tests/workflow_e2e/` - Need to review each test
+**Issues:**
 
-**Impact:**
+1. **Some E2E tests should be Integration**
+   - Component-level entry points
+   - Mocked HTTP for component testing
+   - Component interaction scenarios
 
-- Need to review each test to determine if it violates testing strategy
-- Tests that use component-level entry points with mocked HTTP should be integration tests
-- Tests that use user-level entry points with real HTTP should be E2E tests
+2. **Missing Integration Tests**
+   - Some component interactions not covered
+   - Need to review E2E tests for integration candidates
+
+## Test Type Definitions (from Testing Strategy)
+
+### Unit Tests
+
+- **Entry Point:** Function/class level
+- **Dependencies:** All external dependencies mocked (HTTP, filesystem, ML models)
+- **Execution:** Fast (< 100ms each)
+- **Isolation:** No network access, no filesystem I/O (except tempfile)
+- **Purpose:** Test individual functions/modules in isolation
+
+### Integration Tests
+
+- **Entry Point:** Component-level (functions, classes, not user-facing APIs)
+- **Dependencies:** Real internal implementations, real filesystem I/O
+- **External Services:** Mocked external services (HTTP APIs, external APIs)
+- **ML Models:** May use real ML models for model integration testing (in isolation)
+- **Execution:** Fast feedback (< 5s each for fast tests)
+- **Purpose:** Test multiple components working together
+
+### E2E Tests
+
+- **Entry Point:** User-level (CLI commands, `run_pipeline()`, `service.run()`)
+- **Dependencies:** Real HTTP client (with local server, no external network)
+- **Data Files:** Real data files (RSS feeds, transcripts, audio)
+- **ML Models:** Real ML models (in full workflow context)
+- **Execution:** Slower but realistic (< 30s each)
+- **Purpose:** Test complete user workflows from entry point to final output
+
+## Analysis of Current Test Distribution
+
+### Unit Tests (649 tests, 60.7%)
+
+**Strengths:**
+- ✅ Good coverage of core modules (config, models, downloader, cli, service)
+- ✅ Recently expanded with 58 new tests
+- ✅ All tests properly isolated (no network/filesystem I/O)
+- ✅ Fast execution (~2.1s for all unit tests)
+
+**Gaps:**
+- ✅ Summarizer core functions: 79 tests added (Phase 1)
+- ✅ Workflow helper functions: Tests added (Phase 2)
+- ✅ Episode processor functions: Tests added (Phase 2)
+- ✅ Preprocessing functions: Tests added (Phase 2)
+- ✅ Speaker detection functions: Tests added (Phase 2)
+- ⚠️ Could expand existing test files for more coverage (+75-205 tests needed for 70-80% target)
+
+### Integration Tests (229 tests, 21.4%)
+
+**Strengths:**
+- ✅ Good coverage of component interactions
+- ✅ Recently added metadata integration tests
+- ✅ Proper use of real implementations with mocked external services
+
+**Gaps:**
+- ⚠️ Some component interactions tested at E2E level
+- ⚠️ Need to review E2E tests for integration candidates
+
+### E2E Tests (192 tests, 17.9%)
+
+**Strengths:**
+- ✅ Good coverage of user workflows
+- ✅ Realistic testing scenarios
+- ✅ Proper use of real HTTP client and data files
+
+**Issues:**
+- ✅ 97 duplicate summarizer tests removed
+- ⚠️ Some component interaction tests should be integration tests
+- ⚠️ Still above 5-10% target, but improved from 37.0% → 20.7% → 17.9%
 
 ## Recommendations
 
-### Phase 1: Move E2E Tests to Correct Layers (High Priority)
+### Immediate Actions (High Priority)
 
-**Goal:** Move tests to correct layers according to Testing Strategy definitions
+1. ✅ **Move Summarizer Tests from E2E to Unit** - COMPLETED
+   - ✅ Created unit test files for summarizer functions
+   - ✅ 79 unit tests for summarizer functions
+   - ✅ **COMPLETED:** Removed all 97 duplicate E2E summarizer tests
 
-**Actions:**
+2. ✅ **Add Unit Tests for Core Functions** - COMPLETED
+   - ✅ Summarizer core functions: 79 tests added
+   - ✅ Workflow helper functions: Tests added
+   - ✅ Episode processor functions: Tests added
+   - ✅ Preprocessing functions: Tests added
+   - ✅ Speaker detection functions: Tests added
+   - **Total:** 147 tests added for core modules
 
-1. **Move Summarizer Tests (67 tests) - Align with Testing Strategy:**
-   - **Analysis:** These test individual functions with mocked dependencies → **Unit Tests**
-   - `test_summarizer.py` → `tests/unit/podcast_scraper/test_summarizer.py`
-   - `test_summarizer_edge_cases.py` → Review each test:
-     - If mocked models → `tests/unit/podcast_scraper/test_summarizer_edge_cases.py`
-     - If real models for integration → `tests/integration/test_summarizer_integration.py`
-   - `test_summarizer_security.py` → `tests/unit/podcast_scraper/test_summarizer_security.py`
-   - **Rationale:** Testing Strategy says "Individual functions/modules in isolation with mocked dependencies" = Unit Tests
-   - **Impact:** +60-67 unit tests, +0-7 integration tests, -67 E2E tests
+### Short-term Actions (Medium Priority)
 
-2. **Add Unit Tests for Core Functions:**
-   - `workflow.py` helper functions (8-10 new unit tests)
-   - `episode_processor.py` functions (5-8 new unit tests)
-   - `preprocessing.py` functions (3-5 new unit tests)
-   - `progress.py` functions (3-5 new unit tests)
-   - `metrics.py` functions (3-5 new unit tests)
-   - `filesystem.py` functions (3-5 new unit tests)
-   - **Impact:** +25-38 new unit tests
+3. **Review and Reclassify E2E Tests**
+   - Identify component-level entry points → Move to Integration
+   - Identify function-level entry points → Move to Unit
+   - Keep only true user-level entry points in E2E
 
-3. **Add Unit Tests for CLI/Service:**
-   - `cli.py` argument parsing (5-8 new unit tests)
-   - `service.py` service logic (3-5 new unit tests)
-   - **Impact:** +8-13 new unit tests
+4. **Add Missing Integration Tests**
+   - Component interaction scenarios
+   - Real implementations with mocked external services
 
-**Expected Result After Phase 1:**
+### Long-term Actions (Low Priority)
 
-- Unit Tests: ~360-370 (50-51%) - +63-73 tests
-- Integration Tests: ~194-201 (27-28%) - +0-7 tests (if some edge cases use real models)
-- E2E Tests: ~159-163 (22-23%) - -63-67 tests
-- **Progress:** Moving toward correct pyramid, but still need more unit tests
+5. **Reduce E2E Tests to True E2E Only**
+   - Keep only complete user workflows
+   - Remove individual function tests
+   - Remove component interaction tests
 
-### Phase 2: Add Missing Unit Tests (High Priority)
+## Target Distribution
 
-**Goal:** Add ~150-200 new unit tests for untested functions
+### Final Target
 
-**Priority Areas:**
+| Layer | Target Tests | Target % | Current | Gap |
+| ------- | ------------- | ---------- | --------- | ----- |
+| **Unit Tests** | 749-856 | 70-80% | 649 (60.7%) | +100-207 |
+| **Integration** | 160-214 | 15-20% | 229 (21.4%) | -15 to +45 |
+| **E2E Tests** | 54-107 | 5-10% | 192 (17.9%) | -85 to -138 |
 
-1. **Summarizer Functions (High Priority):**
-   - `clean_transcript()` - 5-8 tests
-   - `remove_sponsor_blocks()` - 3-5 tests
-   - `remove_outro_blocks()` - 3-5 tests
-   - `clean_for_summarization()` - 3-5 tests
-   - `chunk_text_for_summarization()` - 5-8 tests
-   - `_validate_and_fix_repetitive_summary()` - 3-5 tests
-   - `_strip_instruction_leak()` - 3-5 tests
-   - `_summarize_chunks_map()` - 3-5 tests
-   - `_summarize_chunks_reduce()` - 3-5 tests
-   - `_combine_summaries_*()` - 10-15 tests (multiple strategies)
-   - **Total:** ~45-65 new unit tests
+### Implementation Priority
 
-2. **Workflow Helper Functions (High Priority):**
-   - `_setup_pipeline_environment()` - 3-5 tests
-   - `_fetch_and_parse_feed()` - 5-8 tests
-   - `_extract_feed_metadata_for_generation()` - 3-5 tests
-   - `_prepare_episodes_from_feed()` - 5-8 tests
-   - `_detect_feed_hosts_and_patterns()` - 5-8 tests
-   - `_setup_transcription_resources()` - 3-5 tests
-   - `_setup_processing_resources()` - 3-5 tests
-   - `_update_metric_safely()` - 2-3 tests
-   - `_call_generate_metadata()` - 2-3 tests
-   - **Total:** ~31-50 new unit tests
+1. ✅ **Phase 1:** Move summarizer tests - **COMPLETED** (79 tests moved)
+2. ✅ **Phase 2:** Add unit tests for core functions - **COMPLETED** (147 tests added)
+3. ✅ **E2E Duplicate Cleanup:** Remove duplicate summarizer tests - **COMPLETED** (97 tests removed)
+4. **Phase 3:** Review and reclassify remaining E2E tests (50-100 tests) - **1-2 days** (Next)
+5. **Phase 4:** Reduce to true E2E only (85-135 tests) - **2-3 days** (Final)
 
-3. **Speaker Detection Functions (Medium Priority):**
-   - `detect_speaker_names()` - 5-8 tests
-   - `detect_hosts_from_feed()` - 3-5 tests
-   - `analyze_episode_patterns()` - 5-8 tests
-   - `_extract_names_from_text()` - 3-5 tests
-   - `_score_speaker_candidates()` - 3-5 tests
-   - **Total:** ~19-31 new unit tests
-
-4. **Other Core Functions (Medium Priority):**
-   - `episode_processor.py` - 5-8 tests
-   - `preprocessing.py` - 3-5 tests
-   - `progress.py` - 3-5 tests
-   - `metrics.py` - 3-5 tests
-   - `filesystem.py` - 3-5 tests
-   - **Total:** ~17-28 new unit tests
-
-**Expected Result After Phase 2:**
-
-- Unit Tests: ~500-600 (69-83%) ✅ (target: 70-80%)
-- Integration Tests: ~194-201 (27-28%) ⚠️ (target: 15-20%, still high)
-- E2E Tests: ~159-163 (22-23%) ⚠️ (target: 5-10%, still high)
-- **Progress:** Unit layer approaching target, but integration and E2E still need reduction
-
-### Phase 3: Review and Reclassify E2E Tests (Medium Priority)
-
-**Goal:** Ensure all E2E tests follow Testing Strategy definitions
-
-**Actions:**
-
-1. **Review Each E2E Test Against Testing Strategy:**
-   - **Decision Criteria:**
-     - Entry point = User-level (CLI/API)? → E2E ✅
-     - Entry point = Component-level? → Integration ✅
-     - Uses real HTTP client in full workflow? → E2E ✅
-     - Uses mocked HTTP for component testing? → Integration ✅
-   - **Review Files:**
-     - `test_error_handling_e2e.py` - Check entry points and HTTP usage
-     - `test_edge_cases_e2e.py` - Check entry points and scope
-     - `test_http_behaviors_e2e.py` - Check if testing HTTP in isolation vs. full workflow
-   - **Move tests that violate strategy:**
-     - Component-level entry points → Integration
-     - Mocked HTTP for component testing → Integration
-   - **Impact:** ~20-40 tests may need reclassification
-
-2. **Add Missing Integration Tests:**
-   - RSS Parser + Downloader integration (5-8 tests)
-   - Downloader + Episode Processor integration (5-8 tests)
-   - Progress Reporting + Workflow integration (3-5 tests)
-   - Metrics + Workflow integration (3-5 tests)
-   - Filesystem + Workflow integration (3-5 tests)
-   - **Impact:** ~19-31 new integration tests
-
-**Expected Result After Phase 3:**
-
-- Unit Tests: ~500-600 (69-83%) ✅
-- Integration Tests: ~214-231 (30-32%) ⚠️ (target: 15-20%, still too high)
-- E2E Tests: ~119-139 (16-19%) ⚠️ (target: 5-10%, still too high)
-- **Note:** Integration layer will be high after Phase 3, but Phase 4 will address this
-
-### Phase 4: Reduce E2E Tests to True E2E (Low Priority)
-
-**Goal:** Keep only true end-to-end user workflow tests
-
-**Actions:**
-
-1. **Review E2E Tests:**
-   - Keep: Full CLI workflows, full library API workflows, full service workflows
-   - Move: Individual function tests → unit
-   - Move: Component interaction tests → integration
-   - **Target:** ~50-80 true E2E tests (5-10% of total)
-
-2. **Focus E2E Tests On:**
-   - Complete user journeys (CLI commands end-to-end)
-   - Full pipeline runs with real fixtures
-   - Cross-cutting concerns (network, filesystem, ML models)
-   - **Not:** Individual function behavior (that's unit tests)
-   - **Not:** Component interactions (that's integration tests)
-
-**Expected Final Result:**
-
-- Unit Tests: ~550-650 (70-80%) ✅
-- Integration Tests: ~120-150 (15-20%) ✅
-- E2E Tests: ~50-80 (5-10%) ✅
-- **Perfect Pyramid!**
-
-## Implementation Priority
-
-### Immediate (Next Sprint)
-
-1. ✅ Move summarizer tests from E2E to unit (67 tests)
-2. ✅ Add unit tests for workflow helper functions (30-50 tests)
-3. ✅ Add unit tests for summarizer core functions (45-65 tests)
-
-### Short Term (Next 2-3 Sprints)
-
-4. Add unit tests for speaker detection functions (19-31 tests)
-5. Add unit tests for other core functions (17-28 tests)
-6. Move component interaction tests from E2E to integration (30-40 tests)
-
-### Medium Term (Next Quarter)
-
-7. Add missing integration tests for component interactions (19-31 tests)
-8. Review and reduce E2E tests to true E2E only (reduce by 50-100 tests)
+**Total Estimated Time:** 3-4 weeks (with Phase 2 done incrementally)
 
 ## Success Metrics
 
-### Target Distribution
-
-- **Unit Tests:** 70-80% (currently 39.3%, need +30-40%)
-- **Integration Tests:** 15-20% (currently 26.2%, need -6-11%)
-- **E2E Tests:** 5-10% (currently 34.4%, need -24-29%)
-
-### Target Test Counts
-
-- **Unit Tests:** 500-600 tests (currently 297, need +203-303)
-- **Integration Tests:** 110-140 tests (currently 194, need -54-84)
-- **E2E Tests:** 50-80 tests (currently 226, need -146-176)
-
-### Quality Metrics
-
-- Unit test execution time: < 30 seconds (currently ~10-15s, good)
-- Integration test execution time: < 5 minutes (currently ~3-4min, good)
-- E2E test execution time: < 20 minutes (currently ~15-20min, acceptable)
-- Test coverage: Maintain > 80% (currently ~75-80%, maintain)
+✅ **Unit Tests:** 70-80% of total tests
+✅ **Integration Tests:** 15-20% of total tests
+✅ **E2E Tests:** 5-10% of total tests
+✅ **All tests follow Testing Strategy definitions**
+✅ **Faster feedback:** Unit tests run in seconds (~2.1s currently)
+✅ **Better isolation:** Easier to debug failures
 
 ## Benefits
 
 1. **Faster Feedback:** Unit tests run in seconds, not minutes
 2. **Better Isolation:** Unit tests catch bugs earlier, easier to debug
-3. **Reduced Flakiness:** Unit tests are more stable than E2E tests
-4. **Better Maintainability:** Easier to understand what each test covers
-5. **Cost Efficiency:** Unit tests are cheaper to run in CI
-6. **Proper Pyramid:** Matches industry best practices
-
-## Risks & Mitigations
-
-### Risk 1: Breaking Existing Tests During Migration
-
-- **Mitigation:** Move tests incrementally, verify after each move
-- **Mitigation:** Keep E2E tests until unit tests are verified
-
-### Risk 2: Missing Edge Cases During Migration
-
-- **Mitigation:** Review each test before moving to ensure coverage maintained
-- **Mitigation:** Add integration tests for complex interactions
-
-### Risk 3: Increased Maintenance Burden
-
-- **Mitigation:** Unit tests are actually easier to maintain than E2E tests
-- **Mitigation:** Better organization makes tests easier to find and update
-
-## Testing Strategy Alignment
-
-This analysis is based on and aligns with:
-
-- **[Testing Strategy](../TESTING_STRATEGY.md)** - Primary source for test type definitions
-- **Decision Tree:** Complete user workflow? → E2E | Component interactions? → Integration | Single function? → Unit
-- **Entry Point Criteria:** User-level (CLI/API) = E2E | Component-level = Integration | Function-level = Unit
-- **HTTP Client Criteria:** Real HTTP in full workflow = E2E | Mocked HTTP or isolated testing = Integration
-- **ML Models Criteria:** Real models in full workflow = E2E | Real models for integration testing = Integration | Mocked models = Unit
+3. **Clearer Test Purpose:** Each test type has clear, well-defined purpose
+4. **Maintainability:** Easier to maintain and extend test suite
+5. **CI/CD Efficiency:** Faster CI runs with more unit tests
 
 ## Related Documentation
 
-- [Testing Strategy](../TESTING_STRATEGY.md) - **Primary reference for test type definitions**
-- [RFC-018: Test Structure Reorganization](../rfc/RFC-018-test-structure-reorganization.md)
-- [RFC-019: E2E Test Infrastructure](../rfc/RFC-019-e2e-test-improvements.md)
-- [RFC-024: Test Execution Optimization](../rfc/RFC-024-test-execution-optimization.md)
+- [Test Pyramid Plan](TEST_PYRAMID_PLAN.md) - Detailed implementation plan
+- [Testing Strategy](../TESTING_STRATEGY.md) - Test type definitions and decision tree
+- [RFC-018](../rfc/RFC-018-test-structure-reorganization.md) - Test structure reorganization
+- [RFC-019](../rfc/RFC-019-e2e-test-improvements.md) - E2E test infrastructure
