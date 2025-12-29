@@ -2,7 +2,9 @@
 
 ## Overview
 
-This project provides utilities to download, parse, analyze, and organize podcast data from publicly available sources. It is designed strictly for **personal, private, and non-commercial use**.
+This project provides utilities to download, parse, analyze, and organize podcast data
+from publicly available sources. It is designed strictly for **personal, private, and
+non-commercial use**.
 
 The maintainers do not encourage or support using this software to redistribute or expose copyrighted podcast content.
 
