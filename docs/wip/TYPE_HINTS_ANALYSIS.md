@@ -71,7 +71,7 @@ According to PEP 484 (Type Hints):
 
 ### Current Public API (`__init__.py`)
 
-```python
+````python
 __all__ = [
     "Config",
     "load_config_file",
@@ -81,9 +81,7 @@ __all__ = [
     "__version__",
     "__api_version__",
 ]
-```
-
-### Functions Exposed
+```python
 
 1. **`Config`**: Class (already has type hints via Pydantic)
 2. **`load_config_file()`**: Should have return type hint
@@ -144,3 +142,4 @@ Type hints:
 - ✅ Are appropriate for minor versions
 
 **Recommendation**: Proceed with adding type hints in version 2.4.0.
+````

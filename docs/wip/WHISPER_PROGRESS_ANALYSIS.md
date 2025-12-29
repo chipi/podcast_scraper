@@ -2,11 +2,13 @@
 
 ## Current Situation
 
-**Problem**: Whisper's internal progress bar (using `tqdm`) creates 30-40 new lines instead of updating in place, even with `verbose=False`.
+**Problem**: Whisper's internal progress bar (using `tqdm`) creates 30-40 new lines instead of
+updating in place, even with `verbose=False`.
 
 **Current Solution**: We suppress Whisper's progress output by redirecting `stdout`/`stderr` to a null stream.
 
-**Current Progress Bar**: Our own progress bar shows "Transcribing: elapsed" but provides no actual progress information (just elapsed time).
+**Current Progress Bar**: Our own progress bar shows "Transcribing: elapsed" but provides no actual
+progress information (just elapsed time).
 
 ## What is Whisper's Internal Progress Bar?
 
@@ -50,7 +52,8 @@
 
 ### Option C: Intercept Whisper's Progress (RECOMMENDED)
 
-**Approach**: Override `tqdm` globally during transcription to capture Whisper's progress updates and feed them to our own progress bar.
+**Approach**: Override `tqdm` globally during transcription to capture Whisper's progress updates and
+feed them to our own progress bar.
 
 **Pros:**
 
@@ -76,7 +79,7 @@
 
 ### Example Implementation
 
-```python
+````python
 class WhisperProgressInterceptor:
     """Intercepts Whisper's tqdm calls and forwards to our progress bar."""
 
@@ -90,14 +93,18 @@ class WhisperProgressInterceptor:
 
         class InterceptedTqdm(tqdm.tqdm):
             def __init__(self, *args, **kwargs):
+
                 # Suppress tqdm's own output
+
                 kwargs['file'] = open(os.devnull, 'w')
                 kwargs['disable'] = True  # Disable tqdm's display
                 super().__init__(*args, **kwargs)
 
             def update(self, n=1):
                 super().update(n)
+
                 # Forward to our progress bar
+
                 if self.our_bar:
                     self.our_bar.update(n)
 
@@ -107,9 +114,7 @@ class WhisperProgressInterceptor:
     def __exit__(self, *args):
         import tqdm
         tqdm.tqdm = self.original_tqdm
-```
-
-### Benefits
+```text
 
 1. **Real Progress**: Users see actual transcription progress (e.g., "45% complete, 2:30 remaining")
 2. **Clean Output**: Single progress bar, no multiple lines
@@ -134,3 +139,4 @@ If intercepting is too complex, we could:
 4. Better UX for long transcriptions
 
 **Fallback**: If Option C proves too complex or fragile, keep current suppression (Option A) but improve our placeholder progress bar to show more useful information (e.g., "Transcribing episode 5/10...").
+````

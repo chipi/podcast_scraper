@@ -2,9 +2,13 @@
 
 **Download and process podcast transcripts with ease.**
 
-Podcast Scraper is a Python tool that downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, and can fall back to Whisper transcription when episodes lack published transcripts.
+Podcast Scraper is a Python tool that downloads transcripts for every episode in a podcast RSS feed.
+It understands Podcasting 2.0 transcript tags, resolves relative URLs, and can fall back to
+Whisper transcription when episodes lack published transcripts.
 
-> **⚠️ Important:** This project is intended for **personal, non-commercial use only**. All downloaded content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate Use](legal.md) for details.
+> **⚠️ Important:** This project is intended for **personal, non-commercial use only**. All downloaded
+> content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate
+> Use](LEGAL.md) for details.
 
 ---
 
@@ -27,22 +31,25 @@ Podcast Scraper is a Python tool that downloads transcripts for every episode in
 
 ### Installation
 
-```bash
+````bash
+
 # Clone or download the repository
+
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 
 # Install the package
+
 pip install -e .
 
 # For Whisper transcription, ensure ffmpeg is installed
+
 # macOS: brew install ffmpeg
+
 # Ubuntu: sudo apt install ffmpeg
-```
 
-## Limit episodes and use custom output directory
+```text
 
-python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
   --max-episodes 10 \
   --output-dir ./my_transcripts
 
@@ -59,7 +66,9 @@ python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
   --generate-summaries
 
 ```yaml
+
 # config.yaml
+
 rss: https://example.com/feed.xml
 output_dir: ./transcripts
 max_episodes: 50
@@ -72,7 +81,7 @@ generate_metadata: true
 generate_summaries: true
 workers: 4
 skip_existing: true
-```
+```yaml
 
 - [config.example.json](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) - JSON format with all options
 - [config.example.yaml](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) - YAML format with comments
@@ -86,20 +95,20 @@ skip_existing: true
 | Resource | Description |
 | -------- | ----------- |
 | **[Quick Start](#quick-start)** | Installation, basic usage, and first commands |
-| **[Configuration Guide](api/configuration.md)** | Complete configuration options and examples |
-| **[CLI Reference](api/cli.md)** | Command-line interface documentation |
-| **[Python API](api/API_REFERENCE.md)** | Public API for programmatic usage |
-| **[Legal Notice](legal.md)** | ⚠️ Important usage restrictions and fair use |
+| **[Configuration Guide](api/CONFIGURATION.md)** | Complete configuration options and examples |
+| **[CLI Reference](api/CLI.md)** | Command-line interface documentation |
+| **[Python API](api/REFERENCE.md)** | Public API for programmatic usage |
+| **[Legal Notice](LEGAL.md)** | ⚠️ Important usage restrictions and fair use |
 
 ### User Guides
 
 | Guide | Description |
 | ----- | ----------- |
-| **[Service Mode](api/service.md)** | Running as daemon or service (systemd, supervisor, cron) |
+| **[Service Mode](api/SERVICE.md)** | Running as daemon or service (systemd, supervisor, cron) |
 | **[Service Examples](#service-daemon-examples)** | systemd and supervisor configuration templates |
 | **[Advanced Features](#advanced-features)** | Speaker detection, summarization, language support |
 | **[Configuration Files](#configuration-files)** | JSON/YAML config examples |
-| **[Configuration API](api/configuration.md)** | Configuration API reference (includes environment variables) |
+| **[Configuration API](api/CONFIGURATION.md)** | Configuration API reference (includes environment variables) |
 
 ### For Developers
 
@@ -108,24 +117,24 @@ skip_existing: true
 | **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** | Development workflow, code style, testing requirements |
 | **[Architecture Overview](ARCHITECTURE.md)** | High-level system design and module responsibilities |
 | **[Testing Strategy](TESTING_STRATEGY.md)** | Test coverage, quality assurance, and testing guidelines |
-| **[Testing Guide](TESTING_GUIDE.md)** | Detailed test execution, fixtures, and coverage information |
+| **[Testing Guide](guides/TESTING_GUIDE.md)** | Detailed test execution, fixtures, and coverage information |
 | **[CI/CD Pipeline](CI_CD.md)** | GitHub Actions workflows, parallel execution, and pipeline visualization |
-| **[Development Guide](DEVELOPMENT_GUIDE.md)** | Development environment setup and tooling |
-| **[Dependencies Guide](DEPENDENCIES.md)** | Third-party dependencies, rationale, and management |
-| **[Markdown Linting](MARKDOWN_LINTING.md)** | Markdown linting practices and workflows |
-| **[Summarization Guide](SUMMARIZATION_GUIDE.md)** | Summarization implementation details |
-| **[API Boundaries](api/API_BOUNDARIES.md)** | API design principles and stability guarantees |
-| **[API Migration Guide](api/API_MIGRATION_GUIDE.md)** | Upgrading between versions |
-| **[API Versioning](api/API_VERSIONING.md)** | Versioning strategy and compatibility |
+| **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** | Development environment setup and tooling |
+| **[Dependencies Guide](guides/DEPENDENCIES_GUIDE.md)** | Third-party dependencies, rationale, and management |
+| **[Markdown Linting](guides/MARKDOWN_LINTING_GUIDE.md)** | Markdown linting practices and workflows |
+| **[Summarization Guide](guides/SUMMARIZATION_GUIDE.md)** | Summarization implementation details |
+| **[API Boundaries](api/BOUNDARIES.md)** | API design principles and stability guarantees |
+| **[API Migration Guide](api/MIGRATION_GUIDE.md)** | Upgrading between versions |
+| **[API Versioning](api/VERSIONING.md)** | Versioning strategy and compatibility |
 
 ### Provider System
 
 | Guide | Description |
 | ----- | ----------- |
-| **[Provider Migration Guide](PROVIDER_MIGRATION_GUIDE.md)** | Migrating code from direct calls to provider pattern (includes fallback behavior) |
-| **[Custom Provider Guide](CUSTOM_PROVIDER_GUIDE.md)** | Creating custom providers for transcription, speaker detection, or summarization |
-| **[Protocol Extension Guide](PROTOCOL_EXTENSION_GUIDE.md)** | Extending protocols and adding new methods to providers |
-| **[Provider Attributes](PROVIDER_ATTRIBUTES.md)** | Understanding provider internal attributes and backward compatibility |
+| **[Provider Migration Guide](guides/PROVIDER_MIGRATION_GUIDE.md)** | Migrating code from direct calls to provider pattern (includes fallback behavior) |
+| **[Custom Provider Guide](guides/CUSTOM_PROVIDER_GUIDE.md)** | Creating custom providers for transcription, speaker detection, or summarization |
+| **[Protocol Extension Guide](guides/PROTOCOL_EXTENSION_GUIDE.md)** | Extending protocols and adding new methods to providers |
+| **[Provider Attributes](guides/PROVIDER_ATTRIBUTES_GUIDE.md)** | Understanding provider internal attributes and backward compatibility |
 
 ### API Reference
 
@@ -133,11 +142,11 @@ Complete documentation of all public modules:
 
 | Module | Description |
 | ------ | ----------- |
-| **[Core API](api/core.md)** | Main entry point (`run_pipeline`, `Config`) |
-| **[Configuration](api/configuration.md)** | Configuration model and file loading |
-| **[Service API](api/service.md)** | Non-interactive service mode for daemons |
-| **[CLI Interface](api/cli.md)** | Command-line interface |
-| **[Models](api/models.md)** | Data models (Episode, RssFeed, etc.) |
+| **[Core API](api/CORE.md)** | Main entry point (`run_pipeline`, `Config`) |
+| **[Configuration](api/CONFIGURATION.md)** | Configuration model and file loading |
+| **[Service API](api/SERVICE.md)** | Non-interactive service mode for daemons |
+| **[CLI Interface](api/CLI.md)** | Command-line interface |
+| **[Models](api/MODELS.md)** | Data models (Episode, RssFeed, etc.) |
 
 ### Product & Technical Specs
 
@@ -218,47 +227,25 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-```
+```text
 
-```ini
-[program:podcast_scraper]
-command=python -m podcast_scraper.service --config /path/to/config.yaml
 directory=/path/to/working/directory
 user=your_username
 autostart=true
 autorestart=true
 stdout_logfile=/var/log/podcast_scraper/stdout.log
 stderr_logfile=/var/log/podcast_scraper/stderr.log
-```
 
-### Automatic Speaker Detection
-
-```bash
-python3 -m podcast_scraper.cli https://example.com/feed.xml \
-  --transcribe-missing \
-  --screenplay \
+```text
   --num-speakers 2 \
   --auto-speakers
-```
+```text
 
-```bash
-python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
-  --generate-metadata \
   --generate-summaries \
   --summary-model bart-large \
   --summary-device mps
-```
 
-```bash
-python3 -m podcast_scraper.cli https://example.com/feed.xml \
-  --transcribe-missing \
-  --language fr \
-  --whisper-model base
-```
-
-### Evaluation Scripts
-
-Test and evaluate transcript processing quality:
+```text
 
 | Script | Purpose |
 | ------ | ------- |
@@ -268,29 +255,29 @@ Test and evaluate transcript processing quality:
 **Usage:**
 
 ```bash
+
 # Evaluate transcript cleaning
+
 python scripts/eval_cleaning.py --episode ep01
 
 # Evaluate summarization quality
+
 python scripts/eval_summaries.py --map-model bart-large --reduce-model long-fast
-```
 
-## Set up development environment
-
-bash scripts/setup_venv.sh
+```text
 source .venv/bin/activate
 pip install -e .
 
 ## Run full CI suite locally
 
 ```bash
+
 make ci
-```
 
 ```python
-import podcast_scraper
 
 # Configure and run
+
 cfg = podcast_scraper.Config(
     rss="https://example.com/feed.xml",
     output_dir="./out",
@@ -299,13 +286,12 @@ cfg = podcast_scraper.Config(
 )
 
 podcast_scraper.run_pipeline(cfg)
-```
 
-- `podcast_scraper.load_config_file(path)` — Parse JSON/YAML configuration
-- `podcast_scraper.run_pipeline(cfg)` — Run the full pipeline
+```text
+
 - `podcast_scraper.cli.main(argv)` — CLI entry point
 
-[Complete API reference →](api/API_REFERENCE.md)
+[Complete API reference →](api/REFERENCE.md)
 
 ---
 
@@ -314,6 +300,7 @@ podcast_scraper.run_pipeline(cfg)
 The Docker image uses the service API, which requires a configuration file:
 
 ```bash
+
 docker build -t podcast-scraper -f Dockerfile .
 
 docker run --rm \
@@ -321,24 +308,26 @@ docker run --rm \
   -v "$(pwd)/config.yaml:/app/config.yaml:ro" \
   podcast-scraper \
   --config /app/config.yaml
-```
-
-### Quick Start
 
 ```bash
+
 # Set up development environment
+
 make init
 
 # Run full CI suite (matches GitHub Actions)
+
 make ci
 
 # Common commands
+
 make format        # Auto-format code
 make lint          # Run linting
 make type          # Type checking
-make test          # Run tests with coverage
+make test-unit     # Run unit tests with coverage
 make docs          # Build documentation
-```
+
+```yaml
 
 - **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** — Complete development workflow, code style, testing requirements
 - **[Architecture](ARCHITECTURE.md)** — Module boundaries and design principles
@@ -364,16 +353,16 @@ make docs          # Build documentation
 Build and preview documentation locally:
 
 ```bash
+
 # Install dependencies
+
 pip install mkdocs mkdocs-material pymdown-extensions mkdocstrings mkdocstrings-python
 
 # Serve with live reload
+
 mkdocs serve
-```
 
-## 🔬 Work In Progress
-
-Experimental and draft documentation:
+```text
 
 - [WIP Overview](wip/WIP_README.md) — Purpose and guidelines for WIP docs
 - [RFC-021: Modularization Refactoring Plan](rfc/RFC-021-modularization-refactoring-plan.md) — Historical reference: Refactoring strategy for OpenAI provider integration (completed)
@@ -399,7 +388,7 @@ This project is intended for **personal, non-commercial use only**. All download
 
 This software is provided for educational and personal-use purposes only. It is not intended to power a public dataset, index, or any commercial service without explicit permission from rights holders.
 
-[Read full legal notice →](legal.md)
+[Read full legal notice →](LEGAL.md)
 
 ---
 
@@ -424,13 +413,14 @@ MIT License - See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main/L
 
 | Category | Links |
 | -------- | ----- |
-| **Getting Started** | [Quick Start](#quick-start) • [Configuration](api/configuration.md) • [CLI Ref](api/cli.md) |
+| **Getting Started** | [Quick Start](#quick-start) • [Configuration](api/CONFIGURATION.md) • [CLI Ref](api/CLI.md) |
 | **Examples** | [Config YAML](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) • [Config JSON](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) • [systemd](https://github.com/chipi/podcast_scraper/blob/main/examples/systemd.service.example) • [supervisor](https://github.com/chipi/podcast_scraper/blob/main/examples/supervisor.conf.example) |
-| **Development** | [Contributing](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md) • [Architecture](ARCHITECTURE.md) • [Testing Strategy](TESTING_STRATEGY.md) • [Testing Guide](TESTING_GUIDE.md) • [CI/CD](CI_CD.md) • [Development Guide](DEVELOPMENT_GUIDE.md) • [Dependencies](DEPENDENCIES.md) • [Markdown Linting](MARKDOWN_LINTING.md) • [Summarization](SUMMARIZATION_GUIDE.md) • [Scripts](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md) |
-| **Provider System** | [Migration Guide](PROVIDER_MIGRATION_GUIDE.md) • [Custom Providers](CUSTOM_PROVIDER_GUIDE.md) • [Protocol Extension](PROTOCOL_EXTENSION_GUIDE.md) • [Provider Attributes](PROVIDER_ATTRIBUTES.md) |
+| **Development** | [Contributing](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md) • [Architecture](ARCHITECTURE.md) • [Testing Strategy](TESTING_STRATEGY.md) • [Testing Guide](guides/TESTING_GUIDE.md) • [CI/CD](CI_CD.md) • [Development Guide](guides/DEVELOPMENT_GUIDE.md) • [Dependencies](guides/DEPENDENCIES_GUIDE.md) • [Markdown Linting](guides/MARKDOWN_LINTING_GUIDE.md) • [Summarization](guides/SUMMARIZATION_GUIDE.md) • [Scripts](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md) |
+| **Provider System** | [Migration Guide](guides/PROVIDER_MIGRATION_GUIDE.md) • [Custom Providers](guides/CUSTOM_PROVIDER_GUIDE.md) • [Protocol Extension](guides/PROTOCOL_EXTENSION_GUIDE.md) • [Provider Attributes](guides/PROVIDER_ATTRIBUTES_GUIDE.md) |
 | **Specifications** | [PRDs](prd/index.md) • [RFCs](rfc/index.md) • [Releases](releases/RELEASE_v2.3.0.md) |
-| **Legal** | [Legal Notice](legal.md) • [License](https://github.com/chipi/podcast_scraper/blob/main/LICENSE) |
+| **Legal** | [Legal Notice](LEGAL.md) • [License](https://github.com/chipi/podcast_scraper/blob/main/LICENSE) |
 
 ---
 
 **Need help?** Check the [documentation](https://chipi.github.io/podcast_scraper/), search [existing issues](https://github.com/chipi/podcast_scraper/issues), or open a new issue for support.
+````

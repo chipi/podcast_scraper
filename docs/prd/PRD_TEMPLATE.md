@@ -45,9 +45,9 @@
 
 [Format: "As [persona], I can [action] so that [benefit]."]
 
-- *As [Persona], I can [do something] so that [benefit].*
-- *As [Persona], I can [do something] so that [benefit].*
-- *As [any operator], I can [do something] so that [benefit].*
+- _As [Persona], I can [do something] so that [benefit]._
+- _As [Persona], I can [do something] so that [benefit]._
+- _As [any operator], I can [do something] so that [benefit]._
 
 ## Functional Requirements
 
@@ -130,18 +130,10 @@
   "example": "output structure"
 }
 ```
-Or:
 
-```yaml
-example:
-  output: "structure"
-```
-## Open Questions
+output: "structure"
 
-[Questions that need to be resolved during implementation:]
-
-- [Question 1: e.g., "Should summaries be regenerated if transcript is updated?"]
-- [Question 2: e.g., "Do we need summary versioning if prompts change?"]
+```json
 - [Question 3: e.g., "How to handle multi-speaker transcripts in summaries?"]
 
 ## Related Work
@@ -162,3 +154,4 @@ example:
 - [ ] Tests cover [key scenarios]
 - [ ] Documentation updated (README, config examples)
 - [ ] Integration with [related feature] verified
+```

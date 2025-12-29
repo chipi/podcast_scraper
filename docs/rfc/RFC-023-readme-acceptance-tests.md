@@ -111,17 +111,14 @@ This RFC defines a new category of **Acceptance Tests** that verify all examples
 
 **Test Structure:**
 
-```text
+````text
 ├── __init__.py
 ├── conftest.py              # Shared fixtures (reuse E2E server)
 ├── test_readme_installation.py    # Installation examples
 ├── test_readme_basic_usage.py     # Basic usage examples
 ├── test_readme_key_features.py     # Key features validation
 └── README.md                # Acceptance test documentation
-```
-**Goal**: Verify all installation commands from README work correctly.
-
-**README Section**: Lines 35-58 (Installation)
+```text
 
 **Tests to Implement:**
 
@@ -295,7 +292,7 @@ This RFC defines a new category of **Acceptance Tests** that verify all examples
 
    ```bash
    pytest tests/acceptance/ -v -m acceptance --disable-socket --allow-hosts=127.0.0.1,localhost
-   ```
+````
 
 4. **Failure Handling**:
    - If acceptance tests fail, CI should fail
@@ -311,7 +308,7 @@ This RFC defines a new category of **Acceptance Tests** that verify all examples
 
 **GitHub Actions Workflow:**
 
-```yaml
+````yaml
 test-acceptance:
   runs-on: ubuntu-latest
   needs: [test-unit, test-integration, test-e2e]
@@ -336,7 +333,8 @@ test-acceptance:
       run: |
         pytest tests/acceptance/ -v -m acceptance \
           --disable-socket --allow-hosts=127.0.0.1,localhost
-```
+```text
+
 - GitHub Actions workflow update
 - Makefile target for acceptance tests
 - CI/CD documentation updates
@@ -432,3 +430,4 @@ test-acceptance:
 - [RFC-018: Test Structure Reorganization](RFC-018-test-structure-reorganization.md)
 - [Testing Strategy](../TESTING_STRATEGY.md)
 - [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md)
+````

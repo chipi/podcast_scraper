@@ -14,6 +14,7 @@
 ## Abstract
 
 [2-3 sentences summarizing:]
+
 - [What this RFC proposes]
 - [Why it's needed]
 - [Key technical approach]
@@ -23,12 +24,14 @@
 ## Problem Statement
 
 [2-3 paragraphs explaining:]
+
 - [What problem we're solving]
 - [Why current approach is insufficient]
 - [What gaps exist]
 - [Impact of not solving this]
 
 **Use Cases:**
+
 1. **[Use Case 1]**: [Description]
 2. **[Use Case 2]**: [Description]
 3. **[Use Case 3]**: [Description]
@@ -44,11 +47,13 @@
 ## Constraints & Assumptions
 
 **Constraints:**
+
 - [Technical constraint 1, e.g., "Must not hit external networks"]
 - [Performance constraint, e.g., "Must complete in < 5s"]
 - [Compatibility constraint, e.g., "Must be backward compatible"]
 
 **Assumptions:**
+
 - [Assumption 1, e.g., "Local HTTP server is sufficient for HTTP testing"]
 - [Assumption 2, e.g., "Small ML models are acceptable for integration tests"]
 
@@ -66,23 +71,20 @@
 
 **Example code or structure:**
 
-```python
+````python
+
 # Example code showing key design patterns
+
 def example_function():
     """Example implementation."""
     pass
-```
-Or:
-
 ```text
-# Example directory structure
+
 component/
   module1.py
   module2.py
-```
-### 2. [Another Component/Phase]
 
-[Similar structure...]
+```text
 
 ### 3. [Integration Points]
 
@@ -199,4 +201,4 @@ Together, these RFCs provide:
 - **Related RFC**: `docs/rfc/RFC-XXX-related-feature.md`
 - **Source Code**: `podcast_scraper/[module].py`
 - **External Documentation**: [Link to external docs if applicable]
-
+````

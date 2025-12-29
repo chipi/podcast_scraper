@@ -126,17 +126,17 @@ v2.3.2 is a **patch release** focused on **comprehensive security test coverage*
 
 **Before (Thread-Unsafe)**:
 
-```python
+````python
+
 # Single REDUCE model shared across all workers
+
 reduce_model = summarizer.SummaryModel(...)
 for episode in episodes:
     _summarize_single_episode(..., reduce_model=reduce_model)  # Shared instance
-```
+```text
 
-**After (Thread-Safe)**:
-
-```python
 # Preload per-worker REDUCE models
+
 worker_reduce_models = []
 for i in range(max_workers):
     if has_separate_reduce_models:
@@ -147,17 +147,12 @@ for i in range(max_workers):
         worker_reduce_models.append(None)
 
 # Each worker gets its own REDUCE model
+
 def _get_worker_models():
     thread_local.reduce_model = worker_reduce_models[idx]
     return thread_local.map_model, thread_local.reduce_model
-```
 
-### Security Test Coverage
-
-**New Test Categories**:
-
-1. **Model Source Validation** (8 tests):
-   - Trusted source recognition
+```text
    - Untrusted source warnings
    - No sensitive info logging
 
@@ -180,29 +175,27 @@ def _get_worker_models():
 **Before**:
 
 ```python
+
 # REDUCE model created per episode
+
 def _generate_episode_summary(...):
     reduce_model = summary_model
     if reduce_model_name != summary_model.model_name:
         reduce_model = summarizer.SummaryModel(...)  # New instance per episode
-```
 
-**After**:
+```text
 
-```python
 # REDUCE model loaded once, reused across episodes
+
 reduce_model = None
 if cfg.generate_summaries:
     if reduce_model_name != model_name:
         reduce_model = summarizer.SummaryModel(...)  # Loaded once
 
 # Passed through to all episodes
+
 generate_episode_metadata(..., reduce_model=reduce_model)
-```
-
-## Configuration Changes
-
-**No Breaking Changes**: All changes are backward compatible.
+```python
 
 ## Migration Notes
 
@@ -249,3 +242,4 @@ generate_episode_metadata(..., reduce_model=reduce_model)
 - Address summary quality improvements (Issue #83)
 
 **Full Changelog**: <https://github.com/chipi/podcast_scraper/compare/v2.3.1...v2.3.2>
+````

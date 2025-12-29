@@ -39,7 +39,7 @@ Episode summarization uses local transformer models (BART, DistilBART) to genera
 
 **Configuration:**
 
-```yaml
+````yaml
 generate_summaries: true                    # Enable summarization
 summary_model: null                         # MAP model (defaults to bart-large for chunk summaries)
 summary_reduce_model: null                  # REDUCE model (defaults to long-fast/LED for final combine)
@@ -49,9 +49,7 @@ summary_chunk_size: null                    # Token chunk size (defaults to 2048
 summary_device: "auto"                      # Device selection: "auto", "cpu", "cuda", "mps"
 summary_cache_dir: null                     # Custom cache directory (default: Hugging Face cache)
 save_cleaned_transcript: true               # Save cleaned transcript to .cleaned.txt file (default: true)
-```
-
-**CLI Flags:**
+```yaml
 
 - `--generate-summaries`: Enable summarization (requires `--generate-metadata`)
 - `--summary-model`: Specify MAP model (default: `bart-large` for fast chunk summarization)
@@ -112,6 +110,7 @@ Optimized for daemon/service use cases with structured error handling:
 from podcast_scraper import service
 
 # Run from config file
+
 result = service.run_from_config_file("config.yaml")
 if result.success:
     print(f"Processed {result.episodes_processed} episodes")
@@ -120,12 +119,11 @@ else:
     print(f"Error: {result.error}")
 
 # Run with Config object
+
 from podcast_scraper import Config
 config = Config(rss_url="https://example.com/feed.xml", ...)
 result = service.run(config)
-```
-
-**Use Cases:**
+```text
 
 - Running as a systemd service
 - Managed by supervisor
@@ -142,11 +140,7 @@ class ServiceResult:
     summary: str                 # Human-readable summary
     success: bool                # Whether run completed successfully
     error: Optional[str]          # Error message if failed
-```
-
-#### API Versioning
-
-**Minimalistic versioning tied to module version:**
+```python
 
 - **API Version**: `podcast_scraper.__api_version__` (same as `__version__`)
 - **Semantic Versioning**: Follows major.minor.patch format
@@ -161,9 +155,9 @@ class ServiceResult:
 
 **Documentation:**
 
-- [API Reference](../api/API_REFERENCE.md) - Complete API documentation
-- [API Boundaries](../api/API_BOUNDARIES.md) - API design and boundaries
-- [API Migration Guide](../api/API_MIGRATION_GUIDE.md) - Migration between versions
+- [API Reference](../api/REFERENCE.md) - Complete API documentation
+- [API Boundaries](../api/BOUNDARIES.md) - API design and boundaries
+- [API Migration Guide](../api/MIGRATION_GUIDE.md) - Migration between versions
 
 ### 📊 Performance Metrics
 
@@ -190,7 +184,7 @@ Pipeline Summary:
 - Average transcription time: 45.2s/episode
 - Average name extraction time: 0.8s/episode
 - Average summary time: 12.5s/episode
-```
+```text
 
 ### 🧪 Evaluation & Testing Tools
 
@@ -209,19 +203,19 @@ Evaluates summarization quality using ROUGE metrics and reference-free checks:
 **Usage:**
 
 ```bash
+
 # Use defaults (BART-large MAP, LED REDUCE)
+
 python scripts/eval_summaries.py
 
 # Specify models
+
 python scripts/eval_summaries.py --map-model bart-large --reduce-model long-fast
 
 # Custom output
+
 python scripts/eval_summaries.py --output results/my_eval.json
-```
-
-#### Cleaning Evaluation (`scripts/eval_cleaning.py`)
-
-Evaluates transcript cleaning quality by comparing raw vs cleaned transcripts:
+```yaml
 
 - **Removal Statistics**: Character and word removal percentages
 - **Sponsor/Ad Detection**: Counts sponsor patterns before/after cleaning
@@ -233,16 +227,15 @@ Evaluates transcript cleaning quality by comparing raw vs cleaned transcripts:
 **Usage:**
 
 ```bash
+
 # Evaluate all episodes
+
 python scripts/eval_cleaning.py
 
 # Single episode
+
 python scripts/eval_cleaning.py --episode ep01
-```
-
-**Evaluation Dataset Structure:**
-
-Each episode in `data/eval/` should contain:
+```text
 
 - `transcript.raw.txt` - Raw Whisper output
 - `transcript.cleaned.txt` - Cleaned transcript (after cleaning pipeline)
@@ -348,7 +341,7 @@ Each episode in `data/eval/` should contain:
 
 - **Version Constants**: `__api_version__` tied to `__version__`
 - **Documentation**: Comprehensive API documentation in `docs/api/`
-- **Versioning Policy**: Documented in `API_BOUNDARIES.md`
+- **Versioning Policy**: Documented in `BOUNDARIES.md`
 
 #### Performance Metrics
 
@@ -408,7 +401,9 @@ Each episode in `data/eval/` should contain:
 **New Configuration Fields:**
 
 ```yaml
+
 # Summarization
+
 generate_summaries: false                  # Enable summarization
 summary_model: null                        # Model selection (auto if null)
 summary_max_length: 150                    # Maximum summary length
@@ -418,13 +413,13 @@ summary_device: "auto"                     # Device selection
 summary_cache_dir: null                    # Custom cache directory
 
 # Logging
+
 log_file: null                             # Optional log file path
 
 # Media Reuse
-reuse_media: false                         # Reuse existing media files
-```
 
-**Enhanced `--skip-existing` Behavior:**
+reuse_media: false                         # Reuse existing media files
+```python
 
 - Now allows output generation (summaries, metadata) from existing transcripts even when skipping other processing steps
 - Useful for testing summarization without re-downloading or re-transcribing
@@ -472,7 +467,9 @@ reuse_media: false                         # Reuse existing media files
 **Configuration Example:**
 
 ```yaml
+
 # Enable summarization
+
 generate_metadata: true
 generate_summaries: true
 summary_model: "facebook/bart-large-cnn"  # Optional: auto-selected if not specified
@@ -480,16 +477,17 @@ summary_max_length: 150
 summary_max_takeaways: 5
 
 # Optional: Custom cache directory
+
 summary_cache_dir: "~/.cache/my-models"
 
 # Optional: Log to file
+
 log_file: "podcast_scraper.log"
 
 # Optional: Reuse media for faster testing
-reuse_media: true
-```
 
-## Testing
+reuse_media: true
+```text
 
 - **202 tests passing** (6 new tests for API versioning)
 - **4 subtests passing**
@@ -534,3 +532,4 @@ reuse_media: true
 - Add more comprehensive E2E tests
 
 **Full Changelog**: <https://github.com/chipi/podcast_scraper/compare/v2.2.0...v2.3.0>
+````

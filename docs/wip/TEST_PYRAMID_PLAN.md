@@ -7,25 +7,25 @@
 
 ### Test Distribution (Updated After E2E Duplicate Cleanup)
 
-| Layer | Files | Tests | Current % | Target % | Gap |
-| ------- | ------- | ------- | ----------- | ---------- | ----- |
-| **Unit Tests** | 33 | 649 | **60.7%** | 70-80% | **-9.3% to -19.3%** |
-| **Integration** | 18 | 229 | **21.4%** | 15-20% | **+1.4% to +6.4%** |
-| **E2E Tests** | 19 | 192 | **17.9%** | 5-10% | **+7.9% to +12.9%** |
-| **Total** | 70 | 1,070 | 100% | 100% | - |
+| Layer           | Files | Tests | Current % | Target % | Gap                 |
+| --------------- | ----- | ----- | --------- | -------- | ------------------- |
+| **Unit Tests**  | 33    | 649   | **60.7%** | 70-80%   | **-9.3% to -19.3%** |
+| **Integration** | 18    | 229   | **21.4%** | 15-20%   | **+1.4% to +6.4%**  |
+| **E2E Tests**   | 19    | 192   | **17.9%** | 5-10%    | **+7.9% to +12.9%** |
+| **Total**       | 70    | 1,070 | 100%      | 100%     | -                   |
 
-*Note: Counts updated after removing 97 duplicate E2E summarizer tests*
+_Note: Counts updated after removing 97 duplicate E2E summarizer tests_
 
 ### Current Pyramid (After E2E Duplicate Cleanup)
 
-```text
+````text
        ╱  ╲      E2E: 17.9% ⚠️ (should be 5-10%, improved from 37.0% → 20.7% → 17.9%)
       ╱    ╲
      ╱      ╲    Integration: 21.4% ⚠️ (should be 15-20%, increased from 14.8%)
     ╱        ╲
    ╱          ╲  Unit: 60.7% ⚠️ (should be 70-80%, improved from 48.1% → 64.8% → 60.7%)
   ╱____________╲
-```
+```text
 
 - ✅ Added 21 tests for `models.py`
 - ✅ Added 20 tests for `whisper_integration.py`
@@ -35,17 +35,20 @@
 - **Net:** +53 unit tests, +5 integration tests
 
 **Phase 1: Summarizer Tests Moved ✅**
+
 - ✅ Moved summarizer tests from E2E to Unit
 - ✅ Added 79 unit tests for summarizer functions
 - ✅ Tests properly isolated and marked
 - **Impact:** +79 unit tests, -67 E2E tests
 
 **E2E Duplicate Cleanup ✅ (Latest)**
+
 - ✅ Removed 97 duplicate E2E summarizer tests
 - ✅ Moved TestModelIntegration (8 tests) to integration
 - **Impact:** -88 E2E tests, +8 integration tests
 
 **Phase 2: Core Module Tests Added ✅**
+
 - ✅ Added 147 tests for core modules:
   - `episode_processor.py` - Episode processing logic
   - `preprocessing.py` - Text preprocessing functions
@@ -54,6 +57,7 @@
 - **Impact:** +147 unit tests
 
 **Test Quality:**
+
 - ✅ Fixed all failing tests (19 → 0)
 - ✅ Suppressed expected warnings
 - ✅ Optimized execution (4 workers, 11.6% speedup)
@@ -104,6 +108,7 @@
 - E2E Tests: ~500 → ~433 (-67 tests)
 
 **After E2E Duplicate Cleanup:**
+
 - Unit Tests: 649 (unchanged)
 - Integration Tests: 229 (+29 tests)
 - E2E Tests: 192 (-88 tests from cleanup)
@@ -201,6 +206,7 @@
 - **Distribution:** Unit 64.8%, Integration 14.8%, E2E 20.7%
 
 **After E2E Duplicate Cleanup:**
+
 - Unit Tests: 649 (60.7%)
 - Integration Tests: 229 (21.4%)
 - E2E Tests: 192 (17.9%)
@@ -343,31 +349,37 @@
 ### Progress Tracking
 
 **Initial Status (2024-12-19):**
+
 - Unit tests: 649 (48.1%) - Recently expanded with 58 new tests
 - Integration tests: ~200 (14.8%) - Near target
 - E2E tests: ~500 (37.0%) - Too high, needs reduction
 
 **After Phase 1 ✅:**
+
 - Unit tests: ~728 (53.8%) - +79 summarizer tests
 - Integration tests: ~200 (14.8%)
 - E2E tests: ~433 (32.0%) - -67 tests (duplicates may remain)
 
 **After Phase 2 ✅:**
+
 - Unit tests: ~875 (64.8%) - +147 core module tests
 - Integration tests: ~200 (14.8%)
 - E2E tests: ~280 (20.7%) - Improved from 37.0%
 
 **After E2E Duplicate Cleanup ✅:**
+
 - Unit tests: 649 (60.7%) - Unchanged count, percentage decreased
 - Integration tests: 229 (21.4%) - +29 tests (+8 moved, +21 from other sources)
 - E2E tests: 192 (17.9%) - -88 tests (97 removed, +8 moved to integration)
 
 **After Phase 3 (Next):**
+
 - Unit tests: ~875 (64.8%) - May increase if function-level tests found
 - Integration tests: ~250-300 (18-22%) ✅
 - E2E tests: ~200-250 (15-18%) - Improved
 
 **After Phase 4 (Final):**
+
 - Unit tests: ~950-1,080 (70-80%) ✅ - Need +75-205 more
 - Integration tests: ~250-300 (18-22%) ✅
 - E2E tests: ~135-270 (5-10%) ✅
@@ -386,3 +398,4 @@
 - [Testing Strategy](../TESTING_STRATEGY.md) - Test type definitions and decision tree
 - [RFC-018](../rfc/RFC-018-test-structure-reorganization.md) - Test structure reorganization
 - [RFC-019](../rfc/RFC-019-e2e-test-improvements.md) - E2E test infrastructure
+````

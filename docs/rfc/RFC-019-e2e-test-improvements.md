@@ -184,7 +184,7 @@ For any episode:
 
 **Current Fixture Structure (Keep As-Is):**
 
-```text
+````text
 tests/fixtures/
 ├── rss/
 │   ├── p01_mtb.xml
@@ -202,7 +202,8 @@ tests/fixtures/
     ├── p01_e02.txt
     ├── p01_e03.txt
     └── ... (p02-p05 episodes)
-```
+```text
+
 - `/feeds/podcast1/feed.xml` → `tests/fixtures/rss/p01_mtb.xml` (mapping)
 - `/audio/p01_e01.mp3` → `tests/fixtures/audio/p01_e01.mp3` (direct)
 - `/transcripts/p01_e01.txt` → `tests/fixtures/transcripts/p01_e01.txt` (direct)
@@ -268,6 +269,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     FIXTURE_ROOT = Path(__file__).parent.parent.parent / "fixtures"
 
     # Mapping: podcast name -> RSS filename
+
     PODCAST_RSS_MAP = {
         "podcast1": "p01_mtb.xml",
         "podcast2": "p02_software.xml",
@@ -281,7 +283,9 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         path = self.path.split('?')[0]  # Remove query string
 
         # Route 1: RSS feeds
+
         # /feeds/podcast1/feed.xml -> rss/p01_mtb.xml
+
         if path.startswith("/feeds/") and path.endswith("/feed.xml"):
             podcast_name = path.split("/")[2]  # Extract "podcast1"
             rss_file = self.PODCAST_RSS_MAP.get(podcast_name)
@@ -291,7 +295,9 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 return
 
         # Route 2: Direct flat URLs (keep existing RSS URLs)
+
         # /audio/p01_e01.mp3 -> audio/p01_e01.mp3
+
         if path.startswith("/audio/"):
             filename = path.split("/")[-1]  # Extract "p01_e01.mp3"
             file_path = self.FIXTURE_ROOT / "audio" / filename
@@ -305,8 +311,10 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         # 404 if not found
+
         self.send_error(404, "File not found")
-```
+```text
+
 - Updated `E2EHTTPRequestHandler` with flat structure file serving
 - URL mapping logic (podcast name → RSS file, episode name → flat files)
 - URL helper methods
@@ -585,3 +593,4 @@ Together, these three RFCs provide:
 - **Integration Test RFC**: `docs/rfc/RFC-020-integration-test-improvements.md` (related work)
 - **Source Code**: `tests/e2e/`, `tests/fixtures/`
 - **Fixture Specification**: `tests/fixtures/FIXTURES_SPEC.md` - How fixtures are generated
+````

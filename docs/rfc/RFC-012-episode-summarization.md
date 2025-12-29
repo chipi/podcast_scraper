@@ -50,7 +50,7 @@ Local transformer models address these concerns by running entirely on-device, p
 
 Add new configuration fields to `config.Config`:
 
-```python
+````python
 generate_summaries: bool = False  # Opt-in for backwards compatibility
 summary_provider: Literal["local", "openai", "anthropic"] = "local"  # Default to local
 summary_model: Optional[str] = None  # Model identifier (e.g., "facebook/bart-large-cnn")
@@ -61,9 +61,7 @@ summary_device: Optional[str] = None  # "cuda", "mps", "cpu", or None for auto-d
 summary_batch_size: int = 1  # Batch size for processing (1 = sequential)
 summary_chunk_size: Optional[int] = None  # Chunk size for long transcripts (None = no chunking)
 summary_cache_dir: Optional[str] = None  # Custom cache directory for models
-```
-
-Add CLI flags:
+```yaml
 
 - `--generate-summaries`: Enable summary generation
 - `--summary-provider`: Choose provider (`local`, `openai`, `anthropic`)
@@ -80,14 +78,14 @@ Add CLI flags:
 Add dependencies to `pyproject.toml` in the `[project.optional-dependencies.ml]` section:
 
 ```toml
+
 # pyproject.toml [project.optional-dependencies.ml]
+
 "torch>=2.0.0,<3.0.0",  # PyTorch core
 "transformers>=4.30.0,<5.0.0",  # Hugging Face Transformers library
 "sentencepiece>=0.1.99,<1.0.0",  # Tokenizer dependency for some models
 "accelerate>=0.20.0,<1.0.0",  # Optional: for model loading optimizations
-```
-
-**Optional dependencies** (for GPU support):
+```text
 
 - CUDA-enabled PyTorch (installed separately based on CUDA version)
 - `bitsandbytes` (for 8-bit quantization to reduce memory usage)
@@ -132,22 +130,25 @@ def select_summary_model(cfg: Config) -> str:
         return cfg.summary_model
 
     # Auto-select based on available resources
+
     # For Apple Silicon (M4 Pro), prefer memory-efficient models
+
     if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+
         # M4 Pro: Use LED-base for long documents (16k tokens, no chunking needed)
+
         return DEFAULT_SUMMARY_MODELS["long-fast"]
     elif torch.cuda.is_available():
+
         # NVIDIA GPU: Use LED-large for best quality (16k tokens, no chunking needed)
+
         return DEFAULT_SUMMARY_MODELS["long"]
     else:
+
         # CPU: Use fastest, lowest memory model
+
         return DEFAULT_SUMMARY_MODELS["fast"]
-```
-
-#### 2.3 Model Loading and Caching
-
-Create `podcast_scraper/summarizer.py` module:
-
+```text
 ```python
 import logging
 import os
@@ -164,6 +165,7 @@ from transformers import (
 logger = logging.getLogger(__name__)
 
 # Hugging Face cache directory (standard location)
+
 HF_CACHE_DIR = Path.home() / ".cache" / "huggingface" / "transformers"
 
 class SummaryModel:
@@ -199,10 +201,12 @@ class SummaryModel:
             return device
 
         # Check for Apple Silicon MPS backend first (M4 Pro)
+
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
             return "mps"
 
         # Check for CUDA (NVIDIA GPUs)
+
         if torch.cuda.is_available():
             return "cuda"
 
@@ -214,25 +218,33 @@ class SummaryModel:
             logger.info(f"Loading summarization model: {self.model_name} on {self.device}")
 
             # Load tokenizer
+
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.model_name,
                 cache_dir=self.cache_dir,
             )
 
             # Load model
+
             self.model = AutoModelForSeq2SeqLM.from_pretrained(
                 self.model_name,
                 cache_dir=self.cache_dir,
             )
 
             # Move model to device
+
             self.model = self.model.to(self.device)
 
             # Create pipeline for easy inference
+
             # Map device to pipeline device parameter:
+
             # - "cuda" -> 0 (first CUDA device)
+
             # - "mps" -> "mps" (Apple Silicon)
+
             # - "cpu" -> -1 (CPU)
+
             pipeline_device = (
                 0 if self.device == "cuda"
                 else "mps" if self.device == "mps"
@@ -273,6 +285,7 @@ class SummaryModel:
             raise RuntimeError("Model not loaded")
 
         # Handle empty or very short text
+
         if not text or len(text.strip()) < 50:
             return text.strip()
 
@@ -286,6 +299,7 @@ class SummaryModel:
             )
 
             # Pipeline returns list of dicts with 'summary_text' key
+
             if isinstance(result, list) and len(result) > 0:
                 return result[0].get("summary_text", "").strip()
             elif isinstance(result, dict):
@@ -313,7 +327,9 @@ class SummaryModel:
         Returns:
             List of key takeaways
         """
+
         # Strategy: Generate longer summary, then split into bullet points
+
         # Alternative: Use instruction-tuned model with structured prompt
 
         summary = self.summarize(
@@ -323,21 +339,21 @@ class SummaryModel:
         )
 
         # Split summary into sentences and extract key points
+
         # Simple heuristic: split on periods, filter short sentences
+
         sentences = [s.strip() for s in summary.split(". ") if len(s.strip()) > 20]
 
         # Limit to max_takeaways
+
         takeaways = sentences[:max_takeaways]
 
         # Clean up: remove trailing periods, ensure proper formatting
+
         takeaways = [t.rstrip(".") for t in takeaways if t]
 
         return takeaways
-```
-
-#### 2.4 Handling Long Transcripts
-
-Transcripts can exceed model context limits. Strategies:
+```markdown
 
 #### Strategy 1: Chunking with Sliding Window
 
@@ -357,7 +373,9 @@ def chunk_text_for_summarization(
     Returns:
         List of text chunks
     """
+
     # Tokenize to get accurate token counts
+
     tokens = tokenizer.encode(text, add_special_tokens=False)
 
     chunks = []
@@ -370,6 +388,7 @@ def chunk_text_for_summarization(
         chunks.append(chunk_text)
 
         # Move start forward with overlap
+
         start = end - overlap
 
     return chunks
@@ -391,35 +410,40 @@ def summarize_long_text(
     Returns:
         Combined summary
     """
+
     # Check if text needs chunking
+
     tokenizer = model.tokenizer
     tokens = tokenizer.encode(text, add_special_tokens=False)
 
     if len(tokens) <= chunk_size:
+
         # Text fits in one chunk
+
         return model.summarize(text, max_length=max_length)
 
     # Chunk text
+
     chunks = chunk_text_for_summarization(text, chunk_size, overlap=200)
 
     # Summarize each chunk
+
     chunk_summaries = []
     for chunk in chunks:
         summary = model.summarize(chunk, max_length=max_length // len(chunks))
         chunk_summaries.append(summary)
 
     # Combine chunk summaries
+
     combined_text = "\n\n".join(chunk_summaries)
 
     # Final summary of combined summaries
+
     final_summary = model.summarize(combined_text, max_length=max_length)
 
     return final_summary
-```
-
-#### Strategy 2: Hierarchical Summarization
-
 ```python
+
 def hierarchical_summarize(
     model: SummaryModel,
     text: str,
@@ -437,27 +461,27 @@ def hierarchical_summarize(
     Returns:
         Final summary
     """
+
     # Split into paragraphs or sections
+
     paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
 
     if len(paragraphs) <= 1:
         return model.summarize(text, max_length=max_length)
 
     # Summarize each paragraph
+
     paragraph_summaries = []
     for para in paragraphs:
         para_summary = model.summarize(para, max_length=max_length // len(paragraphs))
         paragraph_summaries.append(para_summary)
 
     # Combine and summarize again
+
     combined = "\n\n".join(paragraph_summaries)
     return model.summarize(combined, max_length=max_length)
-```
-
-#### Strategy 3: Extract-Then-Summarize
 
 ```python
-def extract_then_summarize(
     model: SummaryModel,
     text: str,
     max_length: int = 150,
@@ -472,30 +496,29 @@ def extract_then_summarize(
     Returns:
         Summary
     """
+
     # Simple extraction: take first and last sentences, plus middle sentences
+
     sentences = [s.strip() for s in text.split(". ") if s.strip()]
 
     if len(sentences) <= 5:
         return model.summarize(text, max_length=max_length)
 
     # Extract key sentences
+
     extracted = []
     extracted.append(sentences[0])  # First sentence
     extracted.append(sentences[-1])  # Last sentence
 
     # Middle sentences (every nth sentence)
+
     step = max(1, len(sentences) // 5)
     for i in range(step, len(sentences) - step, step):
         extracted.append(sentences[i])
 
     extracted_text = ". ".join(extracted)
     return model.summarize(extracted_text, max_length=max_length)
-```
-
-#### 2.5 Memory Management
-
-**GPU Memory Considerations**:
-
+```text
 ```python
 def optimize_model_memory(model: SummaryModel) -> None:
     """Optimize model for memory efficiency.
@@ -503,52 +526,61 @@ def optimize_model_memory(model: SummaryModel) -> None:
     Supports both CUDA (NVIDIA) and MPS (Apple Silicon) backends.
     """
     if model.device == "cuda":
+
         # Enable gradient checkpointing (trades compute for memory)
+
         if hasattr(model.model, "gradient_checkpointing_enable"):
             model.model.gradient_checkpointing_enable()
 
         # Use half precision (FP16) to reduce memory
+
         model.model = model.model.half()
 
         # Clear cache
+
         torch.cuda.empty_cache()
     elif model.device == "mps":
+
         # Apple Silicon MPS backend
+
         # MPS supports FP16 natively, but may have different optimizations
+
         # For M4 Pro with 48GB, memory is less constrained, but still optimize
+
         if hasattr(model.model, "gradient_checkpointing_enable"):
             model.model.gradient_checkpointing_enable()
 
         # MPS may benefit from FP16, but test performance impact
+
         # model.model = model.model.half()  # Test if needed
 
         # Clear MPS cache if available
+
         if hasattr(torch.mps, "empty_cache"):
             torch.mps.empty_cache()
-```
-
-**CPU Memory Considerations**:
-
 ```python
+
 def optimize_for_cpu(model: SummaryModel) -> None:
     """Optimize model for CPU inference."""
+
     # Use INT8 quantization if available
+
     try:
         from transformers import BitsAndBytesConfig
+
         # Note: INT8 quantization typically requires GPU
+
         # For CPU, use model optimization techniques
+
         pass
     except ImportError:
         pass
 
     # Set number of threads for CPU
-    torch.set_num_threads(os.cpu_count() or 4)
-```
 
-**Model Unloading**:
+    torch.set_num_threads(os.cpu_count() or 4)
 
 ```python
-def unload_model(model: SummaryModel) -> None:
     """Unload model to free memory."""
     if model.model:
         del model.model
@@ -562,17 +594,13 @@ def unload_model(model: SummaryModel) -> None:
     model.pipeline = None
 
     # Clear device-specific cache
+
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         if hasattr(torch.mps, "empty_cache"):
             torch.mps.empty_cache()
-```
-
-#### 2.6 Prompt Engineering for Takeaways
-
-For generating structured takeaways, use instruction-tuned models or custom prompts:
-
+```text
 ```python
 def generate_takeaways_with_prompt(
     model: SummaryModel,
@@ -589,7 +617,9 @@ def generate_takeaways_with_prompt(
     Returns:
         List of takeaways
     """
+
     # Construct prompt for instruction-tuned models
+
     prompt = f"""Summarize the following text and extract {max_takeaways} key takeaways.
 
 Text:
@@ -599,6 +629,7 @@ Key Takeaways:
 """
 
     # For instruction-tuned models (e.g., flan-t5)
+
     if "flan" in model.model_name.lower() or "instruct" in model.model_name.lower():
         inputs = model.tokenizer(
             prompt,
@@ -618,7 +649,9 @@ Key Takeaways:
         result = model.tokenizer.decode(outputs[0], skip_special_tokens=True)
 
         # Parse takeaways from result
+
         # Simple heuristic: split on newlines or numbers
+
         takeaways = [
             line.strip().lstrip("- ").lstrip("• ").strip()
             for line in result.split("\n")
@@ -628,14 +661,11 @@ Key Takeaways:
         return takeaways[:max_takeaways]
 
     # Fallback: use standard summarization
+
     return model.generate_takeaways(text, max_takeaways=max_takeaways)
-```
-
-### 3. Integration with Metadata Pipeline
-
-Summaries are stored in metadata documents (RFC-011 structure):
-
+```text
 ```python
+
 # In metadata.py or summarizer.py
 
 class SummaryMetadata(BaseModel):
@@ -652,6 +682,7 @@ class SummaryMetadata(BaseModel):
         return value.isoformat()
 
 # Integration in episode_processor.py or workflow.py
+
 def generate_episode_summary(
     transcript_path: Path,
     cfg: Config,
@@ -671,6 +702,7 @@ def generate_episode_summary(
         return None
 
     # Read transcript
+
     try:
         with open(transcript_path, "r", encoding="utf-8") as f:
             transcript = f.read()
@@ -679,6 +711,7 @@ def generate_episode_summary(
         return None
 
     # Load model if not provided
+
     if not summary_model and cfg.summary_provider == "local":
         summary_model = SummaryModel(
             model_name=select_summary_model(cfg),
@@ -687,6 +720,7 @@ def generate_episode_summary(
         )
 
     # Generate summary
+
     short_summary = summary_model.summarize(
         transcript,
         max_length=cfg.summary_max_length,
@@ -694,6 +728,7 @@ def generate_episode_summary(
     )
 
     # Generate takeaways
+
     key_takeaways = summary_model.generate_takeaways(
         transcript,
         max_takeaways=cfg.summary_max_takeaways,
@@ -707,11 +742,8 @@ def generate_episode_summary(
         provider="local",
         word_count=len(transcript.split()),
     )
-```
-
-### 4. Error Handling
-
 ```python
+
 def safe_summarize(
     model: SummaryModel,
     text: str,
@@ -725,23 +757,21 @@ def safe_summarize(
     try:
         return model.summarize(text, max_length=max_length)
     except (torch.cuda.OutOfMemoryError, RuntimeError) as e:
+
         # Handle both CUDA and MPS out-of-memory errors
+
         if "out of memory" in str(e).lower() or "mps" in str(e).lower():
             logger.error(f"Device out of memory during summarization ({model.device}): {e}")
+
             # Fallback: use CPU or smaller model
+
             return ""
         raise
     except Exception as e:
         logger.error(f"Summarization error: {e}")
         return ""
-```
 
-### 5. Performance Optimization
-
-**Model Caching**:
-
-- Models are automatically cached by Hugging Face Transformers in `~/.cache/huggingface/transformers/`
-- First run downloads model (can be large: 500MB - 2GB)
+```python
 - Subsequent runs load from cache (fast)
 
 **Batch Processing**:
@@ -811,3 +841,4 @@ def safe_summarize(
 - Hugging Face Transformers: <https://huggingface.co/docs/transformers/>
 - BART Paper: <https://arxiv.org/abs/1910.13461>
 - T5 Paper: <https://arxiv.org/abs/1910.10683>
+````

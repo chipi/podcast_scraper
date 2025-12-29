@@ -1,0 +1,17 @@
+Before writing code, create an implementation plan.
+
+Tasks:
+1. List the files/modules that will change
+2. Describe the changes per file
+3. Identify edge cases and failure modes
+4. Specify tests to add or update
+5. Note any CI, Docker, or packaging implications
+
+Rules:
+- No code yet
+- Be explicit and checklist-style
+- Assume someone else will implement from this plan
+
+Use when: changes span multiple files or systems
+Effect: Auto upgrades model + prevents premature coding
+

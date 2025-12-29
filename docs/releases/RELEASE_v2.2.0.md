@@ -27,7 +27,7 @@ Metadata generation creates structured JSON/YAML documents alongside transcripts
 
 **Metadata Document Structure:**
 
-```json
+````json
 {
   "feed": {
     "title": "Podcast Title",
@@ -59,20 +59,13 @@ Metadata generation creates structured JSON/YAML documents alongside transcripts
     "run_id": "..."
   }
 }
-```
+```text
 
-**Configuration:**
-
-```yaml
 generate_metadata: true              # Enable metadata generation
 metadata_format: "json"             # "json" or "yaml"
 metadata_subdirectory: "metadata"   # Optional: separate metadata directory
-```
 
-**CLI Flags:**
-
-- `--generate-metadata`: Enable metadata generation
-- `--metadata-format`: Choose `json` or `yaml` (default: `json`)
+```yaml
 - `--metadata-subdirectory`: Optional subdirectory name (default: same as transcripts)
 
 **Database Integration:**
@@ -364,20 +357,14 @@ metadata_subdirectory: "metadata"   # Optional: separate metadata directory
 **Metadata Generation**: To enable metadata generation:
 
 ```yaml
+
 # config.yaml
+
 generate_metadata: true
 metadata_format: "json"  # or "yaml"
 metadata_subdirectory: "metadata"  # optional
-```
 
-Or via CLI:
-
-```bash
-python -m podcast_scraper.cli --generate-metadata --metadata-format json <rss_url>
-```
-
-## Testing
-
+```text
 - **151 tests passing** (maintained throughout refactoring)
 - **4 subtests passing**
 - **Comprehensive metadata generation test coverage**:
@@ -403,3 +390,4 @@ python -m podcast_scraper.cli --generate-metadata --metadata-format json <rss_ur
 - Explore further modularity improvements
 
 **Full Changelog**: <https://github.com/chipi/podcast_scraper/compare/v2.1.0...v2.2.0>
+````

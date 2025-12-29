@@ -103,14 +103,12 @@ v2.1.0 introduces automatic speaker name detection using Named Entity Recognitio
 
 New configuration fields:
 
-```yaml
+````yaml
 language: "en"                    # Language for Whisper and NER
 auto_speakers: true               # Enable automatic speaker detection
 ner_model: "en_core_web_sm"       # spaCy model name
 cache_detected_hosts: true        # Cache host detection
-```
-
-## Related Issues
+```yaml
 
 - Closes #21: Implement NER as per RFC-010
 - Closes #15: Create PRD and RFC for generating metadata document per episode
@@ -131,27 +129,28 @@ cache_detected_hosts: true        # Cache host detection
 
    ```bash
    python -m spacy download en_core_web_sm
-   ```
+````
 
-2. **Automatic Speaker Detection**: Enabled by default (`auto_speakers: true`). To disable:
+1. **Automatic Speaker Detection**: Enabled by default (`auto_speakers: true`). To disable:
 
    ```yaml
    auto_speakers: false
    ```
 
-3. **Manual Speaker Names**: Now used as fallback only if automatic detection fails. First name = host, second = guest.
+2. **Manual Speaker Names**: Now used as fallback only if automatic detection fails. First name =
+   host, second = guest.
 
-4. **Language Configuration**: Single `language` field now controls both Whisper and NER:
+3. **Language Configuration**: Single `language` field now controls both Whisper and NER:
 
    ```yaml
-   language: "en"  # Used for both Whisper model selection and NER
+   language: "en" # Used for both Whisper model selection and NER
    ```
 
-5. **No Breaking Changes**: All existing functionality preserved. New features are additive.
+4. **No Breaking Changes**: All existing functionality preserved. New features are additive.
 
 ### Configuration Example
 
-```yaml
+````yaml
 rss: "https://example.com/feed.xml"
 output_dir: "./transcripts"
 language: "en"                    # New: Controls Whisper + NER
@@ -159,9 +158,7 @@ auto_speakers: true               # New: Enable automatic detection
 ner_model: "en_core_web_sm"       # New: spaCy model
 cache_detected_hosts: true        # New: Cache hosts across episodes
 speaker_names: "Host, Guest"      # Fallback if detection fails
-```
-
-## Testing
+```text
 
 - 63 tests passing
 - Comprehensive coverage for speaker detection:
@@ -186,3 +183,4 @@ speaker_names: "Host, Guest"      # Fallback if detection fails
 - Generate metadata documents alongside transcripts
 
 **Full Changelog**: <https://github.com/chipi/podcast_scraper/compare/v2.0.1...v2.1.0>
+````

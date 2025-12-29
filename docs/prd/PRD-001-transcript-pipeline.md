@@ -8,7 +8,7 @@ Create a resilient pipeline that ingests a podcast RSS feed, locates published t
 
 - The `podcast_scraper` application targets researchers, archivists, and power listeners who need canonical text versions of podcast episodes.
 - Many shows publish transcripts via Podcasting 2.0 tags; users want an automated way to resolve those assets and save them locally.
-- `docs/ARCHITECTURE.md` describes the technical blueprint and module ownership. This document focuses on *what* needs to happen from a user and product perspective.
+- `docs/ARCHITECTURE.md` describes the technical blueprint and module ownership. This document focuses on _what_ needs to happen from a user and product perspective.
 
 ## Goals
 
@@ -29,10 +29,10 @@ Create a resilient pipeline that ingests a podcast RSS feed, locates published t
 
 ## User Stories
 
-- *As Archivist Ava, I can point the tool at an RSS feed and receive a folder of transcripts named deterministically so future runs can diff changes.*
-- *As Researcher Riley, I can limit how many episodes to fetch (e.g., first 10) when testing a new feed.*
-- *As any operator, I can dry-run a job to preview planned downloads without writing files.*
-- *As any operator, I can resume a long job and skip episodes that were already saved.*
+- _As Archivist Ava, I can point the tool at an RSS feed and receive a folder of transcripts named deterministically so future runs can diff changes._
+- _As Researcher Riley, I can limit how many episodes to fetch (e.g., first 10) when testing a new feed._
+- _As any operator, I can dry-run a job to preview planned downloads without writing files._
+- _As any operator, I can resume a long job and skip episodes that were already saved._
 
 ## Functional Requirements
 
@@ -48,9 +48,10 @@ Create a resilient pipeline that ingests a podcast RSS feed, locates published t
 - **FR10**: Support optional inter-request delay (`--delay-ms`) for rate-limited feeds.
 
 ## Success Metrics
+
 >
 
-- >=95% of episodes with published transcripts complete without manual retry (network errors aside).
+- > =95% of episodes with published transcripts complete without manual retry (network errors aside).
 - Dry-run output matches real run output (file naming, counts) aside from disk writes.
 - End-to-end processing scales to feeds with 1k episodes using default settings without manual intervention.
 

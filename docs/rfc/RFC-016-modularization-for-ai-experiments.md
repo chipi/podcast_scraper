@@ -43,7 +43,7 @@ To support the AI experiment pipeline, we need:
 
 ### Current Structure
 
-```text
+````text
 podcast_scraper/
 ├── workflow.py              # Main pipeline orchestration
 ├── metadata.py              # Metadata generation (calls summarizer)
@@ -57,11 +57,7 @@ podcast_scraper/
 └── scripts/
     ├── eval_summaries.py    # Evaluation script
     └── eval_cleaning.py     # Evaluation script
-```
-
-### Current Dependencies
-
-**`workflow.py`**:
+```text
 
 - Directly imports and instantiates `summarizer.SummaryModel`
 - Calls `metadata.generate_episode_metadata()` which internally calls summarizer
@@ -107,12 +103,10 @@ podcast_scraper/providers/
     ├── whisper.py              # WhisperTranscriptionProvider (current whisper integration)
     ├── openai.py               # OpenAITranscriptionProvider
     └── factory.py              # TranscriptionProviderFactory
-```
-
-**Protocol Definition Example:**
-
 ```python
+
 # podcast_scraper/providers/summarization/base.py
+
 from typing import Protocol, Dict, Any, Optional
 from .. import config
 
@@ -143,14 +137,11 @@ class SummarizationProvider(Protocol):
             }
         """
         ...
-```
-
-### 2. Refactor Current Implementations
-
-**Move `summarizer.py` → `providers/summarization/local.py`:**
 
 ```python
+
 # podcast_scraper/providers/summarization/local.py
+
 from typing import Dict, Any, Optional
 from .base import SummarizationProvider
 from .. import config
@@ -171,14 +162,15 @@ class LocalSummarizationProvider:
         params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Summarize using local transformer models."""
-        # Current summarizer.py logic, but as a provider
-        ...
-```
 
-**Update `metadata.py` to use provider:**
+        # Current summarizer.py logic, but as a provider
+
+        ...
 
 ```python
+
 # podcast_scraper/metadata.py
+
 from typing import Optional
 from .providers.summarization.base import SummarizationProvider
 
@@ -194,11 +186,14 @@ def generate_episode_metadata(
                                If None, creates default provider from config.
     """
     if summarization_provider is None:
+
         # Create default provider from config (backward compatibility)
+
         from .providers.summarization.factory import create_summarization_provider
         summarization_provider = create_summarization_provider(cfg)
 
     # Use provider instead of direct summarizer calls
+
     summary_result = summarization_provider.summarize(
         text=transcript_text,
         episode_title=episode.title,
@@ -206,14 +201,11 @@ def generate_episode_metadata(
         params={"max_length": cfg.summary_max_length}
     )
     ...
-```
 
-### 3. Extract Preprocessing
+```text
 
-**Create `podcast_scraper/preprocessing.py`:**
-
-```python
 # podcast_scraper/preprocessing.py
+
 """Provider-agnostic preprocessing functions."""
 
 def clean_transcript(
@@ -224,16 +216,19 @@ def clean_transcript(
     remove_fillers: bool = False,
 ) -> str:
     """Clean transcript text (moved from summarizer.py)."""
+
     # Current clean_transcript() implementation
+
     ...
 
 def remove_sponsor_blocks(text: str) -> str:
     """Remove sponsor blocks (moved from summarizer.py)."""
-    # Current remove_sponsor_blocks() implementation
-    ...
-```
 
-**Update imports:**
+    # Current remove_sponsor_blocks() implementation
+
+    ...
+
+```python
 
 - `metadata.py` imports from `preprocessing` instead of `summarizer`
 - `providers/summarization/local.py` imports from `preprocessing` if needed
@@ -251,12 +246,16 @@ def remove_sponsor_blocks(text: str) -> str:
 **Example Provider Implementation:**
 
 ```python
+
 # podcast_scraper/summarization/openai_provider.py
+
 from ..prompt_store import render_prompt
 
 class OpenAISummarizationProvider:
     def summarize(self, text: str, cfg: config.Config, ...) -> Dict[str, Any]:
+
         # Load prompts internally (provider-specific)
+
         system_prompt = render_prompt(
             cfg.summary_system_prompt or "summarization/system_v1",
             **cfg.summary_prompt_params,
@@ -269,11 +268,9 @@ class OpenAISummarizationProvider:
         )
 
         # Use prompts in API call...
-```
 
-**Key Points:**
+```text
 
-- ✅ Providers load prompts internally - not part of protocol interface
 - ✅ Local providers (transformers, Whisper) don't use prompts
 - ✅ Prompt management doesn't affect protocol compliance
 - ✅ Same `prompt_store` used in both application and experiments
@@ -285,6 +282,7 @@ See RFC-017 for complete prompt management design.
 **Create `scripts/experiments/backends/`:**
 
 ```text
+
 scripts/experiments/
 ├── __init__.py
 ├── backends/
@@ -293,17 +291,17 @@ scripts/experiments/
 │   ├── ner_backend.py               # Adapter for experiment pipeline
 │   └── transcription_backend.py    # Adapter for experiment pipeline
 └── ...
-```
-
-**Backend Adapter Example:**
 
 ```python
+
 # scripts/experiments/backends/summarization_backend.py
+
 from typing import Dict, Any, Optional
 from pathlib import Path
 import sys
 
 # Add parent directory to path to import podcast_scraper
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from podcast_scraper.providers.summarization.factory import create_summarization_provider
@@ -317,9 +315,11 @@ class SummarizationBackend:
         self.config = experiment_config
 
         # Convert experiment config to Config object
+
         cfg = self._create_config_from_experiment(experiment_config)
 
         # Create provider using factory
+
         self.provider = create_summarization_provider(cfg)
 
     def summarize(
@@ -330,7 +330,9 @@ class SummarizationBackend:
         params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Summarize transcript using configured provider."""
+
         # Merge experiment params with method params
+
         merged_params = {**(self.config.get("params", {})), **(params or {})}
 
         return self.provider.summarize(
@@ -342,16 +344,15 @@ class SummarizationBackend:
 
     def _create_config_from_experiment(self, exp_config: Dict[str, Any]) -> config.Config:
         """Convert experiment config to Config object."""
+
         # Map experiment config to Config fields
+
         ...
-```
-
-### 5. Standardize Evaluation Input/Output
-
-**Refactor `eval_summaries.py` to accept standardized input:**
 
 ```python
+
 # scripts/eval_summaries.py (refactored)
+
 from typing import List, Dict, Any
 from pathlib import Path
 
@@ -392,21 +393,27 @@ def evaluate_summaries(
             }
         }
     """
+
     # Current evaluation logic, but with standardized input/output
+
     ...
 
 # CLI entry point (preserved for backward compatibility)
-def main():
-    # Parse CLI args
-    # Load predictions and gold data
-    # Call evaluate_summaries()
-    # Print results
-```
 
-**Create helper function to load predictions:**
+def main():
+
+    # Parse CLI args
+
+    # Load predictions and gold data
+
+    # Call evaluate_summaries()
+
+    # Print results
 
 ```python
+
 # scripts/experiments/utils.py
+
 from typing import List, Dict, Any
 from pathlib import Path
 import json
@@ -422,23 +429,25 @@ def load_predictions_from_jsonl(predictions_file: Path) -> List[Dict[str, Any]]:
 
 def load_predictions_from_metadata(metadata_dir: Path) -> List[Dict[str, Any]]:
     """Load predictions from production metadata files (for comparison)."""
+
     # Load from existing metadata.json files
+
     ...
-```
 
-### 6. Update Workflow to Use Providers
-
-**Refactor `workflow.py`:**
-
+```text
 ```python
+
 # podcast_scraper/workflow.py
+
 from .providers.summarization.factory import create_summarization_provider
 from .providers.speaker_detection.factory import create_speaker_detector
 from .providers.transcription.factory import create_transcription_provider
 
 def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     """Run production pipeline."""
+
     # Create providers using factory
+
     summarization_provider = None
     if cfg.generate_summaries and not cfg.dry_run:
         summarization_provider = create_summarization_provider(cfg)
@@ -452,15 +461,14 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         transcription_provider = create_transcription_provider(cfg)
 
     # Pass providers to metadata generation
+
     # ...
-```
 
-### 7. Configuration Mapping
-
-**Create mapping between experiment config and Config:**
-
+```text
 ```python
+
 # scripts/experiments/config_mapper.py
+
 from typing import Dict, Any
 from podcast_scraper import config
 
@@ -485,6 +493,7 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
     config_dict = {}
 
     # Map models
+
     if "summarizer" in experiment_config.get("models", {}):
         model_config = experiment_config["models"]["summarizer"]
         if model_config["type"] == "openai":
@@ -493,13 +502,16 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
         elif model_config["type"] == "hf_local":
             config_dict["summary_provider"] = "transformers"
             config_dict["summary_model"] = model_config["name"]
+
             # For local models, map reduce model if specified
+
             if "reduce" in experiment_config.get("models", {}):
                 reduce_config = experiment_config["models"]["reduce"]
                 if reduce_config["type"] == "hf_local":
                     config_dict["summary_reduce_model"] = reduce_config["name"]
 
     # Map params
+
     if "params" in experiment_config:
         params = experiment_config["params"]
         if "max_length" in params:
@@ -514,14 +526,20 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
             config_dict["summary_word_overlap"] = params["word_overlap"]
         if "device" in params:
             config_dict["summary_device"] = params["device"]
+
         # OpenAI-specific params (if supported in Config)
+
         # Note: Some OpenAI params (temperature, etc.) may need to be passed
+
         # directly to provider, not via Config
 
     # Map prompts (using prompt_store from RFC-017)
+
     if "prompts" in experiment_config:
         prompts = experiment_config["prompts"]
+
         # Map prompt names to config fields
+
         if "system" in prompts:
             config_dict["summary_system_prompt"] = prompts["system"]
         if "user" in prompts:
@@ -530,9 +548,8 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
             config_dict["summary_prompt_params"] = prompts["params"]
 
     return config.Config(**config_dict)
-```
 
-**Note**: Prompt management is handled via `prompt_store` (RFC-017), which provides:
+```text
 
 - Versioned prompt files (`.j2` templates)
 - Jinja2 parameterization
@@ -646,3 +663,4 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
 - Focus on experiment pipeline independence
 
 These additions build on top of the planned provider pattern refactoring, not replacing it.
+````

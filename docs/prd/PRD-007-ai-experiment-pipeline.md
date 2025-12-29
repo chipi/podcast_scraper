@@ -162,7 +162,7 @@ This PRD addresses the need for a systematic, repeatable way to experiment with 
 - **Pain Points**: Slow iteration cycles, hard to compare experiments
 - **Needs**: Fast iteration, easy comparison, reproducible experiments
 
-**User Story**: *As Researcher Rachel, I can create a new prompt variant, run an experiment, and compare results with previous experiments in under 5 minutes without writing any code.*
+**User Story**: _As Researcher Rachel, I can create a new prompt variant, run an experiment, and compare results with previous experiments in under 5 minutes without writing any code._
 
 ### Developer Devin
 
@@ -171,7 +171,7 @@ This PRD addresses the need for a systematic, repeatable way to experiment with 
 - **Pain Points**: Hard to compare models, no systematic testing
 - **Needs**: Easy model comparison, regression testing, CI/CD integration
 
-**User Story**: *As Developer Devin, I can compare three different models side-by-side and integrate experiment runs into CI/CD to catch regressions automatically.*
+**User Story**: _As Developer Devin, I can compare three different models side-by-side and integrate experiment runs into CI/CD to catch regressions automatically._
 
 ### ML Engineer Max
 
@@ -180,7 +180,7 @@ This PRD addresses the need for a systematic, repeatable way to experiment with 
 - **Pain Points**: Manual parameter testing, hard to track results
 - **Needs**: Systematic parameter testing, result tracking, analysis tools
 
-**User Story**: *As ML Engineer Max, I can test 10 different parameter combinations in parallel and analyze results to find optimal settings.*
+**User Story**: _As ML Engineer Max, I can test 10 different parameter combinations in parallel and analyze results to find optimal settings._
 
 ## Functional Requirements
 

@@ -7,7 +7,7 @@ Provide an optional fallback path that transcribes podcast audio with OpenAI Whi
 ## Background & Context
 
 - Many feeds omit transcripts or only publish them for recent episodes.
-- Users want a single pipeline that can produce text for *all* items, defaulting to official transcripts but transcribing otherwise.
+- Users want a single pipeline that can produce text for _all_ items, defaulting to official transcripts but transcribing otherwise.
 - Whisper support depends on local envirçonment capabilities (GPU/CPU, `openai-whisper`, `ffmpeg`).
 
 ## Goals
@@ -29,12 +29,12 @@ Provide an optional fallback path that transcribes podcast audio with OpenAI Whi
 
 ## User Stories
 
-- *As Archivist Ava, I can enable `--transcribe-missing` and trust that every episode ends up with a transcript file.*
-- *As Creator Casey, I can specify which Whisper model to use (e.g., `base`, `small`) based on latency/quality requirements.*
-- *As any operator, I can see when media is downloaded, how large it is, and how long transcription takes.*
-- *As any operator, I can format transcriptions as screenplay-style dialog with consistent speaker labeling.*
-- *As any operator, I can have speaker names automatically detected from episode metadata without manual configuration (RFC-010).*
-- *As any operator, I can specify the podcast language to optimize Whisper model selection (English vs multilingual) and improve transcription accuracy.*
+- _As Archivist Ava, I can enable `--transcribe-missing` and trust that every episode ends up with a transcript file._
+- _As Creator Casey, I can specify which Whisper model to use (e.g., `base`, `small`) based on latency/quality requirements._
+- _As any operator, I can see when media is downloaded, how large it is, and how long transcription takes._
+- _As any operator, I can format transcriptions as screenplay-style dialog with consistent speaker labeling._
+- _As any operator, I can have speaker names automatically detected from episode metadata without manual configuration (RFC-010)._
+- _As any operator, I can specify the podcast language to optimize Whisper model selection (English vs multilingual) and improve transcription accuracy._
 
 ## Functional Requirements
 

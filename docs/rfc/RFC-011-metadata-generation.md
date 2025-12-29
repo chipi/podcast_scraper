@@ -39,13 +39,11 @@ Without structured metadata, users must parse RSS feeds or transcripts manually,
 
 Add new configuration fields to `config.Config`:
 
-```python
+````python
 generate_metadata: bool = False  # Opt-in for backwards compatibility
 metadata_format: Literal["json", "yaml"] = "json"  # Default to JSON
 metadata_subdirectory: Optional[str] = None  # None = same dir as transcripts, "metadata" = subdirectory
-```
-
-Add CLI flags:
+```yaml
 
 - `--generate-metadata`: Enable metadata generation
 - `--metadata-format`: Choose `json` or `yaml` (default: `json`)
@@ -145,12 +143,7 @@ class EpisodeMetadataDocument(BaseModel):
     episode: EpisodeMetadata
     content: ContentMetadata
     processing: ProcessingMetadata
-```
-
-### 3. Metadata Generation Module
-
-Create `podcast_scraper/metadata.py` module:
-
+```text
 ```python
 def generate_episode_metadata(
     feed: RssFeed,
@@ -165,14 +158,14 @@ def generate_episode_metadata(
     Returns:
         Path to generated metadata file, or None if generation skipped
     """
+
     # Build metadata document
+
     # Write to file (JSON or YAML)
+
     # Return file path
-```
 
-### 4. Integration Points
-
-#### Workflow Integration (`workflow.py`)
+```python
 
 - Generate metadata after episode processing completes
 - Pass detected speaker names from RFC-010
@@ -230,11 +223,7 @@ config_snapshot = {
     "screenplay": cfg.screenplay,
     "max_episodes": cfg.max_episodes,
 }
-```
-
-## Implementation Details
-
-### Metadata Collection
+```python
 
 1. **Feed Metadata**: Extract from `RssFeed` object and RSS parsing
    - **Feed ID Generation**: Generate stable unique identifier from feed URL (see ID Generation Strategy below)
@@ -279,17 +268,18 @@ def generate_feed_id(feed_url: str) -> str:
     Returns:
         Stable unique identifier string (format: sha256:<hex_digest>)
     """
+
     # Normalize feed URL (remove trailing slash, lowercase, remove query params/fragments)
+
     parsed = urlparse(feed_url)
     normalized = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip('/').lower()
 
     # Generate SHA-256 hash
+
     hash_digest = hashlib.sha256(normalized.encode('utf-8')).hexdigest()
 
     return f"sha256:{hash_digest}"
-```
-
-**Benefits**:
+```text
 
 - Stable across runs (same feed URL = same ID)
 - Unique (different feeds = different IDs)
@@ -343,18 +333,24 @@ def generate_episode_id(
     Returns:
         Stable unique identifier string
     """
+
     # Priority 1: Use RSS GUID if available
+
     if episode_guid:
         return episode_guid.strip()
 
     # Priority 2: Generate deterministic hash
+
     # Normalize feed URL (remove trailing slash, lowercase)
+
     normalized_feed = urlparse(feed_url).geturl().rstrip('/').lower()
 
     # Normalize title (lowercase, strip whitespace)
+
     normalized_title = episode_title.strip().lower()
 
     # Build hash input from stable components
+
     hash_components = [
         normalized_feed,
         normalized_title,
@@ -368,15 +364,12 @@ def generate_episode_id(
         hash_components.append(normalized_link)
 
     # Generate SHA-256 hash
+
     hash_input = '|'.join(hash_components).encode('utf-8')
     hash_digest = hashlib.sha256(hash_input).hexdigest()
 
     return f"sha256:{hash_digest}"
-```
-
-#### Content ID Generation (Optional)
-
-Content IDs are optional and only generated when needed for tracking individual content items separately:
+```python
 
 **Transcript ID** (`transcript_id`):
 
@@ -400,17 +393,18 @@ def generate_content_id(content_url: str) -> str:
     Returns:
         Stable unique identifier string (format: sha256:<hex_digest>)
     """
+
     # Normalize URL (remove trailing slash, lowercase, remove query params/fragments)
+
     parsed = urlparse(content_url)
     normalized = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip('/').lower()
 
     # Generate SHA-256 hash
+
     hash_digest = hashlib.sha256(normalized.encode('utf-8')).hexdigest()
 
     return f"sha256:{hash_digest}"
-```
-
-**When to use content IDs**:
+```text
 
 - When tracking content items in separate tables/collections
 - When building content-level indexes or analytics
@@ -637,11 +631,8 @@ WHERE metadata @> '{"content": {"detected_guests": ["John Doe"]}}';
 SELECT metadata->'content'->'detected_hosts' as hosts
 FROM episode_metadata
 WHERE jsonb_array_length(metadata->'content'->'detected_hosts') > 0;
-```
-
-### Example: MongoDB
-
 ```javascript
+
 // Load single document (using episode_id as _id)
 const doc = {
   feed: {...},
@@ -663,12 +654,11 @@ db.episodes.createIndex({"content.detected_hosts": 1});
 db.episodes.find({"content.detected_guests": "John Doe"});
 db.episodes.find({"episode.published_date": {"$gte": "2025-01-01"}});
 db.episodes.find({"content.detected_hosts": {"$in": ["Jane Host"]}});
-```
 
-### Example: Elasticsearch
+```text
 
-```bash
 # Create index with mapping
+
 PUT /episodes
 {
   "mappings": {
@@ -694,12 +684,15 @@ PUT /episodes
 }
 
 # Bulk load metadata files (using episode_id as document _id)
+
 # Format: {"index": {"_id": "episode_id"}}\n{"feed": {...}, "episode": {...}, ...}\n
+
 curl -X POST "localhost:9200/episodes/_bulk" \
   -H 'Content-Type: application/x-ndjson' \
   --data-binary @metadata_bulk.json
 
 # Query examples
+
 GET /episodes/_search
 {
   "query": {
@@ -719,11 +712,8 @@ GET /episodes/_search
     }
   }
 }
-```
+```text
 
-### Example: ClickHouse
-
-```sql
 -- Create table with JSON column, using episode_id as ordering key
 CREATE TABLE episode_metadata (
     metadata JSON
@@ -746,12 +736,8 @@ WHERE has(metadata.content.detected_guests, 'John Doe');
 
 SELECT * FROM episode_metadata
 WHERE toDate(metadata.episode.published_date) >= '2025-01-01';
-```
 
-## Open Questions
-
-- Should metadata include full RSS item XML? (Decision: No, keep structured)
-- Should metadata include checksums/hashes? (Future consideration)
+```text
 - Should metadata support incremental updates? (Decision: Regenerate on each run)
 - Should metadata include transcript excerpts? (Decision: No, transcripts are separate files)
 - Do we need database-specific format variations? (Decision: No, unified JSON with snake_case and ISO 8601 dates works universally across all target databases)
@@ -764,3 +750,4 @@ WHERE toDate(metadata.episode.published_date) >= '2025-01-01';
 - RFC-001: Workflow Orchestration
 - Pydantic documentation: <https://docs.pydantic.dev/>
 - JSON Schema: <https://json-schema.org/>
+````

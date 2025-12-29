@@ -2,23 +2,25 @@
 
 ## Overview
 
-The Podcast Scraper project uses GitHub Actions for continuous integration and deployment. The CI/CD pipeline consists of **five main workflows** that automate testing, code quality checks, security scanning, Docker validation, and documentation deployment.
+The Podcast Scraper project uses GitHub Actions for continuous integration and deployment. The CI/CD
+pipeline consists of **five main workflows** that automate testing, code quality checks, security
+scanning, Docker validation, and documentation deployment.
 
 ### Workflows Summary
 
-| Workflow | File | Purpose | Trigger |
-| -------- | ---- | ------- | ------- |
-| **Python Application** | `python-app.yml` | Main CI pipeline with testing, linting, and builds | Push/PR to `main` (only when Python/config files change) |
-| **Documentation Deploy** | `docs.yml` | Build and deploy MkDocs documentation to GitHub Pages | Push to `main`, PR with doc changes, manual |
-| **CodeQL Security** | `codeql.yml` | Security vulnerability scanning | Push/PR to `main` (only when code/workflow files change), scheduled weekly |
-| **Docker Build & Test** | `docker.yml` | Build and test Docker images | Push/PR to `main` (only when Docker/Python files change) |
-| **Snyk Security Scan** | `snyk.yml` | Dependency and Docker image vulnerability scanning | Push/PR to `main`, scheduled weekly (Mondays), manual |
+| Workflow                 | File             | Purpose                                               | Trigger                                                                    |
+| ------------------------ | ---------------- | ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| **Python Application**   | `python-app.yml` | Main CI pipeline with testing, linting, and builds    | Push/PR to `main` (only when Python/config files change)                   |
+| **Documentation Deploy** | `docs.yml`       | Build and deploy MkDocs documentation to GitHub Pages | Push to `main`, PR with doc changes, manual                                |
+| **CodeQL Security**      | `codeql.yml`     | Security vulnerability scanning                       | Push/PR to `main` (only when code/workflow files change), scheduled weekly |
+| **Docker Build & Test**  | `docker.yml`     | Build and test Docker images                          | Push/PR to `main` (only when Docker/Python files change)                   |
+| **Snyk Security Scan**   | `snyk.yml`       | Dependency and Docker image vulnerability scanning    | Push/PR to `main`, scheduled weekly (Mondays), manual                      |
 
 ---
 
 ## Complete Pipeline Visualization
 
-```mermaid
+````mermaid
 graph TB
     subgraph "Trigger Events"
         T1[Push to main]
@@ -103,10 +105,7 @@ graph TB
     style C1 fill:#ffe1e1
     style DOCK1 fill:#fff4e1
     style SNYK1 fill:#ffe1f5
-```
----
-
-## Python Application Workflow
+```text
 
 **File:** `.github/workflows/python-app.yml`
 **Triggers:** Push and Pull Requests to `main` branch (only when relevant files change)
@@ -124,43 +123,84 @@ graph TB
 
 This is the main CI pipeline that ensures code quality, runs tests, builds documentation, and validates the package.
 
-### Parallel Execution Strategy
+### Two-Tier Testing Strategy
 
-The Python Application workflow has **seven parallel jobs** for maximum speed:
+The workflow uses a **two-tier testing strategy** optimized for speed and coverage:
+
+1. **Pull Requests:** Fast feedback + Full validation (both run in parallel)
+2. **Push to Main:** Separate test jobs for maximum parallelization
+
+### Pull Request Execution Flow
+
+On pull requests, jobs run in parallel for fast feedback:
 
 ```mermaid
 graph LR
-    A[Workflow Start] --> B[Lint Job]
-    A --> C[Unit Test Job]
-    A --> D[Integration Test Job]
-    A --> E[Fast E2E Test Job]
+    A[PR Opened/Updated] --> B[Lint Job]
+    A --> C[test-fast Job<br/>Fast Feedback]
+    A --> D[test Job<br/>Full Validation]
+    A --> E[Docs Job]
+    A --> F[Build Job]
+
+    B --> G[✓ All Complete]
+    C --> G
+    D --> G
+    E --> G
+    F --> G
+
+    style B fill:#90EE90
+    style C fill:#FFE4B5
+    style D fill:#87CEEB
+    style E fill:#90EE90
+    style F fill:#90EE90
+```yaml
+
+- **Fast Feedback (`test-fast`):** Completes in ~6-10 minutes, provides early pass/fail signal
+- **Full Validation (`test`):** Completes in ~10-15 minutes, provides unified coverage report
+- **Both run simultaneously:** No waiting, maximum speed
+- **No redundancy:** Different test sets (fast vs full)
+
+### Push to Main Execution Flow
+
+On push to main branch, separate test jobs run in parallel:
+
+```mermaid
+graph LR
+    A[Push to Main] --> B[Lint Job]
+    A --> C[test-unit Job]
+    A --> D[test-integration Job]
+    A --> E[test-e2e Job<br/>All E2E Tests]
     A --> F[Docs Job]
     A --> G[Build Job]
-    A --> H[Slow E2E Test Job<br/>Main Only]
 
-    B --> I[✓ All Complete]
-    C --> I
-    D --> I
-    E --> I
-    F --> I
-    G --> I
-    H --> I
+    B --> H[✓ All Complete]
+    C --> H
+    D --> H
+    E --> H
+    F --> H
+    G --> H
 
     style B fill:#90EE90
     style C fill:#90EE90
     style D fill:#90EE90
-    style E fill:#90EE90
+    style E fill:#FFE4B5
     style F fill:#90EE90
     style G fill:#90EE90
-    style H fill:#FFE4B5
-```
+```yaml
+
+- **Separate jobs:** Maximum parallelization for fastest overall completion
+- **All tests run:** Includes slow integration and slow E2E tests
+- **Complete validation:** Full test coverage before code is merged
+
 ### Job Details
 
-#### 1. Lint Job (Fast - No ML Dependencies)
+#### 1. Lint Job (Always Runs)
 
 **Purpose:** Perform quick code quality checks without heavy ML dependencies
 
-**Duration:** ~2-3 minutes
+**When:** Both PRs and push to main
+
+**Duration:** ~1-2 minutes
 
 **Steps:**
 
@@ -174,61 +214,136 @@ graph LR
    - `make lint` - flake8 code linting
    - `make lint-markdown` - Markdown file linting
    - `make type` - mypy static type checking
-   - `make security` - bandit & safety security scanning
+   - `make security` - bandit & pip-audit security scanning
 
 **Why separate from test?** Linting is much faster without ML dependencies, providing quick feedback.
 
-#### 1.5. Unit Test Job (Fast - No ML Dependencies)
+---
 
-**Purpose:** Run unit tests quickly without heavy ML dependencies
+#### 2. test-fast Job (PRs Only - Fast Feedback)
 
-**Duration:** ~2-3 minutes
+**Purpose:** Provide quick feedback on fast tests without waiting for slow tests
 
-**Steps:**
+**When:** Pull requests only
 
-1. Checkout code
-2. Set up Python 3.11 with pip caching
-3. Install dev dependencies (excluding ML packages): `pip install -e .[dev]`
-4. **Verify imports work without ML dependencies** - Runs `scripts/check_unit_test_imports.py` to ensure modules don't require ML deps at import time
-5. Run unit tests with network and filesystem I/O isolation enforced
-6. Verify network isolation with dedicated test
+**Duration:** ~6-10 minutes
+
+**What it runs:** `make test-ci-fast`
+- **Unit tests:** All unit tests
+- **Fast integration tests:** Excludes slow/ml_models integration tests
+- **Fast E2E tests:** Excludes slow/ml_models E2E tests
+- **No coverage:** Excluded for faster execution
 
 **Key Features:**
+- **Fast feedback:** Completes before full validation job
+- **No coverage overhead:** Faster execution
+- **Early signal:** Developer gets quick pass/fail status
+- **Network guard:** Enabled for E2E tests
 
-- **No ML dependencies** - Fast execution, matches production unit test environment
-- **Import verification** - Automatically checks that modules can be imported without ML deps
-- **Network/filesystem isolation** - Enforced by `tests/unit/conftest.py`
-- **Sequential execution** - Tests run sequentially for simpler execution and clearer output
-- **Test count validation** - Verifies at least 50 unit tests run (prevents silent failures)
+**Why separate?** Provides early feedback so developers can start fixing issues immediately if fast tests fail.
 
-#### 2. Integration Test Job (Full - Includes ML Dependencies)
+---
 
-**Purpose:** Run integration tests with all ML dependencies
+#### 3. test Job (PRs Only - Full Validation)
 
-**Duration:** ~10-15 minutes (includes ML package installation)
+**Purpose:** Complete validation with unified coverage report
 
-**Steps:**
+**When:** Pull requests only
 
-1. Checkout code
-2. Free disk space (removes unnecessary system packages)
-3. Set up Python 3.11 with pip caching
-4. Install **full dependencies** including ML packages (`pip install -e .[dev,ml]`)
-5. Run integration tests: `pytest tests/integration/ -m integration`
-   - Runs pytest with coverage reporting
-   - Includes all integration tests
-   - Tests Whisper integration, summarization, provider interactions, etc.
-6. Post-build cleanup (cache cleanup for disk space management)
+**Duration:** ~10-15 minutes
 
-**Disk Space Management:**
+**What it runs:** `make test-ci`
+- **Unit tests:** All unit tests
+- **Fast integration tests:** Excludes slow/ml_models integration tests (same as test-fast)
+- **Fast E2E tests:** Excludes slow/ml_models E2E tests
+- **With coverage:** Unified coverage report for all tests
 
-- Pre-test: Removes unnecessary system packages (~30GB freed)
-- Post-test: Cleans ML model caches (HuggingFace, Torch, Whisper)
+**Key Features:**
+- **Unified coverage:** Single coverage report for all tests
+- **Full validation:** Ensures all fast tests pass
+- **Network guard:** Enabled for E2E tests
+- **Runs in parallel:** Starts at same time as test-fast, no waiting
 
-#### 3. Docs Build Job
+**Test Coverage on PRs:**
+- ✅ All unit tests
+- ✅ Fast integration tests (excludes slow/ml_models)
+- ✅ Fast E2E tests (excludes slow/ml_models)
+- ❌ Slow integration tests (run on main branch only)
+- ❌ Slow E2E tests (run on main branch only)
+
+**Why exclude slow tests from PRs?** Faster PR feedback while maintaining full validation on main branch.
+
+---
+
+#### 4. test-unit Job (Main Branch Only)
+
+**Purpose:** Run unit tests separately for maximum parallelization
+
+**When:** Push to main branch only
+
+**Duration:** ~2-5 minutes
+
+**What it runs:** `make test-unit`
+- **Unit tests:** All unit tests with coverage
+- **Network isolation:** Enforced and verified
+- **Import verification:** Ensures modules work without ML dependencies
+
+**Key Features:**
+- **No ML dependencies:** Fast execution
+- **Coverage included:** Part of overall coverage
+- **Network isolation:** Verified with dedicated test
+
+---
+
+#### 5. test-integration Job (Main Branch Only)
+
+**Purpose:** Run all integration tests including slow/ml_models tests
+
+**When:** Push to main branch only
+
+**Duration:** ~5-10 minutes
+
+**What it runs:** `make test-integration`
+- **All integration tests:** Includes fast + slow/ml_models tests
+- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
+- **Parallel execution:** Uses `-n auto` for speed
+
+**Key Features:**
+- **Complete coverage:** All integration tests run
+- **Re-runs:** Handles flaky tests automatically
+- **ML dependencies:** Required for slow tests
+
+---
+
+#### 6. test-e2e Job (Main Branch Only)
+
+**Purpose:** Run all E2E tests including slow/ml_models tests
+
+**When:** Push to main branch only
+
+**Duration:** ~20-30 minutes
+
+**What it runs:** `make test-e2e`
+- **All E2E tests:** Includes fast + slow/ml_models tests
+- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
+- **Network guard:** Blocks external network calls
+- **Parallel execution:** Uses `-n auto` for speed
+
+**Key Features:**
+- **Complete validation:** All E2E tests including ML model tests
+- **Network isolation:** Enforced via pytest-socket
+- **Re-runs:** Handles flaky tests automatically
+- **ML dependencies:** Required for slow tests
+
+---
+
+#### 7. Docs Build Job (Always Runs)
 
 **Purpose:** Validate documentation builds correctly
 
-**Duration:** ~3-5 minutes
+**When:** Both PRs and push to main
+
+**Duration:** ~2-3 minutes
 
 **Steps:**
 
@@ -240,75 +355,17 @@ graph LR
    - Generates API documentation from docstrings
    - Validates all internal links
 
-**Note:** This job runs in the main workflow (not the separate docs workflow) to validate docs on every PR, even if not touching doc files.
+**Note:** This job runs in the main workflow to validate docs on every PR, even if not touching doc files.
 
-#### 4. Fast E2E Test Job
+---
 
-**Purpose:** Run fast E2E tests (excludes slow/ml_models tests) on every commit
-
-**Duration:** ~5-10 minutes
-
-**Steps:**
-
-1. Checkout code
-2. Free disk space (removes unnecessary system packages)
-3. Set up Python 3.11 with pip caching
-4. Install dev dependencies (includes pytest-socket for network guard)
-5. Run fast E2E tests: `pytest tests/e2e/ -m "e2e and not slow and not ml_models" --disable-socket --allow-hosts=127.0.0.1,localhost`
-   - Runs with network guard active (blocks external network calls)
-   - Excludes slow and ml_models tests for faster CI feedback
-   - Runs sequentially for simpler execution
-   - Validates minimum test count (at least 50 fast E2E tests)
-6. Post-build cleanup
-
-**Network Guard:**
-
-- All E2E tests run with `--disable-socket --allow-hosts=127.0.0.1,localhost`
-- Ensures no external network calls are made
-- All RSS and audio must be served from local E2E HTTP server
-- Tests fail hard if a real URL is hit
-
-#### 5. Slow E2E Test Job (Main Branch Only)
-
-**Purpose:** Run all E2E tests including slow/ml_models tests on main branch
-
-**Duration:** ~15-20 minutes (includes ML package installation and model loading)
-
-**Triggers:**
-
-- Push to `main` branch only (not on PRs)
-
-**Steps:**
-
-1. Checkout code
-2. Free disk space (removes unnecessary system packages)
-3. Set up Python 3.11 with pip caching
-4. Install full dependencies including ML packages (`pip install -e .[dev,ml]`)
-5. Run all E2E tests: `pytest tests/e2e/ -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost`
-   - Runs with network guard active
-   - Includes all E2E tests (fast + slow + ml_models)
-   - Runs sequentially for simpler execution
-   - Validates minimum test count (at least 90 E2E tests)
-6. Post-build cleanup (cache cleanup for disk space management)
-
-**Test Coverage:**
-
-- Network guard tests
-- OpenAI mock tests
-- E2E server tests
-- Fixture mapping tests
-- Basic E2E tests (CLI, Library API, Service API)
-- Error handling tests
-- Edge case tests
-- HTTP behavior tests
-- Whisper E2E tests (slow, requires ML dependencies)
-- ML models E2E tests (slow, requires ML dependencies)
-
-#### 6. Build Package Job
+#### 8. Build Package Job (Always Runs)
 
 **Purpose:** Validate the package can be built for distribution
 
-**Duration:** ~2-3 minutes
+**When:** Both PRs and push to main
+
+**Duration:** ~1-2 minutes
 
 **Steps:**
 
@@ -319,6 +376,94 @@ graph LR
    - Creates source distribution (`.tar.gz`)
    - Creates wheel distribution (`.whl`)
    - Validates `pyproject.toml` configuration
+
+### Fast Feedback vs Full Validation
+
+On pull requests, two test jobs run simultaneously to provide both speed and completeness:
+
+#### Fast Feedback (`test-fast` Job)
+
+**Purpose:** Quick pass/fail signal without waiting for slow tests
+
+**Timeline:** Completes in ~6-10 minutes
+
+**What it tests:**
+- All unit tests
+- Fast integration tests (excludes slow/ml_models)
+- Fast E2E tests (excludes slow/ml_models)
+
+**Features:**
+- No coverage overhead (faster execution)
+- Early signal if fast tests fail
+- Developer can start fixing immediately
+
+**When to check:** After ~6-10 minutes for early feedback
+
+#### Full Validation (`test` Job)
+
+**Purpose:** Complete validation with unified coverage report
+
+**Timeline:** Completes in ~10-15 minutes
+
+**What it tests:**
+- All unit tests
+- Fast integration tests (excludes slow/ml_models)
+- Fast E2E tests (excludes slow/ml_models)
+
+**Features:**
+- Unified coverage report for all tests
+- Comprehensive validation
+- Runs in parallel with test-fast (no waiting)
+
+**When to check:** After ~10-15 minutes for final validation
+
+#### Why Both?
+
+1. **Fast feedback:** Developer gets early signal if something is broken
+2. **Full validation:** Ensures all tests pass with coverage report
+3. **No redundancy:** Both run simultaneously, no sequential waiting
+4. **Different purposes:** Fast feedback for speed, full validation for completeness
+
+#### What About Slow Tests?
+
+Slow integration and slow E2E tests are excluded from PRs for faster feedback. They run on the main branch only:
+
+- **Slow integration tests:** Run in `test-integration` job on main branch
+- **Slow E2E tests:** Run in `test-e2e` job on main branch
+
+This ensures:
+- ✅ Fast PR feedback (no waiting for slow tests)
+- ✅ Full validation on main branch (all tests run)
+- ✅ Balance between speed and coverage
+
+### Re-runs for Flaky Tests
+
+Some test jobs include automatic re-runs to handle flaky tests:
+
+**Configuration:**
+
+- `--reruns 2`: Retry failed tests up to 2 times (3 total attempts)
+- `--reruns-delay 1`: Wait 1 second between retries
+
+**Which jobs use re-runs:**
+- ✅ `test-integration` (main branch): All integration tests
+- ✅ `test-e2e` (main branch): All E2E tests
+- ❌ `test-fast` (PRs): No re-runs (fast tests should be stable)
+- ❌ `test` (PRs): No re-runs (fast tests should be stable)
+- ❌ `test-unit` (main branch): No re-runs (unit tests should be stable)
+
+**How it works:**
+1. Test runs and fails
+2. Wait 1 second
+3. Retry test (attempt 1)
+4. If still fails, wait 1 second
+5. Retry test (attempt 2)
+6. If all attempts fail, mark as FAILED
+
+**Why re-runs?**
+- Integration and E2E tests can be flaky due to timing, I/O, or resource contention
+- Re-runs reduce false negatives from transient failures
+- Improves CI reliability without masking real issues
 
 ### Dependency Management
 
@@ -332,24 +477,29 @@ graph TD
     C --> C3[mypy]
     C --> C4[bandit]
 
-    B -->|Unit Test Job| C2[dev dependencies only]
+    B -->|test-fast Job PRs| E2[dev + ml + pytest-socket]
+    E2 --> E2A[pytest]
+    E2 --> E2B[pytest-socket for network guard]
+    E2 --> E2C[ML deps for integration tests]
+
+    B -->|test Job PRs| E4[dev + ml dependencies]
+    E4 --> E4A[pytest]
+    E4 --> E4B[ML deps for integration tests]
+    E4 --> E4C[Coverage tools]
+
+    B -->|test-unit Job Main| C2[dev dependencies only]
     C2 --> C2A[pytest]
     C2 --> C2B[No ML deps - fast]
     C2 --> C2C[Import check script]
 
-    B -->|Integration Test Job| D[dev + ml dependencies]
+    B -->|test-integration Job Main| D[dev + ml dependencies]
     D --> D1[pytest]
     D --> D2[transformers]
     D --> D3[torch]
     D --> D4[whisper]
     D --> D5[spacy]
 
-    B -->|Fast E2E Test Job| E2[dev dependencies + pytest-socket]
-    E2 --> E2A[pytest]
-    E2 --> E2B[pytest-socket for network guard]
-    E2 --> E2C[No ML deps - fast]
-
-    B -->|Slow E2E Test Job| E3[dev + ml dependencies + pytest-socket]
+    B -->|test-e2e Job Main| E3[dev + ml dependencies + pytest-socket]
     E3 --> E3A[pytest]
     E3 --> E3B[pytest-socket for network guard]
     E3 --> E3C[transformers]
@@ -364,10 +514,7 @@ graph TD
 
     B -->|Build Job| F[build tools only]
     F --> F1[python -m build]
-```
----
-
-## Documentation Deployment Workflow
+```text
 
 **File:** `.github/workflows/docs.yml`
 **Triggers:**
@@ -397,10 +544,7 @@ graph LR
 
     style B fill:#87CEEB
     style D fill:#90EE90
-```
-### Documentation Build Job Details
-
-#### 1. Build Job
+```python
 
 **Purpose:** Build MkDocs site from documentation sources
 
@@ -439,10 +583,7 @@ graph LR
 concurrency:
   group: "pages"
   cancel-in-progress: true
-```
-Only one deployment runs at a time. If multiple pushes occur, older deployments are cancelled.
-
----
+```text
 
 ## CodeQL Security Workflow
 
@@ -481,10 +622,7 @@ graph TB
 
     style C fill:#FFE4B5
     style D fill:#FFE4B5
-```
-### Analysis Configuration
-
-**Languages Analyzed:**
+```text
 
 | Language | Build Mode | Purpose |
 | -------- | ---------- | ------- |
@@ -518,7 +656,8 @@ graph TB
 schedule:
 
   - cron: '17 13 * * 4'
-```
+```text
+
 **Runs:** Every Thursday at 13:17 UTC
 **Purpose:** Catch newly discovered vulnerabilities in dependencies
 
@@ -676,7 +815,8 @@ Provides comprehensive security scanning for both Python dependencies and Docker
 schedule:
 
   - cron: '0 0 * * 1'
-```
+```text
+
 **Runs:** Every Monday at 00:00 UTC
 **Purpose:** Weekly security scan to catch newly discovered vulnerabilities
 
@@ -716,28 +856,27 @@ This maximizes parallelism and reduces total CI time.
 
 #### ✅ Completely Parallel
 
-**Within Python Application Workflow:**
+**Within Python Application Workflow - Pull Requests:**
 
 ```text
-├── Lint Job (2-3 min)
-├── Unit Test Job (2-3 min) - No ML deps, fast
-├── Integration Test Job (10-15 min) - With ML deps
-├── Fast E2E Test Job (5-10 min) - No ML deps, network guard
-├── Docs Job (3-5 min)
-├── Build Job (2-3 min)
-└── Slow E2E Test Job (15-20 min) - With ML deps, main branch only
-```
-All seven jobs start simultaneously and run independently. Fast jobs (lint, unit tests, fast E2E tests) run quickly without ML dependencies, while slow jobs (integration tests, slow E2E tests) run in parallel with full ML stack.
-
-**Within CodeQL Workflow:**
-
+├── Lint Job (1-2 min)
+├── test-fast Job (6-10 min) - Fast feedback, no coverage
+├── test Job (10-15 min) - Full validation with coverage
+├── Docs Job (2-3 min)
+└── Build Job (1-2 min)
+```text
+```text
+├── Lint Job (1-2 min)
+├── test-unit Job (2-5 min) - No ML deps, fast
+├── test-integration Job (5-10 min) - With ML deps, includes re-runs
+├── test-e2e Job (20-30 min) - With ML deps, includes re-runs, network guard
+├── Docs Job (2-3 min)
+└── Build Job (1-2 min)
+```text
 ```text
 ├── Python Analysis
 └── Actions Analysis
-```
-Both language analyses run in parallel via matrix strategy.
-
-**Across Workflows:**
+```text
 
 - All three workflows (Python app, docs, CodeQL) trigger independently
 - They run in parallel when triggered by the same event
@@ -748,10 +887,7 @@ Both language analyses run in parallel via matrix strategy.
 
 ```text
 Build Job → Deploy Job
-```
-Deploy job waits for build job to complete and only runs on push to `main`.
-
----
+```text
 
 ## Performance Optimizations
 
@@ -766,11 +902,7 @@ All workflows use pip caching to speed up dependency installation:
     python-version: "3.11"
     cache: "pip"
     cache-dependency-path: pyproject.toml
-```
-**Benefit:** Reduces dependency installation from minutes to seconds on cache hit.
-
-### 2. Dependency Splitting
-
+```text
 ```mermaid
 graph TD
     A[Dependency Strategy] --> B[Lint: dev only]
@@ -782,10 +914,7 @@ graph TD
     C --> G[Slow: 10-15 min]
     D --> H[Medium: 3-5 min]
     E --> I[Fast: 2-3 min]
-```
-**Benefit:** Lint feedback is fast (no waiting for large ML packages).
-
-### 3. Disk Space Management
+```text
 
 Test job proactively frees ~30GB of disk space before installing ML dependencies:
 
@@ -793,20 +922,15 @@ Test job proactively frees ~30GB of disk space before installing ML dependencies
 sudo rm -rf /usr/share/dotnet
 sudo rm -rf /usr/local/lib/android
 sudo rm -rf /opt/ghc
+
 # ... more cleanup
-```
-**Benefit:** Prevents out-of-disk errors with large ML models.
 
-### 4. Post-Test Cleanup
-
+```text
 ```bash
 rm -rf ~/.cache/huggingface
 rm -rf ~/.cache/torch
 rm -rf ~/.cache/whisper
-```
-**Benefit:** Recovers disk space, prevents cache bloat across runs.
-
----
+```text
 
 ## Workflow Triggers Matrix
 
@@ -863,10 +987,11 @@ When you change files, here's what runs:
 #### Example 1: Documentation Update
 
 ```bash
-# You change only: docs/api/API_REFERENCE.md
+
+# You change only: docs/api/REFERENCE.md
+
 git commit -m "Update API documentation"
-```
-**Result:**
+```text
 
 - ✅ `docs.yml` runs (3-5 min)
 - ❌ `python-app.yml` skipped
@@ -877,10 +1002,11 @@ git commit -m "Update API documentation"
 #### Example 2: Python Code Change
 
 ```bash
+
 # You change: downloader.py
+
 git commit -m "Fix download retry logic"
-```
-**Result:**
+```text
 
 - ✅ `python-app.yml` runs (lint, test, docs, build)
 - ✅ `docs.yml` runs (API docs need rebuild)
@@ -891,10 +1017,11 @@ git commit -m "Fix download retry logic"
 #### Example 3: Mixed Changes
 
 ```bash
+
 # You change: docs/index.md AND service.py
+
 git commit -m "Update docs and fix service"
-```
-**Result:**
+```text
 
 - ✅ All workflows run (code changed = full validation needed)
 
@@ -977,10 +1104,11 @@ The system now passes the "minimal docs CI/CD" requirement:
 Install the git pre-commit hook to automatically check your code before every commit:
 
 ```bash
+
 # One-time setup
+
 make install-hooks
-```
-The pre-commit hook will automatically run before each commit:
+```python
 
 - ✅ **Black** formatting check
 - ✅ **isort** import sorting check
@@ -993,54 +1121,74 @@ The pre-commit hook will automatically run before each commit:
 #### Skip Hook (Not Recommended)
 
 ```bash
-# Skip pre-commit checks for a specific commit
-git commit --no-verify -m "your message"
-```
-#### Auto-fix Issues
 
+# Skip pre-commit checks for a specific commit
+
+git commit --no-verify -m "your message"
 ```bash
-# Auto-fix formatting issues
+
 make format
 
 # Then try committing again
+
 git commit -m "your message"
-```
-### Running CI Checks Manually
 
-The project provides a `Makefile` that mirrors the CI workflow:
+```text
 
-```bash
-# Run full CI suite (matches GitHub Actions)
-# - Cleans build artifacts and ML caches first
-# - Runs unit + integration tests
+# Run full CI suite (matches GitHub Actions PR validation)
+
+# - Runs unit + fast integration + fast e2e tests (excludes slow/ml_models)
+
 # - Full validation before commits/PRs
+
+# - Note: No cleanup step (faster), use ci-full for complete validation
+
 make ci
 
 # Fast CI checks (quick feedback during development)
+
 # - Skips cleanup step (faster)
-# - Runs unit tests only (skips integration tests)
+
+# - Runs unit + fast integration + fast e2e (excludes slow/ml_models, no coverage)
+
 # - Use for quick validation during development
+
 make ci-fast
 
+# Complete CI suite (all tests including slow/ml_models)
+
+# - Cleans cache first (clean-all)
+
+# - Runs all tests: unit + integration + e2e (all slow/fast variants)
+
+# - Use for complete validation before releases
+
+make ci-full
+
 # Individual checks (same as CI)
+
 make format-check  # Black & isort
 make lint          # flake8
 make lint-markdown # markdownlint
 make type          # mypy
-make security      # bandit & safety
-make test          # pytest with coverage (sequential, unit tests only)
-make test-sequential  # pytest sequentially (for debugging)
+make security      # bandit & pip-audit
+make test-unit     # pytest with coverage (parallel, unit tests only)
+make test-unit-sequential  # pytest sequentially (for debugging)
+make test-integration      # All integration tests (parallel, with re-runs)
+make test-e2e             # All E2E tests (parallel, with re-runs, network guard)
 make docs          # mkdocs build
 make build         # package build
-```
-**When to Use Each:**
 
-- **`make ci`**: Full validation before commits/PRs, matches GitHub Actions exactly
-- **`make ci-fast`**: Quick feedback during development, faster iteration
+```yaml
 
-### Local CI Validation Flow
+- **`make ci`**: Full validation before commits/PRs (unit + fast integration + fast e2e tests), matches GitHub Actions PR validation exactly
+- **`make ci-fast`**: Quick feedback during development (unit + fast integration + fast e2e, no coverage), faster iteration
+- **`make ci-full`**: Complete validation with all tests including slow/ml_models tests (unit + integration + e2e, all variants), use before releases
+
+## Local CI Validation Flow
 
 ```mermaid
+
 graph TD
     A[Local Development] --> B{git commit}
 
@@ -1069,10 +1217,8 @@ graph TD
     style E fill:#FFB6C6
     style M fill:#FFB6C6
     style G fill:#87CEEB
-```
----
 
-## CI/CD Best Practices Implemented
+```text
 
 ### ✅ Prevention
 
@@ -1134,41 +1280,44 @@ graph TD
 ### Debugging Failed Runs
 
 ```bash
+
 # Reproduce lint failures locally
+
 make format-check lint lint-markdown type security
 
 # Reproduce test failures locally
+
 make test
 
 # Reproduce E2E test failures locally
+
 make test-e2e  # All E2E tests
 make test-e2e-fast      # Fast E2E tests only (excludes slow/ml_models)
 make test-e2e-slow      # Slow E2E tests only (requires ML dependencies)
 
 # Reproduce docs failures locally
+
 make docs
 
 # Run everything (matches full CI)
-make ci
-```
-### Running E2E Tests Locally
 
-E2E tests require network guard to be active. Use the Makefile targets:
+make ci
 
 ```bash
+
 # Run all E2E tests (with network guard)
+
 make test-e2e
 
 # Run fast E2E tests only (excludes slow/ml_models, faster feedback)
+
 make test-e2e-fast
 
 # Run slow E2E tests only (includes slow/ml_models, requires ML dependencies)
-make test-e2e-slow
-```
-**Network Guard:**
 
-- All E2E tests run with `--disable-socket --allow-hosts=127.0.0.1,localhost`
-- Ensures no external network calls are made
+make test-e2e-slow
+
+```python
 - All RSS and audio must be served from local E2E HTTP server
 - Tests fail hard if a real URL is hit
 
@@ -1178,7 +1327,7 @@ make test-e2e-slow
 - `slow`: Slow tests (Whisper, ML models)
 - `ml_models`: Tests requiring ML dependencies
 
-See [Testing Guide](TESTING_GUIDE.md#e2e-test-implementation) for detailed E2E test documentation.
+See [Testing Guide](guides/TESTING_GUIDE.md#e2e-test-implementation) for detailed E2E test documentation.
 
 ---
 
@@ -1229,48 +1378,42 @@ After merging the path filtering optimization, validate it works correctly:
 ### Test 1: Documentation-Only Change
 
 ```bash
+
 # Edit a docs file
+
 echo "Test update" >> docs/CI_CD.md
 git add docs/CI_CD.md
 git commit -m "docs: test path filtering"
 git push
-```
-**Expected:** Only `docs.yml` workflow runs (~3-5 minutes)
-
-### Test 2: Python Code Change
 
 ```bash
+
 # Edit a Python file
+
 echo "# Test comment" >> downloader.py
 git add downloader.py
 git commit -m "feat: test python path filtering"
 git push
-```
-**Expected:** All 3 workflows run (`python-app.yml`, `docs.yml`, `codeql.yml`) (~15-20 minutes)
-
-### Test 3: Docker File Change
-
+```text
 ```bash
+
 # Edit Dockerfile
+
 echo "# Test comment" >> Dockerfile
 git add Dockerfile
 git commit -m "chore: test docker path filtering"
 git push
-```
-**Expected:** Only `python-app.yml` workflow runs (~15 minutes)
-
-### Test 4: README Change
-
+```text
 ```bash
+
 # Edit README
+
 echo "Test update" >> README.md
 git add README.md
 git commit -m "docs: test readme path filtering"
 git push
-```
-**Expected:** Only `docs.yml` workflow runs (~3-5 minutes)
-
----
+```text
+```text
 
 ## Related Documentation
 
@@ -1285,25 +1428,25 @@ git push
 ### Workflow Files
 
 ```text
+
 .github/workflows/
 ├── python-app.yml    # Main CI (lint, test, docs, build)
 ├── docs.yml          # Documentation deployment
 └── codeql.yml        # Security scanning
-```
-### Key Commands
 
 ```bash
-# Local CI validation
-make ci
 
 # Individual checks
+
 make format-check lint type security test docs build
 
 # Auto-fix formatting
-make format
-```
-### Workflow URLs
 
-- [Python Application Workflow](https://github.com/chipi/podcast_scraper/actions/workflows/python-app.yml)
+make format
+
+```yaml
+
 - [Documentation Deployment](https://github.com/chipi/podcast_scraper/actions/workflows/docs.yml)
 - [CodeQL Security Scanning](https://github.com/chipi/podcast_scraper/actions/workflows/codeql.yml)
+
+````

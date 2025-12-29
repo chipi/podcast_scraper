@@ -88,7 +88,7 @@ Requirements:
 
 Build on the provider abstraction from modularization refactoring:
 
-```text
+````text
 podcast_scraper/
 ├── speaker_detectors/
 │   ├── base.py              # SpeakerDetector protocol
@@ -106,62 +106,66 @@ podcast_scraper/
 │   ├── local_provider.py    # Local transformers provider (existing)
 │   └── openai_provider.py   # NEW: OpenAI GPT provider
 └── config.py                # Provider type fields + API key config
-```
-
-### 2. Configuration
-
-#### 2.1 Provider Selection Fields
+```text
 
 Add to `config.py` (already planned in refactoring):
 
 ```python
+
 # Speaker Detection Provider
+
 speaker_detector_type: Literal["ner", "openai"] = Field(
     default="ner",
     description="Speaker detection provider: 'ner' (local spaCy) or 'openai' (GPT API)"
 )
 
 # Transcription Provider
+
 transcription_provider: Literal["whisper", "openai"] = Field(
     default="whisper",
     description="Transcription provider: 'whisper' (local) or 'openai' (Whisper API)"
 )
 
 # Summarization Provider
+
 summary_provider: Literal["transformers", "openai"] = Field(
     default="transformers",
     description="Summarization provider: 'transformers' (HuggingFace) or 'openai' (GPT API)"
 )
 
 # Keep existing fields for backward compatibility
+
 ner_model: Optional[str] = Field(default=None, alias="ner_model")
 whisper_model: str = Field(default="base", alias="whisper_model")
 summary_model: Optional[str] = Field(default=None, alias="summary_model")
-```
-
-#### 2.2 API Key Management
-
-**Environment Variable Approach with `python-dotenv`:**
+```text
 
 We use `python-dotenv` to manage environment variables via `.env` files, providing a convenient way to configure API keys per environment (development, staging, production) without hardcoding them.
 
 **Implementation:**
 
 ```python
+
 # config.py (at module level, before Config class)
+
 from pathlib import Path
 from dotenv import load_dotenv
 
 # Load .env file from project root (if it exists)
+
 # This happens automatically when config module is imported
+
 _env_path = Path(__file__).parent.parent / ".env"
 if _env_path.exists():
     load_dotenv(_env_path, override=False)  # Don't override existing env vars
 else:
+
     # Also check current working directory (for flexibility)
+
     load_dotenv(override=False)
 
 # Config class
+
 openai_api_key: Optional[str] = Field(
     default=None,
     description="OpenAI API key (prefer OPENAI_API_KEY environment variable or .env file)"
@@ -178,7 +182,9 @@ def load_api_key_from_env(cls, v: Any) -> Optional[str]:
 @model_validator(mode='after')
 def validate_openai_config(self) -> 'Config':
     """Validate OpenAI provider configuration."""
+
     # Check if OpenAI provider is selected but API key is missing
+
     needs_key = (
         self.speaker_detector_provider == "openai" or
         self.transcription_provider == "openai" or
@@ -192,91 +198,95 @@ def validate_openai_config(self) -> 'Config':
             "or set openai_api_key in config file."
         )
     return self
-```
-
-**`.env` File Setup:**
+```text
 
 1. **Create `.env` file** in project root (never commit to git):
 
 ```bash
+
 # .env (add to .gitignore!)
+
 # OpenAI API Configuration
+
 OPENAI_API_KEY=sk-your-actual-api-key-here
 
 # Optional: OpenAI Organization ID (if you're in multiple orgs)
+
 OPENAI_ORGANIZATION=org-your-org-id
 
 # Optional: Custom API base URL (for proxies)
+
 # OPENAI_API_BASE=https://api.openai.com/v1
 
 # Other environment variables
+
 LOG_LEVEL=INFO
-```
+```text
 
 2. **Create `examples/.env.example`** template (commit this to git):
 
 ```bash
+
 # examples/.env.example
+
 # Copy this file to .env and fill in your actual values
+
 # DO NOT commit .env to git!
 
 # OpenAI API Configuration
+
 OPENAI_API_KEY=sk-your-api-key-here
+
 # OPENAI_ORGANIZATION=org-your-org-id
+
 # OPENAI_API_BASE=https://api.openai.com/v1
 
 # Logging
+
 LOG_LEVEL=INFO
-```
+```text
 
 3. **Add to `.gitignore`**:
 
 ```gitignore
+
 # Environment variables
+
 .env
 .env.local
 .env.*.local
-```
-
-**Application Startup:**
-
-The `.env` file is automatically loaded when `config.py` is imported. For CLI and service entry points:
-
+```text
 ```python
+
 # cli.py or service.py
+
 from podcast_scraper import config  # This loads .env automatically
+
 # ... rest of code
-```
 
-**Environment-Specific `.env` Files:**
-
-You can use different `.env` files for different environments:
-
+```text
 ```bash
+
 # Development
+
 .env.development
 
 # Staging
+
 .env.staging
 
 # Production
+
 .env.production
-```
-
-Load specific file:
-
 ```python
+
 from dotenv import load_dotenv
 from pathlib import Path
 
 env_file = Path(".env.production")  # or from ENV environment variable
 load_dotenv(env_file, override=False)
-```
 
-**Security Best Practices:**
-
-- ✅ **Never commit `.env` to git** - Add to `.gitignore`
-- ✅ **Use `examples/.env.example`** - Template file with placeholder values (safe to commit)
+```text
 - ✅ **Load at startup** - `.env` loaded automatically when config module imports
 - ✅ **Don't override existing vars** - `override=False` respects system environment variables
 - ✅ **Never log API keys** - Sanitize logs, never print full keys
@@ -289,31 +299,32 @@ load_dotenv(env_file, override=False)
 Add to `pyproject.toml` dependencies:
 
 ```toml
+
 "python-dotenv>=1.0.0,<2.0.0",  # For .env file support
-```
 
-**Development Setup Documentation:**
-
-Update `docs/DEVELOPMENT_GUIDE.md` or create `docs/SETUP.md` with the following content:
-
-**Environment Setup:**
-
+```text
 1. Copy `examples/.env.example` to `.env`:
 
    ```bash
+
    cp examples/.env.example .env
-   ```
 
-2. Edit `.env` and add your OpenAI API key:
+`   ```
+
+1. Edit `.env` and add your OpenAI API key:
 
    ```bash
+
    OPENAI_API_KEY=sk-your-actual-key-here
+
    ```
 
-3. Verify setup:
+2. Verify setup:
 
    ```bash
+
    python -c "from podcast_scraper import config; print('Config loaded successfully')"
+
    ```
 
 **Note:** The `.env` file is automatically loaded when the `podcast_scraper` package is imported.
@@ -333,7 +344,8 @@ API key resolution order (highest to lowest priority):
 
 **File**: `podcast_scraper/speaker_detectors/openai_detector.py`
 
-```python
+````python
+
 from typing import List, Set, Optional, Dict, Any, Tuple
 from openai import OpenAI
 from .. import config, models
@@ -415,8 +427,11 @@ class OpenAISpeakerDetector:
         known_hosts: Set[str],
     ) -> Optional[Dict[str, Any]]:
         """Analyze episode patterns using OpenAI API (optional, can use local logic)."""
+
         # Can use local pattern analysis or OpenAI API
+
         # For now, return None to use local logic
+
         return None
 
     def _build_host_detection_prompt(
@@ -442,14 +457,12 @@ class OpenAISpeakerDetector:
 
     def _parse_hosts_from_response(self, response_text: str) -> Set[str]:
         """Parse host names from API response."""
+
         # Implementation details...
+
         pass
-```
 
-**Key Design Decisions:**
-
-- Use GPT-4o-mini or GPT-3.5-turbo for cost efficiency (configurable)
-- **Prompt Management**: Use `prompt_store` (RFC-017) for versioned, parameterized prompts
+```python
 - Structured prompts for consistent results
 - Parse JSON or structured text from API responses
 - Handle API errors gracefully with retries
@@ -460,9 +473,11 @@ class OpenAISpeakerDetector:
 All prompts are loaded via `prompt_store` (see RFC-017) for versioning and parameterization:
 
 ```python
+
 from ..prompt_store import render_prompt
 
 # In detect_speakers():
+
 user_prompt = render_prompt(
     self.cfg.ner_user_prompt or "ner/guest_host_v1",
     episode_title=episode_title,
@@ -475,11 +490,6 @@ system_prompt = render_prompt(
     self.cfg.ner_system_prompt or "ner/system_ner_v1",
     **self.cfg.ner_prompt_params,
 ) if self.cfg.ner_system_prompt else None
-```
-
-#### 3.2 Transcription Provider
-
-**File**: `podcast_scraper/transcription/openai_provider.py`
 
 ```python
 from typing import Dict, Optional, Tuple, Any
@@ -524,6 +534,7 @@ class OpenAITranscriptionProvider:
             elapsed = time.time() - start_time
 
             # Convert to same format as local Whisper provider
+
             result = {
                 'text': transcript.text,
                 'segments': [
@@ -547,11 +558,9 @@ class OpenAITranscriptionProvider:
     def cleanup(self, resource: Any) -> None:
         """Cleanup provider resources (no-op for API provider)."""
         pass
-```
 
-**Key Design Decisions:**
+```text
 
-- Use Whisper API (`whisper-1` model)
 - Support language hints (optional)
 - Return same format as local provider (text + segments)
 - Handle file uploads correctly
@@ -564,6 +573,7 @@ class OpenAITranscriptionProvider:
 **Key Advantage**: OpenAI GPT models (GPT-4, GPT-4o-mini) have much larger context windows (128k+ tokens) compared to local transformer models (1k-16k tokens). This means we can process full transcripts directly without chunking, simplifying the implementation significantly.
 
 ```python
+
 from typing import List, Optional, Dict, Any
 from openai import OpenAI
 from .. import config
@@ -578,7 +588,9 @@ class OpenAISummarizationProvider:
         self.client = OpenAI(api_key=cfg.openai_api_key)
         self.cfg = cfg
         self.model = getattr(cfg, 'openai_summary_model', 'gpt-4o-mini')  # Cost-effective default
+
         # GPT-4o-mini supports 128k context window - can handle full transcripts
+
         self.max_context_tokens = 128000  # Conservative estimate
 
     def initialize(self, cfg: config.Config) -> Optional[Any]:
@@ -641,18 +653,26 @@ class OpenAISummarizationProvider:
         one context window, we combine them and summarize once. Otherwise, we
         summarize each chunk separately.
         """
+
         # Check if we can combine chunks into single API call
+
         combined_text = "\n\n".join(chunks)
         estimated_tokens = len(combined_text.split()) * 1.3  # Rough token estimate
 
         if estimated_tokens < self.max_context_tokens * 0.8:  # 80% safety margin
+
             # Can fit all chunks in one call - more efficient
+
             logger.debug("Combining chunks for single OpenAI API call (fits in context window)")
             result = self.summarize(combined_text, cfg, resource)
+
             # Return as single summary (workflow will handle this correctly)
+
             return [result['summary']]
         else:
+
             # Too long, summarize chunks separately (rare case)
+
             logger.debug("Chunks too long, summarizing separately")
             summaries = []
             for chunk in chunks:
@@ -673,10 +693,13 @@ class OpenAISummarizationProvider:
         directly or refine it. For multiple summaries, we combine them.
         """
         if len(summaries) == 1:
+
             # Already combined in summarize_chunks() - can return directly or refine
+
             return summaries[0]
 
         # Multiple summaries to combine
+
         combined_text = "\n\n".join(summaries)
         prompt = self._build_combination_prompt(combined_text)
 
@@ -700,11 +723,9 @@ class OpenAISummarizationProvider:
     def cleanup(self, resource: Any) -> None:
         """Cleanup provider resources (no-op for API provider)."""
         pass
-```
 
-**Key Design Decisions:**
+```yaml
 
-- **Leverage Large Context Window**: GPT-4o-mini supports 128k tokens - can handle full transcripts without chunking
 - **Simplified Processing**: Most transcripts fit in one API call, eliminating MAP/REDUCE complexity
 - **Maintain Interface Compatibility**: Still implement MAP/REDUCE methods for protocol compliance, but optimize internally
 - **Smart Chunk Handling**: If chunks are provided, check if they fit in context window and combine them
@@ -717,9 +738,11 @@ class OpenAISummarizationProvider:
 All prompts are loaded via `prompt_store` (see RFC-017) for versioning and parameterization:
 
 ```python
+
 from ..prompt_store import render_prompt
 
 # In summarize():
+
 system_prompt = render_prompt(
     self.cfg.summary_system_prompt or "summarization/system_v1",
     **self.cfg.summary_prompt_params,
@@ -733,14 +756,11 @@ user_prompt = render_prompt(
     paragraphs_max=(max_length or cfg.summary_max_length) // 100,
     **self.cfg.summary_prompt_params,
 )
-```
-
-### 4. Factory Updates
-
-Update factories to support OpenAI providers:
 
 ```python
+
 # podcast_scraper/speaker_detectors/factory.py
+
 @staticmethod
 def create(cfg: config.Config) -> Optional[SpeakerDetector]:
     if not cfg.auto_speakers:
@@ -756,27 +776,25 @@ def create(cfg: config.Config) -> Optional[SpeakerDetector]:
     return None
 
 # Similar updates for transcription and summarization factories
-```
 
-### 4.1 Prompt Management Integration
-
-**All OpenAI providers use `prompt_store` (RFC-017) for prompt management:**
-
-- **Versioned Prompts**: Prompts stored as `.j2` files in `prompts/` directory
-- **Parameterization**: Jinja2 templates enable dynamic prompt content
+```yaml
 - **Provider-Specific**: Each provider loads prompts internally (not part of protocol)
 - **Config-Driven**: Prompt selection via config fields, not code
 
 **Example Integration:**
 
 ```python
+
 # In OpenAISummarizationProvider.__init__():
+
 from ..prompt_store import render_prompt, get_prompt_metadata
 
 # Prompts are loaded on-demand when needed, cached automatically
+
 # No initialization required - prompt_store handles caching
 
 # In summarize() method:
+
 system_prompt = None
 if cfg.summary_system_prompt:
     system_prompt = render_prompt(
@@ -792,12 +810,8 @@ user_prompt = render_prompt(
     paragraphs_max=max_length // 100,
     **cfg.summary_prompt_params,
 )
-```
 
-**Benefits:**
-
-- ✅ **No Code Changes**: Edit prompt files to change prompts
-- ✅ **Versioning**: Explicit versioning via filenames (v1, v2, etc.)
+```yaml
 - ✅ **Reproducibility**: SHA256 hashes track exact prompt versions
 - ✅ **Provider Autonomy**: Each provider handles prompts internally
 - ✅ **Protocol Compliance**: Prompts don't affect protocol interfaces
@@ -836,6 +850,7 @@ See RFC-017 for complete prompt management design.
 **Rate Limiting Implementation:**
 
 ```python
+
 from threading import Semaphore
 import time
 
@@ -851,11 +866,15 @@ class RateLimiter:
         """Acquire permission to make API call."""
         with self.lock:
             now = time.time()
+
             # Remove calls older than 1 minute
+
             self.call_times = [t for t in self.call_times if now - t < 60]
 
             if len(self.call_times) >= self.max_calls_per_minute:
+
                 # Wait until we can make a call
+
                 sleep_time = 60 - (now - self.call_times[0])
                 if sleep_time > 0:
                     time.sleep(sleep_time)
@@ -868,12 +887,11 @@ class RateLimiter:
     def release(self):
         """Release after API call completes."""
         self.semaphore.release()
-```
 
-**Usage in Providers:**
+```text
 
-```python
 # Global rate limiter (shared across provider instances)
+
 _openai_rate_limiter = RateLimiter(max_calls_per_minute=60)
 
 class OpenAISummarizationProvider:
@@ -893,12 +911,7 @@ class OpenAISummarizationProvider:
                 finally:
                     _openai_rate_limiter.release()
         return summaries
-```
-
-### 6. Error Handling & Retries
-
-**Retry Strategy:**
-
+```text
 ```python
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from openai import RateLimitError, APIError
@@ -910,11 +923,11 @@ from openai import RateLimitError, APIError
 )
 def _call_openai_api(self, ...):
     """Make OpenAI API call with retry logic."""
-    # API call implementation
-    pass
-```
 
-**Error Messages:**
+    # API call implementation
+
+    pass
+```text
 
 - Clear error messages indicating which provider failed
 - Actionable error messages (e.g., "Check OPENAI_API_KEY environment variable")
@@ -926,29 +939,24 @@ def _call_openai_api(self, ...):
 
 ```toml
 [project.optional-dependencies]
+
 # ... existing dependencies ...
+
 openai = [
     "openai>=1.0.0,<2.0.0",
     "tenacity>=8.0.0,<9.0.0",  # For retry logic
 ]
-```
+````
 
-**Installation:**
-
-```bash
 # For OpenAI support
+
 pip install -e ".[openai]"
 
 # Or with all ML dependencies
+
 pip install -e ".[ml,openai]"
-```
 
-### 8. Testing Strategy
-
-#### 8.1 Unit Tests
-
-- Mock OpenAI API responses
-- Test provider interfaces match protocols
+````text
 - Test error handling and retries
 - Test rate limiting
 
@@ -1024,7 +1032,9 @@ The provider system is designed to be extensible by external contributors. The f
 **Location**: `podcast_scraper/speaker_detectors/base.py`, `podcast_scraper/transcription/base.py`, `podcast_scraper/summarization/base.py`
 
 ```python
+
 # Public API - Protocol definitions
+
 from typing import Protocol
 
 class SpeakerDetector(Protocol):
@@ -1046,38 +1056,41 @@ class SummarizationProvider(Protocol):
     def summarize_chunks(...) -> List[str]: ...
     def combine_summaries(...) -> str: ...
     def cleanup(...) -> None: ...
-```
-
-**Usage by Contributors:**
 
 ```python
+
 # External contributor can implement protocol
+
 from podcast_scraper.speaker_detectors.base import SpeakerDetector
 
 class CustomSpeakerDetector:
     """Custom implementation by contributor."""
     def detect_hosts(self, ...) -> Set[str]:
+
         # Custom implementation
+
         pass
 
     def detect_speakers(self, ...) -> Tuple[List[str], Set[str], bool]:
+
         # Custom implementation
+
         pass
 
     def analyze_patterns(self, ...) -> Optional[Dict[str, Any]]:
+
         # Custom implementation
+
         pass
 
 # Type checker will verify protocol compliance
+
 detector: SpeakerDetector = CustomSpeakerDetector()  # ✅ Type-safe
-```
-
-#### 2. Factory Registration (Public API)
-
-**Location**: `podcast_scraper/speaker_detectors/factory.py`, etc.
-
+```text
 ```python
+
 # Public API - Factory extension points
+
 class SpeakerDetectorFactory:
     """Factory for creating speaker detectors."""
 
@@ -1097,34 +1110,31 @@ class SpeakerDetectorFactory:
         elif detector_type == 'openai':
             from .openai_detector import OpenAISpeakerDetector
             return OpenAISpeakerDetector(cfg)
+
         # Contributors can add custom providers here
+
         elif detector_type == 'custom':
             from external_package import CustomSpeakerDetector
             return CustomSpeakerDetector(cfg)
         return None
-```
-
-#### 3. Configuration Extensions (Public API)
-
-**Location**: `podcast_scraper/config.py`
-
+```text
 ```python
+
 # Public API - Config fields for provider selection
+
 class Config(BaseModel):
     """Configuration model - public API for provider selection."""
 
     # Public fields for provider selection
+
     speaker_detector_provider: Literal["ner", "openai", "custom"] = Field(default="ner")
     transcription_provider: Literal["whisper", "openai", "custom"] = Field(default="whisper")
     summary_provider: Literal["transformers", "openai", "custom"] = Field(default="transformers")
 
     # Contributors can extend with custom config fields
+
     custom_provider_config: Optional[Dict[str, Any]] = Field(default=None)
-```
-
-### Internal Implementations
-
-What we provide are **internal implementations** (reference implementations):
+```text
 
 - Located in `podcast_scraper/speaker_detectors/ner_detector.py` (internal)
 - Located in `podcast_scraper/transcription/whisper_provider.py` (internal)
@@ -1146,7 +1156,9 @@ We expect and encourage contributors to create their own provider implementation
 **Example: Custom Transcription Provider**
 
 ```python
+
 # external_package/deepgram_provider.py
+
 from typing import Dict, Optional, Tuple, Any
 from podcast_scraper.transcription.base import TranscriptionProvider
 from podcast_scraper import config
@@ -1182,6 +1194,7 @@ class DeepgramTranscriptionProvider:
         elapsed = time.time() - start_time
 
         # Return same format as protocol requires
+
         result = {
             'text': response['results']['channels'][0]['alternatives'][0]['transcript'],
             'segments': [...],  # Convert Deepgram format to standard format
@@ -1192,32 +1205,28 @@ class DeepgramTranscriptionProvider:
     def cleanup(self, resource: Any) -> None:
         """Cleanup resources."""
         pass
-```
-
-**Registration:**
-
 ```python
+
 # In factory or plugin system
+
 from external_package.deepgram_provider import DeepgramTranscriptionProvider
 
 # Add to factory
+
 if cfg.transcription_provider == 'deepgram':
     return DeepgramTranscriptionProvider(cfg)
-```
 
-### Testing Strategy
-
-#### 1. Generic Pipeline Testing
-
-**Test Protocol Compliance:**
-
+```text
 ```python
+
 # tests/test_provider_protocols.py
+
 def test_speaker_detector_protocol():
     """Test that any SpeakerDetector implementation follows protocol."""
     from podcast_scraper.speaker_detectors.base import SpeakerDetector
 
     # Mock implementation
+
     class MockDetector:
         def detect_hosts(self, ...) -> Set[str]:
             return {"Host"}
@@ -1227,18 +1236,19 @@ def test_speaker_detector_protocol():
             return None
 
     # Type checker verifies protocol compliance
+
     detector: SpeakerDetector = MockDetector()  # Must pass type check
 
     # Runtime verification
+
     assert hasattr(detector, 'detect_hosts')
     assert hasattr(detector, 'detect_speakers')
     assert hasattr(detector, 'analyze_patterns')
-```
-
-**Test Factory Selection:**
 
 ```python
+
 # tests/test_factories.py
+
 def test_factory_provider_selection():
     """Test factory correctly selects providers."""
     cfg = Config(speaker_detector_provider="ner")
@@ -1248,25 +1258,22 @@ def test_factory_provider_selection():
     cfg = Config(speaker_detector_provider="openai", openai_api_key="test")
     detector = SpeakerDetectorFactory.create(cfg)
     assert isinstance(detector, OpenAISpeakerDetector)
-```
-
-**Test Workflow Integration:**
-
 ```python
+
 # tests/test_workflow_with_providers.py
+
 def test_workflow_with_mock_provider():
     """Test workflow works with any provider implementation."""
     mock_detector = MockSpeakerDetector()
+
     # Test that workflow uses detector correctly
+
     # Verify no provider-specific code in workflow
-```
-
-#### 2. Implementation Testing
-
-**Each Provider Must Have:**
 
 ```python
+
 # tests/speaker_detectors/test_ner_detector.py
+
 class TestNERSpeakerDetector:
     """Tests for NER speaker detector implementation."""
 
@@ -1290,17 +1297,19 @@ class TestNERSpeakerDetector:
     def test_protocol_compliance(self):
         """Verify protocol interface compliance."""
         detector = NERSpeakerDetector(cfg)
+
         # Type check
+
         detector_typed: SpeakerDetector = detector
+
         # Runtime check
+
         assert hasattr(detector, 'detect_hosts')
         assert hasattr(detector, 'detect_speakers')
         assert hasattr(detector, 'analyze_patterns')
-```
 
-**Testing Requirements:**
+```text
 
-- ✅ All providers must pass protocol interface tests
 - ✅ All providers must pass generic pipeline tests
 - ✅ Internal implementations must have 80%+ test coverage
 - ✅ External implementations should follow same testing standards
@@ -1346,7 +1355,9 @@ class TestNERSpeakerDetector:
 #### Example: Minimal Provider
 
 ```python
+
 # Minimal speaker detector implementation
+
 from typing import Set, List, Tuple, Optional, Dict, Any
 from podcast_scraper.speaker_detectors.base import SpeakerDetector
 from podcast_scraper import config
@@ -1385,38 +1396,37 @@ class MinimalSpeakerDetector:
     ) -> Optional[Dict[str, Any]]:
         """Analyze patterns - optional."""
         return None
-```
-
-#### Example: Full-Featured Provider
 
 ```python
+
 # Full-featured provider with error handling, logging, etc.
+
 class FullFeaturedSpeakerDetector:
     """Full-featured example with error handling."""
 
     def __init__(self, cfg: config.Config):
         self.cfg = cfg
         self.logger = logging.getLogger(__name__)
+
         # Initialize resources
 
     def detect_hosts(self, ...) -> Set[str]:
         """Detect hosts with error handling."""
         try:
+
             # Implementation
+
             pass
         except Exception as e:
             self.logger.error(f"Error detecting hosts: {e}")
             raise
 
     # ... rest of implementation
-```
 
-#### Testing Custom Providers
+```text
 
-**Protocol Compliance Testing:**
-
-```python
 # tests/test_custom_provider.py
+
 def test_custom_provider_protocol():
     """Test custom provider follows protocol."""
     from podcast_scraper.speaker_detectors.base import SpeakerDetector
@@ -1424,21 +1434,21 @@ def test_custom_provider_protocol():
     custom_detector = CustomSpeakerDetector(cfg)
 
     # Type check
+
     detector: SpeakerDetector = custom_detector
 
     # Runtime checks
+
     assert hasattr(custom_detector, 'detect_hosts')
     assert hasattr(custom_detector, 'detect_speakers')
     assert hasattr(custom_detector, 'analyze_patterns')
 
     # Functional tests
+
     hosts = custom_detector.detect_hosts(...)
     assert isinstance(hosts, set)
-```
 
-#### Contributing Providers
-
-**Requirements:**
+```text
 
 1. **Code Organization**:
    - Follow existing provider structure
@@ -1519,32 +1529,33 @@ The following documentation should be created during Stages 1-5 to support Stage
 **Example:**
 
 ```python
+
 def test_summarization_provider_protocol_compliance():
     """Verify provider implements SummarizationProvider protocol."""
     provider = LocalSummarizationProvider(cfg)
 
     # Protocol interface check
+
     assert hasattr(provider, 'initialize')
     assert hasattr(provider, 'summarize')
     assert hasattr(provider, 'cleanup')
 
     # Signature validation
+
     import inspect
     sig = inspect.signature(provider.summarize)
     assert 'text' in sig.parameters
     assert 'cfg' in sig.parameters
 
     # Return type validation
+
     result = provider.summarize("test text", cfg)
     assert isinstance(result, dict)
     assert 'summary' in result
-```
 
-**Timeline:** Create during Stage 4 (Summarization abstraction)
+```text
 
----
-
-### 2. Custom Provider Guide (`docs/CUSTOM_PROVIDER_GUIDE.md`)
+### 2. Custom Provider Guide (`docs/guides/CUSTOM_PROVIDER_GUIDE.md`)
 
 **Purpose:** Enable external contributors to create custom providers
 
@@ -1564,6 +1575,7 @@ def test_summarization_provider_protocol_compliance():
 **Example Structure:**
 
 ```markdown
+
 # Custom Provider Guide
 
 ## Quick Start
@@ -1588,7 +1600,9 @@ class MyCustomSummarizationProvider:
 
     def summarize(self, text: str, cfg: config.Config) -> Dict[str, Any]:
         """Summarize text using custom logic."""
+
         # Your implementation here
+
         return {"summary": "Custom summary", "method": "custom"}
 
     def cleanup(self) -> None:
@@ -1599,20 +1613,21 @@ class MyCustomSummarizationProvider:
 ## Registering Your Provider
 
 \`\`\`python
+
 # In podcast_scraper/summarization/factory.py
+
 def create(cfg: config.Config):
     if cfg.summary_provider == "my-custom":
         from .my_custom_provider import MyCustomSummarizationProvider
         return MyCustomSummarizationProvider(cfg)
+
     # ... existing logic
+
 \`\`\`
-```
 
-**Timeline:** Create during Stage 5 (Integration testing)
+```text
 
----
-
-### 3. Environment Variable Documentation (`docs/api/configuration.md`)
+### 3. Environment Variable Documentation (`docs/api/CONFIGURATION.md`)
 
 **Purpose:** Comprehensive reference for all environment variables
 
@@ -1628,6 +1643,7 @@ def create(cfg: config.Config):
 **Example Structure:**
 
 ```markdown
+
 # Environment Variables
 
 ## OpenAI Configuration
@@ -1640,16 +1656,21 @@ def create(cfg: config.Config):
 
 **Usage:**
 \`\`\`bash
+
 # macOS/Linux
+
 export OPENAI_API_KEY="sk-..."
 
 # Windows (PowerShell)
+
 $env:OPENAI_API_KEY="sk-..."
 
 # Docker
+
 docker run -e OPENAI_API_KEY="sk-..." ...
 
 # Docker Compose
+
 environment:
 
   - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -1706,14 +1727,18 @@ export LOG_LEVEL="DEBUG"
 ## Complete Example (.env file)
 
 \`\`\`bash
+
 # .env - Add to .gitignore!
+
 # This file is automatically loaded by python-dotenv when config.py is imported
 
 # OpenAI API Configuration
+
 OPENAI_API_KEY=sk-your-actual-api-key-here
 OPENAI_ORGANIZATION=org-your-org-id-here  # Optional
 
 # Logging
+
 LOG_LEVEL=INFO
 \`\`\`
 
@@ -1731,29 +1756,23 @@ LOG_LEVEL=INFO
 ### Current State (Inconsistent)
 
 ```python
+
 # Naming in planning documents before standardization:
+
 speaker_detector_type: Literal["ner", "openai"]          # ✅ Technology-based
 transcription_provider: Literal["whisper", "openai"]     # ✅ Technology-based
 summary_provider: Literal["local", "openai"]             # ❌ Location-based (ambiguous)
-```
 
-**Problem:** "local" is ambiguous - doesn't specify which technology (transformers? BART? LED?)
-
-### Decision: Technology-First Naming
-
-**Principle:** Name providers by the **core technology** they use, not by location or company.
-
+```text
 **Standardized Naming:**
 
 ```python
+
 speaker_detector_type: Literal["ner", "openai"] = "ner"
 transcription_provider: Literal["whisper", "openai"] = "whisper"
 summary_provider: Literal["transformers", "openai"] = "transformers"  # CHANGED
-```
 
-**Rationale:**
-
-1. **Clarity:** "transformers" clearly indicates Hugging Face transformers library
+```text
 2. **Consistency:** All values now refer to technology (ner, whisper, transformers, openai)
 3. **Extensibility:** Easy to add more technologies (e.g., "anthropic", "aws-comprehend")
 4. **User Understanding:** Users immediately know what technology they're selecting
@@ -1761,19 +1780,16 @@ summary_provider: Literal["transformers", "openai"] = "transformers"  # CHANGED
 **Future Extensibility:**
 
 ```python
+
 # Examples of future additions:
+
 speaker_detector_type: Literal["ner", "openai", "aws-comprehend", "google-nlp"]
 transcription_provider: Literal["whisper", "openai", "deepgram", "assemblyai"]
 summary_provider: Literal["transformers", "openai", "anthropic", "cohere"]
-```
 
-**Pattern:** Use technology/service name directly, hyphenate company-technology combinations if needed.
-
-### Backward Compatibility
-
-**Recommended Approach:** Accept "local" as alias for "transformers" with deprecation warning:
-
+```text
 ```python
+
 @field_validator('summary_provider', mode='before')
 def migrate_local_to_transformers(cls, v):
     if v == "local":
@@ -1784,11 +1800,8 @@ def migrate_local_to_transformers(cls, v):
         )
         return "transformers"
     return v
-```
 
----
-
-## Appendix B: Rate Limiting Strategy
+```text
 
 ### OpenAI Rate Limits (as of December 2025)
 
@@ -1812,7 +1825,9 @@ OpenAI uses a tiered rate limiting system based on usage:
 Add to `config.py` when implementing OpenAI providers:
 
 ```python
+
 # OpenAI Rate Limiting
+
 openai_max_concurrent_requests: int = Field(
     default=5,
     ge=1,
@@ -1861,44 +1876,25 @@ openai_timeout: int = Field(
     le=600,
     description="Request timeout in seconds for OpenAI API calls"
 )
-```
 
-### Recommended Defaults by Tier
-
-**Conservative (Tier 1 - Default):**
-
-```python
+```text
 openai_max_concurrent_requests: 5
 openai_requests_per_minute: 50
 openai_tokens_per_minute: 100000
-```
 
-**Use Case:** Development, testing, small batches
+```text
 
-**Balanced (Tier 2+):**
-
-```python
 openai_max_concurrent_requests: 10
 openai_requests_per_minute: 500
 openai_tokens_per_minute: 500000
-```
 
-**Use Case:** Production, moderate volume
-
-**Aggressive (Tier 4+):**
-
-```python
+```text
 openai_max_concurrent_requests: 20
 openai_requests_per_minute: 1000
 openai_tokens_per_minute: 1000000
-```
 
-**Use Case:** High-volume production, large batches
+```text
 
-### Implementation Strategy
-
-1. **Rate Limiter Component** (`podcast_scraper/rate_limiter.py`):
-   - Token bucket algorithm for requests and tokens
    - Semaphore for concurrency control
    - Sliding window for rate tracking
 
@@ -1916,17 +1912,17 @@ openai_tokens_per_minute: 1000000
 **Rate Limit Error (after retries):**
 
 ```text
+
 OpenAI rate limit exceeded. Suggestions:
 
 1. Reduce parallelism: --openai-max-concurrent-requests 3
 2. Reduce rate: --openai-requests-per-minute 30
 3. Wait and retry: The limit resets every minute
 4. Check tier limits: https://platform.openai.com/account/limits
-```
-
-**Authentication Error:**
 
 ```text
+```text
+
 OpenAI API authentication failed.
 Please check:
 
@@ -1935,16 +1931,14 @@ Please check:
 3. API key has not been revoked
 Get your API key: https://platform.openai.com/api-keys
 
-```
+```text
 
-### Dependencies
-
-```toml
 # Add to pyproject.toml dependencies
-"tenacity>=8.2.0,<9.0.0",  # For retry logic with exponential backoff
-```
 
-### Testing
+"tenacity>=8.2.0,<9.0.0",  # For retry logic with exponential backoff
+
+```text
+```text
 
 - Mock rate limiter for unit tests (no delays)
 - Unit tests for token bucket logic
@@ -1956,3 +1950,4 @@ Get your API key: https://platform.openai.com/api-keys
 - [OpenAI Rate Limits Documentation](https://platform.openai.com/docs/guides/rate-limits)
 - [OpenAI API Reference](https://platform.openai.com/docs/api-reference)
 - [Tenacity Library](https://tenacity.readthedocs.io/)
+````

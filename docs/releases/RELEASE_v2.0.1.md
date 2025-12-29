@@ -12,7 +12,7 @@ v2.0.1 is a patch release that adds comprehensive legal notices and usage clarif
 ### Legal Documentation
 
 - **LICENSE file**: Added note clarifying that MIT license applies only to source code, not downloaded podcast content
-- **docs/legal.md**: Created comprehensive legal notice document covering:
+- **docs/LEGAL.md**: Created comprehensive legal notice document covering:
   - Overview and intended use (personal, non-commercial)
   - What users may do (personal use)
   - What users may not do (redistribution, commercial use)
@@ -26,11 +26,11 @@ v2.0.1 is a patch release that adds comprehensive legal notices and usage clarif
 - Added early warning notice immediately after project description
 - Added usage reminder in Usage section
 - Added "Project Intent & Fair Use Notice" section with detailed guidelines
-- Cross-referenced legal.md throughout
+- Cross-referenced LEGAL.md throughout
 
 ### Package Updates
 
-- ****init**.py**: Added header comment with legal notice
+- \***\*init**.py\*\*: Added header comment with legal notice
 - **mkdocs.yml**: Added Legal Notice to documentation navigation (as last item)
 
 ## Key Points
@@ -47,7 +47,7 @@ v2.0.1 is a patch release that adds comprehensive legal notices and usage clarif
 
 ## Documentation
 
-- Legal Notice: [docs/legal.md](../legal.md)
+- Legal Notice: [docs/LEGAL.md](../LEGAL.md)
 - Project Intent: See "Project Intent & Fair Use Notice" section in README.md
 
 ## Migration Notes

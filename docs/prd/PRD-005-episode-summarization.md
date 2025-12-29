@@ -42,14 +42,14 @@ This PRD addresses issue #17 by providing automated summarization capabilities t
 
 ## User Stories
 
-- *As Researcher Riley, I can enable `--generate-summaries` and receive concise summaries for every episode to quickly identify relevant content.*
-- *As Busy Listener Ben, I can scan key takeaways to decide which episodes to listen to without reading full transcripts.*
-- *As Archivist Ava, I can search episode metadata by summary content to find episodes covering specific topics.*
-- *As Developer Devin, I can consume structured summary data from metadata documents to build recommendation systems.*
-- *As Privacy-Conscious Pat, I can use local transformer models to generate summaries without sending transcripts to external APIs.*
-- *As any operator, I can choose between local models (privacy, no cost) and API-based models (higher quality) based on my needs.*
-- *As any operator, I can configure summary length and number of takeaways to match my use case.*
-- *As any operator, summaries are only generated when transcripts are available (respects existing transcript pipeline).*
+- _As Researcher Riley, I can enable `--generate-summaries` and receive concise summaries for every episode to quickly identify relevant content._
+- _As Busy Listener Ben, I can scan key takeaways to decide which episodes to listen to without reading full transcripts._
+- _As Archivist Ava, I can search episode metadata by summary content to find episodes covering specific topics._
+- _As Developer Devin, I can consume structured summary data from metadata documents to build recommendation systems._
+- _As Privacy-Conscious Pat, I can use local transformer models to generate summaries without sending transcripts to external APIs._
+- _As any operator, I can choose between local models (privacy, no cost) and API-based models (higher quality) based on my needs._
+- _As any operator, I can configure summary length and number of takeaways to match my use case._
+- _As any operator, summaries are only generated when transcripts are available (respects existing transcript pipeline)._
 
 ## Functional Requirements
 
@@ -221,7 +221,7 @@ This PRD addresses issue #17 by providing automated summarization capabilities t
 
 Summaries are stored in episode metadata documents following PRD-004/RFC-011 structure:
 
-```json
+````json
 {
   "episode": {
     "title": "Episode Title",
@@ -239,11 +239,7 @@ Summaries are stored in episode metadata documents following PRD-004/RFC-011 str
     }
   }
 }
-```
-
-## Example Output
-
-**Input**: Episode transcript (5000 words)
+```text
 
 **Output** (stored in metadata document):
 
@@ -265,9 +261,7 @@ summary:
   model_used: "facebook/bart-large-cnn"
   provider: "local"
   word_count: 150
-```
-
-## Open Questions
+```text
 
 - Should summaries be regenerated if transcript is updated? (Decision: Yes, regenerate on each run, use `--skip-existing` to prevent overwrites)
 - Do we need summary versioning if prompts change? (Decision: No, summaries are regenerated on each run)
@@ -294,3 +288,4 @@ summary:
 - [ ] Documentation updated (README, config examples)
 - [ ] Model selection and performance documented
 - [ ] Integration with metadata pipeline verified
+````

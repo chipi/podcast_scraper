@@ -10,18 +10,12 @@ Evaluates transcript cleaning quality by comparing raw vs cleaned transcripts.
 
 Evaluate all episodes with auto-generated filename:
 
-```bash
+````bash
 python scripts/eval_cleaning.py
+
 # Outputs to: data/results/cleaning_eval_YYYYMMDD_HHMMSS.json
-```
 
-```bash
-python scripts/eval_cleaning.py --episode ep01
-```
-
-```bash
-python scripts/eval_cleaning.py --output data/results/my_cleaning_eval.json
-```
+```yaml
 
 - `--eval-dir`: Directory containing evaluation episodes (default: `data/eval`)
 - `--episode`: Evaluate single episode only (e.g., `ep01`)
@@ -76,41 +70,21 @@ Evaluates summarization quality using ROUGE metrics and reference-free checks.
 Requires the `rouge-score` library. Install with:
 
 ```bash
+
 # Option 1: Install as part of dev dependencies (recommended)
+
 pip install -e .[dev]
 
 # Option 2: Install rouge-score directly
+
 pip install rouge-score
-```
+```text
 
-Use defaults (BART-large for MAP, LED/long-fast for REDUCE - same as app) with auto-generated filename:
-
-```bash
 python scripts/eval_summaries.py
+
 # Outputs to: data/results/eval_YYYYMMDD_HHMMSS.json
-```
 
-```bash
-python scripts/eval_summaries.py --output data/results/my_evaluation.json
-```
-
-```bash
-python scripts/eval_summaries.py --map-model bart-large
-```
-
-```bash
-python scripts/eval_summaries.py \
-    --map-model bart-large \
-    --reduce-model long-fast
-```
-
-```bash
-python scripts/eval_summaries.py --config config.yaml
-```
-
-```bash
-python scripts/eval_summaries.py --use-short-reference
-```
+```text
 
 - `--eval-dir`: Directory containing evaluation episodes (default: `data/eval`)
 - `--map-model`: MAP model name/key (e.g., `bart-large`, `bart-small`,
@@ -176,9 +150,11 @@ Creates a Python virtual environment and installs the package in editable mode.
 ### setup_venv.sh Usage
 
 ```bash
+
 bash scripts/setup_venv.sh
 source .venv/bin/activate
-```
+
+```text
 
 1. Creates `.venv/` virtual environment
 2. Upgrades pip
@@ -191,27 +167,37 @@ After running `setup_venv.sh`:
 1. **Activate the virtual environment:**
 
    ```bash
+
    source .venv/bin/activate
-   ```
 
-2. **Install development dependencies:**
+`   ```
+
+1. **Install development dependencies:**
 
    ```bash
+
    make init
+
    # Or manually: pip install -e .[dev,ml]
+
    ```
 
-3. **Set up environment variables (optional, for OpenAI providers):**
+2. **Set up environment variables (optional, for OpenAI providers):**
 
    ```bash
+
    cp examples/.env.example .env
+
    # Edit .env and add your OPENAI_API_KEY
+
    ```
 
-4. **Run the CLI:**
+3. **Run the CLI:**
 
    ```bash
+
    python -m podcast_scraper.cli <rss_url> [options]
+
    ```
 
 See `README.md` and `CONTRIBUTING.md` for more details.
@@ -222,21 +208,15 @@ See `README.md` and `CONTRIBUTING.md` for more details.
 
 Automatically fixes common markdown linting issues that can be corrected programmatically.
 
-### Usage
+### Usage - fix_markdown.py
 
 Fix all markdown files in the project:
 
-```bash
+````bash
+
 python scripts/fix_markdown.py
-```
 
-```bash
-python scripts/fix_markdown.py docs/TESTING_STRATEGY.md docs/rfc/RFC-020.md
-```
-
-```bash
-python scripts/fix_markdown.py --dry-run
-```
+```text
 
 1. **Table Separator Formatting** (MD060):
    - Adds spaces around pipes in table separator rows
@@ -265,18 +245,22 @@ Run this script regularly, especially:
 The pre-commit hook runs `markdownlint` which catches issues, but doesn't auto-fix them. Use this script to fix issues before committing:
 
 ```bash
+
 # Fix all markdown issues
+
 python scripts/fix_markdown.py
 
 # Then commit
+
 git add -A
 git commit -m "your message"
-```
 
 ```bash
+
 # Enable auto-fix in pre-commit hook
+
 export MARKDOWNLINT_FIX=1
 git commit -m "your message"
-```
 
-This script handles common, safe-to-fix issues. Some markdownlint errors (like content issues, heading levels, etc.) still need manual review.
+```text
+````

@@ -1,6 +1,7 @@
 # Work In Progress (WIP) Documentation
 
-This folder contains temporary documentation, ideas, references, and work-in-progress notes that are not yet finalized or integrated into the main documentation.
+This folder contains temporary documentation, ideas, references, and work-in-progress notes that
+are not yet finalized or integrated into the main documentation.
 
 ## Purpose
 

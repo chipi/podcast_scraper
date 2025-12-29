@@ -4,10 +4,11 @@ This is the primary public API for podcast_scraper. Use these functions for prog
 
 ## Quick Start
 
-```python
+````python
 import podcast_scraper
 
 # Create configuration
+
 cfg = podcast_scraper.Config(
     rss="https://example.com/feed.xml",
     output_dir="./transcripts",
@@ -15,13 +16,11 @@ cfg = podcast_scraper.Config(
 )
 
 # Run the pipeline
+
 count, summary = podcast_scraper.run_pipeline(cfg)
 print(f"Downloaded {count} transcripts: {summary}")
-```
+```text
 
-## Main Functions
-
-::: podcast_scraper.run_pipeline
     options:
       show_root_heading: true
       heading_level: 3
@@ -45,6 +44,8 @@ print(f"Downloaded {count} transcripts: {summary}")
 
 ## Related
 
-- [Configuration](configuration.md) - Detailed configuration options
-- [Service API](service.md) - Non-interactive service interface
-- [CLI Interface](cli.md) - Command-line interface
+- [Configuration](CONFIGURATION.md) - Detailed configuration options
+- [Service API](SERVICE.md) - Non-interactive service interface
+- [CLI Interface](CLI.md) - Command-line interface
+
+````

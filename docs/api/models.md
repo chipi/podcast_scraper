@@ -13,25 +13,25 @@ The `models` module defines core data structures:
 ## Models
 
 ::: podcast_scraper.models.RssFeed
-    options:
-      show_root_heading: true
-      heading_level: 3
+options:
+show_root_heading: true
+heading_level: 3
 
 ::: podcast_scraper.models.Episode
-    options:
-      show_root_heading: true
-      heading_level: 3
+options:
+show_root_heading: true
+heading_level: 3
 
 ::: podcast_scraper.models.TranscriptionJob
-    options:
-      show_root_heading: true
-      heading_level: 3
+options:
+show_root_heading: true
+heading_level: 3
 
 ## Usage Examples
 
 ### Working with Episodes
 
-```python
+````python
 from podcast_scraper.models import Episode
 
 episode = Episode(
@@ -45,11 +45,8 @@ episode = Episode(
 
 print(f"Episode {episode.number}: {episode.title}")
 print(f"Transcript: {episode.transcript_url}")
-```
-
-### Working with Feeds
-
 ```python
+
 from podcast_scraper.models import RssFeed, Episode
 
 feed = RssFeed(
@@ -61,10 +58,7 @@ feed = RssFeed(
 
 print(f"Feed: {feed.title}")
 print(f"Episodes: {len(feed.episodes)}")
-```
 
-## Related
-
-- [Core API](core.md) - Main functions that use these models
-- [Configuration](configuration.md) - Configuration model
+```python
 - RSS Parser: `rss_parser.py` - Constructs these models from RSS
+````

@@ -1,10 +1,13 @@
 # Testing Strategy
 
-> **See also:** [Testing Guide](TESTING_GUIDE.md) for detailed implementation instructions, test execution commands, test file descriptions, fixtures, and coverage details.
+> **See also:** [Testing Guide](guides/TESTING_GUIDE.md) for detailed implementation instructions, test execution commands,
+> test file descriptions, fixtures, and coverage details.
 
 ## Overview
 
-This document defines the testing strategy for the podcast scraper codebase. It establishes the test pyramid approach, decision criteria for choosing test types, and high-level testing patterns. For detailed implementation instructions on how to run tests, what test files exist, and how to work with the test suite, see the [Testing Guide](TESTING_GUIDE.md).
+This document defines the testing strategy for the podcast scraper codebase. It establishes the test pyramid approach,
+decision criteria for choosing test types, and high-level testing patterns. For detailed implementation instructions on
+how to run tests, what test files exist, and how to work with the test suite, see the [Testing Guide](guides/TESTING_GUIDE.md).
 
 ## Problem Statement
 
@@ -22,7 +25,7 @@ This unified testing strategy document provides a single source of truth for all
 
 The testing strategy follows a three-tier pyramid:
 
-```text
+````text
         /\
        /E2E\          ← Few, realistic end-to-end tests
       /------\
@@ -30,11 +33,8 @@ The testing strategy follows a three-tier pyramid:
     /------------\
    /    Unit      \   ← Many, fast unit tests
   /----------------\
-```
-### Key Distinction
+```python
 
-| Test Type | What It Tests | Entry Point | HTTP Client | Data Files | ML Models |
-| --------- | ------------- | ----------- | ----------- | ---------- | --------- |
 | **Unit** | Individual functions/modules | Function/class level | Mocked | Mocked | Mocked |
 | **Integration** | Component interactions | Component level | Local test server (or mocked) | Test fixtures | Real (optional) |
 | **E2E** | Complete user workflows | User level (CLI/API) | Real HTTP client (local server) | Real data files | Real (in workflow) |
@@ -335,26 +335,32 @@ The test suite is organized into three main categories:
 
 **On Every PR** (GitHub Actions):
 
-- **`test-unit` job**: Fast unit tests (no ML deps), network and filesystem I/O isolation enforced, parallel execution
-- **`test-integration` job**: Integration tests with ML dependencies, parallel execution, flaky test reruns
-- **`test-e2e-fast` job**: Fast E2E tests (excludes slow/ml_models), network guard active
+- **`test-fast` job**: Fast feedback (unit + fast integration + fast e2e, no coverage, ~6-10 min)
+- **`test` job**: Full validation (unit + fast integration + fast e2e, with coverage, ~10-15 min)
 - **`lint` job**: Formatting, linting, type checking, security scans
 - **`docs` job**: Documentation build
 - **`build` job**: Package build validation
 
 **On Main Branch**:
 
-- **`test-e2e-slow` job**: All E2E tests including slow/ml_models tests (runs only on main branch)
-- All other jobs run as on PRs
+- **`test-unit` job**: All unit tests with coverage (no ML deps, ~2-5 min)
+- **`test-integration` job**: All integration tests including slow/ml_models (with re-runs, ~5-10 min)
+- **`test-e2e` job**: All E2E tests including slow/ml_models (with re-runs, ~20-30 min)
+- **`lint` job**: Formatting, linting, type checking, security scans
+- **`docs` job**: Documentation build
+- **`build` job**: Package build validation
 
 **Test Execution Strategy**:
 
-- **Unit tests**: Run on every PR and push (fast feedback, ~30 seconds)
-- **Integration tests**: Run on every PR and push (moderate speed, ~2-5 minutes)
-- **Fast E2E tests**: Run on every PR (excludes slow/ml_models, ~5-10 minutes)
-- **Slow E2E tests**: Run only on main branch pushes (includes all E2E tests, ~15-20 minutes)
-- **Test execution**: Sequential by default (simpler, clearer output, easier debugging)
-- **Flaky test reruns**: Enabled for integration and E2E tests (`--reruns 2 --reruns-delay 1`)
+- **PRs**: Fast feedback + full validation run in parallel (both exclude slow/ml_models tests)
+- **Main branch**: Separate test jobs for maximum parallelization (includes all tests)
+- **Unit tests**: Run on every PR and push (fast feedback, parallel execution)
+- **Fast integration tests**: Run on PRs (excludes slow/ml_models, parallel execution)
+- **Slow integration tests**: Run only on main branch (includes slow/ml_models, parallel execution, with re-runs)
+- **Fast E2E tests**: Run on PRs (excludes slow/ml_models, parallel execution, network guard)
+- **Slow E2E tests**: Run only on main branch (includes slow/ml_models, parallel execution, network guard, with re-runs)
+- **Test execution**: Parallel by default (`-n auto`), sequential variants available for debugging
+- **Flaky test reruns**: Enabled for integration and E2E tests on main branch (`--reruns 2 --reruns-delay 1`)
 
 **For detailed test execution commands, parallel execution, flaky test reruns, and coverage, see [Testing Guide - Test Execution Details](TESTING_GUIDE.md#test-execution-details).**
 
@@ -533,8 +539,7 @@ Ideal Pyramid:
     ╱        ╲
    ╱          ╲  Unit: 70-80%
   ╱____________╲
-```
-### Key Issues
+```text
 
 1. **Too Few Unit Tests**: Core business logic is being tested at E2E level instead of unit level
    - **Critical modules with zero unit tests**: `workflow.py`, `cli.py`, `service.py`, `episode_processor.py`, `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`
@@ -643,10 +648,11 @@ Ideal Pyramid:
 
 ## References
 
-- **[Testing Guide](TESTING_GUIDE.md)** - Detailed implementation instructions, test execution, fixtures, and coverage
+- **[Testing Guide](guides/TESTING_GUIDE.md)** - Detailed implementation instructions, test execution, fixtures, and coverage
 - Test structure reorganization: `docs/rfc/RFC-018-test-structure-reorganization.md`
 - CI workflow: `.github/workflows/python-app.yml`
 - Related RFCs: RFC-001 through RFC-018 (testing strategies and reorganization)
 - Related Issues: #14 (E2E testing), #16 (Library API E2E tests), #94 (src/ layout), #98 (Test structure reorganization)
 - Architecture: `docs/ARCHITECTURE.md` (Testing Notes section)
 - Contributing guide: `CONTRIBUTING.md` (Testing Requirements section)
+````

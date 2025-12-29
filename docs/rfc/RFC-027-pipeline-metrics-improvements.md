@@ -197,22 +197,22 @@ This RFC defines improvements to the **pipeline metrics system** that tracks app
 
 **Example Changes:**
 
-```python
+````python
+
 # metrics.py
+
 def log_metrics(self) -> None:
     """Log detailed metrics at DEBUG level."""
     metrics_dict = self.finish()
     summary_lines = ["Pipeline finished (detailed metrics):"]
     for key, value in metrics_dict.items():
+
         # Use snake_case consistently
+
         summary_lines.append(f"  - {key}: {value}")
     summary = "\n".join(summary_lines)
     logger.debug(summary)  # Changed from logger.info()
-```
-
-#### Phase 2: Add Missing Metrics (2-3 days)
-
-**Tasks:**
+```python
 
 - [ ] Add RSS fetch time tracking (separate from scraping)
 - [ ] Add model loading time tracking (Whisper, summarization)
@@ -232,9 +232,11 @@ def log_metrics(self) -> None:
 ```python
 @dataclass
 class Metrics:
+
     # ... existing metrics ...
 
     # New metrics
+
     time_rss_fetch: float = 0.0  # RSS fetch time (separate from parsing)
     whisper_model_loading_time: float = 0.0  # Whisper model loading time
     summarization_model_loading_time: float = 0.0  # Summarization model loading time
@@ -242,11 +244,7 @@ class Metrics:
     speaker_detection_cache_misses: int = 0  # Cache misses for speaker detection
     parallel_processing_efficiency: float = 0.0  # Efficiency of parallel processing
     peak_memory_mb: float = 0.0  # Peak memory usage in MB
-```
-
-#### Phase 3: Add Export Capabilities (2-3 days)
-
-**Tasks:**
+```text
 
 - [ ] Add `export_json()` method to `Metrics` class
 - [ ] Add `export_csv()` method to `Metrics` class
@@ -262,7 +260,9 @@ class Metrics:
 **Example Export:**
 
 ```python
+
 # metrics.py
+
 def export_json(self, filepath: str) -> None:
     """Export metrics to JSON file."""
     metrics_dict = self.finish()
@@ -276,11 +276,7 @@ def export_csv(self, filepath: str) -> None:
         writer = csv.DictWriter(f, fieldnames=metrics_dict.keys())
         writer.writeheader()
         writer.writerow(metrics_dict)
-```
-
-#### Phase 4: Testing and Documentation (1-2 days)
-
-**Tasks:**
+```text
 
 - [ ] Test metrics collection in dry-run mode
 - [ ] Test metrics accuracy when operations are skipped
@@ -379,3 +375,4 @@ def export_csv(self, filepath: str) -> None:
 - Conditional collection behavior is correct and should be documented, not changed
 - Export capabilities enable future integration with monitoring systems
 - Two-tier output provides flexibility without breaking existing workflows
+````

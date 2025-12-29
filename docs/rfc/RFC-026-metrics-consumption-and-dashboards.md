@@ -9,9 +9,16 @@
   - `docs/rfc/RFC-025-test-metrics-and-health-tracking.md` (metrics collection - prerequisite)
   - `docs/rfc/RFC-024-test-execution-optimization.md` (test execution optimization)
 - **Related Documents**:
-  - `docs/TESTING_STRATEGY.md` - Overall testing strategy and test categories
-  - `docs/DEVELOPMENT_GUIDE.md` - Development workflow and testing requirements
-  - `.github/workflows/python-app.yml` - CI test jobs
+
+**🚨 DEPENDENCY NOTE:**
+
+**RFC-026 assumes RFC-024 and RFC-025 are implemented.**
+
+This RFC builds on the test execution optimization (RFC-024) and metrics collection (RFC-025) foundations. Ensure those RFCs are implemented before proceeding with metrics consumption and dashboards.
+
+- `docs/TESTING_STRATEGY.md` - Overall testing strategy and test categories
+- `docs/guides/DEVELOPMENT_GUIDE.md` - Development workflow and testing requirements
+- `.github/workflows/python-app.yml` - CI test jobs
 
 ## Abstract
 
@@ -24,6 +31,39 @@ This RFC defines a strategy for **consuming and visualizing test metrics** to en
 5. **Zero infrastructure**: Uses GitHub Pages (free, no setup)
 
 **Key Principle:** Metrics are only valuable if they can be consumed quickly. Enable < 60 second deviation detection through multiple access patterns.
+
+## System Overview
+
+This RFC is part of a three-RFC system (RFC-024, RFC-025, RFC-026) that optimizes test execution, metrics collection, and consumption. The complete flow:
+
+````text
+  ├─ PR: Fast tests (Tier 0 + Tier 1 fast)
+  ├─ Main: All tests (Tier 0 + Tier 1 + Tier 2)
+  └─ Nightly: Full suite + comprehensive metrics
+  ↓
+Artifacts Generated
+  ├─ JUnit XML (test results, timing)
+  ├─ Coverage reports (XML, HTML, terminal)
+  └─ JSON metrics (structured data)
+  ↓
+Consumption Methods
+  ├─ Job Summary (PR authors, 0s)
+  ├─ metrics.json (automation, 5s)
+  └─ Dashboard (maintainers, 10s)
+```yaml
+
+**See also:**
+
+- RFC-024: Test execution optimization (pytest + markers → CI tiers)
+- RFC-025: Metrics collection (artifacts generation)
+
+## Core Principles
+
+These principles are shared across RFC-024, RFC-025, and RFC-026:
+
+- **Developer flow > completeness** - Fast feedback loops protect developer state and enable rapid iteration
+- **Metrics must be cheap to collect** - Automated collection with zero manual work required
+- **Humans consume summaries, machines consume JSON** - Job summaries for quick checks, JSON API for automation
 
 ## Problem Statement
 
@@ -85,6 +125,34 @@ This RFC defines a strategy for **consuming and visualizing test metrics** to en
 
 ## Implementation Strategy
 
+### Phase 0: Minimum Viable Consumption (Mandatory, Before Dashboards)
+
+**🚨 CRITICAL: This phase must be completed before any dashboard work.**
+
+**Goal:** Enable basic metrics consumption without visual dashboards.
+
+**Deliverables:**
+
+- ✅ **GitHub Actions job summaries** - Display key metrics in PR checks (0 seconds to view)
+- ✅ **`metrics/latest.json` published** - Machine-readable metrics available via GitHub Pages
+- ❌ **No charts** - Visual dashboards are not required in this phase
+- ❌ **No history UI** - Historical visualization is not required in this phase
+
+**Rationale:**
+
+- **Summaries ≫ dashboards** - Job summaries provide immediate value with zero infrastructure
+- **Dashboards are earned, not required** - Visual dashboards come after basic consumption is proven
+- **Focus on consumption, not visualization** - Enable metrics access first, add visuals later
+
+**Success Criteria:**
+
+- ✅ Job summaries show key metrics (runtime, coverage, pass rate) in every PR
+- ✅ `metrics/latest.json` is accessible via public URL
+- ✅ Metrics can be consumed via `curl` + `jq` in < 5 seconds
+- ✅ No visual dashboard required
+
+**Status:** 🚧 To Be Implemented (prerequisite for all other phases)
+
 ### 1. Metrics JSON API (Machine-Readable)
 
 **Location:** `https://chipi.github.io/podcast_scraper/metrics/latest.json`
@@ -142,19 +210,14 @@ This RFC defines a strategy for **consuming and visualizing test metrics** to en
     }
   ]
 }
-```
-
+```text
 ```bash
-# Quick check (< 5 seconds)
 curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.metrics.runtime.total'
 
 # Check for regressions
-curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.alerts[]'
-```
 
-**Location:** `https://chipi.github.io/podcast_scraper/metrics/`
-
-**Features:**
+curl -s <https://chipi.github.io/podcast_scraper/metrics/latest.json> | jq '.alerts[]'
+```text
 
 - **Current metrics** (latest run)
 - **Trend charts** (last 30 runs)
@@ -203,19 +266,12 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.alert
     </div>
   </div>
 </div>
-```
+```json
 
-**Location:** `https://chipi.github.io/podcast_scraper/metrics/history.jsonl`
-
-**Format:** One JSON object per line (JSONL)
-
-```jsonl
 {"timestamp":"2024-12-28T19:00:00Z","commit":"abc123","runtime":35.2,"coverage":65.1,"passed":248}
 {"timestamp":"2024-12-28T20:00:00Z","commit":"def456","runtime":35.7,"coverage":65.3,"passed":248}
-```
 
-- Easy to parse line-by-line
-- Efficient for streaming
+```text
 - Can append without rewriting entire file
 
 ### 4. GitHub Actions Integration
@@ -223,47 +279,49 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.alert
 **Workflow Step:**
 
 ```yaml
+
 - name: Generate and publish metrics
   if: always() && github.ref == 'refs/heads/main'
 
   run: |
+
     # Extract metrics from JUnit XML and coverage
+
     python scripts/generate_metrics.py \
       --junit reports/junit.xml \
       --coverage reports/coverage.xml \
       --output metrics/
 
     # Generate HTML dashboard
+
     python scripts/generate_dashboard.py \
       --metrics metrics/latest.json \
       --history metrics/history.jsonl \
       --output metrics/index.html
 
     # Publish to gh-pages branch
+
     git checkout gh-pages || git checkout --orphan gh-pages
     git add metrics/
     git commit -m "Update metrics: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     git push origin gh-pages
-```
 
-### Method 1: Browser Dashboard (10 seconds)
-
-1. Open `https://chipi.github.io/podcast_scraper/metrics/`
-2. View alerts section (red/yellow highlights)
+```text
 3. Check trend charts for spikes
 
 ### Method 2: JSON API (5 seconds)
 
 ```bash
+
 # Check latest metrics
+
 curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.alerts'
 
 # Compare with previous run
-curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.trends'
-```
 
-- View directly in PR checks
-- Shows key metrics and alerts
+curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.trends'
+
+```text
 - No external access needed
 
 ### Method 4: Automated Alerts (0 seconds)
@@ -280,6 +338,17 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.trend
 - **Significant deviation**: > 10% change
 - **Critical deviation**: > 20% change
 
+### Alert Behavior
+
+**🚨 CRITICAL: Alerts are informational initially (no CI failures)**
+
+- Alerts are displayed in job summaries and dashboards
+- Alerts do NOT cause CI failures or block merges
+- Alerts are informational only - they highlight potential issues for review
+- This prevents teams from fearing noise and disabling alerts
+
+**Future Enhancement:** After alerts are proven useful and accurate, consider optional CI gates (opt-in per team).
+
 ### Metrics to Monitor
 
 1. **Runtime**: Compare against last 5 runs (median)
@@ -291,10 +360,12 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.trend
 ### Example Detection
 
 ```python
+
 def detect_deviations(current, history):
     alerts = []
 
     # Runtime deviation
+
     median_runtime = median([r['runtime'] for r in history[-5:]])
     if current['runtime'] > median_runtime * 1.1:
         alerts.append({
@@ -305,6 +376,7 @@ def detect_deviations(current, history):
         })
 
     # Coverage drop
+
     avg_coverage = mean([r['coverage'] for r in history[-10:]])
     if current['coverage'] < avg_coverage - 1.0:
         alerts.append({
@@ -315,12 +387,8 @@ def detect_deviations(current, history):
         })
 
     return alerts
-```
 
-### Phase 1: Basic JSON API (1-2 days)
-
-- Generate `metrics/latest.json` from CI
-- Publish to gh-pages branch
+```text
 - Simple deviation detection
 
 **Deliverables:**
@@ -366,6 +434,20 @@ def detect_deviations(current, history):
 - Optional webhook integration
 
 ## Access Patterns
+
+### Consumption Methods by Audience
+
+| Method | Audience | Use Case | Access Time |
+| -------- | ---------- | ---------- | ------------- |
+| **Job Summary** | PR authors | "Did I break something?" | 0s (view in PR checks) |
+| **JSON API** | Automation | Gates, scripts, CI integration | 5s (`curl` + `jq`) |
+| **Dashboard** | Maintainers | Trend spotting, historical analysis | 10s (browser) |
+
+**Rationale:**
+
+- **Job Summary** - Immediate feedback for PR authors checking if their changes broke tests
+- **JSON API** - Machine-readable for automation, gates, and scripts
+- **Dashboard** - Visual tool for maintainers to spot trends and analyze historical data
 
 ### For Quick Checks (< 60 seconds)
 
@@ -455,3 +537,4 @@ def detect_deviations(current, history):
 - GitHub Pages must be enabled for the repository
 - Metrics are public (no authentication)
 - Historical data grows over time (consider retention policy)
+````

@@ -6,7 +6,7 @@ The `Config` class is the central configuration model for podcast_scraper, built
 
 All runtime options flow through the `Config` model:
 
-```python
+````python
 from podcast_scraper import Config
 
 cfg = Config(
@@ -17,11 +17,8 @@ cfg = Config(
     whisper_model="base",
     workers=8
 )
-```
+```text
 
-## Config Class
-
-::: podcast_scraper.Config
     options:
       show_root_heading: true
       heading_level: 3
@@ -140,57 +137,37 @@ Environment variables are automatically loaded when the `podcast_scraper.config`
 ```bash
 export OPENAI_API_KEY=sk-your-key-here
 python3 -m podcast_scraper https://example.com/feed.xml
-```
+```text
 
-**Set for single command**:
-
-```bash
 OPENAI_API_KEY=sk-your-key-here python3 -m podcast_scraper https://example.com/feed.xml
-```
 
-**Using .env file**:
+````
 
-```bash
 # Create .env file in project root
+
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
 python3 -m podcast_scraper https://example.com/feed.xml
-```
 
-**Persistent environment variable** (add to `~/.bashrc` or `~/.zshrc`):
+````javascript
 
-```bash
 # Add to shell profile
+
 export OPENAI_API_KEY=sk-your-key-here
+
 # Reload shell
+
 source ~/.bashrc  # or source ~/.zshrc
-```
 
-#### Windows
-
-**Command Prompt**:
-
-```cmd
+```text
 set OPENAI_API_KEY=sk-your-key-here
 python -m podcast_scraper https://example.com/feed.xml
-```
 
-**PowerShell**:
-
-```powershell
-$env:OPENAI_API_KEY="sk-your-key-here"
+```text
+```text
 python -m podcast_scraper https://example.com/feed.xml
-```
 
-**Using .env file**:
+```text
 
-```cmd
-echo OPENAI_API_KEY=sk-your-key-here > .env
-python -m podcast_scraper https://example.com/feed.xml
-```
-
-**Persistent environment variable** (Windows Settings):
-
-1. Open "System Properties" → "Environment Variables"
 2. Add new user or system variable: Name: `OPENAI_API_KEY`, Value: `sk-your-key-here`
 3. Restart terminal/IDE to apply changes
 
@@ -199,22 +176,20 @@ python -m podcast_scraper https://example.com/feed.xml
 **Using environment variable**:
 
 ```bash
+
 docker run -e OPENAI_API_KEY=sk-your-key-here podcast-scraper https://example.com/feed.xml
-```
 
-**Using .env file**:
+````
 
-```bash
 # Create .env file
+
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
+
 # Docker Compose automatically loads .env
+
 docker-compose up
-```
 
-**In `docker-compose.yml`**:
-
-```yaml
-services:
+````text
   podcast-scraper:
     image: podcast-scraper:latest
     environment:
@@ -224,7 +199,8 @@ services:
 
 
       - ./.env:/app/.env:ro
-```
+
+```text
 
 ### .env File Setup
 
@@ -233,26 +209,34 @@ services:
 1. **Copy example template** (if available):
 
    ```bash
+
    cp examples/.env.example .env
-   ```
 
-2. **Create `.env` file** in project root:
+````
+
+1. **Create `.env` file** in project root:
 
    ```bash
+
    # .env
+
    OPENAI_API_KEY=sk-your-actual-api-key-here
+
    ```
 
-3. **Verify `.env` is in `.gitignore`**:
+2. **Verify `.env` is in `.gitignore`**:
 
    ```bash
+
    # .gitignore should contain:
+
    .env
    .env.local
    .env.*.local
+
    ```
 
-#### .env File Location
+### .env File Location
 
 The `.env` file is automatically loaded from:
 
@@ -263,33 +247,42 @@ The first existing file is used. Project root takes precedence.
 
 #### .env File Format
 
-```bash
+````bash
+
 # .env file format
+
 # Comments start with #
+
 # Empty lines are ignored
+
 # No spaces around = sign
 
 # OpenAI API Configuration
+
 OPENAI_API_KEY=sk-your-actual-api-key-here
 
 # Optional: Add other variables here
+
 # LOG_LEVEL=DEBUG  # Valid: DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 # Performance Configuration (optional)
+
 # WORKERS=4
+
 # TRANSCRIPTION_PARALLELISM=3
+
 # PROCESSING_PARALLELISM=4
+
 # SUMMARY_BATCH_SIZE=3
+
 # SUMMARY_CHUNK_PARALLELISM=2
+
 # TIMEOUT=60
+
 # SUMMARY_DEVICE=cpu
-```
 
-### Security Best Practices
+```text
 
-#### ✅ DO
-
-- **Use `.env` files for local development**
 - **Add `.env` to `.gitignore`** (never commit secrets)
 - **Use `examples/.env.example` as template** (without real values)
 - **Use environment variables in production** (more secure than files)
@@ -322,15 +315,11 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 **Debug**:
 
 ```python
+
 import os
 print(os.getenv("OPENAI_API_KEY"))  # Should print your key (or None)
-```
 
-#### .env File Not Loading
-
-**Problem**: `.env` file exists but variables aren't loaded.
-
-**Solutions**:
+```text
 
 1. **Check file location**: Must be in project root (where `config.py` is) or current directory
 2. **Check file name**: Must be exactly `.env` (not `.env.txt` or `env`)
@@ -341,6 +330,7 @@ print(os.getenv("OPENAI_API_KEY"))  # Should print your key (or None)
 **Debug**:
 
 ```python
+
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -352,13 +342,8 @@ if env_path.exists():
     load_dotenv(env_path, override=False)
     import os
     print(f"OPENAI_API_KEY loaded: {bool(os.getenv('OPENAI_API_KEY'))}")
-```
 
-#### Variable Precedence Issues
-
-**Problem**: Config file value overrides environment variable.
-
-**Note**: This is expected behavior. Priority order is:
+```text
 
 1. Config file field (`openai_api_key`)
 2. System environment variable (`OPENAI_API_KEY`)
@@ -383,6 +368,7 @@ The following environment variables may be added in future versions:
 ### JSON Example
 
 ```json
+
 {
   "rss": "https://example.com/feed.xml",
   "output_dir": "./transcripts",
@@ -397,13 +383,9 @@ The following environment variables may be added in future versions:
   "summary_batch_size": 1,
   "summary_chunk_parallelism": 1
 }
-```
 
-### YAML Example
+```text
 
-```yaml
-rss: https://example.com/feed.xml
-output_dir: ./transcripts
 max_episodes: 50
 transcribe_missing: true
 whisper_model: base
@@ -414,12 +396,8 @@ generate_metadata: true
 generate_summaries: true
 summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summarize in parallel
 summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode
-```
 
-## Field Aliases
-
-The `Config` model supports field aliases for convenience:
-
+```text
 - `rss_url` or `rss` → `rss_url`
 - `output_dir` or `output_directory` → `output_dir`
 - `screenplay_gap` or `screenplay_gap_s` → `screenplay_gap_s`
@@ -430,6 +408,7 @@ The `Config` model supports field aliases for convenience:
 The `Config` model performs validation on initialization:
 
 ```python
+
 from podcast_scraper import Config
 from pydantic import ValidationError
 
@@ -440,10 +419,9 @@ try:
     )
 except ValidationError as e:
     print(f"Validation error: {e}")
-```
 
-## Related
-
-- [Core API](core.md) - Main functions
-- [CLI Interface](cli.md) - Command-line usage
+```text
+- [Core API](CORE.md) - Main functions
+- [CLI Interface](CLI.md) - Command-line usage
 - Configuration examples: `examples/config.example.json`, `examples/config.example.yaml`
+````

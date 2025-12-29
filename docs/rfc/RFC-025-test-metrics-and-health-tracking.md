@@ -1,6 +1,6 @@
 # RFC-025: Test Metrics and Health Tracking
 
-- **Status**: Draft
+- **Status**: Accepted
 - **Authors**:
 - **Stakeholders**: Maintainers, developers, CI/CD pipeline maintainers
 - **Related PRDs**:
@@ -14,7 +14,7 @@
   - `docs/rfc/RFC-026-metrics-consumption-and-dashboards.md` (metrics consumption - complementary)
 - **Related Documents**:
   - `docs/TESTING_STRATEGY.md` - Overall testing strategy and test categories
-  - `docs/DEVELOPMENT_GUIDE.md` - Development workflow and testing requirements
+  - `docs/guides/DEVELOPMENT_GUIDE.md` - Development workflow and testing requirements
   - `.github/workflows/python-app.yml` - CI test jobs
 
 ## Abstract
@@ -27,6 +27,39 @@ This RFC defines a strategy for **tracking test metrics and monitoring codebase 
 4. **Flaky test detection**: How to identify and track unstable tests
 
 **Key Principle:** Metrics enable improvement. Track runtime, coverage, flakiness, and trends over time to enable data-driven optimization decisions.
+
+## System Overview
+
+This RFC is part of a three-RFC system (RFC-024, RFC-025, RFC-026) that optimizes test execution, metrics collection, and consumption. The complete flow:
+
+````text
+  ├─ PR: Fast tests (Tier 0 + Tier 1 fast)
+  ├─ Main: All tests (Tier 0 + Tier 1 + Tier 2)
+  └─ Nightly: Full suite + comprehensive metrics
+  ↓
+Artifacts Generated
+  ├─ JUnit XML (test results, timing)
+  ├─ Coverage reports (XML, HTML, terminal)
+  └─ JSON metrics (structured data)
+  ↓
+Consumption Methods
+  ├─ Job Summary (PR authors, 0s)
+  ├─ metrics.json (automation, 5s)
+  └─ Dashboard (maintainers, 10s)
+```yaml
+
+**See also:**
+
+- RFC-024: Test execution optimization (pytest + markers → CI tiers)
+- RFC-026: Metrics consumption (consumption methods)
+
+## Core Principles
+
+These principles are shared across RFC-024, RFC-025, and RFC-026:
+
+- **Developer flow > completeness** - Fast feedback loops protect developer state and enable rapid iteration
+- **Metrics must be cheap to collect** - Automated collection with zero manual work required
+- **Humans consume summaries, machines consume JSON** - Job summaries for quick checks, JSON API for automation
 
 ## Problem Statement
 
@@ -73,33 +106,49 @@ This RFC defines a strategy for **tracking test metrics and monitoring codebase 
 
 ### Metrics to Track
 
-Track these metrics on every test run to monitor codebase health:
+Track these metrics on every test run to monitor codebase health. Metrics are categorized as **collected** (facts) or **derived** (interpretations) to avoid future debates about what to track.
 
-1. **Runtime Metrics**
+#### Collected Metrics (Facts)
 
-   - Total runtime per tier (unit / integration / e2e)
-   - Top 20 slowest tests
-   - Runtime trends over time
+**1. Runtime Metrics** (Ownership: Test maintainers)
 
-2. **Test Health Metrics**
+- Total runtime per tier (unit / integration / e2e)
+- Individual test runtime
+- Top 20 slowest tests
 
-   - Pass rate (passed / total)
-   - Failure rate
-   - Skipped test count
-   - Flaky test count and rerun rate
+**2. Test Health Metrics** (Ownership: Test maintainers)
 
-3. **Coverage Metrics**
+- Pass/fail/skip status per test
+- Total passed count
+- Total failed count
+- Total skipped count
+- Flaky test count (tests that pass on rerun)
 
-   - Overall coverage percentage
-   - Coverage by module
-   - Coverage trends over time
-   - Uncovered lines identification
+**3. Coverage Metrics** (Ownership: Code owners)
 
-4. **Performance Metrics**
+- Overall coverage percentage
+- Coverage by module
+- Uncovered lines identification
 
-   - Test execution speed (tests/second)
-   - Parallel execution efficiency
-   - Resource usage (CPU, memory)
+**4. Resource Usage Metrics** (Ownership: CI/infrastructure owners)
+
+- CPU usage
+- Memory usage
+
+#### Derived Metrics (Interpretations)
+
+**1. Performance Metrics**
+
+- Test execution speed (tests/second) - derived from runtime and test count
+- Parallel execution efficiency - derived from sequential vs parallel runtime
+- Runtime trends over time - derived from historical runtime data
+
+**2. Health Trends**
+
+- Pass rate (passed / total) - derived from pass/fail counts
+- Failure rate - derived from pass/fail counts
+- Coverage trends over time - derived from historical coverage data
+- Flaky test rerun rate - derived from flaky test count and total runs
 
 ### Machine-Readable Artifacts
 
@@ -132,22 +181,14 @@ pytest -m "unit or integration" \
   --cov-report=xml \
   --cov-report=term \
   --cov-report=html
-```
+```text
 
-**JSON Report for Easy Aggregation:**
-
-Add `pytest-json-report` for structured metrics:
-
-```bash
-pytest -m "unit or integration" \
   --json-report --json-report-file=reports/pytest.json \
   --durations=20 \
   --junitxml=reports/junit.xml \
   --cov=podcast_scraper --cov-report=xml
-```
 
-- Single file with all metrics
-- Easy to parse and aggregate
+```text
 - Enables automated trend analysis
 
 ## GitHub Actions Integration
@@ -169,45 +210,70 @@ pytest -m "unit or integration" \
 - Coverage: 65.3%
 - Slowest test: `test_full_pipeline` (12.3s)
 
-### Main Branch
+### Main Branch (Layer 2)
 
 **Tier 1 + Tier 2 Tests (Full Validation):**
 
 - Run all tests (unit + integration + E2E)
 - Track flaky tests (reruns enabled)
-- Generate comprehensive metrics
-- Store metrics for trend analysis
+- Generate basic metrics (JUnit XML, coverage reports)
+- Upload artifacts for download
+- Job summaries with key metrics
 
-### Nightly / Scheduled
+**Current Implementation:**
+- `lint` job: Fast checks (1-2 min)
+- `test-unit` job: Unit tests only (2-5 min)
+- `test-integration` job: All integration tests with re-runs (5-10 min)
+- `test-e2e` job: All E2E tests with re-runs and network guard (20-30 min)
+- `docs` job: Documentation build (2-3 min)
+- `build` job: Package build (1-2 min)
+- All jobs run in parallel
 
-**Full Suite + Analysis:**
+### Nightly / Scheduled (Layer 3)
 
-- Complete test suite
-- Runtime and flake trend analysis
-- Coverage trend analysis
-- Performance regression detection
+**Full Suite + Comprehensive Analysis:**
+
+- **Complete test suite**: Everything that main branch does (lint, test-unit, test-integration, test-e2e, docs, build)
+- **Comprehensive metrics collection**:
+  - JUnit XML for all test tiers
+  - Coverage XML/HTML reports
+  - Slowest tests identification (`--durations=20`)
+  - pytest-json-report for structured metrics
+- **Trend tracking**:
+  - Append metrics to history file (CSV/JSONL)
+  - Store on dedicated branch or gh-pages
+  - Enable trend visualization
+- **Reporting**:
+  - Generate comprehensive job summaries
+  - Create metrics dashboards
+  - Performance regression detection
+  - Flaky test analysis and reporting
+- **Additional requirements**:
+  - Full artifact preservation
+  - Historical data aggregation
+  - Automated trend analysis
+  - Regression alerts (optional)
+
+**Implementation Plan:**
+- Scheduled workflow (nightly at 2 AM UTC)
+- Runs all main branch jobs plus metrics collection
+- Generates comprehensive reports
+- Stores metrics for trend tracking
 
 ### GitHub Actions Job Summary
 
 Use `$GITHUB_STEP_SUMMARY` to create automatic dashboards:
 
 ```bash
+
 echo "## Test Results" >> $GITHUB_STEP_SUMMARY
 echo "- Total: $(jq '.summary.total' reports/pytest.json)" >> $GITHUB_STEP_SUMMARY
 echo "- Passed: $(jq '.summary.passed' reports/pytest.json)" >> $GITHUB_STEP_SUMMARY
 echo "- Failed: $(jq '.summary.failed' reports/pytest.json)" >> $GITHUB_STEP_SUMMARY
 echo "- Runtime: $(jq '.duration' reports/pytest.json)s" >> $GITHUB_STEP_SUMMARY
 echo "- Coverage: $(coverage report --format=total)" >> $GITHUB_STEP_SUMMARY
-```
 
-**Note:** For easy metrics consumption, dashboards, and quick deviation detection, see **RFC-026: Metrics Consumption and Dashboards** (`docs/rfc/RFC-026-metrics-consumption-and-dashboards.md`).
-
-## Trend Tracking
-
-### Option A: Artifacts Only (Zero Maintenance)
-
-- Upload `reports/` directory as artifact every CI run
-- Compare runs by downloading artifacts when needed
+```text
 - No additional infrastructure required
 
 **Pros:**
@@ -232,13 +298,12 @@ echo "- Coverage: $(coverage report --format=total)" >> $GITHUB_STEP_SUMMARY
 **Example CSV:**
 
 ```csv
+
 date,commit,tier0_runtime,tier1_runtime,tier2_runtime,passed,failed,skipped,coverage,flaky_count
 2024-12-28T19:00:00Z,abc123,2.1,33.6,0,248,0,2,65.3,0
 2024-12-28T20:00:00Z,def456,2.2,34.1,0,249,0,2,65.5,0
-```
 
-- Real trend lines without external services
-- Easy to visualize (CSV → charts)
+```text
 - Minimal maintenance
 - Version-controlled history
 
@@ -260,7 +325,11 @@ date,commit,tier0_runtime,tier1_runtime,tier2_runtime,passed,failed,skipped,cove
 
 ### Definition
 
-**Flaky Test:** A test that passes and fails non-deterministically for the same code.
+**Flaky Test:** A test is flaky if it:
+- Fails and passes on rerun without code changes, OR
+- Has < 95% pass rate over last N runs
+
+This explicit definition enables automation and clear identification of unstable tests.
 
 ### Detection Methods
 
@@ -280,7 +349,7 @@ date,commit,tier0_runtime,tier1_runtime,tier2_runtime,passed,failed,skipped,cove
 
 - Track test pass/fail history over multiple runs
 - Identify tests with inconsistent results
-- Flag tests with < 95% pass rate as potentially flaky
+- Flag tests with < 95% pass rate over last N runs as flaky (matches definition)
 
 ### Reporting
 
@@ -291,9 +360,63 @@ date,commit,tier0_runtime,tier1_runtime,tier2_runtime,passed,failed,skipped,cove
 - Flaky test failure rate
 - Trend over time (improving or degrading)
 
+## CI Layer Strategy
+
+### Layer 1: Pull Requests (Fast Feedback)
+
+**Purpose:** Quick validation for PRs
+
+**What runs:**
+- Fast tests only (unit + fast integration + fast e2e)
+- Basic metrics (JUnit XML, coverage)
+- Job summaries
+
+**Current Status:** ✅ Implemented
+
+### Layer 2: Main Branch (Full Validation)
+
+**Purpose:** Complete validation on merge to main
+
+**What runs:**
+- All tests (unit + integration + e2e, including slow/ml_models)
+- Basic metrics (JUnit XML, coverage)
+- Artifact uploads
+- Job summaries
+
+**Current Status:** ✅ Implemented
+
+### Layer 3: Nightly Builds (Comprehensive Analysis)
+
+**Purpose:** Comprehensive metrics, reporting, and trend tracking
+
+**What runs:**
+- **Everything from Layer 2** (lint, test-unit, test-integration, test-e2e, docs, build)
+- **Comprehensive metrics collection**:
+  - JUnit XML for all test tiers
+  - Coverage XML/HTML reports
+  - Slowest tests (`--durations=20`)
+  - pytest-json-report for structured metrics
+- **Trend tracking**:
+  - Metrics history file (CSV/JSONL)
+  - Historical data aggregation
+  - Trend visualization
+- **Reporting**:
+  - Comprehensive job summaries
+  - Metrics dashboards
+  - Performance regression detection
+  - Flaky test analysis
+- **Additional requirements**:
+  - Full artifact preservation
+  - Automated trend analysis
+  - Regression alerts (optional)
+
+**Current Status:** 🚧 **To Be Implemented**
+
 ## Implementation Plan
 
-### Phase 1: Basic Metrics Collection (Short-term)
+### Phase 1: Basic Metrics Collection (Layer 2 Enhancement)
+
+**Goal:** Add basic metrics to main branch runs
 
 - [ ] Ensure JUnit XML generation in CI
 - [ ] Ensure coverage XML/HTML generation in CI
@@ -302,7 +425,11 @@ date,commit,tier0_runtime,tier1_runtime,tier2_runtime,passed,failed,skipped,cove
 
 **Estimated Time:** 1-2 days
 
-### Phase 2: GitHub Actions Job Summary (Short-term)
+**Status:** 🚧 In Progress
+
+### Phase 2: GitHub Actions Job Summary (Layer 2 Enhancement)
+
+**Goal:** Display key metrics in job summaries
 
 - [ ] Create job summary script
 - [ ] Extract metrics from JUnit XML and coverage reports
@@ -311,23 +438,59 @@ date,commit,tier0_runtime,tier1_runtime,tier2_runtime,passed,failed,skipped,cove
 
 **Estimated Time:** 1-2 days
 
-### Phase 3: Trend Tracking (Medium-term)
+**Status:** 🚧 To Be Implemented
 
-- [ ] Implement metrics history file (CSV or JSONL)
-- [ ] Create script to append metrics per run
-- [ ] Store on dedicated branch or gh-pages
-- [ ] Create simple visualization (optional)
+### Phase 3: Layer 3 - Nightly Builds (Comprehensive Analysis)
 
-**Estimated Time:** 2-3 days
+**Goal:** Implement comprehensive nightly builds with full metrics and reporting
 
-### Phase 4: Enhanced Metrics (Optional, Long-term)
+**Tasks:**
 
-- [ ] Add `pytest-json-report` for structured metrics
+- [ ] **Create nightly workflow**
+  - Scheduled trigger (nightly at 2 AM UTC)
+  - Runs all Layer 2 jobs plus metrics collection
+  - Comprehensive reporting
+
+- [ ] **Enhanced metrics collection**
+  - Add `pytest-json-report` for structured metrics
+  - Generate comprehensive JUnit XML for all tiers
+  - Generate coverage XML/HTML for all tiers
+  - Collect slowest tests from all tiers
+
+- [ ] **Trend tracking implementation**
+  - Create metrics history file (CSV/JSONL)
+  - Script to append metrics per run
+  - Store on dedicated branch or gh-pages
+  - Enable trend visualization
+
+- [ ] **Comprehensive reporting**
+  - Generate detailed job summaries
+  - Create metrics dashboards
+  - Performance regression detection
+  - Flaky test analysis and reporting
+
+- [ ] **Additional requirements**
+  - Full artifact preservation (extended retention)
+  - Historical data aggregation
+  - Automated trend analysis
+  - Regression alerts (optional)
+
+**Estimated Time:** 3-5 days
+
+**Status:** 🚧 To Be Implemented
+
+### Phase 4: Enhanced Metrics (Layer 3 Enhancement)
+
+**Goal:** Advanced metrics and analysis
+
 - [ ] Implement flaky test detection and reporting
 - [ ] Create automated trend analysis
 - [ ] Set up alerts for regressions (optional)
+- [ ] Advanced visualization dashboards
 
-**Estimated Time:** 3-5 days
+**Estimated Time:** 2-3 days
+
+**Status:** 🚧 Future Enhancement
 
 ## Design Decisions
 
@@ -371,12 +534,35 @@ date,commit,tier0_runtime,tier1_runtime,tier2_runtime,passed,failed,skipped,cove
 
 - `.github/workflows/python-app.yml`: CI test jobs
 - `docs/TESTING_STRATEGY.md`: Overall testing strategy
-- `docs/DEVELOPMENT_GUIDE.md`: Development workflow
+- `docs/guides/DEVELOPMENT_GUIDE.md`: Development workflow
 - `pyproject.toml`: Pytest configuration and markers
+
+## Current Implementation Status
+
+### ✅ Layer 1 (PRs) - Implemented
+
+- Fast feedback jobs (`test-fast` and `test`)
+- Basic test execution
+- Parallel execution for speed
+
+### ✅ Layer 2 (Main Branch) - Implemented
+
+- All test jobs (test-unit, test-integration, test-e2e)
+- Complete validation
+- Parallel execution for speed
+
+### 🚧 Layer 3 (Nightly Builds) - To Be Implemented
+
+- Comprehensive metrics collection
+- Trend tracking
+- Reporting and dashboards
+- Performance regression detection
 
 ## Notes
 
 - Metrics collection should be low-friction (automated, no manual work)
 - Trend tracking can start simple (artifacts) and evolve (history file, external service)
 - Flaky test detection improves over time with historical data
+- Layer 3 (nightly builds) provides comprehensive analysis without slowing down PR or main branch CI
 - See `RFC-024-test-execution-optimization.md` for test execution optimization strategy
+````

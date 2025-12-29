@@ -1,0 +1,21 @@
+Review the following code or diff.
+
+Focus on:
+- Correctness and edge cases
+- Missing or weak tests
+- API and behavior consistency
+- Readability and maintainability
+
+Guidelines:
+- Prefer minimal, high-impact suggestions
+- Call out any risky assumptions
+- Suggest tests where appropriate
+- Avoid large refactors unless clearly justified
+
+Output:
+- Bullet list of findings
+- Clearly label issues as MUST / SHOULD / NICE-TO-HAVE
+
+Use when: reviewing your own diff or as a second reviewer
+Effect: Keeps reviews sharp without overengineering
+
