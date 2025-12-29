@@ -92,7 +92,9 @@ data:
   gold_data_path: "data/eval/golden/summaries/"
 ````
 
+```yaml
 # experiments/ner_openai_gpt4_mini_v1.yaml
+```
 
 id: "ner_openai_gpt4_mini_v1"
 task: "ner"

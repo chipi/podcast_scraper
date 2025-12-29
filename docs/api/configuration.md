@@ -143,10 +143,11 @@ OPENAI_API_KEY=sk-your-key-here python3 -m podcast_scraper https://example.com/f
 
 ````
 
+```bash
 # Create .env file in project root
-
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
-python3 -m podcast_scraper https://example.com/feed.xml
+python3 -m podcast_scraper <https://example.com/feed.xml>
+```
 
 ````javascript
 
@@ -181,11 +182,11 @@ docker run -e OPENAI_API_KEY=sk-your-key-here podcast-scraper https://example.co
 
 ````
 
+```bash
 # Create .env file
-
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
-
 # Docker Compose automatically loads .env
+```
 
 docker-compose up
 
@@ -236,7 +237,7 @@ docker-compose up
 
    ```
 
-### .env File Location
+## .env File Location
 
 The `.env` file is automatically loaded from:
 
@@ -245,7 +246,7 @@ The `.env` file is automatically loaded from:
 
 The first existing file is used. Project root takes precedence.
 
-#### .env File Format
+### .env File Format
 
 ````bash
 

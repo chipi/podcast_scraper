@@ -948,11 +948,12 @@ openai = [
 ]
 ````
 
+```bash
 # For OpenAI support
-
 pip install -e ".[openai]"
 
 # Or with all ML dependencies
+```
 
 pip install -e ".[ml,openai]"
 

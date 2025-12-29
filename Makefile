@@ -1,7 +1,7 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test test-sequential test-unit test-unit-no-ml test-integration test-ci test-workflow-e2e test-all test-parallel test-reruns coverage docs build ci ci-fast clean clean-cache clean-all docker-build docker-test docker-clean install-hooks
+.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-integration-slow test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-slow test-all test-all-sequential test-all-fast test-all-slow test-reruns coverage docs build ci ci-fast ci-full clean clean-cache clean-all docker-build docker-test docker-clean install-hooks
 
 help:
 	@echo "Common developer commands:"
@@ -10,28 +10,34 @@ help:
 	@echo "  make format-check    Check formatting without modifying files"
 	@echo "  make lint            Run flake8 linting"
 	@echo "  make lint-markdown   Run markdownlint on markdown files"
+	@echo "  make fix-md          Auto-fix common markdown linting issues"
 	@echo "  make type            Run mypy type checks"
 	@echo "  make security        Run bandit & pip-audit security scans"
 	@echo ""
 	@echo "Test commands:"
-	@echo "  make test            Run pytest with coverage in parallel (default: unit tests only, matches CI)"
-	@echo "  make test-sequential Run pytest sequentially (for debugging, slower but clearer output)"
-	@echo "  make test-unit       Run unit tests only (sequential - faster for fast tests)"
+	@echo "  make test-unit            Run unit tests with coverage in parallel (default, matches CI)"
+	@echo "  make test-unit-sequential Run unit tests sequentially (for debugging, slower but clearer output)"
 	@echo "  make test-unit-no-ml Run unit tests without ML dependencies (matches CI)"
-	@echo "  make test-integration Run integration tests only (parallel - 3.4x faster)"
-	@echo "  make test-workflow-e2e Run all workflow E2E tests (parallel, with network guard)"
-	@echo "  make test-e2e-fast   Run fast E2E tests only (excludes slow/ml_models)"
-	@echo "  make test-e2e-slow   Run slow E2E tests only (includes slow/ml_models, requires ML deps)"
-	@echo "  make test-all        Run all tests (unit + integration + workflow_e2e)"
-	@echo "  make test-network    Run network tests only (requires internet connection)"
-	@echo "  make test-parallel   Run tests with parallel execution (-n auto) [same as 'make test']"
+	@echo "  make test-integration            Run integration tests (parallel - 3.4x faster)"
+	@echo "  make test-integration-sequential Run integration tests sequentially (for debugging)"
+	@echo "  make test-integration-fast       Run fast integration tests only (excludes slow/ml_models)"
+	@echo "  make test-integration-slow       Run slow integration tests only (includes slow/ml_models, requires ML deps)"
+	@echo "  make test-e2e                   Run all E2E tests (parallel, with network guard)"
+	@echo "  make test-e2e-sequential         Run all E2E tests sequentially (for debugging)"
+	@echo "  make test-e2e-fast              Run fast E2E tests only (excludes slow/ml_models)"
+	@echo "  make test-e2e-slow              Run slow E2E tests only (includes slow/ml_models, requires ML deps)"
+	@echo "  make test-all            Run all tests (unit + integration + e2e, parallel)"
+	@echo "  make test-all-sequential Run all tests sequentially (for debugging)"
+	@echo "  make test-all-fast       Run fast tests (unit + fast integration + fast e2e, excludes slow/ml_models)"
+	@echo "  make test-all-slow       Run slow tests (slow integration + slow e2e, includes slow/ml_models, requires ML deps)"
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
 	@echo ""
 	@echo "Other commands:"
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
 	@echo "  make build           Build source and wheel distributions (outputs to .build/dist/)"
-	@echo "  make ci              Run the full CI suite locally (cleans cache, unit + integration tests, excludes workflow_e2e)"
-	@echo "  make ci-fast         Run fast CI checks (unit tests only, faster feedback)"
+	@echo "  make ci              Run the full CI suite locally (unit + integration + e2e-fast tests)"
+	@echo "  make ci-fast         Run fast CI checks (unit + fast integration tests, faster feedback)"
+	@echo "  make ci-full         Run complete CI suite with all tests (unit + integration + e2e, slower)"
 	@echo "  make docker-build    Build Docker image"
 	@echo "  make docker-test     Build and test Docker image"
 	@echo "  make docker-clean    Remove Docker test images"
@@ -65,6 +71,11 @@ lint-markdown:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
 	markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json
 
+fix-md:
+	@echo "Fixing common markdown linting issues..."
+	@python scripts/fix_markdown.py
+	@echo "✓ Markdown fixes applied. Run 'make lint-markdown' to verify."
+
 type:
 	mypy --config-file pyproject.toml .
 
@@ -86,17 +97,13 @@ security-audit:
 docs:
 	mkdocs build --strict
 
-test:
-	# Default: parallel execution (fast, matches CI behavior)
-	pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
-
-test-sequential:
-	# Sequential execution (slower but clearer output, useful for debugging)
-	pytest --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
-
 test-unit:
-	# Unit tests: sequential execution (faster for fast tests, overhead dominates in parallel)
-	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
+	# Unit tests: parallel execution for faster feedback
+	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n auto
+
+test-unit-sequential:
+	# Unit tests: sequential execution (slower but clearer output, useful for debugging)
+	pytest --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e'
 
 test-unit-no-ml: init-no-ml
 	@echo "Running unit tests without ML dependencies (matches CI test-unit job)..."
@@ -106,50 +113,87 @@ test-unit-no-ml: init-no-ml
 	@$(PYTHON) scripts/check_unit_test_imports.py
 	@echo ""
 	@echo "Step 2: Running unit tests..."
-	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
+	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e'
 
 test-integration:
 	# Integration tests: parallel execution (3.4x faster, significant benefit)
-	pytest tests/integration/ -m integration -n auto
+	# Includes reruns for flaky tests (matches CI behavior)
+	pytest tests/integration/ -m integration -n auto --reruns 2 --reruns-delay 1
+
+test-integration-sequential:
+	# Integration tests: sequential execution (slower but clearer output, useful for debugging)
+	pytest tests/integration/ -m integration
+
+test-integration-fast:
+	# Fast integration tests: excludes slow/ml_models tests (faster CI feedback)
+	pytest tests/integration/ -m "integration and not slow and not ml_models" -n auto
+
+test-integration-slow:
+	# Slow integration tests: includes slow/ml_models tests (requires ML dependencies)
+	pytest tests/integration/ -m "integration and (slow or ml_models)" -n auto
 
 test-ci:
-	# CI test suite: parallel execution (matches CI behavior)
-	pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing -m 'not workflow_e2e and not network'
+	# CI test suite: parallel execution (matches CI behavior, excludes slow/ml_models for faster PRs)
+	# Includes: unit + fast integration + fast e2e (excludes slow/ml_models tests)
+	# Note: Slow integration and slow e2e tests run on main branch only
+	pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing -m '(not slow and not ml_models)' --disable-socket --allow-hosts=127.0.0.1,localhost
 
-test-workflow-e2e:
+test-ci-fast:
+	# Fast CI test suite: parallel execution (faster feedback, no coverage for speed)
+	# Includes: unit + fast integration + fast e2e (excludes slow/ml_models tests)
+	# Note: Coverage is excluded here for faster execution; full validation job includes unified coverage
+	pytest tests/unit/ tests/integration/ tests/e2e/ -n auto -m '(not slow and not ml_models)' --disable-socket --allow-hosts=127.0.0.1,localhost
+
+test-e2e:
 	# E2E tests: parallel execution with network guard (faster for slow tests)
-	pytest tests/workflow_e2e/ -m workflow_e2e -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
+	# Includes reruns for flaky tests (matches CI behavior)
+	pytest tests/e2e/ -m e2e -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
+
+test-e2e-sequential:
+	# E2E tests: sequential execution (slower but clearer output, useful for debugging)
+	pytest tests/e2e/ -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-e2e-fast:
 	# Fast E2E tests: excludes slow/ml_models tests (faster CI feedback)
-	pytest tests/workflow_e2e/ -m "workflow_e2e and not slow and not ml_models" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
+	# Includes reruns for flaky tests (matches CI behavior)
+	pytest tests/e2e/ -m "e2e and not slow and not ml_models" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
 
 test-e2e-slow:
 	# Slow E2E tests: includes slow/ml_models tests (requires ML dependencies)
-	pytest tests/workflow_e2e/ -m "workflow_e2e and (slow or ml_models)" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
+	# Includes reruns for flaky tests (matches CI behavior)
+	pytest tests/e2e/ -m "e2e and (slow or ml_models)" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
 
 test-all:
-	pytest tests/ -m "not network" --cov=$(PACKAGE) --cov-report=term-missing
+	# All tests: parallel execution (includes unit + integration + e2e, all slow/fast variants)
+	pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
 
-test-network:
-	pytest tests/ -m network
+test-all-sequential:
+	# All tests: sequential execution (slower but clearer output, useful for debugging)
+	pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing
 
-test-parallel:
-	pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
+test-all-fast:
+	# Fast tests: unit + fast integration + fast e2e (excludes slow/ml_models tests)
+	pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing -m '(not slow and not ml_models)' --disable-socket --allow-hosts=127.0.0.1,localhost
+
+test-all-slow:
+	# Slow tests: slow integration + slow e2e (includes slow/ml_models tests, requires ML dependencies)
+	pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing -m '((integration or e2e) and (slow or ml_models))' --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-reruns:
-	pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not workflow_e2e and not network'
+	pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e'
 
-coverage: test
+coverage: test-unit
 
 build:
 	$(PYTHON) -m pip install --quiet build
 	$(PYTHON) -m build
 	@if [ -d dist ]; then mkdir -p .build && rm -rf .build/dist && mv dist .build/ && echo "Moved dist to .build/dist/"; fi
 
-ci: clean-all format-check lint lint-markdown type security test-ci docs build
+ci: format-check lint lint-markdown type security test-ci docs build
 
-ci-fast: format-check lint lint-markdown type security test docs build
+ci-fast: format-check lint lint-markdown type security test-ci-fast docs build
+
+ci-full: clean-all format-check lint lint-markdown type security test-all docs build
 
 docker-build:
 	docker build -t podcast-scraper:test -f Dockerfile .

@@ -462,7 +462,7 @@ print(f"Downloaded {count} transcripts")
 ````
 
 config = Config(
-rss_url="https://example.com/feed.xml",
+rss_url="<https://example.com/feed.xml>",
 transcribe_missing=True,
 whisper_model="base",
 language="en",
