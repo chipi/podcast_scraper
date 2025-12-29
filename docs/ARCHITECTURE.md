@@ -1,6 +1,6 @@
 # Podcast Scraper Architecture
 
-> **Strategic Overview**: This document provides high-level architectural decisions, design principles, and system structure. For detailed implementation guides, see the [Development Guide](DEVELOPMENT_GUIDE.md) and other specialized documents linked below.
+> **Strategic Overview**: This document provides high-level architectural decisions, design principles, and system structure. For detailed implementation guides, see the [Development Guide](guides/DEVELOPMENT_GUIDE.md) and other specialized documents linked below.
 
 ## Navigation
 
@@ -8,23 +8,23 @@ This architecture document is the central hub for understanding the system. For 
 
 ### Core Documentation
 
-- **[Development Guide](DEVELOPMENT_GUIDE.md)** — Detailed implementation instructions, dependency management, code patterns, and development workflows
+- **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** — Detailed implementation instructions, dependency management, code patterns, and development workflows
 - **[Testing Strategy](TESTING_STRATEGY.md)** — Testing philosophy, test pyramid, and quality standards
-- **[Testing Guide](TESTING_GUIDE.md)** — Detailed test execution, fixtures, and coverage information
+- **[Testing Guide](guides/TESTING_GUIDE.md)** — Detailed test execution, fixtures, and coverage information
 - **[CI/CD](CI_CD.md)** — Continuous integration and deployment pipeline
 
 ### API Documentation
 
-- **[API Reference](api/API_REFERENCE.md)** — Complete API documentation
-- **[Configuration](api/configuration.md)** — Configuration options and examples
-- **[CLI Reference](api/cli.md)** — Command-line interface documentation
+- **[API Reference](api/REFERENCE.md)** — Complete API documentation
+- **[Configuration](api/CONFIGURATION.md)** — Configuration options and examples
+- **[CLI Reference](api/CLI.md)** — Command-line interface documentation
 
 ### Feature Documentation
 
-- **[Provider System](PROVIDER_MIGRATION_GUIDE.md)** — Provider architecture and migration guides
-- **[Custom Providers](CUSTOM_PROVIDER_GUIDE.md)** — Creating custom providers
-- **[Summarization Guide](SUMMARIZATION_GUIDE.md)** — Summarization implementation details
-- **[Configuration API](api/configuration.md)** — Configuration API reference (includes environment variables)
+- **[Provider System](guides/PROVIDER_MIGRATION_GUIDE.md)** — Provider architecture and migration guides
+- **[Custom Providers](guides/CUSTOM_PROVIDER_GUIDE.md)** — Creating custom providers
+- **[Summarization Guide](guides/SUMMARIZATION_GUIDE.md)** — Summarization implementation details
+- **[Configuration API](api/CONFIGURATION.md)** — Configuration API reference (includes environment variables)
 
 ### Specifications
 
@@ -46,12 +46,12 @@ This architecture document is the central hub for understanding the system. For 
 4. **Speaker detection** (RFC-010): When automatic speaker detection is enabled, host names are extracted from RSS author tags (channel-level `<author>`, `<itunes:author>`, `<itunes:owner>`) as the primary source, falling back to NER extraction from feed metadata if no author tags exist. Guest names are extracted from episode-specific metadata (titles and descriptions) using Named Entity Recognition (NER) with spaCy. Manual speaker names are only used as fallback when detection fails.
 5. **Transcription**: When Whisper fallback is enabled, `episode_processor.download_media_for_transcription` downloads media to a temp area and `episode_processor.transcribe_media_to_text` persists Whisper output using deterministic naming. Detected speaker names are integrated into screenplay formatting when enabled.
 6. **Metadata generation** (PRD-004/RFC-011): When enabled, per-episode metadata documents are generated alongside transcripts, capturing feed-level and episode-level information, detected speaker names, and processing metadata in JSON/YAML format.
-7. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using local transformer models (BART, PEGASUS, LED) with a hybrid map-reduce strategy. See [Summarization Guide](SUMMARIZATION_GUIDE.md) for detailed architecture.
+7. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using local transformer models (BART, PEGASUS, LED) with a hybrid map-reduce strategy. See [Summarization Guide](guides/SUMMARIZATION_GUIDE.md) for detailed architecture.
 8. **Progress/UI**: All long-running operations report progress through the pluggable factory in `progress.py`, defaulting to `tqdm` in the CLI.
 
 ### Pipeline Flow Diagram
 
-```mermaid
+````mermaid
 flowchart TD
     Start([CLI Entry]) --> Parse[Parse CLI Args & Config Files]
     Parse --> Validate[Validate & Normalize Config]
@@ -86,9 +86,7 @@ flowchart TD
     style ProcessEpisodes fill:#fff3cd
     style Transcribe fill:#f8d7da
     style GenerateMetadata fill:#d1ecf1
-```
-
-## Module Responsibilities
+```yaml
 
 - `cli.py`: Parse/validate CLI arguments, integrate config files, set up progress reporting, trigger `run_pipeline`. Optimized for interactive command-line use.
 - `service.py`: Service API for programmatic/daemon use. Provides `service.run()` and `service.run_from_config_file()` functions that return structured `ServiceResult` objects. Works exclusively with configuration files (no CLI arguments), optimized for non-interactive use (supervisor, systemd, etc.). Entry point: `python -m podcast_scraper.service --config config.yaml`.
@@ -100,7 +98,7 @@ flowchart TD
 - `filesystem.py`: Filename sanitization, output directory derivation, run suffix logic, and helper utilities for Whisper output paths.
 - `whisper_integration.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names.
 - `speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency.
-- `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. See [Summarization Guide](SUMMARIZATION_GUIDE.md) for details.
+- `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. See [Summarization Guide](guides/SUMMARIZATION_GUIDE.md) for details.
 - `progress.py`: Minimal global progress publishing API so callers can swap in alternative UIs.
 - `models.py`: Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob`) shared across modules. May be extended to include detected speaker metadata.
 - `metadata.py` (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, processing metadata, and optional summaries in structured JSON/YAML format. Opt-in feature for backwards compatibility.
@@ -163,9 +161,7 @@ graph TB
     style Workflow fill:#d1ecf1
     style Whisper fill:#f8d7da
     style SpeakerDetect fill:#d4edda
-```
-
-## Key Design Decisions
+```yaml
 
 - **Typed, immutable configuration**: `Config` is a frozen Pydantic model, ensuring every module receives canonicalized values (e.g., normalized URLs, integer coercions, validated Whisper models). This centralizes validation and guards downstream logic.
 - **Resilient HTTP interactions**: A per-thread `requests.Session` with exponential backoff retry (`LoggingRetry`) handles transient network issues while logging retries for observability.
@@ -174,7 +170,7 @@ graph TB
 - **Dry-run and resumability**: `--dry-run` walks the entire plan without touching disk, while `--skip-existing` short-circuits work per episode, making repeated runs idempotent.
 - **Pluggable progress/UI**: A narrow `ProgressFactory` abstraction lets embedding applications replace the default `tqdm` progress without touching business logic.
 - **Optional Whisper dependency**: Whisper is imported lazily and guarded so environments without GPU support or `openai-whisper` can still run transcript-only workloads.
-- **Optional summarization dependency** (PRD-005/RFC-012): Summarization requires `torch` and `transformers` dependencies and is imported lazily. When dependencies are unavailable, summarization is gracefully skipped. Models are automatically selected based on available hardware (MPS for Apple Silicon, CUDA for NVIDIA GPUs, CPU fallback). See [Summarization Guide](SUMMARIZATION_GUIDE.md) for details.
+- **Optional summarization dependency** (PRD-005/RFC-012): Summarization requires `torch` and `transformers` dependencies and is imported lazily. When dependencies are unavailable, summarization is gracefully skipped. Models are automatically selected based on available hardware (MPS for Apple Silicon, CUDA for NVIDIA GPUs, CPU fallback). See [Summarization Guide](guides/SUMMARIZATION_GUIDE.md) for details.
 - **Language-aware processing** (RFC-010): A single `language` configuration drives both Whisper model selection (preferring English-only `.en` variants) and NER model selection (e.g., `en_core_web_sm`), ensuring consistent language handling across the pipeline.
 - **Automatic speaker detection** (RFC-010): Named Entity Recognition extracts speaker names from episode metadata transparently. Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails, not as override. spaCy is a required dependency for speaker detection.
 - **Host/guest distinction**: Host detection prioritizes RSS author tags (channel-level only) as the most reliable source, falling back to NER extraction from feed metadata when author tags are unavailable. Guests are always detected from episode-specific metadata using NER, ensuring accurate speaker labeling in Whisper screenplay output.
@@ -188,7 +184,7 @@ The project uses a layered dependency approach: **core dependencies** (always re
 
 **ML Dependencies** (optional, install via `pip install -e .[ml]`): `openai-whisper`, `spacy`, `torch`, `transformers`, `sentencepiece`, `accelerate`, `protobuf`
 
-For detailed dependency information including rationale, alternatives considered, version requirements, and dependency management philosophy, see [Dependencies Guide](DEPENDENCIES.md).
+For detailed dependency information including rationale, alternatives considered, version requirements, and dependency management philosophy, see [Dependencies Guide](guides/DEPENDENCIES_GUIDE.md).
 
 ## Constraints and Assumptions
 
@@ -218,9 +214,7 @@ flowchart TD
     style Input fill:#e1f5ff
     style Config fill:#fff3cd
     style Validate fill:#f8d7da
-```
-
-## Data and File Layout
+```python
 
 - `models.Episode` encapsulates the RSS item, chosen transcript URLs, and media enclosure metadata, keeping parsing concerns separate from processing. May be extended to include detected speaker names (RFC-010).
 - Transcript filenames follow `<####> - <episode_title>[ _<run_suffix>].<ext>` with extensions inferred from declared types, HTTP headers, or URL heuristics.
@@ -251,16 +245,14 @@ graph TD
     style Episodes fill:#fff3cd
     style TempDir fill:#f8d7da
     style Metadata fill:#d1ecf1
-```
-
-## Error Handling and Resilience
+```text
 
 - RSS and HTTP failures raise `ValueError` early with descriptive messages; CLI wraps these in exit codes for scripting.
 - Transcript/Media downloads log warnings rather than hard-fail the pipeline, allowing other episodes to proceed.
 - Filesystem operations sanitize user-provided paths, emit warnings when outside trusted roots, and handle I/O errors gracefully.
 - Unexpected exceptions inside worker futures are caught and logged without terminating the executor loop.
 
-For detailed error handling patterns and implementation guidelines, see [Development Guide - Error Handling](DEVELOPMENT_GUIDE.md#error-handling).
+For detailed error handling patterns and implementation guidelines, see [Development Guide - Error Handling](guides/DEVELOPMENT_GUIDE.md#error-handling).
 
 ## Extensibility Points
 
@@ -279,4 +271,6 @@ For detailed error handling patterns and implementation guidelines, see [Develop
 The project follows a three-tier testing strategy (Unit, Integration, E2E) with distinct purposes, speeds, scopes, and I/O policies. For comprehensive testing information, see:
 
 - **[Testing Strategy](TESTING_STRATEGY.md)** — Testing philosophy, test pyramid, decision criteria, and quality standards
-- **[Testing Guide](TESTING_GUIDE.md)** — Detailed test execution, fixtures, coverage, and implementation specifics
+- **[Testing Guide](guides/TESTING_GUIDE.md)** — Detailed test execution, fixtures, coverage, and implementation specifics
+
+````

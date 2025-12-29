@@ -84,18 +84,18 @@ For each:
 
 2. **Store in a simple structure, e.g.:**
 
-    ```text
-    data/eval/
-        ep01/
-            transcript.txt
-            reference_summary.txt
-        ep02/
-            transcript.txt
-            reference_summary.txt
-        ...
-    ```
+   ```text
+   data/eval/
+       ep01/
+           transcript.txt
+           reference_summary.txt
+       ep02/
+           transcript.txt
+           reference_summary.txt
+       ...
+   ```
 
-    This becomes your evaluation dataset.
+   This becomes your evaluation dataset.
 
 ---
 
@@ -128,7 +128,7 @@ Use a small rubric, e.g. score 1–5 for each dimension:
 
 You can keep a simple CSV:
 
-```csv
+````csv
     episode, model, coverage, faithfulness, clarity, conciseness, notes
     ep01, bart_map_reduce, 4, 4, 3, 4, "Missed one subtopic, otherwise good"
     ep02, bart_map_reduce, 3, 3, 4, 4, "Some minor hallucinations"
@@ -168,10 +168,13 @@ If you have human/reference summaries, you can compute:
             use_stemmer=True,
         )
         scores = scorer.score(ref, pred)
+
         # scores is a dict with precision/recall/fmeasure
+
         return scores
 
     # example
+
     scores = rouge_for_pair(
         "data/eval/ep01/model_summary.txt",
         "data/eval/ep01/reference_summary.txt"
@@ -320,9 +323,9 @@ Here's a practical plan:
        --model bart-large \
        --reduce-model long-fast \
        --output results/baseline_bart_led.json
-   ```
+````
 
-5. **Compare models**: When you change models or settings, re-run on same episodes:
+1. **Compare models**: When you change models or settings, re-run on same episodes:
 
    ```bash
    python scripts/eval_summaries.py \
@@ -332,7 +335,7 @@ Here's a practical plan:
 
    Compare ROUGE scores, generation times, and check pass rates.
 
-6. **Regression testing**: Store baseline JSON files in version control and compare:
+2. **Regression testing**: Store baseline JSON files in version control and compare:
    - Did mean ROUGE-L F-measure drop below baseline - 0.03?
    - Did generation time increase significantly?
    - Did any reference-free checks fail?

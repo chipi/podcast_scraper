@@ -31,13 +31,13 @@ Define how operators interact with the podcast scraper via CLI flags and configu
 
 ## User Stories
 
-- *As Operator Owen, I can run `python -m podcast_scraper.cli <rss_url>` with sensible defaults and see progress bars and status logs.*
-- *As Automation Alex, I can maintain a JSON/YAML config file checked into version control and use `--config` to load it.*
-- *As a user, I can request version info (`--version`) and set log level verbosity per run.*
-- *As Integrator Iris, I can call `podcast_scraper.Config` + `podcast_scraper.run_pipeline` directly in Python with the same semantics.*
-- *As any user, I can enable automatic speaker name detection (`--auto-speakers`) without manually specifying names for each episode (RFC-010).*
-- *As any user, I can configure the podcast language (`--language`) to optimize both Whisper transcription and speaker name detection.*
-- *As any user, I can provide manual speaker names (`--speaker-names`) as fallback when automatic detection fails.*
+- _As Operator Owen, I can run `python -m podcast_scraper.cli <rss_url>` with sensible defaults and see progress bars and status logs._
+- _As Automation Alex, I can maintain a JSON/YAML config file checked into version control and use `--config` to load it._
+- _As a user, I can request version info (`--version`) and set log level verbosity per run._
+- _As Integrator Iris, I can call `podcast_scraper.Config` + `podcast_scraper.run_pipeline` directly in Python with the same semantics._
+- _As any user, I can enable automatic speaker name detection (`--auto-speakers`) without manually specifying names for each episode (RFC-010)._
+- _As any user, I can configure the podcast language (`--language`) to optimize both Whisper transcription and speaker name detection._
+- _As any user, I can provide manual speaker names (`--speaker-names`) as fallback when automatic detection fails._
 
 ## Functional Requirements
 

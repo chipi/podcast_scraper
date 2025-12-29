@@ -23,8 +23,10 @@ Experiments are defined in YAML configuration files, stored in `experiments/` di
 
 **Example: Local Summarization Experiment**
 
-```yaml
+````yaml
+
 # experiments/summarization_bart_led_local.yaml
+
 id: "summarization_bart_led_v1"
 task: "summarization"
 description: "Local BART + LED summarization with standard parameters"
@@ -46,27 +48,26 @@ params:
   device: "mps"  # or "cpu", "cuda"
 
 prompts:
+
   # For local models, prompts are embedded in the model wrapper
+
   # This section can be empty or contain model-specific prompt overrides
 
 data:
   episodes_glob: "data/eval/episodes/ep*/transcript.txt"
   gold_data_path: "data/eval/golden/summaries/"
-```
+```text
 
-**Example: OpenAI Summarization Experiment**
-
-```yaml
 # experiments/summarization_openai_gpt4_mini_v1.yaml
+
 id: "summarization_openai_gpt4_mini_v1"
 task: "summarization"
 description: "OpenAI GPT-4o-mini summarization with custom prompts"
-```
 
-**Example: Golden Dataset Creation Experiment**
+```text
 
-```yaml
 # experiments/summarization_openai_gpt4_turbo_golden.yaml
+
 id: "summarization_openai_gpt4_turbo_golden"
 task: "summarization"
 description: "OpenAI GPT-4 Turbo for golden dataset creation (high quality, expensive)"
@@ -89,38 +90,37 @@ prompts:
 data:
   episodes_glob: "data/eval/episodes/ep*/transcript.txt"
   gold_data_path: "data/eval/golden/summaries/"
-```
-
-**Example: NER/Speaker Detection Experiment**
+````
 
 ```yaml
 # experiments/ner_openai_gpt4_mini_v1.yaml
+```
+
 id: "ner_openai_gpt4_mini_v1"
 task: "ner"
 description: "OpenAI GPT-4o-mini for speaker detection"
 
 models:
-  detector:
-    type: "openai"
-    name: "gpt-4o-mini"
+detector:
+type: "openai"
+name: "gpt-4o-mini"
 
 params:
-  max_detected_names: 4
-  temperature: 0.3
+max_detected_names: 4
+temperature: 0.3
 
 prompts:
-  system: "ner/system_ner_v1"
-  user: "ner/guest_host_v1"
+system: "ner/system_ner_v1"
+user: "ner/guest_host_v1"
 
 data:
-  episodes_glob: "data/eval/episodes/ep*/transcript.txt"
-  gold_data_path: "data/eval/golden/ner/"
-```
+episodes_glob: "data/eval/episodes/ep\*/transcript.txt"
+gold_data_path: "data/eval/golden/ner/"
 
-**Example: Transcription Experiment**
+````text
 
-```yaml
 # experiments/transcription_openai_whisper_v1.yaml
+
 id: "transcription_openai_whisper_v1"
 task: "transcription"
 description: "OpenAI Whisper API transcription"
@@ -137,11 +137,8 @@ params:
 data:
   episodes_glob: "data/eval/episodes/ep*/audio.mp3"
   gold_data_path: "data/eval/golden/transcripts/"
-```
-
-**Configuration Schema:**
-
 ```python
+
 from typing import Literal, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
@@ -159,19 +156,15 @@ class ExperimentConfig(BaseModel):
     prompts: Optional[Dict[str, str]] = Field(default_factory=dict)  # system, user paths
 
     data: Dict[str, str]  # episodes_glob, gold_data_path
-```
 
-### 2. Prompts as First-Class, Versioned Assets
-
-Prompts are treated as **first-class, versioned assets** separate from code and configuration. This enables clean prompt engineering workflows without touching core logic.
-
-**Note**: This section describes the prompt management approach. For complete implementation details, see **RFC-017: Prompt Management and Loading**, which provides the `prompt_store` module and integration patterns.
+```text
 
 #### 2.1 Prompt Directory Structure
 
 Prompts are organized in a `prompts/` directory with task-specific subdirectories:
 
 ```text
+
 prompts/
   summarization/
     system_v1.txt
@@ -184,11 +177,6 @@ prompts/
     guest_host_v1.txt
     guest_host_v2_strict_roles.txt
     entities_generic_v1.txt
-```
-
-Each file contains a single prompt template. Versioning is explicit in filenames (e.g., `v1`, `v2`, `v2_more_narrative`).
-
-**Example: `prompts/summarization/long_v1.j2`**
 
 ```text
 You are summarizing a podcast episode.
@@ -201,11 +189,10 @@ Guidelines:
 - Ignore sponsorships, ads, and host housekeeping.
 - Do not use quotes or speaker names.
 - Do not invent information that is not implied in the transcript.
-```
-
-**Example: `prompts/summarization/long_v2_more_narrative.j2`**
 
 ```text
+```text
+
 You are summarizing a podcast episode.
 
 Write a detailed, narrative-style summary that reads like a story.
@@ -217,7 +204,8 @@ Guidelines:
 - Ignore sponsorships, ads, and host housekeeping.
 - Do not use quotes or speaker names.
 - Do not invent information that is not implied in the transcript.
-```
+
+```text
 
 #### 2.2 Experiments Reference Prompts by Path
 
@@ -226,6 +214,7 @@ In experiment configs, prompts are referenced by file path, not embedded as stri
 **Example: `experiments/summarization_openai_long_v1.yaml`**
 
 ```yaml
+
 id: "summarization_openai_long_v1"
 task: "summarization"
 
@@ -243,18 +232,13 @@ data:
 
 params:
   max_output_tokens: 900
-```
-
-**Example: `experiments/summarization_openai_long_v2_more_narrative.yaml`**
 
 ```yaml
-id: "summarization_openai_long_v2_more_narrative"
-task: "summarization"
 
 backend:
   type: "openai"
-  model: "gpt-4o-mini"
 
+```yaml
 prompts:
   system: "prompts/summarization/system_v1.txt"
   user: "prompts/summarization/long_v2_more_narrative.txt"
@@ -265,13 +249,9 @@ data:
 
 params:
   max_output_tokens: 900
-```
 
-Same model, same data, same parameters – only the user prompt path differs.
+```text
 
-**Example: `experiments/ner_openai_guest_host_v1.yaml`**
-
-```yaml
 id: "ner_openai_guest_host_v1"
 task: "ner_guest_host"
 
@@ -286,19 +266,18 @@ prompts:
 data:
   episodes_glob: "data/eval/episodes/ep*/meta.json"
   gold_data_path: "data/eval/golden/ner/"
-```
 
-#### 2.3 Prompt Loading Implementation
+```text
 
-The experiment runner loads prompts using `prompt_store` (RFC-017):
-
-```python
 from podcast_scraper.prompt_store import render_prompt, get_prompt_metadata
 
 # Usage in experiment runner:
+
 def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
     """Generate predictions using prompts from prompt_store."""
+
     # Load and render prompts (with parameterization support)
+
     system_prompt = None
     if config.prompts["system"]:
         system_prompt = render_prompt(
@@ -312,6 +291,7 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
     )
 
     # Get prompt metadata for tracking
+
     prompt_meta = {
         "system": (
             get_prompt_metadata(config.prompts["system"], config.prompts.get("params", {}))
@@ -322,13 +302,13 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
     }
 
     # Use prompts in backend calls
+
     backend = create_backend(config)
+
     # ... rest of generation logic
-```
 
-**Note**: The `prompt_store` module (RFC-017) provides:
+```text
 
-- Jinja2 templating for parameterization
 - LRU caching for performance
 - SHA256 hashing for reproducibility
 - Error handling and validation
@@ -347,17 +327,21 @@ When doing prompt engineering, you never touch the runner or backends:
 4. **Update the config** to reference the new prompt:
 
 ```yaml
+
 prompts:
   system: "summarization/system_v1"
   user: "summarization/long_v2_focus_on_frameworks"
-```
+
+```text
 
 5. **Run both experiments** with the same runner:
 
 ```bash
+
 python scripts/run_experiment.py experiments/summarization_openai_long_v1.yaml
 python scripts/run_experiment.py experiments/summarization_openai_long_v2.yaml
-```
+
+```text
 
 6. **Compare metrics** in `results/*/metrics.json`:
    - Did ROUGE-L improve?
@@ -371,6 +355,7 @@ Prompt identity is recorded in experiment results so you can always answer: **"W
 **Example: `results/summarization_openai_long_v2_more_narrative/metrics.json`**
 
 ```json
+
 {
   "run_id": "summarization_openai_long_v2_more_narrative",
   "task": "summarization",
@@ -397,18 +382,17 @@ Prompt identity is recorded in experiment results so you can always answer: **"W
     }
   }
 }
-```
-
-**Implementation:**
 
 ```python
-def save_metrics(
+
     metrics: Dict[str, Any],
     metrics_file: Path,
     config: ExperimentConfig,
 ) -> None:
     """Save metrics with prompt tracking."""
+
     # Load prompts to compute hashes
+
     system_prompt = load_prompt(config.prompts["system"])
     user_prompt = load_prompt(config.prompts["user"])
 
@@ -426,20 +410,15 @@ def save_metrics(
         json.dumps(metrics_with_prompts, indent=2),
         encoding="utf-8"
     )
-```
 
-**Comparison Script Output:**
-
-```bash
-$ python scripts/compare_runs.py results/
+```text
 
 Run                                   Model          User Prompt
 ---------------------------------------------------------------------------
 summarization_openai_long_v1          gpt-4o-mini    long_v1.txt
 summarization_openai_long_v2_more…    gpt-4o-mini    long_v2_more_narrative.txt
-```
 
-#### 2.6 Mental Model: How to Think About This Pipeline
+```yaml
 
 - **Code**: Runner + backends (HF, OpenAI, etc.) – should change rarely
 - **Data**: Transcripts + gold summaries + (later) gold NER – evolves slowly
@@ -470,7 +449,9 @@ The experiment runner evolves from a minimal implementation to a full-featured s
 **File: `scripts/run_experiment.py` (Minimal Version)**
 
 ```python
+
 #!/usr/bin/env python3
+
 """
 Minimal experiment runner for OpenAI-based summarization.
 
@@ -504,6 +485,7 @@ from podcast_scraper.experiment_config import (
 from podcast_scraper.prompt_store import render_prompt, get_prompt_metadata
 
 # OpenAI client (relies on OPENAI_API_KEY env var)
+
 client = OpenAI()
 
 
@@ -534,6 +516,7 @@ def summarize_with_openai(
         messages.append({"role": "system", "content": system_prompt})
 
     # Embed transcript into user message
+
     user_content = f"{user_prompt}\n\nTranscript:\n\"\"\"{transcript}\"\"\""
     messages.append({"role": "user", "content": user_content})
 
@@ -566,6 +549,7 @@ def run_experiment(cfg: ExperimentConfig) -> None:
     metadata_path = results_dir / "run_metadata.json"
 
     # --- Prepare prompts using prompt_store (RFC-017) ---
+
     system_prompt: str | None = None
     if cfg.prompts.system:
         system_prompt = render_prompt(
@@ -579,6 +563,7 @@ def run_experiment(cfg: ExperimentConfig) -> None:
     )
 
     # Collect prompt metadata for reproducibility
+
     system_meta = (
         get_prompt_metadata(cfg.prompts.system, cfg.prompts.params)
         if cfg.prompts.system
@@ -587,6 +572,7 @@ def run_experiment(cfg: ExperimentConfig) -> None:
     user_meta = get_prompt_metadata(cfg.prompts.user, cfg.prompts.params)
 
     # --- Discover input files (episodes) ---
+
     input_files = discover_input_files(cfg.data)
     if not input_files:
         raise RuntimeError(
@@ -596,6 +582,7 @@ def run_experiment(cfg: ExperimentConfig) -> None:
     print(f"[{run_id}] Found {len(input_files)} episode file(s).")
 
     # --- Validate backend (Phase 1: OpenAI only) ---
+
     if cfg.backend.type != "openai":
         raise NotImplementedError(
             f"Phase 1 only supports OpenAI backend. Got: {cfg.backend.type}"
@@ -610,6 +597,7 @@ def run_experiment(cfg: ExperimentConfig) -> None:
     temperature = cfg.params.temperature
 
     # --- Run per-episode summarization ---
+
     start_time = time.time()
     num_episodes = 0
     total_chars_in = 0
@@ -643,6 +631,7 @@ def run_experiment(cfg: ExperimentConfig) -> None:
             print(f"[{run_id}]   Done in {dt:.1f}s, summary length={len(summary)} chars")
 
             # Write one JSON object per line (JSONL format)
+
             record = {
                 "episode_id": episode_id,
                 "input_file": str(path),
@@ -653,6 +642,7 @@ def run_experiment(cfg: ExperimentConfig) -> None:
     total_time = time.time() - start_time
 
     # --- Save run-level metadata ---
+
     avg_time = total_time / num_episodes if num_episodes > 0 else 0.0
     avg_compression = (
         (total_chars_in / total_chars_out) if total_chars_out > 0 else None
@@ -714,6 +704,7 @@ def main() -> None:
     cfg = load_experiment_config(args.config)
 
     # Validate API key
+
     if not os.getenv("OPENAI_API_KEY"):
         raise EnvironmentError(
             "OPENAI_API_KEY environment variable is not set. "
@@ -725,65 +716,43 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-```
-
-**Example Config: `experiments/summarization_openai_long_v1.yaml`**
 
 ```yaml
-id: "summarization_openai_long_v1"
-task: "summarization"
 
 backend:
   type: "openai"
-  model: "gpt-4o-mini"
+
+````
 
 prompts:
-  system: "summarization/system_v1"
-  user: "summarization/long_v1"
-  params:
-    paragraphs_min: 3
-    paragraphs_max: 6
+system: "summarization/system_v1"
+user: "summarization/long_v1"
+params:
+paragraphs_min: 3
+paragraphs_max: 6
 
 data:
-  episodes_glob: "data/eval/episodes/ep*/transcript.txt"
-  id_from: "parent_dir"
+episodes_glob: "data/eval/episodes/ep\*/transcript.txt"
+id_from: "parent_dir"
 
 params:
-  max_output_tokens: 900
-  temperature: 0.7
-```
+max_output_tokens: 900
+temperature: 0.7
 
-**Usage:**
-
-```bash
-export OPENAI_API_KEY=sk-...
-python scripts/run_experiment.py experiments/summarization_openai_long_v1.yaml
-```
-
-**Output Structure:**
-
+````text
 ```text
-results/
+
   summarization_openai_long_v1/
     predictions.jsonl        # One prediction per line
     run_metadata.json        # Backend + prompts + stats
-```
 
-**Predictions Format (JSONL):**
-
-```json
-{"episode_id": "ep01", "input_file": "data/eval/episodes/ep01/transcript.txt", "summary": "..."}
-{"episode_id": "ep02", "input_file": "data/eval/episodes/ep02/transcript.txt", "summary": "..."}
-```
-
-#### 3.2 Integration with Existing Eval Scripts
-
-**Phase 1: Reuse Existing Scripts**
-
-The minimal runner writes `predictions.jsonl` in a format compatible with existing eval scripts:
+```text
+```text
 
 ```python
+
 # scripts/eval_experiment.py
+
 """
 Evaluate experiment predictions using existing eval scripts.
 
@@ -810,7 +779,9 @@ def evaluate_experiment_predictions(
 
     Reuses existing eval_summaries.py logic.
     """
+
     # Load predictions from JSONL
+
     predictions = {}
     with predictions_file.open("r", encoding="utf-8") as f:
         for line in f:
@@ -818,9 +789,11 @@ def evaluate_experiment_predictions(
             predictions[record["episode_id"]] = record["summary"]
 
     # Load golden summaries (existing function)
+
     gold_summaries = load_golden_summaries(gold_data_path)
 
     # Compute metrics (existing functions)
+
     rouge_scores = compute_rouge_scores(predictions, gold_summaries)
     compression_ratios = {
         ep_id: compute_compression_ratio(pred, gold_summaries.get(ep_id, ""))
@@ -828,6 +801,7 @@ def evaluate_experiment_predictions(
     }
 
     # Aggregate metrics
+
     global_metrics = {
         "rouge1_f": sum(s["rouge1_f"] for s in rouge_scores.values()) / len(rouge_scores),
         "rougeL_f": sum(s["rougeL_f"] for s in rouge_scores.values()) / len(rouge_scores),
@@ -847,30 +821,27 @@ def evaluate_experiment_predictions(
         "global": global_metrics,
         "episodes": episode_metrics,
     }
-```
 
-**Usage:**
+```text
 
-```bash
 # Generate predictions
+
 python scripts/run_experiment.py experiments/summarization_openai_long_v1.yaml
 
 # Evaluate predictions
+
 python scripts/eval_experiment.py \
   results/summarization_openai_long_v1/predictions.jsonl \
   data/eval/golden/summaries/
-```
 
-#### 3.3 Evolution Path: Adding Provider Pattern Support
-
-**Phase 2: Integrate with Provider System (RFC-016)**
-
-As the provider system is implemented, the experiment runner evolves to use providers:
-
+```text
 ```python
+
 def run_experiment(cfg: ExperimentConfig) -> None:
     """Run experiment using provider system."""
+
     # Create provider using factory (RFC-016)
+
     if cfg.task == "summarization":
         from podcast_scraper.summarization import SummarizationProviderFactory
         provider = SummarizationProviderFactory.create(cfg)
@@ -883,6 +854,7 @@ def run_experiment(cfg: ExperimentConfig) -> None:
         raise ValueError(f"Unknown task: {cfg.task}")
 
     # Process episodes using provider protocol
+
     predictions = []
     for path in discover_input_files(cfg.data):
         episode_id = episode_id_from_path(path, cfg.data)
@@ -900,18 +872,18 @@ def run_experiment(cfg: ExperimentConfig) -> None:
                 "episode_id": episode_id,
                 "summary": result["summary"],
             })
+
         # ... handle other tasks
 
     # Cleanup
+
     if provider and resource:
         provider.cleanup(resource)
 
     # Save predictions and metadata...
-```
 
-**Benefits:**
+```yaml
 
-- ✅ **Unified Backend**: Same providers used in production and experiments
 - ✅ **Multiple Backends**: Easy to add HF local, Anthropic, etc.
 - ✅ **Protocol Compliance**: All providers implement same interface
 - ✅ **No Code Duplication**: Reuse production provider implementations
@@ -923,12 +895,14 @@ def run_experiment(cfg: ExperimentConfig) -> None:
 The runner can optionally compute metrics directly:
 
 ```python
+
 def run_experiment(
     cfg: ExperimentConfig,
     evaluate: bool = False,
     gold_data_path: Path | None = None,
 ) -> None:
     """Run experiment with optional evaluation."""
+
     # ... generate predictions ...
 
     if evaluate and gold_data_path:
@@ -940,6 +914,7 @@ def run_experiment(
         )
 
         # Add prompt metadata to metrics
+
         from podcast_scraper.prompt_store import get_prompt_metadata
 
         metrics["prompts"] = {
@@ -952,37 +927,36 @@ def run_experiment(
         }
 
         # Save metrics
+
         metrics_path = results_dir / "metrics.json"
         metrics_path.write_text(
             json.dumps(metrics, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
-```
 
-**Usage:**
+```text
 
-```bash
 # Generate + evaluate in one command
+
 python scripts/run_experiment.py \
   experiments/summarization_openai_long_v1.yaml \
   --evaluate \
   --gold-data data/eval/golden/summaries/
-```
 
-#### 3.5 Evolution Path: Multiple Tasks and Backends
-
-**Phase 4: Full Feature Support**
-
-The runner evolves to support all tasks and backends:
+```text
 
 ```python
+
 def run_experiment(cfg: ExperimentConfig) -> None:
     """Run experiment supporting all tasks and backends."""
+
     # Create provider based on config
+
     provider = create_provider_for_experiment(cfg)
     resource = provider.initialize(cfg) if provider else None
 
     # Process episodes based on task
+
     predictions = []
     for path in discover_input_files(cfg.data):
         episode_id = episode_id_from_path(path, cfg.data)
@@ -1007,14 +981,11 @@ def run_experiment(cfg: ExperimentConfig) -> None:
         })
 
     # Save predictions...
-```
 
-### 4. Generic Runner Architecture (Full Implementation)
+```text
 
-**Main Entry Point:**
-
-```python
 # scripts/run_experiment.py
+
 import argparse
 import json
 from pathlib import Path
@@ -1034,10 +1005,13 @@ def run_experiment(
         output_dir: Base directory for results
         force_regenerate: If True, regenerate predictions even if they exist
     """
+
     # Load experiment config
+
     config = load_experiment_config(config_file)
 
     # Create output directory
+
     experiment_output_dir = Path(output_dir) / config.id
     experiment_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1045,6 +1019,7 @@ def run_experiment(
     metrics_file = experiment_output_dir / "metrics.json"
 
     # Generation phase
+
     if mode in ("gen", "gen+eval"):
         if predictions_file.exists() and not force_regenerate:
             print(f"Predictions already exist: {predictions_file}")
@@ -1055,6 +1030,7 @@ def run_experiment(
             save_predictions(predictions, predictions_file)
 
     # Evaluation phase
+
     if mode in ("eval", "gen+eval"):
         if not predictions_file.exists():
             raise FileNotFoundError(f"Predictions file not found: {predictions_file}")
@@ -1064,6 +1040,7 @@ def run_experiment(
         save_metrics(metrics, metrics_file)
 
         # Print summary
+
         print_metrics_summary(metrics)
 
 def run_experiments(
@@ -1090,25 +1067,34 @@ def run_experiments(
         max_workers: Maximum number of parallel workers
         include_golden: If True, include golden experiments (default: False, excludes golden)
     """
+
     # Collect all config files
+
     all_config_files = []
 
     # Add explicit config files
+
     all_config_files.extend(config_files)
 
     # Add config files from directory/glob
+
     if config_dir:
         config_path = Path(config_dir)
         if config_path.is_dir():
+
             # Find all YAML files in directory
+
             all_config_files.extend(config_path.glob("*.yaml"))
             all_config_files.extend(config_path.glob("*.yml"))
         else:
+
             # Treat as glob pattern
+
             from glob import glob
             all_config_files.extend(glob(str(config_dir)))
 
     # Filter by task type if specified
+
     if task_filter:
         filtered_configs = []
         for config_file in all_config_files:
@@ -1118,10 +1104,13 @@ def run_experiments(
         all_config_files = filtered_configs
 
     # Exclude golden experiments unless explicitly included
+
     if not include_golden:
         filtered_configs = []
         for config_file in all_config_files:
+
             # Check filename for golden naming convention
+
             config_file_str = str(config_file)
             is_golden = (
                 "_golden" in config_file_str.lower() or
@@ -1133,6 +1122,7 @@ def run_experiments(
             )
 
             # Also check config file content if is_golden flag is set
+
             if not is_golden:
                 try:
                     config = load_experiment_config(config_file_str)
@@ -1155,6 +1145,7 @@ def run_experiments(
     print(f"Running {len(all_config_files)} experiment(s)...")
 
     # Run experiments
+
     if parallel:
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -1178,7 +1169,9 @@ def run_experiments(
                 except Exception as e:
                     print(f"✗ Failed: {config_file} - {e}")
     else:
+
         # Sequential execution
+
         for config_file in all_config_files:
             try:
                 print(f"\n{'='*60}")
@@ -1194,31 +1187,34 @@ def run_experiments(
             except Exception as e:
                 print(f"✗ Failed: {config_file} - {e}")
                 if not parallel:
+
                     # In sequential mode, optionally continue or stop
+
                     continue
 
     print(f"\n{'='*60}")
     print(f"Completed {len(all_config_files)} experiment(s)")
     print(f"{'='*60}")
-```
-
-**Generation Phase:**
 
 ```python
-def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
+
     """Generate predictions for all episodes in the experiment.
 
     Returns:
         List of prediction dictionaries, one per episode
     """
+
     # Load episodes
+
     episodes = load_episodes(config.data["episodes_glob"])
 
     # Load prompts from files
+
     system_prompt = load_prompt(config.prompts["system"])
     user_prompt_template = load_prompt(config.prompts["user"])
 
     # Initialize model backend based on config
+
     backend = create_backend(config)
 
     predictions = []
@@ -1227,8 +1223,11 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
         print(f"Processing episode: {episode_id}")
 
         # Apply preprocessing (provider-agnostic, RFC-012)
+
         if config.task == "summarization":
+
             # Preprocess transcript before summarization
+
             cleaned_transcript = clean_transcript(
                 episode["transcript"],
                 remove_timestamps=True,
@@ -1238,8 +1237,11 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
             cleaned_transcript = remove_sponsor_blocks(cleaned_transcript)
 
         # Generate prediction based on task type
+
         if config.task == "summarization":
+
             # Format user prompt with episode data
+
             user_prompt = user_prompt_template.format(
                 transcript=cleaned_transcript,
                 title=episode.get("title", ""),
@@ -1252,7 +1254,9 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
                 params=config.params,
             )
         elif config.task == "ner":
+
             # Format user prompt with episode data
+
             user_prompt = user_prompt_template.format(
                 transcript=episode["transcript"],
                 feed_title=episode.get("feed_title", ""),
@@ -1286,13 +1290,9 @@ def generate_predictions(config: ExperimentConfig) -> List[Dict[str, Any]]:
         })
 
     return predictions
-```
-
-**Backend Factory:**
-
-**Note**: Backends use the provider pattern (see RFC-016). The experiment pipeline uses "backend" terminology for clarity, but these are implemented as providers internally.
 
 ```python
+
 def create_backend(config: ExperimentConfig):
     """Create appropriate backend based on experiment config.
 
@@ -1320,12 +1320,9 @@ def create_backend(config: ExperimentConfig):
         else:
             from .backends.local_transcription import LocalTranscriptionBackend
             return LocalTranscriptionBackend(config)
-```
-
-**Evaluation Phase:**
 
 ```python
-def evaluate_predictions(
+
     config: ExperimentConfig,
     predictions_file: Path,
 ) -> Dict[str, Any]:
@@ -1333,13 +1330,17 @@ def evaluate_predictions(
 
     Reuses existing eval scripts (eval_summaries.py, eval_ner.py, etc.)
     """
+
     # Load predictions
+
     predictions = load_predictions(predictions_file)
 
     # Load golden data
+
     gold_data = load_golden_data(config.data["gold_data_path"])
 
     # Route to appropriate eval script based on task
+
     if config.task == "summarization":
         from scripts.eval_summaries import evaluate_summaries
         metrics = evaluate_summaries(predictions, gold_data)
@@ -1351,6 +1352,7 @@ def evaluate_predictions(
         metrics = evaluate_transcription(predictions, gold_data)
 
     # Get prompt metadata for tracking (using prompt_store from RFC-017)
+
     from podcast_scraper.prompt_store import get_prompt_metadata
 
     prompt_meta = {
@@ -1381,13 +1383,10 @@ def evaluate_predictions(
             "gold_data_path": config.data["gold_data_path"],
         }
     }
-```
-
-### 3. Output Structure
-
-**Directory Layout:**
 
 ```text
+```text
+
 results/
 ├── summarization_bart_led_v1/
 │   ├── predictions.jsonl       # One line per episode
@@ -1401,21 +1400,14 @@ results/
     ├── predictions.jsonl
     ├── metrics.json
     └── metadata.json
-```
-
-**Predictions Format (JSONL):**
 
 ```json
+
 {"episode_id": "ep01", "experiment_id": "summarization_openai_gpt4_mini_v1", "task": "summarization", "prediction": {"summary_long": "...", "summary_short": "..."}, "metadata": {"model": {"summarizer": {"type": "openai", "name": "gpt-4o-mini"}}, "params": {"max_length": 500}}}
 {"episode_id": "ep02", "experiment_id": "summarization_openai_gpt4_mini_v1", "task": "summarization", "prediction": {"summary_long": "...", "summary_short": "..."}, "metadata": {...}}
-```
-
-**Metrics Format (JSON):**
 
 ```json
-{
-  "experiment_id": "summarization_openai_long_v2_more_narrative",
-  "task": "summarization",
+
   "backend": {
     "type": "openai",
     "model": "gpt-4o-mini"
@@ -1469,61 +1461,64 @@ results/
     "gold_data_path": "data/eval/golden/summaries/"
   }
 }
-```
 
-### 4. CLI Interface
+```text
 
-```bash
 # Generate predictions only
+
 python scripts/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --mode gen \
   --output-dir results
 
 # Evaluate existing predictions
+
 python scripts/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --mode eval \
   --output-dir results
 
 # Generate and evaluate (default)
+
 python scripts/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --output-dir results
 
 # Run multiple experiments
+
 python scripts/run_experiment.py \
   --config experiments/summarization_bart_led_local.yaml \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --output-dir results
 
 # Force regenerate predictions
+
 python scripts/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --force-regenerate
 
 # Compare experiments (table format)
+
 python scripts/compare_experiments.py \
   --experiments results/summarization_bart_led_v1 results/summarization_openai_gpt4_mini_v1 \
   --task summarization \
   --format table
 
 # Compare experiments (markdown format)
+
 python scripts/compare_experiments.py \
   --experiments results/summarization_* \
   --format markdown \
   --output comparison_report.md
 
 # Compare with baseline (detect regressions)
+
 python scripts/compare_experiments.py \
   --baseline results/summarization_bart_led_v1 \
   --experiments results/summarization_* \
   --format table
-```
 
-### 5. Integration with Existing Eval Scripts
-
-The experiment pipeline integrates with existing eval scripts (`eval_summaries.py`, `eval_cleaning.py`) while enabling their evolution.
+```text
 
 #### 5.1 Phase 1: Direct Integration (Minimal Changes)
 
@@ -1539,7 +1534,9 @@ Existing `eval_summaries.py` expects:
 The experiment runner writes `predictions.jsonl` that can be consumed by existing eval scripts with minimal changes:
 
 ```python
+
 # scripts/eval_experiment.py (New wrapper script)
+
 """
 Bridge between experiment pipeline and existing eval scripts.
 """
@@ -1581,13 +1578,17 @@ def evaluate_experiment_predictions(
 
     Reuses functions from eval_summaries.py without modifying them.
     """
+
     # Load predictions from experiment output
+
     predictions = load_predictions_from_jsonl(predictions_file)
 
     # Load golden summaries (existing function)
+
     gold_summaries = load_golden_summaries(gold_data_path)
 
     # Compute metrics using existing functions
+
     episode_metrics = {}
     for ep_id, pred_summary in predictions.items():
         gold_summary = gold_summaries.get(ep_id)
@@ -1595,9 +1596,11 @@ def evaluate_experiment_predictions(
             continue
 
         # Use existing ROUGE computation
+
         rouge_scores = compute_rouge_scores(pred_summary, gold_summary)
 
         # Use existing compression computation
+
         compression = compute_compression_ratio(pred_summary, gold_summary)
 
         episode_metrics[ep_id] = {
@@ -1614,6 +1617,7 @@ def evaluate_experiment_predictions(
         }
 
     # Aggregate global metrics
+
     if episode_metrics:
         global_metrics = {
             "rouge1_f": sum(m["rouge1_f"] for m in episode_metrics.values()) / len(episode_metrics),
@@ -1635,29 +1639,28 @@ def evaluate_experiment_predictions(
         "global": global_metrics,
         "episodes": episode_metrics,
     }
-```
 
-**Usage:**
+```text
 
-```bash
 # Step 1: Run experiment (generates predictions.jsonl)
+
 python scripts/run_experiment.py experiments/summarization_openai_long_v1.yaml
 
 # Step 2: Evaluate predictions (uses existing eval logic)
+
 python scripts/eval_experiment.py \
   results/summarization_openai_long_v1/predictions.jsonl \
   data/eval/golden/summaries/ \
   --output results/summarization_openai_long_v1/metrics.json
-```
 
-#### 5.2 Phase 2: Refactor Eval Scripts for Reusability
-
-**Evolution: Extract Core Logic**
+```text
 
 Refactor `eval_summaries.py` to expose reusable functions:
 
 ```python
+
 # scripts/eval_summaries.py (refactored)
+
 """
 Evaluate summarization quality using ROUGE metrics.
 
@@ -1701,6 +1704,7 @@ def evaluate_summaries(
         }
 
     # Aggregate global metrics
+
     if episode_metrics:
         global_metrics = {
             "rouge1_f": sum(m["rouge1_f"] for m in episode_metrics.values()) / len(episode_metrics),
@@ -1718,6 +1722,7 @@ def evaluate_summaries(
 
 
 # CLI entry point (preserved for backward compatibility)
+
 def main():
     """CLI entry point for standalone evaluation."""
     parser = argparse.ArgumentParser()
@@ -1727,22 +1732,25 @@ def main():
     args = parser.parse_args()
 
     # Load predictions
+
     predictions = load_predictions_from_jsonl(args.predictions_file)
 
     # Load gold data
+
     gold_data = load_golden_summaries(args.gold_data_path)
 
     # Evaluate
+
     metrics = evaluate_summaries(predictions, gold_data)
 
     # Output
+
     if args.output:
         args.output.write_text(json.dumps(metrics, indent=2))
     else:
         print(json.dumps(metrics, indent=2))
-```
 
-**Benefits:**
+```python
 
 - ✅ **Backward Compatible**: CLI still works as before
 - ✅ **Reusable**: Can be imported by experiment pipeline
@@ -1756,6 +1764,7 @@ def main():
 The experiment runner can optionally compute metrics directly:
 
 ```python
+
 def run_experiment(
     cfg: ExperimentConfig,
     mode: Literal["gen", "eval", "gen+eval"] = "gen+eval",
@@ -1774,16 +1783,21 @@ def run_experiment(
     metrics_path = results_dir / "metrics.json"
 
     # Generation phase
+
     if mode in ("gen", "gen+eval"):
+
         # ... generate predictions ...
+
         save_predictions(predictions, predictions_path)
 
     # Evaluation phase
+
     if mode in ("eval", "gen+eval"):
         if not gold_data_path:
             gold_data_path = Path(cfg.data.gold_data_path)
 
         # Use refactored eval function
+
         from scripts.eval_summaries import evaluate_summaries
 
         predictions = load_predictions_from_jsonl(predictions_path)
@@ -1792,6 +1806,7 @@ def run_experiment(
         metrics = evaluate_summaries(predictions, gold_data)
 
         # Add prompt metadata
+
         from podcast_scraper.prompt_store import get_prompt_metadata
 
         metrics["prompts"] = {
@@ -1804,34 +1819,32 @@ def run_experiment(
         }
 
         # Save metrics
+
         metrics_path.write_text(
             json.dumps(metrics, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
 
         # Print summary
+
         print_metrics_summary(metrics)
-```
 
-**Usage:**
+```text
 
-```bash
 # Generate + evaluate in one command
+
 python scripts/run_experiment.py \
   experiments/summarization_openai_long_v1.yaml \
   --mode gen+eval
 
 # Or evaluate existing predictions
+
 python scripts/run_experiment.py \
   experiments/summarization_openai_long_v1.yaml \
   --mode eval
-```
 
-#### 5.4 Evolution Summary
+```text
 
-| Phase | Runner Capabilities | Eval Integration | Backends Supported |
-| ----- | ------------------- | ----------------- | ------------------ |
-| **Phase 1** | OpenAI summarization only | Separate eval script | OpenAI |
 | **Phase 2** | Multiple tasks, provider pattern | Refactored eval functions | OpenAI + HF local |
 | **Phase 3** | Integrated evaluation | Built-in metrics | All providers |
 | **Phase 4** | Full feature set | Advanced metrics, comparison | All providers + custom |
@@ -1849,6 +1862,7 @@ python scripts/run_experiment.py \
 **Current Structure:**
 
 ```text
+
 data/eval/
 ├── episodes/
 │   ├── ep01/
@@ -1872,32 +1886,19 @@ data/eval/
 │       ├── ep02.transcript.txt
 │       └── ...
 └── MANUAL_EVAL_CHECKLIST.md
-```
-
-**Golden Data Format:**
 
 ```json
-// data/eval/golden/ner/ep01.ner.json
-{
-  "episode_id": "ep01",
+
   "hosts": ["Host Name 1", "Host Name 2"],
   "guests": ["Guest Name 1"],
   "all_speakers": ["Host Name 1", "Host Name 2", "Guest Name 1"]
 }
-```
 
 ```text
-# data/eval/golden/summaries/ep01.summary.txt
-This is the golden summary for episode 01.
+
 It was created using expensive OpenAI models and manually reviewed.
-```
 
-### 7. CI/CD Integration (Two-Layer Approach)
-
-**Concept**: Think of two layers, just like unit tests vs integration tests:
-
-- **Layer A: CI Smoke Tests** (fast, small subset) - Like unit tests: quick sanity check
-- **Layer B: Full AI Eval Pipeline** (nightly/on-demand) - Like integration tests: comprehensive evaluation
+```yaml
 
 #### 7.1 Layer A: CI Smoke Tests
 
@@ -1906,7 +1907,9 @@ It was created using expensive OpenAI models and manually reviewed.
 **GitHub Actions Workflow:**
 
 ```yaml
+
 # .github/workflows/ai-experiments-smoke.yml
+
 name: AI Experiments Smoke Tests
 
 on:
@@ -1951,12 +1954,9 @@ jobs:
             --assert no_errors \
             --assert no_nans \
             --assert no_missing_fields
-```
 
-**Requirements:**
+```text
 
-- Run on every push/PR
-- Use tiny subset of episodes (e.g., `ep01` only)
 - Use single baseline config (HF baseline or OpenAI baseline)
 - Assert quality thresholds (e.g., `rougeL_f >= threshold`)
 - Assert no runtime errors, no NaNs, no missing fields
@@ -1969,7 +1969,9 @@ jobs:
 **GitHub Actions Workflow:**
 
 ```yaml
+
 # .github/workflows/ai-experiments-full.yml
+
 name: AI Experiments Full Pipeline
 
 on:
@@ -2050,12 +2052,9 @@ jobs:
               repo: context.repo.repo,
               body: `## AI Experiment Results\n\n${report}`
             });
-```
 
-**Requirements:**
+```text
 
-- Triggered on schedule (nightly) or manually
-- Runs all experiment configs (summarization_bart_led_v1, summarization_openai_gpt4_mini_v1, etc.)
 - Produces metrics.json per experiment
 - Generates combined summary_report.md with table of ROUGE/precision
 - Like integration/regression testing for models
@@ -2067,7 +2066,9 @@ jobs:
 **Compare Experiments:**
 
 ```python
+
 # scripts/compare_experiments.py
+
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 import json
@@ -2092,6 +2093,7 @@ def compare_experiments(
     comparisons = {}
 
     # Load metrics from all experiments
+
     for exp_dir in experiment_dirs:
         metrics_file = exp_dir / "metrics.json"
         if not metrics_file.exists():
@@ -2100,6 +2102,7 @@ def compare_experiments(
         metrics = json.loads(metrics_file.read_text())
 
         # Filter by task if specified
+
         if task and metrics.get("task") != task:
             continue
 
@@ -2111,6 +2114,7 @@ def compare_experiments(
         }
 
     # Generate comparison report
+
     comparison_report = {
         "experiments": comparisons,
         "best_performing": find_best_experiment(comparisons),
@@ -2118,6 +2122,7 @@ def compare_experiments(
     }
 
     # Format output
+
     if format == "table":
         output = format_comparison_table(comparisons, task)
         print(output)
@@ -2146,12 +2151,15 @@ def format_comparison_table(
         gpt4_1_mini_v1              0.145     38.2×
         gpt4_1_mini_promptB         0.152     37.5×   <-- best
     """
+
     # Determine task type from first experiment
+
     if not task:
         first_exp = next(iter(comparisons.values()))
         task = first_exp.get("task", "summarization")
 
     # Select metrics based on task type
+
     if task == "summarization":
         metric_columns = [
             ("rougeL_f", "ROUGE-L"),
@@ -2172,9 +2180,11 @@ def format_comparison_table(
         metric_columns = []
 
     # Build table
+
     lines = []
 
     # Header
+
     header = "Run".ljust(30)
     for _, label in metric_columns:
         header += label.rjust(15)
@@ -2182,6 +2192,7 @@ def format_comparison_table(
     lines.append("-" * len(header))
 
     # Find best performing experiment for each metric
+
     best_experiments = {}
     for metric_key, _ in metric_columns:
         best_value = None
@@ -2189,8 +2200,11 @@ def format_comparison_table(
         for exp_name, exp_data in comparisons.items():
             value = exp_data["metrics"].get(metric_key)
             if value is not None:
+
                 # For error rates (WER, CER), lower is better
+
                 # For other metrics (ROUGE, F1), higher is better
+
                 is_error_rate = metric_key in ("wer", "cer")
                 if best_value is None:
                     best_value = value
@@ -2207,22 +2221,27 @@ def format_comparison_table(
             best_experiments[metric_key] = best_exp
 
     # Overall best (based on primary metric)
+
     primary_metric = metric_columns[0][0] if metric_columns else None
     overall_best = best_experiments.get(primary_metric) if primary_metric else None
 
     # Rows
+
     for exp_name, exp_data in sorted(comparisons.items()):
         row = exp_name.ljust(30)
         for metric_key, _ in metric_columns:
             value = exp_data["metrics"].get(metric_key)
             if value is not None:
+
                 # Format value
+
                 if isinstance(value, float):
                     formatted = f"{value:.3f}"
                 else:
                     formatted = str(value)
 
                 # Add compression multiplier format
+
                 if metric_key == "avg_compression":
                     formatted = f"{value:.1f}×"
 
@@ -2231,6 +2250,7 @@ def format_comparison_table(
                 row += "N/A".rjust(15)
 
         # Mark best performing
+
         if exp_name == overall_best:
             row += "   <-- best"
 
@@ -2243,16 +2263,22 @@ def format_comparison_markdown(
     task: Optional[str] = None,
 ) -> str:
     """Format comparison results as Markdown table."""
+
     # Similar to format_comparison_table but with Markdown syntax
+
     # Implementation similar to above but with Markdown table formatting
+
     pass
 
 def find_best_experiment(
     comparisons: Dict[str, Dict[str, Any]],
 ) -> Optional[str]:
     """Find best performing experiment based on primary metrics."""
+
     # Implementation to determine best experiment
+
     # Can be based on ROUGE-L for summarization, F1 for NER, etc.
+
     pass
 
 def find_regressions(
@@ -2260,14 +2286,15 @@ def find_regressions(
     baseline: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Find experiments that regress compared to baseline."""
+
     # Implementation to detect regressions
+
     pass
-```
 
-**CLI Usage:**
+```text
 
-```bash
 # Compare all summarization experiments
+
 python scripts/compare_experiments.py \
   --experiments results/summarization_bart_led_v1 \
                 results/summarization_openai_gpt4_mini_v1 \
@@ -2276,46 +2303,40 @@ python scripts/compare_experiments.py \
   --format table
 
 # Compare all experiments (auto-detect task)
+
 python scripts/compare_experiments.py \
   --experiments results/* \
   --format table
 
 # Compare and save to file
+
 python scripts/compare_experiments.py \
   --experiments results/summarization_* \
   --format markdown \
   --output comparison_report.md
 
 # Compare with baseline (detect regressions)
+
 python scripts/compare_experiments.py \
   --baseline results/summarization_bart_led_v1 \
   --experiments results/summarization_* \
   --format table
-```
-
-**Example Output:**
 
 ```text
+
 Run                         ROUGE-L   Avg Compression
 -----------------------------------------------------
 summarization_bart_led_v1   0.120     43.4×
 summarization_openai_gpt4_mini_v1   0.145     38.2×
 summarization_openai_gpt4_mini_promptB   0.152     37.5×   <-- best
-```
 
-**Markdown Table Output:**
+```text
 
-```markdown
-| Run | ROUGE-L | Avg Compression |
-| ----- | --------- | ----------------- |
-| summarization_bart_led_v1 | 0.120 | 43.4× |
 | summarization_openai_gpt4_mini_v1 | 0.145 | 38.2× |
 | summarization_openai_gpt4_mini_promptB | **0.152** | 37.5× ⭐ |
-```
-
-**JSON Output:**
 
 ```json
+
 {
   "experiments": {
     "summarization_bart_led_v1": {
@@ -2334,14 +2355,9 @@ summarization_openai_gpt4_mini_promptB   0.152     37.5×   <-- best
   "best_performing": "summarization_openai_gpt4_mini_promptB",
   "regressions": []
 }
-```
 
-**Task-Specific Comparison:**
+```text
 
-**Summarization:**
-
-- ROUGE-L (primary)
-- Average Compression
 - ROUGE-1, ROUGE-2 (optional)
 
 **NER:**
@@ -2382,6 +2398,7 @@ summarization_openai_gpt4_mini_promptB   0.152     37.5×   <-- best
 **Excel Structure:**
 
 ```text
+
 results/
 └── experiment_results.xlsx
     ├── Tab: "Summarization"
@@ -2395,14 +2412,9 @@ results/
     └── Tab: "Transcription"
         Columns: Experiment ID | WER | CER | Date | Notes
         Rows: One per experiment
-```
 
-**Example Excel Content:**
+```text
 
-**Summarization Tab:**
-
-| Experiment ID | ROUGE-L | ROUGE-1 | ROUGE-2 | Avg Compression | Date | Notes |
-| -------------- | ------- | ------- | ------- | --------------- | ---- | ----- |
 | summarization_bart_led_v1 | 0.120 | 0.315 | 0.145 | 43.4× | 2024-01-15 | Baseline local model |
 | summarization_openai_gpt4_mini_v1 | 0.145 | 0.330 | 0.150 | 38.2× | 2024-01-16 | OpenAI GPT-4o-mini |
 | summarization_openai_gpt4_mini_promptB | 0.152 | 0.335 | 0.155 | 37.5× | 2024-01-17 | Improved prompt ⭐ |
@@ -2424,7 +2436,9 @@ results/
 **Excel Update Workflow:**
 
 ```python
+
 # scripts/update_experiment_results.py
+
 import pandas as pd
 from pathlib import Path
 from typing import Dict, Any
@@ -2443,7 +2457,9 @@ def update_experiment_results(
         metrics: Metrics dictionary from metrics.json
         excel_file: Path to Excel workbook
     """
+
     # Load or create Excel workbook
+
     if excel_file.exists():
         excel = pd.ExcelFile(excel_file)
         sheets = {sheet: pd.read_excel(excel, sheet_name=sheet) for sheet in excel.sheet_names}
@@ -2455,10 +2471,12 @@ def update_experiment_results(
         }
 
     # Select appropriate sheet
+
     sheet_name = task.capitalize()
     df = sheets[sheet_name]
 
     # Extract metrics based on task type
+
     if task == "summarization":
         row = {
             "Experiment ID": experiment_id,
@@ -2488,59 +2506,62 @@ def update_experiment_results(
         }
 
     # Update or append row
+
     if experiment_id in df["Experiment ID"].values:
+
         # Update existing row
+
         idx = df[df["Experiment ID"] == experiment_id].index[0]
         for col, val in row.items():
             df.at[idx, col] = val
     else:
+
         # Append new row
+
         df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
 
     sheets[sheet_name] = df
 
     # Write back to Excel
+
     with pd.ExcelWriter(excel_file, engine="openpyxl") as writer:
         for sheet_name, df in sheets.items():
             df.to_excel(writer, sheet_name=sheet_name, index=False)
-```
 
-**Integration with Experiment Pipeline:**
+```text
 
-```python
 # In scripts/run_experiment.py, after evaluation phase:
+
 if mode in ("eval", "gen+eval"):
     metrics = evaluate_predictions(config, predictions_file)
     save_metrics(metrics, metrics_file)
 
     # Update Excel summary
+
     from .update_experiment_results import update_experiment_results
     update_experiment_results(
         experiment_id=config.id,
         task=config.task,
         metrics=metrics,
     )
-```
 
-**CLI Usage:**
+```text
 
-```bash
 # Run experiment and automatically update Excel
+
 python scripts/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --update-excel
 
 # Manually update Excel from existing results
+
 python scripts/update_experiment_results.py \
   --experiment-id summarization_openai_gpt4_mini_v1 \
   --task summarization \
   --metrics-file results/summarization_openai_gpt4_mini_v1/metrics.json
-```
 
-**Benefits:**
+```text
 
-1. **Single Source of Truth**: One Excel file tracks all experiments
-2. **Easy Comparison**: Sort/filter by metrics to find best experiments
 3. **Trend Analysis**: Track improvements over time
 4. **Visualization**: Excel charts show performance trends
 5. **Collaboration**: Easy to share and review with team
@@ -2792,3 +2813,4 @@ The experiment runner evolves through four phases:
 - `docs/EVALUATION_STRATEGY.md`: Evaluation strategy (to be created)
 - `scripts/eval_summaries.py`: Existing summarization evaluation script
 - `scripts/eval_cleaning.py`: Existing cleaning evaluation script
+````

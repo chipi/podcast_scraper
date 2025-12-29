@@ -60,27 +60,30 @@ v1.0.0 marks the first stable release of Podcast Scraper, a command-line tool fo
 
 ## Usage Examples
 
-```bash
+````bash
+
 # Basic usage
+
 python podcast_scraper.py https://example.com/feed.xml
 
 # Multi-threaded with Whisper fallback
+
 python podcast_scraper.py https://example.com/feed.xml --workers 8 --transcribe-missing
 
 # With configuration file
+
 python podcast_scraper.py --config config.yaml
 
 # Screenplay format with custom speakers
+
 python podcast_scraper.py https://example.com/feed.xml --transcribe-missing --screenplay \
   --num-speakers 2 --speaker-names "Host,Guest"
 
 # Resume previous run
+
 python podcast_scraper.py https://example.com/feed.xml --skip-existing
-```
+```text
 
-## Configuration Example
-
-```yaml
 rss: https://example.com/feed.xml
 timeout: 30
 transcribe_missing: true
@@ -97,14 +100,8 @@ workers: 6
 
 skip_existing: true
 dry_run: false
-```
 
-## Technical Highlights
-
-### Dependencies
-
-- Python 3.10+
-- `requests` - HTTP client with retry support
+```text
 - `tqdm` - Progress bar visualization
 - `defusedxml` - Safe XML parsing
 - `platformdirs` - Cross-platform directory paths
@@ -132,32 +129,34 @@ dry_run: false
 ## Installation
 
 ```bash
+
 # Clone repository
+
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 
 # Install dependencies
+
 pip install -r requirements.txt
 
 # Optional: Whisper support
+
 pip install openai-whisper
 brew install ffmpeg  # macOS
-```
 
-## Docker Deployment
+```text
 
-```bash
 # Build image
+
 docker build -t podcast-scraper -f podcast_scraper/Dockerfile .
 
 # Run with volume mount
+
 docker run --rm \
   -v "$(pwd)/output:/app/output" \
   podcast-scraper \
   https://example.com/feed.xml --output-dir /app/output
-```
-
-## Known Limitations
+```text
 
 - Single-file architecture limits modularity (addressed in v2.0.0)
 - Whisper processing is sequential (not parallel) for thread safety
@@ -185,3 +184,4 @@ MIT License - see LICENSE file for details
 ---
 
 **Note:** This is the baseline release that established the core functionality. Version 2.0.0 introduced a major refactoring to a modular architecture while maintaining backward compatibility with v1.0.0 configurations and usage patterns.
+````

@@ -146,10 +146,11 @@ Assuming word-based approximation:
 
 You can still get decent summaries with BART if you structure it right.
 
-```python
+````python
 from transformers import pipeline
 
 # Use device="mps" to leverage Apple Silicon
+
 summarizer = pipeline(
     "summarization",
     model="facebook/bart-large-cnn",
@@ -182,16 +183,21 @@ def summarize_chunk(chunk, max_length=160, min_length=60):
     return out[0]["summary_text"].strip()
 
 def summarize_transcript_bart_map_reduce(text: str) -> str:
+
     # 1) Chunk
+
     chunks = chunk_text_words(text, chunk_size=900, overlap=150)
 
     # 2) Map: summarize each chunk
+
     partial_summaries = [summarize_chunk(c) for c in chunks]
 
     # 3) Reduce: summarize the summaries
+
     joined = "\n\n".join(partial_summaries)
 
     # Optional: re-chunk joined if it gets too long
+
     final = summarizer(
         joined,
         max_length=260,
@@ -200,11 +206,7 @@ def summarize_transcript_bart_map_reduce(text: str) -> str:
         truncation=True,
     )
     return final[0]["summary_text"].strip()
-```
-
-This should run comfortably on your M4 Pro and give much better results than trying to feed the full transcript at once.
-
----
+```text
 
 ## 5. Example: Using a Local LLM via CLI (Ollama-style Pseudocode)
 
@@ -223,16 +225,16 @@ def summarize_chunk_llm(chunk: str) -> str:
     Segment:
     \"\"\"{chunk}\"\"\"
     """
+
     # call your local LLM runtime – pseudo code:
+
     response = call_local_llm(
         model="llama3:8b",
         prompt=prompt,
         max_tokens=256,
     )
     return response.strip()
-```
-
-Then reuse the same map–reduce structure as with BART:
+```text
 
 - `chunk_text_words(...)`
 - `summarize_chunk_llm(...)`
@@ -286,3 +288,4 @@ Given your hardware and constraints:
   - Local model:
     - BART/PEGASUS now
     - Local LLM later
+````

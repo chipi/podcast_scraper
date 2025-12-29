@@ -37,8 +37,10 @@ This PRD addresses the need to add OpenAI as a provider option while maintaining
 
 Add to `config.py` when implementing OpenAI providers:
 
-```python
+````python
+
 # OpenAI Model Selection
+
 openai_speaker_model: str = Field(
     default="gpt-4o-mini",
     description="OpenAI model for speaker detection (entity extraction)"
@@ -55,6 +57,7 @@ openai_transcription_model: str = Field(
 )
 
 # OpenAI API Configuration
+
 openai_api_key: Optional[str] = Field(
     default=None,
     description="OpenAI API key (prefer OPENAI_API_KEY environment variable or .env file)"
@@ -71,9 +74,7 @@ openai_max_tokens: Optional[int] = Field(
     default=None,
     description="Max tokens for OpenAI generation (None = model default)"
 )
-```
-
-### Pricing (as of December 2025)
+```text
 
 | Model | Input Cost | Output Cost | Context Window | Best For |
 | ----- | ---------- | ----------- | -------------- | -------- |
@@ -108,20 +109,13 @@ openai_max_tokens: Optional[int] = Field(
 speaker_detector_type: openai      # $0.14/100 (minimal cost)
 transcription_provider: whisper    # Free (local)
 summary_provider: openai          # $0.41/100 (high value)
-```
+```text
 
-**Privacy-Focused Hybrid ($0.41/100 episodes):**
-
-```yaml
 speaker_detector_provider: ner        # Free (local, private)
 transcription_provider: whisper   # Free (local, private)
 summary_provider: openai         # $0.41/100 (convenience)
-```
 
-### Recommended Defaults
-
-- **gpt-4o-mini** for both speaker detection and summarization (best quality/cost balance)
-- **whisper-1** for transcription (only OpenAI option)
+```text
 - **Temperature:** 0.3 (deterministic, factual)
 - **Max Tokens:** None (model default)
 
@@ -410,3 +404,4 @@ We expect and encourage contributors to create their own provider implementation
 - Provider performance comparison tools
 - Hybrid processing (use API for some episodes, local for others)
 - Provider plugin system (external packages can register providers)
+````

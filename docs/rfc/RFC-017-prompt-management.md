@@ -48,7 +48,7 @@ Currently, prompts are:
 
 Prompts are organized in a `prompts/` directory with task-specific subdirectories:
 
-```text
+````text
 prompts/
   summarization/
     system_v1.j2
@@ -61,12 +61,7 @@ prompts/
     guest_host_v1.j2
     guest_host_v2_strict_roles.j2
     entities_generic_v1.j2
-```
-
-Each file is a Jinja2 template (`.j2` extension). Versioning is explicit in filenames (e.g., `v1`, `v2`, `v2_more_narrative`).
-
-**Example: `prompts/summarization/long_v2_more_narrative.j2`**
-
+```text
 ```jinja2
 You are summarizing a podcast episode.
 
@@ -78,18 +73,13 @@ Guidelines:
 - Ignore sponsorships, ads, and housekeeping.
 - Do not use quotes or speaker names.
 - Do not invent information not implied by the transcript.
-```
+```text
 
 **Example: `prompts/summarization/system_v1.j2`**
 
 ```jinja2
 You are an expert at creating concise, informative summaries of podcast episodes.
-```
-
-### 2. Core Prompt Store Implementation
-
-**File: `podcast_scraper/prompt_store.py`**
-
+```text
 ```python
 """
 Lightweight prompt management for LLM experiments and production use.
@@ -112,8 +102,11 @@ from typing import Any, Dict
 from jinja2 import Template
 
 # Root directory where all your prompt templates live.
+
 # Default: project_root/prompts/
+
 # Can be overridden via environment variable PROMPT_DIR
+
 _PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 
@@ -152,7 +145,9 @@ def _load_template(name: str) -> Template:
     Raises:
         PromptNotFoundError: If template file doesn't exist
     """
+
     # Normalize: allow both "summarization/long_v1" and "summarization/long_v1.j2"
+
     if name.endswith(".j2"):
         rel_path = Path(name)
     else:
@@ -202,11 +197,14 @@ def get_prompt_source(name: str) -> str:
         Raw template source as string
     """
     tmpl = _load_template(name)
+
     # Jinja2 keeps original source text on template
+
     if hasattr(tmpl, "source") and tmpl.source is not None:
         return str(tmpl.source)
 
     # Fallback: reload from disk
+
     if name.endswith(".j2"):
         rel_path = Path(name)
     else:
@@ -274,12 +272,7 @@ def clear_cache() -> None:
     Useful for testing or when prompts are updated during development.
     """
     _load_template.cache_clear()
-```
-
-### 3. Experiment Configuration Models
-
-**File: `podcast_scraper/experiment_config.py`**
-
+```text
 ```python
 """
 Experiment configuration models for LLM evaluation.
@@ -401,6 +394,7 @@ class ExperimentParams(BaseModel):
     """
 
     # Common parameters
+
     max_length: Optional[int] = None
     min_length: Optional[int] = None
     chunk_size: Optional[int] = None
@@ -410,11 +404,14 @@ class ExperimentParams(BaseModel):
     temperature: Optional[float] = None
 
     # Allow arbitrary extra keys for specific experiments
+
     extra: Dict[str, object] = Field(default_factory=dict)
 
     @validator("extra", pre=True, always=True)
     def collect_extra(cls, v, values):  # type: ignore[override]
+
         # Pydantic will fill known fields; any unknown fields can be collected here
+
         return v or {}
 
 
@@ -508,13 +505,11 @@ def episode_id_from_path(path: Path, data_cfg: DataConfig) -> str:
     """
     if data_cfg.id_from == "stem":
         return path.stem
+
     # default: parent_dir
+
     return path.parent.name
-```
-
-### 4. Integration with Provider System
-
-Prompts are a **provider-specific concern** and integrate seamlessly with the protocol-based provider system (see RFC-016: Modularization for AI Experiments).
+```text
 
 **Key Principles:**
 
@@ -526,7 +521,9 @@ Prompts are a **provider-specific concern** and integrate seamlessly with the pr
 **Example: Using prompts in OpenAI summarization provider**
 
 ```python
+
 # podcast_scraper/summarization/openai_provider.py
+
 from typing import Protocol, Optional, Dict, Any
 from .. import config
 from ..prompt_store import render_prompt, get_prompt_metadata
@@ -538,6 +535,7 @@ class OpenAISummarizationProvider:
     def __init__(self, cfg: config.Config):
         self.cfg = cfg
         self.client = self._setup_openai_client()
+
         # Prompts are loaded on-demand, cached automatically via prompt_store
 
     def initialize(self, cfg: config.Config) -> Optional[Any]:
@@ -557,7 +555,9 @@ class OpenAISummarizationProvider:
         This method implements the SummarizationProvider protocol.
         Prompts are provider-specific implementation details.
         """
+
         # Load prompts from prompt_store (provider-specific)
+
         system_prompt = None
         if cfg.summary_system_prompt:
             system_prompt = render_prompt(
@@ -575,6 +575,7 @@ class OpenAISummarizationProvider:
         )
 
         # Call OpenAI API (provider-specific implementation)
+
         response = resource.chat.completions.create(
             model=cfg.summary_model,
             messages=[
@@ -595,12 +596,10 @@ class OpenAISummarizationProvider:
                 }
             }
         }
-```
-
-**Example: Using prompts in OpenAI NER provider**
-
 ```python
+
 # podcast_scraper/speaker_detectors/openai_detector.py
+
 from typing import Protocol, Set, List, Tuple, Optional, Dict, Any
 from .. import config
 from ..prompt_store import render_prompt
@@ -633,15 +632,15 @@ class OpenAISpeakerDetector:
         )
 
         # Call OpenAI API (provider-specific implementation)
+
         # ... API call logic ...
 
         return (detected_speakers, detected_hosts, success)
-```
-
-**Example: Local transformers provider (no prompts needed)**
 
 ```python
+
 # podcast_scraper/summarization/transformers_provider.py
+
 from typing import Protocol, Optional, Dict, Any
 from .. import config
 from .base import SummarizationProvider
@@ -662,8 +661,11 @@ class TransformersSummarizationProvider:
         This method implements the SummarizationProvider protocol.
         Local models don't use prompts - they use model-specific tokenization.
         """
+
         # No prompts needed - local models work differently
+
         # Direct model inference
+
         summary = resource.generate(text, max_length=max_length, min_length=min_length)
 
         return {
@@ -672,9 +674,7 @@ class TransformersSummarizationProvider:
                 "model": cfg.summary_model,
             }
         }
-```
-
-**Key Points:**
+```python
 
 - ✅ **Protocol Compliance**: All providers implement the same protocol, regardless of prompt usage
 - ✅ **Provider Autonomy**: Each provider decides how to use (or not use) prompts
@@ -718,6 +718,7 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
     cfg = load_experiment_config(cfg_path)
 
     # Prepare prompts
+
     system_prompt = None
     if cfg.prompts.system:
         system_prompt = render_prompt(
@@ -731,6 +732,7 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
     )
 
     # Get prompt metadata for tracking
+
     prompt_meta = {
         "system": (
             get_prompt_metadata(cfg.prompts.system, cfg.prompts.params)
@@ -741,11 +743,15 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
     }
 
     # Discover data files
+
     files = discover_input_files(cfg.data)
 
     # Create provider using factory pattern (aligned with RFC-016 modularization)
+
     # Prompts are passed via config, not directly to provider
+
     # Provider loads prompts internally if needed (provider-specific concern)
+
     if cfg.task == "summarization":
         from podcast_scraper.summarization import SummarizationProviderFactory
         provider = SummarizationProviderFactory.create(cfg)
@@ -758,15 +764,19 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
         raise ValueError(f"Unknown task: {cfg.task}")
 
     # Process each episode
+
     predictions = []
     for file_path in files:
         episode_id = episode_id_from_path(file_path, cfg.data)
 
         # Load episode data
+
         episode_data = load_episode_data(file_path, cfg.task)
 
         # Generate prediction using provider protocol
+
         # Provider handles prompts internally (provider-specific)
+
         if cfg.task == "summarization" and provider:
             prediction_dict = provider.summarize(
                 text=episode_data["transcript"],
@@ -792,13 +802,16 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
         })
 
     # Cleanup provider resources
+
     if provider and resource:
         provider.cleanup(resource)
 
     # Evaluate predictions
+
     metrics = evaluate_predictions(predictions, cfg)
 
     # Include prompt metadata in results
+
     results = {
         "experiment_id": cfg.id,
         "task": cfg.task,
@@ -809,22 +822,21 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
     }
 
     # Save results
+
     save_results(results, cfg.id)
 
     return results
-```
-
-### 6. Configuration Integration
-
-Prompts can be configured via application config:
+```text
 
 **Example: `config.py` additions**
 
 ```python
 class Config(BaseModel):
+
     # ... existing fields ...
 
     # Prompt configuration
+
     summary_system_prompt: Optional[str] = Field(
         default=None,
         description="System prompt name for summarization (e.g. 'summarization/system_v1')",
@@ -850,11 +862,7 @@ class Config(BaseModel):
         default_factory=dict,
         description="Template parameters for NER prompts",
     )
-```
-
-### 7. Prompt Tracking in Results
-
-Prompt metadata is automatically included in experiment results:
+```text
 
 **Example: `results/summarization_openai_long_v2/metrics.json`**
 
@@ -898,9 +906,7 @@ Prompt metadata is automatically included in experiment results:
     "temperature": 0.7
   }
 }
-```
-
-## Dependencies
+```yaml
 
 - **Jinja2**: Templating engine (already used in many Python projects)
 - **Pydantic**: Type validation and config parsing (already a dependency)
@@ -927,11 +933,7 @@ scripts/
 experiments/               # Experiment configs
   summarization_openai_long_v1.yaml
   summarization_openai_long_v2.yaml
-```
-
-## Architecture Alignment with Modularization Plan
-
-This prompt management system aligns with the modularization refactoring plan (see `docs/rfc/RFC-021-modularization-refactoring-plan.md`) by following these principles:
+```text
 
 ### 1. Provider-Specific Concern
 
@@ -1024,3 +1026,4 @@ Following the modularization plan's incremental approach:
 - RFC-021: Modularization Refactoring Plan - Overall modularization strategy (historical reference)
 - [Jinja2 Documentation](https://jinja.palletsprojects.com/)
 - [Pydantic Documentation](https://docs.pydantic.dev/)
+````

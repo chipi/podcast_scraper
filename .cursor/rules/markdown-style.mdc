@@ -1,0 +1,21 @@
+# Markdown Style Guide - Quick Reference
+
+**When writing or editing markdown files, follow `docs/guides/MD_STYLE_REFERENCE.md`**
+
+## Quick Checklist Before Finishing
+
+- [ ] Only one H1 (`#`) in the document
+- [ ] Blank line after all headings
+- [ ] No trailing spaces
+- [ ] Lists have blank lines before and after
+- [ ] Code fences have language specifiers
+- [ ] Tables use consistent spacing around pipes
+- [ ] No multiple consecutive blank lines
+
+## Auto-Fix Command
+
+Run `make fix-md` before committing markdown files.
+
+## Full Reference
+
+See `docs/guides/MD_STYLE_REFERENCE.md` for complete rules and details.

@@ -40,13 +40,13 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 
 ## User Stories
 
-- *As Archivist Ava, I can generate metadata documents alongside transcripts to create complete episode records.*
-- *As Researcher Riley, I can consume structured metadata JSON to analyze patterns across multiple podcast feeds.*
-- *As Developer Devin, I can integrate episode metadata into my application without parsing RSS feeds directly.*
-- *As Analyst Alex, I can aggregate metadata from multiple runs to understand feed evolution over time.*
-- *As Database Developer Dana, I can load metadata JSON files directly into PostgreSQL JSONB columns, MongoDB collections, Elasticsearch indices, or ClickHouse tables without writing transformation code.*
-- *As any operator, I can opt-in to metadata generation via configuration flag.*
-- *As any operator, I can choose JSON or YAML format based on my preference (JSON recommended for database ingestion).*
+- _As Archivist Ava, I can generate metadata documents alongside transcripts to create complete episode records._
+- _As Researcher Riley, I can consume structured metadata JSON to analyze patterns across multiple podcast feeds._
+- _As Developer Devin, I can integrate episode metadata into my application without parsing RSS feeds directly._
+- _As Analyst Alex, I can aggregate metadata from multiple runs to understand feed evolution over time._
+- _As Database Developer Dana, I can load metadata JSON files directly into PostgreSQL JSONB columns, MongoDB collections, Elasticsearch indices, or ClickHouse tables without writing transformation code._
+- _As any operator, I can opt-in to metadata generation via configuration flag._
+- _As any operator, I can choose JSON or YAML format based on my preference (JSON recommended for database ingestion)._
 
 ## Functional Requirements
 

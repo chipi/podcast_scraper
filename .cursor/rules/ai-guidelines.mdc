@@ -30,14 +30,14 @@
 
 1. **Make code changes** ✅
 2. **MANDATORY: Run `git status`** - Show user what files changed
-3. **MANDATORY: Run `git diff`** - Show user the actual changes  
+3. **MANDATORY: Run `git diff`** - Show user the actual changes
 4. **MANDATORY: Wait for explicit approval** - User must say "commit", "yes", "go ahead", etc.
 5. **MANDATORY: Get commit message** - User provides message OR you ask for one
 6. **THEN commit** - Only after steps 2-5 are complete
 
 ### ❌ NEVER commit when:
 - You haven't shown `git status` first
-- You haven't shown `git diff` first  
+- You haven't shown `git diff` first
 - User hasn't explicitly approved
 - User said "don't commit" or "wait"
 - You're assuming approval from context
@@ -133,3 +133,33 @@ AI: I've resolved all conflicts. [Pushes immediately without showing changes or 
 
 **All guidelines, patterns, and rules are in `.ai-coding-guidelines.md`**
 **Read it at the start of every session and reference it constantly.**
+
+## Key Documentation Files
+
+**When working on related tasks, read these files:**
+
+- **`docs/guides/DEVELOPMENT_GUIDE.md`** - Detailed technical information (code style, testing, CI/CD, architecture, logging, documentation standards)
+- **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** - Complete markdown linting guide (automated fixing, table formatting, pre-commit hooks, CI/CD integration)
+- **`docs/TESTING_STRATEGY.md`** - Comprehensive testing approach
+- **`docs/ARCHITECTURE.md`** - Architecture design and module responsibilities
+
+**These files are referenced in `.ai-coding-guidelines.md` but should be read directly when working on related tasks.**
+
+## Markdown Files
+
+**🚨 CRITICAL: When writing or editing markdown files, ALWAYS reference:**
+
+- **`docs/MD_STYLE.md`** - **Short markdown style contract** (concise rules for Cursor)
+  - One H1 per document
+  - Blank line after headings
+  - Code fences always specify language
+  - No trailing spaces
+  - Lists have blank lines before/after
+  - Tables use consistent spacing around pipes
+
+**Before finishing any markdown file:**
+1. Run `make fix-md` to auto-fix common issues
+2. Self-check: (a) one H1 only, (b) blank line after headings, (c) no trailing spaces, (d) list indentation consistent, (e) code fences have language tags
+3. Run `make lint-markdown` to verify
+
+**See `docs/MD_STYLE.md` for the complete checklist and rules.**

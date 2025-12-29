@@ -1,0 +1,7 @@
+# Files with legitimate long lines (technical descriptions, URLs, etc.)
+docs/ARCHITECTURE.md
+docs/DEPENDENCIES.md
+docs/DEVELOPMENT_GUIDE.md
+docs/rfc/*.md
+docs/prd/*.md
+docs/releases/*.md

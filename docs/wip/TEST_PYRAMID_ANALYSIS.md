@@ -7,41 +7,35 @@
 
 ### Test Counts by Layer (Updated After E2E Duplicate Cleanup)
 
-| Layer | Test Files | Test Functions | Percentage | Ideal % | Status |
-| ------- | ------------ | ---------------- | ------------ | --------- | -------- |
-| **Unit Tests** | 33 | 649 | **60.7%** | 70-80% | ⚠️ Below Target |
-| **Integration Tests** | 18 | 229 | **21.4%** | 15-20% | ⚠️ Above Target |
-| **E2E Tests** | 19 | 192 | **17.9%** | 5-10% | ⚠️ Above Target |
-| **Total** | 70 | 1,070 | 100% | - | - |
+| Layer                 | Test Files | Test Functions | Percentage | Ideal % | Status          |
+| --------------------- | ---------- | -------------- | ---------- | ------- | --------------- |
+| **Unit Tests**        | 33         | 649            | **60.7%**  | 70-80%  | ⚠️ Below Target |
+| **Integration Tests** | 18         | 229            | **21.4%**  | 15-20%  | ⚠️ Above Target |
+| **E2E Tests**         | 19         | 192            | **17.9%**  | 5-10%   | ⚠️ Above Target |
+| **Total**             | 70         | 1,070          | 100%       | -       | -               |
 
-*Note: Counts updated after removing 97 duplicate E2E summarizer tests*
+_Note: Counts updated after removing 97 duplicate E2E summarizer tests_
 
 ### Test Pyramid Visualization
 
 **Current Pyramid (After E2E Duplicate Cleanup):**
 
-```text
+````text
        ╱  ╲      E2E: 17.9% ⚠️ (should be 5-10%, improved from 37.0% → 20.7% → 17.9%)
       ╱    ╲
      ╱      ╲    Integration: 21.4% ⚠️ (should be 15-20%, increased from 14.8%)
     ╱        ╲
    ╱          ╲  Unit: 60.7% ⚠️ (should be 70-80%, improved from 48.1% → 64.8% → 60.7%)
   ╱____________╲
-```
-        ╱╲
-       ╱  ╲      E2E: 5-10%
+```text
+
       ╱    ╲
      ╱      ╲    Integration: 15-20%
     ╱        ╲
    ╱          ╲  Unit: 70-80%
   ╱____________╲
-```
-### E2E Duplicate Cleanup ✅ (Latest)
 
-**Removed 97 duplicate E2E summarizer tests:**
-
-1. **Deleted from E2E:**
-   - `test_summarizer.py` - Removed 9 duplicate test classes (67 tests)
+```text
    - `test_summarizer_security.py` - Removed 3 duplicate test classes (24 tests)
    - `test_summarizer_edge_cases.py` - Removed 2 duplicate test classes (6 tests)
    - **Total removed:** 97 duplicate tests
@@ -51,6 +45,7 @@
    - **Total moved:** 8 tests
 
 **Impact:**
+
 - E2E: 280 → 192 tests (-88 tests, -2.8 percentage points)
 - Integration: 200 → 229 tests (+29 tests, +6.6 percentage points)
 - Unit: 649 tests (unchanged, but percentage decreased due to total reduction)
@@ -67,10 +62,12 @@
 4. **`cli.py`** - 7 tests
 
 **Phase 1: Summarizer Tests Moved ✅**
+
 - Moved 79 summarizer tests from E2E to Unit
 - Created unit test files for summarizer functions
 
 **Phase 2: Core Module Tests Added ✅**
+
 - Added 147 tests for core modules
 
 ### Test Quality Improvements ✅
@@ -171,12 +168,14 @@
 ### Unit Tests (649 tests, 60.7%)
 
 **Strengths:**
+
 - ✅ Good coverage of core modules (config, models, downloader, cli, service)
 - ✅ Recently expanded with 58 new tests
 - ✅ All tests properly isolated (no network/filesystem I/O)
 - ✅ Fast execution (~2.1s for all unit tests)
 
 **Gaps:**
+
 - ✅ Summarizer core functions: 79 tests added (Phase 1)
 - ✅ Workflow helper functions: Tests added (Phase 2)
 - ✅ Episode processor functions: Tests added (Phase 2)
@@ -187,22 +186,26 @@
 ### Integration Tests (229 tests, 21.4%)
 
 **Strengths:**
+
 - ✅ Good coverage of component interactions
 - ✅ Recently added metadata integration tests
 - ✅ Proper use of real implementations with mocked external services
 
 **Gaps:**
+
 - ⚠️ Some component interactions tested at E2E level
 - ⚠️ Need to review E2E tests for integration candidates
 
 ### E2E Tests (192 tests, 17.9%)
 
 **Strengths:**
+
 - ✅ Good coverage of user workflows
 - ✅ Realistic testing scenarios
 - ✅ Proper use of real HTTP client and data files
 
 **Issues:**
+
 - ✅ 97 duplicate summarizer tests removed
 - ⚠️ Some component interaction tests should be integration tests
 - ⚠️ Still above 5-10% target, but improved from 37.0% → 20.7% → 17.9%
@@ -285,3 +288,4 @@
 - [Testing Strategy](../TESTING_STRATEGY.md) - Test type definitions and decision tree
 - [RFC-018](../rfc/RFC-018-test-structure-reorganization.md) - Test structure reorganization
 - [RFC-019](../rfc/RFC-019-e2e-test-improvements.md) - E2E test infrastructure
+````

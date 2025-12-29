@@ -161,60 +161,35 @@ v2.3.1 is a **patch release** focused on **security fixes**, **code quality impr
 
 **Before:**
 
-```python
+````python
 if args.output:
     output_path = Path(args.output)  # Vulnerable to path traversal
-```
+```text
 
-**After:**
-
-```python
 if args.output:
     output_path = Path(args.output).resolve()
     cwd = Path.cwd().resolve()
     if not (output_path == cwd or output_path.is_relative_to(cwd)):
         raise ValueError(f"Output path {output_path} is outside current working directory.")
-```
 
-#### Cache Pruning Security
-
-**Before:**
-
-```python
+```text
 is_safe = any(resolved_path.is_relative_to(root) for root in safe_roots)
-```
 
-**After:**
+```text
+```text
 
-```python
-is_safe = any(resolved_path.is_relative_to(root) and resolved_path != root
-              for root in safe_roots) and resolved_path != cache_root
-```
-
-### Logging Improvements
-
-**Example - Before:**
-
-```python
 logger.info("Loading summarization model: %s on %s", model_name, device)
 logger.info("Model loaded successfully (cached for future runs)")
 logger.info("[MAP-REDUCE VALIDATION] Input text: %d chars, %d words", ...)
-```
-
-**Example - After:**
 
 ```python
-logger.debug("Loading summarization model: %s on %s", model_name, device)
+
 logger.debug("Model loaded successfully (cached for future runs)")
 logger.debug("[MAP-REDUCE VALIDATION] Input text: %d chars, %d words", ...)
-logger.info("Summary generated in %.1fs (length: %d chars)", elapsed, len(summary))
-```
 
-### Parallel Summarization Thread Safety
+```text
+```text
 
-**Implementation:**
-
-- Pre-loads `max_workers` model instances before starting `ThreadPoolExecutor`
 - Uses `threading.local()` for thread-local model storage
 - Atomic counter for model assignment
 - Proper cleanup in `finally` block to unload all worker models
@@ -277,3 +252,4 @@ logger.info("Summary generated in %.1fs (length: %d chars)", elapsed, len(summar
 - Enhance documentation
 
 **Full Changelog**: <https://github.com/chipi/podcast_scraper/compare/v2.3.0...v2.3.1>
+````

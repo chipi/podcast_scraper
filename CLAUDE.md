@@ -34,3 +34,18 @@
 - Common Patterns (configuration, error handling, logging)
 
 **See `.ai-coding-guidelines.md` for complete guidelines.**
+
+## Key Documentation Files
+
+**When working on related tasks, read these files:**
+
+- **`docs/guides/DEVELOPMENT_GUIDE.md`** - Detailed technical information (code style, testing, CI/CD,
+  architecture, logging, documentation standards)
+
+- **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** - Complete markdown linting guide (automated fixing, table
+  formatting, pre-commit hooks, CI/CD integration)
+
+- **`docs/TESTING_STRATEGY.md`** - Comprehensive testing approach
+- **`docs/ARCHITECTURE.md`** - Architecture design and module responsibilities
+
+**These files are referenced in `.ai-coding-guidelines.md` but should be read directly when working on related tasks.**

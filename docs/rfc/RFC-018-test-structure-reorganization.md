@@ -84,7 +84,7 @@ Reorganize the test suite structure to improve maintainability, test discoverabi
 
 ### 1. New Test Directory Structure
 
-```text
+````text
 tests/
 ├── conftest.py                    # Shared fixtures (keep at root)
 ├── unit/                          # Fast, isolated, fully mocked
@@ -147,12 +147,11 @@ tests/
     ├── test_summarizer_security.py
     ├── test_eval_scripts.py      # Evaluation script tests
     └── test_env_variables.py      # Environment variable E2E
-```
-**Key Decisions:**
+```yaml
 
 - **Unit tests mirror src structure**: Makes navigation easy, clear test-to-code mapping
 - **Integration tests by scenario**: Groups related component interactions
-- **Workflow_e2e for full workflows**: Renamed from "integration" to be more descriptive
+- **E2E tests for full workflows**: Complete user workflows and end-to-end testing
 - **Flat structure for top-level tests**: `test_api_versioning.py` doesn't need deep nesting
 
 ### 2. Test Type Definitions
@@ -190,7 +189,9 @@ tests/
 ```toml
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
 # Default: run only unit tests (fast feedback)
+
 addopts = "-q -ra -m 'not integration and not e2e and not network'"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
@@ -198,37 +199,35 @@ markers = [
     "e2e: end-to-end workflow tests (slowest, test full workflows)",
     "network: hits the network (off by default, use -m network to enable)",
 ]
-```
-**Test Execution Examples:**
+```text
 
-```bash
-# Default: unit tests only (fast)
 pytest
 
 # All tests except network
+
 pytest -m "not network"
 
 # Only integration tests
+
 pytest -m integration
 
 # Only workflow e2e tests
+
 pytest -m e2e
 
 # All tests including network
+
 pytest -m network
 
 # Parallel execution (Stage 6)
+
 pytest -n auto
 
 # With reruns for flaky tests (Stage 6)
+
 pytest --reruns 2 --reruns-delay 1
-```
-### 4. Test Markers and Enforcement
 
-**Marker Usage:**
-
-- All integration tests: `@pytest.mark.integration`
-- All e2e tests: `@pytest.mark.e2e`
+```yaml
 - Tests that hit network: `@pytest.mark.network`
 - Slow tests: `@pytest.mark.slow` (existing)
 
@@ -297,7 +296,7 @@ pytest --reruns 2 --reruns-delay 1
 
 - Update `docs/TESTING_STRATEGY.md` with new test structure and organization
 - Update `CONTRIBUTING.md` with new test running examples and structure
-- Update `docs/DEVELOPMENT_GUIDE.md` if it references test structure
+- Update `docs/guides/DEVELOPMENT_GUIDE.md` if it references test structure
 - Update `README.md` if it has test-related sections
 - Document test type definitions and decision tree
 - Add examples of running different test suites
@@ -388,26 +387,28 @@ pytest --reruns 2 --reruns-delay 1
 **Implementation:**
 
 ```python
+
 # tests/unit/conftest.py
+
 import pytest
 from unittest.mock import patch
 
 @pytest.fixture(autouse=True)
 def block_network_and_filesystem_io(request):
     """Automatically block network calls and filesystem I/O in unit tests."""
+
     # Patch network libraries
+
     # Patch filesystem operations
+
     # Allow exceptions (tempfile, cache dirs, etc.)
+
     yield
+
     # Clean up patches
-```
-### 8. Documentation Updates
 
-**Files to Update:**
-
-- `docs/TESTING_STRATEGY.md`: Update with new test structure, organization, and test type definitions
-- `CONTRIBUTING.md`: Update test running examples, add section on new test structure
-- `docs/DEVELOPMENT_GUIDE.md`: Update any test-related references
+```yaml
+- `docs/guides/DEVELOPMENT_GUIDE.md`: Update any test-related references
 - `README.md`: Update test running examples if present
 
 **New Documentation Sections:**
@@ -426,45 +427,61 @@ def block_network_and_filesystem_io(request):
 1. **Test Discovery**: Verify pytest finds all tests after reorganization
 
    ```bash
-   pytest --collect-only
-   ```
 
-2. **Test Execution**: Run each test suite independently
+   pytest --collect-only
+
+`   ```
+
+1. **Test Execution**: Run each test suite independently
 
    ```bash
+
    pytest tests/unit/
    pytest tests/integration/
    pytest tests/e2e/
+
    ```
 
-3. **Marker Verification**: Verify markers work correctly
+2. **Marker Verification**: Verify markers work correctly
 
    ```bash
+
    pytest -m unit
    pytest -m integration
    pytest -m e2e
    pytest -m network
+
    ```
 
-4. **Network and Filesystem I/O Enforcement**: Verify unit tests fail if they hit network or perform filesystem I/O
+3. **Network and Filesystem I/O Enforcement**: Verify unit tests fail if they hit network or
+   perform filesystem I/O
 
    ```bash
+
    # Should fail if unit test makes network call or performs filesystem I/O
+
    pytest tests/unit/
+
    # Network calls will raise NetworkCallDetectedError
+
    # Filesystem I/O will raise FilesystemIODetectedError
+
    ```
 
-5. **Parallel Execution**: Verify parallel execution works (Stage 6)
+4. **Parallel Execution**: Verify parallel execution works (Stage 6)
 
    ```bash
+
    pytest -n auto
+
    ```
 
-6. **Reruns**: Verify flaky test reruns work (Stage 6)
+5. **Reruns**: Verify flaky test reruns work (Stage 6)
 
    ```bash
+
    pytest --reruns 2 --reruns-delay 1
+
    ```
 
 7. **CI/CD**: Verify all CI checks pass with new structure
@@ -504,17 +521,12 @@ def block_network_and_filesystem_io(request):
 
 **Current `test` target:**
 
-```makefile
-test:
-    pytest --cov=$(PACKAGE) --cov-report=term-missing
-```
-**Updated `test` target (after reorganization):**
+````makefile
 
-```makefile
 test:
     pytest --cov=$(PACKAGE) --cov-report=term-missing
 
-test-unit:
+```bash
     pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing
 
 test-integration:
@@ -525,26 +537,22 @@ test-e2e:
 
 test-all:
     pytest tests/ -m "not network" --cov=$(PACKAGE) --cov-report=term-missing
-
-test-parallel:
-    pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing
-```
-**Note:** Default `test` target remains unchanged for backward compatibility. New targets added for specific test suites.
-
-## GitHub Actions Workflow Updates
+```text
 
 **Current workflow** (`.github/workflows/python-app.yml`):
 
-- Runs `make test` which executes all tests
+- Runs `make test-unit` which executes unit tests
 - Single test job
 
 **Updated workflow** (after reorganization):
 
 ```yaml
 jobs:
+
   # ... existing lint job ...
 
   # Unit tests - fast, run on every PR
+
   test-unit:
     runs-on: ubuntu-latest
     steps:
@@ -574,9 +582,11 @@ jobs:
         run: |
 
           # Plugin automatically detects network calls and filesystem I/O
+
           pytest tests/unit/ || exit 1
 
   # Integration tests - run on main branch and PRs
+
   test-integration:
     runs-on: ubuntu-latest
     steps:
@@ -603,6 +613,7 @@ jobs:
           pytest tests/integration/ -m integration -n auto --reruns 2 --reruns-delay 1
 
   # Workflow E2E tests - run on main branch
+
   test-e2e:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -630,6 +641,7 @@ jobs:
           pytest tests/e2e/ -m e2e --reruns 2 --reruns-delay 1
 
   # Full test suite (backward compatibility)
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -654,11 +666,7 @@ jobs:
 
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/ -m "not network" -n auto --cov=podcast_scraper --cov-report=term-missing --reruns 2 --reruns-delay 1
-```
-**Workflow Path Triggers:**
-
-Update path triggers to include new test directories:
-
+```text
 ```yaml
 paths:
 
@@ -666,7 +674,8 @@ paths:
   - 'tests/**'  # Already covers all test subdirectories
   - 'pyproject.toml'
   - 'Makefile'
-```
+```text
+
 **Note:** The existing `tests/**` pattern already covers all subdirectories, so no changes needed to path triggers.
 
 ## Alternatives Considered
@@ -715,3 +724,4 @@ Together, these three RFCs form a complete testing strategy:
 - [pytest-xdist documentation](https://pytest-xdist.readthedocs.io/)
 - [pytest-rerunfailures documentation](https://pytest-rerunfailures.readthedocs.io/)
 - Follow-up work: `docs/rfc/RFC-019-e2e-test-improvements.md`, `docs/rfc/RFC-020-integration-test-improvements.md`
+````

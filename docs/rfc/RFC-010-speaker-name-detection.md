@@ -80,25 +80,22 @@ Automating speaker name extraction improves UX, increases transcript quality, an
        - Non-letter characters except spaces, hyphens, and apostrophes
        - Whitespace normalization (multiple spaces → single space)
      - **Deduplication**: Names are deduplicated case-insensitively to avoid duplicates like `"John"` and `"john"`.
-     - **Pattern-based Fallback**: If NER fails to detect entities, a pattern-based fallback extracts names from segments after common separators (`|`, `—`, `–`, ` - `):
+     - **Pattern-based Fallback**: If NER fails to detect entities, a pattern-based fallback extracts names from segments after common separators (`|`, `—`, `–`, `-`):
        - Splits title on separators and extracts the last segment
        - Matches pattern: 2-3 words, each starting with capital letter
        - Filters out common non-name phrases (e.g., "Guest", "Host", "Interview")
        - Adds candidates with lower confidence (0.7) compared to NER-based detection (1.0)
 
 4. **Caching Strategy**
-
    - Introduce a feature flag (`cfg.cache_detected_hosts`) controlling whether host detection is memoized across episodes within a run.
    - Provide both code paths (cached vs. per-episode) to allow benchmarking; default can start with caching enabled.
 
 5. **Integration Points**
-
    - Extend `models.Episode` or attach metadata with detected guest list.
    - Whisper transcription: when screenplay formatting is enabled, inject `speaker_names` derived from detection unless CLI overrides exist; align transcription language with the configured feed language to preserve accent/locale expectations.
    - Logging/metadata: emit info-level summaries of detected speaker lists for visibility.
 
 6. **Failure Modes**
-
    - If spaCy model missing: warn once and fall back to defaults.
    - If NER returns >N names, cap at configured limit (default 4) to avoid noise.
 
@@ -132,7 +129,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
     - Validates: must be at least 2 characters and contain at least one letter
   - **Deduplication**: Names are deduplicated case-insensitively to avoid duplicates.
   - **Pattern-based Fallback**: When NER fails (e.g., spaCy misclassifies names or fails on long titles), a pattern-based fallback:
-    - Splits title on common separators (`|`, `—`, `–`, ` - `)
+    - Splits title on common separators (`|`, `—`, `–`, `-`)
     - Extracts the last segment (often contains guest name)
     - Matches pattern: 2-3 words, each starting with capital letter
     - Filters out common non-name phrases
@@ -191,7 +188,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
 ### Pattern-based Fallback
 
 - When NER fails to detect PERSON entities (e.g., spaCy misclassifies as ORG), a pattern-based fallback:
-  1. Splits title on common separators (`|`, `—`, `–`, ` - `)
+  1. Splits title on common separators (`|`, `—`, `–`, `-`)
   2. Extracts the last segment (often contains guest name)
   3. Matches pattern: `^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}$` (2-3 words, each starting with capital)
   4. Filters out common non-name phrases: `{'guest', 'host', 'episode', 'title', 'interview', 'conversation'}`

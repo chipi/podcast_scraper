@@ -1,11 +1,15 @@
 # Podcast Scraper
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Personal Use Only](https://img.shields.io/badge/Use-Personal%20Only-orange)](docs/legal.md)
+[![Personal Use Only](https://img.shields.io/badge/Use-Personal%20Only-orange)](docs/LEGAL.md)
 
-Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, and can fall back to Whisper transcription when episodes lack published transcripts.
+Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands
+Podcasting 2.0 transcript tags, resolves relative URLs, and can fall back to Whisper transcription
+when episodes lack published transcripts.
 
-> **⚠️ Important:** This project is intended for **personal, non-commercial use only**. All downloaded content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate Use](docs/legal.md) for details.
+> **⚠️ Important:** This project is intended for **personal, non-commercial use only**. All downloaded
+> content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate
+> Use](docs/LEGAL.md) for details.
 
 ## ✨ Key Features
 
@@ -34,21 +38,26 @@ All Python dependencies are managed via `pyproject.toml`. See [Installation](#in
 
 ### Installation
 
-```bash
+````bash
+
 # Clone the repository
+
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 
 # Create virtual environment (recommended)
+
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install with ML dependencies (speaker detection, transcription, summarization)
+
 pip install -e ".[ml]"
 
 # Or for development (includes dev tools + ML dependencies)
+
 make init
-```
+```text
 
 - `pip install -e .` — Core dependencies only
 - `pip install -e ".[ml]"` — Core + ML dependencies (Whisper, spaCy, transformers)
@@ -59,23 +68,23 @@ See `pyproject.toml` for complete dependency specifications.
 ### Basic Usage
 
 ```bash
+
 # Download transcripts from a podcast RSS feed
+
 python3 -m podcast_scraper.cli https://example.com/feed.xml
 
 # Use Whisper when transcripts are missing
+
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --transcribe-missing \
   --whisper-model base
 
 # Generate metadata and summaries
+
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-metadata \
   --generate-summaries
-```
-
-**Full documentation:** [https://chipi.github.io/podcast_scraper/](https://chipi.github.io/podcast_scraper/)
-
-The documentation site includes:
+```text
 
 - **Getting Started Guide** — Installation, configuration, and first steps
 - **CLI Reference** — Complete command-line interface documentation
@@ -91,11 +100,7 @@ The documentation site includes:
 ```bash
 pip install mkdocs mkdocs-material pymdown-extensions mkdocstrings mkdocstrings-python
 mkdocs serve
-```
-
-## 🤝 Contributing
-
-We welcome contributions! See [Contributing Guide](CONTRIBUTING.md) and [Development Guide](docs/DEVELOPMENT_GUIDE.md) for:
+```text
 
 - Development setup and workflow
 - Code style and testing requirements
@@ -105,4 +110,5 @@ We welcome contributions! See [Contributing Guide](CONTRIBUTING.md) and [Develop
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-**Important:** The MIT license applies only to the source code in this repository. It does not grant any rights to redistribute or publicly share any third-party podcast content retrieved or processed using this software. See [Legal Notice & Appropriate Use](docs/legal.md) for more information.
+**Important:** The MIT license applies only to the source code in this repository. It does not grant any rights to redistribute or publicly share any third-party podcast content retrieved or processed using this software. See [Legal Notice & Appropriate Use](docs/LEGAL.md) for more information.
+````

@@ -32,12 +32,12 @@ This document outlines the refactoring plan to modularize the podcast scraper ar
 
 ### Modularity Scores
 
-| Area | Score | Status | Priority |
-| ---- | ----- | ------ | -------- |
-| Speaker Detection | 5/10 | 🟡 Moderate | **HIGH** |
-| Transcription | 6/10 | 🟡 Moderate | **HIGH** |
-| Summarization | 4/10 | 🔴 Low | **HIGH** |
-| RSS Feed Source | 2/10 | 🔴 Low | **IGNORED** |
+| Area              | Score | Status      | Priority    |
+| ----------------- | ----- | ----------- | ----------- |
+| Speaker Detection | 5/10  | 🟡 Moderate | **HIGH**    |
+| Transcription     | 6/10  | 🟡 Moderate | **HIGH**    |
+| Summarization     | 4/10  | 🔴 Low      | **HIGH**    |
+| RSS Feed Source   | 2/10  | 🔴 Low      | **IGNORED** |
 
 ---
 
@@ -82,8 +82,10 @@ This document outlines the refactoring plan to modularize the podcast scraper ar
 
 **Protocol-Based Provider System:**
 
-```python
+````python
+
 # podcast_scraper/speaker_detectors/base.py
+
 from typing import Protocol, List, Set, Optional, Dict, Any, Tuple
 from .. import config, models
 
@@ -119,12 +121,11 @@ class SpeakerDetector(Protocol):
     ) -> Optional[Dict[str, Any]]:
         """Analyze episode patterns for heuristics."""
         ...
-```
+```python
+
+from .. import config
 
 ```python
-# podcast_scraper/speaker_detectors/factory.py
-from typing import Optional
-from .. import config
 from .base import SpeakerDetector
 
 class SpeakerDetectorFactory:
@@ -143,17 +144,17 @@ class SpeakerDetectorFactory:
             from .openai_detector import OpenAISpeakerDetector
             return OpenAISpeakerDetector(cfg)
         return None
-```
-
-#### Phase 1: Quick Wins (No Breaking Changes)
+```text
 
 1. **Add provider type field to `config.py`:**
 
    ```python
    speaker_detector_type: Literal["ner", "openai"] = Field(default="ner")
+
    # Keep ner_model for backward compatibility
+
    ner_model: Optional[str] = Field(default=None, alias="ner_model")
-   ```
+````
 
 2. **Create protocol definitions:**
    - Create `podcast_scraper/speaker_detectors/` package
@@ -260,8 +261,10 @@ class SpeakerDetectorFactory:
 
 **Protocol-Based Provider System:**
 
-```python
+````python
+
 # podcast_scraper/transcription/base.py
+
 from typing import Protocol, Dict, Optional, Tuple, Any
 from .. import config
 
@@ -298,12 +301,11 @@ class TranscriptionProvider(Protocol):
     def cleanup(self, resource: Any) -> None:
         """Cleanup provider resources."""
         ...
-```
+```python
+
+from .. import config
 
 ```python
-# podcast_scraper/transcription/factory.py
-from typing import Optional
-from .. import config
 from .base import TranscriptionProvider
 
 class TranscriptionProviderFactory:
@@ -322,17 +324,17 @@ class TranscriptionProviderFactory:
             from .openai_provider import OpenAITranscriptionProvider
             return OpenAITranscriptionProvider(cfg)
         return None
-```
-
-#### Phase 1: Quick Wins - Transcription (No Breaking Changes)
+```text
 
 1. **Add provider type field to `config.py`:**
 
    ```python
    transcription_provider: Literal["whisper", "openai"] = Field(default="whisper")
+
    # Keep whisper_model for backward compatibility
+
    whisper_model: str = Field(default="base", alias="whisper_model")
-   ```
+````
 
 2. **Create protocol definitions:**
    - Create `podcast_scraper/transcription/` package
@@ -373,7 +375,9 @@ class TranscriptionProviderFactory:
        resource: Any  # Provider-specific resource
        temp_dir: Optional[str]
        transcription_jobs: List[models.TranscriptionJob]
+
        # ... rest
+
    ```
 
 #### Phase 3: Add OpenAI Provider - Transcription (Future)
@@ -449,8 +453,10 @@ class TranscriptionProviderFactory:
 
 **Protocol-Based Provider System:**
 
-```python
+````python
+
 # podcast_scraper/summarization/base.py
+
 from typing import Protocol, Optional, Dict, Any
 from .. import config
 
@@ -516,12 +522,11 @@ class SummarizationProvider(Protocol):
     def cleanup(self, resource: Any) -> None:
         """Cleanup provider resources."""
         ...
-```
+```python
+
+from .. import config
 
 ```python
-# podcast_scraper/summarization/factory.py
-from typing import Optional
-from .. import config
 from .base import SummarizationProvider
 
 class SummarizationProviderFactory:
@@ -540,17 +545,17 @@ class SummarizationProviderFactory:
             from .openai_provider import OpenAISummarizationProvider
             return OpenAISummarizationProvider(cfg)
         return None
-```
-
-#### Phase 1: Quick Wins - Summarization (No Breaking Changes)
+```text
 
 1. **Add provider type field to `config.py`:**
 
    ```python
    summary_provider: Literal["transformers", "openai"] = Field(default="transformers")
+
    # Keep summary_model for backward compatibility
+
    summary_model: Optional[str] = Field(default=None, alias="summary_model")
-   ```
+````
 
 2. **Create protocol definitions:**
    - Create `podcast_scraper/summarization/` package
@@ -580,7 +585,7 @@ class SummarizationProviderFactory:
      - `_build_content_metadata()` - Construct ContentMetadata
      - `_build_processing_metadata()` - Construct ProcessingMetadata
 
-2. **Update `workflow.py`:**
+3. **Update `workflow.py`:**
 
    ```python
    from .summarization import SummarizationProviderFactory
@@ -590,7 +595,7 @@ class SummarizationProviderFactory:
        resource = provider.initialize(cfg)
    ```
 
-3. **Update `metadata.py`:**
+4. **Update `metadata.py`:**
    - Refactor `generate_episode_metadata()` to use provider
    - Extract helper functions for model building
    - Use provider for summarization instead of direct model calls
@@ -650,7 +655,9 @@ class SummarizationProviderFactory:
 1. **Add Provider Type Fields to Config:**
 
    ```python
+
    # config.py
+
    speaker_detector_provider: Literal["ner", "openai"] = Field(default="ner")  # Renamed from speaker_detector_type
    transcription_provider: Literal["whisper", "openai"] = Field(default="whisper")
    summary_provider: Literal["transformers", "openai"] = Field(default="transformers")
@@ -673,7 +680,7 @@ class SummarizationProviderFactory:
 
 ## File Structure (Proposed)
 
-```text
+````text
 podcast_scraper/
 ├── preprocessing.py         # NEW: Provider-agnostic preprocessing utilities
 │                           # - clean_transcript() (timestamp removal, speaker normalization)
@@ -702,9 +709,7 @@ podcast_scraper/
 ├── metadata.py              # Refactored (smaller functions), calls preprocessing BEFORE providers
 ├── config.py                # Has provider type fields
 └── ...
-```
-
-## Key Principles
+```text
 
 1. **Backward Compatibility First**
    - Default to current implementations
@@ -814,3 +819,4 @@ Once this refactoring is complete, adding OpenAI API providers will be straightf
 - Consider backward compatibility for public APIs
 - Document provider interfaces clearly
 - Provide examples for each provider type
+````
