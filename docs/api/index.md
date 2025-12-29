@@ -9,22 +9,22 @@ programmatic interfaces, configuration options, data models, and migration guide
 
 ### Core APIs
 
-| Document                                                       | Description                                                           |
-| -------------------------------------------------------------- | --------------------------------------------------------------------- |
-| [Core API](CORE.md)                                            | Primary public API (`run_pipeline`, `Config`, package information)    |
-| [Service API](SERVICE.md)                                       | Non-interactive service interface for daemons and process management |
-| [CLI Interface](CLI.md)                                         | Command-line interface documentation                                 |
-| [Configuration API](CONFIGURATION.md)                           | Configuration model, environment variables, and file formats          |
-| [Data Models](MODELS.md)                                        | Core data structures (Episode, RssFeed, TranscriptionJob)            |
+| Document                                                        | Description                                                            |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [Core API](CORE.md)                                             | Primary public API (`run_pipeline`, `Config`, package information)     |
+| [Service API](SERVICE.md)                                       | Non-interactive service interface for daemons and process management   |
+| [CLI Interface](CLI.md)                                          | Command-line interface documentation                                   |
+| [Configuration API](CONFIGURATION.md)                           | Configuration model, environment variables, and file formats            |
+| [Data Models](MODELS.md)                                        | Core data structures (Episode, RssFeed, TranscriptionJob)              |
 
 ### API Reference & Guides
 
-| Document                                                       | Description                                                           |
-| -------------------------------------------------------------- | --------------------------------------------------------------------- |
-| [API Reference](REFERENCE.md)                                  | Complete API reference documentation                                 |
-| [API Boundaries](BOUNDARIES.md)                                | Public vs. private API boundaries and stability guarantees           |
-| [API Versioning](VERSIONING.md)                                | API versioning strategy and compatibility policies                   |
-| [API Migration Guide](MIGRATION_GUIDE.md)                      | Migration guides for API changes and breaking changes                |
+| Document                                                        | Description                                                            |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [API Reference](REFERENCE.md)                                   | Complete API reference documentation                                  |
+| [API Boundaries](BOUNDARIES.md)                                 | Public vs. private API boundaries and stability guarantees            |
+| [API Versioning](VERSIONING.md)                                 | API versioning strategy and compatibility policies                    |
+| [API Migration Guide](MIGRATION_GUIDE.md)                      | Migration guides for API changes and breaking changes                 |
 
 ## Quick Start
 

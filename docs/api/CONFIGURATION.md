@@ -136,17 +136,17 @@ Environment variables are automatically loaded when the `podcast_scraper.config`
 
 ```bash
 export OPENAI_API_KEY=sk-your-key-here
-python3 -m podcast_scraper https://example.com/feed.xml
+python3 -m podcast_scraper <https://example.com/feed.xml>
 ```text
 
-OPENAI_API_KEY=sk-your-key-here python3 -m podcast_scraper https://example.com/feed.xml
+OPENAI_API_KEY=sk-your-key-here python3 -m podcast_scraper <https://example.com/feed.xml>
 
 ````
 
 # Create .env file in project root
 
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
-python3 -m podcast_scraper https://example.com/feed.xml
+python3 -m podcast_scraper <https://example.com/feed.xml>
 
 ````javascript
 
