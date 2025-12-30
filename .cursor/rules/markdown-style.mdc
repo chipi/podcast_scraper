@@ -1,6 +1,6 @@
 # Markdown Style Guide - Quick Reference
 
-**When writing or editing markdown files, follow `docs/guides/MD_STYLE_REFERENCE.md`**
+**When writing or editing markdown files, follow `docs/guides/MARKDOWN_LINTING_GUIDE.md`**
 
 ## Quick Checklist Before Finishing
 
@@ -18,4 +18,4 @@ Run `make fix-md` before committing markdown files.
 
 ## Full Reference
 
-See `docs/guides/MD_STYLE_REFERENCE.md` for complete rules and details.
+See `docs/guides/MARKDOWN_LINTING_GUIDE.md` for complete rules and details.

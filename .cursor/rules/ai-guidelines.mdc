@@ -149,7 +149,7 @@ AI: I've resolved all conflicts. [Pushes immediately without showing changes or 
 
 **🚨 CRITICAL: When writing or editing markdown files, ALWAYS reference:**
 
-- **`docs/MD_STYLE.md`** - **Short markdown style contract** (concise rules for Cursor)
+- **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** - **Markdown style and linting guide** (style rules, linting practices, tools, workflows)
   - One H1 per document
   - Blank line after headings
   - Code fences always specify language
@@ -162,4 +162,4 @@ AI: I've resolved all conflicts. [Pushes immediately without showing changes or 
 2. Self-check: (a) one H1 only, (b) blank line after headings, (c) no trailing spaces, (d) list indentation consistent, (e) code fences have language tags
 3. Run `make lint-markdown` to verify
 
-**See `docs/MD_STYLE.md` for the complete checklist and rules.**
+**See `docs/guides/MARKDOWN_LINTING_GUIDE.md` for the complete checklist and rules.**
