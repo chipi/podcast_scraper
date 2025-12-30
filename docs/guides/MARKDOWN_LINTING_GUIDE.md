@@ -1,10 +1,62 @@
-# Markdown Linting Guide
+# Markdown Style and Linting Guide
 
-This guide covers markdown linting practices, tools, and workflows for the podcast scraper
-project. It includes automated fixing, table formatting solutions, pre-commit hooks, and CI/CD
-integration.
+This guide covers markdown style rules, linting practices, tools, and workflows for the podcast scraper
+project. It includes style guidelines, automated fixing, table formatting solutions, pre-commit hooks,
+and CI/CD integration.
+
+**💡 For Cursor Users:** Pin this file in Cursor's context (Rules/Context features) so it's always
+available when writing markdown. This helps Cursor follow these rules automatically.
 
 For general development practices, see [Development Guide](DEVELOPMENT_GUIDE.md).
+
+## Quick Reference: Style Rules
+
+### Structure
+
+- **One H1 per document** - Only the title should be `# Heading`
+- **Blank line after headings** - Always add a blank line after `#`, `##`, etc.
+- **80–100 char wrap** - Prefer wrapping at 100 characters (matches code style)
+
+### Lists
+
+- **Use `-` for unordered lists** - Consistent marker throughout
+- **Blank lines around lists** - Add blank line before and after list blocks
+- **Consistent indentation** - Use 2 spaces for nested lists
+
+### Code
+
+- **Code fences always specify language** - Use ` ```python`, ` ```bash`, ` ```yaml`, etc.
+- **No bare code blocks** - Never use ` ``` ` without a language
+- **Inline code with backticks** - Use `` `code` `` not `'code'`
+
+### Formatting
+
+- **No trailing spaces** - Trim whitespace at end of lines
+- **No multiple blank lines** - Maximum one blank line between sections
+- **Tables: avoid unless necessary** - Prefer lists when possible
+- **Table formatting** - Use spaces around pipes: `| Column |` (compact style)
+
+### Links
+
+- **Descriptive link text** - Use `[Link Text](url)` not `[url](url)`
+- **Relative paths for internal links** - Use `rfc/RFC-019.md` not `docs/rfc/RFC-019.md`
+
+### Paragraphs
+
+- **Prefer short paragraphs** - 2–5 lines maximum
+- **One idea per paragraph** - Keep paragraphs focused
+
+## Quick Checklist
+
+Before finishing any markdown file, verify:
+
+- [ ] Only one H1 (`#`) in the document
+- [ ] Blank line after all headings
+- [ ] No trailing spaces
+- [ ] Lists have blank lines before and after
+- [ ] Code fences have language specifiers
+- [ ] Tables use consistent spacing around pipes
+- [ ] No multiple consecutive blank lines
 
 ## Rules Configuration
 
@@ -80,7 +132,7 @@ it's likely from the default rule set.
 
 **Recommended:** Use `scripts/fix_markdown.py` to automatically fix common markdown linting issues:
 
-````bash
+```bash
 
 # Fix all markdown files in the project
 
@@ -90,9 +142,17 @@ python scripts/fix_markdown.py
 
 python scripts/fix_markdown.py TESTING_STRATEGY.md rfc/RFC-020.md
 
+# Or using Makefile
+
+make fix-md
+
 # Dry run (see what would be fixed)
 
 python scripts/fix_markdown.py --dry-run
+
+# Verify with linter
+
+make lint-markdown
 ```text
 
 **What the script fixes automatically:**
@@ -114,6 +174,27 @@ python scripts/fix_markdown.py --dry-run
 - When CI fails on markdown linting errors
 
 See `scripts/README.md` for full documentation.
+
+### Format-on-Save (Recommended)
+
+**For format-on-save:**
+
+1. Install Prettier extension in Cursor/VSCode
+2. `.vscode/settings.json` is already configured for format-on-save on markdown files
+3. `.prettierrc` provides formatting rules (100 char wrap, preserves prose)
+
+**Format on save will handle:**
+
+- Wrapping at 100 characters
+- Spacing and list formatting
+- Trailing whitespace removal
+
+**markdownlint handles:**
+
+- Heading structure (one H1, blank lines after headings)
+- List indentation
+- Code fence language specifiers
+- Table formatting
 
 ## Catching Table Formatting Issues Locally
 
@@ -138,6 +219,8 @@ markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site
 markdownlint --fix "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site
 ```text
 
+### Table Formatting Rules
+
 1. **Compact style**: Tables need spaces around pipes
    - ❌ Bad: `|Column1|Column2|`
    - ✅ Good: `| Column1 | Column2 |`
@@ -160,7 +243,7 @@ markdownlint --fix "**/*.md" --ignore node_modules --ignore .venv --ignore .buil
    - ❌ Bad: `| Value  |` (extra spaces in data row)
    - ✅ Good: `| Header |` followed by `|----------|` and `| Value |`
 
-## Solution: Use Python to Generate Exact Alignment
+### Solution: Use Python to Generate Exact Alignment
 
 **⚠️ Important**: When dealing with complex tables or "aligned" style errors, manually aligning pipes is error-prone and time-consuming. Use Python to generate perfectly aligned rows:
 
@@ -250,6 +333,7 @@ git commit -m "your message"
 git commit --no-verify
 
 ```text
+
 - All markdown files are checked, not just changed files
 
 ## Workflow Summary
@@ -314,6 +398,7 @@ make lint-markdown
 # Step 4: Fix remaining errors manually
 
 ```text
+
 **Why:** Automated fixes are fast, consistent, and handle the majority of issues. Manual fixes
 should only be for edge cases.
 
@@ -337,6 +422,7 @@ blank lines:
 - Item 1
 
 ```text
+
 **MD051 (link-fragments):** Can produce false positives. If headings exist and fragments match
 correctly, consider disabling this rule:
 
@@ -347,6 +433,7 @@ correctly, consider disabling this rule:
 }
 
 ```text
+
 **MD013 (line-length):** Many long lines are legitimate (URLs, code examples, technical
 descriptions). Consider:
 
@@ -377,11 +464,13 @@ descriptions). Consider:
 ### 6. When to Disable Rules
 
 **Disable rules only when:**
+
 - They produce false positives (e.g., MD051 with valid link fragments)
 - They conflict with legitimate use cases (e.g., MD025 for docs with multiple H1s)
 - They're structural and can't be fixed (e.g., MD036 for emphasis-as-heading)
 
 **Don't disable rules to:**
+
 - Hide technical debt
 - Avoid fixing issues
 - Make CI pass quickly
@@ -389,6 +478,7 @@ descriptions). Consider:
 ### 7. Metrics and Tracking
 
 **Track progress with metrics:**
+
 - Total errors before/after
 - Errors by rule type
 - Files affected
@@ -399,6 +489,7 @@ descriptions). Consider:
 ### 8. Tool Configuration
 
 **Ensure consistency:**
+
 - Use same `.markdownlint.json` in CI and locally
 - Configure Prettier to match markdownlint rules where possible
 - Document any rule exceptions clearly
@@ -409,5 +500,7 @@ descriptions). Consider:
 
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices
 - [CI/CD](../CI_CD.md) - Continuous integration pipeline details
-- [Markdown Style Reference](MD_STYLE_REFERENCE.md) - Quick reference style guide
-````
+- `scripts/fix_markdown.py` - Automated fixer script (see repository root)
+- `.markdownlint.json` - Linter configuration (see repository root)
+- `.prettierrc` - Prettier formatting rules (see repository root)
+- `.vscode/settings.json` - Editor settings for format-on-save (see repository root)

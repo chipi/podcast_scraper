@@ -78,8 +78,7 @@ nav:
       - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md
       - Dependencies: guides/DEPENDENCIES_GUIDE.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
-      - Markdown Linting: guides/MARKDOWN_LINTING_GUIDE.md
-      - Markdown Style Reference: guides/MD_STYLE_REFERENCE.md
+      - Markdown Style and Linting: guides/MARKDOWN_LINTING_GUIDE.md
       - Protocol Extension Guide: guides/PROTOCOL_EXTENSION_GUIDE.md
       - Provider Attributes: guides/PROVIDER_ATTRIBUTES_GUIDE.md
       - Provider Migration Guide: guides/PROVIDER_MIGRATION_GUIDE.md

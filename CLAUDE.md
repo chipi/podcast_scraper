@@ -23,8 +23,8 @@
 2. ✅ **`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`** - Cursor AI best practices and model selection
 3. ✅ **`docs/guides/DEVELOPMENT_GUIDE.md`** - Detailed development guide (code style, testing, CI/CD, architecture)
 4. ✅ **`docs/guides/TESTING_GUIDE.md`** - Testing guide (unit, integration, E2E implementation)
-5. ✅ **`docs/guides/MD_STYLE_REFERENCE.md`** - Markdown style quick reference
-6. ✅ **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** - Complete markdown linting guide
+5. ✅ **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** - Markdown style and linting guide (style rules,
+   linting practices, tools, workflows)
 
 **Why load all of them:**
 
@@ -32,7 +32,7 @@
 - `CURSOR_AI_BEST_PRACTICES_GUIDE.md` provides model selection and workflow optimization
 - `DEVELOPMENT_GUIDE.md` provides detailed technical patterns and implementation details
 - `TESTING_GUIDE.md` provides comprehensive testing implementation details
-- `MD_STYLE_REFERENCE.md` and `MARKDOWN_LINTING_GUIDE.md` provide markdown formatting standards
+- `MARKDOWN_LINTING_GUIDE.md` provides markdown style rules and linting standards
 
 **Loading pattern:**
 
@@ -48,9 +48,7 @@
 
 # 4. Read docs/guides/TESTING_GUIDE.md
 
-# 5. Read docs/guides/MD_STYLE_REFERENCE.md
-
-# 6. Read docs/guides/MARKDOWN_LINTING_GUIDE.md
+# 5. Read docs/guides/MARKDOWN_LINTING_GUIDE.md
 
 # 7. Acknowledge all files loaded and summarize key points
 
@@ -87,8 +85,7 @@
 
 
 - **`docs/guides/TESTING_GUIDE.md`** - Testing guide (unit, integration, E2E implementation)
-- **`docs/guides/MD_STYLE_REFERENCE.md`** - Markdown style quick reference
-- **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** - Complete markdown linting guide (automated fixing, table
+- **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** - Markdown style and linting guide (style rules, automated fixing, table
   formatting, pre-commit hooks, CI/CD integration)
 
 **Additional Reference Files:**
