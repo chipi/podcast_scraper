@@ -259,10 +259,12 @@ clean-cache:
 	fi
 	@if [ -d "$$HOME/.cache/spacy" ]; then \
 		echo "  Removing spaCy cache: $$HOME/.cache/spacy"; \
+		echo "    (Note: spaCy model is installed as dependency, but cache may exist)"; \
 		rm -rf "$$HOME/.cache/spacy"; \
 	fi
 	@if [ -d "$$HOME/.local/share/spacy" ]; then \
 		echo "  Removing spaCy user cache: $$HOME/.local/share/spacy"; \
+		echo "    (Note: spaCy model is installed as dependency, but cache may exist)"; \
 		rm -rf "$$HOME/.local/share/spacy"; \
 	fi
 	@if [ -d "$$HOME/.cache/huggingface" ]; then \
@@ -289,12 +291,11 @@ preload-ml-models:
 		(echo "ERROR: Failed to preload Whisper tiny.en. Install with: pip install openai-whisper" && exit 1)
 	@echo "  ✓ Whisper tiny.en cached and verified"
 	@echo ""
-	@echo "Preloading spaCy model: en_core_web_sm..."
-	@$(PYTHON) -m spacy download en_core_web_sm || \
-		(echo "ERROR: Failed to preload spaCy model. Install with: pip install spacy" && exit 1)
+	@echo "Verifying spaCy model: en_core_web_sm..."
+	@echo "  (Model is installed as a dependency, no download needed)"
 	@$(PYTHON) -c "import spacy; nlp = spacy.load('en_core_web_sm'); print('  Verifying model loads...'); assert nlp is not None; doc = nlp('Test text'); print('  Verifying model works...'); assert doc is not None and len(doc) > 0" || \
-		(echo "ERROR: Failed to verify spaCy model. Model may be corrupted." && exit 1)
-	@echo "✓ spaCy model cached and verified"
+		(echo "ERROR: spaCy model not available. Install with: pip install -e .[ml]" && exit 1)
+	@echo "✓ spaCy model verified (installed as dependency)"
 	@echo ""
 	@echo "Preloading Transformers models..."
 	@echo "  - facebook/bart-base..."
@@ -317,6 +318,6 @@ preload-ml-models:
 	@echo "All models preloaded and verified successfully!"
 	@echo "Models are cached in:"
 	@echo "  - Whisper: ~/.cache/whisper/"
-	@echo "  - spaCy: ~/.local/share/spacy/ or site-packages"
+	@echo "  - spaCy: Installed as dependency (en_core_web_sm in pyproject.toml)"
 	@echo "  - Transformers: ~/.cache/huggingface/hub/"
 

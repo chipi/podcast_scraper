@@ -270,21 +270,8 @@ class TestIntegrationMain(unittest.TestCase):
         This test requires multiple episodes to verify speaker detection works
         across episodes, so it's marked as slow to run in full test mode.
         Requires ML models (spaCy) for speaker detection.
-
-        Note: spaCy library is installed as a dependency, but the language model
-        (en_core_web_sm) must be pre-cached. The test will skip if spaCy is not
-        available or if the model cannot be loaded.
+        Note: spaCy model (en_core_web_sm) is installed as a dependency.
         """
-        # Try to load spaCy model - skip if not available
-        # Note: spaCy library is installed as a dependency, but the language model
-        # (en_core_web_sm) must be available. The test will skip if the model cannot be loaded.
-        try:
-            nlp = spacy.load("en_core_web_sm")  # noqa: F405
-            if nlp is None:
-                pytest.skip("spaCy model en_core_web_sm not available")
-        except (OSError, ImportError):
-            pytest.skip("spaCy model en_core_web_sm not available")
-
         rss_url = "https://example.com/feed.xml"
         rss_xml = build_rss_xml_with_speakers(
             "Test Podcast",

@@ -33,7 +33,6 @@ integration_dir = Path(__file__).parent.parent / "integration"
 if str(integration_dir) not in sys.path:
     sys.path.insert(0, str(integration_dir))
 from ml_model_cache_helpers import (  # noqa: E402
-    require_spacy_model_cached,
     require_transformers_model_cached,
     require_whisper_model_cached,
 )
@@ -154,10 +153,10 @@ class TestSpacySpeakerDetection:
     """Real spaCy speaker detection model E2E tests."""
 
     def test_spacy_detector_detect_speakers(self, e2e_server):
-        """Test spaCy speaker detector with real model."""
-        # Require model to be cached (fail fast if not)
-        require_spacy_model_cached("en_core_web_sm")
+        """Test spaCy speaker detector with real model.
 
+        Note: spaCy model (en_core_web_sm) is installed as a dependency.
+        """
         with tempfile.TemporaryDirectory():
             # Create config with smallest spaCy model for speed
             cfg = Config(
@@ -192,10 +191,10 @@ class TestSpacySpeakerDetection:
             detector.cleanup()
 
     def test_spacy_detector_in_full_workflow(self, e2e_server):
-        """Test spaCy speaker detector in full workflow."""
-        # Require model to be cached (fail fast if not)
-        require_spacy_model_cached("en_core_web_sm")
+        """Test spaCy speaker detector in full workflow.
 
+        Note: spaCy model (en_core_web_sm) is installed as a dependency.
+        """
         # Use podcast1_with_transcript which has a transcript URL, so no
         # transcription is needed (spaCy detector only needs transcript text)
         rss_url = e2e_server.urls.feed("podcast1_with_transcript")
@@ -233,9 +232,11 @@ class TestAllMLModelsTogether:
     """E2E tests with all real ML models working together."""
 
     def test_all_models_in_full_workflow(self, e2e_server):
-        """Test complete workflow with all real ML models."""
-        # Require all models to be cached (fail fast if not)
-        require_spacy_model_cached("en_core_web_sm")
+        """Test complete workflow with all real ML models.
+
+        Note: spaCy model (en_core_web_sm) is installed as a dependency.
+        """
+        # Require transformers model to be cached (fail fast if not)
         require_transformers_model_cached("facebook/bart-base", None)
 
         rss_url = e2e_server.urls.feed("podcast1")
@@ -273,9 +274,11 @@ class TestAllMLModelsTogether:
             assert len(metadata_files) > 0, "At least one metadata file should be created"
 
     def test_model_loading_and_cleanup(self, e2e_server):
-        """Test that models load and cleanup correctly."""
-        # Require all models to be cached (fail fast if not)
-        require_spacy_model_cached("en_core_web_sm")
+        """Test that models load and cleanup correctly.
+
+        Note: spaCy model (en_core_web_sm) is installed as a dependency.
+        """
+        # Require transformers model to be cached (spaCy model is installed as dependency)
         require_transformers_model_cached("facebook/bart-base", None)
 
         # Get transcript text from fixtures

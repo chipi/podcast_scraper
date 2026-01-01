@@ -20,20 +20,30 @@ like transcription and summarization.
 - **Purpose**: HTTP client for downloading RSS feeds, transcripts, and media files
 - **Why chosen**: Industry-standard library with excellent session management, connection
   pooling, and retry capabilities. Used throughout `downloader.py` and `rss_parser.py` for
+
   all network operations.
+
 - **Key features utilized**: Session pooling with custom retry adapters (`LoggingRetry`),
   streaming downloads for large media files, configurable timeouts and headers
+
+
 - **Alternatives considered**: `urllib3` (too low-level), `httpx` (less mature at project start)
 
 ### `pydantic` (>=2.6.0)
 
 - **Purpose**: Data validation, serialization, and configuration management via the `Config`
   model
+
+
 - **Why chosen**: Provides immutable, type-safe configuration with automatic validation,
   JSON/YAML parsing, and excellent error messages. Central to the architecture's "typed,
+
   immutable configuration" design principle.
+
 - **Key features utilized**: Frozen dataclasses, field validators, JSON/YAML serialization,
   nested model validation, type coercion
+
+
 - **Alternatives considered**: `dataclasses` (no validation), `attrs` (less validation
   features), `marshmallow` (more verbose)
 
@@ -42,6 +52,8 @@ like transcription and summarization.
 - **Purpose**: Safe XML/RSS parsing that prevents XML bomb attacks and entity expansion vulnerabilities
 - **Why chosen**: Security-first RSS parsing is critical when processing untrusted feeds
   from the internet. Drop-in replacement for stdlib XML parsers with security hardening.
+
+
 - **Key features utilized**: Safe ElementTree parsing in `rss_parser.py`, automatic protection against XXE attacks
 - **Alternatives considered**: Standard library `xml.etree` (vulnerable), `lxml` (heavier dependency)
 
@@ -50,6 +62,8 @@ like transcription and summarization.
 - **Purpose**: Progress bars for long-running operations (downloads, transcription)
 - **Why chosen**: Rich, customizable progress visualization with minimal API surface.
   Integrates cleanly via the `progress.py` pluggable factory pattern.
+
+
 - **Key features utilized**: Multi-level progress tracking, dynamic updates, thread-safe counters, custom formatting
 - **Alternatives considered**: `click.progressbar` (less flexible), `rich.progress` (heavier dependency)
 
@@ -58,7 +72,9 @@ like transcription and summarization.
 - **Purpose**: Cross-platform directory path resolution for output, cache, and configuration files
 - **Why chosen**: Handles OS-specific conventions (Linux XDG, macOS Application Support,
   Windows AppData) transparently. Essential for determining safe output roots and
+
   validating user-provided paths.
+
 - **Key features utilized**: User data directory resolution, cache directory paths
 - **Alternatives considered**: Manual path construction (not portable), `appdirs` (unmaintained)
 
@@ -67,6 +83,8 @@ like transcription and summarization.
 - **Purpose**: YAML configuration file parsing alongside JSON support
 - **Why chosen**: YAML provides more human-friendly configuration syntax than JSON, with
   comments and multi-line string support. Widely adopted in operations/DevOps contexts.
+
+
 - **Key features utilized**: Safe YAML loading, round-trip with Pydantic models
 - **Alternatives considered**: JSON-only (less user-friendly), TOML (less mature Python support)
 
@@ -77,36 +95,56 @@ like transcription and summarization.
 - **Purpose**: Automatic speech recognition for podcast transcription fallback
 - **Why chosen**: State-of-the-art open-source ASR with multiple model sizes, multilingual
   support, and screenplay formatting. Local-first approach ensures privacy and no API
+
   costs.
+
 - **Key features utilized**: Model selection (tiny→large), language detection, speaker
   diarization hints, `.en` model variants for English optimization
+
+
 - **Alternatives considered**: Google Speech-to-Text (API costs), Azure Speech (API costs),
   Vosk (less accurate), Mozilla DeepSpeech (deprecated)
+
+
 - **Lazy loading**: Imported conditionally in `whisper_integration.py` to avoid hard dependency
 
-### `spacy` (>=3.7.0)
+### `spacy` (>=3.7.0) and `en-core-web-sm` (3.7.1)
 
 - **Purpose**: Named Entity Recognition (NER) for automatic speaker detection from episode metadata
 - **Why chosen**: Production-ready NLP library with pre-trained models for person name
   extraction. Fast, accurate, and supports multiple languages via consistent model naming
+
   (`en_core_web_sm`, `es_core_news_sm`, etc.).
+
 - **Key features utilized**: PERSON entity extraction, language-aware model selection, efficient batch processing
 - **Alternatives considered**: `transformers` NER (overkill for this use case), regex
   patterns (too brittle), `nltk` (less accurate)
-- **Model requirements**: Language-specific models must be downloaded separately (e.g.,
-  `python -m spacy download en_core_web_sm`)
+
+
+- **Model installation**: The `en-core-web-sm` model is installed as a dependency from GitHub releases (not PyPI) due to PyPI size constraints. This is the official and standard method recommended by spaCy. The model version (3.7.1) is pinned to match spaCy 3.7.x compatibility.
+
+  The model version (3.7.1) is pinned to match spaCy 3.7.x compatibility. See `pyproject.toml` for the exact URL.
+
+
+- **Version compatibility**: spaCy 3.7.x requires `en_core_web_sm` 3.7.x. When updating spaCy, ensure the model version matches.
+
+- **Version compatibility**: spaCy 3.7.x requires `en_core_web_sm` 3.7.x. When updating spaCy, ensure the model version matches.
 
 ### `torch` (>=2.0.0) and `transformers` (>=4.30.0)
 
 - **Purpose**: Deep learning framework (torch) and pre-trained transformer models (transformers) for episode summarization
 - **Why chosen**: `transformers` provides access to production-ready summarization models
   (BART, PEGASUS, LED) with automatic caching and hardware acceleration. `torch` is the de
+
   facto standard for deep learning in Python with excellent MPS (Apple Silicon) and CUDA
   (NVIDIA) support.
+
 - **Key features utilized**:
   - **torch**: Device detection (MPS/CUDA/CPU), memory-efficient inference, gradient-free execution
   - **transformers**: Model auto-loading, tokenization, generation with beam search,
     automatic model caching (`~/.cache/huggingface/`)
+
+
 - **Models used**: BART-large (map phase), LED/long-fast (reduce phase), PEGASUS (alternative)
 - **Alternatives considered**: OpenAI API (costs/privacy), Anthropic Claude (costs/privacy), spaCy summarization (less sophisticated)
 - **Lazy loading**: Imported conditionally in `summarizer.py` to avoid hard dependency when summarization is disabled
@@ -122,6 +160,8 @@ like transcription and summarization.
 - **Purpose**: Optimized model loading and inference acceleration for large transformer models
 - **Why chosen**: Reduces model loading time and memory usage, especially for 16-bit
   inference and device mapping. Official Hugging Face library for production deployments.
+
+
 - **Key features utilized**: Fast model initialization, memory optimization for limited-RAM systems
 
 ### `protobuf` (>=3.20.0)
@@ -133,10 +173,12 @@ like transcription and summarization.
 
 1. **Core vs Optional**: Core dependencies are minimal and stable. Heavy ML dependencies
    are optional (`pip install -e .[ml]`) to avoid forcing users to install GB-sized
+
    packages when only transcript downloading is needed.
 
 2. **Version pinning**: Minimum versions are specified, but upper bounds are avoided to
    allow users to upgrade independently. Major version changes (e.g., Pydantic v2) are
+
    tracked carefully.
 
 3. **Security**: Security-focused libraries (`defusedxml`) are preferred. Regular updates
@@ -155,9 +197,13 @@ like transcription and summarization.
 - **Purpose**: Generate structured JSON reports from pytest test runs for metrics collection and analysis
 - **Why chosen**: Provides machine-readable test metrics (pass/fail counts, durations, flaky test detection) that
   integrate with our metrics collection system (RFC-025). Used in nightly workflow for comprehensive test metrics
+
   tracking.
+
 - **Key features utilized**: JSON report generation (`--json-report`), test outcome tracking, rerun detection for
   flaky tests
+
+
 - **Alternatives considered**: Custom pytest plugins (more maintenance), JUnit XML only (less structured data)
 - **Usage**: Automatically used in nightly workflow via `--json-report --json-report-file=reports/pytest.json`
 
@@ -174,6 +220,7 @@ pip install -e .[ml]
 ```bash
 pip install -e .[dev]
 ```text
+
 - [Architecture](../ARCHITECTURE.md) - High-level system design and dependency overview
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices
 - [Summarization Guide](SUMMARIZATION_GUIDE.md) - Details on ML dependencies for summarization

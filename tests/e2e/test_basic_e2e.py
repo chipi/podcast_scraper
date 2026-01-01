@@ -50,11 +50,9 @@ class TestBasicCLIE2E:
         """
         # Require ML models to be cached (skip if not available)
         from tests.integration.ml_model_cache_helpers import (
-            require_spacy_model_cached,
             require_transformers_model_cached,
         )
 
-        require_spacy_model_cached("en_core_web_sm")
         require_transformers_model_cached("facebook/bart-large-cnn", None)
 
         rss_url = e2e_server.urls.feed("podcast1_with_transcript")
@@ -118,11 +116,9 @@ class TestBasicCLIE2E:
         """
         # Require ML models to be cached (skip if not available)
         from tests.integration.ml_model_cache_helpers import (
-            require_spacy_model_cached,
             require_transformers_model_cached,
         )
 
-        require_spacy_model_cached("en_core_web_sm")
         require_transformers_model_cached("facebook/bart-large-cnn", None)
 
         rss_url = e2e_server.urls.feed("podcast1")
@@ -193,11 +189,9 @@ class TestBasicLibraryAPIE2E:
         """
         # Require ML models to be cached (skip if not available)
         from tests.integration.ml_model_cache_helpers import (
-            require_spacy_model_cached,
             require_transformers_model_cached,
         )
 
-        require_spacy_model_cached("en_core_web_sm")
         require_transformers_model_cached("facebook/bart-large-cnn", None)
 
         rss_url = e2e_server.urls.feed("podcast1_with_transcript")
@@ -261,11 +255,9 @@ class TestBasicLibraryAPIE2E:
         """
         # Require ML models to be cached (skip if not available)
         from tests.integration.ml_model_cache_helpers import (
-            require_spacy_model_cached,
             require_transformers_model_cached,
         )
 
-        require_spacy_model_cached("en_core_web_sm")
         require_transformers_model_cached("facebook/bart-large-cnn", None)
 
         rss_url = e2e_server.urls.feed("podcast1")
@@ -334,11 +326,9 @@ class TestBasicServiceAPIE2E:
         """
         # Require ML models to be cached (skip if not available)
         from tests.integration.ml_model_cache_helpers import (
-            require_spacy_model_cached,
             require_transformers_model_cached,
         )
 
-        require_spacy_model_cached("en_core_web_sm")
         require_transformers_model_cached("facebook/bart-large-cnn", None)
 
         from podcast_scraper import service
@@ -409,11 +399,9 @@ class TestBasicServiceAPIE2E:
         """
         # Require ML models to be cached (skip if not available)
         from tests.integration.ml_model_cache_helpers import (
-            require_spacy_model_cached,
             require_transformers_model_cached,
         )
 
-        require_spacy_model_cached("en_core_web_sm")
         require_transformers_model_cached("facebook/bart-large-cnn", None)
 
         from podcast_scraper import service
