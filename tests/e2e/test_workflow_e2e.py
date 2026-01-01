@@ -25,6 +25,15 @@ import podcast_scraper
 import podcast_scraper.cli as cli
 from podcast_scraper import downloader
 
+# Check if ML dependencies are available
+SPACY_AVAILABLE = False
+try:
+    import spacy  # noqa: F401
+
+    SPACY_AVAILABLE = True
+except ImportError:
+    pass
+
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent
 if str(tests_dir) not in sys.path:
@@ -253,11 +262,15 @@ class TestIntegrationMain(unittest.TestCase):
                 self.assertIn("would save as", log_text)
 
     @pytest.mark.slow
+    @pytest.mark.ml_models
+    @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy dependencies not available")
     def test_dry_run_performs_speaker_detection(self):
         """Test that dry-run mode still performs host/guest detection.
 
         This test requires multiple episodes to verify speaker detection works
         across episodes, so it's marked as slow to run in full test mode.
+        Requires ML models (spaCy) for speaker detection.
+        Note: spaCy model (en_core_web_sm) is installed as a dependency.
         """
         rss_url = "https://example.com/feed.xml"
         rss_xml = build_rss_xml_with_speakers(

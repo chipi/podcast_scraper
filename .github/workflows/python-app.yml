@@ -216,14 +216,15 @@ jobs:
         # Keep model caches for next run (they're cached via GitHub Actions cache)
         rm -rf .pytest_cache .mypy_cache .build dist
 
-  # Fast integration tests - critical path only, runs on every commit
+  # Fast integration tests - critical path only, runs on PRs only (not on main)
   # Skip for documentation-only PRs
   test-integration-fast:
     runs-on: ubuntu-latest
     needs: [preload-ml-models]
     if: |
-      github.event_name != 'pull_request' ||
-      (github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' && !contains(github.event.pull_request.head.ref, 'docs/'))
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
+      !contains(github.event.pull_request.head.ref, 'docs/')
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -287,14 +288,15 @@ jobs:
       run: |
         rm -rf .pytest_cache .mypy_cache .build dist
 
-  # Fast E2E tests - critical path only, runs on every commit
+  # Fast E2E tests - critical path only, runs on PRs only (not on main)
   # Skip for documentation-only PRs
   test-e2e-fast:
     runs-on: ubuntu-latest
     needs: [preload-ml-models]
     if: |
-      github.event_name != 'pull_request' ||
-      (github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' && !contains(github.event.pull_request.head.ref, 'docs/'))
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
+      !contains(github.event.pull_request.head.ref, 'docs/')
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space

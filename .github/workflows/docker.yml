@@ -8,23 +8,26 @@ on:
       - '.dockerignore'
       - 'pyproject.toml'
       - '*.py'
+  # Docker build on PRs only when Dockerfile/.dockerignore change
+  # This speeds up PRs by skipping Docker builds for Python-only changes
+  # Full Docker validation still runs on merge to main
   pull_request:
     branches: [ "main" ]
     paths:
       - 'Dockerfile'
       - '.dockerignore'
-      - 'pyproject.toml'
-      - '*.py'
 
 permissions:
   contents: read
 
 jobs:
-  docker-build:
+  # Fast Docker build for PRs (sub-5 min target)
+  docker-build-fast:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Free disk space
       run: |
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
@@ -32,47 +35,100 @@ jobs:
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
         df -h
-    
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-    
-    - name: Build Docker image (default)
-      uses: docker/build-push-action@v5
       with:
-        context: .
-        file: Dockerfile
-        push: false
-        load: true
-        tags: podcast-scraper:test
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-    
-    - name: Build Docker image (multiple models)
+        driver-opts: |
+          image=moby/buildkit:latest
+
+    - name: Build Docker image (default, skip model preloading)
       uses: docker/build-push-action@v5
       with:
         context: .
         file: Dockerfile
         build-args: |
-          WHISPER_PRELOAD_MODELS=tiny.en,base.en
+          PRELOAD_ML_MODELS=false
         push: false
         load: true
-        tags: podcast-scraper:multi-model
+        tags: podcast-scraper:test
         cache-from: type=gha
         cache-to: type=gha,mode=max
-    
+
     - name: Test Docker image (help command)
       run: |
         docker run --rm podcast-scraper:test --help
-    
+
     - name: Test Docker image (version check)
       run: |
         docker run --rm podcast-scraper:test --version
-    
+
     - name: Test Docker image (no args - should show error)
       run: |
         output=$(docker run --rm podcast-scraper:test 2>&1 || true)
         echo "$output" | grep -q "required"
-    
+
     - name: Validate Dockerfile with hadolint
+      run: |
+        docker run --rm -v $(pwd):/workspace -w /workspace hadolint/hadolint:latest hadolint Dockerfile
+
+  # Full Docker build for main branch (parallel builds for speed)
+  docker-build-full:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: default
+            tag: podcast-scraper:test
+            build_args: "PRELOAD_ML_MODELS=true\nWHISPER_MODELS=base.en"
+          - name: multi-model
+            tag: podcast-scraper:multi-model
+            build_args: "PRELOAD_ML_MODELS=true\nWHISPER_MODELS=tiny.en,base.en"
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
+        docker image prune -af || true
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+        df -h
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        driver-opts: |
+          image=moby/buildkit:latest
+
+    - name: Build Docker image (${{ matrix.name }})
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: Dockerfile
+        build-args: |
+          ${{ matrix.build_args }}
+        push: false
+        load: true
+        tags: ${{ matrix.tag }}
+        cache-from: type=gha,scope=${{ matrix.name }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+    - name: Test Docker image (${{ matrix.name }} - help command)
+      run: |
+        docker run --rm ${{ matrix.tag }} --help
+
+    - name: Test Docker image (${{ matrix.name }} - version check)
+      run: |
+        docker run --rm ${{ matrix.tag }} --version
+
+    - name: Test Docker image (${{ matrix.name }} - no args - should show error)
+      run: |
+        output=$(docker run --rm ${{ matrix.tag }} 2>&1 || true)
+        echo "$output" | grep -q "required"
+
+    - name: Validate Dockerfile with hadolint
+      if: matrix.name == 'default'
       run: |
         docker run --rm -v $(pwd):/workspace -w /workspace hadolint/hadolint:latest hadolint Dockerfile

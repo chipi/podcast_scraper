@@ -50,15 +50,13 @@ class TestDataQualityE2E:
         Requires ML models to be cached.
         """
         from tests.integration.ml_model_cache_helpers import (
-            require_spacy_model_cached,
             require_transformers_model_cached,
         )
 
         # Require ML models to be cached
-        require_spacy_model_cached("en_core_web_sm")
         require_transformers_model_cached("facebook/bart-large-cnn", None)
 
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -125,7 +123,7 @@ class TestDataQualityE2E:
         Uses OpenAI providers (transcription, speaker detection, summarization
         via E2E server mocks).
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -177,15 +175,13 @@ class TestDataQualityE2E:
         - Metadata is consistent across runs
         """
         from tests.integration.ml_model_cache_helpers import (
-            require_spacy_model_cached,
             require_transformers_model_cached,
         )
 
         # Require ML models to be cached
-        require_spacy_model_cached("en_core_web_sm")
         require_transformers_model_cached("facebook/bart-large-cnn", None)
 
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         # Run pipeline twice with same configuration
         results = []
@@ -194,7 +190,7 @@ class TestDataQualityE2E:
                 cfg = Config(
                     rss_url=rss_url,
                     output_dir=tmpdir,
-                    max_episodes=5,  # Process all 5 smoke episodes
+                    max_episodes=5,  # Process all 5 multi-episode episodes
                     transcribe_missing=True,
                     auto_speakers=True,
                     generate_summaries=True,
@@ -204,7 +200,7 @@ class TestDataQualityE2E:
                 )
 
                 count, summary = run_pipeline(cfg)
-                # In smoke mode, at least 2 episodes (with transcripts) should be processed
+                # In multi-episode mode, at least 2 episodes (with transcripts) should be processed
                 assert count >= 2, (
                     f"Run {run_num+1}: Should process at least 2 episodes "
                     f"(with transcripts), got {count}"

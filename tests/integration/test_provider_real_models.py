@@ -45,7 +45,6 @@ integration_dir = Path(__file__).parent
 if str(integration_dir) not in sys.path:
     sys.path.insert(0, str(integration_dir))
 from ml_model_cache_helpers import (  # noqa: E402
-    require_spacy_model_cached,
     require_transformers_model_cached,
     require_whisper_model_cached,
 )
@@ -148,7 +147,6 @@ class TestSpacyProviderRealModel(unittest.TestCase):
     def test_spacy_model_loading(self):
         """Test that spaCy model can be loaded."""
         # Require model to be cached (fail fast if not)
-        require_spacy_model_cached("en_core_web_sm")
 
         from podcast_scraper import speaker_detection
 
@@ -164,7 +162,6 @@ class TestSpacyProviderRealModel(unittest.TestCase):
     def test_ner_detector_with_real_model(self):
         """Test NER detector with real spaCy model."""
         # Require model to be cached (fail fast if not)
-        require_spacy_model_cached("en_core_web_sm")
 
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 
@@ -323,7 +320,6 @@ class TestAllProvidersRealModels(unittest.TestCase):
 
         # Require all models to be cached (fail fast if not)
         require_whisper_model_cached("tiny.en")
-        require_spacy_model_cached("en_core_web_sm")
         model_name = summarizer.select_summary_model(self.cfg)
         require_transformers_model_cached(model_name, None)
 
@@ -385,7 +381,6 @@ class TestAllProvidersRealModels(unittest.TestCase):
         # Require all models to be cached (skip if not, to avoid network downloads)
         try:
             require_whisper_model_cached("tiny.en")
-            require_spacy_model_cached("en_core_web_sm")
             model_name = summarizer.select_summary_model(self.cfg)
             require_transformers_model_cached(model_name, None)
         except AssertionError as e:

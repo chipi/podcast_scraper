@@ -1,7 +1,7 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test test-sequential test-fast test-reruns coverage docs build ci ci-fast ci-sequential ci-clean clean clean-cache clean-all docker-build docker-test docker-clean install-hooks preload-ml-models repair-ml-cache
+.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test test-sequential test-fast test-reruns coverage docs build ci ci-fast ci-sequential ci-clean clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models repair-ml-cache
 
 help:
 	@echo "Common developer commands:"
@@ -25,21 +25,23 @@ help:
 	@echo "  make test-e2e-sequential         Run all E2E tests sequentially (for debugging)"
 	@echo "  make test-e2e-fast              Run fast E2E tests (critical path only, 1 episode per test)"
 	@echo "  make test-e2e-data-quality      Run data quality E2E tests (multiple episodes, all original mock data, nightly only)"
-	@echo "  make test                Run all tests (unit + integration + e2e, full suite, uses smoke feed)"
-	@echo "  make test-sequential     Run all tests sequentially (for debugging, uses smoke feed)"
+	@echo "  make test                Run all tests (unit + integration + e2e, full suite, uses multi-episode feed)"
+	@echo "  make test-sequential     Run all tests sequentially (for debugging, uses multi-episode feed)"
 	@echo "  make test-fast           Run fast tests (unit + critical path integration + critical path e2e, uses fast feed)"
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
 	@echo ""
 	@echo "Other commands:"
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
 	@echo "  make build           Build source and wheel distributions (outputs to .build/dist/)"
-	@echo "  make ci              Run the full CI suite locally (all tests: unit + integration + e2e, uses smoke feed)"
+	@echo "  make ci              Run the full CI suite locally (all tests: unit + integration + e2e, uses multi-episode feed)"
 	@echo "  make ci-fast         Run fast CI checks (unit + critical path integration + critical path e2e, uses fast feed)"
 	@echo "  make ci-sequential   Run the full CI suite sequentially (all tests, slower but clearer output)"
 	@echo "  make ci-clean        Run complete CI suite with clean first (same as ci but cleans build artifacts first)"
-	@echo "  make docker-build    Build Docker image"
-	@echo "  make docker-test     Build and test Docker image"
-	@echo "  make docker-clean    Remove Docker test images"
+	@echo "  make docker-build       Build Docker image (default, with model preloading)"
+	@echo "  make docker-build-fast  Build Docker image fast (no model preloading, <5min target)"
+	@echo "  make docker-build-full  Build Docker image full (with model preloading, matches main)"
+	@echo "  make docker-test        Build and test Docker image"
+	@echo "  make docker-clean       Remove Docker test images"
 	@echo "  make install-hooks   Install git pre-commit hook for automatic linting"
 	@echo "  make clean           Remove build artifacts (.build/, .mypy_cache/, .pytest_cache/)"
 	@echo "  make clean-cache     Remove ML model caches (Whisper, spaCy) to test network isolation"
@@ -149,14 +151,14 @@ test-ci-fast:
 test-e2e:
 	# E2E tests: serial tests first (sequentially), then parallel execution for the rest
 	# Includes reruns for flaky tests (matches CI behavior)
-	# Uses smoke feed (5 episodes) - set via E2E_TEST_MODE environment variable
-	@E2E_TEST_MODE=smoke pytest tests/e2e/ -m "e2e and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 || true
-	@E2E_TEST_MODE=smoke pytest tests/e2e/ -m "e2e and not serial" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
+	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 || true
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and not serial" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
 
 test-e2e-sequential:
 	# E2E tests: sequential execution (slower but clearer output, useful for debugging)
-	# Uses smoke feed (5 episodes) - set via E2E_TEST_MODE environment variable
-	E2E_TEST_MODE=smoke pytest tests/e2e/ -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
+	E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-e2e-fast:
 	# Fast E2E tests: serial tests first (sequentially), then parallel execution for the rest
@@ -176,14 +178,14 @@ test-e2e-data-quality:
 
 test:
 	# All tests: serial tests first (sequentially), then parallel execution for the rest
-	# Uses smoke feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
-	@E2E_TEST_MODE=smoke pytest tests/ -m serial --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost || true
-	@E2E_TEST_MODE=smoke pytest tests/ -m "not serial" --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
+	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
+	@E2E_TEST_MODE=multi_episode pytest tests/ -m serial --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost || true
+	@E2E_TEST_MODE=multi_episode pytest tests/ -m "not serial" --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-sequential:
 	# All tests: sequential execution (slower but clearer output, useful for debugging)
-	# Uses smoke feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
-	E2E_TEST_MODE=smoke pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing
+	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
+	E2E_TEST_MODE=multi_episode pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing
 
 test-fast:
 	# Fast tests: serial tests first (sequentially), then parallel execution for the rest
@@ -214,8 +216,31 @@ ci-clean: clean format-check lint lint-markdown type security test docs build
 docker-build:
 	docker build -t podcast-scraper:test -f Dockerfile .
 
+docker-build-fast:
+	@echo "Building Docker image (fast mode - no model preloading, matches PR builds)..."
+	@echo "This should complete in under 5 minutes..."
+	@echo ""
+	@time DOCKER_BUILDKIT=1 docker build \
+		--build-arg PRELOAD_ML_MODELS=false \
+		-t podcast-scraper:test-fast \
+		-f Dockerfile .
+	@echo ""
+	@echo "✓ Fast build complete! Image tagged as: podcast-scraper:test-fast"
+
+docker-build-full:
+	@echo "Building Docker image (full mode - with model preloading, matches main builds)..."
+	@echo "This will take longer due to ML model downloads..."
+	@echo ""
+	@time DOCKER_BUILDKIT=1 docker build \
+		--build-arg PRELOAD_ML_MODELS=true \
+		--build-arg WHISPER_MODELS=base.en \
+		-t podcast-scraper:test \
+		-f Dockerfile .
+	@echo ""
+	@echo "✓ Full build complete! Image tagged as: podcast-scraper:test"
+
 docker-test: docker-build
-	@echo "Running Docker smoke tests..."
+	@echo "Running Docker tests..."
 	@echo "Test 1: --help command"
 	@docker run --rm podcast-scraper:test --help > /dev/null
 	@echo "Test 2: --version command"
@@ -228,7 +253,7 @@ docker-test: docker-build
 	@echo "[OK] All Docker tests passed"
 
 docker-clean:
-	docker rmi podcast-scraper:test podcast-scraper:multi-model 2>/dev/null || true
+	docker rmi podcast-scraper:test podcast-scraper:test-fast podcast-scraper:multi-model 2>/dev/null || true
 
 install-hooks:
 	@if [ ! -d .git ]; then echo "Error: Not a git repository"; exit 1; fi
@@ -259,10 +284,12 @@ clean-cache:
 	fi
 	@if [ -d "$$HOME/.cache/spacy" ]; then \
 		echo "  Removing spaCy cache: $$HOME/.cache/spacy"; \
+		echo "    (Note: spaCy model is installed as dependency, but cache may exist)"; \
 		rm -rf "$$HOME/.cache/spacy"; \
 	fi
 	@if [ -d "$$HOME/.local/share/spacy" ]; then \
 		echo "  Removing spaCy user cache: $$HOME/.local/share/spacy"; \
+		echo "    (Note: spaCy model is installed as dependency, but cache may exist)"; \
 		rm -rf "$$HOME/.local/share/spacy"; \
 	fi
 	@if [ -d "$$HOME/.cache/huggingface" ]; then \
@@ -281,42 +308,5 @@ clean-all: clean clean-cache
 
 preload-ml-models:
 	@echo "Preloading ML models for local development..."
-	@echo "This will download and cache models to avoid network calls during testing."
-	@echo ""
-	@echo "Preloading Whisper models..."
-	@echo "  - tiny.en (English-only, smallest and fastest model for tests)..."
-	@$(PYTHON) -c "import whisper; model = whisper.load_model('tiny.en'); print('  Verifying model loads...'); assert model is not None; print('  Verifying model structure...'); assert hasattr(model, 'dims') and model.dims is not None" || \
-		(echo "ERROR: Failed to preload Whisper tiny.en. Install with: pip install openai-whisper" && exit 1)
-	@echo "  ✓ Whisper tiny.en cached and verified"
-	@echo ""
-	@echo "Preloading spaCy model: en_core_web_sm..."
-	@$(PYTHON) -m spacy download en_core_web_sm || \
-		(echo "ERROR: Failed to preload spaCy model. Install with: pip install spacy" && exit 1)
-	@$(PYTHON) -c "import spacy; nlp = spacy.load('en_core_web_sm'); print('  Verifying model loads...'); assert nlp is not None; doc = nlp('Test text'); print('  Verifying model works...'); assert doc is not None and len(doc) > 0" || \
-		(echo "ERROR: Failed to verify spaCy model. Model may be corrupted." && exit 1)
-	@echo "✓ spaCy model cached and verified"
-	@echo ""
-	@echo "Preloading Transformers models..."
-	@echo "  - facebook/bart-base..."
-	@$(PYTHON) -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; from pathlib import Path; import gc; print('  Downloading...'); tokenizer = AutoTokenizer.from_pretrained('facebook/bart-base'); model = AutoModelForSeq2SeqLM.from_pretrained('facebook/bart-base'); print('  Verifying model loads...'); assert model is not None and tokenizer is not None; print('  Verifying tokenizer works...'); tokens = tokenizer.encode('Test text', return_tensors='pt'); assert tokens is not None; print('  Verifying model structure...'); assert hasattr(model, 'config') and model.config is not None; del model, tokenizer; gc.collect(); cache_path = Path.home() / '.cache' / 'huggingface' / 'hub' / 'models--facebook--bart-base'; snapshots = cache_path / 'snapshots'; assert snapshots.exists(), 'Model files not cached to disk'; model_files = []; [model_files.extend(list((snapshots / item.name).glob('*.safetensors')) + list((snapshots / item.name).glob('*.bin'))) for item in snapshots.iterdir() if (snapshots / item.name).is_dir()]; assert len(model_files) > 0, 'Model files not found in cache'; print('  ✓ Model files verified on disk')" || \
-		(echo "ERROR: Failed to preload facebook/bart-base. Install with: pip install transformers torch" && exit 1)
-	@echo "  ✓ facebook/bart-base cached and verified"
-	@echo "  - facebook/bart-large-cnn..."
-	@$(PYTHON) -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; from pathlib import Path; import gc; print('  Downloading...'); tokenizer = AutoTokenizer.from_pretrained('facebook/bart-large-cnn'); model = AutoModelForSeq2SeqLM.from_pretrained('facebook/bart-large-cnn'); print('  Verifying model loads...'); assert model is not None and tokenizer is not None; print('  Verifying tokenizer works...'); tokens = tokenizer.encode('Test text', return_tensors='pt'); assert tokens is not None; print('  Verifying model structure...'); assert hasattr(model, 'config') and model.config is not None; del model, tokenizer; gc.collect(); cache_path = Path.home() / '.cache' / 'huggingface' / 'hub' / 'models--facebook--bart-large-cnn'; snapshots = cache_path / 'snapshots'; assert snapshots.exists(), 'Model files not cached to disk'; model_files = []; [model_files.extend(list((snapshots / item.name).glob('*.safetensors')) + list((snapshots / item.name).glob('*.bin'))) for item in snapshots.iterdir() if (snapshots / item.name).is_dir()]; assert len(model_files) > 0, 'Model files not found in cache'; print('  ✓ Model files verified on disk')" || \
-		(echo "ERROR: Failed to preload facebook/bart-large-cnn. Install with: pip install transformers torch" && exit 1)
-	@echo "  ✓ facebook/bart-large-cnn cached and verified"
-	@echo "  - sshleifer/distilbart-cnn-12-6..."
-	@$(PYTHON) -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; from pathlib import Path; import gc; print('  Downloading...'); tokenizer = AutoTokenizer.from_pretrained('sshleifer/distilbart-cnn-12-6'); model = AutoModelForSeq2SeqLM.from_pretrained('sshleifer/distilbart-cnn-12-6'); print('  Verifying model loads...'); assert model is not None and tokenizer is not None; print('  Verifying tokenizer works...'); tokens = tokenizer.encode('Test text', return_tensors='pt'); assert tokens is not None; print('  Verifying model structure...'); assert hasattr(model, 'config') and model.config is not None; del model, tokenizer; gc.collect(); cache_path = Path.home() / '.cache' / 'huggingface' / 'hub' / 'models--sshleifer--distilbart-cnn-12-6'; snapshots = cache_path / 'snapshots'; assert snapshots.exists(), 'Model files not cached to disk'; model_files = []; [model_files.extend(list((snapshots / item.name).glob('*.safetensors')) + list((snapshots / item.name).glob('*.bin'))) for item in snapshots.iterdir() if (snapshots / item.name).is_dir()]; assert len(model_files) > 0, 'Model files not found in cache'; print('  ✓ Model files verified on disk')" || \
-		(echo "ERROR: Failed to preload sshleifer/distilbart-cnn-12-6. Install with: pip install transformers torch" && exit 1)
-	@echo "  ✓ sshleifer/distilbart-cnn-12-6 cached and verified"
-	@echo "  - allenai/led-base-16384 (REDUCE model for summarization)..."
-	@$(PYTHON) -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; from pathlib import Path; import gc; print('  Downloading...'); tokenizer = AutoTokenizer.from_pretrained('allenai/led-base-16384'); model = AutoModelForSeq2SeqLM.from_pretrained('allenai/led-base-16384'); print('  Verifying model loads...'); assert model is not None and tokenizer is not None; print('  Verifying tokenizer works...'); tokens = tokenizer.encode('Test text', return_tensors='pt'); assert tokens is not None; print('  Verifying model structure...'); assert hasattr(model, 'config') and model.config is not None; del model, tokenizer; gc.collect(); cache_path = Path.home() / '.cache' / 'huggingface' / 'hub' / 'models--allenai--led-base-16384'; snapshots = cache_path / 'snapshots'; assert snapshots.exists(), 'Model files not cached to disk'; model_files = []; [model_files.extend(list((snapshots / item.name).glob('*.safetensors')) + list((snapshots / item.name).glob('*.bin'))) for item in snapshots.iterdir() if (snapshots / item.name).is_dir()]; assert len(model_files) > 0, 'Model files not found in cache'; print('  ✓ Model files verified on disk')" || \
-		(echo "ERROR: Failed to preload allenai/led-base-16384. Install with: pip install transformers torch" && exit 1)
-	@echo "  ✓ allenai/led-base-16384 cached and verified"
-	@echo ""
-	@echo "All models preloaded and verified successfully!"
-	@echo "Models are cached in:"
-	@echo "  - Whisper: ~/.cache/whisper/"
-	@echo "  - spaCy: ~/.local/share/spacy/ or site-packages"
-	@echo "  - Transformers: ~/.cache/huggingface/hub/"
+	@$(PYTHON) scripts/preload_ml_models.py
 

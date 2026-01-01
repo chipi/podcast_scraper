@@ -41,7 +41,6 @@ integration_dir = Path(__file__).parent.parent / "integration"
 if str(integration_dir) not in sys.path:
     sys.path.insert(0, str(integration_dir))
 from ml_model_cache_helpers import (  # noqa: E402
-    require_spacy_model_cached,
     require_transformers_model_cached,
     require_whisper_model_cached,
 )
@@ -82,8 +81,8 @@ class TestFullPipelineE2E:
         This is NOT part of the critical path - the critical path is transcription
         (when transcripts don't exist and need to be created from audio/video files).
         """
-        # Use podcast1_smoke which has transcripts for episodes 1 and 2
-        feed_url = self.e2e_server.urls.feed("podcast1_smoke")
+        # Use podcast1_multi_episode which has transcripts for episodes 1 and 2
+        feed_url = self.e2e_server.urls.feed("podcast1_multi_episode")
 
         cfg = create_test_config(
             rss_url=feed_url,
@@ -346,9 +345,8 @@ class TestFullPipelineE2E:
             whisper_model="tiny.en",
         )
 
-        # Require ML models to be cached
+        # Require ML models to be cached (spaCy model is installed as dependency)
         require_whisper_model_cached("tiny.en")
-        require_spacy_model_cached("en_core_web_sm")
         require_transformers_model_cached("facebook/bart-base", None)
 
         # Run pipeline with real models
@@ -393,8 +391,8 @@ class TestFullPipelineE2E:
     @pytest.mark.slow
     def test_pipeline_multiple_episodes(self):
         """Test full pipeline with multiple episodes."""
-        # Use podcast1_smoke which has transcripts for episodes 1 and 2
-        feed_url = self.e2e_server.urls.feed("podcast1_smoke")
+        # Use podcast1_multi_episode which has transcripts for episodes 1 and 2
+        feed_url = self.e2e_server.urls.feed("podcast1_multi_episode")
 
         cfg = create_test_config(
             rss_url=feed_url,
@@ -411,7 +409,7 @@ class TestFullPipelineE2E:
         count, summary = workflow.run_pipeline(cfg)
 
         # Verify results
-        # In smoke feed, episodes 1 and 2 have transcripts (will be processed)
+        # In multi-episode feed, episodes 1 and 2 have transcripts (will be processed)
         # Episode 3+ don't have transcripts, but transcribe_missing=False,
         # so they won't be processed. So we expect at least 2 episodes
         # (with transcripts)
@@ -479,8 +477,7 @@ class TestFullPipelineE2E:
         the entire pipeline to catch integration issues between models and workflow.
         Uses smallest models for speed but tests real model behavior.
         """
-        # Require models to be cached (fail fast if not)
-        require_spacy_model_cached("en_core_web_sm")
+        # Require models to be cached (spaCy model is installed as dependency)
         require_transformers_model_cached("facebook/bart-base", None)
 
         feed_url = self.e2e_server.urls.feed("podcast1_with_transcript")
@@ -501,9 +498,8 @@ class TestFullPipelineE2E:
             language="en",
         )
 
-        # Require all ML models to be cached
+        # Require all ML models to be cached (spaCy model is installed as dependency)
         require_whisper_model_cached("tiny.en")
-        require_spacy_model_cached("en_core_web_sm")
         require_transformers_model_cached("facebook/bart-base", None)
 
         # Run pipeline with real models
