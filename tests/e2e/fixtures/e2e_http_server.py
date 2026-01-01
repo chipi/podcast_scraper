@@ -252,9 +252,16 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # /audio/p01_e01.mp3 -> audio/p01_e01.mp3
         if path.startswith("/audio/"):
             filename = path.split("/")[-1]  # Extract "p01_e01.mp3"
+            # Validate filename first (returns None if invalid)
+            validation_result = self._validate_and_sanitize_filename("audio", filename)
+            if validation_result is None:
+                self.send_error(403, "Path traversal not allowed")
+                return
+            # Validation passed, now check if file exists
             file_path = self._get_safe_fixture_path("audio", filename)
             if file_path is None:
-                self.send_error(403, "Path traversal not allowed")
+                # File doesn't exist (validation passed but file not found)
+                self.send_error(404, "File not found")
                 return
             self._serve_file(file_path, content_type="audio/mpeg", support_range=True)
             return
@@ -263,9 +270,16 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # /transcripts/p01_e01.txt -> transcripts/p01_e01.txt
         if path.startswith("/transcripts/"):
             filename = path.split("/")[-1]  # Extract "p01_e01.txt"
+            # Validate filename first (returns None if invalid)
+            validation_result = self._validate_and_sanitize_filename("transcripts", filename)
+            if validation_result is None:
+                self.send_error(403, "Path traversal not allowed")
+                return
+            # Validation passed, now check if file exists
             file_path = self._get_safe_fixture_path("transcripts", filename)
             if file_path is None:
-                self.send_error(403, "Path traversal not allowed")
+                # File doesn't exist (validation passed but file not found)
+                self.send_error(404, "File not found")
                 return
             self._serve_file(file_path, content_type="text/plain")
             return
@@ -484,12 +498,18 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return None
 
         # Validate filename against allowlist pattern
-        # Pattern: p<digits>_e<digits>(_fast)?.<extension>
+        # Patterns:
+        # - Regular: p<digits>_e<digits>(_fast)?.<extension>
+        # - Smoke: p<digits>_smoke_e<digits>.<extension>
         # Extensions: .mp3 for audio, .txt for transcripts
         if subdir == "audio":
-            allowed_pattern = re.compile(r"^p\d+_e\d+(_fast)?\.mp3$")
+            # Allow regular episodes (p01_e01.mp3, p01_e01_fast.mp3)
+            # and smoke episodes (p01_smoke_e01.mp3)
+            allowed_pattern = re.compile(r"^p\d+(_smoke)?_e\d+(_fast)?\.mp3$")
         elif subdir == "transcripts":
-            allowed_pattern = re.compile(r"^p\d+_e\d+(_fast)?\.txt$")
+            # Allow regular episodes (p01_e01.txt, p01_e01_fast.txt)
+            # and smoke episodes (p01_smoke_e01.txt)
+            allowed_pattern = re.compile(r"^p\d+(_smoke)?_e\d+(_fast)?\.txt$")
         else:
             # This should never happen due to validation above, but defensive check
             return None
