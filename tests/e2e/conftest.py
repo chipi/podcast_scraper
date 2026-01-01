@@ -407,11 +407,9 @@ def mock_whisper_in_fast_mode(request):
     mock_elapsed_time = 0.5  # Fast mock execution time
 
     # Patch at the module level where it's imported and used
-    # The function is imported in whisper_provider.py as: from .. import whisper_integration
-    # So we need to patch it where it's used, not where it's defined
+    # Patch the unified ML provider's transcribe_with_segments method
     with patch(
-        "podcast_scraper.transcription.whisper_provider."
-        "WhisperTranscriptionProvider.transcribe_with_segments"
+        "podcast_scraper.ml.ml_provider.MLProvider.transcribe_with_segments"
     ) as mock_transcribe_segments:
         mock_transcribe_segments.return_value = (mock_transcription_result, mock_elapsed_time)
         yield mock_transcribe_segments

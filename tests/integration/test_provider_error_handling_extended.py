@@ -37,10 +37,13 @@ class TestTranscriptionProviderErrorHandling(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 provider.initialize()
 
-    @patch("podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model")
-    def test_transcribe_before_initialization(self, mock_load_model):
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    def test_transcribe_before_initialization(self, mock_import_whisper):
         """Test that transcribe() fails if called before initialization."""
-        mock_load_model.return_value = Mock()
+        mock_whisper_lib = Mock()
+        mock_whisper_model = Mock()
+        mock_whisper_lib.load_model.return_value = mock_whisper_model
+        mock_import_whisper.return_value = mock_whisper_lib
         cfg = config.Config(
             rss_url="https://example.com/feed.xml", transcription_provider="whisper"
         )
@@ -50,17 +53,20 @@ class TestTranscriptionProviderErrorHandling(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             provider.transcribe("test.mp3")
 
-    @patch("podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model")
-    @patch(
-        "podcast_scraper.transcription.whisper_provider.whisper_integration.transcribe_with_whisper"
-    )
-    def test_transcribe_with_segments_failure(self, mock_transcribe, mock_load_model):
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper")
+    def test_transcribe_with_segments_failure(self, mock_transcribe, mock_import_whisper):
         """Test error handling when transcribe_with_segments() fails."""
-        mock_load_model.return_value = Mock()
+        mock_whisper_lib = Mock()
+        mock_whisper_model = Mock()
+        mock_whisper_lib.load_model.return_value = mock_whisper_model
+        mock_import_whisper.return_value = mock_whisper_lib
         mock_transcribe.side_effect = ValueError("Transcription failed")
 
         cfg = config.Config(
-            rss_url="https://example.com/feed.xml", transcription_provider="whisper"
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            transcribe_missing=True,
         )
         provider = create_transcription_provider(cfg)
         provider.initialize()

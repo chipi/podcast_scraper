@@ -84,7 +84,8 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
     def test_factory_creates_openai_provider(self):
         """Test that factory creates OpenAI transcription provider."""
         provider = create_transcription_provider(self.cfg)
-        self.assertEqual(provider.__class__.__name__, "OpenAITranscriptionProvider")
+        # Factory now returns unified OpenAIProvider, not separate provider classes
+        self.assertEqual(provider.__class__.__name__, "OpenAIProvider")
 
 
 @pytest.mark.llm
@@ -166,7 +167,8 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
     def test_factory_creates_openai_detector(self):
         """Test that factory creates OpenAI speaker detector."""
         detector = create_speaker_detector(self.cfg)
-        self.assertEqual(detector.__class__.__name__, "OpenAISpeakerDetector")
+        # Factory now returns unified OpenAIProvider, not separate provider classes
+        self.assertEqual(detector.__class__.__name__, "OpenAIProvider")
 
 
 @pytest.mark.llm
@@ -238,7 +240,8 @@ class TestOpenAISummarizationProvider(unittest.TestCase):
     def test_factory_creates_openai_provider(self):
         """Test that factory creates OpenAI summarization provider."""
         provider = create_summarization_provider(self.cfg)
-        self.assertEqual(provider.__class__.__name__, "OpenAISummarizationProvider")
+        # Factory now returns unified OpenAIProvider, not separate provider classes
+        self.assertEqual(provider.__class__.__name__, "OpenAIProvider")
 
 
 @pytest.mark.llm

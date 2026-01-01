@@ -25,10 +25,11 @@ class TestProviderIntegration(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
-            speaker_detector_provider="ner",
-            summary_provider="local",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
             generate_summaries=False,  # Disable to avoid loading models in tests
             auto_speakers=False,  # Disable to avoid loading spaCy in tests
+            transcribe_missing=True,
         )
 
     def test_all_providers_can_be_created(self):
@@ -41,12 +42,16 @@ class TestProviderIntegration(unittest.TestCase):
         self.assertIsNotNone(speaker_detector)
         self.assertIsNotNone(summarization_provider)
 
-        # Verify they are the correct types
-        self.assertEqual(transcription_provider.__class__.__name__, "WhisperTranscriptionProvider")
-        self.assertEqual(speaker_detector.__class__.__name__, "NERSpeakerDetector")
-        self.assertEqual(
-            summarization_provider.__class__.__name__, "TransformersSummarizationProvider"
-        )
+        # Verify they are the unified providers (protocol compliance, not class names)
+        # All ML-based providers should be MLProvider
+        self.assertEqual(transcription_provider.__class__.__name__, "MLProvider")
+        self.assertEqual(speaker_detector.__class__.__name__, "MLProvider")
+        self.assertEqual(summarization_provider.__class__.__name__, "MLProvider")
+
+        # Verify protocol compliance
+        self.assertTrue(hasattr(transcription_provider, "transcribe"))
+        self.assertTrue(hasattr(speaker_detector, "detect_speakers"))
+        self.assertTrue(hasattr(summarization_provider, "summarize"))
 
     def test_providers_have_required_methods(self):
         """Test that all providers have required protocol methods."""
@@ -66,21 +71,25 @@ class TestProviderIntegration(unittest.TestCase):
         self.assertTrue(hasattr(summarization_provider, "summarize"))
         self.assertTrue(hasattr(summarization_provider, "initialize"))
 
-    @patch("podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model")
-    @patch("podcast_scraper.speaker_detectors.ner_detector.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_initialization_order(
         self,
         mock_summary_model,
         mock_select_map,
         mock_select_reduce,
         mock_get_ner,
-        mock_load_whisper,
+        mock_import_whisper,
     ):
         """Test that providers can be initialized in any order."""
-        mock_load_whisper.return_value = Mock()
+        mock_model = Mock()
+        mock_model.device.type = "cpu"
+        mock_whisper_lib = Mock()
+        mock_whisper_lib.load_model.return_value = mock_model
+        mock_import_whisper.return_value = mock_whisper_lib
         mock_get_ner.return_value = Mock()
         mock_select_map.return_value = "facebook/bart-base"
         mock_select_reduce.return_value = "facebook/bart-base"
@@ -112,21 +121,25 @@ class TestProviderIntegration(unittest.TestCase):
             if self.cfg.generate_summaries:
                 self.assertTrue(summarization_provider.is_initialized)  # type: ignore[attr-defined]
 
-    @patch("podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model")
-    @patch("podcast_scraper.speaker_detectors.ner_detector.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_cleanup_order(
         self,
         mock_summary_model,
         mock_select_map,
         mock_select_reduce,
         mock_get_ner,
-        mock_load_whisper,
+        mock_import_whisper,
     ):
         """Test that providers can be cleaned up in any order."""
-        mock_load_whisper.return_value = Mock()
+        mock_model = Mock()
+        mock_model.device.type = "cpu"
+        mock_whisper_lib = Mock()
+        mock_whisper_lib.load_model.return_value = mock_model
+        mock_import_whisper.return_value = mock_whisper_lib
         mock_get_ner.return_value = Mock()
         mock_select_map.return_value = "facebook/bart-base"
         mock_select_reduce.return_value = "facebook/bart-base"
@@ -171,7 +184,9 @@ class TestProviderSwitching(unittest.TestCase):
             rss_url="https://example.com/feed.xml", transcription_provider="whisper"
         )
         provider1 = create_transcription_provider(cfg1)
-        self.assertEqual(provider1.__class__.__name__, "WhisperTranscriptionProvider")
+        # Verify protocol compliance, not class name
+        self.assertEqual(provider1.__class__.__name__, "MLProvider")
+        self.assertTrue(hasattr(provider1, "transcribe"))
 
         # Test OpenAI provider creation (Stage 6)
         cfg2 = config.Config(
@@ -180,7 +195,9 @@ class TestProviderSwitching(unittest.TestCase):
             openai_api_key="sk-test123",
         )
         provider2 = create_transcription_provider(cfg2)
-        self.assertEqual(provider2.__class__.__name__, "OpenAITranscriptionProvider")
+        # Verify protocol compliance, not class name
+        self.assertEqual(provider2.__class__.__name__, "OpenAIProvider")
+        self.assertTrue(hasattr(provider2, "transcribe"))
 
         # Test error handling: missing API key (caught by validator)
         with self.assertRaises(ValidationError):
@@ -194,7 +211,9 @@ class TestProviderSwitching(unittest.TestCase):
             rss_url="https://example.com/feed.xml", speaker_detector_provider="ner"
         )
         detector1 = create_speaker_detector(cfg1)
-        self.assertEqual(detector1.__class__.__name__, "NERSpeakerDetector")
+        # Verify protocol compliance, not class name
+        self.assertEqual(detector1.__class__.__name__, "MLProvider")
+        self.assertTrue(hasattr(detector1, "detect_speakers"))
 
         # Test OpenAI detector creation (Stage 6)
         cfg2 = config.Config(
@@ -204,7 +223,9 @@ class TestProviderSwitching(unittest.TestCase):
             auto_speakers=True,
         )
         detector2 = create_speaker_detector(cfg2)
-        self.assertEqual(detector2.__class__.__name__, "OpenAISpeakerDetector")
+        # Verify protocol compliance, not class name
+        self.assertEqual(detector2.__class__.__name__, "OpenAIProvider")
+        self.assertTrue(hasattr(detector2, "detect_speakers"))
 
         # Test error handling: missing API key (caught by validator)
         with self.assertRaises(ValidationError):
@@ -222,7 +243,9 @@ class TestProviderSwitching(unittest.TestCase):
             generate_summaries=False,
         )
         provider1 = create_summarization_provider(cfg1)
-        self.assertEqual(provider1.__class__.__name__, "TransformersSummarizationProvider")
+        # Verify protocol compliance, not class name
+        self.assertEqual(provider1.__class__.__name__, "MLProvider")
+        self.assertTrue(hasattr(provider1, "summarize"))
 
         # Test OpenAI provider creation (Stage 6)
         cfg2 = config.Config(
@@ -233,7 +256,9 @@ class TestProviderSwitching(unittest.TestCase):
             generate_summaries=True,
         )
         provider2 = create_summarization_provider(cfg2)
-        self.assertEqual(provider2.__class__.__name__, "OpenAISummarizationProvider")
+        # Verify protocol compliance, not class name
+        self.assertEqual(provider2.__class__.__name__, "OpenAIProvider")
+        self.assertTrue(hasattr(provider2, "summarize"))
 
         # Test error handling: missing API key (caught by validator)
         with self.assertRaises(ValidationError):
@@ -311,10 +336,10 @@ class TestBackwardCompatibility(unittest.TestCase):
         """Test that default config uses expected providers."""
         cfg = config.Config(rss_url="https://example.com/feed.xml")
 
-        # Defaults should match original behavior
+        # Defaults use new consistent naming (library names)
         self.assertEqual(cfg.transcription_provider, "whisper")
-        self.assertEqual(cfg.speaker_detector_provider, "ner")
-        self.assertEqual(cfg.summary_provider, "local")
+        self.assertEqual(cfg.speaker_detector_provider, "spacy")
+        self.assertEqual(cfg.summary_provider, "transformers")
 
     def test_default_providers_are_created(self):
         """Test that default providers can be created."""
@@ -324,19 +349,22 @@ class TestBackwardCompatibility(unittest.TestCase):
         speaker_detector = create_speaker_detector(cfg)
         summarization_provider = create_summarization_provider(cfg)
 
-        # Should create the default providers
-        self.assertEqual(transcription_provider.__class__.__name__, "WhisperTranscriptionProvider")
-        self.assertEqual(speaker_detector.__class__.__name__, "NERSpeakerDetector")
-        self.assertEqual(
-            summarization_provider.__class__.__name__, "TransformersSummarizationProvider"
-        )
+        # Should create the unified ML providers (defaults)
+        self.assertEqual(transcription_provider.__class__.__name__, "MLProvider")
+        self.assertEqual(speaker_detector.__class__.__name__, "MLProvider")
+        self.assertEqual(summarization_provider.__class__.__name__, "MLProvider")
+
+        # Verify protocol compliance
+        self.assertTrue(hasattr(transcription_provider, "transcribe"))
+        self.assertTrue(hasattr(speaker_detector, "detect_speakers"))
+        self.assertTrue(hasattr(summarization_provider, "summarize"))
 
     def test_config_without_provider_fields(self):
         """Test that config without explicit provider fields still works."""
         # Create config with minimal fields
         cfg = config.Config(rss_url="https://example.com/feed.xml")
 
-        # Providers should use defaults
+        # Providers should use defaults (new consistent naming)
         self.assertEqual(cfg.transcription_provider, "whisper")
-        self.assertEqual(cfg.speaker_detector_provider, "ner")
-        self.assertEqual(cfg.summary_provider, "local")
+        self.assertEqual(cfg.speaker_detector_provider, "spacy")
+        self.assertEqual(cfg.summary_provider, "transformers")

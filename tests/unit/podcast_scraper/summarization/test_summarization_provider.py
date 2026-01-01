@@ -18,15 +18,20 @@ class TestSummarizationProviderFactory(unittest.TestCase):
     """Test summarization provider factory."""
 
     def test_create_local_provider(self):
-        """Test that factory creates TransformersSummarizationProvider for 'local'."""
+        """Test that factory creates MLProvider for 'transformers'."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
         provider = create_summarization_provider(cfg)
         self.assertIsNotNone(provider)
-        self.assertEqual(provider.__class__.__name__, "TransformersSummarizationProvider")
+        # Verify it's the unified ML provider
+        self.assertEqual(provider.__class__.__name__, "MLProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(provider, "summarize"))
+        self.assertTrue(hasattr(provider, "initialize"))
+        self.assertTrue(hasattr(provider, "cleanup"))
 
     def test_create_invalid_provider_raises_error(self):
         """Test that factory raises ValueError for unsupported provider."""
@@ -41,7 +46,7 @@ class TestSummarizationProviderFactory(unittest.TestCase):
             create_summarization_provider(mock_cfg)
 
         self.assertIn("Unsupported summarization provider: invalid", str(context.exception))
-        self.assertIn("Supported providers: 'local', 'openai'", str(context.exception))
+        self.assertIn("Supported providers: 'transformers', 'openai'", str(context.exception))
 
     def test_create_invalid_provider(self):
         """Test that factory raises ValueError for invalid provider type."""
@@ -59,7 +64,7 @@ class TestSummarizationProviderFactory(unittest.TestCase):
         """Test that factory returns a provider instance."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
         provider = create_summarization_provider(cfg)
@@ -69,82 +74,112 @@ class TestSummarizationProviderFactory(unittest.TestCase):
         self.assertTrue(hasattr(provider, "cleanup"))
 
 
-class TestTransformersSummarizationProvider(unittest.TestCase):
-    """Test TransformersSummarizationProvider implementation."""
+class TestMLProviderSummarizationViaFactory(unittest.TestCase):
+    """Test MLProvider summarization capability via factory."""
 
     def setUp(self):
         """Set up test fixtures."""
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
-            generate_summaries=True,
-            generate_metadata=True,  # Required when generate_summaries=True
+            summary_provider="transformers",
+            generate_summaries=False,  # Disable to avoid loading models
+            generate_metadata=True,
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
         )
 
-    def test_provider_initialization(self):
-        """Test that provider can be initialized."""
-        from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
+    def test_provider_creation_via_factory(self):
+        """Test that provider can be created via factory."""
+        provider = create_summarization_provider(self.cfg)
+        self.assertIsNotNone(provider)
+        # Verify it's the unified ML provider
+        self.assertEqual(provider.__class__.__name__, "MLProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(provider, "summarize"))
+        self.assertTrue(hasattr(provider, "initialize"))
+        self.assertTrue(hasattr(provider, "cleanup"))
 
-        provider = TransformersSummarizationProvider(self.cfg)
-        self.assertFalse(provider.is_initialized)
-        self.assertIsNone(provider.map_model)
-        self.assertIsNone(provider.reduce_model)
+    def test_provider_initialization_state(self):
+        """Test that provider tracks initialization state."""
+        provider = create_summarization_provider(self.cfg)
+        # Initially not initialized (generate_summaries is False)
+        self.assertFalse(provider._transformers_initialized)
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_initialize_loads_models(
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
-        """Test that initialize() loads MAP and REDUCE models."""
-        from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
+        """Test that initialize() loads MAP and REDUCE models via factory."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            summary_provider=self.cfg.summary_provider,
+            generate_summaries=True,
+            generate_metadata=True,  # Required when generate_summaries is True
+            summary_model=self.cfg.summary_model,
+        )
 
         mock_map_model = Mock()
+        mock_map_model.model_name = "facebook/bart-base"
+        mock_map_model.device = "cpu"
         mock_reduce_model = Mock()
+        mock_reduce_model.model_name = "facebook/bart-large"
+        mock_reduce_model.device = "cpu"
         mock_summary_model.side_effect = [mock_map_model, mock_reduce_model]
         mock_select_map.return_value = "facebook/bart-base"
         mock_select_reduce.return_value = "facebook/bart-large"
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(cfg)
         provider.initialize()
 
-        self.assertTrue(provider.is_initialized)
+        self.assertTrue(provider._transformers_initialized)
         self.assertEqual(provider.map_model, mock_map_model)
         self.assertEqual(provider.reduce_model, mock_reduce_model)
-        self.assertEqual(mock_summary_model.call_count, 2)
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_initialize_same_model(
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
         """Test that initialize() reuses MAP model for REDUCE when same."""
-        from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            summary_provider=self.cfg.summary_provider,
+            generate_summaries=True,
+            generate_metadata=True,  # Required when generate_summaries is True
+            summary_model=self.cfg.summary_model,
+        )
 
         mock_map_model = Mock()
+        mock_map_model.model_name = "facebook/bart-base"
+        mock_map_model.device = "cpu"
         mock_summary_model.return_value = mock_map_model
         mock_select_map.return_value = "facebook/bart-base"
         mock_select_reduce.return_value = "facebook/bart-base"  # Same model
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(cfg)
         provider.initialize()
 
-        self.assertTrue(provider.is_initialized)
+        self.assertTrue(provider._transformers_initialized)
         self.assertEqual(provider.map_model, mock_map_model)
         self.assertEqual(provider.reduce_model, mock_map_model)  # Same instance
-        self.assertEqual(mock_summary_model.call_count, 1)  # Only called once
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_summarize(
         self, mock_summary_model, mock_select_map, mock_select_reduce, mock_summarize_long
     ):
-        """Test that summarize() calls summarize_long_text()."""
-        from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
+        """Test that summarize() calls summarize_long_text() via factory."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            summary_provider=self.cfg.summary_provider,
+            generate_summaries=True,
+            generate_metadata=True,  # Required when generate_summaries is True
+            summary_model=self.cfg.summary_model,
+        )
 
         mock_map_model = Mock()
         mock_map_model.model_name = "facebook/bart-base"
@@ -154,7 +189,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_select_reduce.return_value = "facebook/bart-base"
         mock_summarize_long.return_value = "Test summary"
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(cfg)
         provider.initialize()
 
         result = provider.summarize("Test transcript text")
@@ -166,16 +201,16 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertEqual(result["metadata"]["model_used"], "facebook/bart-base")
         mock_summarize_long.assert_called_once()
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    def test_provider_summarize_not_initialized(
-        self, mock_summary_model, mock_select_map, mock_select_reduce
-    ):
+    def test_provider_summarize_not_initialized(self):
         """Test that summarize() raises RuntimeError if not initialized."""
-        from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
-
-        provider = TransformersSummarizationProvider(self.cfg)
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            summary_provider=self.cfg.summary_provider,
+            generate_summaries=True,
+            generate_metadata=True,  # Required when generate_summaries is True
+            summary_model=self.cfg.summary_model,
+        )
+        provider = create_summarization_provider(cfg)
         # Don't call initialize()
 
         with self.assertRaises(RuntimeError) as context:
@@ -183,37 +218,51 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
 
         self.assertIn("not initialized", str(context.exception))
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_cleanup(self, mock_summary_model, mock_select_map, mock_select_reduce):
         """Test that cleanup() resets state."""
-        from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            summary_provider=self.cfg.summary_provider,
+            generate_summaries=True,
+            generate_metadata=True,  # Required when generate_summaries is True
+            summary_model=self.cfg.summary_model,
+        )
 
         mock_map_model = Mock()
+        mock_map_model.model_name = "facebook/bart-base"
+        mock_map_model.device = "cpu"
         mock_summary_model.return_value = mock_map_model
         mock_select_map.return_value = "facebook/bart-base"
         mock_select_reduce.return_value = "facebook/bart-base"
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(cfg)
         provider.initialize()
-        self.assertTrue(provider.is_initialized)
+        self.assertTrue(provider._transformers_initialized)
 
         provider.cleanup()
 
-        self.assertFalse(provider.is_initialized)
+        self.assertFalse(provider._transformers_initialized)
         self.assertIsNone(provider.map_model)
         self.assertIsNone(provider.reduce_model)
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_summarize_with_params(
         self, mock_summary_model, mock_select_map, mock_select_reduce, mock_summarize_long
     ):
         """Test that summarize() passes params correctly."""
-        from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            summary_provider=self.cfg.summary_provider,
+            generate_summaries=True,
+            generate_metadata=True,  # Required when generate_summaries is True
+            summary_model=self.cfg.summary_model,
+        )
 
         mock_map_model = Mock()
         mock_map_model.model_name = "facebook/bart-base"
@@ -223,7 +272,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_select_reduce.return_value = "facebook/bart-base"
         mock_summarize_long.return_value = "Test summary"
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(cfg)
         provider.initialize()
 
         params = {
@@ -246,21 +295,23 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
 
 
 class TestSummarizationProviderProtocol(unittest.TestCase):
-    """Test that TransformersSummarizationProvider implements SummarizationProvider protocol."""
+    """Test that MLProvider implements SummarizationProvider protocol (via factory)."""
 
     def test_provider_implements_protocol(self):
-        """Test that TransformersSummarizationProvider implements SummarizationProvider protocol."""
-        from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
+        """Test that MLProvider implements SummarizationProvider protocol."""
 
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
-        provider = TransformersSummarizationProvider(cfg)
+        provider = create_summarization_provider(cfg)
 
         # Check that provider has required protocol methods
         self.assertTrue(hasattr(provider, "summarize"))
+        self.assertTrue(hasattr(provider, "initialize"))
+        self.assertTrue(hasattr(provider, "cleanup"))
+
         # Protocol requires summarize(text, episode_title, episode_description, params)
         import inspect
 

@@ -26,18 +26,19 @@ def create_transcription_provider(cfg: config.Config) -> TranscriptionProvider:
         ValueError: If provider type is not supported
 
     Note:
-        Stage 2: Returns WhisperTranscriptionProvider for "whisper" provider type.
+        Returns MLProvider for "whisper" provider type (unified ML provider).
+        Returns OpenAIProvider for "openai" provider type (unified OpenAI provider).
     """
     provider_type = cfg.transcription_provider
 
     if provider_type == "whisper":
-        from .whisper_provider import WhisperTranscriptionProvider
+        from ..ml.ml_provider import MLProvider
 
-        return WhisperTranscriptionProvider(cfg)
+        return MLProvider(cfg)
     elif provider_type == "openai":
-        from .openai_provider import OpenAITranscriptionProvider
+        from ..openai.openai_provider import OpenAIProvider
 
-        return OpenAITranscriptionProvider(cfg)
+        return OpenAIProvider(cfg)
     else:
         raise ValueError(
             f"Unsupported transcription provider: {provider_type}. "

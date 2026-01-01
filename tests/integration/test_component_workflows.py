@@ -165,24 +165,24 @@ class TestConfigToProviderWorkflow(unittest.TestCase):
         """Set up test fixtures."""
         self.cfg = create_test_config(
             transcription_provider="whisper",
-            speaker_detector_provider="ner",
-            summary_provider="local",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
             generate_summaries=False,  # Disable to avoid loading models
             auto_speakers=False,  # Disable to avoid loading spaCy
         )
 
-    @patch("podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model")
-    @patch("podcast_scraper.speaker_detectors.ner_detector.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
     def test_config_to_provider_creation(
         self,
         mock_summary_model,
         mock_select_map,
         mock_select_reduce,
         mock_get_ner,
-        mock_load_whisper,
+        mock_import_whisper,
     ):
         """Test that Config → Factory creates providers correctly."""
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
@@ -190,7 +190,10 @@ class TestConfigToProviderWorkflow(unittest.TestCase):
         from podcast_scraper.transcription.factory import create_transcription_provider
 
         # Mock model loading
-        mock_load_whisper.return_value = Mock()
+        mock_whisper_lib = Mock()
+        mock_whisper_model = Mock()
+        mock_whisper_lib.load_model.return_value = mock_whisper_model
+        mock_import_whisper.return_value = mock_whisper_lib
         mock_get_ner.return_value = Mock()
         mock_select_map.return_value = "facebook/bart-base"
         mock_select_reduce.return_value = "facebook/bart-base"
@@ -375,16 +378,18 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         with (
             patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
             patch(
-                "podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model"
-            ) as mock_load_whisper,
+                "podcast_scraper.ml.ml_provider._import_third_party_whisper"
+            ) as mock_import_whisper,
             patch(
-                "podcast_scraper.transcription.whisper_provider.whisper_integration.transcribe_with_whisper"
+                "podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper"
             ) as mock_transcribe,
         ):
 
             # Mock Whisper model and transcription
             mock_whisper_model = Mock()
-            mock_load_whisper.return_value = mock_whisper_model
+            mock_import_whisper.return_value = Mock(
+                load_model=lambda *args, **kwargs: mock_whisper_model
+            )
             mock_transcribe.return_value = (
                 {
                     "text": "This is a test transcription from Whisper.",
@@ -556,16 +561,18 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         with (
             patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
             patch(
-                "podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model"
-            ) as mock_load_whisper,
+                "podcast_scraper.ml.ml_provider._import_third_party_whisper"
+            ) as mock_import_whisper,
             patch(
-                "podcast_scraper.transcription.whisper_provider.whisper_integration.transcribe_with_whisper"
+                "podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper"
             ) as mock_transcribe,
         ):
 
-            # Mock Whisper model and transcription
+            # Mock Whisper library and transcription
+            mock_whisper_lib = Mock()
             mock_whisper_model = Mock()
-            mock_load_whisper.return_value = mock_whisper_model
+            mock_whisper_lib.load_model.return_value = mock_whisper_model
+            mock_import_whisper.return_value = mock_whisper_lib
             mock_transcribe.return_value = (
                 {
                     "text": "This is a test transcription from Whisper for episode processor.",
@@ -714,10 +721,10 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         with (
             patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
             patch(
-                "podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model"
-            ) as mock_load_whisper,
+                "podcast_scraper.ml.ml_provider._import_third_party_whisper"
+            ) as mock_import_whisper,
             patch(
-                "podcast_scraper.transcription.whisper_provider.whisper_integration.transcribe_with_whisper"
+                "podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper"
             ) as mock_transcribe,
             patch(
                 "podcast_scraper.speaker_detectors.ner_detector.speaker_detection.get_ner_model"
@@ -739,9 +746,11 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 "podcast_scraper.speaker_detection.extract_person_entities",
                 side_effect=mock_extract_person_entities,
             ):
-                # Mock Whisper model and transcription
+                # Mock Whisper library and transcription
+                mock_whisper_lib = Mock()
                 mock_whisper_model = Mock()
-                mock_load_whisper.return_value = mock_whisper_model
+                mock_whisper_lib.load_model.return_value = mock_whisper_model
+                mock_import_whisper.return_value = mock_whisper_lib
                 mock_transcribe.return_value = (
                     {
                         "text": "Hello, this is a test transcription.",
@@ -942,10 +951,10 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         with (
             patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
             patch(
-                "podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model"
-            ) as mock_load_whisper,
+                "podcast_scraper.ml.ml_provider._import_third_party_whisper"
+            ) as mock_import_whisper,
             patch(
-                "podcast_scraper.transcription.whisper_provider.whisper_integration.transcribe_with_whisper"
+                "podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper"
             ) as mock_transcribe,
             patch(
                 "podcast_scraper.speaker_detectors.ner_detector.speaker_detection.get_ner_model"
@@ -973,9 +982,11 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                     "podcast_scraper.speaker_detection.extract_person_entities",
                     side_effect=mock_extract_person_entities,
                 ):
-                    # Mock Whisper transcription
+                    # Mock Whisper library and transcription
+                    mock_whisper_lib = Mock()
                     mock_whisper_model = Mock()
-                    mock_load_whisper.return_value = mock_whisper_model
+                    mock_whisper_lib.load_model.return_value = mock_whisper_model
+                    mock_import_whisper.return_value = mock_whisper_lib
                     mock_transcribe.return_value = (
                         {
                             "text": "This is a test transcription with multiple speakers discussing technology and software development.",
@@ -1149,16 +1160,12 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
     @pytest.mark.critical_path
     @pytest.mark.openai
     @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.transcription.openai_provider.OpenAI")
-    @patch("podcast_scraper.speaker_detectors.openai_detector.OpenAI")
-    @patch("podcast_scraper.summarization.openai_provider.OpenAI")
+    @patch("podcast_scraper.openai.openai_provider.OpenAI")
     @patch("podcast_scraper.prompt_store.render_prompt")
     def test_full_workflow_with_openai_providers(
         self,
         mock_render_prompt,
-        mock_summary_openai,
-        mock_speaker_openai,
-        mock_transcription_openai,
+        mock_openai_class,
         mock_fetch_url,
     ):
         """Test critical path (Full Workflow) with OpenAI providers: RSS → Parse → Download/Transcribe → OpenAI Speaker Detection → OpenAI Summarization → Metadata → Files.
@@ -1220,22 +1227,16 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             screenplay_num_speakers=3,  # Allow 3 speakers so Bob Guest is included
         )
 
-        # Mock OpenAI clients
-        mock_transcription_client = Mock()
-        mock_transcription_openai.return_value = mock_transcription_client
+        # Mock unified OpenAI client (all capabilities share the same client)
+        mock_client = Mock()
+        mock_openai_class.return_value = mock_client
         # Return a longer transcript (at least 50 chars for summarization to work)
         mock_transcription_text = (
             "This is a test transcription with multiple speakers discussing technology and software development. "
             "The conversation covers various topics including artificial intelligence, machine learning, and software engineering. "
             "The speakers provide insights into current trends and future directions in the tech industry."
         )
-        mock_transcription_client.audio.transcriptions.create.return_value = mock_transcription_text
-
-        mock_speaker_client = Mock()
-        mock_speaker_openai.return_value = mock_speaker_client
-
-        mock_summary_client = Mock()
-        mock_summary_openai.return_value = mock_summary_client
+        mock_client.audio.transcriptions.create.return_value = mock_transcription_text
 
         # Mock prompt rendering for speaker detection and summarization
         mock_render_prompt.side_effect = [
@@ -1256,8 +1257,6 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 )
             )
         ]
-        mock_speaker_client.chat.completions.create.return_value = mock_speaker_response
-
         # Mock OpenAI summarization response
         mock_summary_response = Mock()
         mock_summary_response.choices = [
@@ -1267,7 +1266,11 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 )
             )
         ]
-        mock_summary_client.chat.completions.create.return_value = mock_summary_response
+        # Unified client handles all API calls
+        mock_client.chat.completions.create.side_effect = [
+            mock_speaker_response,  # First call: speaker detection
+            mock_summary_response,  # Second call: summarization
+        ]
 
         # Step 1: Fetch and parse RSS
         feed = rss_parser.fetch_and_parse_rss(cfg)
@@ -1306,7 +1309,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         self.assertGreater(len(detected_speakers), 0, "Speakers should be detected")
         # Check that API was called
         self.assertTrue(
-            mock_speaker_client.chat.completions.create.called,
+            mock_client.chat.completions.create.called,
             "OpenAI API should be called for speaker detection",
         )
         # Verify the response was parsed correctly
@@ -1384,7 +1387,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         )
 
         # Verify OpenAI transcription API was called
-        self.assertTrue(mock_transcription_client.audio.transcriptions.create.called)
+        self.assertTrue(mock_client.audio.transcriptions.create.called)
 
         # Step 5: Summarize transcript (OpenAI)
         summary_provider = create_summarization_provider(cfg)
@@ -1448,7 +1451,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         self.assertEqual(data["content"]["transcript_source"], "whisper_transcription")
 
         # Verify OpenAI APIs were called
-        self.assertTrue(mock_speaker_client.chat.completions.create.called)
+        self.assertTrue(mock_client.chat.completions.create.called)
         # Note: summary_provider.summarize() is mocked directly, so the OpenAI client is not called
         # This is fine - we're testing the workflow integration, not the API call itself
 
@@ -1602,15 +1605,17 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         with (
             patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
             patch(
-                "podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model"
-            ) as mock_load_whisper,
+                "podcast_scraper.ml.ml_provider._import_third_party_whisper"
+            ) as mock_import_whisper,
             patch(
-                "podcast_scraper.transcription.whisper_provider.whisper_integration.transcribe_with_whisper"
+                "podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper"
             ) as mock_transcribe,
         ):
 
             mock_whisper_model = Mock()
-            mock_load_whisper.return_value = mock_whisper_model
+            mock_import_whisper.return_value = Mock(
+                load_model=lambda *args, **kwargs: mock_whisper_model
+            )
             mock_transcribe.return_value = (
                 {"text": "Test transcription", "segments": []},
                 1.0,
@@ -1763,15 +1768,17 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         with (
             patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
             patch(
-                "podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model"
-            ) as mock_load_whisper,
+                "podcast_scraper.ml.ml_provider._import_third_party_whisper"
+            ) as mock_import_whisper,
             patch(
-                "podcast_scraper.transcription.whisper_provider.whisper_integration.transcribe_with_whisper"
+                "podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper"
             ) as mock_transcribe,
         ):
 
             mock_whisper_model = Mock()
-            mock_load_whisper.return_value = mock_whisper_model
+            mock_import_whisper.return_value = Mock(
+                load_model=lambda *args, **kwargs: mock_whisper_model
+            )
             mock_transcribe.side_effect = RuntimeError("Transcription failed: Model error")
 
             # Step 1: Download audio (should succeed)
@@ -1855,18 +1862,18 @@ class TestMultipleComponentsWorkflow(unittest.TestCase):
 
         return _side_effect
 
-    @patch("podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model")
-    @patch("podcast_scraper.speaker_detectors.ner_detector.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
     def test_full_component_workflow(
         self,
         mock_summary_model,
         mock_select_map,
         mock_select_reduce,
         mock_get_ner,
-        mock_load_whisper,
+        mock_import_whisper,
     ):
         """Test full workflow (Slow): RSS → Parse → Download → NER → Summarization → Metadata → Files.
 
@@ -1898,7 +1905,7 @@ class TestMultipleComponentsWorkflow(unittest.TestCase):
         )
 
         # Mock model loading
-        mock_load_whisper.return_value = Mock()
+        mock_import_whisper.return_value = Mock(load_model=lambda *args, **kwargs: Mock())
         mock_nlp = Mock()
         mock_get_ner.return_value = mock_nlp
         mock_select_map.return_value = "facebook/bart-base"

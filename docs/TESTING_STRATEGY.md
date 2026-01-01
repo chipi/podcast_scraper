@@ -217,15 +217,17 @@ The decision questions above provide a quick way to determine test type. For cri
 #### Provider System (RFC-013)
 
 - **RFC-013**: Protocol-based provider architecture for transcription, speaker detection, and summarization
+- **Unified Provider Architecture**: MLProvider (unified local ML) and OpenAIProvider (unified OpenAI API)
 - **Test Cases**:
-  - **Unit Tests**: Provider creation, initialization, protocol method implementation, error handling, cleanup, configuration validation
-  - **Integration Tests**: Provider factory, protocol compliance, component interactions, provider switching, error handling in workflow context
-  - **E2E Tests**: Provider works in full pipeline, provider works with real HTTP client (E2E server), multiple providers work together, error scenarios (API failures, rate limits)
+  - **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, all dependencies mocked, test provider creation, initialization, protocol method implementation, error handling, cleanup, configuration validation
+  - **Unit Tests (Factory)**: Test factories create correct unified providers (MLProvider/OpenAIProvider), verify protocol compliance, test factory error handling
+  - **Integration Tests**: Test unified providers working with other components, use real providers with mocked external services, test provider factory, protocol compliance, component interactions, provider switching, error handling in workflow context
+  - **E2E Tests**: Test unified providers in full pipeline, providers work with real HTTP client (E2E server mock endpoints for API providers), real ML models (for local providers), multiple providers work together, error scenarios (API failures, rate limits)
   - **E2E Server Tests**: Mock endpoint returns correct format, mock endpoint handles different request types, mock endpoint error handling, URL helper methods work correctly
   - **Provider-specific tests**:
-    - **Transcription Providers**: Whisper (local), OpenAI (API) - test transcription, language handling, error scenarios
-    - **Speaker Detection Providers**: NER (local spaCy), OpenAI (API) - test host/guest detection, fallback behavior
-    - **Summarization Providers**: Local transformers, OpenAI (API) - test summarization, chunking, error handling
+    - **MLProvider**: Unified provider for Whisper (transcription), spaCy (speaker detection), Transformers (summarization) - test all three capabilities together
+    - **OpenAIProvider**: Unified provider for OpenAI API (transcription, speaker detection, summarization) - test all three capabilities together
+    - **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
 
 #### Service API (`service.py`)
 
@@ -339,9 +341,12 @@ The decision questions above provide a quick way to determine test type. For cri
 
 **Provider Testing Strategy:**
 
-- **Unit Tests**: Mock provider dependencies (API clients, ML models). Test provider creation, initialization, protocol methods, error handling
-- **Integration Tests**: Use real provider implementations with mocked external services. Test provider factory, protocol compliance, component interactions
-- **E2E Tests**: Use real providers with E2E server mock endpoints (for API providers like OpenAI) or real implementations (for local providers like Whisper). Test complete workflows with providers
+- **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, mock all dependencies (API clients, ML models). Test provider creation, initialization, protocol methods, error handling, cleanup
+- **Unit Tests (Factory)**: Test factories create correct unified providers, verify protocol compliance, test factory error handling
+- **Integration Tests**: Use real unified provider implementations (MLProvider/OpenAIProvider) with mocked external services. Test provider factory, protocol compliance, component interactions, providers working together
+- **E2E Tests**: Use real unified providers with E2E server mock endpoints (for API providers like OpenAI) or real implementations (for local providers like MLProvider). Test complete workflows with providers
+- **Key Principle**: Always verify protocol compliance, not class names. Unified providers (MLProvider, OpenAIProvider) replace old separate provider classes
+- **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
 
 ### Test Organization
 

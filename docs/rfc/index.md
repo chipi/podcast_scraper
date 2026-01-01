@@ -41,6 +41,8 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-018](RFC-018-test-structure-reorganization.md)     | Test Structure Reorganization                             | -                                                    | -       | ✅ Completed | Reorganize test suite into unit/integration/e2e directories                                 |
 | [RFC-019](RFC-019-e2e-test-improvements.md)             | E2E Test Infrastructure and Coverage Improvements         | PRD-001, PRD-002, PRD-003, PRD-004, PRD-005          | -       | 📋 Draft     | Comprehensive plan to improve E2E test infrastructure and coverage                          |
 | [RFC-020](RFC-020-integration-test-improvements.md)     | Integration Test Infrastructure and Coverage Improvements | PRD-001, PRD-002, PRD-003, PRD-004, PRD-005, PRD-006 | -       | ✅ Completed | Comprehensive improvements to integration test suite (10 stages, 182 tests)                 |
+| [RFC-028](RFC-028-ml-model-preloading-and-caching.md)  | ML Model Preloading and Caching                          | -                                                    | -       | ✅ Completed | Model preloading for local development and GitHub Actions caching for CI                      |
+| [RFC-029](RFC-029-provider-refactoring-consolidation.md) | Provider Refactoring Consolidation                        | -                                                    | -       | ✅ Completed | Consolidated documentation of unified provider architecture and refactoring opportunities     |
 
 ## Quick Links
 

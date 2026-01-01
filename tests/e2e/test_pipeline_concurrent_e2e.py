@@ -366,9 +366,7 @@ class TestConcurrentEpisodeProcessingE2E:
             )
 
             # Mock summarization to avoid loading real models
-            with patch(
-                "podcast_scraper.summarization.local_provider.TransformersSummarizationProvider"
-            ) as mock_provider_class:
+            with patch("podcast_scraper.ml.ml_provider.MLProvider") as mock_provider_class:
                 mock_provider = unittest.mock.MagicMock()
                 mock_provider.summarize.return_value = "Mocked summary for concurrent testing."
                 mock_provider_class.return_value = mock_provider
@@ -401,9 +399,7 @@ class TestConcurrentEpisodeProcessingE2E:
             )
 
             # Mock summarization to avoid loading real models
-            with patch(
-                "podcast_scraper.summarization.local_provider.TransformersSummarizationProvider"
-            ) as mock_provider_class:
+            with patch("podcast_scraper.ml.ml_provider.MLProvider") as mock_provider_class:
                 mock_provider = unittest.mock.MagicMock()
                 mock_provider.summarize.return_value = "Mocked summary for cleanup testing."
                 mock_provider_class.return_value = mock_provider

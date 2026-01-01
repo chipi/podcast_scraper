@@ -40,10 +40,19 @@ workers: 4  # Number of parallel download workers (default: 4-8 based on CPU cou
 transcription_parallelism: 1  # Number of episodes to transcribe in parallel (default: 1. Whisper ignores >1, OpenAI uses for parallel API calls). Can also be set via TRANSCRIPTION_PARALLELISM env var
 processing_parallelism: 2  # Number of episodes to process (metadata/summarization) in parallel (default: 2). Can also be set via PROCESSING_PARALLELISM env var
 
+# Provider selection (can use different providers for different capabilities)
+
+transcription_provider: whisper  # whisper (local) or openai
+speaker_detector_provider: spacy  # spacy (local spaCy) or openai (deprecated: ner)
+summary_provider: transformers  # transformers (local HuggingFace) or openai (deprecated: local)
+
+# OpenAI configuration (required if using any OpenAI providers)
+openai_api_key: null  # Optional: OpenAI API key (prefer OPENAI_API_KEY env var or .env file)
+openai_api_base: null  # Optional: Custom OpenAI API base URL (e.g., "http://localhost:8000/v1" for E2E testing)
+
 # Summarization settings (requires torch and transformers dependencies)
 
 generate_summaries: true  # Generate summaries for episodes
-summary_provider: local  # local or openai
 summary_model: null  # Optional: MAP model key (e.g., "bart-large", "bart-small", "fast") or direct model ID (e.g., "facebook/bart-large-cnn"). Defaults to "bart-large" for fast chunk summarization
 summary_reduce_model: null  # Optional: REDUCE model key (e.g., "long-fast", "long") or direct model ID (e.g., "allenai/led-base-16384"). Defaults to "long-fast" (LED) for accurate final combine
 summary_max_length: 150  # Maximum summary length in tokens

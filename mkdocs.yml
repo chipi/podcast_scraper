@@ -74,6 +74,7 @@ nav:
       - Type Hints Analysis: wip/TYPE_HINTS_ANALYSIS.md
       - Whisper Progress Analysis: wip/WHISPER_PROGRESS_ANALYSIS.md
   - Guides:
+      - Provider Configuration Quick Reference: guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md
       - Provider Implementation Guide: guides/PROVIDER_IMPLEMENTATION_GUIDE.md
       - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
       - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md

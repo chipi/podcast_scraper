@@ -59,6 +59,9 @@ class OpenAISummarizationProvider:
         # GPT-4o-mini supports 128k context window - can handle full transcripts
         self.max_context_tokens = 128000  # Conservative estimate
         self._initialized = False
+        # Mark provider as thread-safe (API clients can be shared across threads)
+        # API providers handle rate limiting internally, so parallelism isn't needed
+        self._requires_separate_instances = False
 
     def initialize(self) -> None:
         """Initialize provider (no local model loading needed for API).

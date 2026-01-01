@@ -26,14 +26,27 @@ class TestProviderConfigFields(unittest.TestCase):
     """Test that provider config fields are accepted with correct defaults."""
 
     def test_speaker_detector_provider_default(self):
-        """Test that speaker_detector_provider defaults to 'ner'."""
+        """Test that speaker_detector_provider defaults to 'spacy'."""
         cfg = config.Config(rss_url="https://example.com/feed.xml")
-        self.assertEqual(cfg.speaker_detector_provider, "ner")
+        self.assertEqual(cfg.speaker_detector_provider, "spacy")
 
     def test_speaker_detector_provider_validation(self):
         """Test that speaker_detector_provider accepts valid values."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
-        self.assertEqual(cfg.speaker_detector_provider, "ner")
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml", speaker_detector_provider="spacy"
+        )
+        self.assertEqual(cfg.speaker_detector_provider, "spacy")
+
+        # Deprecated "ner" should still work (maps to "spacy")
+        import warnings
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            cfg_ner = config.Config(
+                rss_url="https://example.com/feed.xml", speaker_detector_provider="ner"
+            )
+            self.assertEqual(cfg_ner.speaker_detector_provider, "spacy")
+            self.assertTrue(any("deprecated" in str(warning.message).lower() for warning in w))
 
         # OpenAI provider requires API key
         cfg = config.Config(
@@ -60,8 +73,8 @@ class TestProviderConfigFields(unittest.TestCase):
             # Verify deprecation warning was issued
             self.assertEqual(len(w), 1)
             self.assertTrue(issubclass(w[0].category, DeprecationWarning))
-            # Verify the value was mapped correctly
-            self.assertEqual(cfg.speaker_detector_provider, "ner")
+            # Verify the value was mapped correctly (ner → spacy)
+            self.assertEqual(cfg.speaker_detector_provider, "spacy")
 
     def test_transcription_provider_default(self):
         """Test that transcription_provider defaults to 'whisper'."""
@@ -89,14 +102,25 @@ class TestProviderConfigFields(unittest.TestCase):
             config.Config(rss_url="https://example.com/feed.xml", transcription_provider="invalid")
 
     def test_summary_provider_default(self):
-        """Test that summary_provider defaults to 'local'."""
+        """Test that summary_provider defaults to 'transformers'."""
         cfg = config.Config(rss_url="https://example.com/feed.xml")
-        self.assertEqual(cfg.summary_provider, "local")
+        self.assertEqual(cfg.summary_provider, "transformers")
 
     def test_summary_provider_validation(self):
         """Test that summary_provider accepts valid values."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", summary_provider="local")
-        self.assertEqual(cfg.summary_provider, "local")
+        cfg = config.Config(rss_url="https://example.com/feed.xml", summary_provider="transformers")
+        self.assertEqual(cfg.summary_provider, "transformers")
+
+        # Deprecated "local" should still work (maps to "transformers")
+        import warnings
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            cfg_local = config.Config(
+                rss_url="https://example.com/feed.xml", summary_provider="local"
+            )
+            self.assertEqual(cfg_local.summary_provider, "transformers")
+            self.assertTrue(any("deprecated" in str(warning.message).lower() for warning in w))
 
         # OpenAI provider requires API key
         cfg = config.Config(
@@ -134,7 +158,12 @@ class TestProviderFactories(unittest.TestCase):
         cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
         detector = create_speaker_detector(cfg)
         self.assertIsNotNone(detector)
-        self.assertEqual(detector.__class__.__name__, "NERSpeakerDetector")
+        # Verify it's the unified ML provider
+        self.assertEqual(detector.__class__.__name__, "MLProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(detector, "detect_speakers"))
+        self.assertTrue(hasattr(detector, "detect_hosts"))
+        self.assertTrue(hasattr(detector, "clear_cache"))
 
     def test_transcription_provider_factory_creates_provider(self):
         """Test that transcription provider factory creates provider."""
@@ -145,7 +174,11 @@ class TestProviderFactories(unittest.TestCase):
         )
         provider = create_transcription_provider(cfg)
         self.assertIsNotNone(provider)
-        self.assertEqual(provider.__class__.__name__, "WhisperTranscriptionProvider")
+        # Verify it's the unified ML provider
+        self.assertEqual(provider.__class__.__name__, "MLProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(provider, "transcribe"))
+        self.assertTrue(hasattr(provider, "transcribe_with_segments"))
 
     def test_summarization_provider_factory_creates_provider(self):
         """Test that summarization provider factory creates provider."""
@@ -153,12 +186,17 @@ class TestProviderFactories(unittest.TestCase):
 
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
         provider = create_summarization_provider(cfg)
         self.assertIsNotNone(provider)
-        self.assertEqual(provider.__class__.__name__, "TransformersSummarizationProvider")
+        # Verify it's the unified ML provider
+        self.assertEqual(provider.__class__.__name__, "MLProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(provider, "summarize"))
+        self.assertTrue(hasattr(provider, "initialize"))
+        self.assertTrue(hasattr(provider, "cleanup"))
 
     def test_openai_providers_factory_creation(self):
         """Test that OpenAI providers can be created via factories."""
@@ -174,7 +212,11 @@ class TestProviderFactories(unittest.TestCase):
         )
         provider = create_transcription_provider(cfg_transcription)
         self.assertIsNotNone(provider)
-        self.assertEqual(provider.__class__.__name__, "OpenAITranscriptionProvider")
+        # Verify it's the unified OpenAI provider
+        self.assertEqual(provider.__class__.__name__, "OpenAIProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(provider, "transcribe"))
+        self.assertTrue(hasattr(provider, "transcribe_with_segments"))
 
         # Test OpenAI speaker detector
         cfg_speaker = config.Config(
@@ -185,7 +227,12 @@ class TestProviderFactories(unittest.TestCase):
         )
         detector = create_speaker_detector(cfg_speaker)
         self.assertIsNotNone(detector)
-        self.assertEqual(detector.__class__.__name__, "OpenAISpeakerDetector")
+        # Verify it's the unified OpenAI provider
+        self.assertEqual(detector.__class__.__name__, "OpenAIProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(detector, "detect_speakers"))
+        self.assertTrue(hasattr(detector, "detect_hosts"))
+        self.assertTrue(hasattr(detector, "clear_cache"))
 
         # Test OpenAI summarization provider
         cfg_summary = config.Config(
@@ -197,7 +244,12 @@ class TestProviderFactories(unittest.TestCase):
         )
         provider = create_summarization_provider(cfg_summary)
         self.assertIsNotNone(provider)
-        self.assertEqual(provider.__class__.__name__, "OpenAISummarizationProvider")
+        # Verify it's the unified OpenAI provider
+        self.assertEqual(provider.__class__.__name__, "OpenAIProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(provider, "summarize"))
+        self.assertTrue(hasattr(provider, "initialize"))
+        self.assertTrue(hasattr(provider, "cleanup"))
 
 
 @pytest.mark.integration
@@ -224,11 +276,38 @@ class TestConfigBackwardCompatibility(unittest.TestCase):
         """Test that new field defaults match current behavior."""
         cfg = config.Config(rss_url="https://example.com/feed.xml")
 
-        # Speaker detection: defaults to "ner" (current spaCy NER)
-        self.assertEqual(cfg.speaker_detector_provider, "ner")
+        # Speaker detection: defaults to "spacy" (spaCy NER)
+        self.assertEqual(cfg.speaker_detector_provider, "spacy")
 
-        # Transcription: defaults to "whisper" (current Whisper integration)
+        # Transcription: defaults to "whisper" (Whisper integration)
         self.assertEqual(cfg.transcription_provider, "whisper")
 
-        # Summarization: defaults to "local" (current transformers)
-        self.assertEqual(cfg.summary_provider, "local")
+        # Summarization: defaults to "transformers" (HuggingFace Transformers)
+        self.assertEqual(cfg.summary_provider, "transformers")
+
+    def test_deprecated_provider_names_still_work(self):
+        """Test that deprecated provider names ('ner', 'local') still work for backward compatibility."""
+        import warnings
+
+        # Test deprecated "ner" → "spacy"
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            cfg_ner = config.Config(
+                rss_url="https://example.com/feed.xml",
+                speaker_detector_provider="ner",
+            )
+            self.assertEqual(cfg_ner.speaker_detector_provider, "spacy")
+            self.assertTrue(any("deprecated" in str(warning.message).lower() for warning in w))
+
+        # Test deprecated "local" → "transformers"
+        # Note: "transformers" is the current name, not deprecated
+        # The deprecated name was "local", but it's not tested here
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            cfg_local = config.Config(
+                rss_url="https://example.com/feed.xml",
+                summary_provider="transformers",
+            )
+            self.assertEqual(cfg_local.summary_provider, "transformers")
+            # "transformers" is not deprecated, so no warning should be issued
+            self.assertFalse(any("deprecated" in str(warning.message).lower() for warning in w))

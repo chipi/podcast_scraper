@@ -523,7 +523,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
         # Clear spaCy model cache to free memory
         # Models are cached at module level, so we clear them after processing
-        # Note: This is provider-specific (NERSpeakerDetector uses spaCy)
+        # Note: This is provider-specific (MLProvider uses spaCy for speaker detection)
         # The provider's cleanup() method handles model cleanup, but module-level cache
         # needs explicit clearing
         if cfg.auto_speakers and host_detection_result.speaker_detector:
@@ -2064,14 +2064,13 @@ def _parallel_episode_summarization(
 
     logger.info(f"Processing summarization for {len(episodes_to_summarize)} episodes in parallel")
 
-    # Check if provider is local (transformers) or API-based
-    # For API providers, we can use a single provider instance (no parallelism needed)
-    # For local providers, we need multiple model instances for thread safety
-    from .summarization.local_provider import TransformersSummarizationProvider
+    # Check if provider requires separate instances for thread safety
+    # For API providers (e.g., OpenAI), a single provider instance can be used
+    # For local providers (e.g., Transformers), we need multiple model instances
+    # Use provider attribute instead of isinstance check to maintain modularity
+    requires_separate_instances = getattr(summary_provider, "_requires_separate_instances", False)
 
-    is_local_provider = isinstance(summary_provider, TransformersSummarizationProvider)
-
-    if not is_local_provider:
+    if not requires_separate_instances:
         # API provider (e.g., OpenAI) - use single provider instance sequentially
         # API providers handle rate limiting internally, so parallelism isn't needed
         logger.debug("Using API provider for sequential summarization")

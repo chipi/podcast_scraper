@@ -131,6 +131,7 @@ skip_existing: true
 
 | Guide | Description |
 | ----- | ----------- |
+| **[Provider Configuration Quick Reference](guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md)** | **Quick guide for configuring providers via CLI, config files, and programmatically** |
 | **[Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** | Complete guide for implementing new providers (includes OpenAI example, testing, E2E server mocking) |
 | **[Protocol Extension Guide](guides/PROTOCOL_EXTENSION_GUIDE.md)** | Extending protocols and adding new methods to providers |
 
@@ -414,7 +415,7 @@ MIT License - See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main/L
 | **Getting Started** | [Quick Start](#quick-start) • [Configuration](api/CONFIGURATION.md) • [CLI Ref](api/CLI.md) |
 | **Examples** | [Config YAML](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) • [Config JSON](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) • [systemd](https://github.com/chipi/podcast_scraper/blob/main/examples/systemd.service.example) • [supervisor](https://github.com/chipi/podcast_scraper/blob/main/examples/supervisor.conf.example) |
 | **Development** | [Contributing](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md) • [Architecture](ARCHITECTURE.md) • [Testing Strategy](TESTING_STRATEGY.md) • [Testing Guide](guides/TESTING_GUIDE.md) • [CI/CD](CI_CD.md) • [Development Guide](guides/DEVELOPMENT_GUIDE.md) • [Dependencies](guides/DEPENDENCIES_GUIDE.md) • [Markdown Linting](guides/MARKDOWN_LINTING_GUIDE.md) • [Summarization](guides/SUMMARIZATION_GUIDE.md) • [Scripts](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md) |
-| **Provider System** | [Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) • [Protocol Extension](guides/PROTOCOL_EXTENSION_GUIDE.md) |
+| **Provider System** | [Configuration Quick Reference](guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) • [Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) • [Protocol Extension](guides/PROTOCOL_EXTENSION_GUIDE.md) |
 | **Specifications** | [PRDs](prd/index.md) • [RFCs](rfc/index.md) • [Releases](releases/RELEASE_v2.3.0.md) |
 | **Legal** | [Legal Notice](LEGAL.md) • [License](https://github.com/chipi/podcast_scraper/blob/main/LICENSE) |
 

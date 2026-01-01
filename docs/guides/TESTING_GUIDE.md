@@ -109,16 +109,22 @@ pytest tests/unit/test_package_imports.py -v
 
 **Provider Tests**:
 
-- **`test_speaker_detector_provider.py`** - Speaker detector provider protocol
-- **`test_summarization_provider.py`** - Summarization provider protocol
-- **`test_transcription_provider.py`** - Transcription provider protocol
-- **`test_openai_providers.py`** - OpenAI provider implementations (transcription, speaker detection, summarization)
+- **Standalone Provider Tests**:
+  - **`tests/unit/podcast_scraper/ml/test_ml_provider.py`** - MLProvider standalone tests (unified local ML provider)
+  - **`tests/unit/podcast_scraper/openai/test_openai_provider.py`** - OpenAIProvider standalone tests (unified OpenAI API provider)
+- **Factory Tests**:
+  - **`test_speaker_detector_provider.py`** - Speaker detector provider factory tests
+  - **`test_summarization_provider.py`** - Summarization provider factory tests
+  - **`test_transcription_provider.py`** - Transcription provider factory tests
+  - **`test_openai_providers.py`** - OpenAI provider factory tests
 
 **Provider Testing Patterns:**
 
-- **Unit Tests**: Test provider creation, initialization, protocol methods, error handling, cleanup
+- **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, mock all dependencies (API clients, ML models). Test provider creation, initialization, protocol methods, error handling, cleanup
+- **Unit Tests (Factory)**: Test factories create correct unified providers, verify protocol compliance, test factory error handling
 - **Mock Strategy**: Mock API clients (for API providers), mock ML models (for local providers)
-- **Example**: `test_openai_providers.py` mocks `OpenAI` client, tests provider initialization, transcription/summarization/speaker detection methods
+- **Example**: `test_ml_provider.py` tests MLProvider directly with mocked Whisper/spaCy/Transformers. `test_transcription_provider.py` tests factory creates MLProvider/OpenAIProvider
+- **Key Principle**: Always verify protocol compliance, not class names. Unified providers (MLProvider, OpenAIProvider) replace old separate provider classes
 
 **Infrastructure Tests**:
 

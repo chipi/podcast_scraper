@@ -225,9 +225,9 @@ class TestE2EServerOpenAIEndpoints:
     def test_openai_provider_uses_e2e_server(self, e2e_server):
         """Test that OpenAI providers can successfully use E2E server endpoints."""
         from podcast_scraper import config
-        from podcast_scraper.speaker_detectors.openai_detector import OpenAISpeakerDetector
-        from podcast_scraper.summarization.openai_provider import OpenAISummarizationProvider
-        from podcast_scraper.transcription.openai_provider import OpenAITranscriptionProvider
+        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
+        from podcast_scraper.summarization.factory import create_summarization_provider
+        from podcast_scraper.transcription.factory import create_transcription_provider
 
         # Create config with E2E server as OpenAI API base
         openai_api_base = e2e_server.urls.openai_api_base()
@@ -235,23 +235,26 @@ class TestE2EServerOpenAIEndpoints:
             rss_url="https://example.com/feed.xml",
             openai_api_key="sk-test123",
             openai_api_base=openai_api_base,
+            transcription_provider="openai",
+            speaker_detector_provider="openai",
+            summary_provider="openai",
         )
 
-        # Test transcription provider
-        transcription_provider = OpenAITranscriptionProvider(cfg)
+        # Test transcription provider via factory
+        transcription_provider = create_transcription_provider(cfg)
         transcription_provider.initialize()
         # OpenAI client base_url may have trailing slash, normalize both
         assert str(transcription_provider.client.base_url).rstrip("/") == openai_api_base.rstrip(
             "/"
         )
 
-        # Test speaker detector
-        speaker_detector = OpenAISpeakerDetector(cfg)
+        # Test speaker detector via factory
+        speaker_detector = create_speaker_detector(cfg)
         speaker_detector.initialize()
         assert str(speaker_detector.client.base_url).rstrip("/") == openai_api_base.rstrip("/")
 
-        # Test summarization provider
-        summarization_provider = OpenAISummarizationProvider(cfg)
+        # Test summarization provider via factory
+        summarization_provider = create_summarization_provider(cfg)
         summarization_provider.initialize()
         assert str(summarization_provider.client.base_url).rstrip("/") == openai_api_base.rstrip(
             "/"
@@ -262,16 +265,18 @@ class TestE2EServerOpenAIEndpoints:
         import tempfile
 
         from podcast_scraper import config
-        from podcast_scraper.transcription.openai_provider import OpenAITranscriptionProvider
+        from podcast_scraper.transcription.factory import create_transcription_provider
 
         openai_api_base = e2e_server.urls.openai_api_base()
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             openai_api_key="sk-test123",
             openai_api_base=openai_api_base,
+            transcription_provider="openai",  # Use OpenAI provider, not Whisper
+            transcribe_missing=True,  # Enable transcription
         )
 
-        provider = OpenAITranscriptionProvider(cfg)
+        provider = create_transcription_provider(cfg)
         provider.initialize()
 
         # Create a temporary audio file
@@ -293,16 +298,17 @@ class TestE2EServerOpenAIEndpoints:
         from unittest.mock import patch
 
         from podcast_scraper import config
-        from podcast_scraper.speaker_detectors.openai_detector import OpenAISpeakerDetector
+        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 
         openai_api_base = e2e_server.urls.openai_api_base()
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             openai_api_key="sk-test123",
             openai_api_base=openai_api_base,
+            speaker_detector_provider="openai",  # Use OpenAI provider, not spaCy
         )
 
-        detector = OpenAISpeakerDetector(cfg)
+        detector = create_speaker_detector(cfg)
         detector.initialize()
 
         # Mock render_prompt to avoid loading actual prompt files
@@ -322,16 +328,19 @@ class TestE2EServerOpenAIEndpoints:
         from unittest.mock import patch
 
         from podcast_scraper import config
-        from podcast_scraper.summarization.openai_provider import OpenAISummarizationProvider
+        from podcast_scraper.summarization.factory import create_summarization_provider
 
         openai_api_base = e2e_server.urls.openai_api_base()
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             openai_api_key="sk-test123",
             openai_api_base=openai_api_base,
+            summary_provider="openai",  # Use OpenAI provider, not transformers
+            generate_summaries=True,
+            generate_metadata=True,  # Required when generate_summaries is True
         )
 
-        provider = OpenAISummarizationProvider(cfg)
+        provider = create_summarization_provider(cfg)
         provider.initialize()
 
         # Mock render_prompt to avoid loading actual prompt files

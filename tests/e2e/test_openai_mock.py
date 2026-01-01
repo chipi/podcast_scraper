@@ -36,6 +36,7 @@ class TestOpenAIE2EServerIntegration:
             openai_api_key="sk-test123",
             openai_api_base=e2e_server.urls.openai_api_base(),  # Use E2E server
             transcription_provider="openai",
+            transcribe_missing=True,
         )
 
         provider = create_transcription_provider(cfg)
@@ -73,6 +74,8 @@ class TestOpenAIE2EServerIntegration:
             openai_api_key="sk-test123",
             openai_api_base=e2e_server.urls.openai_api_base(),  # Use E2E server
             summary_provider="openai",
+            generate_summaries=True,
+            generate_metadata=True,
         )
 
         provider = create_summarization_provider(cfg)

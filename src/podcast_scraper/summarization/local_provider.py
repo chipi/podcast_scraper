@@ -32,6 +32,9 @@ class TransformersSummarizationProvider:
         self._map_model: Optional[summarizer.SummaryModel] = None
         self._reduce_model: Optional[summarizer.SummaryModel] = None
         self._initialized = False
+        # Mark provider as requiring separate instances for thread safety
+        # HuggingFace models are not thread-safe and cannot be shared across threads
+        self._requires_separate_instances = True
 
     def initialize(self) -> None:
         """Initialize summarization models.

@@ -26,7 +26,9 @@ if PACKAGE_ROOT not in sys.path:
 import sys
 
 from podcast_scraper import Config, config, run_pipeline
+from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
+from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
 
 integration_dir = Path(__file__).parent.parent / "integration"
@@ -82,13 +84,13 @@ class TestTransformersSummarization:
             cfg = Config(
                 generate_metadata=True,  # Required for summaries
                 generate_summaries=True,  # Required for provider to initialize
-                summary_provider="local",
+                summary_provider="transformers",
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 language="en",
             )
 
-            # Initialize provider
-            provider = TransformersSummarizationProvider(cfg)
+            # Initialize provider via factory
+            provider = create_summarization_provider(cfg)
             provider.initialize()
 
             # Summarize text
@@ -123,7 +125,7 @@ class TestTransformersSummarization:
                 max_episodes=1,
                 generate_metadata=True,  # Required for summaries
                 generate_summaries=True,
-                summary_provider="local",
+                summary_provider="transformers",
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 transcribe_missing=True,  # Required: podcast1 has no transcript URL
                 whisper_model="tiny.en",  # Smallest English-only model for speed
@@ -160,13 +162,13 @@ class TestSpacySpeakerDetection:
         with tempfile.TemporaryDirectory():
             # Create config with smallest spaCy model for speed
             cfg = Config(
-                speaker_detector_provider="ner",
+                speaker_detector_provider="spacy",
                 ner_model="en_core_web_sm",  # Smallest spaCy model
                 auto_speakers=True,
             )
 
             # Initialize detector
-            detector = NERSpeakerDetector(cfg)
+            detector = create_speaker_detector(cfg)
             detector.initialize()
 
             # Detect speakers
@@ -205,7 +207,7 @@ class TestSpacySpeakerDetection:
                 output_dir=tmpdir,
                 max_episodes=1,
                 auto_speakers=True,
-                speaker_detector_provider="ner",
+                speaker_detector_provider="spacy",
                 ner_model="en_core_web_sm",  # Smallest spaCy model
             )
 
@@ -251,10 +253,10 @@ class TestAllMLModelsTogether:
                 generate_metadata=True,
                 metadata_format="json",
                 generate_summaries=True,
-                summary_provider="local",
+                summary_provider="transformers",
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
                 auto_speakers=True,
-                speaker_detector_provider="ner",
+                speaker_detector_provider="spacy",
                 ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
             )
 
@@ -295,7 +297,7 @@ class TestAllMLModelsTogether:
             cfg_summary = Config(
                 generate_metadata=True,  # Required for summaries
                 generate_summaries=True,  # Required for provider to initialize
-                summary_provider="local",
+                summary_provider="transformers",
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             )
             provider = TransformersSummarizationProvider(cfg_summary)
@@ -306,7 +308,7 @@ class TestAllMLModelsTogether:
 
             # Test spaCy detector
             cfg_speaker = Config(
-                speaker_detector_provider="ner",
+                speaker_detector_provider="spacy",
                 ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
                 auto_speakers=True,
             )

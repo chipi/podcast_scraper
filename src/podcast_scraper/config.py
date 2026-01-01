@@ -133,7 +133,8 @@ class Config(BaseModel):
         metadata_format: Metadata file format ("json" or "yaml").
         metadata_subdirectory: Optional subdirectory for metadata files.
         generate_summaries: Generate episode summaries using AI models.
-        summary_provider: Summary generation provider ("local", "openai").
+        summary_provider: Summary generation provider
+            ("transformers" or "openai", deprecated: "local").
         summary_model: Model identifier for MAP-phase summarization.
         summary_reduce_model: Optional separate model for REDUCE-phase summarization.
         summary_max_length: Maximum summary length in tokens.
@@ -148,7 +149,8 @@ class Config(BaseModel):
         summary_cache_dir: Custom cache directory for transformer models.
         summary_prompt: Optional custom prompt for summarization.
         save_cleaned_transcript: Save cleaned transcript to separate file.
-        speaker_detector_provider: Speaker detection provider type ("ner" or "openai").
+        speaker_detector_provider: Speaker detection provider type
+            ("spacy" or "openai", deprecated: "ner").
         Deprecated: speaker_detector_type (use speaker_detector_provider instead).
         transcription_provider: Transcription provider type ("whisper" or "openai").
         openai_api_key: OpenAI API key (loaded from environment variable or .env file).
@@ -230,14 +232,15 @@ class Config(BaseModel):
     auto_speakers: bool = Field(default=True, alias="auto_speakers")
     cache_detected_hosts: bool = Field(default=True, alias="cache_detected_hosts")
     # Provider selection fields (Stage 0: Foundation)
-    speaker_detector_provider: Literal["ner", "openai"] = Field(
-        default="ner",
+    speaker_detector_provider: Literal["spacy", "ner", "openai"] = Field(
+        default="spacy",
         alias="speaker_detector_provider",
-        description="Speaker detection provider type (default: 'ner' for spaCy NER). "
+        description="Speaker detection provider type (default: 'spacy' for spaCy NER). "
+        "Deprecated: 'ner' is accepted as alias for 'spacy' for backward compatibility. "
         "Deprecated alias 'speaker_detector_type' is supported for backward compatibility.",
     )
     # Deprecated field for backward compatibility - handled in _preprocess_config_data
-    speaker_detector_type: Optional[Literal["ner", "openai"]] = Field(
+    speaker_detector_type: Optional[Literal["spacy", "ner", "openai"]] = Field(
         default=None,
         exclude=True,
         description="Deprecated: use speaker_detector_provider instead.",
@@ -340,7 +343,16 @@ class Config(BaseModel):
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
     generate_summaries: bool = Field(default=False, alias="generate_summaries")
-    summary_provider: Literal["local", "openai"] = Field(default="local", alias="summary_provider")
+    summary_provider: Literal["transformers", "local", "openai"] = Field(
+        default="transformers",
+        alias="summary_provider",
+        description=(
+            "Summary generation provider "
+            "(default: 'transformers' for HuggingFace Transformers). "
+            "Deprecated: 'local' is accepted as alias for 'transformers' "
+            "for backward compatibility."
+        ),
+    )
     summary_model: Optional[str] = Field(default=None, alias="summary_model")
     # Optional separate model for reduce phase (e.g., BART for map, LED for reduce).
     # If not set, the same model is used for both map and reduce.
@@ -477,7 +489,11 @@ class Config(BaseModel):
                 DeprecationWarning,
                 stacklevel=2,
             )
-            data["speaker_detector_provider"] = data["speaker_detector_type"]
+            # Map deprecated "ner" to "spacy" if present
+            detector_type = data["speaker_detector_type"]
+            if detector_type == "ner":
+                detector_type = "spacy"
+            data["speaker_detector_provider"] = detector_type
             # Remove deprecated key to avoid Pydantic extra field validation error
             del data["speaker_detector_type"]
 
@@ -839,13 +855,26 @@ class Config(BaseModel):
 
     @field_validator("speaker_detector_provider", mode="before")
     @classmethod
-    def _validate_speaker_detector_provider(cls, value: Any) -> Literal["ner", "openai"]:
+    def _validate_speaker_detector_provider(cls, value: Any) -> Literal["spacy", "ner", "openai"]:
         """Validate speaker detector provider type."""
+        import warnings
+
         if value is None or value == "":
-            return "ner"
+            return "spacy"
         value_str = str(value).strip().lower()
-        if value_str not in ("ner", "openai"):
-            raise ValueError("speaker_detector_provider must be 'ner' or 'openai'")
+
+        # Handle deprecated "ner" alias
+        if value_str == "ner":
+            warnings.warn(
+                "speaker_detector_provider='ner' is deprecated, use 'spacy' instead. "
+                "'ner' will be removed in a future version.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return "spacy"  # type: ignore[return-value]
+
+        if value_str not in ("spacy", "openai"):
+            raise ValueError("speaker_detector_provider must be 'spacy' or 'openai'")
         return value_str  # type: ignore[return-value]
 
     @field_validator("transcription_provider", mode="before")
@@ -861,13 +890,26 @@ class Config(BaseModel):
 
     @field_validator("summary_provider", mode="before")
     @classmethod
-    def _validate_summary_provider(cls, value: Any) -> Literal["local", "openai"]:
+    def _validate_summary_provider(cls, value: Any) -> Literal["transformers", "local", "openai"]:
         """Validate summary provider."""
+        import warnings
+
         if value is None or value == "":
-            return "local"
+            return "transformers"
         value_str = str(value).strip().lower()
-        if value_str not in ("local", "openai"):
-            raise ValueError("summary_provider must be 'local' or 'openai'")
+
+        # Handle deprecated "local" alias
+        if value_str == "local":
+            warnings.warn(
+                "summary_provider='local' is deprecated, use 'transformers' instead. "
+                "'local' will be removed in a future version.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return "transformers"  # type: ignore[return-value]
+
+        if value_str not in ("transformers", "openai"):
+            raise ValueError("summary_provider must be 'transformers' or 'openai'")
         return value_str  # type: ignore[return-value]
 
     @field_validator("openai_temperature", mode="before")
