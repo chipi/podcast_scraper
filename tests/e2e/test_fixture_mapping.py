@@ -77,7 +77,7 @@ class TestFixtureMapping:
             "podcast4": "p04_photo.xml",
             "podcast5": "p05_investing.xml",
             "edgecases": "p06_edge_cases.xml",  # Added in Stage 11
-            "podcast1_smoke": "p01_smoke.xml",  # Smoke feed for fast tests
+            "podcast1_multi_episode": "p01_multi.xml",  # Multi-episode feed for fast tests
         }
 
         # Check that all expected mappings are present (may have additional entries)

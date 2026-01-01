@@ -105,8 +105,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         "podcast4": "p04_photo.xml",
         "podcast5": "p05_investing.xml",
         "edgecases": "p06_edge_cases.xml",
-        # Smoke test feed with 5 short episodes (10-15 seconds each)
-        "podcast1_smoke": "p01_smoke.xml",
+        # Multi-episode test feed with 5 short episodes (10-15 seconds each)
+        "podcast1_multi_episode": "p01_multi.xml",
     }
 
     # Fast mode RSS mapping (uses shorter episodes for faster tests)
@@ -115,8 +115,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         "podcast1": "p01_fast.xml",
         # Fast version with transcript URL (Path 1: Download)
         "podcast1_with_transcript": "p01_fast_with_transcript.xml",
-        # Smoke test feed (also available in fast mode)
-        "podcast1_smoke": "p01_smoke.xml",
+        # Multi-episode test feed (also available in fast mode)
+        "podcast1_multi_episode": "p01_multi.xml",
     }
 
     # Allowed podcasts for fast mode (shared across all handler instances)
@@ -737,14 +737,14 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return None
 
         # Reject filenames with more than one "." character (allowlist pattern)
-        # Expected format: pXX_*.xml (e.g., p01_mtb.xml, p01_fast.xml, p01_smoke.xml)
+        # Expected format: pXX_*.xml (e.g., p01_mtb.xml, p01_fast.xml, p01_multi.xml)
         # Only one dot allowed (for the file extension)
         if rss_file.count(".") != 1:
             return None
 
         # Validate filename against allowlist pattern
         # Pattern: p<digits>_<alphanumeric_underscore>\.xml
-        # Examples: p01_mtb.xml, p01_fast.xml, p01_smoke.xml, p06_edge_cases.xml
+        # Examples: p01_mtb.xml, p01_fast.xml, p01_multi.xml, p06_edge_cases.xml
         allowed_pattern = re.compile(r"^p\d+_[a-z0-9_]+\.xml$")
         if not allowed_pattern.match(rss_file):
             return None

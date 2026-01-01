@@ -24,7 +24,7 @@ if PACKAGE_ROOT not in sys.path:
 # Import cache helpers from integration tests
 import sys
 
-from podcast_scraper import Config, run_pipeline
+from podcast_scraper import Config, config, run_pipeline
 from podcast_scraper.transcription.whisper_provider import WhisperTranscriptionProvider
 
 integration_dir = Path(__file__).parent.parent / "integration"
@@ -52,18 +52,17 @@ class TestWhisperProviderDirect:
         """Test Whisper provider directly with real audio file.
 
         Uses E2E server to get audio file URL, which automatically uses fast audio
-        (p01_e01_fast.mp3) in fast mode or regular audio (p01_e01.mp3) in smoke mode.
+        (p01_e01_fast.mp3) in fast mode or regular audio (p01_e01.mp3) in multi-episode mode.
         """
         # Require model to be cached (fail fast if not)
-        # Note: cfg uses "tiny.en" but Makefile preloads "base.en"
-        require_whisper_model_cached("tiny.en")
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-        # Get audio file from E2E server (respects E2E_TEST_MODE: fast vs smoke)
+        # Get audio file from E2E server (respects E2E_TEST_MODE: fast vs multi-episode)
         # In fast mode: uses p01_e01_fast.mp3 (1 minute)
-        # In smoke mode: uses p01_e01.mp3 (10:30)
+        # In multi-episode mode: uses p01_e01.mp3 (10:30)
         # Since these tests are critical_path, they should use fast audio
         # when run via make test-e2e-fast
-        test_mode = os.environ.get("E2E_TEST_MODE", "smoke").lower()
+        test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
         if test_mode == "fast":
             episode_id = "p01_e01_fast"  # Fast audio file (1 minute)
         else:
@@ -113,17 +112,17 @@ class TestWhisperProviderDirect:
         """Test Whisper provider transcribe_with_segments() method.
 
         Uses E2E server to get audio file URL, which automatically uses fast audio
-        (p01_e01_fast.mp3) in fast mode or regular audio (p01_e01.mp3) in smoke mode.
+        (p01_e01_fast.mp3) in fast mode or regular audio (p01_e01.mp3) in multi-episode mode.
         """
         # Require model to be cached (fail fast if not)
         require_whisper_model_cached("tiny.en")
 
-        # Get audio file from E2E server (respects E2E_TEST_MODE: fast vs smoke)
+        # Get audio file from E2E server (respects E2E_TEST_MODE: fast vs multi-episode)
         # In fast mode: uses p01_e01_fast.mp3 (1 minute)
-        # In smoke mode: uses p01_e01.mp3 (10:30)
+        # In multi-episode mode: uses p01_e01.mp3 (10:30)
         # Since these tests are critical_path, they should use fast audio
         # when run via make test-e2e-fast
-        test_mode = os.environ.get("E2E_TEST_MODE", "smoke").lower()
+        test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
         if test_mode == "fast":
             episode_id = "p01_e01_fast"  # Fast audio file (1 minute)
         else:

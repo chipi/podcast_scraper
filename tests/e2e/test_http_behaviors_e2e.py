@@ -37,7 +37,7 @@ class TestRangeRequests:
     def test_range_request_support(self, e2e_server):
         """Test that E2E server supports HTTP range requests."""
         # Get a large audio file URL
-        audio_url = e2e_server.urls.audio("p01_smoke_e01")
+        audio_url = e2e_server.urls.audio("p01_multi_e01")
 
         # Request first 100 bytes
         headers = {"Range": "bytes=0-99"}
@@ -53,7 +53,7 @@ class TestRangeRequests:
 
     def test_range_request_middle(self, e2e_server):
         """Test range request for middle portion of file."""
-        audio_url = e2e_server.urls.audio("p01_smoke_e01")
+        audio_url = e2e_server.urls.audio("p01_multi_e01")
 
         # Request bytes 1000-1999
         headers = {"Range": "bytes=1000-1999"}
@@ -69,7 +69,7 @@ class TestRangeRequests:
 
     def test_range_request_end(self, e2e_server):
         """Test range request for end of file."""
-        audio_url = e2e_server.urls.audio("p01_smoke_e01")
+        audio_url = e2e_server.urls.audio("p01_multi_e01")
 
         # Get file size first
         full_response = requests.head(audio_url)
@@ -94,7 +94,7 @@ class TestStreamingDownloads:
 
     def test_audio_streaming_download(self, e2e_server):
         """Test that audio files are streamed (not downloaded all at once)."""
-        audio_url = e2e_server.urls.audio("p01_smoke_e01")
+        audio_url = e2e_server.urls.audio("p01_multi_e01")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             out_path = os.path.join(tmpdir, "audio.mp3")
@@ -147,7 +147,7 @@ class TestTimeoutHandling:
 
     def test_download_timeout(self, e2e_server):
         """Test that downloads respect timeout settings."""
-        audio_url = e2e_server.urls.audio("p01_smoke_e01")
+        audio_url = e2e_server.urls.audio("p01_multi_e01")
 
         # Set a very short timeout (should fail for large files)
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -174,7 +174,7 @@ class TestTimeoutHandling:
         """Test that timeout triggers retry logic."""
         # This test verifies that the retry mechanism handles timeouts
         # The downloader has retry logic built-in, so we test that it works
-        audio_url = e2e_server.urls.audio("p01_smoke_e01")
+        audio_url = e2e_server.urls.audio("p01_multi_e01")
 
         # Set a reasonable timeout (should succeed)
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -197,8 +197,8 @@ class TestRetryLogic:
     def test_retry_on_500_error(self, e2e_server):
         """Test that retry logic handles 500 errors."""
         # Set error behavior to return 500 for first few requests, then succeed
-        audio_url = e2e_server.urls.audio("p01_smoke_e01")
-        path = "/audio/p01_smoke_e01.mp3"
+        audio_url = e2e_server.urls.audio("p01_multi_e01")
+        path = "/audio/p01_multi_e01.mp3"
 
         # Set error behavior to return 500 (will retry)
         e2e_server.set_error_behavior(path, 500)
@@ -224,7 +224,7 @@ class TestRetryLogic:
         """Test that retry logic handles transient errors."""
         # For this test, we'll use a normal download (no error)
         # The retry logic is built into the HTTP adapter, so we verify it's configured
-        audio_url = e2e_server.urls.audio("p01_smoke_e01")
+        audio_url = e2e_server.urls.audio("p01_multi_e01")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             out_path = os.path.join(tmpdir, "audio.mp3")
@@ -246,7 +246,7 @@ class TestPartialReads:
 
     def test_partial_read_with_range_request(self, e2e_server):
         """Test partial read using range request."""
-        audio_url = e2e_server.urls.audio("p01_smoke_e01")
+        audio_url = e2e_server.urls.audio("p01_multi_e01")
 
         # Request first 1KB
         headers = {"Range": "bytes=0-1023"}
@@ -258,7 +258,7 @@ class TestPartialReads:
 
     def test_multiple_range_requests(self, e2e_server):
         """Test multiple range requests for same file."""
-        audio_url = e2e_server.urls.audio("p01_smoke_e01")
+        audio_url = e2e_server.urls.audio("p01_multi_e01")
 
         # Request multiple ranges
         ranges = [
@@ -289,7 +289,7 @@ class TestFullPipelineWithLargeFiles:
         # rather than transcribing audio
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
-                rss_url=e2e_server.urls.feed("podcast1_smoke"),
+                rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,  # Process one episode
                 transcribe_missing=True,
@@ -313,7 +313,7 @@ class TestFullPipelineWithLargeFiles:
         # This test verifies that the pipeline uses streaming (not loading entire file into memory)
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
-                rss_url=e2e_server.urls.feed("podcast1_smoke"),
+                rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,
                 transcribe_missing=True,

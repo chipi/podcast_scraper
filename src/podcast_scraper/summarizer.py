@@ -427,8 +427,11 @@ def clean_for_summarization(text: str) -> str:
 def select_summary_model(cfg) -> str:
     """Select MAP-phase model based on configuration.
 
-    Defaults to BART-large for fast, efficient chunk summarization.
+    Defaults to BART-large for production quality chunk summarization.
     This is the MAP model used to summarize individual chunks.
+
+    Note: Tests typically use "facebook/bart-base" (smaller, faster) for speed,
+    but production defaults to "facebook/bart-large-cnn" (larger, better quality).
 
     Args:
         cfg: Configuration object with summary_model field
@@ -445,7 +448,7 @@ def select_summary_model(cfg) -> str:
         # Otherwise, assume it's a direct model identifier (e.g., "facebook/bart-large-cnn")
         return model_key
 
-    # Default to BART-large for MAP phase (fast, efficient chunk summarization)
+    # Default to BART-large for MAP phase (production quality chunk summarization)
     return DEFAULT_SUMMARY_MODELS["bart-large"]
 
 

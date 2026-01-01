@@ -25,7 +25,7 @@ if PACKAGE_ROOT not in sys.path:
 # Import cache helpers from integration tests
 import sys
 
-from podcast_scraper import Config, run_pipeline
+from podcast_scraper import Config, config, run_pipeline
 from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
 from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
 
@@ -66,7 +66,7 @@ class TestTransformersSummarization:
     def test_transformers_provider_summarize(self, e2e_server):
         """Test Transformers summarization provider with real model."""
         # Require model to be cached (fail fast if not)
-        require_transformers_model_cached("facebook/bart-base", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         # Get transcript text from fixtures
         fixture_root = Path(__file__).parent.parent / "fixtures"
@@ -83,7 +83,7 @@ class TestTransformersSummarization:
                 generate_metadata=True,  # Required for summaries
                 generate_summaries=True,  # Required for provider to initialize
                 summary_provider="local",
-                summary_model="facebook/bart-base",  # Small model for speed
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 language="en",
             )
 
@@ -109,7 +109,7 @@ class TestTransformersSummarization:
     def test_transformers_provider_in_full_workflow(self, e2e_server):
         """Test Transformers summarization provider in full workflow."""
         # Require model to be cached (fail fast if not)
-        require_transformers_model_cached("facebook/bart-base", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         rss_url = e2e_server.urls.feed("podcast1")
 
@@ -124,7 +124,7 @@ class TestTransformersSummarization:
                 generate_metadata=True,  # Required for summaries
                 generate_summaries=True,
                 summary_provider="local",
-                summary_model="facebook/bart-base",  # Small model for speed
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 transcribe_missing=True,  # Required: podcast1 has no transcript URL
                 whisper_model="tiny.en",  # Smallest English-only model for speed
             )
@@ -237,7 +237,7 @@ class TestAllMLModelsTogether:
         Note: spaCy model (en_core_web_sm) is installed as a dependency.
         """
         # Require transformers model to be cached (fail fast if not)
-        require_transformers_model_cached("facebook/bart-base", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         rss_url = e2e_server.urls.feed("podcast1")
 
@@ -247,15 +247,15 @@ class TestAllMLModelsTogether:
                 output_dir=tmpdir,
                 max_episodes=1,
                 transcribe_missing=True,  # Enable Whisper transcription
-                whisper_model="tiny.en",  # Use smallest English-only model for speed
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                 generate_metadata=True,
                 metadata_format="json",
                 generate_summaries=True,
                 summary_provider="local",
-                summary_model="facebook/bart-base",  # Small model for speed
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
                 auto_speakers=True,
                 speaker_detector_provider="ner",
-                ner_model="en_core_web_sm",  # Smallest spaCy model
+                ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
             )
 
             # Run pipeline with all models
@@ -279,7 +279,7 @@ class TestAllMLModelsTogether:
         Note: spaCy model (en_core_web_sm) is installed as a dependency.
         """
         # Require transformers model to be cached (spaCy model is installed as dependency)
-        require_transformers_model_cached("facebook/bart-base", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         # Get transcript text from fixtures
         fixture_root = Path(__file__).parent.parent / "fixtures"
@@ -296,7 +296,7 @@ class TestAllMLModelsTogether:
                 generate_metadata=True,  # Required for summaries
                 generate_summaries=True,  # Required for provider to initialize
                 summary_provider="local",
-                summary_model="facebook/bart-base",
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             )
             provider = TransformersSummarizationProvider(cfg_summary)
             provider.initialize()
@@ -307,7 +307,7 @@ class TestAllMLModelsTogether:
             # Test spaCy detector
             cfg_speaker = Config(
                 speaker_detector_provider="ner",
-                ner_model="en_core_web_sm",
+                ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
                 auto_speakers=True,
             )
             detector = NERSpeakerDetector(cfg_speaker)

@@ -477,6 +477,30 @@ The `openai_mock` fixture (autouse=True) mocks OpenAI API calls to prevent costs
 - Network guard will fail tests if external network is accessed
 - All E2E tests use real HTTP client with `e2e_server` fixture (no HTTP mocking)
 
+### ML Model Defaults for Tests
+
+The test suite uses **smaller, faster models** for speed, while the production app uses **quality models** by default. This distinction is intentional and documented.
+
+**Test Defaults** (used in CI/local dev for speed):
+- **Whisper**: `tiny.en` (smallest, fastest English-only model)
+- **spaCy**: `en_core_web_sm` (smallest model, installed as dependency)
+- **Transformers MAP**: `facebook/bart-base` (small, ~500MB, fast)
+- **Transformers REDUCE**: `allenai/led-base-16384` (long-context, needed for combined summaries)
+
+**Production Defaults** (used in app runtime for quality):
+- **Whisper**: `base.en` (better quality, matches app config default)
+- **spaCy**: `en_core_web_sm` (same as tests)
+- **Transformers MAP**: `facebook/bart-large-cnn` (large, ~2GB, better quality)
+- **Transformers REDUCE**: `allenai/led-base-16384` (same as tests)
+
+**Preloading**:
+The `make preload-ml-models` command preloads both test and production defaults to ensure all models are cached. This allows:
+- Fast test execution (using small models)
+- Production quality (using large models)
+- Flexibility to switch between models
+
+See [Issue #143](https://github.com/chipi/podcast_scraper/issues/143) for detailed analysis and implementation.
+
 ### E2E Test Coverage
 
 **Total: 103+ tests passing (all E2E tests with real HTTP client)**

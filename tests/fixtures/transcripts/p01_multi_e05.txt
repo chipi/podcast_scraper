@@ -1,5 +1,5 @@
 # Singletrack Sessions — Episode
-## Bike Setup Fundamentals (Smoke Test)
+## Bike Setup Fundamentals (Multi-Episode Test)
 Host: Maya
 Guest: Sam
 

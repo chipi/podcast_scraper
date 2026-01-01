@@ -1,5 +1,5 @@
 # Singletrack Sessions — Episode
-## Trail Maintenance Basics (Smoke Test)
+## Trail Maintenance Basics (Multi-Episode Test)
 Host: Maya
 Guest: Alex
 

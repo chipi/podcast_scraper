@@ -219,7 +219,7 @@ class TestConfigBackwardCompatibility(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             output_dir="./test",
             max_episodes=10,
-            whisper_model="tiny.en",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             transcribe_missing=True,
         )
         self.assertEqual(cfg.rss_url, "https://example.com/feed.xml")

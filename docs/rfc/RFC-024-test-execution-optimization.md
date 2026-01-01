@@ -199,7 +199,8 @@ If a Tier 0 test causes `make test-unit` to exceed 30 seconds:
 **Execution Strategy:**
 
 - Parallel execution (faster for slow tests, similar 3.4x benefit as integration)
-- Run on `main` branch (on every push, not just nightly)
+- Run on `main` branch only (on every push, not just nightly)
+- Fast tests run on PRs only (not on main to avoid redundancy)
 - Manually on demand
 
 **Current Implementation:**

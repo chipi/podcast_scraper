@@ -72,7 +72,7 @@ class TestSpeakerDetection(unittest.TestCase):
         self.cfg = config.Config(
             rss_url=TEST_FEED_URL,
             auto_speakers=True,
-            ner_model="en_core_web_sm",
+            ner_model=config.DEFAULT_NER_MODEL,
         )
 
     @unittest.skip(

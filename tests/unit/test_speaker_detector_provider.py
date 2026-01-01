@@ -54,7 +54,7 @@ class TestNERSpeakerDetector(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ner",
             auto_speakers=True,
-            ner_model="en_core_web_sm",
+            ner_model=config.DEFAULT_NER_MODEL,
         )
 
     def test_detector_initialization(self):

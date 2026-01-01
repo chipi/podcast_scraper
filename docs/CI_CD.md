@@ -13,7 +13,7 @@ scanning, Docker validation, documentation deployment, and metrics collection.
 | **Python Application**    | `python-app.yml` | Main CI pipeline with testing, linting, and builds    | Push/PR to `main` (only when Python/config files change)                    |
 | **Documentation Deploy**  | `docs.yml`       | Build and deploy MkDocs documentation to GitHub Pages | Push to `main`, PR with doc changes, manual                                 |
 | **CodeQL Security**       | `codeql.yml`     | Security vulnerability scanning                       | Push/PR to `main` (only when code/workflow files change), scheduled weekly  |
-| **Docker Build & Test**   | `docker.yml`     | Build and test Docker images                          | Push/PR to `main` (only when Docker/Python files change)                    |
+| **Docker Build & Test**   | `docker.yml`     | Build and test Docker images                          | Push to `main` (all), PRs (Dockerfile/.dockerignore only)                   |
 | **Snyk Security Scan**    | `snyk.yml`       | Dependency and Docker image vulnerability scanning    | Push/PR to `main`, scheduled weekly (Mondays), manual                       |
 | **Nightly Comprehensive** | `nightly.yml`    | Full test suite with comprehensive metrics collection | Scheduled daily (2 AM UTC), manual                                          |
 
@@ -91,7 +91,7 @@ graph TB
     T3 --> C1
 
     T1 --> DOCK1
-    T2 --> DOCK1
+    T2 -->|Only if Dockerfile/.dockerignore change| DOCK1
 
     T1 --> SNYK1 & SNYK2
     T2 --> SNYK1 & SNYK2
@@ -135,10 +135,8 @@ Each workflow only runs when specific files are modified:
 - `.dockerignore`
 
 **`docker.yml` Workflow:**
-- `Dockerfile`
-- `.dockerignore`
-- `pyproject.toml`
-- `*.py`
+- **Push to main:** All changes (Dockerfile, .dockerignore, pyproject.toml, *.py)
+- **Pull requests:** Only `Dockerfile` or `.dockerignore` changes
 
 **`snyk.yml` Workflow:**
 - `**.py`
@@ -159,8 +157,8 @@ This is the main CI pipeline that ensures code quality, runs tests, builds docum
 
 The workflow uses a **two-tier testing strategy** optimized for speed and coverage:
 
-1. **Pull Requests:** Fast feedback + Full validation (both run in parallel)
-2. **Push to Main:** Separate test jobs for maximum parallelization
+1. **Pull Requests:** Fast critical path tests only (quick feedback, ~10-15 min)
+2. **Push to Main:** Full test suite only (complete validation, no redundant fast tests)
 
 ### Pull Request Execution Flow
 
@@ -255,21 +253,22 @@ graph LR
 
 ---
 
-#### 2. test-integration-fast Job (Runs on PR and Main, with exceptions)
+#### 2. test-integration-fast Job (Runs on PRs only, with exceptions)
 
-**Purpose:** Run critical path integration tests for fast feedback
+**Purpose:** Run critical path integration tests for fast PR feedback
 
-**When:** Both PRs and push to main (with exceptions for docs-only PRs)
+**When:** Pull requests only (not on push to main, with exceptions for docs-only PRs)
 
 **Conditional Execution:**
 ```yaml
 if: |
-  github.event_name != 'pull_request' ||
-  (github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
-   !contains(github.event.pull_request.head.ref, 'docs/'))
+  github.event_name == 'pull_request' &&
+  github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
+  !contains(github.event.pull_request.head.ref, 'docs/')
 ```
 
 **Skips if:**
+- Push to main (full integration tests run instead)
 - PR branch is `fix/ai-guidelines-linting`
 - PR branch name contains `docs/`
 
@@ -289,21 +288,22 @@ if: |
 
 ---
 
-#### 3. test-e2e-fast Job (Runs on PR and Main, with exceptions)
+#### 3. test-e2e-fast Job (Runs on PRs only, with exceptions)
 
-**Purpose:** Run critical path E2E tests for fast feedback
+**Purpose:** Run critical path E2E tests for fast PR feedback
 
-**When:** Both PRs and push to main (with exceptions for docs-only PRs)
+**When:** Pull requests only (not on push to main, with exceptions for docs-only PRs)
 
 **Conditional Execution:**
 ```yaml
 if: |
-  github.event_name != 'pull_request' ||
-  (github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
-   !contains(github.event.pull_request.head.ref, 'docs/'))
+  github.event_name == 'pull_request' &&
+  github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
+  !contains(github.event.pull_request.head.ref, 'docs/')
 ```
 
 **Skips if:**
+- Push to main (full E2E tests run instead)
 - PR branch is `fix/ai-guidelines-linting`
 - PR branch name contains `docs/`
 
@@ -700,20 +700,20 @@ If `test-integration` or `test-e2e` fail after merging:
 | ----- | ------------------ | ---------------------------- |
 | `lint` | ✅ | ✅ |
 | `test-unit` | ✅ | ✅ |
-| `test-integration-fast` | ✅ (with exceptions) | ✅ |
+| `test-integration-fast` | ✅ (with exceptions) | ❌ **Does NOT run** |
 | `preload-ml-models` | ❌ **Does NOT run** | ✅ **Runs after merge** |
 | `test-integration` | ❌ **Does NOT run** | ✅ **Runs after merge** |
-| `test-e2e-fast` | ✅ (with exceptions) | ✅ |
+| `test-e2e-fast` | ✅ (with exceptions) | ❌ **Does NOT run** |
 | `test-e2e` | ❌ **Does NOT run** | ✅ **Runs after merge** |
 | `docs` | ✅ | ✅ |
 | `build` | ✅ | ✅ |
-| `docker-build` | ✅ (if files match) | ✅ (if files match) |
+| `docker-build` | ✅ (if Dockerfile/.dockerignore change) | ✅ (all changes) |
 | `snyk-*` | ✅ (if files match) | ✅ (if files match) |
 | `analyze` | ✅ (if files match) | ✅ (if files match) |
 
 **Key Difference:**
-- **PR Review:** Critical path tests only (quick feedback)
-- **After Merge:** Critical path + Full suite tests (complete validation)
+- **PR Review:** Fast critical path tests only (quick feedback, ~10-15 min total)
+- **After Merge:** Full test suite only (complete validation, no redundant fast tests)
 
 ### PR Execution Timeline
 
@@ -758,14 +758,14 @@ The PR will show a status check for each job that runs. All checks must pass for
 **Required Checks (Always Run):**
 - ✅ `lint`
 - ✅ `test-unit`
-- ✅ `test-integration-fast` (unless docs-only PR)
-- ✅ `test-e2e-fast` (unless docs-only PR)
+- ✅ `test-integration-fast` (PRs only, unless docs-only PR)
+- ✅ `test-e2e-fast` (PRs only, unless docs-only PR)
 - ✅ `docs`
 - ✅ `build`
 - ✅ `snyk-monitor`
 
 **Optional Checks (Run if files match):**
-- ⚠️ `docker-build` (if Docker files changed)
+- ⚠️ `docker-build` (PRs: only if Dockerfile/.dockerignore changed)
 - ⚠️ `snyk-dependencies` (if code changed)
 - ⚠️ `snyk-docker` (if Docker files changed)
 - ⚠️ `analyze` (if Python/workflow files changed)
@@ -782,9 +782,9 @@ Some test jobs include automatic re-runs to handle flaky tests:
 - `--reruns-delay 1`: Wait 1 second between retries
 
 **Which jobs use re-runs:**
-- ✅ `test-integration-fast` (PRs and main): Critical path integration tests
+- ✅ `test-integration-fast` (PRs only): Critical path integration tests
 - ✅ `test-integration` (main branch): All integration tests
-- ✅ `test-e2e-fast` (PRs and main): Critical path E2E tests
+- ✅ `test-e2e-fast` (PRs only): Critical path E2E tests
 - ✅ `test-e2e` (main branch): All E2E tests
 - ❌ `test-unit` (always): No re-runs (unit tests should be stable)
 - ❌ `preload-ml-models` (main branch): No re-runs (setup job)
@@ -1008,16 +1008,47 @@ schedule:
 ## Docker Build & Test Workflow
 
 **File:** `.github/workflows/docker.yml`
-**Triggers:** Push and Pull Requests to `main` branch (only when Docker or Python files change)
+**Triggers:**
+- **Push to main:** All changes (Dockerfile, .dockerignore, pyproject.toml, *.py)
+- **Pull requests:** Only when `Dockerfile` or `.dockerignore` change
 
 **Path Filters:**
 
-- `Dockerfile`, `.dockerignore` - Docker-related files
-- `Dockerfile` - Main Dockerfile
-- `pyproject.toml` - Project configuration
-- `*.py` - Python source files
+- **Push to main:**
+  - `Dockerfile`, `.dockerignore` - Docker-related files
+  - `pyproject.toml` - Project configuration
+  - `*.py` - Python source files
+- **Pull requests:**
+  - `Dockerfile` - Main Dockerfile
+  - `.dockerignore` - Docker ignore file
 
-**Skips when:** Only documentation, markdown, or unrelated files change
+**Optimization:** Docker build no longer runs on PRs for Python-only changes, saving ~10 minutes per PR. Full Docker validation still runs on merge to main.
+
+### Optimization Implementation
+
+The Docker workflow uses a **hybrid optimization approach** to balance fast PR feedback with comprehensive validation:
+
+**PR Triggers (Conditional):**
+- Docker build runs on PRs **only** when `Dockerfile` or `.dockerignore` change
+- Python code changes (`pyproject.toml`, `*.py`) no longer trigger Docker build on PRs
+- **Result**: ~10 minutes saved per PR for Python-only changes
+
+**Lightweight Build on PRs:**
+- When PRs do trigger (Dockerfile changes), they use a lightweight build:
+  - Build only default image (skip multi-model build)
+  - Skip model preloading (`PRELOAD_ML_MODELS=false`)
+  - **Result**: ~3-5 minutes per PR (vs 10+ minutes for full build)
+
+**Optimized Full Build on Main:**
+- Push to `main` triggers optimized full build:
+  - **Parallel builds**: Both images (default + multi-model) build simultaneously using matrix strategy
+  - **Scoped caching**: Separate cache scopes for each image type for better cache hits
+  - **BuildKit cache mounts**: Already implemented in Dockerfile for pip and model caches
+  - **Result**: ~5 minutes saved on main (parallel execution vs sequential)
+
+**Performance Improvements:**
+- **PRs**: ~10 minutes saved (no build for Python-only changes) + ~5-7 minutes saved (lightweight build when triggered)
+- **Main**: ~5 minutes saved (parallel builds) + faster rebuilds (better caching)
 
 ### Workflow Purpose
 
@@ -1025,29 +1056,43 @@ Validates that Docker images can be built correctly and pass basic smoke tests. 
 
 ### Docker Job Details
 
-#### Docker Build & Test Job
+#### Docker Build Jobs
 
 **Purpose:** Build Docker images and run smoke tests
 
-**Duration:** ~5-10 minutes
+**Duration:**
+- **PR builds (fast)**: ~3-5 minutes (lightweight, single image, no model preloading)
+- **Main builds (full)**: ~5-10 minutes (parallel builds, both images, with model preloading)
+
+**PR Build (docker-build-fast):**
+- Runs only when `Dockerfile` or `.dockerignore` change
+- Builds only default image
+- Skips model preloading (`PRELOAD_ML_MODELS=false`)
+- Fast feedback for Dockerfile changes
+
+**Main Build (docker-build-full):**
+- Runs on push to `main` branch
+- Uses matrix strategy for parallel builds:
+  - **Default image**: `PRELOAD_ML_MODELS=true`, `WHISPER_MODELS=base.en`
+  - **Multi-model image**: `PRELOAD_ML_MODELS=true`, `WHISPER_MODELS=tiny.en,base.en`
+- Scoped caching per image type for better cache hits
+- Full validation with all models
 
 **Steps:**
 
 1. Checkout code
 2. Free disk space (removes unnecessary system packages)
 3. Set up Docker Buildx
-4. Build Docker image (default configuration)
+4. Build Docker image(s):
    - Uses `Dockerfile`
    - Caches layers using GitHub Actions cache
-   - Tags as `podcast-scraper:test`
-5. Build Docker image (multiple Whisper models)
-   - Preloads `tiny.en` and `base.en` Whisper models
-   - Tags as `podcast-scraper:multi-model`
-6. Test Docker images:
+   - BuildKit cache mounts for pip and model caches
+   - Tags: `podcast-scraper:test` (default) or `podcast-scraper:multi-model`
+5. Test Docker images:
    - Test `--help` command
    - Test `--version` command
    - Test error handling (no args should show error)
-7. Validate Dockerfile with hadolint
+6. Validate Dockerfile with hadolint
    - Lints Dockerfile for best practices
    - Catches common Docker anti-patterns
 
@@ -1177,7 +1222,7 @@ schedule:
 
 All workflows run independently and in parallel when triggered:
 
-- **Python Application Workflow** (7 parallel jobs: lint, unit test, integration test, fast E2E test, docs, build, slow E2E test (main only))
+- **Python Application Workflow** (PRs: 6 jobs - lint, unit, fast integration, fast E2E, docs, build; Main: 6 jobs - lint, unit, full integration, full E2E, docs, build)
 - **Documentation Deployment Workflow** (sequential: build → deploy)
 - **CodeQL Workflow** (matrix: Python + Actions analysis in parallel)
 - **Docker Workflow** (single job: build → test → validate)
@@ -1208,13 +1253,13 @@ This maximizes parallelism and reduces total CI time.
 ├── Docs Job (2-3 min)
 └── Build Job (1-2 min)
 ```text
+**Within Python Application Workflow - Push to Main:**
+
 ```text
 ├── Lint Job (1-2 min)
 ├── test-unit Job (2-5 min) - No ML deps, fast
 ├── preload-ml-models (2-5 min) - Preloads ML models for full suite
-├── test-integration-fast (5-8 min) - Critical path only, includes re-runs
 ├── test-integration (5-10 min) - Full suite, includes re-runs, ML deps, needs preload-ml-models
-├── test-e2e-fast (8-12 min) - Critical path only, includes re-runs
 ├── test-e2e (20-30 min) - Full suite, includes re-runs, ML deps, network guard, needs preload-ml-models
 ├── Docs Job (2-3 min)
 └── Build Job (1-2 min)

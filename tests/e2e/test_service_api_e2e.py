@@ -36,7 +36,7 @@ class TestServiceAPIBasic:
         This test is marked as slow because it duplicates test_service_api_basic_run
         from test_basic_e2e.py. The critical path only needs one Service API end-to-end test.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -68,7 +68,7 @@ class TestServiceAPIBasic:
         This test is marked as slow because it tests an extended feature,
         not the core use case.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -105,7 +105,7 @@ class TestServiceAPIBasic:
 
         Note: Uses 'local' provider to avoid OpenAI API key requirement.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -141,7 +141,7 @@ class TestServiceAPIBasic:
         This test is marked as slow because it tests all extended features together,
         not the core use case.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -179,7 +179,7 @@ class TestServiceAPIConfigFile:
 
     def test_service_run_from_config_file_json(self, e2e_server):
         """Test service.run_from_config_file() with JSON config."""
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create config file
@@ -218,7 +218,7 @@ class TestServiceAPIConfigFile:
         except ImportError:
             pytest.skip("PyYAML not available")
 
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create config file
@@ -305,7 +305,7 @@ class TestServiceAPIReturnValues:
 
     def test_service_run_return_structure(self, e2e_server):
         """Test that service.run() returns correct ServiceResult structure."""
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -335,7 +335,7 @@ class TestServiceAPIReturnValues:
 
     def test_service_run_success_vs_error(self, e2e_server):
         """Test that service.run() correctly sets success flag."""
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Test success case
@@ -372,7 +372,7 @@ class TestServiceMainCLI:
 
     def test_service_main_success(self, e2e_server):
         """Test service.main() with valid config file."""
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create config file

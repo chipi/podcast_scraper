@@ -40,7 +40,7 @@ class TestCLIBasicCommands:
         This test is marked as slow because it duplicates test_cli_basic_transcript_download
         from test_basic_e2e.py. The critical path only needs one CLI end-to-end test.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             exit_code = cli.main(
@@ -66,7 +66,7 @@ class TestCLIBasicCommands:
         This test is marked as slow because dry-run is a utility feature,
         not part of the core use case.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             exit_code = cli.main(
@@ -86,7 +86,7 @@ class TestCLIBasicCommands:
         This test is marked as slow because it tests an extended feature,
         not the core use case.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             exit_code = cli.main(
@@ -132,7 +132,7 @@ class TestCLIBasicCommands:
         OpenAI provider tests are covered in test_openai_mock.py.
         Note: generate_summaries requires generate_metadata=True.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             exit_code = cli.main(
@@ -170,7 +170,7 @@ class TestCLIBasicCommands:
         Note: Uses 'local' provider to avoid OpenAI API key requirement.
         OpenAI provider tests are covered in test_openai_mock.py.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             exit_code = cli.main(
@@ -211,7 +211,7 @@ class TestCLIConfigFile:
 
     def test_config_file_json(self, e2e_server):
         """Test --config with JSON file: podcast-scraper --config <config.json>."""
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create config file
@@ -248,7 +248,7 @@ class TestCLIConfigFile:
         except ImportError:
             pytest.skip("PyYAML not available")
 
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create config file
@@ -275,7 +275,7 @@ class TestCLIConfigFile:
 
     def test_cli_overrides_config(self, e2e_server):
         """Test CLI arguments override config file values."""
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create config file with max_episodes=2
@@ -313,7 +313,7 @@ class TestCLITranscribeMissing:
         """
         # For now, we'll test that the flag is accepted and the workflow completes
         # Real Whisper transcription will be tested in Stage 8
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Use a feed that doesn't have transcripts to trigger transcription

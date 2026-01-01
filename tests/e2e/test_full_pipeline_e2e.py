@@ -24,7 +24,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import workflow
+from podcast_scraper import config, workflow
 
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent
@@ -274,7 +274,7 @@ class TestFullPipelineE2E:
         Uses real Transformers model for summarization (requires model to be cached).
         """
         # Require Transformers model to be cached (skip if not available)
-        require_transformers_model_cached("facebook/bart-base", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         feed_url = self.e2e_server.urls.feed("podcast1_with_transcript")
 
@@ -286,7 +286,7 @@ class TestFullPipelineE2E:
             metadata_format="json",
             generate_summaries=True,
             summary_provider="local",
-            summary_model="facebook/bart-base",  # Use smallest model for speed
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
             auto_speakers=False,  # Disable to avoid loading spaCy
             transcribe_missing=False,  # No transcription needed
         )
@@ -338,7 +338,7 @@ class TestFullPipelineE2E:
             metadata_format="json",
             generate_summaries=True,
             summary_provider="local",
-            summary_model="facebook/bart-base",
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             auto_speakers=True,
             ner_model="en_core_web_sm",
             transcribe_missing=True,
@@ -347,7 +347,7 @@ class TestFullPipelineE2E:
 
         # Require ML models to be cached (spaCy model is installed as dependency)
         require_whisper_model_cached("tiny.en")
-        require_transformers_model_cached("facebook/bart-base", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         # Run pipeline with real models
         count, summary = workflow.run_pipeline(cfg)
@@ -478,7 +478,7 @@ class TestFullPipelineE2E:
         Uses smallest models for speed but tests real model behavior.
         """
         # Require models to be cached (spaCy model is installed as dependency)
-        require_transformers_model_cached("facebook/bart-base", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         feed_url = self.e2e_server.urls.feed("podcast1_with_transcript")
 
@@ -490,17 +490,17 @@ class TestFullPipelineE2E:
             metadata_format="json",
             generate_summaries=True,
             summary_provider="local",
-            summary_model="facebook/bart-base",  # Small model for speed
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             auto_speakers=True,
-            ner_model="en_core_web_sm",  # Small model for speed
+            ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
             transcribe_missing=True,
-            whisper_model="tiny.en",  # Smallest model for speed
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             language="en",
         )
 
         # Require all ML models to be cached (spaCy model is installed as dependency)
-        require_whisper_model_cached("tiny.en")
-        require_transformers_model_cached("facebook/bart-base", None)
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         # Run pipeline with real models
         # Note: This may take longer due to real model loading and processing
