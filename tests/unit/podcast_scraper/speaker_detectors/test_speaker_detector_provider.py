@@ -86,7 +86,7 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
     def test_detector_initialization_state(self):
         """Test that detector tracks initialization state."""
         detector = create_speaker_detector(self.cfg)
-        # Initially not initialized (auto_speakers is False)
+        # Initially not initialized (needs initialize() call)
         self.assertFalse(detector._spacy_initialized)
 
     @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
@@ -198,7 +198,7 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
         mock_analyze.assert_called_once()
 
     def test_detector_analyze_patterns_no_model(self):
-        """Test that analyze_patterns() returns None if model not available."""
+        """Test that analyze_patterns() raises RuntimeError if auto_speakers is False."""
         # Bandit: Safe XML construction for test data only
         # Bandit: Safe XML construction for test data only
         from xml.etree import ElementTree as ET  # nosec B405  # nosec B405
@@ -211,7 +211,6 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
             auto_speakers=False,
         )
         detector = create_speaker_detector(cfg)
-        detector.initialize()  # This won't load a model
 
         # Create Episode using proper structure
         item = ET.Element("item")
@@ -227,9 +226,10 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
             )
         ]
 
-        result = detector.analyze_patterns(episodes=episodes, known_hosts=set())
+        with self.assertRaises(RuntimeError) as context:
+            detector.analyze_patterns(episodes=episodes, known_hosts=set())
 
-        self.assertIsNone(result)
+        self.assertIn("auto_speakers is False", str(context.exception))
 
 
 class TestSpeakerDetectorProtocol(unittest.TestCase):
