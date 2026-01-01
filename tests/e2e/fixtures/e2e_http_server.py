@@ -275,12 +275,17 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if path.startswith("/audio/"):
             filename = path.split("/")[-1]  # Extract "p01_e01.mp3"
             # Validate filename first (returns None if invalid)
+            # This validation follows CodeQL recommendations:
+            # - No path separators, no "..", exactly one dot, allowlist pattern
             validation_result = self._validate_and_sanitize_filename("audio", filename)
             if validation_result is None:
                 self.send_error(403, "Path traversal not allowed")
                 return
-            # Validation passed, now check if file exists
-            file_path = self._get_safe_fixture_path("audio", filename)
+            # Unpack validated values (these have passed all security checks)
+            validated_subdir, validated_filename = validation_result
+            # Use validated values for path construction (not original filename)
+            # validated_filename is safe: validated according to CodeQL recommendations
+            file_path = self._get_safe_fixture_path(validated_subdir, validated_filename)
             if file_path is None:
                 # File doesn't exist (validation passed but file not found)
                 self.send_error(404, "File not found")
@@ -293,12 +298,17 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if path.startswith("/transcripts/"):
             filename = path.split("/")[-1]  # Extract "p01_e01.txt"
             # Validate filename first (returns None if invalid)
+            # This validation follows CodeQL recommendations:
+            # - No path separators, no "..", exactly one dot, allowlist pattern
             validation_result = self._validate_and_sanitize_filename("transcripts", filename)
             if validation_result is None:
                 self.send_error(403, "Path traversal not allowed")
                 return
-            # Validation passed, now check if file exists
-            file_path = self._get_safe_fixture_path("transcripts", filename)
+            # Unpack validated values (these have passed all security checks)
+            validated_subdir, validated_filename = validation_result
+            # Use validated values for path construction (not original filename)
+            # validated_filename is safe: validated according to CodeQL recommendations
+            file_path = self._get_safe_fixture_path(validated_subdir, validated_filename)
             if file_path is None:
                 # File doesn't exist (validation passed but file not found)
                 self.send_error(404, "File not found")
@@ -524,6 +534,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return None
 
         # Reject filenames containing path separators or ".." segments
+        # Check for ".." explicitly (not just replacement) per CodeQL recommendation
+        # This prevents attacks like ".../...//" which could become "../" after processing
         if "/" in filename or "\\" in filename or ".." in filename:
             return None
 
@@ -563,16 +575,21 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         the result is safe. All inputs must be pre-validated.
 
         Args:
-            base_dir: Base directory (must be within fixture root)
+            base_dir: Base directory (must be within fixture root, already validated)
             validated_filename: Filename that has passed validation
-                               (no path separators, matches allowlist)
+                               (no path separators, matches allowlist, exactly one dot)
 
         Returns:
             Validated Path if construction succeeds and path is safe, None otherwise
         """
-        # validated_filename has been validated: no path separators, matches allowlist
-        # Safe to use in path construction
+        # validated_filename has been validated according to CodeQL recommendations:
+        # - No path separators ("/", "\\")
+        # - No ".." segments (checked explicitly, not just replacement)
+        # - Exactly one "." character (allowlist pattern)
+        # - Matches allowlist regex pattern
+        # Safe to use in path construction per CodeQL guidelines
         try:
+            # Construct path using validated filename (safe per validation above)
             candidate = (base_dir / validated_filename).resolve()
         except (OSError, RuntimeError):
             # Path resolution failed (e.g., broken symlink, invalid path)
@@ -583,6 +600,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if not candidate.is_file():
             return None
         # Verify path containment (prevents symlink attacks)
+        # This check happens AFTER resolve() to catch any path traversal attempts
         try:
             if not candidate.is_relative_to(base_dir):
                 return None
@@ -617,21 +635,28 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Unpack validated values (these have passed all security checks)
         validated_subdir, validated_filename = validation_result
 
-        # Build base directory using validated subdir
-        # validated_subdir is one of ("audio", "transcripts") - safe to use
+        # validated_subdir has been validated: one of ("audio", "transcripts")
+        # No path separators, no "..", safe to use in path construction
         fixture_root = self.get_fixture_root()
+
+        # Build base directory using validated subdir
+        # validated_subdir is safe: validated to be one of ("audio", "transcripts")
         base_dir = fixture_root / validated_subdir
 
         # Verify base_dir is within fixture_root (defense in depth)
+        # This ensures that even if validated_subdir somehow contained path traversal,
+        # the resolved path would still be within fixture_root
         try:
             resolved_base = base_dir.resolve()
             if not resolved_base.is_relative_to(fixture_root):
                 return None
+            # Use resolved base for all subsequent operations
             base_dir = resolved_base
         except (OSError, RuntimeError, ValueError, AttributeError):
             return None
 
         # Build path using validated components
+        # validated_filename is safe: validated according to CodeQL recommendations
         return self._build_validated_path(base_dir, validated_filename)
 
     def _validate_and_sanitize_rss_filename(self, rss_file: str) -> Optional[str]:
@@ -654,6 +679,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return None
 
         # Reject filenames containing path separators or ".." segments
+        # Check for ".." explicitly (not just replacement) per CodeQL recommendation
+        # This prevents attacks like ".../...//" which could become "../" after processing
         if "/" in rss_file or "\\" in rss_file or ".." in rss_file:
             return None
 
@@ -694,6 +721,13 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if validated_rss_file is None:
             return None
 
+        # validated_rss_file has been validated according to CodeQL recommendations:
+        # - No path separators ("/", "\\")
+        # - No ".." segments (checked explicitly, not just replacement)
+        # - Exactly one "." character (allowlist pattern)
+        # - Matches allowlist regex pattern (p\d+_[a-z0-9_]+\.xml)
+        # Safe to use in path construction per CodeQL guidelines
+
         # Build base directory (hardcoded "rss", not user-controlled)
         fixture_root = self.get_fixture_root()
         base_dir = fixture_root / "rss"
@@ -703,12 +737,13 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             resolved_base = base_dir.resolve()
             if not resolved_base.is_relative_to(fixture_root):
                 return None
+            # Use resolved base for all subsequent operations
             base_dir = resolved_base
         except (OSError, RuntimeError, ValueError, AttributeError):
             return None
 
         # Build path using validated components
-        # validated_rss_file has passed all security checks (no path separators, matches allowlist)
+        # validated_rss_file is safe: validated according to CodeQL recommendations
         return self._build_validated_path(base_dir, validated_rss_file)
 
     def _validate_served_file_path(self, file_path: Path) -> Optional[Path]:
@@ -718,21 +753,29 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         Even though file_path comes from validated helper methods, we verify here
         to satisfy static analysis tools and provide additional security layer.
 
+        This validation follows CodeQL recommendations:
+        - Resolve path to normalize any components
+        - Verify resolved path is within fixture root (prevents path traversal)
+        - Verify it's actually a file (not a directory)
+
         Args:
-            file_path: Path to validate
+            file_path: Path to validate (should come from validated helper methods)
 
         Returns:
             Resolved and validated Path if safe, None if invalid
         """
         fixture_root = self.get_fixture_root()
         try:
+            # Resolve path to normalize any components (handles symlinks, "..", etc.)
             resolved_path = file_path.resolve()
-            # Verify path is within fixture root
+            # Verify path is within fixture root (prevents path traversal)
+            # This check happens AFTER resolve() to catch any traversal attempts
             if not resolved_path.is_relative_to(fixture_root):
                 return None
-            # Verify it's actually a file
+            # Verify it's actually a file (not a directory or symlink to directory)
             if not resolved_path.is_file():
                 return None
+            # Return validated path (safe to use in file operations)
             return resolved_path
         except (OSError, RuntimeError, ValueError, AttributeError):
             return None
