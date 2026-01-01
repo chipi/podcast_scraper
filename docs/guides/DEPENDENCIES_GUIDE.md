@@ -126,7 +126,8 @@ like transcription and summarization.
 
   The model version (3.7.1) is pinned to match spaCy 3.7.x compatibility. See `pyproject.toml` for the exact URL.
 
-- **Version compatibility**: spaCy 3.7.x requires `en_core_web_sm` 3.7.x. When updating spaCy, ensure the model version matches.
+- **Version compatibility**: spaCy 3.7.x requires `en_core_web_sm` 3.7.x.
+  When updating spaCy, ensure the model version matches.
 
   See spaCy's model compatibility documentation for details.
 
