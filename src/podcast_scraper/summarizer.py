@@ -2140,10 +2140,8 @@ def safe_summarize(
     try:
         return model.summarize(text, max_length=max_length, prompt=prompt)
     except Exception as e:
-        # Lazy import torch for error handling
-        import torch  # noqa: F401
-
         # Handle both CUDA and MPS out-of-memory errors
+        # Check error message string (torch not needed for this check)
         if isinstance(e, RuntimeError) and (
             "out of memory" in str(e).lower() or "mps" in str(e).lower()
         ):

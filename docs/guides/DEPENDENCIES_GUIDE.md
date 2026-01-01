@@ -156,7 +156,8 @@ like transcription and summarization.
 - **Why chosen**: Provides machine-readable test metrics (pass/fail counts, durations, flaky test detection) that
   integrate with our metrics collection system (RFC-025). Used in nightly workflow for comprehensive test metrics
   tracking.
-- **Key features utilized**: JSON report generation (`--json-report`), test outcome tracking, rerun detection for flaky tests
+- **Key features utilized**: JSON report generation (`--json-report`), test outcome tracking, rerun detection for
+  flaky tests
 - **Alternatives considered**: Custom pytest plugins (more maintenance), JUnit XML only (less structured data)
 - **Usage**: Automatically used in nightly workflow via `--json-report --json-report-file=reports/pytest.json`
 

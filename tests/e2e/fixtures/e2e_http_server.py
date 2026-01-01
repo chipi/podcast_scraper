@@ -249,30 +249,22 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # /audio/p01_e01.mp3 -> audio/p01_e01.mp3
         if path.startswith("/audio/"):
             filename = path.split("/")[-1]  # Extract "p01_e01.mp3"
-            # Security: Check for path traversal
-            if ".." in filename or "/" in filename:
+            file_path = self._get_safe_fixture_path("audio", filename)
+            if file_path is None:
                 self.send_error(403, "Path traversal not allowed")
                 return
-            file_path = self.get_fixture_root() / "audio" / filename
-            if file_path.exists():
-                self._serve_file(file_path, content_type="audio/mpeg", support_range=True)
-                return
-            self.send_error(404, "Audio file not found")
+            self._serve_file(file_path, content_type="audio/mpeg", support_range=True)
             return
 
         # Route 3: Direct flat URLs for transcripts
         # /transcripts/p01_e01.txt -> transcripts/p01_e01.txt
         if path.startswith("/transcripts/"):
             filename = path.split("/")[-1]  # Extract "p01_e01.txt"
-            # Security: Check for path traversal
-            if ".." in filename or "/" in filename:
+            file_path = self._get_safe_fixture_path("transcripts", filename)
+            if file_path is None:
                 self.send_error(403, "Path traversal not allowed")
                 return
-            file_path = self.get_fixture_root() / "transcripts" / filename
-            if file_path.exists():
-                self._serve_file(file_path, content_type="text/plain")
-                return
-            self.send_error(404, "Transcript file not found")
+            self._serve_file(file_path, content_type="text/plain")
             return
 
         # 404 for all other paths
@@ -445,6 +437,43 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         except Exception as e:
             self.send_error(500, f"Error handling audio transcriptions: {e}")
+
+    def _get_safe_fixture_path(self, subdir: str, filename: str) -> Optional[Path]:
+        """Safely construct and validate a fixture file path.
+
+        This method prevents path traversal attacks by:
+        1. Rejecting filenames with path separators or ".." segments
+        2. Building the path relative to a fixed root directory
+        3. Normalizing the path with resolve()
+        4. Verifying the normalized path is within the intended root and is a file
+
+        Args:
+            subdir: Subdirectory name ("audio" or "transcripts")
+            filename: Filename from request (untrusted input)
+
+        Returns:
+            Safe Path if validation passes, None if input is invalid
+        """
+        # Reject filenames containing path separators or ".." segments
+        if "/" in filename or "\\" in filename or ".." in filename:
+            return None
+
+        # Build base directory
+        base_dir = self.get_fixture_root() / subdir
+
+        # Build candidate path and resolve to normalize
+        try:
+            candidate = (base_dir / filename).resolve()
+        except (OSError, RuntimeError):
+            # Path resolution failed (e.g., broken symlink, invalid path)
+            return None
+
+        # Verify candidate is a file and is within base_dir
+        # Python 3.9+ has is_relative_to, we're on 3.10+ so it's available
+        if not candidate.is_file() or not candidate.is_relative_to(base_dir):
+            return None
+
+        return candidate
 
     def _serve_file(self, file_path: Path, content_type: str, support_range: bool = False):
         """Serve a file with proper headers and range request support.

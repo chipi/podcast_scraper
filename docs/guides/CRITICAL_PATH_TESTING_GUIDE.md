@@ -107,6 +107,7 @@ The critical path should be tested at **all three levels** of the test pyramid:
 2. **`test_full_workflow_with_openai_providers`** ⭐ **ESSENTIAL (OpenAI Providers)**
    - Validates: RSS → Parse → Download/Transcribe → **OpenAI Speaker Detection** →
      **OpenAI Summarization** → Metadata → Files
+
    - Uses: OpenAI providers (mocked API calls)
    - This is the **complete critical path** with OpenAI providers
 
@@ -221,7 +222,7 @@ When deciding what to test, ask:
 ## Critical Path Test Coverage Matrix
 
 | Scenario     | Unit Tests        | Integration Tests | E2E Tests      |
-| -------------- | ------------------- | ------------------- | ---------------- |
+|--------------|-------------------|-------------------|----------------|
 | RSS parsing | ✅ Parse RSS feeds | ✅ RSS → Episode | ✅ Full workflow |
 | Transcript download | ✅ Download logic | ✅ Download → Metadata | ✅ Full workflow |
 | Transcription | ✅ Whisper integration | ✅ Audio → Transcript | ✅ Full workflow |
@@ -245,6 +246,7 @@ When deciding what to test, ask:
    - File: `tests/integration/test_component_workflows.py::TestRSSToMetadataWorkflow`
    - Validates: RSS → Parse → Download/Transcribe → **OpenAI Speaker Detection** →
      **OpenAI Summarization** → Metadata → Files
+
    - Uses: RSS feed with audio URL, mocked OpenAI transcription, speaker detection, and summarization
    - **This is the complete critical path with OpenAI providers**
 

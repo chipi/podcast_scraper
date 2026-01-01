@@ -394,6 +394,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .[dev,ml]
         pip install pytest-socket
+    - name: Install ffmpeg (required for Whisper)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
     - name: Run all E2E tests (full suite, with network guard)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
