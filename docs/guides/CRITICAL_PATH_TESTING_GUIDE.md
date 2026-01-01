@@ -221,14 +221,14 @@ When deciding what to test, ask:
 
 ## Critical Path Test Coverage Matrix
 
-| Scenario     | Unit Tests        | Integration Tests | E2E Tests      |
-| -------------- | ------------------- | ------------------- | ---------------- |
-| RSS parsing | ✅ Parse RSS feeds | ✅ RSS → Episode | ✅ Full workflow |
-| Transcript download | ✅ Download logic | ✅ Download → Metadata | ✅ Full workflow |
-| Transcription | ✅ Whisper integration | ✅ Audio → Transcript | ✅ Full workflow |
-| NER (Speaker Detection) | ✅ NER extraction | ✅ Transcript → Speakers | ✅ Full workflow |
-| Summarization | ✅ Summary generation | ✅ Transcript → Summary | ✅ Full workflow |
-| Metadata generation | ✅ Metadata creation | ✅ All data → Metadata | ✅ Full workflow |
+|Scenario      |Unit Tests         |Integration Tests  |E2E Tests       |
+|--------------|-------------------|-------------------|----------------|
+|RSS parsing|✅ Parse RSS feeds|✅ RSS → Episode|✅ Full workflow|
+|Transcript download|✅ Download logic|✅ Download → Metadata|✅ Full workflow|
+|Transcription|✅ Whisper integration|✅ Audio → Transcript|✅ Full workflow|
+|NER (Speaker Detection)|✅ NER extraction|✅ Transcript → Speakers|✅ Full workflow|
+|Summarization|✅ Summary generation|✅ Transcript → Summary|✅ Full workflow|
+|Metadata generation|✅ Metadata creation|✅ All data → Metadata|✅ Full workflow|
 
 ## Current Critical Path Coverage
 
