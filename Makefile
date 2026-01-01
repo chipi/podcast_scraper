@@ -221,7 +221,7 @@ docker-build-fast:
 	@echo "This should complete in under 5 minutes..."
 	@echo ""
 	@time DOCKER_BUILDKIT=1 docker build \
-		--build-arg WHISPER_PRELOAD_MODELS= \
+		--build-arg PRELOAD_ML_MODELS=false \
 		-t podcast-scraper:test-fast \
 		-f Dockerfile .
 	@echo ""
@@ -229,10 +229,11 @@ docker-build-fast:
 
 docker-build-full:
 	@echo "Building Docker image (full mode - with model preloading, matches main builds)..."
-	@echo "This will take longer due to Whisper model downloads..."
+	@echo "This will take longer due to ML model downloads..."
 	@echo ""
 	@time DOCKER_BUILDKIT=1 docker build \
-		--build-arg WHISPER_PRELOAD_MODELS=base.en \
+		--build-arg PRELOAD_ML_MODELS=true \
+		--build-arg WHISPER_MODELS=base.en \
 		-t podcast-scraper:test \
 		-f Dockerfile .
 	@echo ""
@@ -307,41 +308,5 @@ clean-all: clean clean-cache
 
 preload-ml-models:
 	@echo "Preloading ML models for local development..."
-	@echo "This will download and cache models to avoid network calls during testing."
-	@echo ""
-	@echo "Preloading Whisper models..."
-	@echo "  - tiny.en (English-only, smallest and fastest model for tests)..."
-	@$(PYTHON) -c "import whisper; model = whisper.load_model('tiny.en'); print('  Verifying model loads...'); assert model is not None; print('  Verifying model structure...'); assert hasattr(model, 'dims') and model.dims is not None" || \
-		(echo "ERROR: Failed to preload Whisper tiny.en. Install with: pip install openai-whisper" && exit 1)
-	@echo "  ✓ Whisper tiny.en cached and verified"
-	@echo ""
-	@echo "Verifying spaCy model: en_core_web_sm..."
-	@echo "  (Model is installed as a dependency, no download needed)"
-	@$(PYTHON) -c "import spacy; nlp = spacy.load('en_core_web_sm'); print('  Verifying model loads...'); assert nlp is not None; doc = nlp('Test text'); print('  Verifying model works...'); assert doc is not None and len(doc) > 0" || \
-		(echo "ERROR: spaCy model not available. Install with: pip install -e .[ml]" && exit 1)
-	@echo "✓ spaCy model verified (installed as dependency)"
-	@echo ""
-	@echo "Preloading Transformers models..."
-	@echo "  - facebook/bart-base..."
-	@$(PYTHON) -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; from pathlib import Path; import gc; print('  Downloading...'); tokenizer = AutoTokenizer.from_pretrained('facebook/bart-base'); model = AutoModelForSeq2SeqLM.from_pretrained('facebook/bart-base'); print('  Verifying model loads...'); assert model is not None and tokenizer is not None; print('  Verifying tokenizer works...'); tokens = tokenizer.encode('Test text', return_tensors='pt'); assert tokens is not None; print('  Verifying model structure...'); assert hasattr(model, 'config') and model.config is not None; del model, tokenizer; gc.collect(); cache_path = Path.home() / '.cache' / 'huggingface' / 'hub' / 'models--facebook--bart-base'; snapshots = cache_path / 'snapshots'; assert snapshots.exists(), 'Model files not cached to disk'; model_files = []; [model_files.extend(list((snapshots / item.name).glob('*.safetensors')) + list((snapshots / item.name).glob('*.bin'))) for item in snapshots.iterdir() if (snapshots / item.name).is_dir()]; assert len(model_files) > 0, 'Model files not found in cache'; print('  ✓ Model files verified on disk')" || \
-		(echo "ERROR: Failed to preload facebook/bart-base. Install with: pip install transformers torch" && exit 1)
-	@echo "  ✓ facebook/bart-base cached and verified"
-	@echo "  - facebook/bart-large-cnn..."
-	@$(PYTHON) -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; from pathlib import Path; import gc; print('  Downloading...'); tokenizer = AutoTokenizer.from_pretrained('facebook/bart-large-cnn'); model = AutoModelForSeq2SeqLM.from_pretrained('facebook/bart-large-cnn'); print('  Verifying model loads...'); assert model is not None and tokenizer is not None; print('  Verifying tokenizer works...'); tokens = tokenizer.encode('Test text', return_tensors='pt'); assert tokens is not None; print('  Verifying model structure...'); assert hasattr(model, 'config') and model.config is not None; del model, tokenizer; gc.collect(); cache_path = Path.home() / '.cache' / 'huggingface' / 'hub' / 'models--facebook--bart-large-cnn'; snapshots = cache_path / 'snapshots'; assert snapshots.exists(), 'Model files not cached to disk'; model_files = []; [model_files.extend(list((snapshots / item.name).glob('*.safetensors')) + list((snapshots / item.name).glob('*.bin'))) for item in snapshots.iterdir() if (snapshots / item.name).is_dir()]; assert len(model_files) > 0, 'Model files not found in cache'; print('  ✓ Model files verified on disk')" || \
-		(echo "ERROR: Failed to preload facebook/bart-large-cnn. Install with: pip install transformers torch" && exit 1)
-	@echo "  ✓ facebook/bart-large-cnn cached and verified"
-	@echo "  - sshleifer/distilbart-cnn-12-6..."
-	@$(PYTHON) -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; from pathlib import Path; import gc; print('  Downloading...'); tokenizer = AutoTokenizer.from_pretrained('sshleifer/distilbart-cnn-12-6'); model = AutoModelForSeq2SeqLM.from_pretrained('sshleifer/distilbart-cnn-12-6'); print('  Verifying model loads...'); assert model is not None and tokenizer is not None; print('  Verifying tokenizer works...'); tokens = tokenizer.encode('Test text', return_tensors='pt'); assert tokens is not None; print('  Verifying model structure...'); assert hasattr(model, 'config') and model.config is not None; del model, tokenizer; gc.collect(); cache_path = Path.home() / '.cache' / 'huggingface' / 'hub' / 'models--sshleifer--distilbart-cnn-12-6'; snapshots = cache_path / 'snapshots'; assert snapshots.exists(), 'Model files not cached to disk'; model_files = []; [model_files.extend(list((snapshots / item.name).glob('*.safetensors')) + list((snapshots / item.name).glob('*.bin'))) for item in snapshots.iterdir() if (snapshots / item.name).is_dir()]; assert len(model_files) > 0, 'Model files not found in cache'; print('  ✓ Model files verified on disk')" || \
-		(echo "ERROR: Failed to preload sshleifer/distilbart-cnn-12-6. Install with: pip install transformers torch" && exit 1)
-	@echo "  ✓ sshleifer/distilbart-cnn-12-6 cached and verified"
-	@echo "  - allenai/led-base-16384 (REDUCE model for summarization)..."
-	@$(PYTHON) -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; from pathlib import Path; import gc; print('  Downloading...'); tokenizer = AutoTokenizer.from_pretrained('allenai/led-base-16384'); model = AutoModelForSeq2SeqLM.from_pretrained('allenai/led-base-16384'); print('  Verifying model loads...'); assert model is not None and tokenizer is not None; print('  Verifying tokenizer works...'); tokens = tokenizer.encode('Test text', return_tensors='pt'); assert tokens is not None; print('  Verifying model structure...'); assert hasattr(model, 'config') and model.config is not None; del model, tokenizer; gc.collect(); cache_path = Path.home() / '.cache' / 'huggingface' / 'hub' / 'models--allenai--led-base-16384'; snapshots = cache_path / 'snapshots'; assert snapshots.exists(), 'Model files not cached to disk'; model_files = []; [model_files.extend(list((snapshots / item.name).glob('*.safetensors')) + list((snapshots / item.name).glob('*.bin'))) for item in snapshots.iterdir() if (snapshots / item.name).is_dir()]; assert len(model_files) > 0, 'Model files not found in cache'; print('  ✓ Model files verified on disk')" || \
-		(echo "ERROR: Failed to preload allenai/led-base-16384. Install with: pip install transformers torch" && exit 1)
-	@echo "  ✓ allenai/led-base-16384 cached and verified"
-	@echo ""
-	@echo "All models preloaded and verified successfully!"
-	@echo "Models are cached in:"
-	@echo "  - Whisper: ~/.cache/whisper/"
-	@echo "  - spaCy: Installed as dependency (en_core_web_sm in pyproject.toml)"
-	@echo "  - Transformers: ~/.cache/huggingface/hub/"
+	@$(PYTHON) scripts/preload_ml_models.py
 

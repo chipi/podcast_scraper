@@ -48,7 +48,7 @@ jobs:
         context: .
         file: Dockerfile
         build-args: |
-          WHISPER_PRELOAD_MODELS=
+          PRELOAD_ML_MODELS=false
         push: false
         load: true
         tags: podcast-scraper:test
@@ -81,10 +81,10 @@ jobs:
         include:
           - name: default
             tag: podcast-scraper:test
-            build_args: "WHISPER_PRELOAD_MODELS="
+            build_args: "PRELOAD_ML_MODELS=true\nWHISPER_MODELS=base.en"
           - name: multi-model
             tag: podcast-scraper:multi-model
-            build_args: "WHISPER_PRELOAD_MODELS=tiny.en,base.en"
+            build_args: "PRELOAD_ML_MODELS=true\nWHISPER_MODELS=tiny.en,base.en"
     steps:
     - uses: actions/checkout@v4
 

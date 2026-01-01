@@ -5,8 +5,23 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     XDG_CACHE_HOME=/opt/whisper-cache
 
-ARG WHISPER_PRELOAD_MODELS=base.en
-ENV WHISPER_PRELOAD_MODELS=${WHISPER_PRELOAD_MODELS}
+# Build args for ML model preloading
+# PRELOAD_ML_MODELS: Set to "true" to preload all models, "false" to skip (default: "true")
+# WHISPER_MODELS: Comma-separated list of Whisper models to preload.
+#                 Default in script is "tiny.en" (for local dev speed), but Docker uses "base.en" (production quality).
+#                 Override to use different models (e.g., "tiny.en" for faster builds, "base.en,tiny.en" for multiple).
+# TRANSFORMERS_MODELS: Comma-separated list of Transformers models to preload.
+#                      If empty (default), script preloads all 4 models (bart-base, bart-large-cnn, distilbart, led-base-16384).
+#                      Specify to override (e.g., "facebook/bart-base" for faster builds).
+# SKIP_TRANSFORMERS: Set to "1" to skip Transformers preloading entirely (for fast builds)
+ARG PRELOAD_ML_MODELS=true
+ARG WHISPER_MODELS=base.en
+ARG TRANSFORMERS_MODELS=
+ARG SKIP_TRANSFORMERS=
+ENV PRELOAD_ML_MODELS=${PRELOAD_ML_MODELS}
+ENV WHISPER_MODELS=${WHISPER_MODELS}
+ENV TRANSFORMERS_MODELS=${TRANSFORMERS_MODELS}
+ENV SKIP_TRANSFORMERS=${SKIP_TRANSFORMERS}
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \
@@ -47,25 +62,19 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --no-deps .
 
 # hadolint ignore=SC2261
-# Use BuildKit cache mount for Whisper model cache (faster rebuilds when models already downloaded)
+# Preload ML models using unified script
+# Use BuildKit cache mounts for model caches (faster rebuilds when models already downloaded)
+# Cache locations:
+# - Whisper: /opt/whisper-cache (via XDG_CACHE_HOME)
+# - Transformers: /root/.cache/huggingface (via default cache location)
+# - spaCy: Installed as dependency, no separate cache needed
 RUN --mount=type=cache,target=/opt/whisper-cache \
-    python - <<'PY'
-import os
-import whisper
-
-model_csv = os.environ.get("WHISPER_PRELOAD_MODELS", "").strip()
-if model_csv:
-    models = [m.strip() for m in model_csv.split(",") if m.strip()]
-else:
-    models = []
-# Only preload if models are specified (skip for fast builds when WHISPER_PRELOAD_MODELS is empty)
-if models:
-    for name in models:
-        print(f"Preloading Whisper model: {name}")
-        whisper.load_model(name)
-else:
-    print("Skipping model preloading (WHISPER_PRELOAD_MODELS is empty)")
-PY
+    --mount=type=cache,target=/root/.cache/huggingface \
+    bash -c 'if [ "$PRELOAD_ML_MODELS" = "true" ]; then \
+        python scripts/preload_ml_models.py; \
+    else \
+        echo "Skipping ML model preloading (PRELOAD_ML_MODELS=false)"; \
+    fi'
 
 RUN mkdir -p /opt/podcast_scraper/examples \
     && cp examples/config.example.* /opt/podcast_scraper/examples/
