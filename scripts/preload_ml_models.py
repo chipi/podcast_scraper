@@ -170,8 +170,9 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
         print(f"  - {model_name}...")
         try:
             print("    Downloading...")
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+            # nosec B615 - Model names pinned in config, preload script for dev/testing
+            tokenizer = AutoTokenizer.from_pretrained(model_name)  # nosec B615
+            model = AutoModelForSeq2SeqLM.from_pretrained(model_name)  # nosec B615
 
             # Verify model loads
             assert (
