@@ -216,7 +216,29 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Route 1: RSS feeds
         # /feeds/podcast1/feed.xml -> rss/p01_mtb.xml
         if path.startswith("/feeds/") and path.endswith("/feed.xml"):
-            podcast_name = path.split("/")[2]  # Extract "podcast1"
+            # Extract podcast_name from URL path
+            path_parts = path.split("/")
+            if len(path_parts) < 3:
+                self.send_error(400, "Invalid URL format")
+                return
+            podcast_name = path_parts[2]  # Extract "podcast1"
+
+            # Validate podcast_name to prevent path injection
+            # Even though it's only used as a dictionary key, validate for defense in depth
+            if not podcast_name or not isinstance(podcast_name, str):
+                self.send_error(400, "Invalid podcast name")
+                return
+            # Reject podcast_name containing path separators or ".."
+            if "/" in podcast_name or "\\" in podcast_name or ".." in podcast_name:
+                self.send_error(400, "Invalid podcast name")
+                return
+            # Reject podcast_name with whitespace or special characters
+            if (
+                podcast_name.strip() != podcast_name
+                or not podcast_name.replace("_", "").replace("-", "").isalnum()
+            ):
+                self.send_error(400, "Invalid podcast name")
+                return
 
             # Check if podcast is allowed (fast mode limitation)
             with self._allowed_podcasts_lock:
@@ -432,7 +454,20 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                             if len(parts) > 1:
                                 filename_part = parts[1].strip().strip('"').strip("'")
                                 if filename_part:
-                                    filename = filename_part
+                                    # Validate filename to prevent injection in response
+                                    # Reject filenames containing path separators or ".."
+                                    if (
+                                        "/" not in filename_part
+                                        and "\\" not in filename_part
+                                        and ".." not in filename_part
+                                    ):
+                                        # Sanitize filename for safe use in response string
+                                        # Remove any potentially dangerous characters
+                                        sanitized = "".join(
+                                            c for c in filename_part if c.isalnum() or c in "._-"
+                                        )
+                                        if sanitized:
+                                            filename = sanitized
                                     break
             except Exception:
                 # If parsing fails, use default filename
@@ -440,6 +475,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 pass
 
             # Generate a realistic transcription response
+            # filename is now sanitized and safe to use in string formatting
             transcript = (
                 f"This is a test transcription of {filename}. "
                 "The audio contains spoken content that has been transcribed."
