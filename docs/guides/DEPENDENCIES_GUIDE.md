@@ -200,6 +200,7 @@ like transcription and summarization.
 ## Installation
 
 ### Core Dependencies Only
+
 ````bash
 pip install -e .
 ```text
