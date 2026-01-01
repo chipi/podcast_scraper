@@ -25,25 +25,31 @@ COPY src/ ./src/
 
 # Install torch CPU-only first (optimization: smaller than CUDA version, ~150MB vs 4GB+)
 # This will be replaced by the version from pyproject.toml if needed, but CPU version is preferred
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
-    rm -rf /root/.cache/pip
+# Use BuildKit cache mount for pip cache (faster rebuilds)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
 # Install all dependencies from pyproject.toml (core + ML extras)
 # All versions come from pyproject.toml - no hardcoded versions
-RUN pip install --no-cache-dir .[ml] && \
-    pip uninstall -y podcast-scraper && \
-    rm -rf /root/.cache/pip
+# Use BuildKit cache mount for pip cache (faster rebuilds)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir .[ml] && \
+    pip uninstall -y podcast-scraper
 
 # Ensure torch CPU-only version is used (reinstall CPU version to override any CUDA version)
-RUN pip install --no-cache-dir --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu && \
-    rm -rf /root/.cache/pip
+# Use BuildKit cache mount for pip cache (faster rebuilds)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu
 
 # Copy all remaining files and install the podcast_scraper package itself (without reinstalling deps)
 COPY . .
-RUN pip install --no-cache-dir --no-deps .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --no-deps .
 
 # hadolint ignore=SC2261
-RUN python - <<'PY'
+# Use BuildKit cache mount for Whisper model cache (faster rebuilds when models already downloaded)
+RUN --mount=type=cache,target=/opt/whisper-cache \
+    python - <<'PY'
 import os
 import whisper
 
@@ -52,12 +58,13 @@ if model_csv:
     models = [m.strip() for m in model_csv.split(",") if m.strip()]
 else:
     models = []
-if not models:
-    models = ["base.en"]
-
-for name in models:
-    print(f"Preloading Whisper model: {name}")
-    whisper.load_model(name)
+# Only preload if models are specified (skip for fast builds when WHISPER_PRELOAD_MODELS is empty)
+if models:
+    for name in models:
+        print(f"Preloading Whisper model: {name}")
+        whisper.load_model(name)
+else:
+    print("Skipping model preloading (WHISPER_PRELOAD_MODELS is empty)")
 PY
 
 RUN mkdir -p /opt/podcast_scraper/examples \
@@ -67,7 +74,7 @@ RUN mkdir -p /app
 
 WORKDIR /app
 
-# Clean up build directory and pip cache
-RUN rm -rf /tmp/build /root/.cache/pip /root/.cache/torch
+# Clean up build directory (pip cache is handled by cache mounts, no need to clean)
+RUN rm -rf /tmp/build /root/.cache/torch
 
 ENTRYPOINT ["python", "-m", "podcast_scraper.service"]
