@@ -265,12 +265,12 @@ class TestAllMLModelsTogether:
             assert count > 0, "Should process at least one episode"
             assert isinstance(summary, str), "Summary should be a string"
 
-            # Verify transcript file was created
-            transcript_files = list(Path(tmpdir).glob("*.txt"))
+            # Verify transcript file was created (use rglob to search recursively)
+            transcript_files = list(Path(tmpdir).rglob("*.txt"))
             assert len(transcript_files) > 0, "At least one transcript file should be created"
 
-            # Verify metadata file was created
-            metadata_files = list(Path(tmpdir).glob("*.metadata.json"))
+            # Verify metadata file was created (use rglob to search recursively)
+            metadata_files = list(Path(tmpdir).rglob("*.metadata.json"))
             assert len(metadata_files) > 0, "At least one metadata file should be created"
 
     def test_model_loading_and_cleanup(self, e2e_server):
