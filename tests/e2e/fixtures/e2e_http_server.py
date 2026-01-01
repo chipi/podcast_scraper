@@ -441,22 +441,23 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             self.send_error(500, f"Error handling audio transcriptions: {e}")
 
-    def _get_safe_fixture_path(self, subdir: str, filename: str) -> Optional[Path]:
-        """Safely construct and validate a fixture file path.
+    def _validate_and_sanitize_filename(
+        self, subdir: str, filename: str
+    ) -> Optional[tuple[str, str]]:
+        """Validate and sanitize filename for safe path construction.
 
-        This method prevents path traversal attacks by:
-        1. Using an allowlist pattern to validate filename format
-        2. Rejecting filenames with path separators, "..", or multiple dots
-        3. Building the path relative to a fixed root directory
-        4. Normalizing the path with resolve()
-        5. Verifying the normalized path is within the intended root and is a file
+        This helper validates user input according to CodeQL recommendations:
+        - No path separators ("/", "\\")
+        - No ".." segments
+        - Exactly one "." character
+        - Matches allowlist pattern
 
         Args:
             subdir: Subdirectory name ("audio" or "transcripts")
             filename: Filename from request (untrusted input)
 
         Returns:
-            Safe Path if validation passes, None if input is invalid
+            Tuple of (validated_subdir, validated_filename) if valid, None otherwise
         """
         # Validate subdir parameter (prevent path injection via subdir)
         if not subdir or not isinstance(subdir, str):
@@ -496,20 +497,42 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if not allowed_pattern.match(filename):
             return None
 
-        # At this point, both subdir and filename have been validated:
-        # - subdir is one of ("audio", "transcripts") with no path separators
-        # - filename has no path separators or ".."
-        # - filename has exactly one "." character
-        # - filename matches allowlist pattern (p\d+_e\d+(_fast)?\.(mp3|txt))
-        # Safe to use in path construction
+        # Return sanitized values (these have passed all validation checks)
+        return (subdir, filename)
 
-        # Build base directory (subdir is validated, safe to use)
-        base_dir = self.get_fixture_root() / subdir
+    def _get_safe_fixture_path(self, subdir: str, filename: str) -> Optional[Path]:
+        """Safely construct and validate a fixture file path.
 
-        # Build candidate path and resolve to normalize
-        # Both subdir and filename are validated above, safe to use here
+        This method prevents path traversal attacks by:
+        1. Using an allowlist pattern to validate filename format
+        2. Rejecting filenames with path separators, "..", or multiple dots
+        3. Building the path relative to a fixed root directory
+        4. Normalizing the path with resolve()
+        5. Verifying the normalized path is within the intended root and is a file
+
+        Args:
+            subdir: Subdirectory name ("audio" or "transcripts")
+            filename: Filename from request (untrusted input)
+
+        Returns:
+            Safe Path if validation passes, None if input is invalid
+        """
+        # Validate and sanitize inputs (prevents path injection)
+        validation_result = self._validate_and_sanitize_filename(subdir, filename)
+        if validation_result is None:
+            return None
+
+        # Unpack validated values (these have passed all security checks)
+        validated_subdir, validated_filename = validation_result
+
+        # Build base directory using validated subdir
+        # Safe: validated_subdir is one of ("audio", "transcripts")
+        base_dir = self.get_fixture_root() / validated_subdir
+
+        # Build candidate path using validated filename and resolve to normalize
+        # validated_filename has passed all security checks (no path separators, matches allowlist)
         try:
-            candidate = (base_dir / filename).resolve()
+            candidate = (base_dir / validated_filename).resolve()
         except (OSError, RuntimeError):
             # Path resolution failed (e.g., broken symlink, invalid path)
             return None
@@ -529,21 +552,20 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         return candidate
 
-    def _get_safe_rss_path(self, rss_file: str) -> Optional[Path]:
-        """Safely construct and validate an RSS file path.
+    def _validate_and_sanitize_rss_filename(self, rss_file: str) -> Optional[str]:
+        """Validate and sanitize RSS filename for safe path construction.
 
-        This method prevents path traversal attacks by:
-        1. Using an allowlist pattern to validate RSS filename format
-        2. Rejecting filenames with path separators, "..", or multiple dots
-        3. Building the path relative to a fixed root directory
-        4. Normalizing the path with resolve()
-        5. Verifying the normalized path is within the intended root and is a file
+        This helper validates user input according to CodeQL recommendations:
+        - No path separators ("/", "\\")
+        - No ".." segments
+        - Exactly one "." character
+        - Matches allowlist pattern
 
         Args:
-            rss_file: RSS filename from dictionary lookup (should be validated)
+            rss_file: RSS filename from dictionary lookup (untrusted input)
 
         Returns:
-            Safe Path if validation passes, None if input is invalid
+            Validated filename if valid, None otherwise
         """
         # Reject empty filenames
         if not rss_file or not rss_file.strip():
@@ -566,19 +588,37 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if not allowed_pattern.match(rss_file):
             return None
 
-        # At this point, rss_file has been validated:
-        # - No path separators or ".."
-        # - Exactly one "." character
-        # - Matches allowlist pattern (p\d+_[a-z0-9_]+\.xml)
-        # Safe to use in path construction
+        # Return sanitized value (has passed all validation checks)
+        return rss_file
+
+    def _get_safe_rss_path(self, rss_file: str) -> Optional[Path]:
+        """Safely construct and validate an RSS file path.
+
+        This method prevents path traversal attacks by:
+        1. Using an allowlist pattern to validate RSS filename format
+        2. Rejecting filenames with path separators, "..", or multiple dots
+        3. Building the path relative to a fixed root directory
+        4. Normalizing the path with resolve()
+        5. Verifying the normalized path is within the intended root and is a file
+
+        Args:
+            rss_file: RSS filename from dictionary lookup (should be validated)
+
+        Returns:
+            Safe Path if validation passes, None if input is invalid
+        """
+        # Validate and sanitize input (prevents path injection)
+        validated_rss_file = self._validate_and_sanitize_rss_filename(rss_file)
+        if validated_rss_file is None:
+            return None
 
         # Build base directory (hardcoded "rss", not user-controlled)
         base_dir = self.get_fixture_root() / "rss"
 
-        # Build candidate path and resolve to normalize
-        # rss_file is validated above (no path separators, matches allowlist), safe to use here
+        # Build candidate path using validated rss_file and resolve to normalize
+        # validated_rss_file has passed all security checks (no path separators, matches allowlist)
         try:
-            candidate = (base_dir / rss_file).resolve()
+            candidate = (base_dir / validated_rss_file).resolve()
         except (OSError, RuntimeError):
             # Path resolution failed (e.g., broken symlink, invalid path)
             return None
