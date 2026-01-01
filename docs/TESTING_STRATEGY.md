@@ -214,6 +214,19 @@ The decision questions above provide a quick way to determine test type. For cri
   - Model unloading and cleanup
   - Integration with metadata generation pipeline
 
+#### Provider System (RFC-013)
+
+- **RFC-013**: Protocol-based provider architecture for transcription, speaker detection, and summarization
+- **Test Cases**:
+  - **Unit Tests**: Provider creation, initialization, protocol method implementation, error handling, cleanup, configuration validation
+  - **Integration Tests**: Provider factory, protocol compliance, component interactions, provider switching, error handling in workflow context
+  - **E2E Tests**: Provider works in full pipeline, provider works with real HTTP client (E2E server), multiple providers work together, error scenarios (API failures, rate limits)
+  - **E2E Server Tests**: Mock endpoint returns correct format, mock endpoint handles different request types, mock endpoint error handling, URL helper methods work correctly
+  - **Provider-specific tests**:
+    - **Transcription Providers**: Whisper (local), OpenAI (API) - test transcription, language handling, error scenarios
+    - **Speaker Detection Providers**: NER (local spaCy), OpenAI (API) - test host/guest detection, fallback behavior
+    - **Summarization Providers**: Local transformers, OpenAI (API) - test summarization, chunking, error handling
+
 #### Service API (`service.py`)
 
 - **Public API**: Service interface for daemon/non-interactive use
@@ -320,9 +333,15 @@ The decision questions above provide a quick way to determine test type. For cri
 
 ### Mocking Strategy
 
-- **Unit Tests**: Mock all external dependencies (HTTP, ML models, file system)
-- **Integration Tests**: Mock external services (HTTP APIs, external APIs), use real internal implementations
-- **E2E Tests**: Use real implementations (HTTP client, ML models, file system) with local test server
+- **Unit Tests**: Mock all external dependencies (HTTP, ML models, file system, API clients)
+- **Integration Tests**: Mock external services (HTTP APIs, external APIs), use real internal implementations (real providers, real Config, real workflow logic)
+- **E2E Tests**: Use real implementations (HTTP client, ML models, file system) with local test server. For API providers, use E2E server mock endpoints instead of direct API calls
+
+**Provider Testing Strategy:**
+
+- **Unit Tests**: Mock provider dependencies (API clients, ML models). Test provider creation, initialization, protocol methods, error handling
+- **Integration Tests**: Use real provider implementations with mocked external services. Test provider factory, protocol compliance, component interactions
+- **E2E Tests**: Use real providers with E2E server mock endpoints (for API providers like OpenAI) or real implementations (for local providers like Whisper). Test complete workflows with providers
 
 ### Test Organization
 
@@ -392,13 +411,17 @@ The test suite is organized into three main categories:
 
 ### Mocking External Dependencies
 
-- **HTTP**: Mock `requests.Session` and responses
-- **Whisper**: Mock `whisper.load_model()` and `whisper.transcribe()`
+- **HTTP**: Mock `requests.Session` and responses (unit/integration tests), use E2E server for E2E tests
+- **Whisper**: Mock `whisper.load_model()` and `whisper.transcribe()` (unit tests), use real models (integration/E2E tests)
 - **ML Dependencies (spacy, torch, transformers)**:
   - **Unit Tests**: Mock in `sys.modules` before importing dependent modules
   - **Integration Tests**: Real ML dependencies required
   - **Verification**: CI runs `scripts/check_unit_test_imports.py` to ensure modules can import without ML deps
 - **File System**: Use `tempfile` for isolated test environments
+- **API Providers (OpenAI, etc.)**:
+  - **Unit Tests**: Mock API clients (`OpenAI` class)
+  - **Integration Tests**: Mock API clients or use E2E server mock endpoints
+  - **E2E Tests**: Use E2E server mock endpoints (real HTTP client, mock API responses)
 
 ### Test Isolation
 

@@ -20,18 +20,14 @@ cfg = Config(
 ```text
 
     options:
-      show_root_heading: true
-      heading_level: 3
-      members_order: source
-      group_by_category: true
-      show_category_heading: true
 
+```
 ## Helper Functions
 
 ::: podcast_scraper.config.load_config_file
     options:
-      show_root_heading: true
-      heading_level: 3
+
+```python
 
 ## Environment Variables
 
@@ -102,7 +98,7 @@ Environment variables are automatically loaded when the `podcast_scraper.config`
 - **Description**: Number of episodes to summarize in parallel (episode-level parallelism)
 - **Required**: No (defaults to 2)
 - **Priority**: Config file → Environment variable → Default
-- **Use Cases**: Memory-bound for local providers, Rate-limited for API providers (OpenAI, Anthropic)
+- **Use Cases**: Memory-bound for local providers, Rate-limited for API providers (OpenAI)
 
 **`SUMMARY_CHUNK_PARALLELISM`**
 
@@ -135,8 +131,10 @@ Environment variables are automatically loaded when the `podcast_scraper.config`
 **Set for current session**:
 
 ```bash
+
 export OPENAI_API_KEY=sk-your-key-here
 python3 -m podcast_scraper <https://example.com/feed.xml>
+
 ```text
 
 OPENAI_API_KEY=sk-your-key-here python3 -m podcast_scraper <https://example.com/feed.xml>
@@ -144,35 +142,14 @@ OPENAI_API_KEY=sk-your-key-here python3 -m podcast_scraper <https://example.com/
 ````
 
 ```bash
+
 # Create .env file in project root
+
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
 python3 -m podcast_scraper <https://example.com/feed.xml>
 ```
 
-````javascript
-
-# Add to shell profile
-
-export OPENAI_API_KEY=sk-your-key-here
-
-# Reload shell
-
-source ~/.bashrc  # or source ~/.zshrc
-
-```text
-set OPENAI_API_KEY=sk-your-key-here
-python -m podcast_scraper https://example.com/feed.xml
-
-```text
-```text
-python -m podcast_scraper https://example.com/feed.xml
-
-```text
-
-2. Add new user or system variable: Name: `OPENAI_API_KEY`, Value: `sk-your-key-here`
-3. Restart terminal/IDE to apply changes
-
-#### Docker
+## Docker
 
 **Using environment variable**:
 
@@ -183,29 +160,22 @@ docker run -e OPENAI_API_KEY=sk-your-key-here podcast-scraper https://example.co
 ````
 
 ```bash
+
 # Create .env file
+
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
+
 # Docker Compose automatically loads .env
-```
 
-docker-compose up
-
-````text
-  podcast-scraper:
-    image: podcast-scraper:latest
-    environment:
-
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    volumes:
-
+```yaml
 
       - ./.env:/app/.env:ro
 
 ```text
 
-### .env File Setup
+## .env File Setup
 
-#### Creating .env File
+### Creating .env File
 
 1. **Copy example template** (if available):
 
@@ -291,7 +261,7 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 - **Use separate keys for development/production**
 - **Restrict API key permissions** (if supported by provider)
 
-#### ❌ DON'T
+## ❌ DON'T
 
 - **Never commit `.env` files** with real API keys
 - **Never hardcode API keys** in source code
@@ -340,11 +310,14 @@ print(f"Looking for .env at: {env_path}")
 print(f"File exists: {env_path.exists()}")
 
 if env_path.exists():
+
+```python
+
     load_dotenv(env_path, override=False)
     import os
     print(f"OPENAI_API_KEY loaded: {bool(os.getenv('OPENAI_API_KEY'))}")
 
-```text
+```python
 
 1. Config file field (`openai_api_key`)
 2. System environment variable (`OPENAI_API_KEY`)
@@ -399,6 +372,7 @@ summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summar
 summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode
 
 ```text
+
 - `rss_url` or `rss` → `rss_url`
 - `output_dir` or `output_directory` → `output_dir`
 - `screenplay_gap` or `screenplay_gap_s` → `screenplay_gap_s`
@@ -414,15 +388,5 @@ from podcast_scraper import Config
 from pydantic import ValidationError
 
 try:
-    cfg = Config(
-        rss="https://example.com/feed.xml",
-        workers=-1  # Invalid: must be >= 1
-    )
-except ValidationError as e:
-    print(f"Validation error: {e}")
-
-```text
-- [Core API](CORE.md) - Main functions
-- [CLI Interface](CLI.md) - Command-line usage
-- Configuration examples: `examples/config.example.json`, `examples/config.example.yaml`
-````
+    pass  # Your code here
+```

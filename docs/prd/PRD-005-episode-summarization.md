@@ -20,7 +20,7 @@ This PRD addresses issue #17 by providing automated summarization capabilities t
 - Generate concise summaries (2-3 sentences) and key takeaways (5-10 bullet points) from episode transcripts
 - Store summaries in episode metadata documents for easy access and searchability
 - Support local transformer models as the default approach for privacy and cost-effectiveness
-- Provide optional API-based LLM support (OpenAI, Anthropic) for users who prefer higher quality
+- Provide optional API-based LLM support (OpenAI) for users who prefer higher quality
 - Integrate with existing pipeline without disrupting current workflows
 - Make summarization opt-in to maintain backwards compatibility
 
@@ -63,7 +63,7 @@ This PRD addresses issue #17 by providing automated summarization capabilities t
 
 ### FR2: Provider Selection
 
-- **FR2.1**: Support `summary_provider` config field with values `"local"`, `"openai"`, `"anthropic"` (default: `"local"`)
+- **FR2.1**: Support `summary_provider` config field with values `"local"`, `"openai"` (default: `"local"`)
 - **FR2.2**: Add `--summary-provider` CLI flag
 - **FR2.3**: Local provider uses PyTorch transformers (Hugging Face models) running on-device
 - **FR2.4**: API providers require API keys (configurable via environment variables or config files)

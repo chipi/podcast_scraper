@@ -10,7 +10,7 @@ The `pre-commit` hook automatically checks your code before each commit to ensur
 
 ```bash
 make install-hooks
-```
+```python
 
 ### What It Checks
 
@@ -35,17 +35,21 @@ The hook runs checks **only on staged files** (files you're committing), making 
 ### Usage
 
 ```bash
+
 # Normal commit (hook runs automatically)
+
 git commit -m "your message"
 
 # Auto-fix formatting issues before committing
+
 make format
 
 # Skip hook for a specific commit (not recommended)
-git commit --no-verify -m "your message"
-```
 
-### Benefits
+git commit --no-verify -m "your message"
+```python
+
+## Benefits
 
 - ✅ Catch issues locally before pushing
 - ✅ Prevent CI failures from linting

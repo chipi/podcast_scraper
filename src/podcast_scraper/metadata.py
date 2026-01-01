@@ -193,7 +193,7 @@ class SummaryMetadata(BaseModel):
     short_summary: str
     generated_at: datetime
     model_used: Optional[str] = None
-    provider: str  # "local", "openai", "anthropic"
+    provider: str  # "local", "openai"
     word_count: Optional[int] = None
 
     @field_serializer("generated_at")

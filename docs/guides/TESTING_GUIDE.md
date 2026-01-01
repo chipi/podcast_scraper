@@ -112,7 +112,13 @@ pytest tests/unit/test_package_imports.py -v
 - **`test_speaker_detector_provider.py`** - Speaker detector provider protocol
 - **`test_summarization_provider.py`** - Summarization provider protocol
 - **`test_transcription_provider.py`** - Transcription provider protocol
-- **`test_openai_providers.py`** - OpenAI provider implementations
+- **`test_openai_providers.py`** - OpenAI provider implementations (transcription, speaker detection, summarization)
+
+**Provider Testing Patterns:**
+
+- **Unit Tests**: Test provider creation, initialization, protocol methods, error handling, cleanup
+- **Mock Strategy**: Mock API clients (for API providers), mock ML models (for local providers)
+- **Example**: `test_openai_providers.py` mocks `OpenAI` client, tests provider initialization, transcription/summarization/speaker detection methods
 
 **Infrastructure Tests**:
 
@@ -255,8 +261,15 @@ pytest tests/integration/test_provider_config_integration.py -v -m integration
 - **`test_protocol_compliance.py`** - Protocol compliance verification
 - **`test_protocol_compliance_extended.py`** - Extended protocol compliance
 - **`test_provider_error_handling_extended.py`** - Provider error handling scenarios
-- **`test_openai_provider_integration.py`** - OpenAI provider integration
+- **`test_openai_provider_integration.py`** - OpenAI provider integration (with E2E server mock endpoints)
 - **`test_openai_providers.py`** - OpenAI provider implementations
+
+**Provider Integration Testing Patterns:**
+
+- **Real Providers**: Use actual provider implementations (not mocks)
+- **Mocked External Services**: Mock HTTP APIs or use E2E server mock endpoints
+- **Component Interactions**: Test how providers work with other components (Config, workflow, etc.)
+- **Example**: `test_openai_provider_integration.py` uses real OpenAI providers with E2E server mock endpoints
 
 **Pipeline Integration Tests**:
 
@@ -396,9 +409,15 @@ pytest tests/e2e/test_http_behaviors_e2e.py -v -m e2e --disable-socket --allow-h
   - Verifies requests library external calls are blocked
 
 - **`test_openai_mock.py`** (3 tests)
-  - Verifies OpenAI transcription provider uses mocked client
-  - Verifies OpenAI summarization provider uses mocked client
-  - Verifies OpenAI speaker detector uses mocked client
+  - Verifies OpenAI providers use E2E server mock endpoints
+  - Verifies OpenAI transcription provider works with E2E server
+  - Verifies OpenAI summarization provider works with E2E server
+  - Verifies OpenAI speaker detector works with E2E server
+
+- **`test_openai_provider_integration_e2e.py`** (multiple tests)
+  - Tests OpenAI providers in full pipeline workflows
+  - Uses E2E server mock endpoints (real HTTP client, mock API responses)
+  - Tests transcription, speaker detection, and summarization providers
 
 - **`test_e2e_server.py`** (8 tests)
   - Verifies E2E server starts and stops correctly
@@ -466,9 +485,25 @@ def test_example(e2e_server):
 
 ```text
 
-**OpenAI Mock Fixture**:
+**E2E Server Mock Endpoints**:
 
-The `openai_mock` fixture (autouse=True) mocks OpenAI API calls to prevent costs and rate limits.
+For API providers (e.g., OpenAI), the E2E server provides mock endpoints that return realistic API responses. Tests configure providers to use `e2e_server.urls.openai_api_base()` instead of the production API, allowing tests to run without real API calls.
+
+**Example**:
+```python
+def test_openai_provider(e2e_server):
+    cfg = create_test_config(
+        transcription_provider="openai",
+        openai_api_key="sk-test123",
+        openai_api_base=e2e_server.urls.openai_api_base(),  # Use E2E server
+    )
+    # Test uses real HTTP client but hits mock endpoints
+```
+**Mock Endpoints**:
+- `/v1/chat/completions` - For summarization and speaker detection
+- `/v1/audio/transcriptions` - For transcription
+
+See `tests/e2e/fixtures/e2e_http_server.py` for implementation details.
 
 ### E2E Test Requirements
 
@@ -495,6 +530,7 @@ The test suite uses **smaller, faster models** for speed, while the production a
 
 **Preloading**:
 The `make preload-ml-models` command preloads both test and production defaults to ensure all models are cached. This allows:
+
 - Fast test execution (using small models)
 - Production quality (using large models)
 - Flexibility to switch between models
@@ -688,14 +724,20 @@ pytest tests/e2e/ -m "e2e and network"
 
 ### Mocking Strategy
 
-- **HTTP Requests**: `unittest.mock.patch` with `MockHTTPResponse` fixtures
-- **Whisper Library**: Mock `whisper.load_model()` and `whisper.transcribe()`
+- **HTTP Requests**: `unittest.mock.patch` with `MockHTTPResponse` fixtures (unit/integration tests), E2E server for E2E tests
+- **Whisper Library**: Mock `whisper.load_model()` and `whisper.transcribe()` (unit tests), real models (integration/E2E tests)
 - **File System**: `tempfile.TemporaryDirectory` for isolated test runs
 - **ML Dependencies (spacy, torch, transformers)**:
   - **Unit Tests**: Must mock ML dependencies before importing modules that use them
   - **Integration Tests**: Real ML dependencies required and installed
   - **Why**: Unit tests run without ML dependencies in CI for speed; modules that import ML deps at top level will fail
   - **Solution**: Mock ML modules in `sys.modules` before importing dependent modules
+- **API Providers (OpenAI, etc.)**:
+  - **Unit Tests**: Mock `OpenAI` client class
+  - **Integration Tests**: Mock API clients or use E2E server mock endpoints
+  - **E2E Tests**: Use E2E server mock endpoints (real HTTP client, mock API responses)
+  - **Why**: Prevents costs, rate limits, and flakiness from real API calls
+  - **Solution**: Configure providers with `openai_api_base=e2e_server.urls.openai_api_base()` in tests
 
 ### Test Fixtures
 

@@ -17,7 +17,6 @@ import sys
 import tempfile
 import types
 import unittest
-import warnings
 from pathlib import Path
 
 import pytest
@@ -258,56 +257,42 @@ class TestModelIntegration(unittest.TestCase):
             self.fail(f"Failed to load 'long-fast' model ({model_name}): {e}")
 
     def test_all_models_defined_can_be_loaded(self):
-        """Test that all models in DEFAULT_SUMMARY_MODELS can be loaded.
+        """Test that all models in DEFAULT_SUMMARY_MODELS can be loaded."""
+        failed_models = []
+        missing_cache_models = []
+        for model_key, model_name in summarizer.DEFAULT_SUMMARY_MODELS.items():
+            try:
+                cfg = create_test_config(summary_model=model_key)
+                resolved_model_name = summarizer.select_summary_model(cfg)
 
-        Note: Suppresses warnings from third-party libraries (spacy/transformers)
-        about SwigPyPacked/SwigPyObject __module__ attributes.
-        """
-        # Suppress warnings from third-party libraries about SwigPy types
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*SwigPy.*")
-            warnings.filterwarnings(
-                "ignore", category=DeprecationWarning, message=".*swigvarlink.*"
+                # Check if model is cached before attempting to load
+                if not _is_transformers_model_cached(resolved_model_name, cfg.summary_cache_dir):
+                    missing_cache_models.append(f"{model_key} ({resolved_model_name})")
+                    continue
+
+                model = summarizer.SummaryModel(
+                    model_name=resolved_model_name,
+                    device=cfg.summary_device,
+                    cache_dir=cfg.summary_cache_dir,
+                )
+                self.assertIsNotNone(model.model, f"Model {model_key} has no model")
+                self.assertIsNotNone(model.tokenizer, f"Model {model_key} has no tokenizer")
+                summarizer.unload_model(model)
+            except Exception as e:
+                failed_models.append(f"{model_key} ({model_name}): {e}")
+
+        # Skip if models are missing from cache
+        if missing_cache_models:
+            pytest.skip(
+                f"{len(missing_cache_models)} model(s) are not cached:\n"
+                + "\n".join(f"  - {m}" for m in missing_cache_models)
+                + "\n\nRun 'make preload-ml-models' to pre-cache all required models. "
+                + "These tests require cached models to avoid network downloads "
+                + "(which violates integration test rules)."
             )
-            failed_models = []
-            missing_cache_models = []
-            for model_key, model_name in summarizer.DEFAULT_SUMMARY_MODELS.items():
-                try:
-                    cfg = create_test_config(summary_model=model_key)
-                    resolved_model_name = summarizer.select_summary_model(cfg)
 
-                    # Check if model is cached before attempting to load
-                    if not _is_transformers_model_cached(
-                        resolved_model_name, cfg.summary_cache_dir
-                    ):
-                        missing_cache_models.append(f"{model_key} ({resolved_model_name})")
-                        continue
-
-                    model = summarizer.SummaryModel(
-                        model_name=resolved_model_name,
-                        device=cfg.summary_device,
-                        cache_dir=cfg.summary_cache_dir,
-                    )
-                    self.assertIsNotNone(model.model, f"Model {model_key} has no model")
-                    self.assertIsNotNone(model.tokenizer, f"Model {model_key} has no tokenizer")
-                    summarizer.unload_model(model)
-                except Exception as e:
-                    failed_models.append(f"{model_key} ({model_name}): {e}")
-
-            # Skip if models are missing from cache
-            if missing_cache_models:
-                pytest.skip(
-                    f"{len(missing_cache_models)} model(s) are not cached:\n"
-                    + "\n".join(f"  - {m}" for m in missing_cache_models)
-                    + "\n\nRun 'make preload-ml-models' to pre-cache all required models. "
-                    + "These tests require cached models to avoid network downloads "
-                    + "(which violates integration test rules)."
-                )
-
-            if failed_models:
-                self.fail(
-                    f"Failed to load {len(failed_models)} model(s):\n" + "\n".join(failed_models)
-                )
+        if failed_models:
+            self.fail(f"Failed to load {len(failed_models)} model(s):\n" + "\n".join(failed_models))
 
 
 if __name__ == "__main__":

@@ -21,8 +21,7 @@ This architecture document is the central hub for understanding the system. For 
 
 ### Feature Documentation
 
-- **[Provider System](guides/PROVIDER_MIGRATION_GUIDE.md)** — Provider architecture and migration guides
-- **[Custom Providers](guides/CUSTOM_PROVIDER_GUIDE.md)** — Creating custom providers
+- **[Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** — Complete guide for implementing new providers (includes OpenAI example, testing, E2E server mocking)
 - **[Summarization Guide](guides/SUMMARIZATION_GUIDE.md)** — Summarization implementation details
 - **[Configuration API](api/CONFIGURATION.md)** — Configuration API reference (includes environment variables)
 
@@ -96,9 +95,13 @@ flowchart TD
 - `downloader.py`: HTTP session pooling with retry-enabled adapters, streaming downloads, and shared progress hooks.
 - `episode_processor.py`: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
 - `filesystem.py`: Filename sanitization, output directory derivation, run suffix logic, and helper utilities for Whisper output paths.
-- `whisper_integration.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names.
-- `speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency.
-- `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. See [Summarization Guide](guides/SUMMARIZATION_GUIDE.md) for details.
+- **Provider System** (RFC-013): Protocol-based provider architecture for transcription, speaker detection, and summarization. Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
+  - **Transcription Providers**: `transcription/whisper_provider.py` (local Whisper), `transcription/openai_provider.py` (OpenAI Whisper API)
+  - **Speaker Detection Providers**: `speaker_detectors/ner_detector.py` (spaCy NER), `speaker_detectors/openai_detector.py` (OpenAI GPT)
+  - **Summarization Providers**: `summarization/local_provider.py` (local transformers), `summarization/openai_provider.py` (OpenAI GPT)
+- `whisper_integration.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names. Now accessed via `WhisperTranscriptionProvider` (provider pattern).
+- `speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Now accessed via `NERSpeakerDetector` (provider pattern).
+- `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Now accessed via `TransformersSummarizationProvider` (provider pattern). See [Summarization Guide](guides/SUMMARIZATION_GUIDE.md) for details.
 - `progress.py`: Minimal global progress publishing API so callers can swap in alternative UIs.
 - `models.py`: Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob`) shared across modules. May be extended to include detected speaker metadata.
 - `metadata.py` (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, processing metadata, and optional summaries in structured JSON/YAML format. Opt-in feature for backwards compatibility.
@@ -125,6 +128,18 @@ graph TB
         Progress[progress.py]
     end
 
+    subgraph "Provider System"
+        TranscriptionFactory[transcription/factory.py]
+        SpeakerFactory[speaker_detectors/factory.py]
+        SummaryFactory[summarization/factory.py]
+        WhisperProvider[transcription/whisper_provider.py]
+        OpenAITranscription[transcription/openai_provider.py]
+        NERProvider[speaker_detectors/ner_detector.py]
+        OpenAISpeaker[speaker_detectors/openai_detector.py]
+        LocalSummary[summarization/local_provider.py]
+        OpenAISummary[summarization/openai_provider.py]
+    end
+
     subgraph "Optional Features"
         Whisper[whisper_integration.py]
         SpeakerDetect[speaker_detection.py]
@@ -138,10 +153,19 @@ graph TB
     Workflow --> RSSParser
     Workflow --> EpisodeProc
     Workflow --> Downloader
-    Workflow --> Whisper
-    Workflow --> SpeakerDetect
+    Workflow --> TranscriptionFactory
+    Workflow --> SpeakerFactory
+    Workflow --> SummaryFactory
+    TranscriptionFactory --> WhisperProvider
+    TranscriptionFactory --> OpenAITranscription
+    SpeakerFactory --> NERProvider
+    SpeakerFactory --> OpenAISpeaker
+    SummaryFactory --> LocalSummary
+    SummaryFactory --> OpenAISummary
+    WhisperProvider --> Whisper
+    NERProvider --> SpeakerDetect
+    LocalSummary --> Summarizer
     Workflow --> Metadata
-    Workflow --> Summarizer
     Workflow --> Filesystem
     Workflow --> Models
     Workflow --> Progress
@@ -174,7 +198,8 @@ graph TB
 - **Language-aware processing** (RFC-010): A single `language` configuration drives both Whisper model selection (preferring English-only `.en` variants) and NER model selection (e.g., `en_core_web_sm`), ensuring consistent language handling across the pipeline.
 - **Automatic speaker detection** (RFC-010): Named Entity Recognition extracts speaker names from episode metadata transparently. Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails, not as override. spaCy is a required dependency for speaker detection.
 - **Host/guest distinction**: Host detection prioritizes RSS author tags (channel-level only) as the most reliable source, falling back to NER extraction from feed metadata when author tags are unavailable. Guests are always detected from episode-specific metadata using NER, ensuring accurate speaker labeling in Whisper screenplay output.
-- **Local-first summarization** (PRD-005/RFC-012): Summarization defaults to local transformer models for privacy and cost-effectiveness. API-based providers (OpenAI, Anthropic) are supported in configuration but not yet implemented. Long transcripts are handled via chunking strategies, and memory optimization is applied for GPU backends (CUDA/MPS). Models are automatically cached and reused across runs, with cache management utilities available via CLI and programmatic APIs.
+- **Provider-based architecture** (RFC-013): All capabilities (transcription, speaker detection, summarization) use a protocol-based provider system. Providers are created via factory functions based on configuration, allowing pluggable implementations (e.g., Whisper vs OpenAI for transcription, NER vs OpenAI for speaker detection, local transformers vs OpenAI for summarization). Providers implement consistent interfaces (`initialize()`, protocol methods, `cleanup()`) ensuring type safety and easy testing. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for complete implementation details.
+- **Local-first summarization** (PRD-005/RFC-012): Summarization defaults to local transformer models for privacy and cost-effectiveness. API-based providers (OpenAI) are supported via the provider system. Long transcripts are handled via chunking strategies, and memory optimization is applied for GPU backends (CUDA/MPS). Models are automatically cached and reused across runs, with cache management utilities available via CLI and programmatic APIs.
 
 ## Third-Party Dependencies
 
@@ -183,6 +208,8 @@ The project uses a layered dependency approach: **core dependencies** (always re
 **Core Dependencies**: `requests`, `pydantic`, `defusedxml`, `tqdm`, `platformdirs`, `PyYAML`
 
 **ML Dependencies** (optional, install via `pip install -e .[ml]`): `openai-whisper`, `spacy`, `torch`, `transformers`, `sentencepiece`, `accelerate`, `protobuf`
+
+**API Provider Dependencies** (optional, for OpenAI providers): `openai` (OpenAI Python SDK)
 
 For detailed dependency information including rationale, alternatives considered, version requirements, and dependency management philosophy, see [Dependencies Guide](guides/DEPENDENCIES_GUIDE.md).
 
@@ -264,7 +291,8 @@ For detailed error handling patterns and implementation guidelines, see [Develop
 - **Speaker detection** (RFC-010): NER implementation is modular and can be extended with custom heuristics, additional entity types, or alternative NLP libraries. Configuration allows disabling detection behavior or providing manual fallback names.
 - **Language support**: Language configuration drives both Whisper and NER model selection, enabling multi-language support through consistent configuration. New languages can be added by extending model selection logic and spaCy model support.
 - **Metadata generation** (PRD-004/RFC-011): Metadata document generation is opt-in and can be extended with additional fields or alternative output formats. The schema is versioned to support future evolution.
-- **Summarization** (PRD-005/RFC-012): Summarization is opt-in and integrated with metadata generation. Local transformer models are preferred for privacy and cost-effectiveness, with automatic hardware-aware model selection. The implementation supports multiple model architectures (BART, DistilBART) and can be extended with additional models or API-based providers. Long transcript handling via chunking strategies ensures scalability. Models are automatically cached locally and reused across runs. Cache management utilities (`get_cache_size`, `prune_cache`, `format_cache_size`) are available via CLI (`--cache-info`, `--prune-cache`) and programmatically for disk space management.
+- **Provider system** (RFC-013): The provider architecture enables extensibility for all capabilities. New providers can be added by implementing protocol interfaces and registering in factory functions. The system supports both local implementations (Whisper, spaCy NER, local transformers) and API-based providers (OpenAI). E2E testing infrastructure includes mock endpoints for API providers, allowing tests to run without real API calls. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for complete implementation patterns, testing strategies, and E2E server mocking details.
+- **Summarization** (PRD-005/RFC-012): Summarization is opt-in and integrated with metadata generation. Local transformer models are preferred for privacy and cost-effectiveness, with automatic hardware-aware model selection. The implementation supports multiple model architectures (BART, DistilBART) and can be extended with additional models or API-based providers via the provider system. Long transcript handling via chunking strategies ensures scalability. Models are automatically cached locally and reused across runs. Cache management utilities (`get_cache_size`, `prune_cache`, `format_cache_size`) are available via CLI (`--cache-info`, `--prune-cache`) and programmatically for disk space management.
 
 ## Testing
 

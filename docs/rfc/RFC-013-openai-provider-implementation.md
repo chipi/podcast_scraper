@@ -954,7 +954,6 @@ pip install -e ".[openai]"
 
 # Or with all ML dependencies
 ```
-
 pip install -e ".[ml,openai]"
 
 ````text
@@ -1556,7 +1555,7 @@ def test_summarization_provider_protocol_compliance():
 
 ```text
 
-### 2. Custom Provider Guide (`docs/guides/CUSTOM_PROVIDER_GUIDE.md`)
+### 2. Provider Implementation Guide (`docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md`)
 
 **Purpose:** Enable external contributors to create custom providers
 
@@ -1775,7 +1774,7 @@ summary_provider: Literal["transformers", "openai"] = "transformers"  # CHANGED
 
 ```text
 2. **Consistency:** All values now refer to technology (ner, whisper, transformers, openai)
-3. **Extensibility:** Easy to add more technologies (e.g., "anthropic", "aws-comprehend")
+3. **Extensibility:** Easy to add more technologies (e.g., "aws-comprehend")
 4. **User Understanding:** Users immediately know what technology they're selecting
 
 **Future Extensibility:**
@@ -1786,7 +1785,7 @@ summary_provider: Literal["transformers", "openai"] = "transformers"  # CHANGED
 
 speaker_detector_type: Literal["ner", "openai", "aws-comprehend", "google-nlp"]
 transcription_provider: Literal["whisper", "openai", "deepgram", "assemblyai"]
-summary_provider: Literal["transformers", "openai", "anthropic", "cohere"]
+summary_provider: Literal["transformers", "openai", "cohere"]
 
 ```text
 ```python

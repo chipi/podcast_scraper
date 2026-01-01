@@ -374,10 +374,7 @@ class WhisperTranscriptionProvider:
 
 ## Related Documentation
 
-- [Custom Provider Guide](./CUSTOM_PROVIDER_GUIDE.md) - How to create custom providers
-- [Provider Migration Guide](./PROVIDER_MIGRATION_GUIDE.md) - How to migrate to providers
-- [Provider Attributes](./PROVIDER_ATTRIBUTES_GUIDE.md) - Provider-specific attributes
-- [Provider Migration Guide](./PROVIDER_MIGRATION_GUIDE.md#fallback-behavior) - Fallback patterns and behavior
+- [Provider Implementation Guide](./PROVIDER_IMPLEMENTATION_GUIDE.md) - Complete guide for implementing new providers (includes OpenAI example, testing, E2E server mocking)
 
 ---
 

@@ -271,6 +271,19 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_openai_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add OpenAI API-related arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
+    parser.add_argument(
+        "--openai-api-base",
+        default=None,
+        help="OpenAI API base URL (for E2E testing or custom endpoints)",
+    )
+
+
 def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
     """Add transcription-related arguments to parser.
 
@@ -280,7 +293,13 @@ def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--transcribe-missing",
         action="store_true",
-        help="Use Whisper when no transcript is provided",
+        help="Use transcription provider when no transcript is provided",
+    )
+    parser.add_argument(
+        "--transcription-provider",
+        choices=["whisper", "openai"],
+        default="whisper",
+        help="Transcription provider to use (default: whisper)",
     )
     parser.add_argument("--whisper-model", default="base", help="Whisper model to use")
     parser.add_argument(
@@ -346,6 +365,12 @@ def _add_speaker_detection_arguments(parser: argparse.ArgumentParser) -> None:
         help="spaCy NER model to use (default: derived from language)",
     )
     parser.add_argument(
+        "--speaker-detector-provider",
+        choices=["ner", "openai"],
+        default="ner",
+        help="Speaker detection provider to use (default: ner)",
+    )
+    parser.add_argument(
         "--auto-speakers",
         action="store_true",
         default=True,
@@ -384,7 +409,7 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--summary-provider",
-        choices=["local", "openai", "anthropic"],
+        choices=["local", "openai"],
         default="local",
         help="Summary provider to use (default: local)",
     )
@@ -492,6 +517,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     _add_metadata_arguments(parser)
     _add_speaker_detection_arguments(parser)
     _add_summarization_arguments(parser)
+    _add_openai_arguments(parser)
     _add_cache_arguments(parser)
 
     initial_args, _ = parser.parse_known_args(argv)
@@ -521,6 +547,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "delay_ms": args.delay_ms,
         "prefer_types": args.prefer_type,
         "transcribe_missing": args.transcribe_missing,
+        "transcription_provider": args.transcription_provider,
         "whisper_model": args.whisper_model,
         "screenplay": args.screenplay,
         "screenplay_gap_s": args.screenplay_gap,
@@ -536,6 +563,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "dry_run": args.dry_run,
         "language": args.language,
         "ner_model": args.ner_model,
+        "speaker_detector_provider": args.speaker_detector_provider,
         "auto_speakers": args.auto_speakers,
         "cache_detected_hosts": args.cache_detected_hosts,
         "generate_metadata": args.generate_metadata,
@@ -552,7 +580,11 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "summary_cache_dir": None,  # Not exposed in CLI yet
         "summary_prompt": args.summary_prompt,
         "save_cleaned_transcript": args.save_cleaned_transcript,
+        "openai_api_base": args.openai_api_base,
     }
+    # Explicitly include openai_api_key=None to trigger field validator
+    # The field validator will load it from OPENAI_API_KEY env var if available
+    payload["openai_api_key"] = None
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))
 

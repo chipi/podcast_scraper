@@ -1,6 +1,7 @@
 # Snyk Security Scanning Setup
 
-This repository uses [Snyk](https://snyk.io/) for comprehensive security vulnerability scanning of dependencies and Docker images.
+This repository uses [Snyk](https://snyk.io/) for comprehensive security
+vulnerability scanning of dependencies and Docker images.
 
 ## Setup Instructions
 

@@ -67,6 +67,8 @@ class TestBasicCLIE2E:
                     "1",
                     "--auto-speakers",  # Enable NER (speaker detection) - uses local ML
                     "--generate-summaries",  # Enable summarization - uses local ML (transformers)
+                    "--summary-model",
+                    config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                     "--generate-metadata",  # Enable metadata generation
                 ]
             )
@@ -136,6 +138,8 @@ class TestBasicCLIE2E:
                     "tiny.en",  # Use smallest English-only model for speed
                     "--auto-speakers",  # Enable NER (speaker detection) - uses local ML (spaCy)
                     "--generate-summaries",  # Enable summarization - uses local ML (transformers)
+                    "--summary-model",
+                    config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                     "--generate-metadata",  # Enable metadata generation
                 ]
             )
@@ -468,16 +472,13 @@ class TestBasicServiceAPIE2E:
 
 
 @pytest.mark.e2e
-@pytest.mark.skip(
-    reason="OpenAI E2E tests skipped for now - infrastructure ready but tests disabled"
-)
 @pytest.mark.critical_path
 @pytest.mark.openai
+@pytest.mark.llm
 class TestBasicCLIE2E_OpenAI:
-    """OpenAI provider E2E tests using mock OpenAI endpoints on E2E server (skipped for now)."""
+    """OpenAI provider E2E tests using mock OpenAI endpoints on E2E server."""
 
-    @pytest.mark.skip(reason="OpenAI E2E tests skipped for now")
-    def test_cli_basic_transcript_download_path1_openai(self, e2e_server):
+    def test_cli_basic_transcript_download_path1_openai(self, e2e_server, monkeypatch):
         """Test complete CLI critical path (Path 1) with OpenAI providers.
 
         This test validates Path 1 with OpenAI providers:
@@ -489,6 +490,9 @@ class TestBasicCLIE2E_OpenAI:
         (via E2E server mock endpoints).
         """
         rss_url = e2e_server.urls.feed("podcast1_with_transcript")
+
+        # Set environment variable for API key (required for Config validation)
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test123")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             exit_code = cli.main(
@@ -507,6 +511,8 @@ class TestBasicCLIE2E_OpenAI:
                     "--generate-metadata",  # Enable metadata generation
                     "--metadata-format",
                     "json",
+                    "--openai-api-base",
+                    e2e_server.urls.openai_api_base(),  # Use E2E server
                 ]
             )
 
@@ -541,9 +547,8 @@ class TestBasicCLIE2E_OpenAI:
                     ), "Metadata should contain summary (OpenAI summarization)"
                     assert metadata["summary"] is not None, "Summary should not be None"
 
-    @pytest.mark.skip(reason="OpenAI E2E tests skipped for now")
     @pytest.mark.critical_path
-    def test_cli_basic_transcript_download_path2_openai(self, e2e_server):
+    def test_cli_basic_transcript_download_path2_openai(self, e2e_server, monkeypatch):
         """Test complete CLI critical path (Path 2) with OpenAI providers.
 
         This test validates Path 2 with OpenAI providers:
@@ -554,7 +559,10 @@ class TestBasicCLIE2E_OpenAI:
         Uses OpenAI providers for transcription, speaker detection, and summarization
         (via E2E server mock endpoints).
         """
-        rss_url = e2e_server.urls.feed("podcast1")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
+
+        # Set environment variable for API key (required for Config validation)
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test123")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             exit_code = cli.main(
@@ -576,6 +584,8 @@ class TestBasicCLIE2E_OpenAI:
                     "--generate-metadata",  # Enable metadata generation
                     "--metadata-format",
                     "json",
+                    "--openai-api-base",
+                    e2e_server.urls.openai_api_base(),  # Use E2E server
                 ]
             )
 
@@ -612,16 +622,12 @@ class TestBasicCLIE2E_OpenAI:
 
 
 @pytest.mark.e2e
-@pytest.mark.skip(
-    reason="OpenAI E2E tests skipped for now - infrastructure ready but tests disabled"
-)
 @pytest.mark.critical_path
 @pytest.mark.openai
+@pytest.mark.llm
 class TestBasicLibraryAPIE2E_OpenAI:
-    """OpenAI provider Library API E2E tests using mock OpenAI endpoints
-    on E2E server (skipped for now)."""
+    """OpenAI provider Library API E2E tests using mock OpenAI endpoints on E2E server."""
 
-    @pytest.mark.skip(reason="OpenAI E2E tests skipped for now")
     def test_library_api_basic_pipeline_path1_openai(self, e2e_server):
         """Test complete Library API critical path (Path 1) with OpenAI providers.
 
@@ -647,6 +653,8 @@ class TestBasicLibraryAPIE2E_OpenAI:
                 summary_provider="openai",  # Use OpenAI for summarization
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
+                openai_api_key="sk-test123",  # Dummy key for E2E server
+                openai_api_base=e2e_server.urls.openai_api_base(),  # Use E2E server
             )
 
             # Run pipeline
@@ -681,7 +689,6 @@ class TestBasicLibraryAPIE2E_OpenAI:
                     ), "Metadata should contain summary (OpenAI summarization)"
                     assert metadata["summary"] is not None, "Summary should not be None"
 
-    @pytest.mark.skip(reason="OpenAI E2E tests skipped for now")
     @pytest.mark.critical_path
     def test_library_api_basic_pipeline_path2_openai(self, e2e_server):
         """Test complete Library API critical path (Path 2) with OpenAI providers.
@@ -709,6 +716,8 @@ class TestBasicLibraryAPIE2E_OpenAI:
                 summary_provider="openai",  # Use OpenAI for summarization
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
+                openai_api_key="sk-test123",  # Dummy key for E2E server
+                openai_api_base=e2e_server.urls.openai_api_base(),  # Use E2E server
             )
 
             # Run pipeline
@@ -745,16 +754,12 @@ class TestBasicLibraryAPIE2E_OpenAI:
 
 
 @pytest.mark.e2e
-@pytest.mark.skip(
-    reason="OpenAI E2E tests skipped for now - infrastructure ready but tests disabled"
-)
 @pytest.mark.critical_path
 @pytest.mark.openai
+@pytest.mark.llm
 class TestBasicServiceAPIE2E_OpenAI:
-    """OpenAI provider Service API E2E tests using mock OpenAI endpoints
-    on E2E server (skipped for now)."""
+    """OpenAI provider Service API E2E tests using mock OpenAI endpoints on E2E server."""
 
-    @pytest.mark.skip(reason="OpenAI E2E tests skipped for now")
     def test_service_api_basic_run_path1_openai(self, e2e_server):
         """Test complete Service API critical path (Path 1) with OpenAI providers.
 
@@ -782,6 +787,8 @@ class TestBasicServiceAPIE2E_OpenAI:
                 summary_provider="openai",  # Use OpenAI for summarization
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
+                openai_api_key="sk-test123",  # Dummy key for E2E server
+                openai_api_base=e2e_server.urls.openai_api_base(),  # Use E2E server
             )
 
             # Run pipeline via Service API
@@ -816,7 +823,6 @@ class TestBasicServiceAPIE2E_OpenAI:
                     ), "Metadata should contain summary (OpenAI summarization)"
                     assert metadata["summary"] is not None, "Summary should not be None"
 
-    @pytest.mark.skip(reason="OpenAI E2E tests skipped for now")
     @pytest.mark.critical_path
     def test_service_api_basic_run_path2_openai(self, e2e_server):
         """Test complete Service API critical path (Path 2) with OpenAI providers.
@@ -846,6 +852,8 @@ class TestBasicServiceAPIE2E_OpenAI:
                 summary_provider="openai",  # Use OpenAI for summarization
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
+                openai_api_key="sk-test123",  # Dummy key for E2E server
+                openai_api_base=e2e_server.urls.openai_api_base(),  # Use E2E server
             )
 
             # Run pipeline via Service API

@@ -204,13 +204,13 @@ build:
 	$(PYTHON) -m build
 	@if [ -d dist ]; then mkdir -p .build && rm -rf .build/dist && mv dist .build/ && echo "Moved dist to .build/dist/"; fi
 
-ci: format-check lint lint-markdown type security test docs build
+ci: format-check lint lint-markdown type security preload-ml-models test docs build
 
 ci-fast: format-check lint lint-markdown type security test-fast docs build
 
-ci-sequential: format-check lint lint-markdown type security test-sequential docs build
+ci-sequential: format-check lint lint-markdown type security preload-ml-models test-sequential docs build
 
-ci-clean: clean format-check lint lint-markdown type security test docs build
+ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build
 
 docker-build:
 	docker build -t podcast-scraper:test -f Dockerfile .

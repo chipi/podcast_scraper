@@ -163,9 +163,7 @@ For fast test execution, minimal fixtures are available to reduce test runtime:
 
 ```bash
 ffmpeg -i audio/p01_e01.mp3 -t 60 -c copy audio/p01_e01_fast.mp3
-```
-
-**Usage**: Automatically used by E2E-fast tests when fast mode is detected. Integration-fast tests use `/feed-no-transcript.xml` which serves the fast audio file.
+```yaml
 
 ---
 

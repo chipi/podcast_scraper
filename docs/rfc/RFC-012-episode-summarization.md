@@ -12,7 +12,7 @@ Design and implement episode summarization feature that generates concise summar
 
 ## Problem Statement
 
-Issue #17 describes the need to generate concise summaries and key takeaways from episode transcripts. While API-based LLM services (OpenAI GPT, Anthropic Claude) provide high-quality results, they have drawbacks:
+Issue #17 describes the need to generate concise summaries and key takeaways from episode transcripts. While API-based LLM services (OpenAI GPT) provide high-quality results, they have drawbacks:
 
 - **Privacy concerns**: Transcripts sent to external APIs may contain sensitive content
 - **Cost**: API usage incurs per-token costs that scale with transcript length
@@ -52,7 +52,7 @@ Add new configuration fields to `config.Config`:
 
 ````python
 generate_summaries: bool = False  # Opt-in for backwards compatibility
-summary_provider: Literal["local", "openai", "anthropic"] = "local"  # Default to local
+summary_provider: Literal["local", "openai"] = "local"  # Default to local
 summary_model: Optional[str] = None  # Model identifier (e.g., "facebook/bart-large-cnn")
 summary_max_length: int = 150  # Max tokens for summary
 summary_min_length: int = 30  # Min tokens for summary
@@ -64,7 +64,7 @@ summary_cache_dir: Optional[str] = None  # Custom cache directory for models
 ```yaml
 
 - `--generate-summaries`: Enable summary generation
-- `--summary-provider`: Choose provider (`local`, `openai`, `anthropic`)
+- `--summary-provider`: Choose provider (`local`, `openai`)
 - `--summary-model`: Model identifier (e.g., `facebook/bart-large-cnn`)
 - `--summary-max-length`: Maximum summary length in tokens
 - `--summary-max-takeaways`: Maximum number of key takeaways
@@ -674,7 +674,7 @@ class SummaryMetadata(BaseModel):
     key_takeaways: List[str]
     generated_at: datetime
     model_used: str
-    provider: str  # "local", "openai", "anthropic"
+    provider: str  # "local", "openai"
     word_count: int
 
     @field_serializer('generated_at')
@@ -794,7 +794,7 @@ def safe_summarize(
 
 ## Alternatives Considered
 
-### API-Based Solutions (OpenAI, Anthropic)
+### API-Based Solutions (OpenAI)
 
 - **Pros**: Higher quality, no local resources needed
 - **Cons**: Privacy concerns, cost, rate limits, internet required

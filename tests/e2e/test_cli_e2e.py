@@ -27,6 +27,7 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 import podcast_scraper.cli as cli
+from podcast_scraper import config
 
 
 @pytest.mark.e2e
@@ -146,6 +147,8 @@ class TestCLIBasicCommands:
                     "--generate-summaries",
                     "--summary-provider",
                     "local",  # Use local provider (no API key needed)
+                    "--summary-model",
+                    config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                     "--transcribe-missing",
                 ]
             )
@@ -186,6 +189,8 @@ class TestCLIBasicCommands:
                     "--generate-summaries",
                     "--summary-provider",
                     "local",  # Use local provider (no API key needed)
+                    "--summary-model",
+                    config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                     "--transcribe-missing",
                 ]
             )

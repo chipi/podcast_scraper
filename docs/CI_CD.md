@@ -187,7 +187,6 @@ graph LR
     style F fill:#90EE90
     style G fill:#90EE90
 ```
-
 - **Parallel execution:** All jobs run simultaneously for maximum speed
 - **Critical path focus:** Fast jobs run only critical path tests
 - **Fast feedback:** Critical path tests provide early pass/fail signal
@@ -266,7 +265,6 @@ if: |
   github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
   !contains(github.event.pull_request.head.ref, 'docs/')
 ```
-
 **Skips if:**
 - Push to main (full integration tests run instead)
 - PR branch is `fix/ai-guidelines-linting`
@@ -301,7 +299,6 @@ if: |
   github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
   !contains(github.event.pull_request.head.ref, 'docs/')
 ```
-
 **Skips if:**
 - Push to main (full E2E tests run instead)
 - PR branch is `fix/ai-guidelines-linting`
@@ -354,7 +351,6 @@ if: |
 ```yaml
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 ```
-
 **Duration:** ~2-5 minutes
 
 **Steps:**
@@ -383,7 +379,6 @@ if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 needs: [preload-ml-models]
 ```
-
 **Dependencies:** Runs after `preload-ml-models` completes
 
 **Duration:** ~10-15 minutes
@@ -414,7 +409,6 @@ needs: [preload-ml-models]
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 needs: [preload-ml-models]
 ```
-
 **Dependencies:** Runs after `preload-ml-models` completes
 
 **Duration:** ~20-30 minutes
@@ -548,7 +542,6 @@ needs: [preload-ml-models]
 ```yaml
 if: github.event_name == 'pull_request' || github.event_name == 'schedule'
 ```
-**Duration:** ~2-3 minutes
 
 **Steps:**
 1. Checkout code
@@ -647,7 +640,6 @@ This ensures:
 **Timeline: PR Creation → Merge → Slow Jobs**
 
 ```
-│ PHASE 1: PR Review (Before Merge)                           │
 ├─────────────────────────────────────────────────────────────┤
 │ ✅ Fast jobs run:                                            │
 │   - lint, test-unit, test-integration-fast, test-e2e-fast    │
@@ -676,7 +668,6 @@ This ensures:
 │ Purpose: Full test suite validation after merge              │
 └─────────────────────────────────────────────────────────────┘
 ```
-**Why This Design?**
 
 1. **Fast PR feedback:** Developers get quick results during review (5-15 min)
 2. **Full validation after merge:** Slow tests (with ML models) run after code is merged
@@ -720,7 +711,6 @@ If `test-integration` or `test-e2e` fail after merging:
 **Typical PR Flow (All Jobs Run):**
 
 ```
-├─ Parallel Jobs Start (all at once)
 │  ├─ lint (2-3 min)
 │  ├─ test-unit (3-5 min)
 │  ├─ test-integration-fast (5-8 min)
@@ -739,7 +729,6 @@ Time ~8-12 min - All critical path jobs complete
 Time ~15-20 min - All jobs complete (if no failures)
 └─ PR status updated
 ```
-**Fastest PR Flow (Minimal Changes):**
 
 If only documentation or non-code files are changed:
 - Only `lint`, `docs`, and `build` jobs run
@@ -1009,6 +998,7 @@ schedule:
 
 **File:** `.github/workflows/docker.yml`
 **Triggers:**
+
 - **Push to main:** All changes (Dockerfile, .dockerignore, pyproject.toml, *.py)
 - **Pull requests:** Only when `Dockerfile` or `.dockerignore` change
 
@@ -1883,7 +1873,6 @@ curl https://[username].github.io/podcast_scraper/metrics/latest.json | jq
 # Check history
 curl https://[username].github.io/podcast_scraper/metrics/history.jsonl | tail -1 | jq
 ```
-### Related Documentation
 
 - [RFC-025: Test Metrics and Health Tracking](../rfc/RFC-025-test-metrics-and-health-tracking.md) - Metrics collection strategy
 - [RFC-026: Metrics Consumption and Dashboards](../rfc/RFC-026-metrics-consumption-and-dashboards.md) - Metrics consumption methods

@@ -160,7 +160,7 @@ The REDUCE phase employs a three-tier decision tree based on combined summary si
   - Generated summary text
   - Generation timestamp
   - Model used (MAP and optionally REDUCE)
-  - Provider (local/openai/anthropic)
+  - Provider (local/openai)
   - Word count of original transcript
 - Stores in episode metadata document (PRD-004/RFC-011)
 - Respects `--skip-existing` flag (regenerates if transcription source changes)
@@ -218,7 +218,7 @@ See [Configuration Documentation](api/CONFIGURATION.md) for complete configurati
 
 - [Architecture](../ARCHITECTURE.md) - High-level system design
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices
-- [Custom Provider Guide](CUSTOM_PROVIDER_GUIDE.md) - Creating custom summarization providers
+- [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md) - Complete guide for implementing new providers (includes OpenAI example)
 - [PRD-005](../prd/PRD-005-episode-summarization.md) - Product requirements for summarization
 - [RFC-012](rfc/RFC-012-episode-summarization.md) - Design decisions for summarization
 

@@ -133,7 +133,7 @@ class Config(BaseModel)
 #### Summarization
 
 - `generate_summaries` (`bool`, default: `False`, alias: `"generate_summaries"`): Generate episode summaries.
-- `summary_provider` (`Literal["local", "openai", "anthropic"]`, default: `"local"`, alias: `"summary_provider"`): Summary generation provider. Currently only `"local"` is supported.
+- `summary_provider` (`Literal["local", "openai"]`, default: `"local"`, alias: `"summary_provider"`): Summary generation provider.
 - `summary_model` (`Optional[str]`, default: `None`, alias: `"summary_model"`): MAP-phase model identifier (e.g., `"bart-large"`, `"facebook/bart-large-cnn"`). Defaults to `"bart-large"` for fast chunk summarization.
 - `summary_reduce_model` (`Optional[str]`, default: `None`, alias: `"summary_reduce_model"`): REDUCE-phase model identifier (e.g., `"long-fast"`, `"allenai/led-base-16384"`). Defaults to `"long-fast"` (LED) for accurate, long-context final combine. If not set, uses LED instead of falling back to MAP model.
 - `summary_max_length` (`int`, default: `150`, alias: `"summary_max_length"`): Maximum summary length in tokens.
@@ -160,7 +160,7 @@ class Config(BaseModel)
 - `screenplay_num_speakers` must be at least 1
 - `log_level` must be a valid logging level
 - `metadata_format` must be `"json"` or `"yaml"`
-- `summary_provider` must be `"local"`, `"openai"`, or `"anthropic"` (only `"local"` currently implemented)
+- `summary_provider` must be `"local"` or `"openai"`
 
 **Example:**
 

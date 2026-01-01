@@ -106,14 +106,6 @@ class TestProviderConfigFields(unittest.TestCase):
         )
         self.assertEqual(cfg.summary_provider, "openai")
 
-        # Anthropic provider also requires API key (future implementation)
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            summary_provider="anthropic",
-            openai_api_key="sk-test123",  # Using OpenAI key for now, will need separate key later
-        )
-        self.assertEqual(cfg.summary_provider, "anthropic")
-
     def test_summary_provider_invalid(self):
         """Test that summary_provider rejects invalid values."""
         with self.assertRaises(ValueError):

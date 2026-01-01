@@ -130,7 +130,6 @@
   "example": "output structure"
 }
 ```
-
 output: "structure"
 
 ```json

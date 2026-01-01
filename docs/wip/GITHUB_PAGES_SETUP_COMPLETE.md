@@ -29,8 +29,6 @@ The nightly workflow (`.github/workflows/nightly.yml`) has been updated to use *
 ### Workflow Flow
 
 ```
-Nightly Workflow Triggered
-  ↓
 Run All Tests + Generate Metrics
   ↓
 Generate metrics/latest.json

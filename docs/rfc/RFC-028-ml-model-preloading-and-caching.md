@@ -79,7 +79,7 @@ Preloads all required ML models to local cache:
 ```bash
 make preload-ml-models
 ```
-**Models Preloaded:**
+
 - Whisper: `tiny.en` (test default), `base.en` (production default)
 - spaCy: `en_core_web_sm` (same for tests and production)
 - Transformers: `facebook/bart-base` (test default), `facebook/bart-large-cnn` (production default), `sshleifer/distilbart-cnn-12-6` (fast option), `allenai/led-base-16384` (REDUCE default)

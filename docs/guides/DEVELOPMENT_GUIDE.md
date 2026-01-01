@@ -42,6 +42,7 @@ The test suite is organized into three main categories (RFC-018):
 - **Test Execution**: Tests run sequentially by default (simpler, clearer output)
 - **Flaky Test Reruns**: Failed tests can be automatically retried using
   `pytest-rerunfailures` (`--reruns 2 --reruns-delay 1`)
+
 - **Test Markers**: All integration tests have `@pytest.mark.integration`, all e2e tests have `@pytest.mark.e2e`
 - **Network Marker**: E2E tests that make real network calls should have `@pytest.mark.network`
 
@@ -258,8 +259,10 @@ Different AI assistants load guidelines from different locations:
 - Guidelines ensure consistent code quality
 - **Prompt templates available:** `.cursor/prompts/` contains reusable prompt templates for
   CI debugging, RFC design, code reviews, and implementation planning
+
 - **See also:** [`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`](CURSOR_AI_BEST_PRACTICES_GUIDE.md) -
   Best practices for using Cursor AI effectively, including model selection, workflow
+
   optimization, prompt templates, and project-specific recommendations
 
 **If you're using other AI assistants:**
@@ -287,6 +290,7 @@ Different AI assistants load guidelines from different locations:
 
 - When updating `.ai-coding-guidelines.md`, ensure entry points (`CLAUDE.md`,
   `.github/copilot-instructions.md`, `.cursor/rules/ai-guidelines.mdc`) still reference
+
   it correctly
 
 **See:** `.ai-coding-guidelines.md` for complete guidelines.
@@ -489,10 +493,17 @@ def test_whisper(self):
 
 Always mock external dependencies in tests:
 
-- **HTTP requests**: Mock `requests` module
-- **Whisper models**: Mock `whisper.load_model()` and `whisper.transcribe()`
+- **HTTP requests**: Mock `requests` module (unit/integration tests), use E2E server for E2E tests
+- **Whisper models**: Mock `whisper.load_model()` and `whisper.transcribe()` (unit tests), use real models (integration/E2E tests)
 - **File I/O**: Use `tempfile.TemporaryDirectory` for isolated tests
-- **spaCy models**: Mock NER extraction for unit tests
+- **spaCy models**: Mock NER extraction for unit tests, use real models (integration/E2E tests)
+- **API providers**: Mock API clients (unit/integration tests), use E2E server mock endpoints (E2E tests)
+
+**Provider Testing Patterns:**
+
+- **Unit Tests**: Mock all provider dependencies (API clients, ML models)
+- **Integration Tests**: Use real provider implementations with mocked external services (HTTP APIs)
+- **E2E Tests**: Use real providers with E2E server mock endpoints (for API providers) or real implementations (for local providers)
 
 ```python
 
@@ -1063,7 +1074,7 @@ def load_whisper():
 
 **Create new modules when:**
 
-- Implementing a new major feature (e.g., new summarization provider)
+- Implementing a new major feature (e.g., new provider implementation)
 - A module has distinct responsibility following Single Responsibility Principle
 - An existing module exceeds ~1000 lines and can be logically split
 
@@ -1072,6 +1083,45 @@ def load_whisper():
 - Fixing bugs
 - Enhancing existing functionality
 - Refactoring within the same module
+
+### Provider Implementation Patterns
+
+The project uses a **protocol-based provider system** for transcription, speaker detection, and summarization. When implementing new providers:
+
+1. **Understand the Protocol**: Read the protocol definition in `{capability}/base.py` (e.g., `TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`)
+
+2. **Implement Provider Class**: Create `{capability}/{provider}_provider.py` with:
+   - `__init__(cfg: config.Config)` - Configuration validation
+   - `initialize()` - Resource setup (idempotent)
+   - Protocol method(s) - Main functionality (e.g., `transcribe()`, `summarize()`)
+   - `cleanup()` - Resource cleanup (idempotent)
+
+3. **Register in Factory**: Update `{capability}/factory.py` to include new provider
+
+4. **Add Configuration**: Update `config.py` to support provider selection
+
+5. **Add CLI Support**: Update `cli.py` with provider arguments (if needed)
+
+6. **Add E2E Server Mocking**: For API providers, add mock endpoints to `tests/e2e/fixtures/e2e_http_server.py`
+
+7. **Write Tests**: Create unit, integration, and E2E tests
+
+**Example**: See OpenAI providers (`transcription/openai_provider.py`, `speaker_detectors/openai_detector.py`, `summarization/openai_provider.py`) for complete reference implementations.
+
+**For complete implementation guide**, see [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md).
+
+### E2E Server Mocking for API Providers
+
+When implementing API-based providers (e.g., OpenAI), add mock endpoints to the E2E server so tests can run without real API calls:
+
+1. **Add Route Handler**: Implement `_handle_{endpoint}()` method in `E2EHTTPRequestHandler`
+2. **Add Route**: Register route in `do_POST()` or `do_GET()` method
+3. **Add URL Helper**: Add helper method to `E2EServerURLs` class
+4. **Write Tests**: Test mock endpoints directly and in full workflows
+
+**Example**: OpenAI providers use `/v1/chat/completions` and `/v1/audio/transcriptions` endpoints. See `tests/e2e/fixtures/e2e_http_server.py` for implementation.
+
+**For complete E2E server mocking guide**, see [Provider Implementation Guide - E2E Server Mocking](PROVIDER_IMPLEMENTATION_GUIDE.md#step-6-add-e2e-server-mock-endpoints).
 
 ## Third-Party Dependencies
 

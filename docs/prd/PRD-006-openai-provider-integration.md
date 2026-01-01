@@ -168,7 +168,7 @@ summary_provider: openai         # $0.41/100 (convenience)
 - **FR2.7**: API key validation occurs at provider initialization (fail fast)
 - **FR2.8**: Support for development and production environments via separate `.env` files
 - **FR2.9**: Environment variable priority: config file > system env > `.env` file
-- **FR2.10**: Future-proof design for additional API keys (e.g., `ANTHROPIC_API_KEY`)
+- **FR2.10**: Future-proof design for additional API keys
 
 ### FR3: Speaker Detection with OpenAI
 
@@ -264,7 +264,7 @@ summary_provider: openai         # $0.41/100 (convenience)
 
 ## Out of Scope
 
-- Other cloud providers (Anthropic, AWS, etc.) - future PRDs
+- Other cloud providers (AWS, etc.) - future PRDs
 
 - API key management UI or interactive setup
 - Cost tracking or usage monitoring
@@ -329,7 +329,7 @@ We expect and encourage contributors to create their own provider implementation
 
 - **Custom Speaker Detectors**: AWS Comprehend, Google Cloud NLP, custom NER models
 - **Custom Transcription Providers**: Deepgram, AssemblyAI, Azure Speech Services
-- **Custom Summarization Providers**: Anthropic Claude, Google Gemini, custom LLMs
+- **Custom Summarization Providers**: Google Gemini, custom LLMs
 
 **Requirements for Contributor Implementations:**
 
@@ -398,7 +398,7 @@ We expect and encourage contributors to create their own provider implementation
 
 ## Future Considerations
 
-- Support for other providers (Anthropic Claude, AWS services)
+- Support for other providers (AWS services)
 - Provider fallback chains (try OpenAI, fallback to local)
 - Cost tracking and usage monitoring
 - Provider performance comparison tools

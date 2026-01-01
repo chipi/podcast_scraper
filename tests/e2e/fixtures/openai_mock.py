@@ -61,12 +61,16 @@ class MockOpenAIClient:
         return json.dumps(response_data)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=False)
 def openai_mock():
-    """Mock OpenAI client for E2E tests.
+    """Mock OpenAI client for E2E tests (disabled by default).
 
-    This fixture automatically patches the OpenAI client initialization
-    in all OpenAI providers, replacing real API calls with mock responses.
+    This fixture patches the OpenAI client initialization in all OpenAI providers,
+    replacing real API calls with mock responses. However, it bypasses the HTTP
+    layer, so it's disabled by default for E2E tests.
+
+    E2E tests should use the E2E server's OpenAI mock endpoints instead (via
+    configure_openai_mock_server fixture), which tests the full HTTP flow.
 
     The mock returns realistic responses:
     - Summarization: Returns a summary based on input text
@@ -74,8 +78,8 @@ def openai_mock():
     - Speaker detection: Returns detected speakers in JSON format
 
     Note:
-        This fixture is autouse=True, so it's automatically applied to all
-        E2E tests. No need to explicitly use it in test functions.
+        This fixture is autouse=False, so it's NOT automatically applied.
+        Only use it explicitly if you need direct mocking (not recommended for E2E).
     """
     mock_client = MockOpenAIClient()
 
