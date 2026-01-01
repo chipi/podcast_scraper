@@ -22,7 +22,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import Config, run_pipeline, service
+from podcast_scraper import Config, config, run_pipeline, service
 
 
 @pytest.mark.e2e
@@ -33,11 +33,11 @@ class TestHTTPErrorHandling:
     def test_rss_feed_404_error(self, e2e_server):
         """Test handling of RSS feed 404 error."""
         # Set error behavior for RSS feed
-        e2e_server.set_error_behavior("/feeds/podcast1_smoke/feed.xml", 404)
+        e2e_server.set_error_behavior("/feeds/podcast1_multi_episode/feed.xml", 404)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
-                rss_url=e2e_server.urls.feed("podcast1_smoke"),
+                rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,
             )
@@ -47,16 +47,16 @@ class TestHTTPErrorHandling:
                 run_pipeline(cfg)
 
         # Clear error behavior
-        e2e_server.clear_error_behavior("/feeds/podcast1_smoke/feed.xml")
+        e2e_server.clear_error_behavior("/feeds/podcast1_multi_episode/feed.xml")
 
     def test_rss_feed_500_error(self, e2e_server):
         """Test handling of RSS feed 500 error."""
         # Set error behavior for RSS feed
-        e2e_server.set_error_behavior("/feeds/podcast1_smoke/feed.xml", 500)
+        e2e_server.set_error_behavior("/feeds/podcast1_multi_episode/feed.xml", 500)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
-                rss_url=e2e_server.urls.feed("podcast1_smoke"),
+                rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,
             )
@@ -67,16 +67,16 @@ class TestHTTPErrorHandling:
                 run_pipeline(cfg)
 
         # Clear error behavior
-        e2e_server.clear_error_behavior("/feeds/podcast1_smoke/feed.xml")
+        e2e_server.clear_error_behavior("/feeds/podcast1_multi_episode/feed.xml")
 
     def test_transcript_download_404_error(self, e2e_server):
         """Test handling of transcript download 404 error."""
         # Set error behavior for transcript
-        e2e_server.set_error_behavior("/transcripts/p01_smoke_e01.txt", 404)
+        e2e_server.set_error_behavior("/transcripts/p01_multi_e01.txt", 404)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
-                rss_url=e2e_server.urls.feed("podcast1_smoke"),
+                rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,
             )
@@ -89,16 +89,16 @@ class TestHTTPErrorHandling:
             assert isinstance(summary, str), "Summary should be a string"
 
         # Clear error behavior
-        e2e_server.clear_error_behavior("/transcripts/p01_smoke_e01.txt")
+        e2e_server.clear_error_behavior("/transcripts/p01_multi_e01.txt")
 
     def test_transcript_download_500_error(self, e2e_server):
         """Test handling of transcript download 500 error."""
         # Set error behavior for transcript
-        e2e_server.set_error_behavior("/transcripts/p01_smoke_e01.txt", 500)
+        e2e_server.set_error_behavior("/transcripts/p01_multi_e01.txt", 500)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
-                rss_url=e2e_server.urls.feed("podcast1_smoke"),
+                rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,
             )
@@ -111,20 +111,20 @@ class TestHTTPErrorHandling:
             assert isinstance(summary, str), "Summary should be a string"
 
         # Clear error behavior
-        e2e_server.clear_error_behavior("/transcripts/p01_smoke_e01.txt")
+        e2e_server.clear_error_behavior("/transcripts/p01_multi_e01.txt")
 
     def test_audio_download_404_error(self, e2e_server):
         """Test handling of audio download 404 error."""
         # Set error behavior for audio
-        e2e_server.set_error_behavior("/audio/p01_smoke_e01.mp3", 404)
+        e2e_server.set_error_behavior("/audio/p01_multi_e01.mp3", 404)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
-                rss_url=e2e_server.urls.feed("podcast1_smoke"),
+                rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,
                 transcribe_missing=True,
-                whisper_model="tiny.en",
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should handle 404 gracefully
@@ -136,16 +136,16 @@ class TestHTTPErrorHandling:
             assert isinstance(summary, str), "Summary should be a string"
 
         # Clear error behavior
-        e2e_server.clear_error_behavior("/audio/p01_smoke_e01.mp3")
+        e2e_server.clear_error_behavior("/audio/p01_multi_e01.mp3")
 
     def test_service_api_error_handling(self, e2e_server):
         """Test service API error handling with HTTP errors."""
         # Set error behavior for RSS feed
-        e2e_server.set_error_behavior("/feeds/podcast1_smoke/feed.xml", 404)
+        e2e_server.set_error_behavior("/feeds/podcast1_multi_episode/feed.xml", 404)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
-                rss_url=e2e_server.urls.feed("podcast1_smoke"),
+                rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,
             )
@@ -159,7 +159,7 @@ class TestHTTPErrorHandling:
             assert isinstance(result.summary, str), "Summary should be a string"
 
         # Clear error behavior
-        e2e_server.clear_error_behavior("/feeds/podcast1_smoke/feed.xml")
+        e2e_server.clear_error_behavior("/feeds/podcast1_multi_episode/feed.xml")
 
 
 @pytest.mark.e2e
@@ -244,11 +244,11 @@ class TestPartialFailureHandling:
     def test_partial_transcript_failures(self, e2e_server):
         """Test that partial transcript failures don't break entire pipeline."""
         # Set error behavior for one transcript (episode 1)
-        e2e_server.set_error_behavior("/transcripts/p01_smoke_e01.txt", 404)
+        e2e_server.set_error_behavior("/transcripts/p01_multi_e01.txt", 404)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
-                rss_url=e2e_server.urls.feed("podcast1_smoke"),
+                rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=3,  # Process multiple episodes
             )
@@ -262,16 +262,16 @@ class TestPartialFailureHandling:
             assert isinstance(summary, str), "Summary should be a string"
 
         # Clear error behavior
-        e2e_server.clear_error_behavior("/transcripts/p01_smoke_e01.txt")
+        e2e_server.clear_error_behavior("/transcripts/p01_multi_e01.txt")
 
     def test_mixed_success_and_failure(self, e2e_server):
         """Test pipeline with mixed success and failure scenarios."""
         # Set error behavior for one transcript
-        e2e_server.set_error_behavior("/transcripts/p01_smoke_e02.txt", 500)
+        e2e_server.set_error_behavior("/transcripts/p01_multi_e02.txt", 500)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
-                rss_url=e2e_server.urls.feed("podcast1_smoke"),
+                rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=3,  # Process multiple episodes
             )
@@ -284,4 +284,4 @@ class TestPartialFailureHandling:
             assert isinstance(summary, str), "Summary should be a string"
 
         # Clear error behavior
-        e2e_server.clear_error_behavior("/transcripts/p01_smoke_e02.txt")
+        e2e_server.clear_error_behavior("/transcripts/p01_multi_e02.txt")

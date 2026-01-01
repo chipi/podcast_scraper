@@ -129,7 +129,7 @@ addopts = "-q -ra"
 # Parallel execution: use -n auto to enable, or -n 0 to disable
 # Reruns: use --reruns 2 --reruns-delay 1 for flaky tests
 markers = [
-    "smoke: smoke tests with multiple short episodes (10-15 seconds each) for testing multi-episode processing logic",
+    "multi_episode: multi-episode tests with multiple short episodes (10-15 seconds each) for testing multi-episode processing logic",
     "data_quality: data quality validation tests with multiple episodes (nightly only)",
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: integration tests (slower, test component interactions)",

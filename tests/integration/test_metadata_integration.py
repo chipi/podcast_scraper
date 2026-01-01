@@ -18,7 +18,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import metadata
+from podcast_scraper import config, metadata
 
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent
@@ -271,7 +271,7 @@ class TestMetadataGenerationComprehensive(unittest.TestCase):
             output_dir=self.temp_dir,
             transcript_file_path="0001 - Episode_Title.txt",
             transcript_source="whisper_transcription",
-            whisper_model="tiny.en",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
 
         with open(metadata_path, "r", encoding="utf-8") as f:

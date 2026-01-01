@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Singletrack Sessions (Multi-Episode Test)</title>
+    <link>http://localhost/</link>
+    <description>Multi-episode test feed with multiple short episodes for testing multi-episode processing logic. Mountain biking talk: trails, technique, gear, and the people who build the ride.</description>
+    <language>en-us</language>
+
+    <itunes:author>Maya Koster</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p01_cover.jpg"/>
+
+    <item>
+      <title>Multi Episode 1: Building Trails That Last</title>
+      <guid isPermaLink="false">p01_multi_e01</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Maya talks with trail builder Liam Verbeek about drainage, line choice, and keeping trails rideable through winter. (Multi-episode test - short episode)</description>
+      <enclosure url="/audio/p01_multi_e01.mp3" length="50000" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p01_multi_e01.txt" type="text/plain" />
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:00:10</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Multi Episode 2: Enduro Skills Without the Hype</title>
+      <guid isPermaLink="false">p01_multi_e02</guid>
+      <pubDate>Mon, 08 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Coach Sophie van Dalen breaks down cornering, braking, and confidence—what to practice and what to ignore. (Multi-episode test - short episode)</description>
+      <enclosure url="/audio/p01_multi_e02.mp3" length="60000" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p01_multi_e02.txt" type="text/plain" />
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:00:12</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Multi Episode 3: The Mechanics of a Quiet, Fast Bike</title>
+      <guid isPermaLink="false">p01_multi_e03</guid>
+      <pubDate>Mon, 15 Sep 2025 07:00:00 +0000</pubDate>
+      <description>A shop-floor conversation: suspension setup, drivetrain wear, brake bleed myths, and diagnosing clicks that only happen on climbs. (Multi-episode test - short episode)</description>
+      <enclosure url="/audio/p01_multi_e03.mp3" length="75000" type="audio/mpeg"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:00:15</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Multi Episode 4: Trail Maintenance Basics</title>
+      <guid isPermaLink="false">p01_multi_e04</guid>
+      <pubDate>Mon, 22 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Quick tips on keeping trails in good condition through the seasons. (Multi-episode test - short episode)</description>
+      <enclosure url="/audio/p01_multi_e04.mp3" length="50000" type="audio/mpeg"/>
+      <itunes:episode>4</itunes:episode>
+      <itunes:duration>00:00:10</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Multi Episode 5: Bike Setup Fundamentals</title>
+      <guid isPermaLink="false">p01_multi_e05</guid>
+      <pubDate>Mon, 29 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Essential bike setup tips for better performance and reliability. (Multi-episode test - short episode)</description>
+      <enclosure url="/audio/p01_multi_e05.mp3" length="60000" type="audio/mpeg"/>
+      <itunes:episode>5</itunes:episode>
+      <itunes:duration>00:00:12</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>
+

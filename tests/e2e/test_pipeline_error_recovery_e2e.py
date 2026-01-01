@@ -339,7 +339,7 @@ class TestPipelineErrorRecoveryE2E:
             generate_metadata=True,
             metadata_format="json",
             transcribe_missing=True,  # Enable Whisper when no transcript URL
-            whisper_model="tiny.en",  # Use smallest English-only model for speed
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
 
         # Mock Whisper transcription to avoid actual audio processing

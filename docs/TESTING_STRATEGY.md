@@ -358,10 +358,10 @@ The test suite is organized into three main categories:
 **On Main Branch**:
 
 - **`test-unit` job**: All unit tests with coverage (no ML deps, ~2-5 min)
-- **`test-integration-fast` job**: Fast integration tests excluding slow/ml_models (with re-runs, ~5-8 min)
-- **`test-integration-slow` job**: Slow integration tests including slow/ml_models (with re-runs, ~10-15 min, main branch only)
-- **`test-e2e-fast` job**: Fast E2E tests excluding slow/ml_models (with re-runs, ~10-15 min)
-- **`test-e2e-slow` job**: Slow E2E tests including slow/ml_models (with re-runs, ~20-30 min, main branch only)
+- **`test-integration-fast` job**: Fast integration tests excluding slow/ml_models (with re-runs, ~5-8 min, PRs only)
+- **`test-integration` job**: All integration tests (with re-runs, ~10-15 min, main branch only)
+- **`test-e2e-fast` job**: Fast E2E tests excluding slow/ml_models (with re-runs, ~10-15 min, PRs only)
+- **`test-e2e` job**: All E2E tests including slow/ml_models (with re-runs, ~20-30 min, main branch only)
 - **`test` job**: Combined fast tests with coverage (unit + fast integration + fast e2e, ~10-15 min)
 - **`lint` job**: Formatting, linting, type checking, security scans
 - **`docs` job**: Documentation build
