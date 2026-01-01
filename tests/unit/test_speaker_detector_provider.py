@@ -59,7 +59,7 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ner",
-            auto_speakers=False,  # Disable to avoid loading spaCy
+            auto_speakers=True,  # Enable for speaker detection tests
             ner_model=config.DEFAULT_NER_MODEL,
         )
 
@@ -206,7 +206,6 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
             auto_speakers=False,
         )
         detector = create_speaker_detector(cfg)
-        detector._spacy_nlp = None  # Force None
 
         # Create Episode using proper structure
         item = ET.Element("item")
@@ -222,9 +221,10 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
             )
         ]
 
-        result = detector.analyze_patterns(episodes=episodes, known_hosts=set())
+        with self.assertRaises(RuntimeError) as context:
+            detector.analyze_patterns(episodes=episodes, known_hosts=set())
 
-        self.assertIsNone(result)
+        self.assertIn("auto_speakers is False", str(context.exception))
 
 
 class TestSpeakerDetectorProtocol(unittest.TestCase):

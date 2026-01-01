@@ -248,6 +248,7 @@ class TestMLProviderTranscription(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
             transcribe_missing=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             whisper_model="tiny",
         )
 
@@ -508,6 +509,7 @@ class TestMLProviderSummarization(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             summary_provider="transformers",
             generate_summaries=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             generate_metadata=True,  # Required when generate_summaries=True
         )
 

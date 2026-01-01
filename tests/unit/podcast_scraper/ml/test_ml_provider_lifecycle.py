@@ -37,6 +37,7 @@ class TestMLProviderLifecycle(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             transcription_provider=self.cfg.transcription_provider,
             transcribe_missing=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             whisper_model=self.cfg.whisper_model,
         )
         provider = MLProvider(cfg)

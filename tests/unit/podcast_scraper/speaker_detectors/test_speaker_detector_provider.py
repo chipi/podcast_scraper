@@ -67,7 +67,7 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="spacy",
-            auto_speakers=False,  # Disable to avoid loading spaCy
+            auto_speakers=True,  # Enable for speaker detection tests
             ner_model=config.DEFAULT_NER_MODEL,
         )
 
