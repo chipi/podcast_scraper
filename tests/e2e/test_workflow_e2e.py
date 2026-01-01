@@ -25,6 +25,12 @@ import podcast_scraper
 import podcast_scraper.cli as cli
 from podcast_scraper import downloader
 
+# Import cache helpers for ML model requirements
+integration_dir = Path(__file__).parent.parent / "integration"
+if str(integration_dir) not in sys.path:
+    sys.path.insert(0, str(integration_dir))
+from ml_model_cache_helpers import require_spacy_model_cached  # noqa: E402
+
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent
 if str(tests_dir) not in sys.path:
@@ -253,12 +259,17 @@ class TestIntegrationMain(unittest.TestCase):
                 self.assertIn("would save as", log_text)
 
     @pytest.mark.slow
+    @pytest.mark.ml_models
     def test_dry_run_performs_speaker_detection(self):
         """Test that dry-run mode still performs host/guest detection.
 
         This test requires multiple episodes to verify speaker detection works
         across episodes, so it's marked as slow to run in full test mode.
+        Requires ML models (spaCy) for speaker detection.
         """
+        # Require spaCy model to be cached (fail fast if not available)
+        require_spacy_model_cached("en_core_web_sm")
+
         rss_url = "https://example.com/feed.xml"
         rss_xml = build_rss_xml_with_speakers(
             "Test Podcast",
