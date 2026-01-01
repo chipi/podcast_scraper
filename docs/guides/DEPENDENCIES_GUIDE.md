@@ -1,20 +1,14 @@
 # Dependencies Guide
-
 This guide documents the key third-party dependencies used in the podcast scraper project,
 including the rationale for their selection, alternatives considered, and dependency
 management philosophy.
-
 For high-level architectural decisions, see [Architecture](../ARCHITECTURE.md). For general
 development practices, see [Development Guide](DEVELOPMENT_GUIDE.md).
-
 ## Overview
-
 The project uses a **layered dependency approach**: core dependencies (always required)
 provide essential functionality, while ML dependencies (optional) enable advanced features
 like transcription and summarization.
-
 ## Core Dependencies (Always Required)
-
 ### `requests` (>=2.31.0)
 
 - **Purpose**: HTTP client for downloading RSS feeds, transcripts, and media files
@@ -28,8 +22,8 @@ like transcription and summarization.
 
 
 - **Alternatives considered**: `urllib3` (too low-level), `httpx` (less mature at project start)
-
 ### `pydantic` (>=2.6.0)
+
 
 - **Purpose**: Data validation, serialization, and configuration management via the `Config`
   model
@@ -56,8 +50,8 @@ like transcription and summarization.
 
 - **Key features utilized**: Safe ElementTree parsing in `rss_parser.py`, automatic protection against XXE attacks
 - **Alternatives considered**: Standard library `xml.etree` (vulnerable), `lxml` (heavier dependency)
-
 ### `tqdm` (>=4.66.0)
+
 
 - **Purpose**: Progress bars for long-running operations (downloads, transcription)
 - **Why chosen**: Rich, customizable progress visualization with minimal API surface.
@@ -66,8 +60,8 @@ like transcription and summarization.
 
 - **Key features utilized**: Multi-level progress tracking, dynamic updates, thread-safe counters, custom formatting
 - **Alternatives considered**: `click.progressbar` (less flexible), `rich.progress` (heavier dependency)
-
 ### `platformdirs` (>=3.11.0)
+
 
 - **Purpose**: Cross-platform directory path resolution for output, cache, and configuration files
 - **Why chosen**: Handles OS-specific conventions (Linux XDG, macOS Application Support,
@@ -77,8 +71,8 @@ like transcription and summarization.
 
 - **Key features utilized**: User data directory resolution, cache directory paths
 - **Alternatives considered**: Manual path construction (not portable), `appdirs` (unmaintained)
-
 ### `PyYAML` (>=6.0)
+
 
 - **Purpose**: YAML configuration file parsing alongside JSON support
 - **Why chosen**: YAML provides more human-friendly configuration syntax than JSON, with
@@ -87,7 +81,6 @@ like transcription and summarization.
 
 - **Key features utilized**: Safe YAML loading, round-trip with Pydantic models
 - **Alternatives considered**: JSON-only (less user-friendly), TOML (less mature Python support)
-
 ## ML Dependencies (Optional, Install via `pip install -e .[ml]`)
 
 ### `openai-whisper` (>=20231117)
@@ -107,8 +100,8 @@ like transcription and summarization.
 
 
 - **Lazy loading**: Imported conditionally in `whisper_integration.py` to avoid hard dependency
-
 ### `spacy` (>=3.7.0) and `en-core-web-sm` (3.7.1)
+
 
 - **Purpose**: Named Entity Recognition (NER) for automatic speaker detection from episode metadata
 - **Why chosen**: Production-ready NLP library with pre-trained models for person name
@@ -121,16 +114,13 @@ like transcription and summarization.
   patterns (too brittle), `nltk` (less accurate)
 
 
-- **Model installation**: The `en-core-web-sm` model is installed as a dependency from GitHub releases (not PyPI) due to PyPI size constraints. This is the official and standard method recommended by spaCy. The model version (3.7.1) is pinned to match spaCy 3.7.x compatibility.
-
+- **Model installation**: The `en-core-web-sm` model is installed as a dependency from GitHub releases (not PyPI) due to PyPI size constraints. This is the official and standard method recommended by spaCy.
   The model version (3.7.1) is pinned to match spaCy 3.7.x compatibility. See `pyproject.toml` for the exact URL.
 
 
 - **Version compatibility**: spaCy 3.7.x requires `en_core_web_sm` 3.7.x. When updating spaCy, ensure the model version matches.
-
-- **Version compatibility**: spaCy 3.7.x requires `en_core_web_sm` 3.7.x. When updating spaCy, ensure the model version matches.
-
 ### `torch` (>=2.0.0) and `transformers` (>=4.30.0)
+
 
 - **Purpose**: Deep learning framework (torch) and pre-trained transformer models (transformers) for episode summarization
 - **Why chosen**: `transformers` provides access to production-ready summarization models
@@ -148,14 +138,14 @@ like transcription and summarization.
 - **Models used**: BART-large (map phase), LED/long-fast (reduce phase), PEGASUS (alternative)
 - **Alternatives considered**: OpenAI API (costs/privacy), Anthropic Claude (costs/privacy), spaCy summarization (less sophisticated)
 - **Lazy loading**: Imported conditionally in `summarizer.py` to avoid hard dependency when summarization is disabled
-
 ### `sentencepiece` (>=0.1.99)
+
 
 - **Purpose**: Tokenization for certain transformer models (required by PEGASUS and others)
 - **Why chosen**: Required dependency for models using SentencePiece tokenization. Lightweight and efficient.
 - **Key features utilized**: Automatic integration via `transformers` library
-
 ### `accelerate` (>=0.20.0)
+
 
 - **Purpose**: Optimized model loading and inference acceleration for large transformer models
 - **Why chosen**: Reduces model loading time and memory usage, especially for 16-bit
@@ -163,13 +153,13 @@ like transcription and summarization.
 
 
 - **Key features utilized**: Fast model initialization, memory optimization for limited-RAM systems
-
 ### `protobuf` (>=3.20.0)
+
 
 - **Purpose**: Protocol buffer serialization (required by some transformer model configurations)
 - **Why chosen**: Transitive dependency for certain model formats. Pinned to avoid version conflicts.
-
 ## Dependency Management Philosophy
+
 
 1. **Core vs Optional**: Core dependencies are minimal and stable. Heavy ML dependencies
    are optional (`pip install -e .[ml]`) to avoid forcing users to install GB-sized
@@ -184,14 +174,15 @@ like transcription and summarization.
 3. **Security**: Security-focused libraries (`defusedxml`) are preferred. Regular updates
    via `pip-audit` and `bandit` (dev tools) ensure vulnerability detection.
 
+
 4. **Lazy loading**: Optional dependencies (`openai-whisper`, `torch`, `transformers`,
    `spacy`) are imported lazily with graceful fallbacks when unavailable.
+
 
 5. **Platform compatibility**: All dependencies support Linux, macOS, and Windows.
    Platform-specific optimizations (MPS, CUDA) are detected at runtime.
 
 ## Development Dependencies (Optional, Install via `pip install -e .[dev]`)
-
 ### `pytest-json-report` (>=1.5.0,<2.0.0)
 
 - **Purpose**: Generate structured JSON reports from pytest test runs for metrics collection and analysis
@@ -206,11 +197,9 @@ like transcription and summarization.
 
 - **Alternatives considered**: Custom pytest plugins (more maintenance), JUnit XML only (less structured data)
 - **Usage**: Automatically used in nightly workflow via `--json-report --json-report-file=reports/pytest.json`
-
 ## Installation
 
 ### Core Dependencies Only
-
 ````bash
 pip install -e .
 ```text
