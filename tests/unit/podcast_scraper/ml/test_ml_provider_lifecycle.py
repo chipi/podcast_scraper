@@ -203,6 +203,7 @@ class TestMLProviderStateConsistency(unittest.TestCase):
             transcription_provider=self.cfg.transcription_provider,
             transcribe_missing=True,
             whisper_model=self.cfg.whisper_model,
+            auto_speakers=False,
         )
         provider = MLProvider(cfg)
         with patch("podcast_scraper.ml.ml_provider._import_third_party_whisper") as mock_import:
@@ -224,6 +225,7 @@ class TestMLProviderStateConsistency(unittest.TestCase):
             transcription_provider=self.cfg.transcription_provider,
             transcribe_missing=True,
             whisper_model=self.cfg.whisper_model,
+            auto_speakers=False,
         )
         provider = MLProvider(cfg)
         with patch("podcast_scraper.ml.ml_provider._import_third_party_whisper") as mock_import:
