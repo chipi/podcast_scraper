@@ -67,9 +67,9 @@ make test-e2e
 
 # All tests
 
-make test-all
+make test
 
-# Parallel execution (default for test-unit, test-integration, test-e2e, test-all)
+# Parallel execution (default for test-unit, test-integration, test-e2e, test)
 
 make test-unit  # Already runs in parallel
 
@@ -531,10 +531,10 @@ make test
 
 make test-unit          # Unit tests only
 make test-integration   # Integration tests only
-make test-e2e  # E2E tests only
-make test-all           # All tests (unit + integration + e2e)
+make test-e2e          # E2E tests only
+make test              # All tests (unit + integration + e2e)
 
-# Note: test-unit, test-integration, test-e2e, and test-all all run in parallel by default
+# Note: test-unit, test-integration, test-e2e, and test all run in parallel by default
 
 # Run with flaky test reruns
 
@@ -798,7 +798,7 @@ If CI fails on your PR:
 
 - **`make ci-full`**: Complete CI suite
   - Runs `clean-all` first (removes build artifacts + ML caches)
-  - Runs `test-all` (all tests: unit + integration + e2e, all slow/fast variants)
+  - Runs `test` (all tests: unit + integration + e2e, all slow/fast variants)
   - Complete validation including slow/ml_models tests
   - Use before releases or when you need full test coverage
 

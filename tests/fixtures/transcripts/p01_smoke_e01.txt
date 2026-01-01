@@ -1,0 +1,11 @@
+# Singletrack Sessions — Episode
+## Building Trails That Last (Smoke Test)
+Host: Maya
+Guest: Liam
+
+[00:00]
+Maya: Welcome back to Singletrack Sessions. Today we're talking about building trails that last, and I'm joined by Liam. Liam, thanks for being here.
+Liam: Thanks, Maya. I'm excited—this is a topic people care about, and there's a lot of practical nuance.
+[00:10]
+Maya: That's it for today's episode of Singletrack Sessions. See you next time.
+

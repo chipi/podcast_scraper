@@ -7,6 +7,7 @@ Whisper API for cloud-based transcription of audio files.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from openai import OpenAI
 
@@ -42,7 +43,11 @@ class OpenAITranscriptionProvider:
             )
 
         self.cfg = cfg
-        self.client = OpenAI(api_key=cfg.openai_api_key)
+        # Support custom base_url for E2E testing with mock servers
+        client_kwargs: dict[str, Any] = {"api_key": cfg.openai_api_key}
+        if cfg.openai_api_base:
+            client_kwargs["base_url"] = cfg.openai_api_base
+        self.client = OpenAI(**client_kwargs)
         # Default to whisper-1 (OpenAI's Whisper API model)
         self.model = getattr(cfg, "openai_transcription_model", "whisper-1")
         self._initialized = False

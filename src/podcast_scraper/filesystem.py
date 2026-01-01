@@ -59,7 +59,10 @@ def sanitize_filename(name: str) -> str:
         else:
             safe_chars.append("_")
     safe = "".join(safe_chars).strip()
-    return safe or "untitled"
+    # If result is empty or only underscores/spaces, return "untitled"
+    if not safe or safe.replace("_", "").replace("-", "").replace(".", "").strip() == "":
+        return "untitled"
+    return safe
 
 
 def write_file(path: str, data: bytes) -> None:

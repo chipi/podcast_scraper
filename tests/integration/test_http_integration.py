@@ -175,6 +175,7 @@ def test_http_server():
 
 @pytest.mark.integration
 @pytest.mark.integration_http
+@pytest.mark.critical_path
 class TestHTTPClientIntegration:
     """Test HTTP client with real HTTP server."""
 
@@ -287,8 +288,13 @@ class TestHTTPClientIntegration:
         # Verify error handling (fetch_url returns None on error)
         assert resp is None, "fetch_url should return None on 404 error"
 
+    @pytest.mark.slow
     def test_500_error_handling(self, test_http_server):
-        """Test 500 error handling."""
+        """Test 500 error handling.
+
+        This test is marked as slow because it involves retry logic
+        that may take time to complete.
+        """
         url = test_http_server.url("/error-500")
 
         # Make real HTTP request
@@ -297,8 +303,13 @@ class TestHTTPClientIntegration:
         # Verify error handling (fetch_url returns None on error)
         assert resp is None, "fetch_url should return None on 500 error"
 
+    @pytest.mark.slow
     def test_retry_logic(self, test_http_server):
-        """Test retry logic for transient errors."""
+        """Test retry logic for transient errors.
+
+        This test is marked as slow because it involves retry logic
+        with multiple attempts that takes time to complete.
+        """
         # Reset retry counter
         test_http_server.server._retry_attempt = 0  # type: ignore[attr-defined]
 
@@ -315,8 +326,13 @@ class TestHTTPClientIntegration:
             assert content == b"Success after retries"
             resp.close()  # type: ignore[attr-defined]
 
+    @pytest.mark.slow
     def test_timeout_handling(self, test_http_server):
-        """Test timeout handling."""
+        """Test timeout handling.
+
+        This test is marked as slow because it intentionally waits for
+        timeout conditions, which takes time to complete.
+        """
         url = test_http_server.url("/slow")
 
         # Make real HTTP request with short timeout

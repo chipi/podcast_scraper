@@ -17,6 +17,7 @@ from podcast_scraper.transcription.factory import create_transcription_provider
 
 
 @pytest.mark.integration
+@pytest.mark.critical_path
 class TestTranscriptionProviderFallback(unittest.TestCase):
     """Test transcription provider fallback behavior."""
 
@@ -59,6 +60,7 @@ class TestTranscriptionProviderFallback(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.critical_path
 class TestSpeakerDetectorFallback(unittest.TestCase):
     """Test speaker detector fallback behavior."""
 
@@ -96,6 +98,7 @@ class TestSpeakerDetectorFallback(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.critical_path
 class TestSummarizationProviderFallback(unittest.TestCase):
     """Test summarization provider fallback behavior."""
 
@@ -119,6 +122,7 @@ class TestSummarizationProviderFallback(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.critical_path
 class TestCacheClearingFallback(unittest.TestCase):
     """Test cache clearing fallback behavior."""
 
@@ -157,6 +161,7 @@ class TestCacheClearingFallback(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.critical_path
 class TestBackwardCompatibilityFallbacks(unittest.TestCase):
     """Test backward compatibility fallback patterns."""
 
@@ -196,6 +201,7 @@ class TestBackwardCompatibilityFallbacks(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.critical_path
 class TestFallbackRemovalImpact(unittest.TestCase):
     """Test that removing fallbacks doesn't break functionality."""
 

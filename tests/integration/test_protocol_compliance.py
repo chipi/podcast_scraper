@@ -20,6 +20,7 @@ from podcast_scraper.transcription.factory import create_transcription_provider
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestTranscriptionProviderProtocol(unittest.TestCase):
     """Test TranscriptionProvider protocol compliance."""
 
@@ -57,6 +58,7 @@ class TestTranscriptionProviderProtocol(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestSpeakerDetectorProtocol(unittest.TestCase):
     """Test SpeakerDetector protocol compliance."""
 
@@ -107,6 +109,7 @@ class TestSpeakerDetectorProtocol(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestSummarizationProviderProtocol(unittest.TestCase):
     """Test SummarizationProvider protocol compliance."""
 
@@ -155,6 +158,7 @@ class TestSummarizationProviderProtocol(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestProtocolTypeHints(unittest.TestCase):
     """Test that protocols have proper type hints."""
 

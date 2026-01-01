@@ -1,7 +1,9 @@
 # Testing Guide
 
-> **See also:** [Testing Strategy](../TESTING_STRATEGY.md) for the overall testing strategy, decision criteria, and test
-> pyramid concepts.
+> **See also:**
+>
+> - [Testing Strategy](../TESTING_STRATEGY.md) for the overall testing strategy, decision criteria, and test pyramid concepts
+> - [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md) for what to test based on the critical path and prioritization
 
 This guide provides detailed implementation instructions for working with the test suite. It covers how to run tests,
 what test files exist, available fixtures, requirements, and coverage details.
@@ -238,7 +240,7 @@ pytest tests/integration/test_fallback_behavior.py -v -m integration
 
 # Stage 0 foundation tests
 
-pytest tests/integration/test_stage0_foundation.py -v -m integration
+pytest tests/integration/test_provider_config_integration.py -v -m integration
 ```text
 
 - **`test_component_workflows.py`** - Component interactions and data flow
@@ -265,7 +267,7 @@ pytest tests/integration/test_stage0_foundation.py -v -m integration
 **Other Integration Tests**:
 
 - **`test_fallback_behavior.py`** - Fallback mechanisms (Whisper, etc.)
-- **`test_stage0_foundation.py`** - Foundation infrastructure tests
+- **`test_provider_config_integration.py`** - Provider configuration and factory integration tests
 
 ### Integration Test Fixtures
 
@@ -534,7 +536,7 @@ make test-e2e
 # All tests (excluding network tests)
 
 pytest -m "not network"
-make test-all
+make test
 ```text
 
 ### Parallel Execution
@@ -562,7 +564,7 @@ pytest -n 4
 make test-unit            # Unit tests (parallel)
 make test-integration     # Integration tests (parallel)
 make test-e2e             # E2E tests (parallel)
-make test-all             # All tests (parallel)
+make test                 # All tests (parallel)
 ```yaml
 
 - **Debugging test failures**: Sequential output is easier to read and debug
@@ -928,6 +930,7 @@ Keep a test as integration if:
 ## References
 
 - [Testing Strategy](../TESTING_STRATEGY.md) - Overall testing strategy and decision criteria
+- [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md) - What to test based on the critical path and prioritization
 - Test structure reorganization: [RFC-018](rfc/RFC-018-test-structure-reorganization.md)
 - E2E test improvements: [RFC-019](rfc/RFC-019-e2e-test-improvements.md)
 - CI workflow: `.github/workflows/python-app.yml`

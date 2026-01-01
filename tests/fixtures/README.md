@@ -124,6 +124,38 @@ Properties:
 - realistic duration and file size
 - suitable for streaming, partial reads, and timeout testing
 
+### Fast Test Fixtures
+
+For fast test execution, minimal fixtures are available:
+
+- **Fast RSS Feed**: `rss/p01_fast.xml` - Single episode with 1-minute duration
+- **Fast Transcript**: `transcripts/p01_e01_fast.txt` - First ~1 minute of p01_e01 transcript
+- **Fast Audio**: `audio/p01_e01_fast.mp3` - 60-second audio file (469 KB vs 5.8 MB for full episode)
+
+**Purpose**: Reduce E2E-fast test execution time from ~180-240 seconds to ~30-45 seconds by using shorter audio files.
+
+**Usage**: Automatically used by E2E-fast tests when `_allowed_podcasts` is set (fast mode detection). Integration-fast tests use `/feed-no-transcript.xml` which serves the fast audio file.
+
+**Generation**: Fast audio was created by extracting the first 60 seconds of `p01_e01.mp3` using ffmpeg.
+
+### Smoke Test Fixtures
+
+For testing multi-episode processing logic, smoke test fixtures are available:
+
+- **Smoke RSS Feed**: `rss/p01_smoke.xml` - 5 episodes with 10-15 second duration each
+- **Smoke Transcripts**: `transcripts/p01_smoke_e01.txt` through `p01_smoke_e05.txt` - Short transcripts (2-3 sentences each)
+- **Smoke Audio**: `audio/p01_smoke_e01.mp3` through `p01_smoke_e05.mp3` - Very short audio files (~50-100 KB each)
+
+**Purpose**: Test episode iteration/looping logic, concurrent processing, job queues, and error handling across multiple episodes without the overhead of long audio files. Total processing time: ~2-3 minutes for 5 episodes.
+
+**Usage**: Used by E2E tests marked with `@pytest.mark.smoke`. These tests can process multiple episodes (5 episodes) to validate multi-episode processing logic.
+
+**Test Strategy**:
+
+- **Fast Feed** (`p01_fast.xml`): 1 episode, 1 minute - for regular E2E tests (code quality)
+- **Smoke Feed** (`p01_smoke.xml`): 5 episodes, 10-15 seconds each - for multi-episode processing tests
+- **Original Mock Data** (`p01_mtb.xml`, etc.): Full episodes - for nightly data quality tests
+
 ---
 
 ## Audio generation

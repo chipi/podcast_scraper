@@ -147,6 +147,28 @@ Audio output:
 
 ---
 
+## Fast Test Fixtures
+
+For fast test execution, minimal fixtures are available to reduce test runtime:
+
+### Fast Episode (p01_e01_fast)
+
+- **RSS Feed**: `rss/p01_fast.xml` - Single episode with 1-minute duration
+- **Transcript**: `transcripts/p01_e01_fast.txt` - First ~1 minute of p01_e01 transcript
+- **Audio**: `audio/p01_e01_fast.mp3` - 60-second audio file (469 KB)
+
+**Purpose**: Reduce E2E-fast test execution time by ~75-85% (from ~3-4 minutes to ~30-45 seconds).
+
+**Generation**: Fast audio was created by extracting the first 60 seconds of `p01_e01.mp3` using ffmpeg:
+
+```bash
+ffmpeg -i audio/p01_e01.mp3 -t 60 -c copy audio/p01_e01_fast.mp3
+```
+
+**Usage**: Automatically used by E2E-fast tests when fast mode is detected. Integration-fast tests use `/feed-no-transcript.xml` which serves the fast audio file.
+
+---
+
 ## Git & Storage
 
 - Audio files may be large

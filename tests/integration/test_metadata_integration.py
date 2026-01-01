@@ -38,6 +38,7 @@ from conftest import (  # noqa: E402
 
 
 @pytest.mark.integration
+@pytest.mark.critical_path
 class TestMetadataGenerationIntegration(unittest.TestCase):
     """Integration tests for metadata generation that perform real file I/O."""
 
@@ -108,8 +109,64 @@ class TestMetadataGenerationIntegration(unittest.TestCase):
         self.assertEqual(data["processing"]["schema_version"], "1.0.0")
         self.assertIn("processing_timestamp", data["processing"])
 
+    def test_metadata_generation_with_transcription(self):
+        """Test metadata generation with Whisper transcription source (critical path).
+
+        This test validates that metadata correctly includes transcription metadata
+        when transcript is created via Whisper transcription. This is part of the
+        critical path integration test coverage.
+        """
+        cfg = create_test_config(
+            output_dir=self.temp_dir,
+            generate_metadata=True,
+            metadata_format="json",
+        )
+
+        # Generate metadata with transcription source
+        metadata_path = metadata.generate_episode_metadata(
+            feed=self.feed,
+            episode=self.episode,
+            feed_url=TEST_FEED_URL,
+            cfg=cfg,
+            output_dir=self.temp_dir,
+            run_suffix=None,
+            transcript_file_path="0001 - Episode_Title.txt",
+            transcript_source="whisper_transcription",
+            whisper_model="tiny",
+            detected_hosts=["Test Host"],
+            detected_guests=["Test Guest"],
+        )
+
+        # Verify metadata file was created
+        self.assertIsNotNone(metadata_path)
+        self.assertTrue(os.path.exists(metadata_path))
+        self.assertTrue(metadata_path.endswith(".metadata.json"))
+
+        # Verify metadata content
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Verify transcript source is whisper_transcription
+        self.assertEqual(data["content"]["transcript_source"], "whisper_transcription")
+
+        # Verify transcription metadata fields are present
+        self.assertEqual(data["content"]["whisper_model"], "tiny")
+
+        # Verify transcript file path is included
+        self.assertIn("transcript_file_path", data["content"])
+        self.assertEqual(data["content"]["transcript_file_path"], "0001 - Episode_Title.txt")
+
+        # Verify other content fields
+        self.assertEqual(data["content"]["detected_hosts"], ["Test Host"])
+        self.assertEqual(data["content"]["detected_guests"], ["Test Guest"])
+
+        # Verify processing metadata
+        self.assertIn("processing", data)
+        self.assertIn("processing_timestamp", data["processing"])
+
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestMetadataGenerationComprehensive(unittest.TestCase):
     """Comprehensive tests for metadata generation."""
 
@@ -214,14 +271,14 @@ class TestMetadataGenerationComprehensive(unittest.TestCase):
             output_dir=self.temp_dir,
             transcript_file_path="0001 - Episode_Title.txt",
             transcript_source="whisper_transcription",
-            whisper_model="base",
+            whisper_model="tiny.en",
         )
 
         with open(metadata_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         self.assertEqual(data["content"]["transcript_source"], "whisper_transcription")
-        self.assertEqual(data["content"]["whisper_model"], "base")
+        self.assertEqual(data["content"]["whisper_model"], "tiny.en")
 
     def test_metadata_with_subdirectory(self):
         """Test metadata generation with subdirectory."""
@@ -404,3 +461,58 @@ class TestMetadataGenerationComprehensive(unittest.TestCase):
 
         self.assertEqual(data["content"]["transcript_source"], "whisper_transcription")
         self.assertEqual(data["content"]["whisper_model"], "base")
+
+    def test_metadata_generation_with_transcription(self):
+        """Test metadata generation with Whisper transcription source (critical path).
+
+        This test validates that metadata correctly includes transcription metadata
+        when transcript is created via Whisper transcription. This is part of the
+        critical path integration test coverage.
+        """
+        cfg = create_test_config(
+            output_dir=self.temp_dir,
+            generate_metadata=True,
+            metadata_format="json",
+        )
+
+        # Generate metadata with transcription source
+        metadata_path = metadata.generate_episode_metadata(
+            feed=self.feed,
+            episode=self.episode,
+            feed_url=TEST_FEED_URL,
+            cfg=cfg,
+            output_dir=self.temp_dir,
+            run_suffix=None,
+            transcript_file_path="0001 - Episode_Title.txt",
+            transcript_source="whisper_transcription",
+            whisper_model="tiny",
+            detected_hosts=["Test Host"],
+            detected_guests=["Test Guest"],
+        )
+
+        # Verify metadata file was created
+        self.assertIsNotNone(metadata_path)
+        self.assertTrue(os.path.exists(metadata_path))
+        self.assertTrue(metadata_path.endswith(".metadata.json"))
+
+        # Verify metadata content
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Verify transcript source is whisper_transcription
+        self.assertEqual(data["content"]["transcript_source"], "whisper_transcription")
+
+        # Verify transcription metadata fields are present
+        self.assertEqual(data["content"]["whisper_model"], "tiny")
+
+        # Verify transcript file path is included
+        self.assertIn("transcript_file_path", data["content"])
+        self.assertEqual(data["content"]["transcript_file_path"], "0001 - Episode_Title.txt")
+
+        # Verify other content fields
+        self.assertEqual(data["content"]["detected_hosts"], ["Test Host"])
+        self.assertEqual(data["content"]["detected_guests"], ["Test Guest"])
+
+        # Verify processing metadata
+        self.assertIn("processing", data)
+        self.assertIn("processing_timestamp", data["processing"])

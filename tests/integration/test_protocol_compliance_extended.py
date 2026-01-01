@@ -18,6 +18,7 @@ from podcast_scraper.transcription.factory import create_transcription_provider
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestProtocolLifecycleMethods(unittest.TestCase):
     """Test initialize() and cleanup() methods for all providers."""
 
@@ -134,6 +135,7 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestSpeakerDetectorDetectHosts(unittest.TestCase):
     """Test detect_hosts() method for SpeakerDetector protocol."""
 
@@ -197,6 +199,7 @@ class TestSpeakerDetectorDetectHosts(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestTranscriptionProviderTranscribeWithSegments(unittest.TestCase):
     """Test transcribe_with_segments() method for TranscriptionProvider protocol."""
 
@@ -267,6 +270,7 @@ class TestTranscriptionProviderTranscribeWithSegments(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestSpeakerDetectorClearCache(unittest.TestCase):
     """Test clear_cache() method for SpeakerDetector protocol."""
 
@@ -327,6 +331,7 @@ class TestSpeakerDetectorClearCache(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestProtocolMethodCompleteness(unittest.TestCase):
     """Test that all protocol methods are implemented by all providers."""
 

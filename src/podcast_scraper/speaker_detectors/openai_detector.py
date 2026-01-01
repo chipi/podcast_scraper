@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Set, Tuple
+from typing import Any, Set, Tuple
 
 from openai import OpenAI
 
@@ -48,7 +48,11 @@ class OpenAISpeakerDetector:
             )
 
         self.cfg = cfg
-        self.client = OpenAI(api_key=cfg.openai_api_key)
+        # Support custom base_url for E2E testing with mock servers
+        client_kwargs: dict[str, Any] = {"api_key": cfg.openai_api_key}
+        if cfg.openai_api_base:
+            client_kwargs["base_url"] = cfg.openai_api_base
+        self.client = OpenAI(**client_kwargs)
         # Default to gpt-4o-mini (cost-effective with good quality)
         self.model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
         self.temperature = getattr(cfg, "openai_temperature", 0.3)

@@ -21,6 +21,7 @@ from podcast_scraper.transcription.factory import create_transcription_provider
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestTranscriptionProviderErrorHandling(unittest.TestCase):
     """Test error handling for transcription providers."""
 
@@ -95,6 +96,7 @@ class TestTranscriptionProviderErrorHandling(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestSpeakerDetectorErrorHandling(unittest.TestCase):
     """Test error handling for speaker detectors."""
 
@@ -165,6 +167,7 @@ class TestSpeakerDetectorErrorHandling(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestSummarizationProviderErrorHandling(unittest.TestCase):
     """Test error handling for summarization providers."""
 
@@ -240,6 +243,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestProviderSwitchingErrorHandling(unittest.TestCase):
     """Test error handling when switching providers."""
 
@@ -284,6 +288,7 @@ class TestProviderSwitchingErrorHandling(unittest.TestCase):
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 class TestGracefulDegradation(unittest.TestCase):
     """Test graceful degradation scenarios."""
 

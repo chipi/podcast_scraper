@@ -256,6 +256,13 @@ class Config(BaseModel):
         alias="openai_api_key",
         description="OpenAI API key (prefer OPENAI_API_KEY env var or .env file)",
     )
+    openai_api_base: Optional[str] = Field(
+        default=None,
+        alias="openai_api_base",
+        description="OpenAI API base URL (e.g., 'https://api.openai.com/v1' or custom endpoint). "
+        "Can be set via OPENAI_API_BASE environment variable. "
+        "Used for E2E testing with mock servers.",
+    )
     openai_transcription_model: str = Field(
         default="whisper-1",
         alias="openai_transcription_model",
@@ -805,6 +812,18 @@ class Config(BaseModel):
         env_key = os.getenv("OPENAI_API_KEY")
         if env_key:
             return env_key.strip() or None
+        return None
+
+    @field_validator("openai_api_base", mode="before")
+    @classmethod
+    def _load_openai_api_base_from_env(cls, value: Any) -> Optional[str]:
+        """Load OpenAI API base URL from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_base = os.getenv("OPENAI_API_BASE")
+        if env_base:
+            return env_base.strip() or None
         return None
 
     @field_validator("speaker_detector_provider", mode="before")

@@ -14,7 +14,7 @@ Exceptions:
 - Operations within temp directories are allowed (detected automatically)
 - test_filesystem.py tests are allowed (they need to test filesystem operations)
 
-Integration and workflow_e2e tests are allowed to make network/filesystem calls
+Integration and e2e tests are allowed to make network/filesystem calls
 (if marked appropriately).
 
 This conftest extends the main conftest.py by adding network and I/O isolation.
@@ -89,7 +89,7 @@ class NetworkCallDetectedError(Exception):
             f"Network call detected in unit test: {library_name}.{call_type}()\n"
             f"Unit tests must not make network calls. Use mocks instead.\n"
             f"If this test needs network access, it should be moved to "
-            f"integration/ or workflow_e2e/."
+            f"integration/ or e2e/."
         )
 
 
@@ -107,7 +107,7 @@ class FilesystemIODetectedError(Exception):
             f"Allowed: tempfile.mkdtemp(), tempfile.NamedTemporaryFile(), "
             f"operations within temp directories.\n"
             f"If this test needs filesystem access, it should be moved to "
-            f"integration/ or workflow_e2e/."
+            f"integration/ or e2e/."
         )
 
 

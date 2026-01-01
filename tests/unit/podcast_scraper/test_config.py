@@ -52,23 +52,29 @@ class TestSummaryValidation(unittest.TestCase):
 
     def test_word_overlap_less_than_chunk_size(self):
         """Test that summary_word_overlap must be less than summary_word_chunk_size."""
-        with self.assertRaises(ValidationError) as context:
-            Config(
-                rss_url="https://example.com/feed.xml",
-                summary_word_chunk_size=500,
-                summary_word_overlap=600,
-            )
-        self.assertIn("must be less than", str(context.exception))
+        # Suppress warnings about out-of-range values since we're testing validation errors
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            with self.assertRaises(ValidationError) as context:
+                Config(
+                    rss_url="https://example.com/feed.xml",
+                    summary_word_chunk_size=500,
+                    summary_word_overlap=600,
+                )
+            self.assertIn("must be less than", str(context.exception))
 
     def test_word_overlap_equal_to_chunk_size_fails(self):
         """Test that overlap equal to chunk size fails."""
-        with self.assertRaises(ValidationError) as context:
-            Config(
-                rss_url="https://example.com/feed.xml",
-                summary_word_chunk_size=500,
-                summary_word_overlap=500,
-            )
-        self.assertIn("must be less than", str(context.exception))
+        # Suppress warnings about out-of-range values since we're testing validation errors
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            with self.assertRaises(ValidationError) as context:
+                Config(
+                    rss_url="https://example.com/feed.xml",
+                    summary_word_chunk_size=500,
+                    summary_word_overlap=500,
+                )
+            self.assertIn("must be less than", str(context.exception))
 
     def test_word_overlap_less_than_chunk_size_succeeds(self):
         """Test that valid overlap < chunk_size configuration succeeds."""
