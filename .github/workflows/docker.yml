@@ -8,14 +8,10 @@ on:
       - '.dockerignore'
       - 'pyproject.toml'
       - '*.py'
-  # Docker build on PRs only when Dockerfile/.dockerignore change
-  # This speeds up PRs by skipping Docker builds for Python-only changes
+  # Fast Docker build always runs on PRs for validation
   # Full Docker validation still runs on merge to main
   pull_request:
     branches: [ "main" ]
-    paths:
-      - 'Dockerfile'
-      - '.dockerignore'
 
 permissions:
   contents: read
