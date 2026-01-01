@@ -129,8 +129,9 @@ test-integration-sequential:
 test-integration-fast:
 	# Fast integration tests: critical path tests only (includes ML tests if models are cached)
 	# Includes reruns for flaky tests (matches CI behavior)
-	# Excludes slow tests even if marked critical_path (timeout/retry tests run in full suite)
-	pytest tests/integration/ -m "integration and critical_path and not slow" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
+	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
+	# Use --durations=20 to monitor slow tests and optimize them separately
+	pytest tests/integration/ -m "integration and critical_path" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
 
 test-ci:
 	# CI test suite: serial tests first (sequentially), then parallel execution for the rest
@@ -143,9 +144,10 @@ test-ci-fast:
 	# Fast CI test suite: serial tests first (sequentially), then parallel execution for the rest
 	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
 	# Note: Coverage is excluded here for faster execution; full validation job includes unified coverage
-	# Excludes slow tests even if marked critical_path (timeout/retry tests run in full suite)
-	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'serial and ((not integration and not e2e) or (integration and critical_path and not slow) or (e2e and critical_path and not slow))' --disable-socket --allow-hosts=127.0.0.1,localhost || true
-	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not serial and ((not integration and not e2e) or (integration and critical_path and not slow) or (e2e and critical_path and not slow))' -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
+	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
+	# Use --durations=20 to monitor slow tests and optimize them separately
+	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 || true
+	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
 
 test-e2e:
 	# E2E tests: serial tests first (sequentially), then parallel execution for the rest
@@ -164,9 +166,10 @@ test-e2e-fast:
 	# Critical path tests only (includes ML tests if models are cached)
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Uses fast feed (1 episode) - set via E2E_TEST_MODE environment variable
-	# Excludes slow tests even if marked critical_path (timeout/retry tests run in full suite)
-	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and not slow and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 || true
-	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and not slow and not serial" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
+	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
+	# Use --durations=20 to monitor slow tests and optimize them separately
+	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 || true
+	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and not serial" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
 
 test-e2e-data-quality:
 	# Data quality E2E tests: full pipeline validation with multiple episodes
@@ -190,9 +193,10 @@ test-fast:
 	# Fast tests: serial tests first (sequentially), then parallel execution for the rest
 	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
 	# Uses fast feed for E2E tests (1 episode) - set via E2E_TEST_MODE environment variable
-	# Excludes slow tests even if marked critical_path (timeout/retry tests run in full suite)
-	@E2E_TEST_MODE=fast pytest -m 'serial and ((not integration and not e2e) or (integration and critical_path and not slow) or (e2e and critical_path and not slow))' --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost || true
-	@E2E_TEST_MODE=fast pytest -m 'not serial and ((not integration and not e2e) or (integration and critical_path and not slow) or (e2e and critical_path and not slow))' --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
+	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
+	# Use --durations=20 to monitor slow tests and optimize them separately
+	@E2E_TEST_MODE=fast pytest -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 || true
+	@E2E_TEST_MODE=fast pytest -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
 
 test-reruns:
 	pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e'

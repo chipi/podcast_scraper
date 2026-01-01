@@ -494,16 +494,22 @@ def test_whisper(self):
 Always mock external dependencies in tests:
 
 - **HTTP requests**: Mock `requests` module (unit/integration tests), use E2E server for E2E tests
-- **Whisper models**: Mock `whisper.load_model()` and `whisper.transcribe()` (unit tests), use real models (integration/E2E tests)
+- **Whisper models**:
+  - **Unit Tests**: Mock `whisper.load_model()` and `whisper.transcribe()` (all dependencies mocked)
+  - **Integration Tests**: Mock Whisper for speed (focus on component integration)
+  - **E2E Tests**: Use real Whisper models (NO mocks - complete workflow validation)
 - **File I/O**: Use `tempfile.TemporaryDirectory` for isolated tests
-- **spaCy models**: Mock NER extraction for unit tests, use real models (integration/E2E tests)
+- **spaCy models**:
+  - **Unit Tests**: Mock NER extraction (all dependencies mocked)
+  - **Integration Tests**: Mock spaCy for speed (focus on component integration)
+  - **E2E Tests**: Use real spaCy models (NO mocks - complete workflow validation)
 - **API providers**: Mock API clients (unit/integration tests), use E2E server mock endpoints (E2E tests)
 
 **Provider Testing Patterns:**
 
 - **Unit Tests**: Mock all provider dependencies (API clients, ML models)
-- **Integration Tests**: Use real provider implementations with mocked external services (HTTP APIs)
-- **E2E Tests**: Use real providers with E2E server mock endpoints (for API providers) or real implementations (for local providers)
+- **Integration Tests**: Use real provider implementations with mocked external services (HTTP APIs) and mocked ML models (Whisper, spaCy, Transformers)
+- **E2E Tests**: Use real providers with E2E server mock endpoints (for API providers) or real implementations (for local providers). ML models are REAL - no mocks allowed.
 
 ```python
 

@@ -43,10 +43,10 @@ def _create_mock_provider(mock_summary_model):
     mock_provider = Mock()
     mock_provider.map_model = mock_summary_model
     mock_provider.reduce_model = mock_summary_model
-    # Make it appear as TransformersSummarizationProvider for local provider path
-    from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
+    # Make it appear as MLProvider for local provider path
+    from podcast_scraper.ml.ml_provider import MLProvider
 
-    mock_provider.__class__ = TransformersSummarizationProvider
+    mock_provider.__class__ = MLProvider
     return mock_provider
 
 

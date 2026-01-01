@@ -121,11 +121,11 @@ class TestWhisperProviderRealModel(unittest.TestCase):
         provider.initialize()  # type: ignore[attr-defined]
 
         # Verify provider is initialized
-        self.assertTrue(provider._initialized)  # type: ignore[attr-defined]
-        self.assertIsNotNone(provider._model)  # type: ignore[attr-defined]
+        self.assertTrue(provider.is_initialized)  # type: ignore[attr-defined]
+        self.assertIsNotNone(provider._whisper_model)  # type: ignore[attr-defined]
 
         # Verify model is actually loaded (not mocked)
-        model = provider._model  # type: ignore[attr-defined]
+        model = provider._whisper_model  # type: ignore[attr-defined]
         self.assertIsNotNone(model)
         self.assertTrue(hasattr(model, "transcribe"))
 
@@ -174,8 +174,9 @@ class TestSpacyProviderRealModel(unittest.TestCase):
         detector.initialize()  # type: ignore[attr-defined]
 
         # Verify detector is initialized
-        self.assertTrue(hasattr(detector, "_nlp"))
-        self.assertIsNotNone(detector._nlp)  # type: ignore[attr-defined]
+        # MLProvider uses _spacy_nlp instead of _nlp
+        self.assertTrue(hasattr(detector, "_spacy_nlp"))
+        self.assertIsNotNone(detector._spacy_nlp)  # type: ignore[attr-defined]
 
         # Test that detector can actually use the model
         # (detect_speakers uses the model internally)
@@ -250,7 +251,9 @@ class TestTransformersProviderRealModel(unittest.TestCase):
         provider.initialize()  # type: ignore[attr-defined]
 
         # Verify provider is initialized
-        self.assertTrue(provider._initialized)  # type: ignore[attr-defined]
+        # MLProvider uses is_initialized property and _transformers_initialized
+        self.assertTrue(provider.is_initialized)  # type: ignore[attr-defined]
+        self.assertTrue(provider._transformers_initialized)  # type: ignore[attr-defined]
         self.assertIsNotNone(provider._map_model)  # type: ignore[attr-defined]
 
         # Verify model is actually loaded (not mocked)
@@ -338,21 +341,25 @@ class TestAllProvidersRealModels(unittest.TestCase):
         summarization_provider.initialize()  # type: ignore[attr-defined]
 
         # Verify all providers are initialized with real models
-        self.assertTrue(transcription_provider._initialized)  # type: ignore[attr-defined]
-        self.assertIsNotNone(transcription_provider._model)  # type: ignore[attr-defined]
+        # MLProvider uses is_initialized property
+        self.assertTrue(transcription_provider.is_initialized)  # type: ignore[attr-defined]
+        self.assertIsNotNone(transcription_provider._whisper_model)  # type: ignore[attr-defined]
 
-        self.assertIsNotNone(speaker_detector._nlp)  # type: ignore[attr-defined]
+        # MLProvider uses _spacy_nlp instead of _nlp
+        self.assertIsNotNone(speaker_detector._spacy_nlp)  # type: ignore[attr-defined]
 
-        self.assertTrue(summarization_provider._initialized)  # type: ignore[attr-defined]
+        # MLProvider uses is_initialized property and _transformers_initialized
+        self.assertTrue(summarization_provider.is_initialized)  # type: ignore[attr-defined]
+        self.assertTrue(summarization_provider._transformers_initialized)  # type: ignore[attr-defined]
         self.assertIsNotNone(summarization_provider._map_model)  # type: ignore[attr-defined]
 
         # Verify models are actually loaded (not mocked)
         # Whisper model
-        whisper_model = transcription_provider._model  # type: ignore[attr-defined]
+        whisper_model = transcription_provider._whisper_model  # type: ignore[attr-defined]
         self.assertTrue(hasattr(whisper_model, "transcribe"))
 
         # spaCy model
-        spacy_model = speaker_detector._nlp  # type: ignore[attr-defined]
+        spacy_model = speaker_detector._spacy_nlp  # type: ignore[attr-defined]
         self.assertTrue(hasattr(spacy_model, "pipe"))
 
         # Transformer model
@@ -570,6 +577,7 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
             generate_summaries=True,
             generate_metadata=True,
             auto_speakers=True,
+            transcribe_missing=True,
             screenplay_num_speakers=3,  # Allow 3 speakers so Bob Guest is included
         )
 
@@ -579,16 +587,12 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("podcast_scraper.transcription.openai_provider.OpenAI")
-    @patch("podcast_scraper.speaker_detectors.openai_detector.OpenAI")
-    @patch("podcast_scraper.summarization.openai_provider.OpenAI")
+    @patch("podcast_scraper.openai.openai_provider.OpenAI")
     @patch("podcast_scraper.prompt_store.render_prompt")
     def test_critical_path_with_openai_providers(
         self,
         mock_render_prompt,
-        mock_summary_openai,
-        mock_speaker_openai,
-        mock_transcription_openai,
+        mock_openai_class,
     ):
         """Test critical path with OpenAI providers (mocked API calls)."""
         import os
@@ -640,15 +644,9 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
         with open(transcript_path, "w", encoding="utf-8") as f:
             f.write(transcript_text)
 
-        # Mock OpenAI clients
-        mock_transcription_client = Mock()
-        mock_transcription_openai.return_value = mock_transcription_client
-
-        mock_speaker_client = Mock()
-        mock_speaker_openai.return_value = mock_speaker_client
-
-        mock_summary_client = Mock()
-        mock_summary_openai.return_value = mock_summary_client
+        # Mock unified OpenAI client (all capabilities share the same client)
+        mock_client = Mock()
+        mock_openai_class.return_value = mock_client
 
         # Mock prompt rendering for speaker detection and summarization
         mock_render_prompt.side_effect = [
@@ -669,8 +667,6 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
                 )
             )
         ]
-        mock_speaker_client.chat.completions.create.return_value = mock_speaker_response
-
         # Mock OpenAI summarization response
         mock_summary_response = Mock()
         mock_summary_response.choices = [
@@ -680,7 +676,11 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
                 )
             )
         ]
-        mock_summary_client.chat.completions.create.return_value = mock_summary_response
+        # Unified client handles all API calls
+        mock_client.chat.completions.create.side_effect = [
+            mock_speaker_response,  # First call: speaker detection
+            mock_summary_response,  # Second call: summarization
+        ]
 
         # Step 1: Detect hosts from feed metadata (OpenAI)
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
@@ -772,8 +772,8 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
             )
             self.assertEqual(data["content"]["transcript_source"], "direct_download")
 
-        # Verify OpenAI API was called
-        self.assertTrue(mock_speaker_client.chat.completions.create.called)
+            # Verify OpenAI API was called (unified client handles all calls)
+            self.assertTrue(mock_client.chat.completions.create.called)
 
         # Cleanup
         speaker_detector.cleanup()

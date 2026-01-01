@@ -272,17 +272,20 @@ if: |
 
 **Duration:** ~5-8 minutes
 
-**What it runs:** `pytest tests/integration/ -m "integration and critical_path"`
-- **Critical path integration tests only:** Uses `critical_path` marker
+**What it runs:** `pytest tests/integration/ -m "integration and critical_path" --durations=20`
+- **Critical path integration tests only:** Uses `critical_path` marker, includes ALL critical path tests (even if slow)
 - **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
 - **Re-runs enabled:** 2 retries with 1s delay for flaky tests
 - **Parallel execution:** Uses `-n auto` for speed
+- **Duration monitoring:** `--durations=20` shows the 20 slowest tests for optimization
 
 **Key Features:**
 - **Fast feedback:** Critical path tests only (not all integration tests)
+- **Includes slow critical path tests:** Critical path tests cannot be excluded even if slow - they must run to validate core functionality
+- **Slow test monitoring:** Use `--durations=20` output to identify slow tests and optimize them separately
 - **Network isolation:** Enforced via pytest-socket
 - **Re-runs:** Handles flaky tests automatically
-- **No ML dependencies:** Uses dev dependencies only (faster)
+- **ML dependencies:** Installs ML dependencies (required for real Whisper in integration tests)
 
 ---
 
@@ -306,17 +309,21 @@ if: |
 
 **Duration:** ~8-12 minutes
 
-**What it runs:** `pytest tests/e2e/ -m "e2e and critical_path"`
-- **Critical path E2E tests only:** Uses `critical_path` marker
+**What it runs:** `pytest tests/e2e/ -m "e2e and critical_path" --durations=20`
+- **Critical path E2E tests only:** Uses `critical_path` marker, includes ALL critical path tests (even if slow)
 - **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
 - **Re-runs enabled:** 2 retries with 1s delay for flaky tests
 - **Parallel execution:** Uses `-n auto` for speed
+- **Duration monitoring:** `--durations=20` shows the 20 slowest tests for optimization
 
 **Key Features:**
 - **Fast feedback:** Critical path tests only (not all E2E tests)
+- **Includes slow critical path tests:** Critical path tests cannot be excluded even if slow - they must run to validate core functionality
+- **Slow test monitoring:** Use `--durations=20` output to identify slow tests and optimize them separately
 - **Network isolation:** Enforced via pytest-socket
 - **Re-runs:** Handles flaky tests automatically
-- **No ML dependencies:** Uses dev dependencies only (faster)
+- **ML dependencies:** Installs ML dependencies (required for real Whisper in E2E tests)
+- **Real ML models:** Uses real Whisper, spaCy, and Transformers models (no mocks)
 
 ---
 

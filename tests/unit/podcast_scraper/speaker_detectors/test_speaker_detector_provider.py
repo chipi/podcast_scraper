@@ -18,11 +18,19 @@ class TestSpeakerDetectorFactory(unittest.TestCase):
     """Test speaker detector factory."""
 
     def test_create_ner_detector(self):
-        """Test that factory creates NERSpeakerDetector for 'ner'."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
+        """Test that factory creates MLProvider for 'spacy'."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml", speaker_detector_provider="spacy"
+        )
         detector = create_speaker_detector(cfg)
         self.assertIsNotNone(detector)
-        self.assertEqual(detector.__class__.__name__, "NERSpeakerDetector")
+        # Verify it's the unified ML provider
+        self.assertEqual(detector.__class__.__name__, "MLProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(detector, "detect_speakers"))
+        self.assertTrue(hasattr(detector, "detect_hosts"))
+        self.assertTrue(hasattr(detector, "analyze_patterns"))
+        self.assertTrue(hasattr(detector, "clear_cache"))
 
     def test_create_invalid_detector(self):
         """Test that factory raises ValueError for invalid detector type."""
@@ -42,59 +50,79 @@ class TestSpeakerDetectorFactory(unittest.TestCase):
 
     def test_factory_returns_detector_instance(self):
         """Test that factory returns a detector instance."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml", speaker_detector_provider="spacy"
+        )
         detector = create_speaker_detector(cfg)
         # Verify it has the expected methods
         self.assertTrue(hasattr(detector, "detect_speakers"))
         self.assertTrue(hasattr(detector, "analyze_patterns"))
 
 
-class TestNERSpeakerDetector(unittest.TestCase):
-    """Test NERSpeakerDetector implementation."""
+class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
+    """Test MLProvider speaker detection capability via factory."""
 
     def setUp(self):
         """Set up test fixtures."""
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
-            auto_speakers=True,
+            speaker_detector_provider="spacy",
+            auto_speakers=True,  # Enable for speaker detection tests
             ner_model=config.DEFAULT_NER_MODEL,
         )
 
-    def test_detector_initialization(self):
-        """Test that detector can be initialized."""
-        from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
+    def test_detector_creation_via_factory(self):
+        """Test that detector can be created via factory."""
+        detector = create_speaker_detector(self.cfg)
+        self.assertIsNotNone(detector)
+        # Verify it's the unified ML provider
+        self.assertEqual(detector.__class__.__name__, "MLProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(detector, "detect_speakers"))
+        self.assertTrue(hasattr(detector, "detect_hosts"))
+        self.assertTrue(hasattr(detector, "analyze_patterns"))
+        self.assertTrue(hasattr(detector, "clear_cache"))
 
-        detector = NERSpeakerDetector(self.cfg)
-        self.assertFalse(detector.is_initialized)
-        self.assertIsNone(detector.nlp)
+    def test_detector_initialization_state(self):
+        """Test that detector tracks initialization state."""
+        detector = create_speaker_detector(self.cfg)
+        # Initially not initialized (needs initialize() call)
+        self.assertFalse(detector._spacy_initialized)
 
-    @patch("podcast_scraper.speaker_detectors.ner_detector.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
     def test_detector_initialize_loads_model(self, mock_get_model):
-        """Test that initialize() loads the spaCy model."""
-        from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
+        """Test that initialize() loads the spaCy model via factory."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            speaker_detector_provider=self.cfg.speaker_detector_provider,
+            auto_speakers=True,
+        )
 
         mock_nlp = Mock()
         mock_get_model.return_value = mock_nlp
 
-        detector = NERSpeakerDetector(self.cfg)
+        detector = create_speaker_detector(cfg)
         detector.initialize()
 
-        self.assertTrue(detector.is_initialized)
+        self.assertTrue(detector._spacy_initialized)
         self.assertEqual(detector.nlp, mock_nlp)
-        mock_get_model.assert_called_once_with(self.cfg)
+        mock_get_model.assert_called_once()
 
-    @patch("podcast_scraper.speaker_detectors.ner_detector.speaker_detection.detect_speaker_names")
-    @patch("podcast_scraper.speaker_detectors.ner_detector.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.detect_speaker_names")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
     def test_detector_detect_speakers(self, mock_get_model, mock_detect):
-        """Test that detect_speakers() calls detect_speaker_names()."""
-        from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
+        """Test that detect_speakers() calls detect_speaker_names() via factory."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            speaker_detector_provider=self.cfg.speaker_detector_provider,
+            auto_speakers=True,
+        )
 
         mock_nlp = Mock()
         mock_get_model.return_value = mock_nlp
         mock_detect.return_value = (["John Doe", "Jane Smith"], {"John Doe"}, True)
 
-        detector = NERSpeakerDetector(self.cfg)
+        detector = create_speaker_detector(cfg)
         detector.initialize()
 
         result = detector.detect_speakers(
@@ -108,19 +136,17 @@ class TestNERSpeakerDetector(unittest.TestCase):
         self.assertTrue(result[2])
         mock_detect.assert_called_once()
 
-    @patch(
-        "podcast_scraper.speaker_detectors.ner_detector.speaker_detection.detect_hosts_from_feed"
-    )
-    @patch("podcast_scraper.speaker_detectors.ner_detector.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.detect_hosts_from_feed")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
     def test_detector_detect_hosts(self, mock_get_model, mock_detect_hosts):
         """Test that detect_hosts() calls detect_hosts_from_feed()."""
-        from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
+        # Use factory instead of direct import
 
         mock_nlp = Mock()
         mock_get_model.return_value = mock_nlp
         mock_detect_hosts.return_value = {"John Doe"}
 
-        detector = NERSpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
         result = detector.detect_hosts(
@@ -132,19 +158,17 @@ class TestNERSpeakerDetector(unittest.TestCase):
         self.assertEqual(result, {"John Doe"})
         mock_detect_hosts.assert_called_once()
 
-    @patch(
-        "podcast_scraper.speaker_detectors.ner_detector.speaker_detection.analyze_episode_patterns"
-    )
-    @patch("podcast_scraper.speaker_detectors.ner_detector.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.analyze_episode_patterns")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
     def test_detector_analyze_patterns(self, mock_get_model, mock_analyze):
         """Test that analyze_patterns() calls analyze_episode_patterns()."""
-        from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
+        # Use factory instead of direct import
 
         mock_nlp = Mock()
         mock_get_model.return_value = mock_nlp
         mock_analyze.return_value = {"title_position_preference": "end"}
 
-        detector = NERSpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
         # Create Episode using proper structure
@@ -174,21 +198,19 @@ class TestNERSpeakerDetector(unittest.TestCase):
         mock_analyze.assert_called_once()
 
     def test_detector_analyze_patterns_no_model(self):
-        """Test that analyze_patterns() returns None if model not available."""
+        """Test that analyze_patterns() raises RuntimeError if auto_speakers is False."""
         # Bandit: Safe XML construction for test data only
         # Bandit: Safe XML construction for test data only
         from xml.etree import ElementTree as ET  # nosec B405  # nosec B405
 
-        from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
-
+        # Use factory instead of direct import
         # Create detector with auto_speakers disabled
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
         )
-        detector = NERSpeakerDetector(cfg)
-        detector.initialize()  # This won't load a model
+        detector = create_speaker_detector(cfg)
 
         # Create Episode using proper structure
         item = ET.Element("item")
@@ -204,24 +226,29 @@ class TestNERSpeakerDetector(unittest.TestCase):
             )
         ]
 
-        result = detector.analyze_patterns(episodes=episodes, known_hosts=set())
+        with self.assertRaises(RuntimeError) as context:
+            detector.analyze_patterns(episodes=episodes, known_hosts=set())
 
-        self.assertIsNone(result)
+        self.assertIn("auto_speakers is False", str(context.exception))
 
 
 class TestSpeakerDetectorProtocol(unittest.TestCase):
-    """Test that NERSpeakerDetector implements SpeakerDetector protocol."""
+    """Test that MLProvider implements SpeakerDetector protocol (via factory)."""
 
     def test_detector_implements_protocol(self):
-        """Test that NERSpeakerDetector implements SpeakerDetector protocol."""
-        from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
+        """Test that MLProvider implements SpeakerDetector protocol."""
 
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
-        detector = NERSpeakerDetector(cfg)
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml", speaker_detector_provider="spacy"
+        )
+        detector = create_speaker_detector(cfg)
 
         # Check that detector has required protocol methods
         self.assertTrue(hasattr(detector, "detect_speakers"))
+        self.assertTrue(hasattr(detector, "detect_hosts"))
         self.assertTrue(hasattr(detector, "analyze_patterns"))
+        self.assertTrue(hasattr(detector, "clear_cache"))
+
         # Protocol requires detect_speakers(episode_title, episode_description, known_hosts)
         import inspect
 

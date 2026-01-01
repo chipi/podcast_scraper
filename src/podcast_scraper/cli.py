@@ -366,9 +366,9 @@ def _add_speaker_detection_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--speaker-detector-provider",
-        choices=["ner", "openai"],
-        default="ner",
-        help="Speaker detection provider to use (default: ner)",
+        choices=["spacy", "ner", "openai"],  # "ner" deprecated
+        default="spacy",
+        help="Speaker detection provider to use (default: spacy, deprecated: ner)",
     )
     parser.add_argument(
         "--auto-speakers",
@@ -409,9 +409,9 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--summary-provider",
-        choices=["local", "openai"],
-        default="local",
-        help="Summary provider to use (default: local)",
+        choices=["transformers", "local", "openai"],  # "local" deprecated
+        default="transformers",
+        help="Summary provider to use (default: transformers, deprecated: local)",
     )
     parser.add_argument(
         "--summary-model",
@@ -656,7 +656,7 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
     logger.info(f"  Generate Summaries: {cfg.generate_summaries}")
     if cfg.generate_summaries:
         logger.info(f"  Summary Provider: {cfg.summary_provider}")
-        if cfg.summary_provider == "local":
+        if cfg.summary_provider in ("transformers", "local"):  # "local" deprecated
             if cfg.summary_model:
                 logger.info(f"  Summary Model: {cfg.summary_model}")
             else:

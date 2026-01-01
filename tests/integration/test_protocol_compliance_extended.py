@@ -31,6 +31,7 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
             summary_provider="local",
             generate_summaries=False,
             auto_speakers=False,
+            transcribe_missing=True,
         )
 
     def test_transcription_provider_has_initialize(self):
@@ -69,10 +70,13 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
         self.assertTrue(hasattr(provider, "cleanup"))
         self.assertTrue(callable(getattr(provider, "cleanup")))
 
-    @patch("podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model")
-    def test_transcription_provider_initialize_cleanup_cycle(self, mock_load_model):
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    def test_transcription_provider_initialize_cleanup_cycle(self, mock_import_whisper):
         """Test that transcription provider can be initialized and cleaned up."""
-        mock_load_model.return_value = Mock()
+        mock_whisper_lib = Mock()
+        mock_whisper_model = Mock()
+        mock_whisper_lib.load_model.return_value = mock_whisper_model
+        mock_import_whisper.return_value = mock_whisper_lib
         provider = create_transcription_provider(self.cfg)
 
         # Should not be initialized initially
@@ -206,7 +210,9 @@ class TestTranscriptionProviderTranscribeWithSegments(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.cfg = config.Config(
-            rss_url="https://example.com/feed.xml", transcription_provider="whisper"
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            transcribe_missing=True,
         )
 
     def test_provider_has_transcribe_with_segments_method(self):
@@ -234,14 +240,16 @@ class TestTranscriptionProviderTranscribeWithSegments(unittest.TestCase):
         # Should return a tuple
         self.assertIn("tuple", return_annotation.lower())
 
-    @patch("podcast_scraper.transcription.whisper_provider.whisper_integration.load_whisper_model")
-    @patch(
-        "podcast_scraper.transcription.whisper_provider.whisper_integration.transcribe_with_whisper"
-    )
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper")
     def test_transcribe_with_segments_returns_expected_structure(
-        self, mock_transcribe, mock_load_model
+        self, mock_transcribe, mock_import_whisper
     ):
         """Test that transcribe_with_segments() returns expected structure."""
+        mock_whisper_lib = Mock()
+        mock_whisper_model = Mock()
+        mock_whisper_lib.load_model.return_value = mock_whisper_model
+        mock_import_whisper.return_value = mock_whisper_lib
         # Mock transcription result
         mock_result = {
             "text": "Hello world",
@@ -251,7 +259,6 @@ class TestTranscriptionProviderTranscribeWithSegments(unittest.TestCase):
             ],
         }
         mock_transcribe.return_value = (mock_result, 1.5)
-        mock_load_model.return_value = Mock()
 
         provider = create_transcription_provider(self.cfg)
         provider.initialize()

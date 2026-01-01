@@ -33,7 +33,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import workflow
+from podcast_scraper import config, workflow
 
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent
@@ -254,27 +254,22 @@ class TestConcurrentEpisodeProcessingE2E:
                 max_episodes=3,  # Limit to 3 episodes for faster testing
             )
 
-            # Mock Whisper transcription to avoid actual audio processing
-            with patch(
-                "podcast_scraper.whisper_integration.transcribe_with_whisper"
-            ) as mock_transcribe:
-                mock_transcribe.return_value = (
-                    "Mocked transcript text for testing concurrent execution."
-                )
+            # Require Whisper model to be cached (skip if not available)
+            from tests.integration.ml_model_cache_helpers import require_whisper_model_cached
 
-                # Run pipeline
-                transcripts_saved, summary = workflow.run_pipeline(cfg)
+            require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-                # Verify transcripts were saved
-                assert transcripts_saved > 0, "Should have saved at least one transcript"
+            # Run pipeline with real Whisper
+            transcripts_saved, summary = workflow.run_pipeline(cfg)
 
-                # Verify transcript files were created (can be .txt or .vtt)
-                transcript_files = list(Path(temp_dir).rglob("*.txt")) + list(
-                    Path(temp_dir).rglob("*.vtt")
-                )
-                assert (
-                    len(transcript_files) >= 1
-                ), "Should have created at least one transcript file"
+            # Verify transcripts were saved
+            assert transcripts_saved > 0, "Should have saved at least one transcript"
+
+            # Verify transcript files were created (can be .txt or .vtt)
+            transcript_files = list(Path(temp_dir).rglob("*.txt")) + list(
+                Path(temp_dir).rglob("*.vtt")
+            )
+            assert len(transcript_files) >= 1, "Should have created at least one transcript file"
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -366,9 +361,7 @@ class TestConcurrentEpisodeProcessingE2E:
             )
 
             # Mock summarization to avoid loading real models
-            with patch(
-                "podcast_scraper.summarization.local_provider.TransformersSummarizationProvider"
-            ) as mock_provider_class:
+            with patch("podcast_scraper.ml.ml_provider.MLProvider") as mock_provider_class:
                 mock_provider = unittest.mock.MagicMock()
                 mock_provider.summarize.return_value = "Mocked summary for concurrent testing."
                 mock_provider_class.return_value = mock_provider
@@ -401,9 +394,7 @@ class TestConcurrentEpisodeProcessingE2E:
             )
 
             # Mock summarization to avoid loading real models
-            with patch(
-                "podcast_scraper.summarization.local_provider.TransformersSummarizationProvider"
-            ) as mock_provider_class:
+            with patch("podcast_scraper.ml.ml_provider.MLProvider") as mock_provider_class:
                 mock_provider = unittest.mock.MagicMock()
                 mock_provider.summarize.return_value = "Mocked summary for cleanup testing."
                 mock_provider_class.return_value = mock_provider

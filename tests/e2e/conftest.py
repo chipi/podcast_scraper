@@ -361,57 +361,6 @@ def limit_max_episodes_in_fast_mode(request, monkeypatch):
         return
 
 
-@pytest.fixture(autouse=True)
-def mock_whisper_in_fast_mode(request):
-    """Mock Whisper transcription in fast E2E tests to keep execution fast.
-
-    In fast mode (tests not marked as @pytest.mark.slow or @pytest.mark.ml_models):
-    - Mocks Whisper transcription to avoid slow real ML model execution
-    - Returns realistic mock transcription results
-    - E2E tests should validate workflow, not ML model accuracy
-    - Real Whisper is tested in integration tests with real models
-
-    In slow mode (tests marked as @pytest.mark.slow or @pytest.mark.ml_models):
-    - No mocking - tests use real Whisper for comprehensive validation
-
-    This fixture is automatically applied to all E2E tests (autouse=True).
-    """
-    from unittest.mock import patch
-
-    # Check if test is marked as slow or ml_models (should use real Whisper)
-    is_slow = request.node.get_closest_marker("slow") is not None
-    is_ml_models = request.node.get_closest_marker("ml_models") is not None
-
-    if is_slow or is_ml_models:
-        # Slow/ML mode: No mocking - use real Whisper
-        yield
-        return
-
-    # Fast mode: Mock Whisper transcription
-    mock_transcription_result = {
-        "text": "This is a test transcription from Whisper for fast E2E tests. "
-        "The audio file has been processed and transcribed successfully.",
-        "segments": [
-            {
-                "start": 0.0,
-                "end": 5.0,
-                "text": "This is a test transcription from Whisper for fast E2E tests.",
-            },
-            {
-                "start": 5.0,
-                "end": 10.0,
-                "text": "The audio file has been processed and transcribed successfully.",
-            },
-        ],
-    }
-    mock_elapsed_time = 0.5  # Fast mock execution time
-
-    # Patch at the module level where it's imported and used
-    # The function is imported in whisper_provider.py as: from .. import whisper_integration
-    # So we need to patch it where it's used, not where it's defined
-    with patch(
-        "podcast_scraper.transcription.whisper_provider."
-        "WhisperTranscriptionProvider.transcribe_with_segments"
-    ) as mock_transcribe_segments:
-        mock_transcribe_segments.return_value = (mock_transcription_result, mock_elapsed_time)
-        yield mock_transcribe_segments
+# REMOVED: mock_whisper_in_fast_mode fixture
+# E2E tests should use real Whisper (no mocks). Tests that need mocked Whisper
+# should be in integration tests, not E2E tests.

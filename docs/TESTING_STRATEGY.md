@@ -86,10 +86,11 @@ The testing strategy follows a three-tier pyramid:
 - **I/O Policy**:
   - ✅ **Allowed**: Real filesystem I/O (temp directories), real component interactions
   - ❌ **Mocked**: External services (HTTP APIs, external APIs) - mocked for speed/reliability
+  - ❌ **Mocked**: ML models (Whisper, spaCy, Transformers) - mocked for speed, focus on component integration
   - ✅ **Optional**: Local HTTP server for HTTP client testing in isolation
 - **Coverage**: Critical paths and edge cases, component interactions
 - **Examples**: Provider factory → provider implementation, RSS parser → Episode → Provider → File output, HTTP client with local test server
-- **Key Distinction**: Tests how components work together, not complete user workflows
+- **Key Distinction**: Tests how components work together, not complete user workflows. Can use mocks for ML models to keep tests fast.
 
 ### End-to-End Tests
 
@@ -100,11 +101,13 @@ The testing strategy follows a three-tier pyramid:
 - **I/O Policy**:
   - ✅ **Allowed**: Real HTTP client with local HTTP server (no external network), real filesystem I/O, real data files
   - ✅ **Real implementations**: Use actual HTTP clients (no mocking), real file operations, real model loading
+  - ✅ **Real ML models**: Use real Whisper, spaCy, and Transformers models (NO mocks)
   - ✅ **Real data files**: RSS feeds, transcripts, audio files from `tests/fixtures/e2e_server/`
   - ❌ **No external network**: All HTTP calls go to local server (network guard prevents external calls)
+  - ❌ **No mocks**: E2E tests use real implementations throughout (no Whisper mocks, no ML model mocks)
 - **Coverage**: Complete user workflows, production-like scenarios
 - **Examples**: CLI command (`podcast-scraper <rss_url>`) → Full pipeline → Output files, Library API (`run_pipeline(config)`) → Full pipeline → Output files
-- **Key Distinction**: Tests complete user workflows, not just component interactions
+- **Key Distinction**: Tests complete user workflows with real implementations. NO mocks allowed - tests the system as users would use it.
 
 ## Decision Criteria
 
@@ -113,8 +116,8 @@ The decision questions above provide a quick way to determine test type. For cri
 **Quick Reference:**
 
 - **Unit Test**: Single function/module in isolation, all dependencies mocked
-- **Integration Test**: Multiple components working together, real internal implementations, mocked external services
-- **E2E Test**: Complete user workflow from entry point to output, real HTTP client, real data files, real ML models
+- **Integration Test**: Multiple components working together, real internal implementations, mocked external services (including ML models for speed)
+- **E2E Test**: Complete user workflow from entry point to output, real HTTP client, real data files, real ML models (NO mocks)
 
 **Critical Path Priority**: If your test covers the critical path (RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files), prioritize it. See [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
 
@@ -217,15 +220,17 @@ The decision questions above provide a quick way to determine test type. For cri
 #### Provider System (RFC-013)
 
 - **RFC-013**: Protocol-based provider architecture for transcription, speaker detection, and summarization
+- **Unified Provider Architecture**: MLProvider (unified local ML) and OpenAIProvider (unified OpenAI API)
 - **Test Cases**:
-  - **Unit Tests**: Provider creation, initialization, protocol method implementation, error handling, cleanup, configuration validation
-  - **Integration Tests**: Provider factory, protocol compliance, component interactions, provider switching, error handling in workflow context
-  - **E2E Tests**: Provider works in full pipeline, provider works with real HTTP client (E2E server), multiple providers work together, error scenarios (API failures, rate limits)
+  - **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, all dependencies mocked, test provider creation, initialization, protocol method implementation, error handling, cleanup, configuration validation
+  - **Unit Tests (Factory)**: Test factories create correct unified providers (MLProvider/OpenAIProvider), verify protocol compliance, test factory error handling
+  - **Integration Tests**: Test unified providers working with other components, use real providers with mocked external services, test provider factory, protocol compliance, component interactions, provider switching, error handling in workflow context
+  - **E2E Tests**: Test unified providers in full pipeline, providers work with real HTTP client (E2E server mock endpoints for API providers), real ML models (for local providers), multiple providers work together, error scenarios (API failures, rate limits)
   - **E2E Server Tests**: Mock endpoint returns correct format, mock endpoint handles different request types, mock endpoint error handling, URL helper methods work correctly
   - **Provider-specific tests**:
-    - **Transcription Providers**: Whisper (local), OpenAI (API) - test transcription, language handling, error scenarios
-    - **Speaker Detection Providers**: NER (local spaCy), OpenAI (API) - test host/guest detection, fallback behavior
-    - **Summarization Providers**: Local transformers, OpenAI (API) - test summarization, chunking, error handling
+    - **MLProvider**: Unified provider for Whisper (transcription), spaCy (speaker detection), Transformers (summarization) - test all three capabilities together
+    - **OpenAIProvider**: Unified provider for OpenAI API (transcription, speaker detection, summarization) - test all three capabilities together
+    - **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
 
 #### Service API (`service.py`)
 
@@ -334,14 +339,17 @@ The decision questions above provide a quick way to determine test type. For cri
 ### Mocking Strategy
 
 - **Unit Tests**: Mock all external dependencies (HTTP, ML models, file system, API clients)
-- **Integration Tests**: Mock external services (HTTP APIs, external APIs), use real internal implementations (real providers, real Config, real workflow logic)
-- **E2E Tests**: Use real implementations (HTTP client, ML models, file system) with local test server. For API providers, use E2E server mock endpoints instead of direct API calls
+- **Integration Tests**: Mock external services (HTTP APIs, external APIs) and ML models (Whisper, spaCy, Transformers), use real internal implementations (real providers, real Config, real workflow logic)
+- **E2E Tests**: Use real implementations (HTTP client, ML models, file system) with local test server. For API providers, use E2E server mock endpoints instead of direct API calls. ML models (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
 
 **Provider Testing Strategy:**
 
-- **Unit Tests**: Mock provider dependencies (API clients, ML models). Test provider creation, initialization, protocol methods, error handling
-- **Integration Tests**: Use real provider implementations with mocked external services. Test provider factory, protocol compliance, component interactions
-- **E2E Tests**: Use real providers with E2E server mock endpoints (for API providers like OpenAI) or real implementations (for local providers like Whisper). Test complete workflows with providers
+- **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, mock all dependencies (API clients, ML models). Test provider creation, initialization, protocol methods, error handling, cleanup
+- **Unit Tests (Factory)**: Test factories create correct unified providers, verify protocol compliance, test factory error handling
+- **Integration Tests**: Use real unified provider implementations (MLProvider/OpenAIProvider) with mocked external services and mocked ML models. Test provider factory, protocol compliance, component interactions, providers working together. ML models (Whisper, spaCy, Transformers) are mocked for speed.
+- **E2E Tests**: Use real unified providers with E2E server mock endpoints (for API providers like OpenAI) or real implementations (for local providers like MLProvider). Test complete workflows with providers. ML models (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
+- **Key Principle**: Always verify protocol compliance, not class names. Unified providers (MLProvider, OpenAIProvider) replace old separate provider classes
+- **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
 
 ### Test Organization
 

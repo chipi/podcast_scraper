@@ -27,20 +27,26 @@ def create_summarization_provider(cfg: config.Config) -> SummarizationProvider:
         NotImplementedError: If provider type is accepted but not yet implemented
 
     Note:
-        Stage 4: Returns TransformersSummarizationProvider for "local" provider type.
+        Returns MLProvider for "transformers" provider type (unified ML provider).
+        Returns OpenAIProvider for "openai" provider type (unified OpenAI provider).
+        Deprecated: "local" is accepted as alias for "transformers" for backward compatibility.
     """
     provider_type = cfg.summary_provider
 
+    # Handle deprecated "local" alias
     if provider_type == "local":
-        from .local_provider import TransformersSummarizationProvider
+        provider_type = "transformers"
 
-        return TransformersSummarizationProvider(cfg)
+    if provider_type == "transformers":
+        from ..ml.ml_provider import MLProvider
+
+        return MLProvider(cfg)
     elif provider_type == "openai":
-        from .openai_provider import OpenAISummarizationProvider
+        from ..openai.openai_provider import OpenAIProvider
 
-        return OpenAISummarizationProvider(cfg)
+        return OpenAIProvider(cfg)
     else:
         raise ValueError(
             f"Unsupported summarization provider: {provider_type}. "
-            "Supported providers: 'local', 'openai'."
+            "Supported providers: 'transformers', 'openai' (deprecated: 'local')."
         )

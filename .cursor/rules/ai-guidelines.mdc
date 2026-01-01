@@ -131,8 +131,15 @@ AI: I've resolved all conflicts. [Pushes immediately without showing changes or 
 
 ## Primary Reference
 
-**All guidelines, patterns, and rules are in `.ai-coding-guidelines.md`**
-**Read it at the start of every session and reference it constantly.**
+**Quick Reference:** `.ai-coding-guidelines-quick.md` (~150 lines) - Condensed critical rules
+**Complete Reference:** `.ai-coding-guidelines.md` (~2,169 lines) - Full guidelines with all details
+
+**When user says "load ai coding guidelines":**
+- Load `.ai-coding-guidelines-quick.md` (condensed)
+- Load `.ai-coding-guidelines.md` (main file)
+- Total: ~2,300 lines (optimized, saves ~60% context vs loading all 5 files)
+
+**Read at the start of every session and reference constantly.**
 
 ## Key Documentation Files
 

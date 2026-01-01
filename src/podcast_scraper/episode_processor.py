@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
 
-from . import config, downloader, filesystem, models, whisper_integration as whisper
+from . import config, downloader, filesystem, models
 from .rss_parser import choose_transcript_url
 
 logger = logging.getLogger(__name__)
@@ -277,14 +277,18 @@ def download_media_for_transcription(
 
 
 def _format_transcript_if_needed(
-    result: dict, cfg: config.Config, detected_speaker_names: Optional[List[str]]
+    result: dict,
+    cfg: config.Config,
+    detected_speaker_names: Optional[List[str]],
+    transcription_provider=None,
 ) -> str:
     """Format transcript as screenplay if configured.
 
     Args:
-        result: Whisper transcription result dictionary
+        result: Transcription result dictionary
         cfg: Configuration object
         detected_speaker_names: List of detected speaker names
+        transcription_provider: Optional TranscriptionProvider instance for formatting
 
     Returns:
         Formatted transcript text (screenplay or plain)
@@ -294,13 +298,24 @@ def _format_transcript_if_needed(
         # Use detected speaker names (manual names are already used as fallback in workflow)
         speaker_names = detected_speaker_names or []
         try:
-            formatted = whisper.format_screenplay_from_segments(
-                result["segments"],
-                cfg.screenplay_num_speakers,
-                speaker_names,
-                cfg.screenplay_gap_s,
-            )
-            if formatted.strip():
+            # Use provider's format_screenplay_from_segments if available (Whisper provider)
+            if transcription_provider and hasattr(
+                transcription_provider, "format_screenplay_from_segments"
+            ):
+                formatted = transcription_provider.format_screenplay_from_segments(
+                    result["segments"],
+                    cfg.screenplay_num_speakers,
+                    speaker_names,
+                    cfg.screenplay_gap_s,
+                )
+            else:
+                # Fallback: log warning and use plain text
+                logger.warning(
+                    "Screenplay formatting requested but provider doesn't support it. "
+                    "Using plain transcript."
+                )
+                formatted = None
+            if formatted and formatted.strip():
                 text = formatted
         except (ValueError, KeyError, TypeError) as exc:
             logger.warning(f"    failed to format as screenplay, using plain transcript: {exc}")
@@ -431,7 +446,9 @@ def transcribe_media_to_text(
         result, tc_elapsed = transcription_provider.transcribe_with_segments(
             temp_media, language=cfg.language
         )
-        text = _format_transcript_if_needed(result, cfg, job.detected_speaker_names)
+        text = _format_transcript_if_needed(
+            result, cfg, job.detected_speaker_names, transcription_provider
+        )
         rel_path = _save_transcript_file(text, job, run_suffix, effective_output_dir)
         logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")
 

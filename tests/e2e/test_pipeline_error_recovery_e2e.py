@@ -23,7 +23,6 @@ import time
 import unittest
 from pathlib import Path
 from typing import Optional
-from unittest.mock import patch
 
 import pytest
 
@@ -342,42 +341,29 @@ class TestPipelineErrorRecoveryE2E:
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
 
-        # Mock Whisper transcription to avoid actual audio processing
-        with patch(
-            "podcast_scraper.whisper_integration.transcribe_with_whisper"
-        ) as mock_transcribe:
-            mock_transcribe.return_value = (
-                {
-                    "text": "This is a fallback transcription from Whisper.",
-                    "segments": [
-                        {
-                            "start": 0.0,
-                            "end": 5.0,
-                            "text": "This is a fallback transcription from Whisper.",
-                        }
-                    ],
-                },
-                1.0,
-            )
+        # Require Whisper model to be cached (skip if not available)
+        from tests.integration.ml_model_cache_helpers import require_whisper_model_cached
 
-            # Run pipeline
-            count, summary = workflow.run_pipeline(cfg)
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-            # Verify that pipeline completed successfully using Whisper
-            assert count > 0, "Should process episode using Whisper fallback"
+        # Run pipeline with real Whisper
+        count, summary = workflow.run_pipeline(cfg)
 
-            # Verify transcript file was created (from Whisper)
-            transcript_files = list(Path(self.output_dir).rglob("*.txt"))
-            assert len(transcript_files) > 0, "Should create transcript file from Whisper fallback"
+        # Verify that pipeline completed successfully using Whisper
+        assert count > 0, "Should process episode using Whisper fallback"
 
-            # Verify metadata indicates Whisper transcription
-            metadata_files = list(Path(self.output_dir).rglob("*.metadata.json"))
-            assert len(metadata_files) > 0, "Should create metadata file"
+        # Verify transcript file was created (from Whisper)
+        transcript_files = list(Path(self.output_dir).rglob("*.txt"))
+        assert len(transcript_files) > 0, "Should create transcript file from Whisper fallback"
 
-            if metadata_files:
-                with open(metadata_files[0], "r", encoding="utf-8") as f:
-                    metadata = json.load(f)
-                assert metadata["content"]["transcript_source"] == "whisper_transcription"
+        # Verify metadata indicates Whisper transcription
+        metadata_files = list(Path(self.output_dir).rglob("*.metadata.json"))
+        assert len(metadata_files) > 0, "Should create metadata file"
+
+        if metadata_files:
+            with open(metadata_files[0], "r", encoding="utf-8") as f:
+                metadata = json.load(f)
+            assert metadata["content"]["transcript_source"] == "whisper_transcription"
 
     def test_pipeline_handles_transcript_download_failure_gracefully(self):
         """Test that pipeline handles transcript download failure without crashing."""

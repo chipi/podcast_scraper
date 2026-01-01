@@ -111,16 +111,18 @@ class TestBasicCLIE2E:
         Summarization → Metadata → Files
 
         Uses podcast1 which has NO transcript URL, so Whisper transcription is needed.
-        Uses real ML providers (local spaCy for NER, local transformers for summarization).
+        Uses real ML providers (local Whisper for transcription, local spaCy for NER,
+        local transformers for summarization).
         Requires models to be pre-cached (skip if not available).
-        Note: This test uses mocked Whisper (via conftest fixture) to keep it fast.
         Enables NER, summarization, and metadata to cover the full critical path.
         """
         # Require ML models to be cached (skip if not available)
         from tests.integration.ml_model_cache_helpers import (
             require_transformers_model_cached,
+            require_whisper_model_cached,
         )
 
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         rss_url = e2e_server.urls.feed("podcast1")
@@ -133,7 +135,7 @@ class TestBasicCLIE2E:
                     tmpdir,
                     "--max-episodes",
                     "1",
-                    "--transcribe-missing",  # Enable Whisper transcription (mocked)
+                    "--transcribe-missing",  # Enable Whisper transcription
                     "--whisper-model",
                     "tiny.en",  # Use smallest English-only model for speed
                     "--auto-speakers",  # Enable NER (speaker detection) - uses local ML (spaCy)
@@ -253,16 +255,18 @@ class TestBasicLibraryAPIE2E:
         Summarization → Metadata → Files
 
         Uses podcast1 which has NO transcript URL, so Whisper transcription is needed.
-        Uses real ML providers (local spaCy for NER, local transformers for summarization).
+        Uses real ML providers (local Whisper for transcription, local spaCy for NER,
+        local transformers for summarization).
         Requires models to be pre-cached (skip if not available).
-        Note: This test uses mocked Whisper (via conftest fixture) to keep it fast.
         Enables NER, summarization, and metadata to cover the full critical path.
         """
         # Require ML models to be cached (skip if not available)
         from tests.integration.ml_model_cache_helpers import (
             require_transformers_model_cached,
+            require_whisper_model_cached,
         )
 
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         rss_url = e2e_server.urls.feed("podcast1")
@@ -399,9 +403,9 @@ class TestBasicServiceAPIE2E:
         Summarization → Metadata → Files
 
         Uses podcast1 which has NO transcript URL, so Whisper transcription is needed.
-        Uses real ML providers (local spaCy for NER, local transformers for summarization).
+        Uses real ML providers (local Whisper for transcription, local spaCy for NER,
+        local transformers for summarization).
         Requires models to be pre-cached (skip if not available).
-        Note: This test uses mocked Whisper (via conftest fixture) to keep it fast.
         Enables NER, summarization, and metadata to cover the full critical path.
         """
         # Require ML models to be cached (skip if not available)

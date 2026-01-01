@@ -109,16 +109,22 @@ pytest tests/unit/test_package_imports.py -v
 
 **Provider Tests**:
 
-- **`test_speaker_detector_provider.py`** - Speaker detector provider protocol
-- **`test_summarization_provider.py`** - Summarization provider protocol
-- **`test_transcription_provider.py`** - Transcription provider protocol
-- **`test_openai_providers.py`** - OpenAI provider implementations (transcription, speaker detection, summarization)
+- **Standalone Provider Tests**:
+  - **`tests/unit/podcast_scraper/ml/test_ml_provider.py`** - MLProvider standalone tests (unified local ML provider)
+  - **`tests/unit/podcast_scraper/openai/test_openai_provider.py`** - OpenAIProvider standalone tests (unified OpenAI API provider)
+- **Factory Tests**:
+  - **`test_speaker_detector_provider.py`** - Speaker detector provider factory tests
+  - **`test_summarization_provider.py`** - Summarization provider factory tests
+  - **`test_transcription_provider.py`** - Transcription provider factory tests
+  - **`test_openai_providers.py`** - OpenAI provider factory tests
 
 **Provider Testing Patterns:**
 
-- **Unit Tests**: Test provider creation, initialization, protocol methods, error handling, cleanup
+- **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, mock all dependencies (API clients, ML models). Test provider creation, initialization, protocol methods, error handling, cleanup
+- **Unit Tests (Factory)**: Test factories create correct unified providers, verify protocol compliance, test factory error handling
 - **Mock Strategy**: Mock API clients (for API providers), mock ML models (for local providers)
-- **Example**: `test_openai_providers.py` mocks `OpenAI` client, tests provider initialization, transcription/summarization/speaker detection methods
+- **Example**: `test_ml_provider.py` tests MLProvider directly with mocked Whisper/spaCy/Transformers. `test_transcription_provider.py` tests factory creates MLProvider/OpenAIProvider
+- **Key Principle**: Always verify protocol compliance, not class names. Unified providers (MLProvider, OpenAIProvider) replace old separate provider classes
 
 **Infrastructure Tests**:
 
@@ -725,13 +731,17 @@ pytest tests/e2e/ -m "e2e and network"
 ### Mocking Strategy
 
 - **HTTP Requests**: `unittest.mock.patch` with `MockHTTPResponse` fixtures (unit/integration tests), E2E server for E2E tests
-- **Whisper Library**: Mock `whisper.load_model()` and `whisper.transcribe()` (unit tests), real models (integration/E2E tests)
+- **Whisper Library**:
+  - **Unit Tests**: Mock `whisper.load_model()` and `whisper.transcribe()` (all dependencies mocked)
+  - **Integration Tests**: Mock Whisper for speed (focus on component integration, not ML accuracy)
+  - **E2E Tests**: Use real Whisper models (NO mocks - tests complete workflow with real ML)
 - **File System**: `tempfile.TemporaryDirectory` for isolated test runs
 - **ML Dependencies (spacy, torch, transformers)**:
   - **Unit Tests**: Must mock ML dependencies before importing modules that use them
-  - **Integration Tests**: Real ML dependencies required and installed
-  - **Why**: Unit tests run without ML dependencies in CI for speed; modules that import ML deps at top level will fail
-  - **Solution**: Mock ML modules in `sys.modules` before importing dependent modules
+  - **Integration Tests**: Real ML dependencies required and installed, but ML models are mocked for speed
+  - **E2E Tests**: Real ML dependencies required and installed, real ML models used (no mocks)
+  - **Why**: Unit tests run without ML dependencies in CI for speed; Integration tests mock ML for speed; E2E tests use real ML to validate complete workflows
+  - **Solution**: Mock ML modules in `sys.modules` before importing dependent modules (unit tests), mock ML model loading/execution (integration tests), use real models (E2E tests)
 - **API Providers (OpenAI, etc.)**:
   - **Unit Tests**: Mock `OpenAI` client class
   - **Integration Tests**: Mock API clients or use E2E server mock endpoints
@@ -763,6 +773,7 @@ The test suite is organized into three main categories:
   - Use **real internal implementations** (real Config, real providers, real workflow logic)
   - Use **real filesystem I/O** (temp directories, real file operations)
   - **Mock external services** (HTTP APIs, external APIs) for speed and reliability
+  - **Mock ML models** (Whisper, spaCy, Transformers) for speed - focus on component integration, not ML accuracy
   - Test how components work together, not just individual units
   - Example: `tests/integration/test_provider_integration.py`
 
@@ -771,8 +782,8 @@ The test suite is organized into three main categories:
   - Test CLI commands, service mode, full pipelines
   - **Use real HTTP client** (with local server, no external network)
   - **Use real filesystem I/O** (real file operations, real output directories)
-  - **Use real ML models** (Whisper, transformers, etc.)
-  - **Full system testing**: Tests the system as users would use it
+  - **Use real ML models** (Whisper, spaCy, Transformers) - NO mocks allowed
+  - **Full system testing**: Tests the system as users would use it, with real implementations throughout
   - Slowest tests (may take seconds to minutes)
   - Example: `tests/e2e/test_basic_e2e.py`
 
@@ -969,7 +980,8 @@ Move a test to E2E if:
 1. It tests a complete user workflow (CLI command, library API call)
 2. It uses real HTTP client without mocking
 3. It uses real data files (RSS feeds, transcripts, audio)
-4. It tests complete pipeline from entry to output
+4. It uses real ML models (Whisper, spaCy, Transformers) - NO mocks
+5. It tests complete pipeline from entry to output
 
 ### When to Keep a Test as Integration
 
@@ -978,13 +990,14 @@ Keep a test as integration if:
 1. It tests component interactions without full pipeline
 2. It focuses on specific scenarios (error handling, edge cases)
 3. It uses mocked HTTP for speed
-4. It tests component behavior in isolation
+4. It uses mocked ML models (Whisper, spaCy, Transformers) for speed
+5. It tests component behavior in isolation
 
 ### Summary
 
-**Integration Tests** = Component interactions, fast feedback, mocked external services
+**Integration Tests** = Component interactions, fast feedback, mocked external services, mocked ML models (Whisper, spaCy, Transformers)
 
-**E2E Tests** = Complete user workflows, real HTTP client, real data files, real ML models in full context
+**E2E Tests** = Complete user workflows, real HTTP client, real data files, real ML models (NO mocks) in full context
 
 **Key Question**: "Am I testing how components work together, or am I testing a complete user workflow?"
 

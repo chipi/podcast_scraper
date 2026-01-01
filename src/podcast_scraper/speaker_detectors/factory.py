@@ -26,23 +26,29 @@ def create_speaker_detector(cfg: config.Config) -> SpeakerDetector:
         ValueError: If provider type is not supported
 
     Note:
-        Stage 3: Returns NERSpeakerDetector for "ner" provider type.
+        Returns MLProvider for "spacy" provider type (unified ML provider).
+        Returns OpenAIProvider for "openai" provider type (unified OpenAI provider).
+        Deprecated: "ner" is accepted as alias for "spacy" for backward compatibility.
     """
     # Support both new and deprecated field names for backward compatibility
     provider_type = getattr(cfg, "speaker_detector_provider", None) or getattr(
-        cfg, "speaker_detector_type", "ner"
+        cfg, "speaker_detector_type", "spacy"
     )
 
+    # Handle deprecated "ner" alias
     if provider_type == "ner":
-        from .ner_detector import NERSpeakerDetector
+        provider_type = "spacy"
 
-        return NERSpeakerDetector(cfg)
+    if provider_type == "spacy":
+        from ..ml.ml_provider import MLProvider
+
+        return MLProvider(cfg)
     elif provider_type == "openai":
-        from .openai_detector import OpenAISpeakerDetector
+        from ..openai.openai_provider import OpenAIProvider
 
-        return OpenAISpeakerDetector(cfg)
+        return OpenAIProvider(cfg)
     else:
         raise ValueError(
             f"Unsupported speaker detector type: {provider_type}. "
-            "Supported types: 'ner', 'openai'"
+            "Supported types: 'spacy', 'openai' (deprecated: 'ner')"
         )

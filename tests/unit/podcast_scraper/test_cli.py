@@ -408,7 +408,7 @@ class TestBuildConfig(unittest.TestCase):
             log_file=None,
             language="en",
             ner_model=None,
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
             cache_detected_hosts=False,
             workers=4,
@@ -488,7 +488,7 @@ class TestBuildConfig(unittest.TestCase):
             log_file=None,
             language=None,
             ner_model=None,
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
             cache_detected_hosts=False,
             workers=1,
@@ -542,7 +542,7 @@ class TestBuildConfig(unittest.TestCase):
             log_file=None,
             language=None,
             ner_model=None,
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
             cache_detected_hosts=False,
             workers=1,
@@ -637,7 +637,7 @@ class TestBuildConfig(unittest.TestCase):
             log_file=None,
             language=None,
             ner_model=None,
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
             cache_detected_hosts=False,
             workers=1,
@@ -685,7 +685,7 @@ class TestBuildConfig(unittest.TestCase):
             log_file=None,
             language=None,
             ner_model=None,
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
             cache_detected_hosts=False,
             workers=1,
@@ -734,7 +734,7 @@ class TestBuildConfig(unittest.TestCase):
             log_file=None,
             language=None,
             ner_model=None,
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
             cache_detected_hosts=False,
             workers=1,
@@ -813,9 +813,9 @@ class TestParseArgs(unittest.TestCase):
         self.assertEqual(args.transcription_provider, "whisper")
 
     def test_parse_args_speaker_detector_provider_default(self):
-        """Test that --speaker-detector-provider defaults to 'ner'."""
+        """Test that --speaker-detector-provider defaults to 'spacy'."""
         args = cli.parse_args(["https://example.com/feed.xml"])
-        self.assertEqual(args.speaker_detector_provider, "ner")
+        self.assertEqual(args.speaker_detector_provider, "spacy")
 
     def test_parse_args_openai_api_base_default(self):
         """Test that --openai-api-base defaults to None."""
@@ -969,8 +969,10 @@ class TestAddArgumentGroups(unittest.TestCase):
             (a for a in parser._actions if a.dest == "speaker_detector_provider"), None
         )
         self.assertIsNotNone(speaker_detector_action)
-        self.assertEqual(speaker_detector_action.choices, ["ner", "openai"])
-        self.assertEqual(speaker_detector_action.default, "ner")
+        self.assertEqual(
+            speaker_detector_action.choices, ["spacy", "ner", "openai"]
+        )  # "ner" deprecated
+        self.assertEqual(speaker_detector_action.default, "spacy")
 
     def test_add_summarization_arguments(self):
         """Test that _add_summarization_arguments adds expected arguments."""

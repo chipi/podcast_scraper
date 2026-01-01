@@ -25,7 +25,7 @@ if PACKAGE_ROOT not in sys.path:
 import sys
 
 from podcast_scraper import Config, config, run_pipeline
-from podcast_scraper.transcription.whisper_provider import WhisperTranscriptionProvider
+from podcast_scraper.transcription.factory import create_transcription_provider
 
 integration_dir = Path(__file__).parent.parent / "integration"
 if str(integration_dir) not in sys.path:
@@ -89,8 +89,8 @@ class TestWhisperProviderDirect:
                 language="en",
             )
 
-            # Initialize Whisper provider
-            provider = WhisperTranscriptionProvider(cfg)
+            # Initialize provider via factory
+            provider = create_transcription_provider(cfg)
             provider.initialize()
 
             # Transcribe audio file
@@ -149,8 +149,8 @@ class TestWhisperProviderDirect:
                 language="en",
             )
 
-            # Initialize Whisper provider
-            provider = WhisperTranscriptionProvider(cfg)
+            # Initialize provider via factory
+            provider = create_transcription_provider(cfg)
             provider.initialize()
 
             # Transcribe with segments
