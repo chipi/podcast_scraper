@@ -17,7 +17,9 @@ class TestTranscriptionProviderFactory(unittest.TestCase):
     def test_create_whisper_provider(self):
         """Test that factory creates MLProvider for 'whisper'."""
         cfg = config.Config(
-            rss_url="https://example.com/feed.xml", transcription_provider="whisper"
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            auto_speakers=False,  # Disable to avoid loading spaCy
         )
         provider = create_transcription_provider(cfg)
         self.assertIsNotNone(provider)
@@ -47,7 +49,9 @@ class TestTranscriptionProviderFactory(unittest.TestCase):
     def test_factory_returns_provider_instance(self):
         """Test that factory returns a provider instance."""
         cfg = config.Config(
-            rss_url="https://example.com/feed.xml", transcription_provider="whisper"
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            auto_speakers=False,  # Disable to avoid loading spaCy
         )
         provider = create_transcription_provider(cfg)
         # Verify it has the expected methods
@@ -65,6 +69,7 @@ class TestMLProviderTranscription(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
             transcribe_missing=False,  # Disable to avoid loading models
+            auto_speakers=False,  # Disable to avoid loading spaCy
             whisper_model="tiny",
         )
 
@@ -93,6 +98,7 @@ class TestMLProviderTranscription(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             transcription_provider=self.cfg.transcription_provider,
             transcribe_missing=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             whisper_model=self.cfg.whisper_model,
         )
 
@@ -116,6 +122,7 @@ class TestMLProviderTranscription(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             transcription_provider=self.cfg.transcription_provider,
             transcribe_missing=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             whisper_model=self.cfg.whisper_model,
         )
 
@@ -137,6 +144,7 @@ class TestMLProviderTranscription(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             transcription_provider=self.cfg.transcription_provider,
             transcribe_missing=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             whisper_model=self.cfg.whisper_model,
         )
 
@@ -162,6 +170,7 @@ class TestMLProviderTranscription(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             transcription_provider=self.cfg.transcription_provider,
             transcribe_missing=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             whisper_model=self.cfg.whisper_model,
         )
         provider = create_transcription_provider(cfg)
@@ -179,6 +188,7 @@ class TestMLProviderTranscription(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             transcription_provider=self.cfg.transcription_provider,
             transcribe_missing=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             whisper_model=self.cfg.whisper_model,
         )
 
@@ -212,6 +222,7 @@ class TestMLProviderTranscription(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             transcription_provider=self.cfg.transcription_provider,
             transcribe_missing=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             whisper_model=self.cfg.whisper_model,
         )
 
@@ -236,7 +247,9 @@ class TestTranscriptionProviderProtocol(unittest.TestCase):
     def test_provider_implements_protocol(self):
         """Test that MLProvider implements TranscriptionProvider protocol."""
         cfg = config.Config(
-            rss_url="https://example.com/feed.xml", transcription_provider="whisper"
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            auto_speakers=False,  # Disable to avoid loading spaCy
         )
         provider = create_transcription_provider(cfg)
 

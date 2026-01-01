@@ -19,6 +19,7 @@ class TestSummarizationProviderFactory(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             summary_provider="transformers",
             generate_summaries=False,
+            auto_speakers=False,  # Disable to avoid loading spaCy
         )
         provider = create_summarization_provider(cfg)
         self.assertIsNotNone(provider)
@@ -47,6 +48,7 @@ class TestSummarizationProviderFactory(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             summary_provider="transformers",
             generate_summaries=False,
+            auto_speakers=False,  # Disable to avoid loading spaCy
         )
         provider = create_summarization_provider(cfg)
         # Verify it has the expected methods
@@ -64,6 +66,7 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             summary_provider="transformers",
             generate_summaries=False,  # Disable to avoid loading models
+            auto_speakers=False,  # Disable to avoid loading spaCy
             generate_metadata=True,
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
         )
@@ -96,6 +99,7 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             summary_provider=self.cfg.summary_provider,
             generate_summaries=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             generate_metadata=True,  # Required when generate_summaries is True
             summary_model=self.cfg.summary_model,
         )
@@ -128,6 +132,7 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             summary_provider=self.cfg.summary_provider,
             generate_summaries=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             generate_metadata=True,  # Required when generate_summaries is True
             summary_model=self.cfg.summary_model,
         )
@@ -158,6 +163,7 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             summary_provider=self.cfg.summary_provider,
             generate_summaries=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             generate_metadata=True,  # Required when generate_summaries is True
             summary_model=self.cfg.summary_model,
         )
@@ -188,6 +194,7 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             summary_provider=self.cfg.summary_provider,
             generate_summaries=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             generate_metadata=True,  # Required when generate_summaries is True
             summary_model=self.cfg.summary_model,
         )
@@ -208,6 +215,7 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             summary_provider=self.cfg.summary_provider,
             generate_summaries=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             generate_metadata=True,  # Required when generate_summaries is True
             summary_model=self.cfg.summary_model,
         )
@@ -241,6 +249,7 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
             rss_url=self.cfg.rss_url,
             summary_provider=self.cfg.summary_provider,
             generate_summaries=True,
+            auto_speakers=False,  # Disable to avoid loading spaCy
             generate_metadata=True,  # Required when generate_summaries is True
             summary_model=self.cfg.summary_model,
         )
@@ -284,6 +293,7 @@ class TestSummarizationProviderProtocol(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             summary_provider="transformers",
             generate_summaries=False,
+            auto_speakers=False,  # Disable to avoid loading spaCy
         )
         provider = create_summarization_provider(cfg)
 

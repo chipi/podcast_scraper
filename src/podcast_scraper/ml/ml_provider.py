@@ -331,6 +331,11 @@ class MLProvider:
 
     def _initialize_spacy(self) -> None:
         """Initialize spaCy NER model for speaker detection."""
+        if not self.cfg.auto_speakers:
+            raise RuntimeError(
+                "Cannot initialize spaCy: auto_speakers is False. "
+                "Set auto_speakers=True to enable speaker detection."
+            )
         logger.debug("Initializing spaCy NER model (model: %s)", self.cfg.ner_model)
         self._spacy_nlp = speaker_detection.get_ner_model(self.cfg)
         if self._spacy_nlp is None:
@@ -577,8 +582,13 @@ class MLProvider:
             - Set of detected host names (subset of known_hosts)
             - Success flag (True if detection succeeded)
         """
-        # Ensure model is loaded
+        # Ensure model is loaded (only if auto_speakers is enabled)
         if self._spacy_nlp is None:
+            if not self.cfg.auto_speakers:
+                raise RuntimeError(
+                    "Cannot detect speakers: auto_speakers is False. "
+                    "Set auto_speakers=True to enable speaker detection."
+                )
             self._initialize_spacy()
 
         # Use detect_speaker_names with adapted parameters
@@ -611,8 +621,13 @@ class MLProvider:
         Returns:
             Set of detected host names
         """
-        # Ensure model is loaded
+        # Ensure model is loaded (only if auto_speakers is enabled)
         if self._spacy_nlp is None:
+            if not self.cfg.auto_speakers:
+                raise RuntimeError(
+                    "Cannot detect speakers: auto_speakers is False. "
+                    "Set auto_speakers=True to enable speaker detection."
+                )
             self._initialize_spacy()
 
         return speaker_detection.detect_hosts_from_feed(
@@ -636,8 +651,13 @@ class MLProvider:
         Returns:
             Dictionary with pattern analysis results, or None if analysis fails
         """
-        # Ensure model is loaded
+        # Ensure model is loaded (only if auto_speakers is enabled)
         if self._spacy_nlp is None:
+            if not self.cfg.auto_speakers:
+                raise RuntimeError(
+                    "Cannot detect speakers: auto_speakers is False. "
+                    "Set auto_speakers=True to enable speaker detection."
+                )
             self._initialize_spacy()
 
         if not self._spacy_nlp:
