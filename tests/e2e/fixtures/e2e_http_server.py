@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import http.server
 import json
+import re
 import socketserver
 import threading
 import time
@@ -238,10 +239,12 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 rss_file = self.PODCAST_RSS_MAP.get(podcast_name)
 
             if rss_file:
-                file_path = self.get_fixture_root() / "rss" / rss_file
-                if file_path.exists():
-                    self._serve_file(file_path, content_type="application/xml")
+                file_path = self._get_safe_rss_path(rss_file)
+                if file_path is None:
+                    self.send_error(403, "Invalid RSS file path")
                     return
+                self._serve_file(file_path, content_type="application/xml")
+                return
             self.send_error(404, "RSS feed not found")
             return
 
@@ -442,10 +445,11 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         """Safely construct and validate a fixture file path.
 
         This method prevents path traversal attacks by:
-        1. Rejecting filenames with path separators or ".." segments
-        2. Building the path relative to a fixed root directory
-        3. Normalizing the path with resolve()
-        4. Verifying the normalized path is within the intended root and is a file
+        1. Using an allowlist pattern to validate filename format
+        2. Rejecting filenames with path separators, "..", or multiple dots
+        3. Building the path relative to a fixed root directory
+        4. Normalizing the path with resolve()
+        5. Verifying the normalized path is within the intended root and is a file
 
         Args:
             subdir: Subdirectory name ("audio" or "transcripts")
@@ -454,16 +458,108 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         Returns:
             Safe Path if validation passes, None if input is invalid
         """
+        # Reject empty filenames
+        if not filename or not filename.strip():
+            return None
+
         # Reject filenames containing path separators or ".." segments
         if "/" in filename or "\\" in filename or ".." in filename:
             return None
+
+        # Reject filenames with more than one "." character (allowlist pattern)
+        # Expected format: pXX_eYY.mp3, pXX_eYY_fast.mp3, pXX_eYY.txt, pXX_eYY_fast.txt
+        # Only one dot allowed (for the file extension)
+        if filename.count(".") != 1:
+            return None
+
+        # Validate filename against allowlist pattern
+        # Pattern: p<digits>_e<digits>(_fast)?.<extension>
+        # Extensions: .mp3 for audio, .txt for transcripts
+        if subdir == "audio":
+            allowed_pattern = re.compile(r"^p\d+_e\d+(_fast)?\.mp3$")
+        elif subdir == "transcripts":
+            allowed_pattern = re.compile(r"^p\d+_e\d+(_fast)?\.txt$")
+        else:
+            # Unknown subdir, reject
+            return None
+
+        if not allowed_pattern.match(filename):
+            return None
+
+        # At this point, filename has been validated:
+        # - No path separators or ".."
+        # - Exactly one "." character
+        # - Matches allowlist pattern (p\d+_e\d+(_fast)?\.(mp3|txt))
+        # Safe to use in path construction
 
         # Build base directory
         base_dir = self.get_fixture_root() / subdir
 
         # Build candidate path and resolve to normalize
+        # filename is validated above, safe to use here
         try:
             candidate = (base_dir / filename).resolve()
+        except (OSError, RuntimeError):
+            # Path resolution failed (e.g., broken symlink, invalid path)
+            return None
+
+        # Verify candidate is a file and is within base_dir
+        # Python 3.9+ has is_relative_to, we're on 3.10+ so it's available
+        if not candidate.is_file() or not candidate.is_relative_to(base_dir):
+            return None
+
+        return candidate
+
+    def _get_safe_rss_path(self, rss_file: str) -> Optional[Path]:
+        """Safely construct and validate an RSS file path.
+
+        This method prevents path traversal attacks by:
+        1. Using an allowlist pattern to validate RSS filename format
+        2. Rejecting filenames with path separators, "..", or multiple dots
+        3. Building the path relative to a fixed root directory
+        4. Normalizing the path with resolve()
+        5. Verifying the normalized path is within the intended root and is a file
+
+        Args:
+            rss_file: RSS filename from dictionary lookup (should be validated)
+
+        Returns:
+            Safe Path if validation passes, None if input is invalid
+        """
+        # Reject empty filenames
+        if not rss_file or not rss_file.strip():
+            return None
+
+        # Reject filenames containing path separators or ".." segments
+        if "/" in rss_file or "\\" in rss_file or ".." in rss_file:
+            return None
+
+        # Reject filenames with more than one "." character (allowlist pattern)
+        # Expected format: pXX_*.xml (e.g., p01_mtb.xml, p01_fast.xml, p01_smoke.xml)
+        # Only one dot allowed (for the file extension)
+        if rss_file.count(".") != 1:
+            return None
+
+        # Validate filename against allowlist pattern
+        # Pattern: p<digits>_<alphanumeric_underscore>\.xml
+        # Examples: p01_mtb.xml, p01_fast.xml, p01_smoke.xml, p06_edge_cases.xml
+        allowed_pattern = re.compile(r"^p\d+_[a-z0-9_]+\.xml$")
+        if not allowed_pattern.match(rss_file):
+            return None
+
+        # At this point, rss_file has been validated:
+        # - No path separators or ".."
+        # - Exactly one "." character
+        # - Matches allowlist pattern (p\d+_[a-z0-9_]+\.xml)
+        # Safe to use in path construction
+
+        # Build base directory
+        base_dir = self.get_fixture_root() / "rss"
+
+        # Build candidate path and resolve to normalize
+        # rss_file is validated above, safe to use here
+        try:
+            candidate = (base_dir / rss_file).resolve()
         except (OSError, RuntimeError):
             # Path resolution failed (e.g., broken symlink, invalid path)
             return None
