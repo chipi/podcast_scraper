@@ -458,6 +458,16 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         Returns:
             Safe Path if validation passes, None if input is invalid
         """
+        # Validate subdir parameter (prevent path injection via subdir)
+        if not subdir or not isinstance(subdir, str):
+            return None
+        # Reject subdir containing path separators or ".."
+        if "/" in subdir or "\\" in subdir or ".." in subdir or subdir.strip() != subdir:
+            return None
+        # Only allow known safe subdirs
+        if subdir not in ("audio", "transcripts"):
+            return None
+
         # Reject empty filenames
         if not filename or not filename.strip():
             return None
@@ -480,23 +490,24 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         elif subdir == "transcripts":
             allowed_pattern = re.compile(r"^p\d+_e\d+(_fast)?\.txt$")
         else:
-            # Unknown subdir, reject
+            # This should never happen due to validation above, but defensive check
             return None
 
         if not allowed_pattern.match(filename):
             return None
 
-        # At this point, filename has been validated:
-        # - No path separators or ".."
-        # - Exactly one "." character
-        # - Matches allowlist pattern (p\d+_e\d+(_fast)?\.(mp3|txt))
+        # At this point, both subdir and filename have been validated:
+        # - subdir is one of ("audio", "transcripts") with no path separators
+        # - filename has no path separators or ".."
+        # - filename has exactly one "." character
+        # - filename matches allowlist pattern (p\d+_e\d+(_fast)?\.(mp3|txt))
         # Safe to use in path construction
 
-        # Build base directory
+        # Build base directory (subdir is validated, safe to use)
         base_dir = self.get_fixture_root() / subdir
 
         # Build candidate path and resolve to normalize
-        # filename is validated above, safe to use here
+        # Both subdir and filename are validated above, safe to use here
         try:
             candidate = (base_dir / filename).resolve()
         except (OSError, RuntimeError):
@@ -505,7 +516,15 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # Verify candidate is a file and is within base_dir
         # Python 3.9+ has is_relative_to, we're on 3.10+ so it's available
-        if not candidate.is_file() or not candidate.is_relative_to(base_dir):
+        # Additional validation: ensure resolved path is within expected directory
+        if not candidate.is_file():
+            return None
+        # Verify path containment (prevents symlink attacks)
+        try:
+            if not candidate.is_relative_to(base_dir):
+                return None
+        except (ValueError, AttributeError):
+            # Fallback for edge cases
             return None
 
         return candidate
@@ -553,11 +572,11 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # - Matches allowlist pattern (p\d+_[a-z0-9_]+\.xml)
         # Safe to use in path construction
 
-        # Build base directory
+        # Build base directory (hardcoded "rss", not user-controlled)
         base_dir = self.get_fixture_root() / "rss"
 
         # Build candidate path and resolve to normalize
-        # rss_file is validated above, safe to use here
+        # rss_file is validated above (no path separators, matches allowlist), safe to use here
         try:
             candidate = (base_dir / rss_file).resolve()
         except (OSError, RuntimeError):
@@ -566,7 +585,15 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # Verify candidate is a file and is within base_dir
         # Python 3.9+ has is_relative_to, we're on 3.10+ so it's available
-        if not candidate.is_file() or not candidate.is_relative_to(base_dir):
+        # Additional validation: ensure resolved path is within expected directory
+        if not candidate.is_file():
+            return None
+        # Verify path containment (prevents symlink attacks)
+        try:
+            if not candidate.is_relative_to(base_dir):
+                return None
+        except (ValueError, AttributeError):
+            # Fallback for edge cases
             return None
 
         return candidate
@@ -575,10 +602,28 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         """Serve a file with proper headers and range request support.
 
         Args:
-            file_path: Path to file to serve
+            file_path: Path to file to serve (must be validated and within fixture root)
             content_type: Content-Type header value
             support_range: Whether to support HTTP range requests (206 Partial Content)
         """
+        # Validate file_path is within fixture root (defense in depth)
+        # Even though file_path comes from validated helper methods, we verify here
+        # to satisfy static analysis tools and provide additional security layer
+        fixture_root = self.get_fixture_root()
+        try:
+            resolved_path = file_path.resolve()
+            if not resolved_path.is_relative_to(fixture_root):
+                self.send_error(403, "Path traversal not allowed")
+                return
+            if not resolved_path.is_file():
+                self.send_error(404, "File not found")
+                return
+            # Use resolved path for all operations
+            file_path = resolved_path
+        except (OSError, RuntimeError, ValueError, AttributeError):
+            self.send_error(403, "Invalid file path")
+            return
+
         try:
             file_size = file_path.stat().st_size
 
