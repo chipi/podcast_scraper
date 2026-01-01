@@ -520,6 +520,42 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Return sanitized values (these have passed all validation checks)
         return (subdir, filename)
 
+    def _build_validated_path(self, base_dir: Path, validated_filename: str) -> Optional[Path]:
+        """Build and validate a path using pre-validated components.
+
+        This helper constructs a path from validated components and verifies
+        the result is safe. All inputs must be pre-validated.
+
+        Args:
+            base_dir: Base directory (must be within fixture root)
+            validated_filename: Filename that has passed validation
+                               (no path separators, matches allowlist)
+
+        Returns:
+            Validated Path if construction succeeds and path is safe, None otherwise
+        """
+        # validated_filename has been validated: no path separators, matches allowlist
+        # Safe to use in path construction
+        try:
+            candidate = (base_dir / validated_filename).resolve()
+        except (OSError, RuntimeError):
+            # Path resolution failed (e.g., broken symlink, invalid path)
+            return None
+
+        # Verify candidate is a file and is within base_dir
+        # Additional validation: ensure resolved path is within expected directory
+        if not candidate.is_file():
+            return None
+        # Verify path containment (prevents symlink attacks)
+        try:
+            if not candidate.is_relative_to(base_dir):
+                return None
+        except (ValueError, AttributeError):
+            # Fallback for edge cases
+            return None
+
+        return candidate
+
     def _get_safe_fixture_path(self, subdir: str, filename: str) -> Optional[Path]:
         """Safely construct and validate a fixture file path.
 
@@ -546,31 +582,21 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         validated_subdir, validated_filename = validation_result
 
         # Build base directory using validated subdir
-        # Safe: validated_subdir is one of ("audio", "transcripts")
-        base_dir = self.get_fixture_root() / validated_subdir
+        # validated_subdir is one of ("audio", "transcripts") - safe to use
+        fixture_root = self.get_fixture_root()
+        base_dir = fixture_root / validated_subdir
 
-        # Build candidate path using validated filename and resolve to normalize
-        # validated_filename has passed all security checks (no path separators, matches allowlist)
+        # Verify base_dir is within fixture_root (defense in depth)
         try:
-            candidate = (base_dir / validated_filename).resolve()
-        except (OSError, RuntimeError):
-            # Path resolution failed (e.g., broken symlink, invalid path)
-            return None
-
-        # Verify candidate is a file and is within base_dir
-        # Python 3.9+ has is_relative_to, we're on 3.10+ so it's available
-        # Additional validation: ensure resolved path is within expected directory
-        if not candidate.is_file():
-            return None
-        # Verify path containment (prevents symlink attacks)
-        try:
-            if not candidate.is_relative_to(base_dir):
+            resolved_base = base_dir.resolve()
+            if not resolved_base.is_relative_to(fixture_root):
                 return None
-        except (ValueError, AttributeError):
-            # Fallback for edge cases
+            base_dir = resolved_base
+        except (OSError, RuntimeError, ValueError, AttributeError):
             return None
 
-        return candidate
+        # Build path using validated components
+        return self._build_validated_path(base_dir, validated_filename)
 
     def _validate_and_sanitize_rss_filename(self, rss_file: str) -> Optional[str]:
         """Validate and sanitize RSS filename for safe path construction.
@@ -633,30 +659,47 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return None
 
         # Build base directory (hardcoded "rss", not user-controlled)
-        base_dir = self.get_fixture_root() / "rss"
+        fixture_root = self.get_fixture_root()
+        base_dir = fixture_root / "rss"
 
-        # Build candidate path using validated rss_file and resolve to normalize
-        # validated_rss_file has passed all security checks (no path separators, matches allowlist)
+        # Verify base_dir is within fixture_root (defense in depth)
         try:
-            candidate = (base_dir / validated_rss_file).resolve()
-        except (OSError, RuntimeError):
-            # Path resolution failed (e.g., broken symlink, invalid path)
-            return None
-
-        # Verify candidate is a file and is within base_dir
-        # Python 3.9+ has is_relative_to, we're on 3.10+ so it's available
-        # Additional validation: ensure resolved path is within expected directory
-        if not candidate.is_file():
-            return None
-        # Verify path containment (prevents symlink attacks)
-        try:
-            if not candidate.is_relative_to(base_dir):
+            resolved_base = base_dir.resolve()
+            if not resolved_base.is_relative_to(fixture_root):
                 return None
-        except (ValueError, AttributeError):
-            # Fallback for edge cases
+            base_dir = resolved_base
+        except (OSError, RuntimeError, ValueError, AttributeError):
             return None
 
-        return candidate
+        # Build path using validated components
+        # validated_rss_file has passed all security checks (no path separators, matches allowlist)
+        return self._build_validated_path(base_dir, validated_rss_file)
+
+    def _validate_served_file_path(self, file_path: Path) -> Optional[Path]:
+        """Validate that a file path is safe to serve.
+
+        This method performs final validation on a file path before serving.
+        Even though file_path comes from validated helper methods, we verify here
+        to satisfy static analysis tools and provide additional security layer.
+
+        Args:
+            file_path: Path to validate
+
+        Returns:
+            Resolved and validated Path if safe, None if invalid
+        """
+        fixture_root = self.get_fixture_root()
+        try:
+            resolved_path = file_path.resolve()
+            # Verify path is within fixture root
+            if not resolved_path.is_relative_to(fixture_root):
+                return None
+            # Verify it's actually a file
+            if not resolved_path.is_file():
+                return None
+            return resolved_path
+        except (OSError, RuntimeError, ValueError, AttributeError):
+            return None
 
     def _serve_file(self, file_path: Path, content_type: str, support_range: bool = False):
         """Serve a file with proper headers and range request support.
@@ -669,23 +712,15 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Validate file_path is within fixture root (defense in depth)
         # Even though file_path comes from validated helper methods, we verify here
         # to satisfy static analysis tools and provide additional security layer
-        fixture_root = self.get_fixture_root()
-        try:
-            resolved_path = file_path.resolve()
-            if not resolved_path.is_relative_to(fixture_root):
-                self.send_error(403, "Path traversal not allowed")
-                return
-            if not resolved_path.is_file():
-                self.send_error(404, "File not found")
-                return
-            # Use resolved path for all operations
-            file_path = resolved_path
-        except (OSError, RuntimeError, ValueError, AttributeError):
-            self.send_error(403, "Invalid file path")
+        validated_path = self._validate_served_file_path(file_path)
+        if validated_path is None:
+            self.send_error(403, "Path traversal not allowed")
             return
 
+        # validated_path is now guaranteed safe: within fixture root, is a file
+        # All subsequent operations use validated_path, not the original file_path
         try:
-            file_size = file_path.stat().st_size
+            file_size = validated_path.stat().st_size
 
             # Check for Range request
             range_header = self.headers.get("Range")
@@ -710,7 +745,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     self.end_headers()
 
                     # Send partial content
-                    with open(file_path, "rb") as f:
+                    # validated_path is safe: validated and within fixture root
+                    with open(validated_path, "rb") as f:
                         f.seek(start)
                         self.wfile.write(f.read(end - start + 1))
                     return
@@ -726,7 +762,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header("Accept-Ranges", "bytes")
             self.end_headers()
 
-            with open(file_path, "rb") as f:
+            # validated_path is safe: validated and within fixture root
+            with open(validated_path, "rb") as f:
                 self.wfile.write(f.read())
 
         except Exception as e:
