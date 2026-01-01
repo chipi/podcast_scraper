@@ -76,10 +76,9 @@ from conftest import (  # noqa: F401, E402
 )
 
 
-@pytest.mark.e2e
-@pytest.mark.slow
+@pytest.mark.integration
 class TestIntegrationMain(unittest.TestCase):
-    """Higher-level integration tests using mocked HTTP responses."""
+    """Integration tests using mocked HTTP responses and mocked Whisper."""
 
     def _mock_http_map(self, mapping):
         """Return side effect function for fetch_url using mapping dict."""
@@ -325,10 +324,9 @@ class TestIntegrationMain(unittest.TestCase):
                 self.assertIn("Guest:", log_text)
 
 
-@pytest.mark.e2e
-@pytest.mark.slow
-class TestLibraryAPIE2E(unittest.TestCase):
-    """E2E tests for library API (podcast_scraper.run_pipeline())."""
+@pytest.mark.integration
+class TestLibraryAPIIntegration(unittest.TestCase):
+    """Integration tests for library API (podcast_scraper.run_pipeline()) with mocked Whisper."""
 
     def setUp(self):
         """Set up test fixtures."""

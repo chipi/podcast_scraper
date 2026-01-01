@@ -310,19 +310,21 @@ class TestCLIConfigFile:
 class TestCLITranscribeMissing:
     """CLI --transcribe-missing E2E tests (marked as slow for Whisper)."""
 
-    def test_transcribe_missing_with_mocked_whisper(self, e2e_server):
-        """Test --transcribe-missing flag (with mocked Whisper for speed).
+    def test_transcribe_missing_with_real_whisper(self, e2e_server):
+        """Test --transcribe-missing flag with real Whisper.
 
-        Note: This test uses mocked Whisper to keep execution fast.
-        Real Whisper tests are in Stage 8.
+        This test uses real Whisper to transcribe audio.
+        Requires Whisper model to be cached.
         """
-        # For now, we'll test that the flag is accepted and the workflow completes
-        # Real Whisper transcription will be tested in Stage 8
+        from podcast_scraper import config
+        from tests.integration.ml_model_cache_helpers import require_whisper_model_cached
+
+        # Require Whisper model to be cached (skip if not available)
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
+
         rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Use a feed that doesn't have transcripts to trigger transcription
-            # For now, just verify the flag is accepted
             exit_code = cli.main(
                 [
                     rss_url,
@@ -332,13 +334,16 @@ class TestCLITranscribeMissing:
                     "1",
                     "--transcribe-missing",
                     "--whisper-model",
-                    "tiny",  # Smallest model for speed
+                    config.TEST_DEFAULT_WHISPER_MODEL,
                 ]
             )
 
-            # The command should complete (may not transcribe if transcripts exist)
-            # This test verifies the CLI accepts the flag and workflow completes
-            assert exit_code in [0, 1], f"CLI should complete, got exit code {exit_code}"
+            # The command should complete successfully
+            assert exit_code == 0, f"CLI should succeed, got exit code {exit_code}"
+
+            # Verify transcript file was created
+            transcript_files = list(Path(tmpdir).rglob("*.txt"))
+            assert len(transcript_files) > 0, "At least one transcript file should be created"
 
 
 @pytest.mark.e2e

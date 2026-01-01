@@ -427,6 +427,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 transcribe_missing=True,
                 whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                 generate_metadata=True,
+                auto_speakers=False,  # Disable to avoid loading spaCy (only testing transcription)
             )
             temp_dir = os.path.join(self.temp_dir, "temp")
             os.makedirs(temp_dir, exist_ok=True)
@@ -551,6 +552,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             output_dir=self.temp_dir,
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            auto_speakers=False,  # Disable to avoid loading spaCy (only testing transcription)
         )
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)
@@ -1593,6 +1595,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             output_dir=self.temp_dir,
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            auto_speakers=False,  # Disable to avoid loading spaCy (only testing transcription)
         )
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)
@@ -1693,6 +1696,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             output_dir=self.temp_dir,
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            auto_speakers=False,  # Disable to avoid loading spaCy (only testing transcription)
         )
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)
@@ -1759,6 +1763,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             output_dir=self.temp_dir,
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            auto_speakers=False,  # Disable to avoid loading spaCy (only testing transcription)
         )
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)

@@ -17,7 +17,6 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -36,6 +35,8 @@ if str(tests_dir) not in sys.path:
 from conftest import (  # noqa: E402
     create_test_config,
 )
+
+from podcast_scraper import config
 
 
 @pytest.mark.e2e
@@ -93,32 +94,13 @@ class TestOpenAIProviderE2E:
                 max_episodes=1,
             )
 
-            # Mock Whisper transcription - returns (result_dict, elapsed)
-            # Also need to ensure transcript file is written to disk
-            with (
-                patch(
-                    "podcast_scraper.whisper_integration.transcribe_with_whisper"
-                ) as mock_transcribe,
-                patch("podcast_scraper.episode_processor._save_transcript_file") as mock_save,
-            ):
-                mock_transcribe.return_value = ({"text": "This is a test transcription."}, 1.0)
+            # Require Whisper model to be cached (skip if not available)
+            from tests.integration.ml_model_cache_helpers import require_whisper_model_cached
 
-                def save_transcript_side_effect(text, job, run_suffix, effective_output_dir):
-                    import os
+            require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-                    from podcast_scraper import filesystem
-
-                    out_path = filesystem.build_whisper_output_path(
-                        job.idx, job.ep_title_safe, run_suffix, effective_output_dir
-                    )
-                    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-                    Path(out_path).write_text(text)
-                    return os.path.relpath(out_path, effective_output_dir)
-
-                mock_save.side_effect = save_transcript_side_effect
-
-                # Run pipeline (uses E2E server OpenAI endpoints, no direct mocking)
-                transcripts_saved, summary = workflow.run_pipeline(cfg)
+            # Run pipeline with real Whisper (uses E2E server OpenAI endpoints)
+            transcripts_saved, summary = workflow.run_pipeline(cfg)
 
             # Verify transcripts were saved (transcript file must exist for metadata)
             assert transcripts_saved > 0, "Should have saved at least one transcript"
@@ -162,35 +144,13 @@ class TestOpenAIProviderE2E:
                 max_episodes=1,
             )
 
-            # Mock Whisper transcription - returns (result_dict, elapsed)
-            # Also need to ensure transcript file is written to disk
-            with (
-                patch(
-                    "podcast_scraper.whisper_integration.transcribe_with_whisper"
-                ) as mock_transcribe,
-                patch("podcast_scraper.episode_processor._save_transcript_file") as mock_save,
-            ):
-                mock_transcribe.return_value = (
-                    {"text": "This is a long transcript that needs to be summarized."},
-                    1.0,
-                )
+            # Require Whisper model to be cached (skip if not available)
+            from tests.integration.ml_model_cache_helpers import require_whisper_model_cached
 
-                def save_transcript_side_effect(text, job, run_suffix, effective_output_dir):
-                    import os
+            require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-                    from podcast_scraper import filesystem
-
-                    out_path = filesystem.build_whisper_output_path(
-                        job.idx, job.ep_title_safe, run_suffix, effective_output_dir
-                    )
-                    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-                    Path(out_path).write_text(text)
-                    return os.path.relpath(out_path, effective_output_dir)
-
-                mock_save.side_effect = save_transcript_side_effect
-
-                # Run pipeline (uses E2E server OpenAI endpoints, no direct mocking)
-                transcripts_saved, summary = workflow.run_pipeline(cfg)
+            # Run pipeline with real Whisper (uses E2E server OpenAI endpoints)
+            transcripts_saved, summary = workflow.run_pipeline(cfg)
 
             # Verify transcripts were saved (transcript file must exist for summarization)
             assert transcripts_saved > 0, "Should have saved at least one transcript"
@@ -299,18 +259,17 @@ class TestOpenAIProviderE2E:
                 max_episodes=1,
             )
 
-            # Mock Whisper transcription - returns (result_dict, elapsed)
-            with patch(
-                "podcast_scraper.whisper_integration.transcribe_with_whisper"
-            ) as mock_transcribe:
-                mock_transcribe.return_value = ({"text": "This is a test transcription."}, 1.0)
+            # Require Whisper model to be cached (skip if not available)
+            from tests.integration.ml_model_cache_helpers import require_whisper_model_cached
 
-                # Run pipeline - E2E server provides successful responses
-                transcripts_saved, summary = workflow.run_pipeline(cfg)
+            require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-                # Pipeline should complete successfully
-                # Note: Error handling is tested in unit/integration tests
-                assert transcripts_saved >= 0, "Pipeline should complete"
+            # Run pipeline with real Whisper - E2E server provides successful responses
+            transcripts_saved, summary = workflow.run_pipeline(cfg)
+
+            # Pipeline should complete successfully
+            # Note: Error handling is tested in unit/integration tests
+            assert transcripts_saved >= 0, "Pipeline should complete"
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -337,25 +296,22 @@ class TestOpenAIProviderE2E:
                 max_episodes=1,
             )
 
-            # Mock Whisper transcription
-            with patch(
-                "podcast_scraper.whisper_integration.transcribe_with_whisper"
-            ) as mock_transcribe:
-                mock_transcribe.return_value = (
-                    "This is a long transcript that needs to be summarized."
-                )
+            # Require Whisper model to be cached (skip if not available)
+            from tests.integration.ml_model_cache_helpers import require_whisper_model_cached
 
-                # Run pipeline - E2E server provides successful responses
-                transcripts_saved, summary = workflow.run_pipeline(cfg)
+            require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-                # Pipeline should complete successfully
-                # Note: Error handling is tested in unit/integration tests
-                assert transcripts_saved >= 0, "Pipeline should complete"
+            # Run pipeline with real Whisper - E2E server provides successful responses
+            transcripts_saved, summary = workflow.run_pipeline(cfg)
 
-                # Verify metadata files were created
-                # Metadata should be created with summary from E2E server
-                metadata_files = list(Path(temp_dir).rglob("*.json"))
-                assert len(metadata_files) > 0, "Metadata files should be created"
+            # Pipeline should complete successfully
+            # Note: Error handling is tested in unit/integration tests
+            assert transcripts_saved >= 0, "Pipeline should complete"
+
+            # Verify metadata files were created
+            # Metadata should be created with summary from E2E server
+            metadata_files = list(Path(temp_dir).rglob("*.json"))
+            assert len(metadata_files) > 0, "Metadata files should be created"
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 

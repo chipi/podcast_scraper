@@ -76,7 +76,7 @@ class TestSpeakerDetectorFallback(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ner",
-            auto_speakers=False,
+            auto_speakers=True,  # Required for speaker detection tests
         )
 
     def test_no_fallback_for_speaker_detector(self):
@@ -96,7 +96,13 @@ class TestSpeakerDetectorFallback(unittest.TestCase):
 
     def test_detect_hosts_no_fallback(self):
         """Test that detect_hosts() doesn't use fallback."""
-        detector = create_speaker_detector(self.cfg)
+        # Ensure auto_speakers is enabled for speaker detection
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            speaker_detector_provider=self.cfg.speaker_detector_provider,
+            auto_speakers=True,  # Required for speaker detection
+        )
+        detector = create_speaker_detector(cfg)
         detector.initialize()
 
         # detect_hosts() should be available via protocol
@@ -254,7 +260,7 @@ class TestFallbackRemovalImpact(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ner",
-            auto_speakers=False,
+            auto_speakers=True,  # Required for speaker detection methods
         )
 
         detector = create_speaker_detector(cfg)
