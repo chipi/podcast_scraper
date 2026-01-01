@@ -133,7 +133,7 @@ class Config(BaseModel):
         metadata_format: Metadata file format ("json" or "yaml").
         metadata_subdirectory: Optional subdirectory for metadata files.
         generate_summaries: Generate episode summaries using AI models.
-        summary_provider: Summary generation provider ("local", "openai", "anthropic").
+        summary_provider: Summary generation provider ("local", "openai").
         summary_model: Model identifier for MAP-phase summarization.
         summary_reduce_model: Optional separate model for REDUCE-phase summarization.
         summary_max_length: Maximum summary length in tokens.
@@ -340,9 +340,7 @@ class Config(BaseModel):
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
     generate_summaries: bool = Field(default=False, alias="generate_summaries")
-    summary_provider: Literal["local", "openai", "anthropic"] = Field(
-        default="local", alias="summary_provider"
-    )
+    summary_provider: Literal["local", "openai"] = Field(default="local", alias="summary_provider")
     summary_model: Optional[str] = Field(default=None, alias="summary_model")
     # Optional separate model for reduce phase (e.g., BART for map, LED for reduce).
     # If not set, the same model is used for both map and reduce.
@@ -863,13 +861,13 @@ class Config(BaseModel):
 
     @field_validator("summary_provider", mode="before")
     @classmethod
-    def _validate_summary_provider(cls, value: Any) -> Literal["local", "openai", "anthropic"]:
+    def _validate_summary_provider(cls, value: Any) -> Literal["local", "openai"]:
         """Validate summary provider."""
         if value is None or value == "":
             return "local"
         value_str = str(value).strip().lower()
-        if value_str not in ("local", "openai", "anthropic"):
-            raise ValueError("summary_provider must be 'local', 'openai', or 'anthropic'")
+        if value_str not in ("local", "openai"):
+            raise ValueError("summary_provider must be 'local' or 'openai'")
         return value_str  # type: ignore[return-value]
 
     @field_validator("openai_temperature", mode="before")

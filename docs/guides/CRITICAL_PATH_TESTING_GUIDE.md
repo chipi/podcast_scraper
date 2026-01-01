@@ -18,12 +18,7 @@ The critical path represents the **essence of this project** - the complete work
 RSS → Parse → Download/Transcribe → Speaker Detection → Summarization → Metadata → Files
 ```
 
-### Critical Path Variants
-
-The critical path supports **multiple provider configurations**, allowing users to choose between ML (local) and
-OpenAI (cloud) providers:
-
-#### Path 1: Transcript Download (when transcript URL exists)
+### Path 1: Transcript Download (when transcript URL exists)
 
 **ML Provider Flow:**
 
@@ -33,7 +28,7 @@ OpenAI (cloud) providers:
 
 - RSS → Parse → Download Transcript → **OpenAI Speaker Detection** → **OpenAI Summarization** → Metadata → Files
 
-#### Path 2: Transcription (when transcript URL missing)
+### Path 2: Transcription (when transcript URL missing)
 
 **ML Provider Flow:**
 
@@ -74,7 +69,7 @@ The critical path should be tested at **all three levels** of the test pyramid:
     /------------\
    /    Unit      \   ← Critical path individual functions
   /----------------\
-```
+```python
 
 - Individual functions in the critical path
 - Each step in isolation: RSS parsing, transcript download, transcription, NER, summarization, metadata generation
@@ -222,7 +217,7 @@ When deciding what to test, ask:
 ## Critical Path Test Coverage Matrix
 
 |Scenario|Unit Tests|Integration Tests|E2E Tests|
-|--------|----------|-----------------|---------|
+| -------- | ---------- | ----------------- | --------- |
 |RSS parsing|✅ Parse RSS feeds|✅ RSS → Episode|✅ Full workflow|
 |Transcript download|✅ Download logic|✅ Download → Metadata|✅ Full workflow|
 |Transcription|✅ Whisper integration|✅ Audio → Transcript|✅ Full workflow|

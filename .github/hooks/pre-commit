@@ -114,25 +114,31 @@ fi
 # Check markdown linting (required when markdown files are staged)
 if [ -n "$STAGED_MARKDOWN" ]; then
     if command -v markdownlint >/dev/null 2>&1; then
-        MARKDOWN_FILES=$(echo "$STAGED_MARKDOWN" | tr '\n' ' ')
+        # Filter out wip and fixtures files (same as make lint-markdown)
+        MARKDOWN_FILES=$(echo "$STAGED_MARKDOWN" | grep -v '^docs/wip/' | grep -v '^tests/fixtures/' | tr '\n' ' ')
         # Use same ignore patterns as make lint-markdown
         # Check if auto-fix is requested via environment variable
-        if [ "$MARKDOWNLINT_FIX" = "1" ]; then
-            echo "→ Auto-fixing markdown linting issues..."
-            if markdownlint --fix $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json > /tmp/precommit_md_$$.log 2>&1; then
-                echo -e "${GREEN}✓${NC} Markdown auto-fix completed"
-                # Re-stage fixed files
-                echo "$MARKDOWN_FILES" | xargs git add 2>/dev/null || true
-            else
-                echo -e "${YELLOW}⚠${NC} Some markdown issues could not be auto-fixed"
-                cat /tmp/precommit_md_$$.log
+        if [ -n "$MARKDOWN_FILES" ]; then
+            if [ "$MARKDOWNLINT_FIX" = "1" ]; then
+                echo "→ Auto-fixing markdown linting issues..."
+                if markdownlint --fix $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json > /tmp/precommit_md_$$.log 2>&1; then
+                    echo -e "${GREEN}✓${NC} Markdown auto-fix completed"
+                    # Re-stage fixed files
+                    echo "$MARKDOWN_FILES" | xargs git add 2>/dev/null || true
+                else
+                    echo -e "${YELLOW}⚠${NC} Some markdown issues could not be auto-fixed"
+                    cat /tmp/precommit_md_$$.log
+                fi
+                rm -f /tmp/precommit_md_$$.log
+                echo ""
             fi
-            rm -f /tmp/precommit_md_$$.log
+            # Run linting check (after auto-fix if enabled)
+            # Use same config as CI (make lint-markdown) to ensure consistency
+            run_check "Markdown linting" "markdownlint $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json"
+        else
+            echo -e "${YELLOW}⚠${NC} No markdown files to lint (all filtered out)"
             echo ""
         fi
-        # Run linting check (after auto-fix if enabled)
-        # Use same config as CI (make lint-markdown) to ensure consistency
-        run_check "Markdown linting" "markdownlint $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json"
     else
         echo -e "${RED}✗${NC} markdownlint not found but markdown files are staged"
         echo ""

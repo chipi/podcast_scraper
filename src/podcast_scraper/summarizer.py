@@ -32,31 +32,6 @@ if TYPE_CHECKING:
     # Type hints only - these are not imported at runtime
     from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Pipeline
 
-# IMPORTANT: Set warning filters BEFORE importing transformers
-# Suppress transformers max_new_tokens/max_length warning globally
-# This warning appears for every chunk but is harmless - we're using max_length correctly
-# Suppress it at module level to avoid spam (one warning per chunk)
-# Use broader filters to catch all variations of this warning
-warnings.filterwarnings(
-    "ignore",
-    message=".*max_new_tokens.*max_length.*",
-    category=UserWarning,
-)
-warnings.filterwarnings(
-    "ignore",
-    message=".*max_length.*max_new_tokens.*",
-    category=UserWarning,
-)
-warnings.filterwarnings(
-    "ignore",
-    message=".*Both.*max_new_tokens.*max_length.*",
-    category=UserWarning,
-)
-warnings.filterwarnings(
-    "ignore",
-    message=".*Both.*max_length.*max_new_tokens.*",
-    category=UserWarning,
-)
 
 # Note: torch and transformers are imported lazily in methods that use them
 # (e.g., _detect_device(), _load_model()) to avoid requiring ML dependencies

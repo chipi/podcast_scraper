@@ -605,7 +605,7 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
 1. **No Code Duplication**: Experiment pipeline reuses production providers
 2. **Independent Execution**: Experiments don't require full pipeline
 3. **Testability**: Each provider can be tested independently
-4. **Extensibility**: Easy to add new providers (Anthropic, etc.)
+4. **Extensibility**: Easy to add new providers
 5. **Backward Compatibility**: Existing code continues to work during migration
 6. **Clear Separation**: Experiment pipeline is separate from production pipeline
 

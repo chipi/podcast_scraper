@@ -39,15 +39,8 @@ def create_summarization_provider(cfg: config.Config) -> SummarizationProvider:
         from .openai_provider import OpenAISummarizationProvider
 
         return OpenAISummarizationProvider(cfg)
-    elif provider_type == "anthropic":
-        raise NotImplementedError(
-            "Anthropic summarization provider is not yet implemented. "
-            "Currently supported providers: 'local', 'openai'. "
-            "Please use 'local' or 'openai' for now."
-        )
     else:
         raise ValueError(
             f"Unsupported summarization provider: {provider_type}. "
-            "Supported providers: 'local', 'openai'. "
-            "Note: 'anthropic' is accepted in configuration but not yet implemented."
+            "Supported providers: 'local', 'openai'."
         )

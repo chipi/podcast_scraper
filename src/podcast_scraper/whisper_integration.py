@@ -7,7 +7,6 @@ import logging
 import os
 import sys
 import time
-import warnings
 from contextlib import contextmanager
 from types import ModuleType
 from typing import Any, List, Optional, Tuple, Union
@@ -308,20 +307,9 @@ def transcribe_with_whisper(
         # Intercept Whisper's tqdm progress calls and forward to our progress reporter
         # This prevents multiple progress bar lines while showing real progress
         with _intercept_whisper_progress(reporter):
-            if suppress_fp16_warning:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore",
-                        message="FP16 is not supported on CPU",
-                        category=UserWarning,
-                    )
-                    result = whisper_model.transcribe(
-                        temp_media, task="transcribe", language=language, verbose=False
-                    )
-            else:
-                result = whisper_model.transcribe(
-                    temp_media, task="transcribe", language=language, verbose=False
-                )
+            result = whisper_model.transcribe(
+                temp_media, task="transcribe", language=language, verbose=False
+            )
     elapsed = time.time() - start
     segments = result.get("segments")
     logger.debug(

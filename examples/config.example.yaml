@@ -43,7 +43,7 @@ processing_parallelism: 2  # Number of episodes to process (metadata/summarizati
 # Summarization settings (requires torch and transformers dependencies)
 
 generate_summaries: true  # Generate summaries for episodes
-summary_provider: local  # local, openai, or anthropic (only 'local' currently implemented)
+summary_provider: local  # local or openai
 summary_model: null  # Optional: MAP model key (e.g., "bart-large", "bart-small", "fast") or direct model ID (e.g., "facebook/bart-large-cnn"). Defaults to "bart-large" for fast chunk summarization
 summary_reduce_model: null  # Optional: REDUCE model key (e.g., "long-fast", "long") or direct model ID (e.g., "allenai/led-base-16384"). Defaults to "long-fast" (LED) for accurate final combine
 summary_max_length: 150  # Maximum summary length in tokens

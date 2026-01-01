@@ -120,11 +120,14 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
 
    ```python
    def generate_pr_comment(pr_metrics, baseline_metrics):
+
+```text
        """Generate markdown comment comparing PR vs baseline."""
        # Compare metrics
        # Generate alerts
        # Format as markdown
        return comment_markdown
+```
    ```
 
 2. **Add to PR workflow** (`.github/workflows/python-app.yml`):
@@ -132,23 +135,30 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
    ```yaml
    - name: Generate PR metrics comment
      if: github.event_name == 'pull_request' && always()
+
      run: |
        # Fetch baseline from main branch
        git fetch origin main:main
        BASELINE=$(git show main:metrics/latest.json 2>/dev/null || echo "{}")
 
+```text
        # Generate current PR metrics
        python scripts/generate_metrics.py \
          --reports-dir reports \
          --output metrics/pr-metrics.json
+```
 
+```text
        # Generate comment
        python scripts/generate_pr_comment.py \
          --pr-metrics metrics/pr-metrics.json \
          --baseline "$BASELINE" \
          --output pr-comment.md
+```
 
+```text
        # Post comment using GitHub CLI or API
+```
    ```
 
 3. **Post comment using GitHub CLI:**
@@ -156,6 +166,8 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
    ```yaml
    - name: Post PR comment
      uses: actions/github-script@v7
+
+```javascript
      with:
        script: |
          const comment = fs.readFileSync('pr-comment.md', 'utf8');
@@ -165,11 +177,13 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
            repo: context.repo.repo,
            body: comment
          });
+```
    ```
 
 **Comment Format:**
 
 ```markdown
+
 ## 📊 Test Metrics Comparison
 
 ### Changes in this PR:
@@ -178,12 +192,13 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
 - **Test Count**: +3 (new tests added)
 
 ### Alerts:
+
 ⚠️ **Runtime Regression**: Runtime increased by 15% compared to main branch baseline
 
 ### Recommendations:
 - Review slowest tests to identify bottlenecks
 - Consider optimizing test setup/teardown
-```
+```yaml
 
 ---
 
@@ -220,6 +235,8 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
    ```yaml
    - name: Send webhook alert
      if: always() && github.ref == 'refs/heads/main'
+
+```text
      env:
        WEBHOOK_URL: ${{ secrets.METRICS_WEBHOOK_URL }}
      run: |
@@ -229,6 +246,7 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
            --metrics metrics/latest.json \
            --threshold error  # Only send critical alerts
        fi
+```
    ```
 
 3. **Configuration:**
@@ -253,9 +271,7 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
     ]
   }]
 }
-```
-
----
+```python
 
 ### Step 3: Email Alerts (Optional, Future)
 
@@ -279,7 +295,7 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
 **When to Alert:**
 
 | Metric | Threshold | Severity |
-|--------|-----------|----------|
+| -------- | ----------- | ---------- |
 | Runtime increase | > 10% | Warning |
 | Runtime increase | > 20% | Error |
 | Coverage drop | > 1% | Error |
@@ -346,14 +362,14 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
 ### Workflow Configuration
 
 ```yaml
+
 # Enable/disable features
+
 env:
   ENABLE_PR_COMMENTS: true
   ENABLE_WEBHOOK_ALERTS: false  # Requires secret
   ALERT_THRESHOLD: error  # error, warning, or info
 ```
-
----
 
 ## Success Criteria
 

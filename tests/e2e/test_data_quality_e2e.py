@@ -110,9 +110,6 @@ class TestDataQualityE2E:
             ]
             assert len(set(summaries)) > 1, "Summaries should be different across episodes"
 
-    @pytest.mark.skip(
-        reason="OpenAI E2E tests skipped for now - infrastructure ready but tests disabled"
-    )
     def test_full_pipeline_data_quality_openai_providers(self, e2e_server):
         """Test full pipeline data quality with OpenAI providers across 3 episodes.
 
@@ -139,6 +136,8 @@ class TestDataQualityE2E:
                 summary_provider="openai",  # Use OpenAI for summarization
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
+                openai_api_key="sk-test123",  # Dummy key for E2E server
+                openai_api_base=e2e_server.urls.openai_api_base(),  # Use E2E server
             )
 
             # Run pipeline

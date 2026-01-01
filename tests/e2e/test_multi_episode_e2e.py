@@ -203,6 +203,7 @@ class TestMultiEpisodeE2E:
                 transcribe_missing=True,
                 generate_summaries=True,  # Enable summarization
                 summary_provider="local",
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 generate_metadata=True,
                 metadata_format="json",
             )

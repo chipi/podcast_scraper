@@ -104,7 +104,7 @@ def test_data_quality_across_multiple_episodes(e2e_server):
         # ... other config
     )
     # Validate consistency, quality metrics, etc.
-```
+```python
 
 ### Optional: Comprehensive E2E Tests (Future - If Needed)
 
@@ -171,7 +171,7 @@ class TestDataQualityE2E:
     def test_resource_usage_with_volume(self, e2e_server):
         """Test memory and processing time with multiple episodes."""
         # Monitor resource usage, validate within limits
-```
+```python
 
 ### Phase 3: Update CI/CD Configuration
 

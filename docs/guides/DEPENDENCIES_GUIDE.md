@@ -21,6 +21,7 @@ like transcription and summarization.
 
 - **Why chosen**: Industry-standard library with excellent session management, connection
   pooling, and retry capabilities. Used throughout `downloader.py` and `rss_parser.py` for
+
   all network operations.
 
 - **Key features utilized**: Session pooling with custom retry adapters (`LoggingRetry`),
@@ -35,6 +36,7 @@ like transcription and summarization.
 
 - **Why chosen**: Provides immutable, type-safe configuration with automatic validation,
   JSON/YAML parsing, and excellent error messages. Central to the architecture's "typed,
+
   immutable configuration" design principle.
 
 - **Key features utilized**: Frozen dataclasses, field validators, JSON/YAML serialization,
@@ -71,6 +73,7 @@ like transcription and summarization.
 
 - **Why chosen**: Handles OS-specific conventions (Linux XDG, macOS Application Support,
   Windows AppData) transparently. Essential for determining safe output roots and
+
   validating user-provided paths.
 
 - **Key features utilized**: User data directory resolution, cache directory paths
@@ -96,6 +99,7 @@ like transcription and summarization.
 
 - **Why chosen**: State-of-the-art open-source ASR with multiple model sizes, multilingual
   support, and screenplay formatting. Local-first approach ensures privacy and no API
+
   costs.
 
 - **Key features utilized**: Model selection (tiny→large), language detection, speaker
@@ -112,6 +116,7 @@ like transcription and summarization.
 
 - **Why chosen**: Production-ready NLP library with pre-trained models for person name
   extraction. Fast, accurate, and supports multiple languages via consistent model naming
+
   (`en_core_web_sm`, `es_core_news_sm`, etc.).
 
 - **Key features utilized**: PERSON entity extraction, language-aware model selection, efficient batch processing
@@ -137,6 +142,7 @@ like transcription and summarization.
 
 - **Why chosen**: `transformers` provides access to production-ready summarization models
   (BART, PEGASUS, LED) with automatic caching and hardware acceleration. `torch` is the de
+
   facto standard for deep learning in Python with excellent MPS (Apple Silicon) and CUDA
   (NVIDIA) support.
 
@@ -149,7 +155,7 @@ like transcription and summarization.
 
 - **Models used**: BART-large (map phase), LED/long-fast (reduce phase), PEGASUS (alternative)
 
-- **Alternatives considered**: OpenAI API (costs/privacy), Anthropic Claude (costs/privacy), spaCy summarization (less sophisticated)
+- **Alternatives considered**: OpenAI API (costs/privacy), spaCy summarization (less sophisticated)
 
 - **Lazy loading**: Imported conditionally in `summarizer.py` to avoid hard dependency when summarization is disabled
 
@@ -176,14 +182,32 @@ like transcription and summarization.
 
 - **Why chosen**: Transitive dependency for certain model formats. Pinned to avoid version conflicts.
 
+### `openai` (>=1.0.0)
+
+- **Purpose**: OpenAI Python SDK for API-based providers (transcription, speaker detection, summarization)
+
+- **Why chosen**: Official OpenAI Python SDK with excellent type hints, async support, and comprehensive API coverage.
+  Used by OpenAI providers (`OpenAITranscriptionProvider`, `OpenAISpeakerDetector`, `OpenAISummarizationProvider`)
+  for cloud-based capabilities.
+
+- **Key features utilized**: Chat completions API (summarization, speaker detection), audio transcriptions API
+  (transcription), custom base URL support (for E2E testing with mock servers)
+
+- **Alternatives considered**: Direct `requests` calls (less maintainable, no type hints), `anthropic` SDK (not implemented)
+
+- **E2E Testing**: Providers support `openai_api_base` configuration for custom endpoints, allowing E2E tests to use
+  mock servers instead of real API calls. See [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
+
 ## Dependency Management Philosophy
 
 1. **Core vs Optional**: Core dependencies are minimal and stable. Heavy ML dependencies
    are optional (`pip install -e .[ml]`) to avoid forcing users to install GB-sized
+
    packages when only transcript downloading is needed.
 
 2. **Version pinning**: Minimum versions are specified, but upper bounds are avoided to
    allow users to upgrade independently. Major version changes (e.g., Pydantic v2) are
+
    tracked carefully.
 
 3. **Security**: Security-focused libraries (`defusedxml`) are preferred. Regular updates
@@ -203,6 +227,7 @@ like transcription and summarization.
 
 - **Why chosen**: Provides machine-readable test metrics (pass/fail counts, durations, flaky test detection) that
   integrate with our metrics collection system (RFC-025). Used in nightly workflow for comprehensive test metrics
+
   tracking.
 
 - **Key features utilized**: JSON report generation (`--json-report`), test outcome tracking, rerun detection for
@@ -225,6 +250,15 @@ pip install -e .
 ````bash
 pip install -e .[ml]
 ````
+
+### With API Provider Dependencies (OpenAI)
+
+````bash
+pip install -e .[ml] openai
+````
+
+**Note**: The `openai` package is not included in the `[ml]` extra by default.
+Install it separately if you plan to use OpenAI providers for transcription, speaker detection, or summarization.
 
 ### With Development Dependencies
 

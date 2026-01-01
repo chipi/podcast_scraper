@@ -95,7 +95,6 @@ data:
 ```yaml
 # experiments/ner_openai_gpt4_mini_v1.yaml
 ```
-
 id: "ner_openai_gpt4_mini_v1"
 task: "ner"
 description: "OpenAI GPT-4o-mini for speaker detection"
@@ -143,7 +142,7 @@ from typing import Literal, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
 class ModelConfig(BaseModel):
-    type: Literal["hf_local", "openai", "anthropic"]
+    type: Literal["hf_local", "openai"]
     name: str
 
 class ExperimentConfig(BaseModel):
@@ -884,7 +883,7 @@ def run_experiment(cfg: ExperimentConfig) -> None:
 
 ```yaml
 
-- ✅ **Multiple Backends**: Easy to add HF local, Anthropic, etc.
+- ✅ **Multiple Backends**: Easy to add HF local, etc.
 - ✅ **Protocol Compliance**: All providers implement same interface
 - ✅ **No Code Duplication**: Reuse production provider implementations
 

@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""OpenAI mock verification tests for E2E tests.
+"""OpenAI E2E server integration tests.
 
-These tests verify that OpenAI providers use mocked clients in E2E tests
-and return realistic mock responses.
+These tests verify that OpenAI providers correctly use the E2E server's
+OpenAI mock endpoints via HTTP requests, testing the full HTTP flow.
 """
 
 import os
 import sys
 import tempfile
-import unittest
 
 import pytest
 
@@ -27,26 +26,27 @@ from podcast_scraper.transcription.factory import create_transcription_provider
 @pytest.mark.slow
 @pytest.mark.llm
 @pytest.mark.openai
-@pytest.mark.skip(
-    reason="OpenAI E2E tests skipped for now - infrastructure ready but tests disabled"
-)
-class TestOpenAIMock(unittest.TestCase):
-    """Test that OpenAI providers use mocked clients in E2E tests."""
+class TestOpenAIE2EServerIntegration:
+    """Test that OpenAI providers correctly use E2E server endpoints."""
 
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = config.Config(
+    def test_openai_transcription_provider_uses_e2e_server(self, e2e_server):
+        """Test that OpenAI transcription provider uses E2E server endpoints."""
+        cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             openai_api_key="sk-test123",
+            openai_api_base=e2e_server.urls.openai_api_base(),  # Use E2E server
             transcription_provider="openai",
-            speaker_detector_provider="openai",
-            summary_provider="openai",
         )
 
-    def test_openai_transcription_provider_uses_mock(self):
-        """Test that OpenAI transcription provider uses mocked client."""
-        provider = create_transcription_provider(self.cfg)
+        provider = create_transcription_provider(cfg)
         provider.initialize()
+
+        # Verify provider is configured to use E2E server
+        assert str(provider.client.base_url).rstrip(
+            "/"
+        ) == e2e_server.urls.openai_api_base().rstrip(
+            "/"
+        ), "Provider should use E2E server base URL"
 
         # Create a temporary audio file
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
@@ -54,49 +54,77 @@ class TestOpenAIMock(unittest.TestCase):
             audio_path = tmp_file.name
 
         try:
-            # Transcribe should use mocked client (no real API call)
+            # Transcribe should use E2E server endpoints (real HTTP request)
             transcript = provider.transcribe(audio_path)
 
-            # Verify transcript is returned (from mock)
-            self.assertIsInstance(transcript, str)
-            self.assertGreater(len(transcript), 0)
-            self.assertIn("test transcription", transcript.lower())
+            # Verify transcript is returned (from E2E server mock)
+            assert isinstance(transcript, str)
+            assert len(transcript) > 0
+            assert "test transcription" in transcript.lower()
         finally:
             # Clean up
             if os.path.exists(audio_path):
                 os.unlink(audio_path)
 
-    def test_openai_summarization_provider_uses_mock(self):
-        """Test that OpenAI summarization provider uses mocked client."""
-        provider = create_summarization_provider(self.cfg)
+    def test_openai_summarization_provider_uses_e2e_server(self, e2e_server):
+        """Test that OpenAI summarization provider uses E2E server endpoints."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            openai_api_key="sk-test123",
+            openai_api_base=e2e_server.urls.openai_api_base(),  # Use E2E server
+            summary_provider="openai",
+        )
+
+        provider = create_summarization_provider(cfg)
         provider.initialize()
 
-        # Summarize should use mocked client (no real API call)
+        # Verify provider is configured to use E2E server
+        assert str(provider.client.base_url).rstrip(
+            "/"
+        ) == e2e_server.urls.openai_api_base().rstrip(
+            "/"
+        ), "Provider should use E2E server base URL"
+
+        # Summarize should use E2E server endpoints (real HTTP request)
         result = provider.summarize(
             text="This is a long transcript that needs to be summarized. " * 10,
             episode_title="Test Episode",
         )
 
-        # Verify summary is returned (from mock)
-        self.assertIn("summary", result)
-        self.assertIsInstance(result["summary"], str)
-        self.assertGreater(len(result["summary"]), 0)
-        self.assertIn("test summary", result["summary"].lower())
+        # Verify summary is returned (from E2E server mock)
+        assert "summary" in result
+        assert isinstance(result["summary"], str)
+        assert len(result["summary"]) > 0
+        assert "test summary" in result["summary"].lower()
 
-    def test_openai_speaker_detector_uses_mock(self):
-        """Test that OpenAI speaker detector uses mocked client."""
-        detector = create_speaker_detector(self.cfg)
+    def test_openai_speaker_detector_uses_e2e_server(self, e2e_server):
+        """Test that OpenAI speaker detector uses E2E server endpoints."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            openai_api_key="sk-test123",
+            openai_api_base=e2e_server.urls.openai_api_base(),  # Use E2E server
+            speaker_detector_provider="openai",
+        )
+
+        detector = create_speaker_detector(cfg)
         detector.initialize()
 
-        # Detect speakers should use mocked client (no real API call)
+        # Verify detector is configured to use E2E server
+        assert str(detector.client.base_url).rstrip(
+            "/"
+        ) == e2e_server.urls.openai_api_base().rstrip(
+            "/"
+        ), "Detector should use E2E server base URL"
+
+        # Detect speakers should use E2E server endpoints (real HTTP request)
         speakers, detected_hosts, success = detector.detect_speakers(
             episode_title="Test Episode with Alice and Bob",
             episode_description="Alice interviews Bob about their work",
             known_hosts={"Alice"},
         )
 
-        # Verify speakers are returned (from mock)
-        self.assertIsInstance(speakers, list)
-        self.assertGreater(len(speakers), 0)
-        self.assertIsInstance(detected_hosts, set)
-        self.assertIsInstance(success, bool)
+        # Verify speakers are returned (from E2E server mock)
+        assert isinstance(speakers, list)
+        assert len(speakers) > 0
+        assert isinstance(detected_hosts, set)
+        assert isinstance(success, bool)
