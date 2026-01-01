@@ -3,18 +3,19 @@
 ## Overview
 
 The Podcast Scraper project uses GitHub Actions for continuous integration and deployment. The CI/CD
-pipeline consists of **five main workflows** that automate testing, code quality checks, security
-scanning, Docker validation, and documentation deployment.
+pipeline consists of **six main workflows** that automate testing, code quality checks, security
+scanning, Docker validation, documentation deployment, and metrics collection.
 
 ### Workflows Summary
 
-| Workflow                 | File             | Purpose                                               | Trigger                                                                    |
-| ------------------------ | ---------------- | ----------------------------------------------------- | -------------------------------------------------------------------------- |
-| **Python Application**   | `python-app.yml` | Main CI pipeline with testing, linting, and builds    | Push/PR to `main` (only when Python/config files change)                   |
-| **Documentation Deploy** | `docs.yml`       | Build and deploy MkDocs documentation to GitHub Pages | Push to `main`, PR with doc changes, manual                                |
-| **CodeQL Security**      | `codeql.yml`     | Security vulnerability scanning                       | Push/PR to `main` (only when code/workflow files change), scheduled weekly |
-| **Docker Build & Test**  | `docker.yml`     | Build and test Docker images                          | Push/PR to `main` (only when Docker/Python files change)                   |
-| **Snyk Security Scan**   | `snyk.yml`       | Dependency and Docker image vulnerability scanning    | Push/PR to `main`, scheduled weekly (Mondays), manual                      |
+| Workflow                  | File             | Purpose                                               | Trigger                                                                     |
+| ------------------------- | ---------------- | ----------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Python Application**    | `python-app.yml` | Main CI pipeline with testing, linting, and builds    | Push/PR to `main` (only when Python/config files change)                    |
+| **Documentation Deploy**  | `docs.yml`       | Build and deploy MkDocs documentation to GitHub Pages | Push to `main`, PR with doc changes, manual                                 |
+| **CodeQL Security**       | `codeql.yml`     | Security vulnerability scanning                       | Push/PR to `main` (only when code/workflow files change), scheduled weekly  |
+| **Docker Build & Test**   | `docker.yml`     | Build and test Docker images                          | Push/PR to `main` (only when Docker/Python files change)                    |
+| **Snyk Security Scan**    | `snyk.yml`       | Dependency and Docker image vulnerability scanning    | Push/PR to `main`, scheduled weekly (Mondays), manual                       |
+| **Nightly Comprehensive** | `nightly.yml`    | Full test suite with comprehensive metrics collection | Scheduled daily (2 AM UTC), manual                                          |
 
 ---
 
@@ -121,6 +122,37 @@ graph TB
 
 **Skips when:** Only documentation, markdown, or non-code files change
 
+### Workflow Trigger Conditions
+
+Each workflow only runs when specific files are modified:
+
+**`python-app.yml` Workflow:**
+- `**.py` (any Python file)
+- `tests/**` (any test file)
+- `pyproject.toml`
+- `Makefile`
+- `Dockerfile`
+- `.dockerignore`
+
+**`docker.yml` Workflow:**
+- `Dockerfile`
+- `.dockerignore`
+- `pyproject.toml`
+- `*.py`
+
+**`snyk.yml` Workflow:**
+- `**.py`
+- `pyproject.toml`
+- `Dockerfile`
+- `.dockerignore`
+
+**`codeql.yml` Workflow:**
+- `**.py`
+- `.github/workflows/**`
+
+**`docs.yml` Workflow:**
+- **Note:** Docs workflow does NOT trigger on PRs (only on push to main)
+
 This is the main CI pipeline that ensures code quality, runs tests, builds documentation, and validates the package.
 
 ### Two-Tier Testing Strategy
@@ -137,28 +169,31 @@ On pull requests, jobs run in parallel for fast feedback:
 ```mermaid
 graph LR
     A[PR Opened/Updated] --> B[Lint Job]
-    A --> C[test-fast Job<br/>Fast Feedback]
-    A --> D[test Job<br/>Full Validation]
-    A --> E[Docs Job]
-    A --> F[Build Job]
+    A --> C[test-unit Job]
+    A --> D[test-integration-fast Job<br/>Critical Path]
+    A --> E[test-e2e-fast Job<br/>Critical Path]
+    A --> F[Docs Job]
+    A --> G[Build Job]
 
-    B --> G[✓ All Complete]
-    C --> G
-    D --> G
-    E --> G
-    F --> G
+    B --> H[✓ All Complete]
+    C --> H
+    D --> H
+    E --> H
+    F --> H
+    G --> H
 
     style B fill:#90EE90
-    style C fill:#FFE4B5
-    style D fill:#87CEEB
-    style E fill:#90EE90
+    style C fill:#90EE90
+    style D fill:#FFE4B5
+    style E fill:#FFE4B5
     style F fill:#90EE90
-```yaml
+    style G fill:#90EE90
+```
 
-- **Fast Feedback (`test-fast`):** Completes in ~6-10 minutes, provides early pass/fail signal
-- **Full Validation (`test`):** Completes in ~10-15 minutes, provides unified coverage report
-- **Both run simultaneously:** No waiting, maximum speed
-- **No redundancy:** Different test sets (fast vs full)
+- **Parallel execution:** All jobs run simultaneously for maximum speed
+- **Critical path focus:** Fast jobs run only critical path tests
+- **Fast feedback:** Critical path tests provide early pass/fail signal
+- **No coverage job on PRs:** Coverage is handled by individual test jobs
 
 ### Push to Main Execution Flow
 
@@ -220,120 +255,183 @@ graph LR
 
 ---
 
-#### 2. test-fast Job (PRs Only - Fast Feedback)
+#### 2. test-integration-fast Job (Runs on PR and Main, with exceptions)
 
-**Purpose:** Provide quick feedback on fast tests without waiting for slow tests
+**Purpose:** Run critical path integration tests for fast feedback
 
-**When:** Pull requests only
+**When:** Both PRs and push to main (with exceptions for docs-only PRs)
 
-**Duration:** ~6-10 minutes
+**Conditional Execution:**
+```yaml
+if: |
+  github.event_name != 'pull_request' ||
+  (github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
+   !contains(github.event.pull_request.head.ref, 'docs/'))
+```
 
-**What it runs:** `make test-ci-fast`
-- **Unit tests:** All unit tests
-- **Fast integration tests:** Excludes slow/ml_models integration tests
-- **Fast E2E tests:** Excludes slow/ml_models E2E tests
-- **No coverage:** Excluded for faster execution
+**Skips if:**
+- PR branch is `fix/ai-guidelines-linting`
+- PR branch name contains `docs/`
+
+**Duration:** ~5-8 minutes
+
+**What it runs:** `pytest tests/integration/ -m "integration and critical_path"`
+- **Critical path integration tests only:** Uses `critical_path` marker
+- **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
+- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
+- **Parallel execution:** Uses `-n auto` for speed
 
 **Key Features:**
-- **Fast feedback:** Completes before full validation job
-- **No coverage overhead:** Faster execution
-- **Early signal:** Developer gets quick pass/fail status
-- **Network guard:** Enabled for E2E tests
-
-**Why separate?** Provides early feedback so developers can start fixing issues immediately if fast tests fail.
+- **Fast feedback:** Critical path tests only (not all integration tests)
+- **Network isolation:** Enforced via pytest-socket
+- **Re-runs:** Handles flaky tests automatically
+- **No ML dependencies:** Uses dev dependencies only (faster)
 
 ---
 
-#### 3. test Job (PRs Only - Full Validation)
+#### 3. test-e2e-fast Job (Runs on PR and Main, with exceptions)
 
-**Purpose:** Complete validation with unified coverage report
+**Purpose:** Run critical path E2E tests for fast feedback
 
-**When:** Pull requests only
+**When:** Both PRs and push to main (with exceptions for docs-only PRs)
 
-**Duration:** ~10-15 minutes
+**Conditional Execution:**
+```yaml
+if: |
+  github.event_name != 'pull_request' ||
+  (github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
+   !contains(github.event.pull_request.head.ref, 'docs/'))
+```
 
-**What it runs:** `make test-ci`
-- **Unit tests:** All unit tests
-- **Fast integration tests:** Excludes slow/ml_models integration tests (same as test-fast)
-- **Fast E2E tests:** Excludes slow/ml_models E2E tests
-- **With coverage:** Unified coverage report for all tests
+**Skips if:**
+- PR branch is `fix/ai-guidelines-linting`
+- PR branch name contains `docs/`
+
+**Duration:** ~8-12 minutes
+
+**What it runs:** `pytest tests/e2e/ -m "e2e and critical_path"`
+- **Critical path E2E tests only:** Uses `critical_path` marker
+- **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
+- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
+- **Parallel execution:** Uses `-n auto` for speed
 
 **Key Features:**
-- **Unified coverage:** Single coverage report for all tests
-- **Full validation:** Ensures all fast tests pass
-- **Network guard:** Enabled for E2E tests
-- **Runs in parallel:** Starts at same time as test-fast, no waiting
-
-**Test Coverage on PRs:**
-- ✅ All unit tests
-- ✅ Fast integration tests (excludes slow/ml_models)
-- ✅ Fast E2E tests (excludes slow/ml_models)
-- ❌ Slow integration tests (run on main branch only)
-- ❌ Slow E2E tests (run on main branch only)
-
-**Why exclude slow tests from PRs?** Faster PR feedback while maintaining full validation on main branch.
+- **Fast feedback:** Critical path tests only (not all E2E tests)
+- **Network isolation:** Enforced via pytest-socket
+- **Re-runs:** Handles flaky tests automatically
+- **No ML dependencies:** Uses dev dependencies only (faster)
 
 ---
 
-#### 4. test-unit Job (Main Branch Only)
+#### 4. test-unit Job (Always Runs)
 
 **Purpose:** Run unit tests separately for maximum parallelization
 
-**When:** Push to main branch only
+**When:** Both PRs and push to main
 
 **Duration:** ~2-5 minutes
 
-**What it runs:** `make test-unit`
-- **Unit tests:** All unit tests with coverage
+**What it runs:** `pytest tests/unit/ -v --tb=short -n auto`
+- **Unit tests:** All unit tests (no markers, runs all unit tests)
 - **Network isolation:** Enforced and verified
 - **Import verification:** Ensures modules work without ML dependencies
-
-**Key Features:**
-- **No ML dependencies:** Fast execution
-- **Coverage included:** Part of overall coverage
-- **Network isolation:** Verified with dedicated test
-
----
-
-#### 5. test-integration Job (Main Branch Only)
-
-**Purpose:** Run all integration tests including slow/ml_models tests
-
-**When:** Push to main branch only
-
-**Duration:** ~5-10 minutes
-
-**What it runs:** `make test-integration`
-- **All integration tests:** Includes fast + slow/ml_models tests
-- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
 - **Parallel execution:** Uses `-n auto` for speed
 
 **Key Features:**
-- **Complete coverage:** All integration tests run
-- **Re-runs:** Handles flaky tests automatically
-- **ML dependencies:** Required for slow tests
+- **No ML dependencies:** Fast execution (dev dependencies only)
+- **Network isolation:** Verified with dedicated test (`test_network_isolation.py`)
+- **Test count verification:** Ensures at least 50 unit tests run
 
 ---
 
-#### 6. test-e2e Job (Main Branch Only)
+#### 5. preload-ml-models Job (Main Branch Only)
 
-**Purpose:** Run all E2E tests including slow/ml_models tests
+**Purpose:** Preload ML models to ensure they are cached for integration and E2E tests
 
 **When:** Push to main branch only
+
+**Conditional Execution:**
+```yaml
+if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+```
+
+**Duration:** ~2-5 minutes
+
+**Steps:**
+1. Checkout code
+2. Free disk space
+3. Set up Python 3.11
+4. Cache ML models (for faster execution)
+5. Install full dependencies (including ML)
+6. Preload ML models (if cache miss): `make preload-ml-models`
+
+**Key Features:**
+- **Dependency for full test jobs:** `test-integration` and `test-e2e` depend on this job
+- **ML model caching:** Ensures models are available before test jobs run
+- **Efficiency:** Models are cached, so subsequent jobs can use them immediately
+
+---
+
+#### 6. test-integration-slow Job (Main Branch Only)
+
+**Purpose:** Run slow integration tests (includes slow/ml_models tests)
+
+**When:** Push to main branch only
+
+**Conditional Execution:**
+```yaml
+if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+needs: [preload-ml-models]
+```
+
+**Dependencies:** Runs after `preload-ml-models` completes
+
+**Duration:** ~10-15 minutes
+
+**What it runs:** `pytest tests/integration/ -m "integration and (slow or ml_models)"`
+- **Slow integration tests only:** Includes tests marked with `slow` or `ml_models`
+- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
+- **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
+- **Parallel execution:** Uses `-n auto` for speed
+- **ML dependencies:** Required (includes ML packages)
+
+**Key Features:**
+- **Slow tests only:** Focuses on tests that require ML models or are slow
+- **Re-runs:** Handles flaky tests automatically
+- **ML model caching:** Uses models preloaded by `preload-ml-models` job
+- **Test count verification:** Ensures at least 10 slow integration tests run
+
+---
+
+#### 7. test-e2e Job (Main Branch Only)
+
+**Purpose:** Run all E2E tests (full suite)
+
+**When:** Push to main branch only
+
+**Conditional Execution:**
+```yaml
+if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+needs: [preload-ml-models]
+```
+
+**Dependencies:** Runs after `preload-ml-models` completes
 
 **Duration:** ~20-30 minutes
 
-**What it runs:** `make test-e2e`
-- **All E2E tests:** Includes fast + slow/ml_models tests
+**What it runs:** `pytest tests/e2e/ -m e2e`
+- **All E2E tests:** Full suite (no marker filtering)
 - **Re-runs enabled:** 2 retries with 1s delay for flaky tests
-- **Network guard:** Blocks external network calls
+- **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
 - **Parallel execution:** Uses `-n auto` for speed
+- **ML dependencies:** Required (includes ML packages)
 
 **Key Features:**
-- **Complete validation:** All E2E tests including ML model tests
+- **Complete validation:** All E2E tests run (critical path + non-critical)
 - **Network isolation:** Enforced via pytest-socket
 - **Re-runs:** Handles flaky tests automatically
-- **ML dependencies:** Required for slow tests
+- **ML model caching:** Uses models preloaded by `preload-ml-models` job
+- **Test count verification:** Ensures at least 50 E2E tests run
 
 ---
 
@@ -377,64 +475,302 @@ graph LR
    - Creates wheel distribution (`.whl`)
    - Validates `pyproject.toml` configuration
 
-### Fast Feedback vs Full Validation
+---
 
-On pull requests, two test jobs run simultaneously to provide both speed and completeness:
+### Additional Jobs (Conditional)
 
-#### Fast Feedback (`test-fast` Job)
+#### 9. docker-build Job (Runs if Docker files changed)
 
-**Purpose:** Quick pass/fail signal without waiting for slow tests
+**Purpose:** Build and test Docker image
 
-**Timeline:** Completes in ~6-10 minutes
+**Conditional Execution:**
+- Only runs if PR modifies: `Dockerfile`, `.dockerignore`, `pyproject.toml`, or `*.py`
 
-**What it tests:**
-- All unit tests
-- Fast integration tests (excludes slow/ml_models)
-- Fast E2E tests (excludes slow/ml_models)
+**Duration:** ~5-8 minutes
+
+**Steps:**
+1. Checkout code
+2. Free disk space
+3. Set up Docker Buildx
+4. Build Docker image (default)
+5. Build Docker image (multiple models variant)
+6. Test Docker image (help command)
+7. Test Docker image (version check)
+8. Test Docker image (error handling)
+9. Validate Dockerfile with hadolint
+
+**Runs in parallel with:** All other jobs
+
+#### 10. snyk-dependencies Job (Runs if code/Docker files changed)
+
+**Purpose:** Security scan of Python dependencies
+
+**Conditional Execution:**
+- Only runs if PR modifies: `**.py`, `pyproject.toml`, `Dockerfile`, or `.dockerignore`
+
+**Duration:** ~3-5 minutes
+
+**Steps:**
+1. Checkout code
+2. Set up Python 3.11
+3. Install dependencies (including ML)
+4. Run Snyk scan (Python dependencies)
+5. Upload results to GitHub Code Scanning
+
+**Note:** `continue-on-error: true` (doesn't fail PR)
+
+#### 11. snyk-docker Job (Runs if code/Docker files changed)
+
+**Purpose:** Security scan of Docker image
+
+**Conditional Execution:**
+- Only runs if PR modifies: `**.py`, `pyproject.toml`, `Dockerfile`, or `.dockerignore`
+- Skips on scheduled runs: `if: github.event_name != 'schedule'`
+
+**Duration:** ~8-12 minutes
+
+**Steps:**
+1. Checkout code
+2. Free disk space
+3. Set up Docker Buildx
+4. Build Docker image
+5. Verify Docker image exists
+6. Run Snyk scan (Docker image)
+7. Upload results to GitHub Code Scanning
+
+**Note:** `continue-on-error: true` (doesn't fail PR)
+
+#### 12. snyk-monitor Job (Always Runs on PR)
+
+**Purpose:** Monitor dependencies for security updates
+
+**Conditional Execution:**
+```yaml
+if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+```
+**Duration:** ~2-3 minutes
+
+**Steps:**
+1. Checkout code
+2. Set up Python 3.11
+3. Install dependencies (including ML)
+4. Run Snyk monitor
+
+**Note:** `continue-on-error: true` (doesn't fail PR)
+
+#### 13. analyze Job (Runs if Python/workflow files changed)
+
+**Purpose:** CodeQL security analysis
+
+**Conditional Execution:**
+- Only runs if PR modifies: `**.py` or `.github/workflows/**`
+
+**Duration:** ~10-15 minutes
+
+**Steps:**
+1. Checkout repository
+2. Initialize CodeQL (for Python and Actions)
+3. Perform CodeQL analysis
+
+**Runs in parallel with:** All other jobs
+
+### Critical Path Testing Strategy
+
+On pull requests, multiple test jobs run in parallel to provide fast feedback:
+
+#### Critical Path Jobs (Run in Parallel)
+
+**Purpose:** Quick pass/fail signal on critical path tests
+
+**Jobs:**
+- `test-unit` - All unit tests (~2-5 min)
+- `test-integration-fast` - Critical path integration tests only (~5-8 min)
+- `test-e2e-fast` - Critical path E2E tests only (~8-12 min)
 
 **Features:**
+- Run in parallel (no waiting)
+- Use `critical_path` marker to filter tests
+- Network isolation enforced
+- Re-runs enabled for flaky test handling
 - No coverage overhead (faster execution)
-- Early signal if fast tests fail
-- Developer can start fixing immediately
 
-**When to check:** After ~6-10 minutes for early feedback
+**When to check:** After ~8-12 minutes for early feedback
 
-#### Full Validation (`test` Job)
+#### Why This Design?
 
-**Purpose:** Complete validation with unified coverage report
+1. **Fast feedback:** Critical path jobs provide early signal if something is broken
+2. **Parallel execution:** All critical path jobs run simultaneously, no sequential waiting
+3. **Simplicity:** No separate coverage job - each test job handles its own validation
+4. **Efficiency:** Critical path tests focus on what matters most for fast feedback
 
-**Timeline:** Completes in ~10-15 minutes
+#### What About Non-Critical Tests?
 
-**What it tests:**
-- All unit tests
-- Fast integration tests (excludes slow/ml_models)
-- Fast E2E tests (excludes slow/ml_models)
+Non-critical path integration and E2E tests are excluded from PRs for faster feedback. They run on the main branch only:
 
-**Features:**
-- Unified coverage report for all tests
-- Comprehensive validation
-- Runs in parallel with test-fast (no waiting)
-
-**When to check:** After ~10-15 minutes for final validation
-
-#### Why Both?
-
-1. **Fast feedback:** Developer gets early signal if something is broken
-2. **Full validation:** Ensures all tests pass with coverage report
-3. **No redundancy:** Both run simultaneously, no sequential waiting
-4. **Different purposes:** Fast feedback for speed, full validation for completeness
-
-#### What About Slow Tests?
-
-Slow integration and slow E2E tests are excluded from PRs for faster feedback. They run on the main branch only:
-
-- **Slow integration tests:** Run in `test-integration` job on main branch
-- **Slow E2E tests:** Run in `test-e2e` job on main branch
+- **All integration tests:** Run in `test-integration` job on main branch (after `preload-ml-models`)
+- **All E2E tests:** Run in `test-e2e` job on main branch (after `preload-ml-models`)
 
 This ensures:
-- ✅ Fast PR feedback (no waiting for slow tests)
+- ✅ Fast PR feedback (critical path tests only)
 - ✅ Full validation on main branch (all tests run)
 - ✅ Balance between speed and coverage
+
+### Jobs That DO NOT Run on PRs
+
+**`preload-ml-models` Job:**
+- **Condition:** `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`
+- **Only runs on:** Push to main branch
+- **Does NOT run on:** Pull requests
+- **Purpose:** Preload ML models for full test suite jobs
+
+**`test-integration` Job:**
+- **Condition:** `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`
+- **Only runs on:** Push to main branch
+- **Does NOT run on:** Pull requests
+- **Runs:** All integration tests (full suite)
+- **Dependencies:** `needs: [preload-ml-models]`
+
+**`test-e2e` Job:**
+- **Condition:** `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`
+- **Only runs on:** Push to main branch
+- **Does NOT run on:** Pull requests
+- **Runs:** All E2E tests (full suite)
+- **Dependencies:** `needs: [preload-ml-models]`
+
+### When Do Slow Jobs Run? (Important Clarification)
+
+**"Push to main"** means code is actually committed to the `main` branch. This happens in two scenarios:
+
+1. **PR is merged** → Code is pushed to main → Slow jobs run
+2. **Direct push to main** (bypassing PR) → Slow jobs run
+
+**Timeline: PR Creation → Merge → Slow Jobs**
+
+```
+│ PHASE 1: PR Review (Before Merge)                           │
+├─────────────────────────────────────────────────────────────┤
+│ ✅ Fast jobs run:                                            │
+│   - lint, test-unit, test-integration-fast, test-e2e-fast    │
+│   - docs, build, test (coverage)                            │
+│                                                              │
+│ ❌ Full suite jobs DO NOT run:                               │
+│   - preload-ml-models                                        │
+│   - test-integration                                         │
+│   - test-e2e                                                 │
+│                                                              │
+│ Purpose: Fast feedback during code review                    │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+                    PR is Merged
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ PHASE 2: After Merge (Push to Main)                         │
+├─────────────────────────────────────────────────────────────┤
+│ ✅ All fast jobs run again (same as PR)                      │
+│                                                              │
+│ ✅ Full suite jobs NOW run:                                  │
+│   - preload-ml-models (preloads ML models)                  │
+│   - test-integration (all integration tests)               │
+│   - test-e2e (all E2E tests)                                │
+│                                                              │
+│ Purpose: Full test suite validation after merge              │
+└─────────────────────────────────────────────────────────────┘
+```
+**Why This Design?**
+
+1. **Fast PR feedback:** Developers get quick results during review (5-15 min)
+2. **Full validation after merge:** Slow tests (with ML models) run after code is merged
+3. **Resource efficiency:** ML model tests are expensive, so they run only on main branch
+4. **Safety net:** If slow tests fail after merge, you can fix immediately or revert
+
+**What If Full Suite Tests Fail After Merge?**
+
+If `test-integration` or `test-e2e` fail after merging:
+- The main branch will show a failed status
+- You'll get a notification
+- You can either:
+  - Fix the issue in a new PR
+  - Revert the merge if it's critical
+
+**Note:** Slow test failures don't prevent the merge (they run after merge), but they do alert you to issues that need attention.
+
+### Comparison: PR vs Push to Main
+
+| Job | During PR Review | After Merge (Push to Main) |
+| ----- | ------------------ | ---------------------------- |
+| `lint` | ✅ | ✅ |
+| `test-unit` | ✅ | ✅ |
+| `test-integration-fast` | ✅ (with exceptions) | ✅ |
+| `preload-ml-models` | ❌ **Does NOT run** | ✅ **Runs after merge** |
+| `test-integration` | ❌ **Does NOT run** | ✅ **Runs after merge** |
+| `test-e2e-fast` | ✅ (with exceptions) | ✅ |
+| `test-e2e` | ❌ **Does NOT run** | ✅ **Runs after merge** |
+| `docs` | ✅ | ✅ |
+| `build` | ✅ | ✅ |
+| `docker-build` | ✅ (if files match) | ✅ (if files match) |
+| `snyk-*` | ✅ (if files match) | ✅ (if files match) |
+| `analyze` | ✅ (if files match) | ✅ (if files match) |
+
+**Key Difference:**
+- **PR Review:** Critical path tests only (quick feedback)
+- **After Merge:** Critical path + Full suite tests (complete validation)
+
+### PR Execution Timeline
+
+**Typical PR Flow (All Jobs Run):**
+
+```
+├─ Parallel Jobs Start (all at once)
+│  ├─ lint (2-3 min)
+│  ├─ test-unit (3-5 min)
+│  ├─ test-integration-fast (5-8 min)
+│  ├─ test-e2e-fast (8-12 min)
+│  ├─ docs (3-5 min)
+│  ├─ build (1-2 min)
+│  ├─ docker-build (5-8 min) [if Docker files changed]
+│  ├─ snyk-dependencies (3-5 min) [if code changed]
+│  ├─ snyk-docker (8-12 min) [if Docker files changed]
+│  ├─ snyk-monitor (2-3 min)
+│  └─ analyze (10-15 min) [if Python/workflow files changed]
+│
+Time ~8-12 min - All critical path jobs complete
+└─ PR status updated
+
+Time ~15-20 min - All jobs complete (if no failures)
+└─ PR status updated
+```
+**Fastest PR Flow (Minimal Changes):**
+
+If only documentation or non-code files are changed:
+- Only `lint`, `docs`, and `build` jobs run
+- Total time: ~5-8 minutes
+
+**Slowest PR Flow (All Jobs + CodeQL):**
+
+If Python code, Docker files, and workflow files are changed:
+- All jobs run including CodeQL analysis
+- Total time: ~20-25 minutes (CodeQL is the bottleneck)
+
+### PR Status Checks
+
+The PR will show a status check for each job that runs. All checks must pass for the PR to be mergeable (unless branch protection rules allow otherwise).
+
+**Required Checks (Always Run):**
+- ✅ `lint`
+- ✅ `test-unit`
+- ✅ `test-integration-fast` (unless docs-only PR)
+- ✅ `test-e2e-fast` (unless docs-only PR)
+- ✅ `docs`
+- ✅ `build`
+- ✅ `snyk-monitor`
+
+**Optional Checks (Run if files match):**
+- ⚠️ `docker-build` (if Docker files changed)
+- ⚠️ `snyk-dependencies` (if code changed)
+- ⚠️ `snyk-docker` (if Docker files changed)
+- ⚠️ `analyze` (if Python/workflow files changed)
+
+**Note:** Snyk jobs have `continue-on-error: true`, so they won't block PRs even if they fail.
 
 ### Re-runs for Flaky Tests
 
@@ -446,11 +782,12 @@ Some test jobs include automatic re-runs to handle flaky tests:
 - `--reruns-delay 1`: Wait 1 second between retries
 
 **Which jobs use re-runs:**
+- ✅ `test-integration-fast` (PRs and main): Critical path integration tests
 - ✅ `test-integration` (main branch): All integration tests
+- ✅ `test-e2e-fast` (PRs and main): Critical path E2E tests
 - ✅ `test-e2e` (main branch): All E2E tests
-- ❌ `test-fast` (PRs): No re-runs (fast tests should be stable)
-- ❌ `test` (PRs): No re-runs (fast tests should be stable)
-- ❌ `test-unit` (main branch): No re-runs (unit tests should be stable)
+- ❌ `test-unit` (always): No re-runs (unit tests should be stable)
+- ❌ `preload-ml-models` (main branch): No re-runs (setup job)
 
 **How it works:**
 1. Test runs and fails
@@ -477,20 +814,24 @@ graph TD
     C --> C3[mypy]
     C --> C4[bandit]
 
-    B -->|test-fast Job PRs| E2[dev + ml + pytest-socket]
-    E2 --> E2A[pytest]
-    E2 --> E2B[pytest-socket for network guard]
-    E2 --> E2C[ML deps for integration tests]
-
-    B -->|test Job PRs| E4[dev + ml dependencies]
-    E4 --> E4A[pytest]
-    E4 --> E4B[ML deps for integration tests]
-    E4 --> E4C[Coverage tools]
-
-    B -->|test-unit Job Main| C2[dev dependencies only]
+    B -->|test-unit Job| C2[dev dependencies only]
     C2 --> C2A[pytest]
     C2 --> C2B[No ML deps - fast]
     C2 --> C2C[Import check script]
+
+    B -->|test-integration-fast Job| E2[dev + pytest-socket]
+    E2 --> E2A[pytest]
+    E2 --> E2B[pytest-socket for network guard]
+    E2 --> E2C[No ML deps - critical path only]
+
+    B -->|test-e2e-fast Job| E5[dev + pytest-socket]
+    E5 --> E5A[pytest]
+    E5 --> E5B[pytest-socket for network guard]
+    E5 --> E5C[No ML deps - critical path only]
+
+    B -->|preload-ml-models Job Main| F[dev + ml dependencies]
+    F --> F1[make preload-ml-models]
+    F --> F2[Cache ML models]
 
     B -->|test-integration Job Main| D[dev + ml dependencies]
     D --> D1[pytest]
@@ -498,6 +839,7 @@ graph TD
     D --> D3[torch]
     D --> D4[whisper]
     D --> D5[spacy]
+    D --> D6[Uses preloaded models]
 
     B -->|test-e2e Job Main| E3[dev + ml dependencies + pytest-socket]
     E3 --> E3A[pytest]
@@ -860,16 +1202,20 @@ This maximizes parallelism and reduces total CI time.
 
 ```text
 ├── Lint Job (1-2 min)
-├── test-fast Job (6-10 min) - Fast feedback, no coverage
-├── test Job (10-15 min) - Full validation with coverage
+├── test-unit (2-5 min) - All unit tests
+├── test-integration-fast (5-8 min) - Critical path only
+├── test-e2e-fast (8-12 min) - Critical path only
 ├── Docs Job (2-3 min)
 └── Build Job (1-2 min)
 ```text
 ```text
 ├── Lint Job (1-2 min)
 ├── test-unit Job (2-5 min) - No ML deps, fast
-├── test-integration Job (5-10 min) - With ML deps, includes re-runs
-├── test-e2e Job (20-30 min) - With ML deps, includes re-runs, network guard
+├── preload-ml-models (2-5 min) - Preloads ML models for full suite
+├── test-integration-fast (5-8 min) - Critical path only, includes re-runs
+├── test-integration (5-10 min) - Full suite, includes re-runs, ML deps, needs preload-ml-models
+├── test-e2e-fast (8-12 min) - Critical path only, includes re-runs
+├── test-e2e (20-30 min) - Full suite, includes re-runs, ML deps, network guard, needs preload-ml-models
 ├── Docs Job (2-3 min)
 └── Build Job (1-2 min)
 ```text
@@ -1137,7 +1483,7 @@ git commit -m "your message"
 
 # Run full CI suite (matches GitHub Actions PR validation)
 
-# - Runs unit + fast integration + fast e2e tests (excludes slow/ml_models)
+# - Runs unit + critical path integration + critical path e2e tests
 
 # - Full validation before commits/PRs
 
@@ -1149,7 +1495,7 @@ make ci
 
 # - Skips cleanup step (faster)
 
-# - Runs unit + fast integration + fast e2e (excludes slow/ml_models, no coverage)
+# - Runs unit + critical path integration + critical path e2e (no coverage)
 
 # - Use for quick validation during development
 
@@ -1292,7 +1638,7 @@ make test
 # Reproduce E2E test failures locally
 
 make test-e2e  # All E2E tests
-make test-e2e-fast      # Fast E2E tests only (excludes slow/ml_models)
+make test-e2e-fast      # Critical path E2E tests only
 make test-e2e-slow      # Slow E2E tests only (requires ML dependencies)
 
 # Reproduce docs failures locally
@@ -1309,7 +1655,7 @@ make ci
 
 make test-e2e
 
-# Run fast E2E tests only (excludes slow/ml_models, faster feedback)
+# Run critical path E2E tests only (faster feedback)
 
 make test-e2e-fast
 
@@ -1328,6 +1674,175 @@ make test-e2e-slow
 - `ml_models`: Tests requiring ML dependencies
 
 See [Testing Guide](guides/TESTING_GUIDE.md#e2e-test-implementation) for detailed E2E test documentation.
+
+---
+
+## Nightly Comprehensive Tests Workflow
+
+**File:** `.github/workflows/nightly.yml`
+**Triggers:**
+
+- Scheduled: Daily at 2 AM UTC
+- Manual dispatch (`workflow_dispatch`)
+
+**Purpose:** Run comprehensive test suite with full metrics collection, trend tracking, and reporting.
+
+### Overview
+
+The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Unlike the main branch jobs which focus on fast validation, the nightly workflow:
+
+- Runs **all tests** (unit + integration + e2e, including slow/ml_models)
+- Collects **comprehensive metrics** (JUnit XML, coverage reports, JSON reports)
+- Tracks **historical trends** (metrics history file)
+- Publishes **metrics to GitHub Pages** (accessible via public URL)
+- Generates **job summaries** with key metrics
+
+### Metrics Collection Strategy
+
+**Current Implementation:** Metrics collection is **only in the nightly workflow** (not in main branch jobs).
+
+**Why Nightly Only?**
+
+1. **Simplicity:** One place for metrics collection, easier to maintain
+2. **Performance:** Main branch jobs stay fast (no metrics overhead)
+3. **Sufficiency:** Daily metrics are enough for trend tracking
+4. **Cost:** Less artifact storage and processing
+
+**What Gets Collected:**
+
+- ✅ **JUnit XML** (`reports/junit.xml`) - Test results and timing
+- ✅ **Coverage XML** (`reports/coverage.xml`) - Coverage data
+- ✅ **Coverage HTML** (`reports/coverage-html/`) - Human-readable coverage reports
+- ✅ **JSON Report** (`reports/pytest.json`) - Structured test metrics
+- ✅ **Slowest Tests** (`--durations=20`) - Identifies performance bottlenecks
+- ✅ **Metrics JSON** (`metrics/latest.json`) - Aggregated metrics for consumption
+- ✅ **History File** (`metrics/history.jsonl`) - Historical trend data
+
+**Metrics Publishing:**
+
+- Metrics are published to the `gh-pages` branch
+- Accessible via GitHub Pages: `https://[username].github.io/podcast_scraper/metrics/`
+- `metrics/latest.json` - Latest metrics (machine-readable)
+- `metrics/history.jsonl` - Historical trends (line-delimited JSON)
+
+### Nightly Workflow Jobs
+
+#### nightly-tests Job
+
+**Purpose:** Run all tests with comprehensive metrics collection
+
+**Duration:** ~30-60 minutes (includes all slow/ml_models tests)
+
+**Steps:**
+1. Checkout code (full history for trend tracking)
+2. Free disk space
+3. Set up Python 3.11
+4. Cache ML models (for faster execution)
+5. Install full dependencies (including ML + pytest-json-report)
+6. Preload ML models (if cache miss)
+7. Run all tests with comprehensive metrics:
+   - `--junitxml=reports/junit.xml` (JUnit XML for test results)
+   - `--json-report --json-report-file=reports/pytest.json` (Structured JSON metrics)
+   - `--cov-report=xml:reports/coverage.xml` (Coverage XML)
+   - `--cov-report=html:reports/coverage-html` (Coverage HTML)
+   - `--cov-report=term-missing` (Terminal coverage report)
+   - `--durations=20` (Slowest tests identification)
+   - `--reruns 2 --reruns-delay 1` (Flaky test handling)
+   - `--disable-socket --allow-hosts=127.0.0.1,localhost` (Network guard)
+8. Generate job summary with key metrics:
+   - Test summary (total, passed, failed, skipped, duration)
+   - Coverage percentage
+   - Slowest tests (top 10)
+   - Flaky tests detection (tests that passed on rerun)
+   - Metric alerts (if any)
+9. Generate metrics (`scripts/generate_metrics.py`):
+   - Extracts metrics from pytest JSON and coverage XML
+   - Creates `metrics/latest.json` with trends and alerts
+   - Updates `metrics/history.jsonl` (appends to history)
+   - Calculates trends (runtime, coverage, test count changes)
+   - Detects deviations (regressions, coverage drops, flaky test increases)
+10. Generate HTML dashboard (`scripts/generate_dashboard.py`):
+   - Creates interactive dashboard with Chart.js
+   - Displays current metrics, trends, alerts, and slowest tests
+   - Shows flaky test details and historical trends
+   - Outputs `metrics/index.html`
+11. Upload artifacts (test reports, coverage reports, metrics) - 90-day retention
+12. Upload metrics artifact for GitHub Pages deployment
+
+#### deploy-metrics Job
+
+**Purpose:** Deploy metrics to GitHub Pages
+
+**Runs:** After `nightly-tests` completes (even if tests fail)
+
+**Steps:**
+1. Deploy metrics to GitHub Pages using `actions/deploy-pages@v4`
+   - Automatically publishes `metrics/` directory from artifact
+   - Accessible via: `https://[username].github.io/podcast_scraper/metrics/`
+   - Includes `latest.json`, `history.jsonl`, and `index.html` (dashboard)
+
+**Metrics Dashboard:**
+- **URL**: `https://[username].github.io/podcast_scraper/metrics/index.html`
+- **Features**:
+  - Current metrics display (tests, coverage, runtime, flaky tests)
+  - Interactive trend charts (runtime, coverage, test count, flaky tests)
+  - Alerts section (regressions, coverage drops, flaky test increases)
+  - Slowest tests table
+  - Flaky tests table (tests that passed on rerun)
+  - Historical data visualization (last 30 runs)
+
+**Result:** Metrics accessible via public URL
+
+**Concurrency Control:**
+- Uses `concurrency: group: "pages-metrics"` with `cancel-in-progress: false`
+- Allows multiple nightly runs to accumulate metrics without conflicts
+
+### Metrics vs Main Branch Jobs
+
+**Main Branch Jobs (`python-app.yml`):**
+- ✅ Fast validation (pass/fail)
+- ❌ No metrics collection
+- ✅ Quick feedback (5-20 minutes)
+- **Purpose:** Validate code works
+
+**Nightly Workflow (`nightly.yml`):**
+- ✅ Comprehensive metrics collection
+- ✅ Historical trend tracking
+- ✅ Full test suite (including slow tests)
+- ✅ Metrics publishing to GitHub Pages
+- **Purpose:** Deep analysis and trend tracking
+
+**Why This Design?**
+
+1. **Fast PR feedback:** Main branch jobs focus on validation, not analysis
+2. **Comprehensive analysis:** Nightly workflow does deep metrics collection
+3. **Resource efficiency:** Metrics collection only once per day
+4. **Simplicity:** Clear separation of concerns
+
+### Accessing Metrics
+
+**Via GitHub Pages:**
+- Latest metrics: `https://[username].github.io/podcast_scraper/metrics/latest.json`
+- History: `https://[username].github.io/podcast_scraper/metrics/history.jsonl`
+- Dashboard: `https://[username].github.io/podcast_scraper/metrics/index.html` (if generated)
+
+**Via GitHub Actions:**
+- Job summaries show key metrics in workflow run
+- Artifacts available for download (90-day retention)
+
+**Via Automation:**
+```bash
+# Fetch latest metrics
+curl https://[username].github.io/podcast_scraper/metrics/latest.json | jq
+
+# Check history
+curl https://[username].github.io/podcast_scraper/metrics/history.jsonl | tail -1 | jq
+```
+### Related Documentation
+
+- [RFC-025: Test Metrics and Health Tracking](../rfc/RFC-025-test-metrics-and-health-tracking.md) - Metrics collection strategy
+- [RFC-026: Metrics Consumption and Dashboards](../rfc/RFC-026-metrics-consumption-and-dashboards.md) - Metrics consumption methods
+- [GitHub Pages Setup Complete](../wip/GITHUB_PAGES_SETUP_COMPLETE.md) - Setup details
 
 ---
 

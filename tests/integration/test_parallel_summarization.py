@@ -69,6 +69,7 @@ def _create_test_transcript_files(episodes, temp_dir, cfg):
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 @pytest.mark.integration
+@pytest.mark.slow
 class TestParallelSummarizationPreLoading(unittest.TestCase):
     """Test model pre-loading before parallel execution."""
 
@@ -208,6 +209,7 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 @pytest.mark.integration
+@pytest.mark.slow
 class TestParallelSummarizationThreadSafety(unittest.TestCase):
     """Test thread safety of parallel summarization."""
 
@@ -298,6 +300,7 @@ class TestParallelSummarizationThreadSafety(unittest.TestCase):
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 @pytest.mark.integration
+@pytest.mark.slow
 class TestParallelSummarizationFallback(unittest.TestCase):
     """Test fallback behavior when model loading fails."""
 
@@ -377,6 +380,7 @@ class TestParallelSummarizationFallback(unittest.TestCase):
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 @pytest.mark.integration
+@pytest.mark.slow
 class TestParallelSummarizationCleanup(unittest.TestCase):
     """Test cleanup of worker models after parallel execution."""
 
@@ -498,6 +502,7 @@ class TestParallelSummarizationCleanup(unittest.TestCase):
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 @pytest.mark.integration
+@pytest.mark.slow
 class TestParallelSummarizationEdgeCases(unittest.TestCase):
     """Test edge cases for parallel summarization."""
 

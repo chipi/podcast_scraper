@@ -46,6 +46,7 @@ dev = [
   "pytest-xdist>=3.5.0,<4.0.0",  # Parallel test execution (RFC-018)
   "pytest-rerunfailures>=14.0,<15.0",  # Flaky test reruns (RFC-018)
   "pytest-socket>=0.7.0,<1.0.0",  # Network blocking for E2E tests (RFC-019)
+  "pytest-json-report>=1.5.0,<2.0.0",  # JSON test reports for metrics (RFC-025)
   "mypy>=1.5.0,<2.0.0",
   "types-PyYAML>=6.0.12,<7.0.0",
   "bandit>=1.7.5,<2.0.0",
@@ -123,13 +124,19 @@ addopts = "-q -ra"
 # Parallel execution: use -n auto to enable, or -n 0 to disable
 # Reruns: use --reruns 2 --reruns-delay 1 for flaky tests
 markers = [
+    "smoke: smoke tests with multiple short episodes (10-15 seconds each) for testing multi-episode processing logic",
+    "data_quality: data quality validation tests with multiple episodes (nightly only)",
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: integration tests (slower, test component interactions)",
-    "workflow_e2e: end-to-end workflow tests (slowest, test full workflows)",
+    "e2e: end-to-end workflow tests (slowest, test full workflows)",
     "network: hits the network (off by default, use -m network to enable)",
-    "ml_models: requires ML dependencies and real model loading (slow, requires openai-whisper, spacy, transformers)",
+    "ml_models: requires ML dependencies and real model loading (requires openai-whisper, spacy, transformers)",
+    "critical_path: marks tests as part of the critical path (RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files). These tests run in fast suite regardless of ml_models marker if models are cached.",
+    "llm: tests that use LLM APIs (may incur costs or rate limits, includes openai and future providers)",
+    "openai: tests that use OpenAI API specifically (subset of llm marker)",
     "integration_http: HTTP integration tests (use real HTTP client with test server, not external network)",
     "infrastructure: tests for test infrastructure itself (pytest markers, Makefile, CI config)",
+    "serial: marks tests that must run sequentially (not in parallel) due to resource conflicts or race conditions",
 ]
 # Parallel execution configuration (pytest-xdist)
 # Use -n auto to automatically detect CPU count, or -n N for specific number

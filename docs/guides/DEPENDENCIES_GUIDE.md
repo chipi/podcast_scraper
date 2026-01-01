@@ -148,6 +148,19 @@ like transcription and summarization.
 5. **Platform compatibility**: All dependencies support Linux, macOS, and Windows.
    Platform-specific optimizations (MPS, CUDA) are detected at runtime.
 
+## Development Dependencies (Optional, Install via `pip install -e .[dev]`)
+
+### `pytest-json-report` (>=1.5.0,<2.0.0)
+
+- **Purpose**: Generate structured JSON reports from pytest test runs for metrics collection and analysis
+- **Why chosen**: Provides machine-readable test metrics (pass/fail counts, durations, flaky test detection) that
+  integrate with our metrics collection system (RFC-025). Used in nightly workflow for comprehensive test metrics
+  tracking.
+- **Key features utilized**: JSON report generation (`--json-report`), test outcome tracking, rerun detection for
+  flaky tests
+- **Alternatives considered**: Custom pytest plugins (more maintenance), JUnit XML only (less structured data)
+- **Usage**: Automatically used in nightly workflow via `--json-report --json-report-file=reports/pytest.json`
+
 ## Installation
 
 ### Core Dependencies Only
@@ -157,6 +170,9 @@ pip install -e .
 ```text
 ```bash
 pip install -e .[ml]
+```text
+```bash
+pip install -e .[dev]
 ```text
 - [Architecture](../ARCHITECTURE.md) - High-level system design and dependency overview
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices

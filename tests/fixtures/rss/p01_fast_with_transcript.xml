@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Singletrack Sessions (Fast Test - With Transcript)</title>
+    <link>http://localhost/</link>
+    <description>Mountain biking talk: trails, technique, gear, and the people who build the ride. Fast test version with transcript URL (Path 1: Transcript Download).</description>
+    <language>en-us</language>
+
+    <itunes:author>Maya Koster</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p01_cover.jpg"/>
+
+    <item>
+      <title>Episode 1: Building Trails That Last (Fast Test - With Transcript)</title>
+      <guid isPermaLink="false">p01_e01_fast_with_transcript</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Maya talks with trail builder Liam Verbeek about drainage, line choice, and keeping trails rideable through winter. Fast test version with transcript URL.</description>
+      <enclosure url="/audio/p01_e01_fast.mp3" length="500000" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p01_e01_fast.txt" type="text/plain" />
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:01:00</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>
+

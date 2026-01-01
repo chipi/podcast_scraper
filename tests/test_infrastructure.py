@@ -38,16 +38,16 @@ def test_integration_marker_collects_tests():
     assert test_count > 0, "No integration tests were collected! Check marker configuration."
 
 
-def test_workflow_e2e_marker_collects_tests():
-    """Verify that -m workflow_e2e actually collects workflow_e2e tests."""
+def test_e2e_marker_collects_tests():
+    """Verify that -m e2e actually collects e2e tests."""
     result = subprocess.run(
         [
             sys.executable,
             "-m",
             "pytest",
-            "tests/workflow_e2e/",
+            "tests/e2e/",
             "-m",
-            "workflow_e2e",
+            "e2e",
             "--collect-only",
             "-q",
         ],
@@ -57,7 +57,7 @@ def test_workflow_e2e_marker_collects_tests():
     )
     assert result.returncode == 0, f"pytest failed: {result.stderr}"
     test_count = len([line for line in result.stdout.split("\n") if line.startswith("tests/")])
-    assert test_count > 0, "No workflow_e2e tests were collected! Check marker configuration."
+    assert test_count > 0, "No e2e tests were collected! Check marker configuration."
 
 
 def test_unit_tests_exclude_integration():
@@ -94,24 +94,24 @@ def test_makefile_test_integration_runs_tests():
     ), "make test-integration didn't run any tests! Check Makefile and pytest configuration."
 
 
-def test_makefile_test_workflow_e2e_runs_tests():
-    """Verify that 'make test-workflow-e2e' actually runs tests."""
+def test_makefile_test_e2e_runs_tests():
+    """Verify that 'make test-e2e' actually runs tests."""
     # Check if make is available
     make_check = subprocess.run(["which", "make"], capture_output=True)
     if make_check.returncode != 0:
         pytest.skip("make command not available")
 
     result = subprocess.run(
-        ["make", "test-workflow-e2e"],
+        ["make", "test-e2e"],
         capture_output=True,
         text=True,
-        timeout=1200,  # 20 minute timeout (workflow_e2e tests can be slow)
+        timeout=1200,  # 20 minute timeout (e2e tests can be slow)
         cwd=Path(__file__).parent.parent,
     )
     # Should not fail, but also should not be empty
     assert (
         "collected" in result.stdout.lower() or "passed" in result.stdout.lower()
-    ), "make test-workflow-e2e didn't run any tests! Check Makefile and pytest configuration."
+    ), "make test-e2e didn't run any tests! Check Makefile and pytest configuration."
 
 
 def test_marker_combinations_work():

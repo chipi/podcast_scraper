@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:ns0="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:ns1="https://podcastindex.org/namespace/1.0" version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Edge Cases Podcast</title>
+    <link>http://localhost/</link>
+    <description>Testing edge cases: special characters, unicode, long titles, missing fields.</description>
+    <language>en-us</language>
+
+    <ns0:author>Test Author</ns0:author>
+    <ns0:explicit>no</ns0:explicit>
+
+    <!-- Episode 1: Special characters in title -->
+    <item>
+      <title>Episode 1: Special Chars: &lt;&gt;&quot;&amp;'/\?*|</title>
+      <guid isPermaLink="false">p06_e01</guid>
+      <pubDate>Mon, 01 Oct 2025 07:00:00 +0000</pubDate>
+      <description>Testing special characters: &lt; &gt; &quot; &amp; ' / \ ? * |</description>
+      <enclosure url="/audio/p06_e01.mp3" length="1000000" type="audio/mpeg" />
+      <ns1:transcript url="/transcripts/p06_e01.txt" type="text/plain" />
+      <ns0:episode>1</ns0:episode>
+      <ns0:duration>00:05:00</ns0:duration>
+      <ns0:episodeType>full</ns0:episodeType>
+    </item>
+
+    <!-- Episode 2: Unicode characters -->
+    <item>
+      <title>Episode 2: Unicode: 你好世界 🌍 Café résumé naïve</title>
+      <guid isPermaLink="false">p06_e02</guid>
+      <pubDate>Mon, 08 Oct 2025 07:00:00 +0000</pubDate>
+      <description>Testing Unicode: 你好世界 🌍 Café résumé naïve ñoño</description>
+      <enclosure url="/audio/p06_e02.mp3" length="1000000" type="audio/mpeg" />
+      <ns1:transcript url="/transcripts/p06_e02.txt" type="text/plain" />
+      <ns0:episode>2</ns0:episode>
+      <ns0:duration>00:05:00</ns0:duration>
+      <ns0:episodeType>full</ns0:episodeType>
+    </item>
+
+    <!-- Episode 3: Very long title -->
+    <item>
+      <title>Episode 3: This is a very long episode title that exceeds normal length expectations and tests how the system handles extremely long titles that might cause issues with filename sanitization or display truncation in various contexts where title length matters for user interface design and file system compatibility requirements</title>
+      <guid isPermaLink="false">p06_e03</guid>
+      <pubDate>Mon, 15 Oct 2025 07:00:00 +0000</pubDate>
+      <description>Testing very long episode title handling.</description>
+      <enclosure url="/audio/p06_e03.mp3" length="1000000" type="audio/mpeg" />
+      <ns1:transcript url="/transcripts/p06_e03.txt" type="text/plain" />
+      <ns0:episode>3</ns0:episode>
+      <ns0:duration>00:05:00</ns0:duration>
+      <ns0:episodeType>full</ns0:episodeType>
+    </item>
+
+    <!-- Episode 4: Missing optional fields (but has transcript URL) -->
+    <item>
+      <title>Episode 4: Missing Fields</title>
+      <guid isPermaLink="false">p06_e04</guid>
+      <pubDate>Mon, 22 Oct 2025 07:00:00 +0000</pubDate>
+      <!-- No description -->
+      <enclosure url="/audio/p06_e04.mp3" length="1000000" type="audio/mpeg" />
+      <ns1:transcript url="/transcripts/p06_e04.txt" type="text/plain" />
+      <!-- No episode number -->
+      <!-- No duration -->
+      <ns0:episodeType>full</ns0:episodeType>
+    </item>
+
+    <!-- Episode 5: Empty description -->
+    <item>
+      <title>Episode 5: Empty Description</title>
+      <guid isPermaLink="false">p06_e05</guid>
+      <pubDate>Mon, 29 Oct 2025 07:00:00 +0000</pubDate>
+      <description></description>
+      <enclosure url="/audio/p06_e05.mp3" length="1000000" type="audio/mpeg" />
+      <ns1:transcript url="/transcripts/p06_e05.txt" type="text/plain" />
+      <ns0:episode>5</ns0:episode>
+      <ns0:duration>00:05:00</ns0:duration>
+      <ns0:episodeType>full</ns0:episodeType>
+    </item>
+
+    <!-- Episode 6: Relative URLs (should be resolved against base URL) -->
+    <item>
+      <title>Episode 6: Relative URLs</title>
+      <guid isPermaLink="false">p06_e06</guid>
+      <pubDate>Mon, 05 Nov 2025 07:00:00 +0000</pubDate>
+      <description>Testing relative URL resolution.</description>
+      <enclosure url="audio/p06_e06.mp3" length="1000000" type="audio/mpeg" />
+      <ns1:transcript url="transcripts/p06_e06.txt" type="text/plain" />
+      <ns0:episode>6</ns0:episode>
+      <ns0:duration>00:05:00</ns0:duration>
+      <ns0:episodeType>full</ns0:episodeType>
+    </item>
+  </channel>
+</rss>
+

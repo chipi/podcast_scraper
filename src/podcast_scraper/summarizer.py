@@ -579,9 +579,12 @@ class SummaryModel:
             # Load tokenizer
             # Security: Revision pinning provides reproducibility and prevents supply chain attacks
             # If revision is None, latest version is used (less secure but more convenient)
+            # Use local_files_only=True to prevent network access when models are cached
+            # This is critical for tests where network is blocked (pytest-socket)
             logger.debug("Loading tokenizer (will use cache if available)...")
             tokenizer_kwargs = {
                 "cache_dir": self.cache_dir,
+                "local_files_only": True,  # Prevent network access - use cache only
             }
             if self.revision:
                 tokenizer_kwargs["revision"] = self.revision
@@ -594,9 +597,12 @@ class SummaryModel:
             # Load model
             # Security: Revision pinning provides reproducibility and prevents supply chain attacks
             # If revision is None, latest version is used (less secure but more convenient)
+            # Use local_files_only=True to prevent network access when models are cached
+            # This is critical for tests where network is blocked (pytest-socket)
             logger.debug("Loading model (will use cache if available)...")
             model_kwargs = {
                 "cache_dir": self.cache_dir,
+                "local_files_only": True,  # Prevent network access - use cache only
             }
             if self.revision:
                 model_kwargs["revision"] = self.revision
@@ -1114,7 +1120,8 @@ def summarize_long_text(
     if reduce_model is None:
         reduce_model = model
 
-    cleaned_text = clean_for_summarization(text)
+    # Use preprocessing module directly (avoid deprecation warning)
+    cleaned_text = preprocessing.clean_for_summarization(text)
     if cleaned_text != text:
         removed_chars = len(text) - len(cleaned_text)
         removed_pct = (removed_chars / len(text) * 100) if len(text) else 0
@@ -2133,10 +2140,8 @@ def safe_summarize(
     try:
         return model.summarize(text, max_length=max_length, prompt=prompt)
     except Exception as e:
-        # Lazy import torch for error handling
-        import torch  # noqa: F401
-
         # Handle both CUDA and MPS out-of-memory errors
+        # Check error message string (torch not needed for this check)
         if isinstance(e, RuntimeError) and (
             "out of memory" in str(e).lower() or "mps" in str(e).lower()
         ):

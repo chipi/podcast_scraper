@@ -1,13 +1,21 @@
 # Testing Strategy
 
-> **See also:** [Testing Guide](guides/TESTING_GUIDE.md) for detailed implementation instructions, test execution commands,
-> test file descriptions, fixtures, and coverage details.
+> **See also:**
+>
+> - [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md) for what to test based on the critical path
+> - [Testing Guide](guides/TESTING_GUIDE.md) for detailed implementation instructions, test execution commands,
+>   test file descriptions, fixtures, and coverage details.
 
 ## Overview
 
 This document defines the testing strategy for the podcast scraper codebase. It establishes the test pyramid approach,
-decision criteria for choosing test types, and high-level testing patterns. For detailed implementation instructions on
-how to run tests, what test files exist, and how to work with the test suite, see the [Testing Guide](guides/TESTING_GUIDE.md).
+decision criteria for choosing test types, and high-level testing patterns.
+
+**Document Structure:**
+
+- **This document**: High-level strategy, test pyramid, decision criteria, test categories
+- **[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md)**: What to test based on the critical path, prioritization
+- **[Testing Guide](guides/TESTING_GUIDE.md)**: Detailed implementation instructions, test execution, fixtures, coverage
 
 ## Problem Statement
 
@@ -100,13 +108,15 @@ The testing strategy follows a three-tier pyramid:
 
 ## Decision Criteria
 
-The decision questions above provide a quick way to determine test type. For detailed decision trees, edge cases, and migration guidelines, see [Testing Guide - Decision Trees and Edge Cases](TESTING_GUIDE.md#decision-trees-and-edge-cases).
+The decision questions above provide a quick way to determine test type. For critical path prioritization, see [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md). For detailed decision trees, edge cases, and migration guidelines, see [Testing Guide - Decision Trees and Edge Cases](guides/TESTING_GUIDE.md#decision-trees-and-edge-cases).
 
 **Quick Reference:**
 
 - **Unit Test**: Single function/module in isolation, all dependencies mocked
 - **Integration Test**: Multiple components working together, real internal implementations, mocked external services
 - **E2E Test**: Complete user workflow from entry point to output, real HTTP client, real data files, real ML models
+
+**Critical Path Priority**: If your test covers the critical path (RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files), prioritize it. See [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
 
 ## Test Categories
 
@@ -282,6 +292,8 @@ The decision questions above provide a quick way to determine test type. For det
 
 #### E2E Test Coverage Goals
 
+**Critical Path Priority**: The critical path must have E2E tests for all three entry points (CLI, Library API, Service API). See [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
+
 **Every major user-facing entry point should have at least one E2E test:**
 
 1. **CLI Commands** - Each main CLI command should have E2E tests
@@ -296,7 +308,7 @@ The decision questions above provide a quick way to determine test type. For det
 
 **Rule of Thumb**: E2E tests should cover "as a user, I want to..." scenarios, not every possible configuration combination.
 
-**For detailed E2E test execution commands, test file descriptions, fixtures, requirements, and coverage, see [Testing Guide - E2E Test Implementation](TESTING_GUIDE.md#e2e-test-implementation).**
+**For detailed E2E test execution commands, test file descriptions, fixtures, requirements, and coverage, see [Testing Guide - E2E Test Implementation](guides/TESTING_GUIDE.md#e2e-test-implementation).**
 
 ## Test Infrastructure
 
@@ -323,9 +335,11 @@ The test suite is organized into three main categories:
 ### Test Markers
 
 - `@pytest.mark.integration` - Integration tests
-- `@pytest.mark.e2e` - E2E tests
-- `@pytest.mark.slow` - Slow-running tests
-- `@pytest.mark.ml_models` - Requires ML model dependencies
+- `@pytest.mark.e2e` - E2E tests (formerly `workflow_e2e`)
+- `@pytest.mark.slow` - Slow-running tests (mutually exclusive with `ml_models`)
+- `@pytest.mark.ml_models` - Requires ML model dependencies (implies slow, mutually exclusive with `slow`)
+- `@pytest.mark.llm` - Tests that use LLM providers (may incur costs or rate limits)
+- `@pytest.mark.openai` - Tests that use OpenAI API specifically (subset of `llm` marker)
 
 **For detailed test infrastructure information, including network/filesystem isolation, fixtures, and marker usage, see [Testing Guide - Test Infrastructure Details](TESTING_GUIDE.md#test-infrastructure-details).**
 
@@ -344,8 +358,11 @@ The test suite is organized into three main categories:
 **On Main Branch**:
 
 - **`test-unit` job**: All unit tests with coverage (no ML deps, ~2-5 min)
-- **`test-integration` job**: All integration tests including slow/ml_models (with re-runs, ~5-10 min)
-- **`test-e2e` job**: All E2E tests including slow/ml_models (with re-runs, ~20-30 min)
+- **`test-integration-fast` job**: Fast integration tests excluding slow/ml_models (with re-runs, ~5-8 min)
+- **`test-integration-slow` job**: Slow integration tests including slow/ml_models (with re-runs, ~10-15 min, main branch only)
+- **`test-e2e-fast` job**: Fast E2E tests excluding slow/ml_models (with re-runs, ~10-15 min)
+- **`test-e2e-slow` job**: Slow E2E tests including slow/ml_models (with re-runs, ~20-30 min, main branch only)
+- **`test` job**: Combined fast tests with coverage (unit + fast integration + fast e2e, ~10-15 min)
 - **`lint` job**: Formatting, linting, type checking, security scans
 - **`docs` job**: Documentation build
 - **`build` job**: Package build validation
@@ -353,14 +370,15 @@ The test suite is organized into three main categories:
 **Test Execution Strategy**:
 
 - **PRs**: Fast feedback + full validation run in parallel (both exclude slow/ml_models tests)
-- **Main branch**: Separate test jobs for maximum parallelization (includes all tests)
+- **Main branch**: Separate test jobs for maximum parallelization (includes all tests, slow jobs run only on push to main)
 - **Unit tests**: Run on every PR and push (fast feedback, parallel execution)
-- **Fast integration tests**: Run on PRs (excludes slow/ml_models, parallel execution)
-- **Slow integration tests**: Run only on main branch (includes slow/ml_models, parallel execution, with re-runs)
-- **Fast E2E tests**: Run on PRs (excludes slow/ml_models, parallel execution, network guard)
-- **Slow E2E tests**: Run only on main branch (includes slow/ml_models, parallel execution, network guard, with re-runs)
+- **Fast integration tests**: Run on PRs and main (excludes slow/ml_models, parallel execution, with re-runs)
+- **Slow integration tests**: Run only on push to main (includes slow/ml_models, parallel execution, with re-runs)
+- **Fast E2E tests**: Run on PRs and main (excludes slow/ml_models, parallel execution, network guard, with re-runs)
+- **Slow E2E tests**: Run only on push to main (includes slow/ml_models, parallel execution, network guard, with re-runs)
 - **Test execution**: Parallel by default (`-n auto`), sequential variants available for debugging
-- **Flaky test reruns**: Enabled for integration and E2E tests on main branch (`--reruns 2 --reruns-delay 1`)
+- **Flaky test reruns**: Enabled for integration and E2E tests (`--reruns 2 --reruns-delay 1`)
+- **Nightly workflow**: Comprehensive test suite with full metrics collection, trend tracking, and dashboard generation (RFC-025 Layer 3)
 
 **For detailed test execution commands, parallel execution, flaky test reruns, and coverage, see [Testing Guide - Test Execution Details](TESTING_GUIDE.md#test-execution-details).**
 
@@ -510,15 +528,17 @@ The test suite is organized into three main categories:
 
 ## Test Pyramid Status
 
+> **Note**: Test distribution numbers should be verified periodically by running test collection and counting tests by layer. Historical progress tracking was documented in `docs/wip/TEST_PYRAMID_ANALYSIS.md` and `docs/wip/TEST_PYRAMID_PLAN.md` (now consolidated here).
+
 ### Current State vs. Ideal Distribution
 
 The test pyramid shows our current distribution compared to the ideal:
 
-**Current Distribution:**
+**Current Distribution (verify with `pytest --collect-only`):**
 
-- **Unit Tests**: ~41% (target: 70-80%) ⚠️ Too Low
-- **Integration Tests**: ~27% (target: 15-20%) ⚠️ Too High
-- **E2E Tests**: ~31% (target: 5-10%) ❌ Too High
+- **Unit Tests**: Target 70-80% ⚠️ Need to verify current percentage
+- **Integration Tests**: Target 15-20% ⚠️ Need to verify current percentage
+- **E2E Tests**: Target 5-10% ⚠️ Need to verify current percentage
 
 **Visual Representation:**
 
@@ -648,6 +668,7 @@ Ideal Pyramid:
 
 ## References
 
+- **[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md)** - What to test based on the critical path, prioritization
 - **[Testing Guide](guides/TESTING_GUIDE.md)** - Detailed implementation instructions, test execution, fixtures, and coverage
 - Test structure reorganization: `docs/rfc/RFC-018-test-structure-reorganization.md`
 - CI workflow: `.github/workflows/python-app.yml`

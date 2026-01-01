@@ -8,12 +8,16 @@ import json
 import unittest
 from unittest.mock import Mock, patch
 
+import pytest
+
 from podcast_scraper import config
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
 
+@pytest.mark.llm
+@pytest.mark.openai
 class TestOpenAITranscriptionProvider(unittest.TestCase):
     """Test OpenAI transcription provider."""
 
@@ -83,6 +87,8 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertEqual(provider.__class__.__name__, "OpenAITranscriptionProvider")
 
 
+@pytest.mark.llm
+@pytest.mark.openai
 class TestOpenAISpeakerDetector(unittest.TestCase):
     """Test OpenAI speaker detection provider."""
 
@@ -163,6 +169,8 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         self.assertEqual(detector.__class__.__name__, "OpenAISpeakerDetector")
 
 
+@pytest.mark.llm
+@pytest.mark.openai
 class TestOpenAISummarizationProvider(unittest.TestCase):
     """Test OpenAI summarization provider."""
 
@@ -233,6 +241,8 @@ class TestOpenAISummarizationProvider(unittest.TestCase):
         self.assertEqual(provider.__class__.__name__, "OpenAISummarizationProvider")
 
 
+@pytest.mark.llm
+@pytest.mark.openai
 class TestOpenAIProviderErrorHandling(unittest.TestCase):
     """Test error handling for OpenAI providers."""
 

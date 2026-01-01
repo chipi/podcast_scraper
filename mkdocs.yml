@@ -75,6 +75,7 @@ nav:
       - Whisper Progress Analysis: wip/WHISPER_PROGRESS_ANALYSIS.md
   - Guides:
       - Custom Provider Guide: guides/CUSTOM_PROVIDER_GUIDE.md
+      - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
       - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md
       - Dependencies: guides/DEPENDENCIES_GUIDE.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md

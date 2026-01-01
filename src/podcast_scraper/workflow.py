@@ -364,6 +364,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         # Start processing stage concurrently (metadata/summarization)
         writing_start = time.time()
         transcription_complete_event = threading.Event()
+        downloads_complete_event = threading.Event()  # Signal when all downloads are complete
         transcription_saved = [0]  # Use list to allow modification from thread
 
         # Start processing thread if metadata generation is enabled
@@ -409,7 +410,8 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                     processing_resources,
                     pipeline_metrics,
                     summary_provider,
-                    transcription_complete_event,
+                    # Pass downloads_complete_event, not transcription_complete_event
+                    downloads_complete_event,
                     transcription_saved,
                 ),
                 daemon=False,
@@ -433,10 +435,12 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             summary_provider,
         )
 
+        # Signal that downloads are complete (so transcription thread can exit when queue is empty)
+        if cfg.transcribe_missing and not cfg.dry_run:
+            downloads_complete_event.set()
+
         # Step 9: Wait for transcription to complete (if started)
         if cfg.transcribe_missing and not cfg.dry_run:
-            # Signal that downloads are complete
-            transcription_complete_event.set()
             # Wait for transcription thread to finish processing remaining jobs
             transcription_thread.join()
             saved += transcription_saved[0]
@@ -1495,7 +1499,8 @@ def _process_transcription_jobs_concurrent(
                                 futures[future] = job.idx
 
                 # Process completed futures
-                for future in as_completed(list(futures.keys()), timeout=0.1):
+                # Use longer timeout to avoid TimeoutError when processing jobs take time
+                for future in as_completed(list(futures.keys()), timeout=1.0):
                     job_idx = futures.pop(future)
                     try:
                         success, transcript_path, bytes_downloaded = future.result()
@@ -1690,18 +1695,25 @@ def _process_processing_jobs_concurrent(
                                 futures[future] = job.episode.idx
 
                 # Process completed futures
-                for future in as_completed(list(futures.keys()), timeout=0.1):
-                    episode_idx = futures.pop(future)
-                    try:
-                        future.result()
-                        jobs_processed += 1
-                        logger.debug(
-                            "Processed processing job idx=%s (processed=%s)",
-                            episode_idx,
-                            jobs_processed,
-                        )
-                    except Exception as exc:  # pragma: no cover
-                        logger.error(f"[{episode_idx}] processing future raised error: {exc}")
+                # Use timeout with exception handling to avoid TimeoutError when
+                # processing jobs take time
+                try:
+                    for future in as_completed(list(futures.keys()), timeout=1.0):
+                        episode_idx = futures.pop(future)
+                        try:
+                            future.result()
+                            jobs_processed += 1
+                            logger.debug(
+                                "Processed processing job idx=%s (processed=%s)",
+                                episode_idx,
+                                jobs_processed,
+                            )
+                        except Exception as exc:  # pragma: no cover
+                            logger.error(f"[{episode_idx}] processing future raised error: {exc}")
+                except TimeoutError:
+                    # Some futures are still pending - continue loop to check again
+                    # This is expected when jobs are still being processed
+                    pass
 
                 # Check if we should continue
                 if transcription_complete_event and transcription_complete_event.is_set():

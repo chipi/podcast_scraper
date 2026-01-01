@@ -163,6 +163,8 @@ class TestProviderIntegration(unittest.TestCase):
 class TestProviderSwitching(unittest.TestCase):
     """Test provider switching via configuration."""
 
+    @pytest.mark.llm
+    @pytest.mark.openai
     def test_transcription_provider_switching(self):
         """Test that transcription provider can be switched via config."""
         cfg1 = config.Config(
@@ -184,9 +186,13 @@ class TestProviderSwitching(unittest.TestCase):
         with self.assertRaises(ValidationError):
             config.Config(rss_url="https://example.com/feed.xml", transcription_provider="openai")
 
+    @pytest.mark.llm
+    @pytest.mark.openai
     def test_speaker_detector_switching(self):
         """Test that speaker detector can be switched via config."""
-        cfg1 = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_type="ner")
+        cfg1 = config.Config(
+            rss_url="https://example.com/feed.xml", speaker_detector_provider="ner"
+        )
         detector1 = create_speaker_detector(cfg1)
         self.assertEqual(detector1.__class__.__name__, "NERSpeakerDetector")
 
@@ -206,6 +212,8 @@ class TestProviderSwitching(unittest.TestCase):
                 rss_url="https://example.com/feed.xml", speaker_detector_provider="openai"
             )
 
+    @pytest.mark.llm
+    @pytest.mark.openai
     def test_summarization_provider_switching(self):
         """Test that summarization provider can be switched via config."""
         cfg1 = config.Config(

@@ -60,7 +60,7 @@ def create_test_args(**overrides):
         "timeout": 30,
         "delay_ms": 0,
         "transcribe_missing": False,
-        "whisper_model": "base",
+        "whisper_model": "tiny.en",  # Use smallest model for faster tests
         "screenplay": False,
         "screenplay_gap": 1.25,
         "num_speakers": 2,
@@ -92,7 +92,7 @@ def create_test_config(**overrides):
         "delay_ms": 0,
         "prefer_types": [],
         "transcribe_missing": False,
-        "whisper_model": "base",
+        "whisper_model": "tiny.en",  # Use smallest model for faster tests
         "screenplay": False,
         "screenplay_gap_s": 1.0,
         "screenplay_num_speakers": 2,
@@ -360,14 +360,14 @@ def pytest_collection_modifyitems(config, items):
                     "  3. Marker configuration is correct"
                 )
 
-        # Check for workflow_e2e marker
-        elif marker_expr == "workflow_e2e":
-            workflow_e2e_items = [item for item in items if item.get_closest_marker("workflow_e2e")]
-            if not workflow_e2e_items:
+        # Check for e2e marker
+        elif marker_expr == "e2e":
+            e2e_items = [item for item in items if item.get_closest_marker("e2e")]
+            if not e2e_items:
                 pytest.fail(
-                    "ERROR: Running with -m workflow_e2e but no workflow_e2e tests collected! "
+                    "ERROR: Running with -m e2e but no e2e tests collected! "
                     "Check that:\n"
-                    "  1. Tests have @pytest.mark.workflow_e2e decorator\n"
+                    "  1. Tests have @pytest.mark.e2e decorator\n"
                     "  2. addopts in pyproject.toml doesn't conflict with -m flags\n"
                     "  3. Marker configuration is correct"
                 )
