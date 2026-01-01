@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Git pre-commit hook template
-# 
+#
 # This hook runs checks ONLY on staged files:
 # - Black & isort formatting checks (Python files)
 # - flake8 linting (Python files)
@@ -60,7 +60,7 @@ STAGED_YAML=$(echo "$STAGED_FILES" | grep -E '\.(yaml|yml)$' || true)
 run_check() {
     local name="$1"
     local command="$2"
-    
+
     echo "→ Running $name..."
     if eval "$command" > /tmp/precommit_$$.log 2>&1; then
         echo -e "${GREEN}✓${NC} $name passed"
@@ -77,16 +77,16 @@ run_check() {
 if [ -n "$STAGED_PYTHON" ]; then
     # Convert newline-separated list to space-separated for commands
     PYTHON_FILES=$(echo "$STAGED_PYTHON" | tr '\n' ' ')
-    
+
     # Check formatting on staged Python files
     run_check "Black formatting" "black --check $PYTHON_FILES"
     run_check "isort import sorting" "isort --check-only $PYTHON_FILES"
-    
+
     # Check linting on staged Python files
     # Run flake8 with full config (checks all errors, respects .flake8 config)
     # This matches CI behavior: CI runs flake8 twice (critical + all), but pre-commit checks all at once
     run_check "flake8 linting" "flake8 --config .flake8 $PYTHON_FILES --count --show-source --statistics"
-    
+
     # Check types on staged Python files
     # Note: mypy works better when checking the whole project, but we can check specific files
     # For better accuracy, we'll check the whole project but only report errors in staged files
@@ -196,7 +196,7 @@ if [ -n "$STAGED_PYPROJECT" ] || [ -n "$STAGED_TEST_FILES" ]; then
     else
         echo -e "  ${GREEN}✓${NC} Integration marker: $INTEGRATION_COUNT tests"
     fi
-    
+
     # Check that E2E marker works
     # Note: grep -c outputs "0" on no matches but returns exit code 1, so we use || true to suppress the exit code
     E2E_COUNT=$(python3 -m pytest tests/e2e/ -m e2e --collect-only -q 2>&1 | grep -c "^tests/" || true)
@@ -210,7 +210,7 @@ if [ -n "$STAGED_PYPROJECT" ] || [ -n "$STAGED_TEST_FILES" ]; then
     else
         echo -e "  ${GREEN}✓${NC} E2E marker: $E2E_COUNT tests"
     fi
-    
+
     if [ $ERRORS -eq 0 ]; then
         echo -e "${GREEN}✓${NC} Test infrastructure validation passed"
     fi
