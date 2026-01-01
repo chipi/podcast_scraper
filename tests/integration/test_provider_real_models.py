@@ -28,7 +28,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import models, whisper_integration
+from podcast_scraper import config, models, whisper_integration
 
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent
@@ -95,7 +95,7 @@ class TestWhisperProviderRealModel(unittest.TestCase):
         # Require model to be cached (fail fast if not)
         # Note: cfg.whisper_model defaults to "tiny.en" (from test defaults)
         # Check for "tiny.en" which is what's preloaded
-        require_whisper_model_cached("tiny.en")
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
         # Load real Whisper model
         model = whisper_integration.load_whisper_model(self.cfg)
@@ -110,7 +110,7 @@ class TestWhisperProviderRealModel(unittest.TestCase):
     def test_whisper_provider_with_real_model(self):
         """Test Whisper provider initialization with real model."""
         # Require model to be cached (fail fast if not)
-        require_whisper_model_cached("tiny.en")
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
         from podcast_scraper.transcription.factory import create_transcription_provider
 
@@ -138,9 +138,11 @@ class TestSpacyProviderRealModel(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        from podcast_scraper import config
+
         self.cfg = create_test_config(
             auto_speakers=True,
-            ner_model="en_core_web_sm",  # Smallest spaCy model
+            ner_model=config.DEFAULT_NER_MODEL,
             language="en",
         )
 
@@ -205,7 +207,7 @@ class TestTransformersProviderRealModel(unittest.TestCase):
         self.cfg = create_test_config(
             generate_summaries=True,
             generate_metadata=True,  # Required when generate_summaries=True
-            summary_model="facebook/bart-base",  # Small model for speed
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             summary_device="cpu",  # Use CPU to avoid GPU requirements
             language="en",
         )
@@ -292,15 +294,17 @@ class TestAllProvidersRealModels(unittest.TestCase):
         import tempfile
 
         self.temp_dir = tempfile.mkdtemp()
+        from podcast_scraper import config
+
         self.cfg = create_test_config(
             output_dir=self.temp_dir,
             transcribe_missing=True,
-            whisper_model="tiny",  # Smallest Whisper model
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=True,
-            ner_model="en_core_web_sm",  # Smallest spaCy model
+            ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
             generate_summaries=True,
             generate_metadata=True,
-            summary_model="facebook/bart-base",  # Small transformer model
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             summary_device="cpu",
             language="en",
         )
@@ -319,7 +323,7 @@ class TestAllProvidersRealModels(unittest.TestCase):
         from podcast_scraper.transcription.factory import create_transcription_provider
 
         # Require all models to be cached (fail fast if not)
-        require_whisper_model_cached("tiny.en")
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
         model_name = summarizer.select_summary_model(self.cfg)
         require_transformers_model_cached(model_name, None)
 
@@ -380,7 +384,7 @@ class TestAllProvidersRealModels(unittest.TestCase):
 
         # Require all models to be cached (skip if not, to avoid network downloads)
         try:
-            require_whisper_model_cached("tiny.en")
+            require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
             model_name = summarizer.select_summary_model(self.cfg)
             require_transformers_model_cached(model_name, None)
         except AssertionError as e:

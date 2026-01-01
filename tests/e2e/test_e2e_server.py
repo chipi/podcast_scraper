@@ -347,22 +347,22 @@ class TestE2EServerOpenAIEndpoints:
 
 
 @pytest.mark.e2e
-class TestE2EServerSmokeFeed:
-    """Test that E2E server smoke feed works correctly with mocks."""
+class TestE2EServerMultiEpisodeFeed:
+    """Test that E2E server multi-episode feed works correctly with mocks."""
 
     @pytest.mark.critical_path
-    def test_smoke_feed_url_helper(self, e2e_server):
-        """Test that smoke feed URL helper works."""
-        feed_url = e2e_server.urls.feed("podcast1_smoke")
-        assert "/feeds/podcast1_smoke/feed.xml" in feed_url
+    def test_multi_episode_feed_url_helper(self, e2e_server):
+        """Test that multi-episode feed URL helper works."""
+        feed_url = e2e_server.urls.feed("podcast1_multi_episode")
+        assert "/feeds/podcast1_multi_episode/feed.xml" in feed_url
         assert feed_url.startswith("http://")
 
     @pytest.mark.critical_path
-    def test_smoke_feed_rss_structure(self, e2e_server):
-        """Test that smoke feed RSS has correct structure with 5 episodes."""
+    def test_multi_episode_feed_rss_structure(self, e2e_server):
+        """Test that multi-episode feed RSS has correct structure with 5 episodes."""
         import xml.etree.ElementTree as ET
 
-        feed_url = e2e_server.urls.feed("podcast1_smoke")
+        feed_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         response = requests.get(feed_url, timeout=2)
         assert response.status_code == 200
@@ -374,7 +374,7 @@ class TestE2EServerSmokeFeed:
 
         # Find all items (episodes)
         items = channel.findall("item")
-        assert len(items) == 5, f"Expected 5 episodes in smoke feed, got {len(items)}"
+        assert len(items) == 5, f"Expected 5 episodes in multi-episode feed, got {len(items)}"
 
         # Verify episode structure
         for i, item in enumerate(items, 1):
@@ -395,11 +395,11 @@ class TestE2EServerSmokeFeed:
             ), f"Episode {i} duration should be short (10-15 seconds), got {duration_text}"
 
     @pytest.mark.critical_path
-    def test_smoke_feed_episodes_with_transcripts(self, e2e_server):
-        """Test that smoke feed episodes 1 and 2 have transcript URLs (Path 1: Download)."""
+    def test_multi_episode_feed_episodes_with_transcripts(self, e2e_server):
+        """Test that multi-episode feed episodes 1 and 2 have transcript URLs (Path 1: Download)."""
         import xml.etree.ElementTree as ET
 
-        feed_url = e2e_server.urls.feed("podcast1_smoke")
+        feed_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         response = requests.get(feed_url, timeout=2)
         assert response.status_code == 200
@@ -418,9 +418,9 @@ class TestE2EServerSmokeFeed:
             assert (
                 transcript.get("url") is not None
             ), f"Episode {i+1} transcript should have URL attribute"
-            assert "/transcripts/p01_smoke_e" in transcript.get(
+            assert "/transcripts/p01_multi_e" in transcript.get(
                 "url"
-            ), f"Episode {i+1} transcript URL should point to smoke transcript"
+            ), f"Episode {i+1} transcript URL should point to multi-episode transcript"
 
         # Episodes 3, 4, 5 should NOT have transcript URLs (Path 2: Transcription)
         for i in [2, 3, 4]:  # Episodes 3, 4, 5 (0-indexed)
@@ -431,11 +431,11 @@ class TestE2EServerSmokeFeed:
             ), f"Episode {i+1} should NOT have transcript URL (Path 2: Transcription)"
 
     @pytest.mark.critical_path
-    def test_smoke_feed_audio_files_accessible(self, e2e_server):
-        """Test that all smoke feed audio files are accessible."""
-        # Test all 5 smoke episode audio files
+    def test_multi_episode_feed_audio_files_accessible(self, e2e_server):
+        """Test that all multi-episode feed audio files are accessible."""
+        # Test all 5 multi-episode episode audio files
         for episode_num in range(1, 6):
-            audio_url = e2e_server.urls.audio(f"p01_smoke_e{episode_num:02d}")
+            audio_url = e2e_server.urls.audio(f"p01_multi_e{episode_num:02d}")
 
             response = requests.get(audio_url, timeout=2)
             assert (
@@ -445,11 +445,11 @@ class TestE2EServerSmokeFeed:
             assert len(response.content) > 0
 
     @pytest.mark.critical_path
-    def test_smoke_feed_transcript_files_accessible(self, e2e_server):
-        """Test that smoke feed transcript files are accessible."""
+    def test_multi_episode_feed_transcript_files_accessible(self, e2e_server):
+        """Test that multi-episode feed transcript files are accessible."""
         # Episodes 1 and 2 have transcripts
         for episode_num in [1, 2]:
-            transcript_url = e2e_server.urls.transcript(f"p01_smoke_e{episode_num:02d}")
+            transcript_url = e2e_server.urls.transcript(f"p01_multi_e{episode_num:02d}")
 
             response = requests.get(transcript_url, timeout=2)
             assert (
@@ -459,10 +459,10 @@ class TestE2EServerSmokeFeed:
             assert len(response.text) > 0
 
     @pytest.mark.critical_path
-    def test_smoke_feed_with_openai_mocks_fast(self, e2e_server):
-        """Test that smoke feed works correctly with OpenAI mocks (fast: 1 episode).
+    def test_multi_episode_feed_with_openai_mocks_fast(self, e2e_server):
+        """Test that multi-episode feed works correctly with OpenAI mocks (fast: 1 episode).
 
-        Critical path variant that validates OpenAI mocks work with smoke feed
+        Critical path variant that validates OpenAI mocks work with multi-episode feed
         using 1 episode.
         """
         import tempfile
@@ -472,7 +472,7 @@ class TestE2EServerSmokeFeed:
         # Set up OpenAI API base to use E2E server
         openai_api_base = e2e_server.urls.openai_api_base()
 
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -493,7 +493,7 @@ class TestE2EServerSmokeFeed:
             count, summary = run_pipeline(cfg)
 
             # Should process 1 episode (fast mode)
-            assert count == 1, f"Should process 1 smoke episode (fast mode), got {count}"
+            assert count == 1, f"Should process 1 multi-episode episode (fast mode), got {count}"
 
             # Verify transcript files were created
             from pathlib import Path
@@ -510,10 +510,10 @@ class TestE2EServerSmokeFeed:
             ), f"Should have exactly 1 metadata file, got {len(metadata_files)}"
 
     @pytest.mark.slow
-    def test_smoke_feed_with_openai_mocks(self, e2e_server):
-        """Test that smoke feed works correctly with OpenAI mocks (full: 3 episodes).
+    def test_multi_episode_feed_with_openai_mocks(self, e2e_server):
+        """Test that multi-episode feed works correctly with OpenAI mocks (full: 3 episodes).
 
-        Full variant that validates OpenAI mocks work with smoke feed using
+        Full variant that validates OpenAI mocks work with multi-episode feed using
         3 episodes (mix of Path 1 and Path 2).
         """
         import tempfile
@@ -523,7 +523,7 @@ class TestE2EServerSmokeFeed:
         # Set up OpenAI API base to use E2E server
         openai_api_base = e2e_server.urls.openai_api_base()
 
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -548,7 +548,7 @@ class TestE2EServerSmokeFeed:
             # Determine expected episode count based on test mode
             import os
 
-            test_mode = os.environ.get("E2E_TEST_MODE", "smoke").lower()
+            test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
             expected_episodes = 1 if test_mode == "fast" else 3
 
             # Should process expected number of episodes (adjust for test mode)
@@ -573,8 +573,8 @@ class TestE2EServerSmokeFeed:
             )
 
     @pytest.mark.critical_path
-    def test_smoke_feed_multi_episode_processing_fast(self, e2e_server):
-        """Test that smoke feed processes episodes correctly (fast variant: 1 episode).
+    def test_multi_episode_feed_multi_episode_processing_fast(self, e2e_server):
+        """Test that multi-episode feed processes episodes correctly (fast variant: 1 episode).
 
         Critical path variant that validates multi-episode processing logic with 1 episode.
         """
@@ -582,7 +582,7 @@ class TestE2EServerSmokeFeed:
 
         from podcast_scraper import Config, run_pipeline
 
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -598,7 +598,7 @@ class TestE2EServerSmokeFeed:
             count, summary = run_pipeline(cfg)
 
             # Should process 1 episode (fast mode)
-            assert count == 1, f"Should process 1 smoke episode (fast mode), got {count}"
+            assert count == 1, f"Should process 1 multi-episode episode (fast mode), got {count}"
 
             # Verify episode was processed
             from pathlib import Path
@@ -609,8 +609,8 @@ class TestE2EServerSmokeFeed:
             ), f"Should have exactly 1 metadata file, got {len(metadata_files)}"
 
     @pytest.mark.slow
-    def test_smoke_feed_multi_episode_processing(self, e2e_server):
-        """Test that smoke feed processes all 5 episodes correctly (full variant).
+    def test_multi_episode_feed_multi_episode_processing(self, e2e_server):
+        """Test that multi-episode feed processes all 5 episodes correctly (full variant).
 
         Full variant that validates multi-episode processing logic with all 5 episodes.
         In fast mode, only 1 episode is processed.
@@ -622,10 +622,10 @@ class TestE2EServerSmokeFeed:
         from podcast_scraper import Config, run_pipeline
 
         # Determine expected episode count based on test mode
-        test_mode = os.environ.get("E2E_TEST_MODE", "smoke").lower()
+        test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
         expected_episodes = 1 if test_mode == "fast" else 5
 
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -640,7 +640,7 @@ class TestE2EServerSmokeFeed:
             # Run pipeline
             count, summary = run_pipeline(cfg)
 
-            # In smoke mode, episodes 1 and 2 have transcripts (will be processed)
+            # In multi-episode mode, episodes 1 and 2 have transcripts (will be processed)
             # Episodes 3, 4, 5 need transcription (will only be processed if Whisper is cached)
             # So we adjust expectations: at least 2 episodes (with transcripts) should be processed
             # In fast mode, only 1 episode is processed
@@ -649,11 +649,11 @@ class TestE2EServerSmokeFeed:
                     count == expected_episodes
                 ), f"Should process {expected_episodes} episode(s) (mode: {test_mode}), got {count}"
             else:
-                # In smoke mode, at least 2 episodes (with transcripts) should be processed
+                # In multi-episode mode, at least 2 episodes (with transcripts) should be processed
                 # More if Whisper is cached
                 assert count >= 2, (
                     f"Should process at least 2 episodes (with transcripts) "
-                    f"in smoke mode, got {count}"
+                    f"in multi-episode mode, got {count}"
                 )
 
             # Verify metadata files were created
@@ -667,7 +667,7 @@ class TestE2EServerSmokeFeed:
                 )
             else:
                 assert len(metadata_files) >= 2, (
-                    f"Should have at least 2 metadata file(s) in smoke mode, "
+                    f"Should have at least 2 metadata file(s) in multi-episode mode, "
                     f"got {len(metadata_files)}"
                 )
 
@@ -680,6 +680,6 @@ class TestE2EServerSmokeFeed:
                 )
             else:
                 assert len(transcript_files) >= 2, (
-                    f"Should have at least 2 transcript file(s) in smoke mode, "
+                    f"Should have at least 2 transcript file(s) in multi-episode mode, "
                     f"got {len(transcript_files)}"
                 )

@@ -79,7 +79,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
             summary_provider="local",
             generate_summaries=True,
             generate_metadata=True,  # Required when generate_summaries=True
-            summary_model="facebook/bart-base",
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
         )
 
     def test_provider_initialization(self):

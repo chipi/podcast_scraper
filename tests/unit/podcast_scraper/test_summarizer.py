@@ -49,7 +49,9 @@ class TestModelSelection(unittest.TestCase):
 
     def test_select_model_with_explicit_model(self):
         """Test that explicit model selection works."""
-        cfg = create_test_config(summary_model="facebook/bart-base")
+        from podcast_scraper import config
+
+        cfg = create_test_config(summary_model=config.TEST_DEFAULT_SUMMARY_MODEL)
         model_name = summarizer.select_summary_model(cfg)
         self.assertEqual(model_name, "facebook/bart-base")
 

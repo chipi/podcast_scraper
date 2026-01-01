@@ -75,7 +75,7 @@ class TestUnicodeCharacters:
             count, summary = run_pipeline(cfg)
 
             # Determine expected episode count based on test mode
-            test_mode = os.environ.get("E2E_TEST_MODE", "smoke").lower()
+            test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
             expected_episodes = 1 if test_mode == "fast" else 2
 
             # Pipeline should complete successfully (adjust for test mode)
@@ -289,7 +289,7 @@ class TestAllEdgeCasesTogether:
             count, summary = run_pipeline(cfg)
 
             # Determine expected episode count based on test mode
-            test_mode = os.environ.get("E2E_TEST_MODE", "smoke").lower()
+            test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
             expected_episodes = 1 if test_mode == "fast" else 2
 
             # Pipeline should process expected episodes successfully (adjust for test mode)
@@ -335,7 +335,7 @@ class TestAllEdgeCasesTogether:
             result = service.run(cfg)
 
             # Determine expected episode count based on test mode
-            test_mode = os.environ.get("E2E_TEST_MODE", "smoke").lower()
+            test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
             expected_episodes = 1 if test_mode == "fast" else 2
 
             # Service should complete successfully

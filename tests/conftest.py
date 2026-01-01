@@ -60,7 +60,7 @@ def create_test_args(**overrides):
         "timeout": 30,
         "delay_ms": 0,
         "transcribe_missing": False,
-        "whisper_model": "tiny.en",  # Use smallest model for faster tests
+        "whisper_model": config.TEST_DEFAULT_WHISPER_MODEL,
         "screenplay": False,
         "screenplay_gap": 1.25,
         "num_speakers": 2,
@@ -92,7 +92,7 @@ def create_test_config(**overrides):
         "delay_ms": 0,
         "prefer_types": [],
         "transcribe_missing": False,
-        "whisper_model": "tiny.en",  # Use smallest model for faster tests
+        "whisper_model": config.TEST_DEFAULT_WHISPER_MODEL,
         "screenplay": False,
         "screenplay_gap_s": 1.0,
         "screenplay_num_speakers": 2,

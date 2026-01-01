@@ -53,7 +53,7 @@ class TestBasicCLIE2E:
             require_transformers_model_cached,
         )
 
-        require_transformers_model_cached("facebook/bart-large-cnn", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         rss_url = e2e_server.urls.feed("podcast1_with_transcript")
 
@@ -119,7 +119,7 @@ class TestBasicCLIE2E:
             require_transformers_model_cached,
         )
 
-        require_transformers_model_cached("facebook/bart-large-cnn", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         rss_url = e2e_server.urls.feed("podcast1")
 
@@ -192,7 +192,7 @@ class TestBasicLibraryAPIE2E:
             require_transformers_model_cached,
         )
 
-        require_transformers_model_cached("facebook/bart-large-cnn", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         rss_url = e2e_server.urls.feed("podcast1_with_transcript")
 
@@ -205,6 +205,7 @@ class TestBasicLibraryAPIE2E:
                 auto_speakers=True,  # Enable NER (speaker detection) - uses local ML (spaCy)
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
                 summary_provider="local",  # Use local ML provider (transformers) - default
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
             )
@@ -258,7 +259,7 @@ class TestBasicLibraryAPIE2E:
             require_transformers_model_cached,
         )
 
-        require_transformers_model_cached("facebook/bart-large-cnn", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         rss_url = e2e_server.urls.feed("podcast1")
 
@@ -268,10 +269,11 @@ class TestBasicLibraryAPIE2E:
                 output_dir=tmpdir,
                 max_episodes=1,
                 transcribe_missing=True,  # Enable Whisper transcription (mocked)
-                whisper_model="tiny.en",  # Use smallest English-only model for speed
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                 auto_speakers=True,  # Enable NER (speaker detection) - uses local ML (spaCy)
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
                 summary_provider="local",  # Use local ML provider (transformers) - default
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
             )
@@ -329,7 +331,7 @@ class TestBasicServiceAPIE2E:
             require_transformers_model_cached,
         )
 
-        require_transformers_model_cached("facebook/bart-large-cnn", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         from podcast_scraper import service
 
@@ -344,6 +346,7 @@ class TestBasicServiceAPIE2E:
                 auto_speakers=True,  # Enable NER (speaker detection) - uses local ML (spaCy)
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
                 summary_provider="local",  # Use local ML provider (transformers) - default
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
             )
@@ -402,7 +405,7 @@ class TestBasicServiceAPIE2E:
             require_transformers_model_cached,
         )
 
-        require_transformers_model_cached("facebook/bart-large-cnn", None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         from podcast_scraper import service
 
@@ -414,10 +417,11 @@ class TestBasicServiceAPIE2E:
                 output_dir=tmpdir,
                 max_episodes=1,
                 transcribe_missing=True,  # Enable Whisper transcription (mocked)
-                whisper_model="tiny.en",  # Use smallest English-only model for speed
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                 auto_speakers=True,  # Enable NER (speaker detection) - uses local ML (spaCy)
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
                 summary_provider="local",  # Use local ML provider (transformers) - default
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
             )

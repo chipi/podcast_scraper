@@ -28,7 +28,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import downloader, metadata, models, rss_parser
+from podcast_scraper import config, downloader, metadata, models, rss_parser
 
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent
@@ -420,7 +420,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             cfg = create_test_config(
                 output_dir=self.temp_dir,
                 transcribe_missing=True,
-                whisper_model="tiny",
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                 generate_metadata=True,
             )
             temp_dir = os.path.join(self.temp_dir, "temp")
@@ -484,7 +484,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 run_suffix=None,
                 transcript_file_path=transcript_file_path,
                 transcript_source="whisper_transcription",
-                whisper_model="tiny",
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                 detected_hosts=feed.authors if feed.authors else [],
                 detected_guests=[],
             )
@@ -498,9 +498,11 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             with open(metadata_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            # Verify transcript source is whisper_transcription
-            self.assertEqual(data["content"]["transcript_source"], "whisper_transcription")
-            self.assertEqual(data["content"]["whisper_model"], "tiny")
+                # Verify transcript source is whisper_transcription
+                self.assertEqual(data["content"]["transcript_source"], "whisper_transcription")
+                self.assertEqual(
+                    data["content"]["whisper_model"], config.TEST_DEFAULT_WHISPER_MODEL
+                )
 
             # Verify HTTP download was called (validates audio download happened)
             # Note: temp_media is cleaned up after transcription, so we can't check it here
@@ -543,7 +545,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         cfg = create_test_config(
             output_dir=self.temp_dir,
             transcribe_missing=True,
-            whisper_model="tiny",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)
@@ -701,7 +703,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         cfg = create_test_config(
             output_dir=self.temp_dir,
             transcribe_missing=True,
-            whisper_model="tiny",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=True,
             screenplay=True,
             screenplay_num_speakers=3,
@@ -866,7 +868,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                     run_suffix=None,
                     transcript_file_path=transcript_file_path,
                     transcript_source="whisper_transcription",
-                    whisper_model="tiny",
+                    whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                     detected_hosts=list(detected_hosts),
                     detected_guests=[s for s in detected_speakers if s not in detected_hosts],
                 )
@@ -929,7 +931,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         cfg = create_test_config(
             output_dir=self.temp_dir,
             transcribe_missing=True,
-            whisper_model="tiny",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=True,
             generate_summaries=True,
             generate_metadata=True,
@@ -1104,7 +1106,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                             run_suffix=None,
                             transcript_file_path=transcript_file_path,
                             transcript_source="whisper_transcription",
-                            whisper_model="tiny",
+                            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                             detected_hosts=list(detected_hosts),
                             detected_guests=[
                                 s for s in detected_speakers if s not in detected_hosts
@@ -1587,7 +1589,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         cfg = create_test_config(
             output_dir=self.temp_dir,
             transcribe_missing=True,
-            whisper_model="tiny",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)
@@ -1685,7 +1687,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         cfg = create_test_config(
             output_dir=self.temp_dir,
             transcribe_missing=True,
-            whisper_model="tiny",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)
@@ -1751,7 +1753,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         cfg = create_test_config(
             output_dir=self.temp_dir,
             transcribe_missing=True,
-            whisper_model="tiny",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)

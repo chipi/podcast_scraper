@@ -30,20 +30,26 @@ This RFC addresses the problem of ML models (Whisper, spaCy, Transformers) downl
 
 ### Models Affected
 
+**Note**: The test suite uses smaller, faster models for speed, while production uses quality models. The preload script preloads both sets to ensure flexibility.
+
 1. **Whisper Models** (Transcription)
-   - Default: `base.en`, `tiny`
+   - Test default: `tiny.en` (smallest, fastest)
+   - Production default: `base.en` (better quality, matches app config)
    - Cache: `~/.cache/whisper/`
    - Status: ✅ Preloaded in Dockerfile (`base.en`), ✅ Preloaded locally (both)
 
 2. **spaCy Models** (Speaker Detection)
-   - Default: `en_core_web_sm`
+   - Default: `en_core_web_sm` (same for tests and production)
    - Cache: `~/.local/share/spacy/` or site-packages
    - Status: ✅ Preloaded locally
 
 3. **Transformers Models** (Summarization)
-   - Default: `facebook/bart-base`, `facebook/bart-large-cnn`, `sshleifer/distilbart-cnn-12-6`
+   - Test default (MAP): `facebook/bart-base` (small, ~500MB, fast)
+   - Production default (MAP): `facebook/bart-large-cnn` (large, ~2GB, quality)
+   - REDUCE default: `allenai/led-base-16384` (long-context, ~1GB, used in both)
+   - Additional: `sshleifer/distilbart-cnn-12-6` (fast option)
    - Cache: `~/.cache/huggingface/hub/`
-   - Status: ✅ Preloaded locally
+   - Status: ✅ Preloaded locally (all 4 models)
 
 ## Goals
 
@@ -74,9 +80,14 @@ Preloads all required ML models to local cache:
 make preload-ml-models
 ```
 **Models Preloaded:**
-- Whisper: `base.en`, `tiny`
-- spaCy: `en_core_web_sm`
-- Transformers: `facebook/bart-base`, `facebook/bart-large-cnn`, `sshleifer/distilbart-cnn-12-6`
+- Whisper: `tiny.en` (test default), `base.en` (production default)
+- spaCy: `en_core_web_sm` (same for tests and production)
+- Transformers: `facebook/bart-base` (test default), `facebook/bart-large-cnn` (production default), `sshleifer/distilbart-cnn-12-6` (fast option), `allenai/led-base-16384` (REDUCE default)
+
+**Rationale**: Preloading both test and production defaults ensures:
+- Fast test execution (using small models)
+- Production quality (using large models)
+- Flexibility to switch between models
 
 **Cache Locations:**
 - Whisper: `~/.cache/whisper/`

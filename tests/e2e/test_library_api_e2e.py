@@ -36,7 +36,7 @@ class TestLibraryAPIBasic:
         This test is marked as slow because it duplicates test_library_api_basic_pipeline
         from test_basic_e2e.py. The critical path only needs one Library API end-to-end test.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -71,7 +71,7 @@ class TestLibraryAPIBasic:
         This test is marked as slow because it tests an extended feature,
         not the core use case.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -117,7 +117,7 @@ class TestLibraryAPIBasic:
 
         Note: Uses 'local' provider to avoid OpenAI API key requirement.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -153,7 +153,7 @@ class TestLibraryAPIBasic:
         This test is marked as slow because it tests all extended features together,
         not the core use case.
         """
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -191,7 +191,7 @@ class TestLibraryAPIConfigFile:
 
     def test_load_config_file_and_run_pipeline_json(self, e2e_server):
         """Test load_config_file() + run_pipeline() with JSON config."""
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create config file
@@ -236,7 +236,7 @@ class TestLibraryAPIConfigFile:
         except ImportError:
             pytest.skip("PyYAML not available")
 
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create config file
@@ -275,7 +275,7 @@ class TestLibraryAPIReturnValues:
 
     def test_run_pipeline_return_count(self, e2e_server):
         """Test that run_pipeline() returns correct count."""
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -298,7 +298,7 @@ class TestLibraryAPIReturnValues:
 
     def test_run_pipeline_return_summary(self, e2e_server):
         """Test that run_pipeline() returns meaningful summary."""
-        rss_url = e2e_server.urls.feed("podcast1_smoke")
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(

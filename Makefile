@@ -1,7 +1,7 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test test-sequential test-fast test-reruns coverage docs build ci ci-fast ci-sequential ci-clean clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models repair-ml-cache
+.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test test-sequential test-fast test-reruns coverage docs build ci ci-fast ci-sequential ci-clean clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models
 
 help:
 	@echo "Common developer commands:"
@@ -47,7 +47,6 @@ help:
 	@echo "  make clean-cache     Remove ML model caches (Whisper, spaCy) to test network isolation"
 	@echo "  make clean-all       Remove both build artifacts and ML model caches"
 	@echo "  make preload-ml-models  Pre-download and cache all required ML models locally"
-	@echo "  make repair-ml-cache Check and auto-repair corrupted ML model caches"
 
 init:
 	$(PYTHON) -m pip install --upgrade pip setuptools
@@ -220,7 +219,7 @@ docker-build-fast:
 	@echo "Building Docker image (fast mode - no model preloading, matches PR builds)..."
 	@echo "This should complete in under 5 minutes..."
 	@echo ""
-	@time DOCKER_BUILDKIT=1 docker build \
+	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg PRELOAD_ML_MODELS=false \
 		-t podcast-scraper:test-fast \
 		-f Dockerfile .
@@ -231,7 +230,7 @@ docker-build-full:
 	@echo "Building Docker image (full mode - with model preloading, matches main builds)..."
 	@echo "This will take longer due to ML model downloads..."
 	@echo ""
-	@time DOCKER_BUILDKIT=1 docker build \
+	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg PRELOAD_ML_MODELS=true \
 		--build-arg WHISPER_MODELS=base.en \
 		-t podcast-scraper:test \

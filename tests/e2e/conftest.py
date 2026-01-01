@@ -252,9 +252,9 @@ def configure_e2e_feed_limiting(request, e2e_server):
 
     Test run mode is determined by E2E_TEST_MODE environment variable:
     - "fast": Fast feed (1 episode, 1 minute) - used by make test-e2e-fast
-    - "smoke": Smoke feed (5 episodes, 10-15 seconds each) - used by make test-e2e
+    - "multi_episode": Multi-episode feed (5 episodes, 10-15 seconds each) - used by make test-e2e
     - "data_quality": All original mock data - used by make test-e2e-data-quality
-    - Default: "smoke" (if E2E_TEST_MODE not set, use smoke feed)
+    - Default: "multi_episode" (if E2E_TEST_MODE not set, use multi-episode feed)
 
     This allows the same tests to run in different modes based on how they're invoked,
     rather than hardcoding feed selection per test.
@@ -266,12 +266,12 @@ def configure_e2e_feed_limiting(request, e2e_server):
         return
 
     # Get test run mode from environment variable (set by Makefile)
-    test_mode = os.environ.get("E2E_TEST_MODE", "smoke").lower()
+    test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
 
     # If test is marked as critical_path and E2E_TEST_MODE is not explicitly set,
     # default to fast mode (critical path tests need fast fixtures)
     is_critical_path = request.node.get_closest_marker("critical_path") is not None
-    if test_mode == "smoke" and is_critical_path:
+    if test_mode == "multi_episode" and is_critical_path:
         test_mode = "fast"
 
     if test_mode == "data_quality":
@@ -279,17 +279,17 @@ def configure_e2e_feed_limiting(request, e2e_server):
         E2EHTTPRequestHandler.set_allowed_podcasts(None)
     elif test_mode == "fast":
         # Fast mode: Allow podcast1 (Path 2: Transcription),
-        # podcast1_with_transcript (Path 1: Download), and podcast1_smoke
+        # podcast1_with_transcript (Path 1: Download), and podcast1_multi_episode
         # (multi-episode testing)
-        # Uses fast fixtures (p01_fast.xml) with 1-minute episodes, or smoke
+        # Uses fast fixtures (p01_fast.xml) with 1-minute episodes, or multi-episode
         # feed for multi-episode tests
         E2EHTTPRequestHandler.set_allowed_podcasts(
-            {"podcast1", "podcast1_with_transcript", "podcast1_smoke"}
+            {"podcast1", "podcast1_with_transcript", "podcast1_multi_episode"}
         )
     else:
-        # Default/Smoke mode: Use smoke feed (5 short episodes for
+        # Default/Multi-episode mode: Use multi-episode feed (5 short episodes for
         # multi-episode testing) and edgecases feed (for edge case tests)
-        E2EHTTPRequestHandler.set_allowed_podcasts({"podcast1_smoke", "edgecases"})
+        E2EHTTPRequestHandler.set_allowed_podcasts({"podcast1_multi_episode", "edgecases"})
 
     # Reset on test teardown to ensure clean state
     yield
@@ -304,9 +304,9 @@ def limit_max_episodes_in_fast_mode(request, monkeypatch):
 
     Test run mode is determined by E2E_TEST_MODE environment variable:
     - "fast": Limits to 1 episode - used by make test-e2e-fast
-    - "smoke": No limitation (5 episodes) - used by make test-e2e
+    - "multi_episode": No limitation (5 episodes) - used by make test-e2e
     - "data_quality": No limitation (3-5 episodes) - used by make test-e2e-data-quality
-    - Default: "smoke" (if E2E_TEST_MODE not set, allow multiple episodes)
+    - Default: "multi_episode" (if E2E_TEST_MODE not set, allow multiple episodes)
 
     This allows the same tests to run with different episode limits based on how they're invoked,
     rather than hardcoding limits per test.
@@ -314,7 +314,7 @@ def limit_max_episodes_in_fast_mode(request, monkeypatch):
     This fixture is automatically applied to all E2E tests (autouse=True).
     """
     # Get test run mode from environment variable (set by Makefile)
-    test_mode = os.environ.get("E2E_TEST_MODE", "smoke").lower()
+    test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
 
     if test_mode == "fast":
         # Fast mode: Limit max_episodes to 1
@@ -356,7 +356,7 @@ def limit_max_episodes_in_fast_mode(request, monkeypatch):
 
         # Cleanup is automatic with monkeypatch context manager
     else:
-        # Smoke/Data Quality mode: No limitation (can process multiple episodes)
+        # Multi-episode/Data Quality mode: No limitation (can process multiple episodes)
         yield
         return
 

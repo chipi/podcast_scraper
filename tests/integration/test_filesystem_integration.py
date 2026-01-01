@@ -134,7 +134,7 @@ class TestFilesystemOperations(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             output_dir=self.temp_dir,
             transcribe_missing=True,
-            whisper_model="tiny.en",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
         effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
         self.assertIn("whisper_tiny.en", run_suffix or "")

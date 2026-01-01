@@ -28,7 +28,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import Config, run_pipeline
+from podcast_scraper import config, Config, run_pipeline
 
 
 @pytest.mark.e2e
@@ -53,8 +53,8 @@ class TestDataQualityE2E:
             require_transformers_model_cached,
         )
 
-        # Require ML models to be cached
-        require_transformers_model_cached("facebook/bart-large-cnn", None)
+        # Require ML models to be cached (use test default model)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
@@ -64,10 +64,11 @@ class TestDataQualityE2E:
                 output_dir=tmpdir,
                 max_episodes=3,  # Process 3 episodes for data quality validation
                 transcribe_missing=True,  # Enable Whisper transcription
-                whisper_model="tiny.en",  # Use smallest English-only model for speed
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                 auto_speakers=True,  # Enable NER (speaker detection)
                 generate_summaries=True,  # Enable summarization
                 summary_provider="local",  # Use local ML provider
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
             )
@@ -178,8 +179,8 @@ class TestDataQualityE2E:
             require_transformers_model_cached,
         )
 
-        # Require ML models to be cached
-        require_transformers_model_cached("facebook/bart-large-cnn", None)
+        # Require ML models to be cached (use test default model)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
@@ -195,6 +196,8 @@ class TestDataQualityE2E:
                     auto_speakers=True,
                     generate_summaries=True,
                     summary_provider="local",
+                    # Use test default (small, fast)
+                    summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
                     generate_metadata=True,
                     metadata_format="json",
                 )

@@ -1,5 +1,5 @@
 # Singletrack Sessions — Episode
-## Building Trails That Last (Smoke Test)
+## Building Trails That Last (Multi-Episode Test)
 Host: Maya
 Guest: Liam
 

@@ -36,6 +36,19 @@ DEFAULT_NER_MODEL = "en_core_web_sm"
 DEFAULT_MAX_DETECTED_NAMES = 4
 MIN_NUM_SPEAKERS = 1
 MIN_TIMEOUT_SECONDS = 1
+
+# Test defaults (smaller, faster models for CI/local dev)
+# These are used in tests for speed, while production uses quality models
+# See docs/guides/TESTING_GUIDE.md for details
+TEST_DEFAULT_WHISPER_MODEL = "tiny.en"  # Smallest, fastest English-only model
+TEST_DEFAULT_SUMMARY_MODEL = (
+    "facebook/bart-base"  # Small, ~500MB, fast (vs production: bart-large-cnn)
+)
+TEST_DEFAULT_SUMMARY_REDUCE_MODEL = (
+    "allenai/led-base-16384"  # Long-context, used in both tests and production
+)
+# Note: TEST_DEFAULT_NER_MODEL uses DEFAULT_NER_MODEL ("en_core_web_sm")
+# - same for tests and production
 VALID_WHISPER_MODELS = (
     "tiny",
     "base",
