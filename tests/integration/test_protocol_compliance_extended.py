@@ -77,7 +77,17 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
         mock_whisper_model = Mock()
         mock_whisper_lib.load_model.return_value = mock_whisper_model
         mock_import_whisper.return_value = mock_whisper_lib
-        provider = create_transcription_provider(self.cfg)
+        # Create config with transcribe_missing=True to enable Whisper initialization
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            speaker_detector_provider="ner",
+            summary_provider="local",
+            generate_summaries=False,
+            auto_speakers=False,
+            transcribe_missing=True,  # Enable Whisper initialization for transcription provider test
+        )
+        provider = create_transcription_provider(cfg)
 
         # Should not be initialized initially
         if hasattr(provider, "is_initialized"):
