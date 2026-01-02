@@ -132,7 +132,7 @@ class TestMetadataGenerationIntegration(unittest.TestCase):
             run_suffix=None,
             transcript_file_path="0001 - Episode_Title.txt",
             transcript_source="whisper_transcription",
-            whisper_model="tiny",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             detected_hosts=["Test Host"],
             detected_guests=["Test Guest"],
         )
@@ -150,7 +150,9 @@ class TestMetadataGenerationIntegration(unittest.TestCase):
         self.assertEqual(data["content"]["transcript_source"], "whisper_transcription")
 
         # Verify transcription metadata fields are present
-        self.assertEqual(data["content"]["whisper_model"], "tiny")
+        self.assertEqual(
+            data["content"]["whisper_model"], config.TEST_DEFAULT_WHISPER_MODEL
+        )  # Metadata stores model name as-is (with .en suffix if provided)
 
         # Verify transcript file path is included
         self.assertIn("transcript_file_path", data["content"])
@@ -278,7 +280,7 @@ class TestMetadataGenerationComprehensive(unittest.TestCase):
             data = json.load(f)
 
         self.assertEqual(data["content"]["transcript_source"], "whisper_transcription")
-        self.assertEqual(data["content"]["whisper_model"], "tiny.en")
+        self.assertEqual(data["content"]["whisper_model"], config.TEST_DEFAULT_WHISPER_MODEL)
 
     def test_metadata_with_subdirectory(self):
         """Test metadata generation with subdirectory."""
@@ -452,7 +454,7 @@ class TestMetadataGenerationComprehensive(unittest.TestCase):
             run_suffix=None,
             transcript_file_path="0001 - Episode_Title.txt",
             transcript_source="whisper_transcription",
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en), not base
         )
 
         self.assertIsNotNone(metadata_path)
@@ -460,7 +462,7 @@ class TestMetadataGenerationComprehensive(unittest.TestCase):
             data = json.load(f)
 
         self.assertEqual(data["content"]["transcript_source"], "whisper_transcription")
-        self.assertEqual(data["content"]["whisper_model"], "base")
+        self.assertEqual(data["content"]["whisper_model"], config.TEST_DEFAULT_WHISPER_MODEL)
 
     def test_metadata_generation_with_transcription(self):
         """Test metadata generation with Whisper transcription source (critical path).
@@ -485,7 +487,7 @@ class TestMetadataGenerationComprehensive(unittest.TestCase):
             run_suffix=None,
             transcript_file_path="0001 - Episode_Title.txt",
             transcript_source="whisper_transcription",
-            whisper_model="tiny",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             detected_hosts=["Test Host"],
             detected_guests=["Test Guest"],
         )
@@ -503,7 +505,9 @@ class TestMetadataGenerationComprehensive(unittest.TestCase):
         self.assertEqual(data["content"]["transcript_source"], "whisper_transcription")
 
         # Verify transcription metadata fields are present
-        self.assertEqual(data["content"]["whisper_model"], "tiny")
+        self.assertEqual(
+            data["content"]["whisper_model"], config.TEST_DEFAULT_WHISPER_MODEL
+        )  # Metadata stores model name as-is (with .en suffix if provided)
 
         # Verify transcript file path is included
         self.assertIn("transcript_file_path", data["content"])

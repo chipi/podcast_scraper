@@ -195,8 +195,8 @@ class TestConfigToProviderWorkflow(unittest.TestCase):
         mock_whisper_lib.load_model.return_value = mock_whisper_model
         mock_import_whisper.return_value = mock_whisper_lib
         mock_get_ner.return_value = Mock()
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summary_model.return_value = Mock()
 
         # Step 1: Create providers from config (real factories)
@@ -1103,7 +1103,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                             "summary": "This is a test summary of the episode discussing technology and software development.",
                             "summary_short": None,
                             "metadata": {
-                                "model_used": "facebook/bart-base",
+                                "model_used": config.TEST_DEFAULT_SUMMARY_MODEL,
                                 "reduce_model_used": None,
                                 "device": "cpu",
                             },
@@ -1508,7 +1508,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 "summary": "This is a test summary of the transcript content.",
                 "summary_short": None,
                 "metadata": {
-                    "model_used": "facebook/bart-base",
+                    "model_used": config.TEST_DEFAULT_SUMMARY_MODEL,
                     "reduce_model_used": None,
                     "device": "cpu",
                 },
@@ -1913,8 +1913,8 @@ class TestMultipleComponentsWorkflow(unittest.TestCase):
         mock_import_whisper.return_value = Mock(load_model=lambda *args, **kwargs: Mock())
         mock_nlp = Mock()
         mock_get_ner.return_value = mock_nlp
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summary_model.return_value = Mock()
 
         rss_url = "https://example.com/feed.xml"
@@ -2045,7 +2045,7 @@ class TestMultipleComponentsWorkflow(unittest.TestCase):
                     "summary": "This is a comprehensive summary of the episode discussing technology and software development.",
                     "summary_short": None,
                     "metadata": {
-                        "model_used": "facebook/bart-base",
+                        "model_used": config.TEST_DEFAULT_SUMMARY_MODEL,
                         "reduce_model_used": None,
                         "device": "cpu",
                     },

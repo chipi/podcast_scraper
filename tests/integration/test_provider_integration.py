@@ -91,8 +91,8 @@ class TestProviderIntegration(unittest.TestCase):
         mock_whisper_lib.load_model.return_value = mock_model
         mock_import_whisper.return_value = mock_whisper_lib
         mock_get_ner.return_value = Mock()
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summary_model.return_value = Mock()
 
         transcription_provider = create_transcription_provider(self.cfg)
@@ -141,8 +141,8 @@ class TestProviderIntegration(unittest.TestCase):
         mock_whisper_lib.load_model.return_value = mock_model
         mock_import_whisper.return_value = mock_whisper_lib
         mock_get_ner.return_value = Mock()
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summary_model.return_value = Mock()
 
         transcription_provider = create_transcription_provider(self.cfg)

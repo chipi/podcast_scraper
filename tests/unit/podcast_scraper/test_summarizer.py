@@ -25,7 +25,7 @@ from conftest import create_test_config  # noqa: E402
 
 # Try to import summarizer, skip tests if dependencies not available
 try:
-    from podcast_scraper import summarizer
+    from podcast_scraper import config, summarizer
 
     SUMMARIZER_AVAILABLE = True
 except ImportError:
@@ -53,7 +53,7 @@ class TestModelSelection(unittest.TestCase):
 
         cfg = create_test_config(summary_model=config.TEST_DEFAULT_SUMMARY_MODEL)
         model_name = summarizer.select_summary_model(cfg)
-        self.assertEqual(model_name, "facebook/bart-base")
+        self.assertEqual(model_name, config.TEST_DEFAULT_SUMMARY_MODEL)
 
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_select_model_auto_mps(self, mock_torch):
@@ -167,13 +167,13 @@ class TestSummaryModel(unittest.TestCase):
         self._setup_mock_load_model(mock_load_model, device="cpu")
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device=None,
             cache_dir=self.temp_dir,
         )
 
         self.assertEqual(model.device, "cpu")
-        self.assertEqual(model.model_name, "facebook/bart-base")
+        self.assertEqual(model.model_name, config.TEST_DEFAULT_SUMMARY_MODEL)
         mock_load_model.assert_called_once()
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
@@ -185,7 +185,7 @@ class TestSummaryModel(unittest.TestCase):
         self._setup_mock_load_model(mock_load_model, device="mps")
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device=None,
             cache_dir=self.temp_dir,
         )
@@ -202,7 +202,7 @@ class TestSummaryModel(unittest.TestCase):
         self._setup_mock_load_model(mock_load_model, device="cuda")
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device=None,
             cache_dir=self.temp_dir,
         )
@@ -221,7 +221,7 @@ class TestSummaryModel(unittest.TestCase):
         self.mock_pipe.return_value = [{"summary_text": "This is a test summary."}]
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
         )
@@ -246,7 +246,7 @@ class TestSummaryModel(unittest.TestCase):
         self._setup_mock_load_model(mock_load_model, device="cpu")
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
         )
@@ -358,7 +358,7 @@ class TestChunking(unittest.TestCase):
         mock_pipeline.return_value = mock_pipe
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
         )
@@ -418,8 +418,10 @@ class TestChunking(unittest.TestCase):
         mock_pipe = Mock(return_value=[{"summary_text": "Direct summary without chunking."}])
         mock_pipeline.return_value = mock_pipe
 
+        from podcast_scraper import config
+
         model = summarizer.SummaryModel(
-            model_name="allenai/led-base-16384",
+            model_name=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Test default: led-base-16384
             device="cpu",
             cache_dir=self.temp_dir,
         )
@@ -476,7 +478,7 @@ class TestChunking(unittest.TestCase):
         mock_pipeline.return_value = mock_pipe
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
         )
@@ -570,7 +572,7 @@ class TestSafeSummarize(unittest.TestCase):
         mock_pipeline.return_value = mock_pipe
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
         )
@@ -607,7 +609,7 @@ class TestSafeSummarize(unittest.TestCase):
         mock_pipeline.return_value = mock_pipe
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
         )
@@ -675,7 +677,7 @@ class TestMemoryOptimization(unittest.TestCase):
         mock_pipeline.return_value = mock_pipe
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cuda",
             cache_dir=self.temp_dir,
         )
@@ -717,7 +719,7 @@ class TestMemoryOptimization(unittest.TestCase):
         mock_torch.mps.empty_cache = Mock()
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="mps",
             cache_dir=self.temp_dir,
         )
@@ -762,7 +764,7 @@ class TestMemoryOptimization(unittest.TestCase):
         mock_pipeline.return_value = mock_pipe
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
         )
@@ -794,9 +796,11 @@ class TestWorkflowIntegration(unittest.TestCase):
         self, mock_summary_model_class, mock_select_summary_model
     ):
         """Test that workflow.py calls SummaryModel.__init__ with correct signature."""
-        mock_select_summary_model.return_value = "facebook/bart-base"
+        from podcast_scraper import config
+
+        mock_select_summary_model.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_summary_model_instance = Mock()
-        mock_summary_model_instance.model_name = "facebook/bart-base"
+        mock_summary_model_instance.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_summary_model_class.return_value = mock_summary_model_instance
 
         cfg = create_test_config(
@@ -816,8 +820,10 @@ class TestWorkflowIntegration(unittest.TestCase):
         )
 
         # Verify SummaryModel was called with correct signature
+        from podcast_scraper import config
+
         mock_summary_model_class.assert_called_once_with(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
         )
@@ -827,7 +833,9 @@ class TestWorkflowIntegration(unittest.TestCase):
     def test_workflow_unloads_model_with_correct_signature(self, mock_unload_model):
         """Test that workflow.py calls unload_model with correct signature."""
         mock_summary_model = Mock()
-        mock_summary_model.model_name = "facebook/bart-base"
+        from podcast_scraper import config
+
+        mock_summary_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
 
         # Simulate workflow model unloading (same pattern as workflow.py)
         from podcast_scraper import summarizer

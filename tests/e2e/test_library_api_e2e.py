@@ -22,7 +22,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import Config, load_config_file, run_pipeline
+from podcast_scraper import Config, config, load_config_file, run_pipeline
 
 
 @pytest.mark.e2e
@@ -127,6 +127,7 @@ class TestLibraryAPIBasic:
                 generate_metadata=True,  # Required for summaries
                 generate_summaries=True,
                 summary_provider="local",  # Use local provider (no API key needed)
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Test default: bart-base
                 transcribe_missing=True,
             )
 
@@ -164,6 +165,7 @@ class TestLibraryAPIBasic:
                 metadata_format="json",
                 generate_summaries=True,
                 summary_provider="local",  # Use local provider (no API key needed)
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Test default: bart-base
                 transcribe_missing=True,
             )
 

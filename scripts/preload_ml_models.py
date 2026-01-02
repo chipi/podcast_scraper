@@ -39,13 +39,16 @@ from typing import List, Optional
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
+# Import config to use test defaults
+from podcast_scraper import config
+
 
 def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
     """Preload Whisper models.
 
     Args:
         model_names: List of Whisper model names to preload.
-                    If None, uses WHISPER_MODELS env var or defaults to ['tiny.en'].
+                    If None, uses WHISPER_MODELS env var or defaults to test default.
     """
     try:
         import whisper
@@ -62,7 +65,7 @@ def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
             # Default: tiny.en for local dev/tests (smallest, fastest)
             # Matches config.TEST_DEFAULT_WHISPER_MODEL
             # Docker and production use base.en (better quality, matches app default)
-            model_names = ["tiny.en"]
+            model_names = [config.TEST_DEFAULT_WHISPER_MODEL]
 
     if not model_names:
         print("Skipping Whisper model preloading (no models specified)")
@@ -218,11 +221,11 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             model_names = [
                 # Test default (small, ~500MB)
                 # Matches config.TEST_DEFAULT_SUMMARY_MODEL
-                "facebook/bart-base",
+                config.TEST_DEFAULT_SUMMARY_MODEL,
                 # REDUCE default (long-context, ~1GB)
                 # Matches config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
                 # Used in both tests and production for long-context summarization
-                "allenai/led-base-16384",
+                config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
             ]
 
     if not model_names:

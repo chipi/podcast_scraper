@@ -85,7 +85,7 @@ class TestWhisperProviderDirect:
             # Create config with base.en model (matches what's preloaded by make preload-ml-models)
             cfg = Config(
                 transcribe_missing=True,  # Required for Whisper to load
-                whisper_model="tiny.en",  # Smallest model for speed
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
                 language="en",
             )
 
@@ -115,7 +115,7 @@ class TestWhisperProviderDirect:
         (p01_e01_fast.mp3) in fast mode or regular audio (p01_e01.mp3) in multi-episode mode.
         """
         # Require model to be cached (fail fast if not)
-        require_whisper_model_cached("tiny.en")
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
         # Get audio file from E2E server (respects E2E_TEST_MODE: fast vs multi-episode)
         # In fast mode: uses p01_e01_fast.mp3 (1 minute)
@@ -145,7 +145,7 @@ class TestWhisperProviderDirect:
             # Create config with base.en model (matches what's preloaded by make preload-ml-models)
             cfg = Config(
                 transcribe_missing=True,  # Required for Whisper to load
-                whisper_model="tiny.en",  # Smallest model for speed
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
                 language="en",
             )
 
@@ -191,7 +191,7 @@ class TestWhisperFallbackWorkflow:
         triggering the Whisper fallback workflow.
         """
         # Require model to be cached (fail fast if not)
-        require_whisper_model_cached("tiny.en")
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
         # For this test, we'll use a feed that has audio but we'll modify the workflow
         # to simulate no transcript available. Actually, we can use the existing feed
@@ -207,7 +207,7 @@ class TestWhisperFallbackWorkflow:
                 output_dir=tmpdir,
                 max_episodes=1,
                 transcribe_missing=True,
-                whisper_model="tiny.en",  # Smallest model for speed
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
                 language="en",
             )
 
@@ -229,7 +229,7 @@ class TestWhisperFallbackWorkflow:
     def test_whisper_fallback_with_audio_download(self, e2e_server):
         """Test Whisper transcription after audio download from E2E server."""
         # Require model to be cached (fail fast if not)
-        require_whisper_model_cached("tiny.en")
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
         # This test verifies that audio can be downloaded from E2E server
         # and then transcribed with Whisper
@@ -241,7 +241,7 @@ class TestWhisperFallbackWorkflow:
                 output_dir=tmpdir,
                 max_episodes=1,
                 transcribe_missing=True,
-                whisper_model="tiny.en",  # Smallest model for speed
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
                 language="en",
             )
 

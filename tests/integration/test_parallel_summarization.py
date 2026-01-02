@@ -93,7 +93,7 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
 
         # Create a mock summary model with required attributes
         mock_summary_model = Mock()
-        mock_summary_model.model_name = "facebook/bart-base"
+        mock_summary_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_summary_model.device = "cpu"
         mock_summary_model.cache_dir = None
         mock_summary_model.revision = None
@@ -158,7 +158,7 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
         mock_model_class.side_effect = mock_models
 
         mock_summary_model = Mock()
-        mock_summary_model.model_name = "facebook/bart-base"
+        mock_summary_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_summary_model.device = "cpu"
         mock_summary_model.cache_dir = "/cache"
         mock_summary_model.revision = "abc123"
@@ -202,7 +202,7 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
         # Verify all calls included revision parameter
         for call_args in mock_model_class.call_args_list:
             self.assertEqual(call_args.kwargs.get("revision"), "abc123")
-            self.assertEqual(call_args.kwargs.get("model_name"), "facebook/bart-base")
+            self.assertEqual(call_args.kwargs.get("model_name"), config.TEST_DEFAULT_SUMMARY_MODEL)
             self.assertEqual(call_args.kwargs.get("device"), "cpu")
             self.assertEqual(call_args.kwargs.get("cache_dir"), "/cache")
 
@@ -234,7 +234,7 @@ class TestParallelSummarizationThreadSafety(unittest.TestCase):
         mock_model_class.side_effect = mock_models
 
         mock_summary_model = Mock()
-        mock_summary_model.model_name = "facebook/bart-base"
+        mock_summary_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_summary_model.device = "cpu"
         mock_summary_model.cache_dir = None
         mock_summary_model.revision = None
@@ -321,7 +321,7 @@ class TestParallelSummarizationFallback(unittest.TestCase):
         mock_model_class.side_effect = [Mock(), Exception("Model loading failed")]
 
         mock_summary_model = Mock()
-        mock_summary_model.model_name = "facebook/bart-base"
+        mock_summary_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_summary_model.device = "cpu"
         mock_summary_model.cache_dir = None
         mock_summary_model.revision = None
@@ -402,7 +402,7 @@ class TestParallelSummarizationCleanup(unittest.TestCase):
         mock_model_class.side_effect = mock_models
 
         mock_summary_model = Mock()
-        mock_summary_model.model_name = "facebook/bart-base"
+        mock_summary_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_summary_model.device = "cpu"
         mock_summary_model.cache_dir = None
         mock_summary_model.revision = None
@@ -457,7 +457,7 @@ class TestParallelSummarizationCleanup(unittest.TestCase):
         mock_unload.side_effect = [None, Exception("Unload failed")]
 
         mock_summary_model = Mock()
-        mock_summary_model.model_name = "facebook/bart-base"
+        mock_summary_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_summary_model.device = "cpu"
         mock_summary_model.cache_dir = None
         mock_summary_model.revision = None
@@ -520,7 +520,7 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
     def test_single_episode_uses_sequential_processing(self, mock_model_class):
         """Test that single episode uses sequential processing (no parallel overhead)."""
         mock_summary_model = Mock()
-        mock_summary_model.model_name = "facebook/bart-base"
+        mock_summary_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_summary_model.device = "cpu"
         mock_summary_model.cache_dir = None
         mock_summary_model.revision = None
@@ -582,7 +582,7 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
         mock_model_class.side_effect = mock_models
 
         mock_summary_model = Mock()
-        mock_summary_model.model_name = "facebook/bart-base"
+        mock_summary_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_summary_model.device = "cuda"  # GPU device
         mock_summary_model.cache_dir = None
         mock_summary_model.revision = None
@@ -630,7 +630,7 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
         mock_model_class.side_effect = mock_models
 
         mock_summary_model = Mock()
-        mock_summary_model.model_name = "facebook/bart-base"
+        mock_summary_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_summary_model.device = "cpu"
         mock_summary_model.cache_dir = None
         mock_summary_model.revision = None

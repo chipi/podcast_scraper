@@ -14,7 +14,7 @@ if PROJECT_ROOT not in sys.path:
 
 from pydantic import ValidationError
 
-from podcast_scraper import Config
+from podcast_scraper import Config, config
 
 
 class TestSummaryValidation(unittest.TestCase):
@@ -191,10 +191,10 @@ class TestTranscriptionValidation(unittest.TestCase):
         cfg = Config(
             rss_url="https://example.com/feed.xml",
             transcribe_missing=True,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
         )
         self.assertTrue(cfg.transcribe_missing)
-        self.assertEqual(cfg.whisper_model, "base")
+        self.assertEqual(cfg.whisper_model, config.TEST_DEFAULT_WHISPER_MODEL)
 
     def test_transcribe_missing_false_allows_empty_model(self):
         """Test that empty whisper_model is OK when transcribe_missing is False."""
@@ -231,7 +231,7 @@ class TestValidationEdgeCases(unittest.TestCase):
             output_dir="./transcripts",
             max_episodes=10,
             transcribe_missing=True,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=True,
             screenplay_num_speakers=2,
             auto_speakers=True,

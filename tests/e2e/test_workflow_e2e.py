@@ -23,7 +23,7 @@ import requests
 
 import podcast_scraper
 import podcast_scraper.cli as cli
-from podcast_scraper import downloader
+from podcast_scraper import config, downloader
 
 # Check if ML dependencies are available
 SPACY_AVAILABLE = False
@@ -468,7 +468,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
                         rss_url=rss_url,
                         output_dir=self.temp_dir,
                         transcribe_missing=True,
-                        whisper_model="tiny.en",
+                        whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                         max_episodes=1,
                     )
 

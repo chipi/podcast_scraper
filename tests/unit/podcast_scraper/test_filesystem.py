@@ -24,7 +24,7 @@ from unittest.mock import patch
 from platformdirs import user_cache_dir, user_data_dir
 
 import podcast_scraper
-from podcast_scraper import episode_processor, filesystem
+from podcast_scraper import config, episode_processor, filesystem
 
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent
@@ -246,7 +246,7 @@ class TestSetupOutputDirectory(unittest.TestCase):
             delay_ms=0,
             prefer_types=[],
             transcribe_missing=False,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             screenplay_gap_s=2.0,
             screenplay_num_speakers=2,
@@ -270,7 +270,7 @@ class TestSetupOutputDirectory(unittest.TestCase):
             delay_ms=0,
             prefer_types=[],
             transcribe_missing=True,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             screenplay_gap_s=2.0,
             screenplay_num_speakers=2,
@@ -280,7 +280,9 @@ class TestSetupOutputDirectory(unittest.TestCase):
             clean_output=False,
         )
         output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        self.assertIn("whisper_base", run_suffix or "")
+        # Test uses TEST_DEFAULT_WHISPER_MODEL (tiny.en), so run_suffix should reflect that
+        expected_model_in_suffix = config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", "")
+        self.assertIn(f"whisper_{expected_model_in_suffix}", run_suffix or "")
 
 
 class TestWriteFile(unittest.TestCase):

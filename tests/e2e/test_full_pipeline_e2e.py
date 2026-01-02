@@ -137,7 +137,7 @@ class TestFullPipelineE2E:
         Uses real Whisper model (requires model to be cached).
         """
         # Require Whisper model to be cached (skip if not available)
-        require_whisper_model_cached("tiny.en")
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
         feed_url = self.e2e_server.urls.feed(
             "podcast1"
@@ -152,7 +152,7 @@ class TestFullPipelineE2E:
             generate_summaries=False,  # Disable to avoid loading summarization model
             auto_speakers=False,  # Disable to avoid loading spaCy
             transcribe_missing=True,
-            whisper_model="tiny.en",  # Use smallest English-only model for speed
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
         )
 
         # Run pipeline with real Whisper
@@ -193,7 +193,7 @@ class TestFullPipelineE2E:
         Uses real Whisper model (requires model to be cached).
         """
         # Require Whisper model to be cached (skip if not available)
-        require_whisper_model_cached("tiny.en")
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
         feed_url = self.e2e_server.urls.feed(
             "podcast1"
@@ -207,7 +207,7 @@ class TestFullPipelineE2E:
             generate_summaries=False,
             auto_speakers=False,
             transcribe_missing=True,
-            whisper_model="tiny.en",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
 
         # Run pipeline with real Whisper
@@ -239,7 +239,7 @@ class TestFullPipelineE2E:
             metadata_format="json",
             generate_summaries=False,  # Disable to avoid loading summarization model
             auto_speakers=True,
-            ner_model="en_core_web_sm",  # Use smallest model for speed
+            ner_model=config.DEFAULT_NER_MODEL,  # Default: en_core_web_sm
             transcribe_missing=False,  # No transcription needed
         )
 
@@ -340,13 +340,13 @@ class TestFullPipelineE2E:
             summary_provider="local",
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             auto_speakers=True,
-            ner_model="en_core_web_sm",
+            ner_model=config.DEFAULT_NER_MODEL,
             transcribe_missing=True,
-            whisper_model="tiny.en",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
 
         # Require ML models to be cached (spaCy model is installed as dependency)
-        require_whisper_model_cached("tiny.en")
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         # Run pipeline with real models

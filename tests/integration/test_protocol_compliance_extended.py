@@ -124,16 +124,18 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
         """Test that summarization provider can be initialized and cleaned up."""
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summary_model.return_value = Mock()
 
         # Use config with generate_summaries=True to ensure initialization
+        # Use test default (bart-base) for MAP model, not production default (bart-large)
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="local",
             generate_metadata=True,
             generate_summaries=True,
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (bart-base), not production default (bart-large)
         )
         provider = create_summarization_provider(cfg)
 

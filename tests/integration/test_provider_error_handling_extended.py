@@ -199,8 +199,8 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
         """Test that summarize() fails if called before initialization."""
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summary_model.return_value = Mock()
 
         cfg = config.Config(
@@ -221,8 +221,8 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
         """Test error handling when summarize() fails after initialization."""
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summary_model.return_value = Mock()
 
         cfg = config.Config(

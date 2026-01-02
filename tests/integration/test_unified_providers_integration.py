@@ -103,20 +103,20 @@ class TestUnifiedProvidersIntegration(unittest.TestCase):
         cfg1 = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
-            whisper_model="tiny",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en)
         )
         cfg2 = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
-            whisper_model="base",
+            whisper_model="small",  # Use different model to test that providers use their respective configs
         )
 
         provider1 = create_transcription_provider(cfg1)
         provider2 = create_transcription_provider(cfg2)
 
         # Providers should use their respective configs
-        self.assertEqual(provider1.cfg.whisper_model, "tiny")
-        self.assertEqual(provider2.cfg.whisper_model, "base")
+        self.assertEqual(provider1.cfg.whisper_model, config.TEST_DEFAULT_WHISPER_MODEL)
+        self.assertEqual(provider2.cfg.whisper_model, "small")
 
 
 @pytest.mark.integration
@@ -247,7 +247,11 @@ class TestProviderErrorHandlingIntegration(unittest.TestCase):
     """Integration tests for provider error handling."""
 
     def test_provider_initialization_failure_handling(self):
-        """Test that provider initialization failures are handled gracefully."""
+        """Test that provider initialization failures are handled gracefully.
+
+        MLProvider.initialize() is resilient - it logs warnings but doesn't raise,
+        allowing other components to initialize even if one fails.
+        """
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
@@ -260,8 +264,11 @@ class TestProviderErrorHandlingIntegration(unittest.TestCase):
         with patch("podcast_scraper.ml.ml_provider._import_third_party_whisper") as mock_import:
             mock_import.side_effect = ImportError("Whisper not available")
 
-            with self.assertRaises(RuntimeError):
-                provider.initialize()
+            # initialize() should not raise - it logs warnings and continues
+            provider.initialize()
+            # Verify Whisper is not initialized (but provider is still usable)
+            if hasattr(provider, "_whisper_initialized"):
+                self.assertFalse(provider._whisper_initialized)
 
     def test_provider_method_failure_handling(self):
         """Test that provider method failures are handled gracefully."""

@@ -92,7 +92,7 @@ def create_test_config(**overrides):
         "delay_ms": 0,
         "prefer_types": [],
         "transcribe_missing": False,
-        "whisper_model": config.TEST_DEFAULT_WHISPER_MODEL,
+        "whisper_model": config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
         "screenplay": False,
         "screenplay_gap_s": 1.0,
         "screenplay_num_speakers": 2,
@@ -102,6 +102,10 @@ def create_test_config(**overrides):
         "workers": 1,
         "skip_existing": False,
         "clean_output": False,
+        # Summary models: use test defaults (small, fast) unless explicitly overridden
+        # Tests that need to test production behavior can override with summary_model=None
+        "summary_model": config.TEST_DEFAULT_SUMMARY_MODEL,  # Test default: bart-base
+        "summary_reduce_model": config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Test default: LED-base
     }
     defaults.update(overrides)
 

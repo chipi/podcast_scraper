@@ -124,14 +124,14 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         )
 
         mock_map_model = Mock()
-        mock_map_model.model_name = "facebook/bart-base"
+        mock_map_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_map_model.device = "cpu"
         mock_reduce_model = Mock()
-        mock_reduce_model.model_name = "facebook/bart-large"
+        mock_reduce_model.model_name = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_reduce_model.device = "cpu"
         mock_summary_model.side_effect = [mock_map_model, mock_reduce_model]
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-large"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
 
         provider = create_summarization_provider(cfg)
         provider.initialize()
@@ -157,11 +157,11 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         )
 
         mock_map_model = Mock()
-        mock_map_model.model_name = "facebook/bart-base"
+        mock_map_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_map_model.device = "cpu"
         mock_summary_model.return_value = mock_map_model
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"  # Same model
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL  # Same model
 
         provider = create_summarization_provider(cfg)
         provider.initialize()
@@ -178,6 +178,8 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         self, mock_summary_model, mock_select_map, mock_select_reduce, mock_summarize_long
     ):
         """Test that summarize() calls summarize_long_text() via factory."""
+        from podcast_scraper import config
+
         cfg = config.Config(
             rss_url=self.cfg.rss_url,
             summary_provider=self.cfg.summary_provider,
@@ -188,11 +190,11 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         )
 
         mock_map_model = Mock()
-        mock_map_model.model_name = "facebook/bart-base"
+        mock_map_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_map_model.device = "cpu"
         mock_summary_model.return_value = mock_map_model
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summarize_long.return_value = "Test summary"
 
         provider = create_summarization_provider(cfg)
@@ -204,7 +206,9 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         self.assertEqual(result["summary"], "Test summary")
         self.assertIsNone(result["summary_short"])
         self.assertIn("metadata", result)
-        self.assertEqual(result["metadata"]["model_used"], "facebook/bart-base")
+        from podcast_scraper import config
+
+        self.assertEqual(result["metadata"]["model_used"], config.TEST_DEFAULT_SUMMARY_MODEL)
         mock_summarize_long.assert_called_once()
 
     def test_provider_summarize_not_initialized(self):
@@ -240,11 +244,11 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         )
 
         mock_map_model = Mock()
-        mock_map_model.model_name = "facebook/bart-base"
+        mock_map_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_map_model.device = "cpu"
         mock_summary_model.return_value = mock_map_model
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
 
         provider = create_summarization_provider(cfg)
         provider.initialize()
@@ -274,11 +278,11 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         )
 
         mock_map_model = Mock()
-        mock_map_model.model_name = "facebook/bart-base"
+        mock_map_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_map_model.device = "cpu"
         mock_summary_model.return_value = mock_map_model
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summarize_long.return_value = "Test summary"
 
         provider = create_summarization_provider(cfg)
