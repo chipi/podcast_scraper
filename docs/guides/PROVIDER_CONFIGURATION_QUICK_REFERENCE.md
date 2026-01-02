@@ -425,6 +425,7 @@ speaker_detector_provider: openai
 summary_provider: local
 openai_api_key: sk-your-key-here
 ```
+
 ```bash
 podcast-scraper --config config.yaml
 ```

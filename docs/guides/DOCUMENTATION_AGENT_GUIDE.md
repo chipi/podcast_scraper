@@ -1,6 +1,7 @@
 # Documentation Agent Guide
 
-This guide extracts documentation-relevant practices from the Cursor AI Best Practices Guide for use as a documentation agent.
+This guide extracts documentation-relevant practices from the Cursor AI Best Practices Guide for use
+as a documentation agent.
 
 ## Project Documentation Context
 

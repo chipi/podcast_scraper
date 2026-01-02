@@ -149,6 +149,7 @@ echo "OPENAI_API_KEY=sk-your-key-here" > .env
 python3 -m podcast_scraper <https://example.com/feed.xml>
 
 ```
+
 ## Docker
 
 **Using environment variable**:
