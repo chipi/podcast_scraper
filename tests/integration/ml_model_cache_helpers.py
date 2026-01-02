@@ -4,14 +4,18 @@
 These functions check if ML models are cached locally before attempting to load them.
 This prevents tests from hanging on network downloads, which violates integration test rules.
 
-Models checked:
-- Whisper models: ~/.cache/whisper/
-- spaCy models: ~/.local/share/spacy/
-- Transformers models: ~/.cache/huggingface/hub/
+Models checked (in order of preference):
+- Local cache: .cache/ in project root (if exists)
+- User cache: ~/.cache/whisper/, ~/.cache/huggingface/hub/, ~/.local/share/spacy/
 """
 
 from pathlib import Path
 from typing import Optional
+
+from podcast_scraper.cache_utils import (
+    get_transformers_cache_dir,
+    get_whisper_cache_dir,
+)
 
 
 def _is_whisper_model_cached(model_name: str) -> bool:
@@ -28,8 +32,8 @@ def _is_whisper_model_cached(model_name: str) -> bool:
 
     logger = logging.getLogger(__name__)
 
-    # Whisper caches models in ~/.cache/whisper/
-    cache_dir = Path.home() / ".cache" / "whisper"
+    # Whisper caches models - prefer local cache, fallback to user cache
+    cache_dir = get_whisper_cache_dir()
 
     # Explicit path logging for debugging
     logger.debug(
@@ -148,17 +152,12 @@ def _is_transformers_model_cached(model_name: str, cache_dir: Optional[str] = No
         True if model appears to be cached AND can be loaded with local_files_only=True, False otherwise
     """
     # Use same cache directory logic as preload script and SummaryModel
-    # Prefer transformers.file_utils.default_cache_path for consistency
+    # Prefer local cache if available, fallback to provided or default
     if cache_dir:
-        cache_path_str = str(Path(cache_dir))
+        cache_path = Path(cache_dir)
     else:
-        # Use transformers' default cache path (same as preload script)
-        # This ensures consistency between preload and test cache checks
-        from transformers import file_utils
-
-        cache_path_str = str(Path(file_utils.default_cache_path))
-
-    cache_path = Path(cache_path_str)
+        # Use cache_utils to get cache directory (prefers local, falls back to default)
+        cache_path = get_transformers_cache_dir()
 
     # Explicit path logging for debugging
     import logging
@@ -182,6 +181,7 @@ def _is_transformers_model_cached(model_name: str, cache_dir: Optional[str] = No
     # e.g., "facebook/bart-large-cnn" -> "models--facebook--bart-large-cnn"
     model_cache_name = model_name.replace("/", "--")
     model_cache_path = cache_path / f"models--{model_cache_name}"
+    cache_path_str = str(cache_path)
 
     logger.debug(
         f"  Model cache path: {model_cache_path}\n"

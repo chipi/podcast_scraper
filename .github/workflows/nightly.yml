@@ -24,6 +24,7 @@ jobs:
   # Comprehensive test suite with full metrics collection
   nightly-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 60  # Conservative timeout for comprehensive nightly tests
     steps:
     - uses: actions/checkout@v4
       with:
@@ -81,7 +82,7 @@ jobs:
         # Note: E2E tests are limited to 1 episode per test (code quality validation)
         pytest tests/ \
           -v \
-          -n auto \
+          -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") \
           --durations=20 \
           --junitxml=reports/junit.xml \
           --json-report \

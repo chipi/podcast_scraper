@@ -75,6 +75,8 @@ class FeedMetadata(BaseModel):
         return value.isoformat() if value else None
 
 class EpisodeMetadata(BaseModel):
+
+```text
     """Episode-level metadata."""
     title: str
     description: Optional[str] = None
@@ -85,20 +87,28 @@ class EpisodeMetadata(BaseModel):
     episode_number: Optional[int] = None
     image_url: Optional[str] = None
     episode_id: str  # Stable unique identifier for database primary keys
+```
 
+```python
     @field_serializer('published_date')
     def serialize_published_date(self, value: Optional[datetime]) -> Optional[str]:
         """Serialize datetime as ISO 8601 string for database compatibility."""
         return value.isoformat() if value else None
+```
 
 class TranscriptInfo(BaseModel):
+
+```text
     """Transcript URL and type information."""
     url: str
     transcript_id: Optional[str] = None  # Optional stable identifier for tracking individual transcripts
     type: Optional[str] = None  # e.g., "text/plain", "text/vtt"
     language: Optional[str] = None
+```
 
 class ContentMetadata(BaseModel):
+
+```text
     """Content-related metadata."""
     transcript_urls: List[TranscriptInfo] = Field(default_factory=list)
     media_url: Optional[str] = None
@@ -109,28 +119,39 @@ class ContentMetadata(BaseModel):
     whisper_model: Optional[str] = None
     detected_hosts: List[str] = Field(default_factory=list)
     detected_guests: List[str] = Field(default_factory=list)
+```
 
 class ProcessingMetadata(BaseModel):
+
+```text
     """Processing-related metadata."""
     processing_timestamp: datetime
     output_directory: str
     run_id: Optional[str] = None
     config_snapshot: Dict[str, Any] = Field(default_factory=dict)
     schema_version: str = "1.0.0"
+```
 
+```python
     @field_serializer('processing_timestamp')
     def serialize_processing_timestamp(self, value: datetime) -> str:
         """Serialize datetime as ISO 8601 string for database compatibility."""
         return value.isoformat()
+```
 
 class EpisodeMetadataDocument(BaseModel):
-    """Complete episode metadata document.
 
+```text
+    """Complete episode metadata document.
+```
+
+```text
     Schema designed for direct ingestion into databases:
     - PostgreSQL JSONB: Nested structure works natively
     - MongoDB: Document structure matches MongoDB document model
     - Elasticsearch: Nested objects can be indexed and queried
     - ClickHouse: JSON column type supports nested queries
+```
 
     Field naming uses snake_case for database compatibility.
     All datetime fields are serialized as ISO 8601 strings.
@@ -276,9 +297,13 @@ def generate_feed_id(feed_url: str) -> str:
 
     # Generate SHA-256 hash
 
+```text
     hash_digest = hashlib.sha256(normalized.encode('utf-8')).hexdigest()
+```
 
+```text
     return f"sha256:{hash_digest}"
+```
 ```text
 
 - Stable across runs (same feed URL = same ID)
@@ -334,41 +359,67 @@ def generate_episode_id(
         Stable unique identifier string
     """
 
+```text
     # Priority 1: Use RSS GUID if available
+```
 
+```text
     if episode_guid:
         return episode_guid.strip()
+```
 
+```text
     # Priority 2: Generate deterministic hash
+```
 
+```text
     # Normalize feed URL (remove trailing slash, lowercase)
+```
 
+```text
     normalized_feed = urlparse(feed_url).geturl().rstrip('/').lower()
+```
 
+```text
     # Normalize title (lowercase, strip whitespace)
+```
 
+```text
     normalized_title = episode_title.strip().lower()
+```
 
+```python
     # Build hash input from stable components
+```
 
     hash_components = [
         normalized_feed,
         normalized_title,
     ]
 
+```text
     if published_date:
         hash_components.append(published_date.isoformat())
+```
 
+```text
     if episode_link:
         normalized_link = urlparse(episode_link).geturl().rstrip('/').lower()
         hash_components.append(normalized_link)
+```
 
+```text
     # Generate SHA-256 hash
+```
 
+```text
     hash_input = '|'.join(hash_components).encode('utf-8')
     hash_digest = hashlib.sha256(hash_input).hexdigest()
+```
 
+```text
     return f"sha256:{hash_digest}"
+```
 ```python
 
 **Transcript ID** (`transcript_id`):
@@ -403,7 +454,9 @@ def generate_content_id(content_url: str) -> str:
 
     hash_digest = hashlib.sha256(normalized.encode('utf-8')).hexdigest()
 
+```text
     return f"sha256:{hash_digest}"
+```
 ```text
 
 - When tracking content items in separate tables/collections

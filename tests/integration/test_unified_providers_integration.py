@@ -25,8 +25,8 @@ class TestUnifiedProvidersIntegration(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
-            speaker_detector_provider="ner",
-            summary_provider="local",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
             transcribe_missing=False,
             auto_speakers=False,
             generate_summaries=False,
@@ -191,8 +191,8 @@ class TestProviderSwitchingIntegration(unittest.TestCase):
         ml_cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
-            speaker_detector_provider="ner",
-            summary_provider="local",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
         )
 
         openai_cfg = config.Config(
@@ -223,7 +223,7 @@ class TestProviderSwitchingIntegration(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",  # ML
             speaker_detector_provider="openai",  # OpenAI
-            summary_provider="local",  # ML
+            summary_provider="transformers",  # ML
             openai_api_key="sk-test123",
         )
 

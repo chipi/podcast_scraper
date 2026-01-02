@@ -50,35 +50,58 @@ from ml_model_cache_helpers import (  # noqa: E402
 )
 
 # Check if ML dependencies are available
+# Use lazy imports to avoid loading heavy libraries (torch/transformers) at module import time
+# This reduces initial memory footprint for test workers
 WHISPER_AVAILABLE = False
 SPACY_AVAILABLE = False
 TRANSFORMERS_AVAILABLE = False
 
-try:
-    import whisper  # noqa: F401
 
-    WHISPER_AVAILABLE = True
-except ImportError:
-    pass
+def _check_whisper_available():
+    """Lazy check for Whisper availability."""
+    global WHISPER_AVAILABLE
+    if WHISPER_AVAILABLE:
+        return True
+    try:
+        import whisper  # noqa: F401
 
-try:
-    import spacy  # noqa: F401
+        WHISPER_AVAILABLE = True
+        return True
+    except ImportError:
+        return False
 
-    SPACY_AVAILABLE = True
-except ImportError:
-    pass
 
-try:
-    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer  # noqa: F401
+def _check_spacy_available():
+    """Lazy check for spaCy availability."""
+    global SPACY_AVAILABLE
+    if SPACY_AVAILABLE:
+        return True
+    try:
+        import spacy  # noqa: F401
 
-    TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    pass
+        SPACY_AVAILABLE = True
+        return True
+    except ImportError:
+        return False
+
+
+def _check_transformers_available():
+    """Lazy check for Transformers availability (avoids loading torch at import time)."""
+    global TRANSFORMERS_AVAILABLE
+    if TRANSFORMERS_AVAILABLE:
+        return True
+    try:
+        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer  # noqa: F401
+
+        TRANSFORMERS_AVAILABLE = True
+        return True
+    except ImportError:
+        return False
 
 
 @pytest.mark.integration
 @pytest.mark.ml_models
-@unittest.skipIf(not WHISPER_AVAILABLE, "Whisper dependencies not available")
+@unittest.skipIf(not _check_whisper_available(), "Whisper dependencies not available")
 class TestWhisperProviderRealModel(unittest.TestCase):
     """Test Whisper provider with real model loading."""
 
@@ -132,7 +155,7 @@ class TestWhisperProviderRealModel(unittest.TestCase):
 
 @pytest.mark.integration
 @pytest.mark.ml_models
-@unittest.skipIf(not SPACY_AVAILABLE, "spaCy dependencies not available")
+@unittest.skipIf(not _check_spacy_available(), "spaCy dependencies not available")
 class TestSpacyProviderRealModel(unittest.TestCase):
     """Test spaCy NER provider with real model loading."""
 
@@ -199,7 +222,7 @@ class TestSpacyProviderRealModel(unittest.TestCase):
 
 @pytest.mark.integration
 @pytest.mark.ml_models
-@unittest.skipIf(not TRANSFORMERS_AVAILABLE, "Transformers dependencies not available")
+@unittest.skipIf(not _check_transformers_available(), "Transformers dependencies not available")
 class TestTransformersProviderRealModel(unittest.TestCase):
     """Test Transformers summarization provider with real model loading."""
 
@@ -286,7 +309,9 @@ class TestTransformersProviderRealModel(unittest.TestCase):
 @pytest.mark.integration
 @pytest.mark.ml_models
 @unittest.skipIf(
-    not (WHISPER_AVAILABLE and SPACY_AVAILABLE and TRANSFORMERS_AVAILABLE),
+    not (
+        _check_whisper_available() and _check_spacy_available() and _check_transformers_available()
+    ),
     "Not all ML dependencies available",
 )
 class TestAllProvidersRealModels(unittest.TestCase):

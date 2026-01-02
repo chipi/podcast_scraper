@@ -292,6 +292,7 @@ This RFC defines a new category of **Acceptance Tests** that verify all examples
 
    ```bash
    pytest tests/acceptance/ -v -m acceptance --disable-socket --allow-hosts=127.0.0.1,localhost
+
 ````
 
 4. **Failure Handling**:
@@ -309,6 +310,7 @@ This RFC defines a new category of **Acceptance Tests** that verify all examples
 **GitHub Actions Workflow:**
 
 ````yaml
+
 test-acceptance:
   runs-on: ubuntu-latest
   needs: [test-unit, test-integration, test-e2e]
@@ -327,12 +329,15 @@ test-acceptance:
 
         pip install -e ".[dev,ml]"
 
+```text
     - name: Run acceptance tests (final validation gate)
       timeout-minutes: 30
+```
 
       run: |
         pytest tests/acceptance/ -v -m acceptance \
           --disable-socket --allow-hosts=127.0.0.1,localhost
+
 ```text
 
 - GitHub Actions workflow update

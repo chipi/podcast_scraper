@@ -285,7 +285,7 @@ class TestFullPipelineE2E:
             generate_metadata=True,
             metadata_format="json",
             generate_summaries=True,
-            summary_provider="local",
+            summary_provider="transformers",
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
             auto_speakers=False,  # Disable to avoid loading spaCy
             transcribe_missing=False,  # No transcription needed
@@ -337,7 +337,7 @@ class TestFullPipelineE2E:
             generate_metadata=True,
             metadata_format="json",
             generate_summaries=True,
-            summary_provider="local",
+            summary_provider="transformers",
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             auto_speakers=True,
             ner_model=config.DEFAULT_NER_MODEL,
@@ -489,7 +489,7 @@ class TestFullPipelineE2E:
             generate_metadata=True,
             metadata_format="json",
             generate_summaries=True,
-            summary_provider="local",
+            summary_provider="transformers",
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             auto_speakers=True,
             ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production

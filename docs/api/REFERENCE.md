@@ -194,7 +194,7 @@ config = Config(
 
 ---
 
-### `load_config_file`
+## `load_config_file`
 
 Load configuration from a JSON or YAML file.
 
@@ -350,7 +350,7 @@ else:
 
 ---
 
-### `service.run_from_config_file`
+## `service.run_from_config_file`
 
 Run the pipeline from a configuration file.
 

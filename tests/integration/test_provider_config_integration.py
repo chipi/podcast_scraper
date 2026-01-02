@@ -155,7 +155,9 @@ class TestProviderFactories(unittest.TestCase):
         """Test that speaker detector factory creates detector."""
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml", speaker_detector_provider="spacy"
+        )
         detector = create_speaker_detector(cfg)
         self.assertIsNotNone(detector)
         # Verify it's the unified ML provider

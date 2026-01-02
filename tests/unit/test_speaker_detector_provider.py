@@ -15,7 +15,9 @@ class TestSpeakerDetectorFactory(unittest.TestCase):
 
     def test_create_ner_detector(self):
         """Test that factory creates MLProvider for 'ner'."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml", speaker_detector_provider="spacy"
+        )
         detector = create_speaker_detector(cfg)
         self.assertIsNotNone(detector)
         # Verify it's the unified ML provider
@@ -44,7 +46,9 @@ class TestSpeakerDetectorFactory(unittest.TestCase):
 
     def test_factory_returns_detector_instance(self):
         """Test that factory returns a detector instance."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml", speaker_detector_provider="spacy"
+        )
         detector = create_speaker_detector(cfg)
         # Verify it has the expected methods
         self.assertTrue(hasattr(detector, "detect_speakers"))
@@ -58,7 +62,7 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
         """Set up test fixtures."""
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=True,  # Enable for speaker detection tests
             ner_model=config.DEFAULT_NER_MODEL,
         )
@@ -202,7 +206,7 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
         # Create detector with auto_speakers disabled
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
         )
         detector = create_speaker_detector(cfg)
@@ -232,7 +236,9 @@ class TestSpeakerDetectorProtocol(unittest.TestCase):
 
     def test_detector_implements_protocol(self):
         """Test that MLProvider implements SpeakerDetector protocol."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="ner")
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml", speaker_detector_provider="spacy"
+        )
         detector = create_speaker_detector(cfg)
 
         # Check that detector has required protocol methods

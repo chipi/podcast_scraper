@@ -27,8 +27,8 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
-            speaker_detector_provider="ner",
-            summary_provider="local",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
             generate_summaries=False,
             auto_speakers=False,
             transcribe_missing=False,  # Don't initialize Whisper for speaker detector tests
@@ -81,8 +81,8 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
-            speaker_detector_provider="ner",
-            summary_provider="local",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
             generate_summaries=False,
             auto_speakers=False,
             transcribe_missing=True,  # Enable Whisper initialization for transcription provider test
@@ -132,7 +132,7 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
         # Use test default (bart-base) for MAP model, not production default (bart-large)
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_metadata=True,
             generate_summaries=True,
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (bart-base), not production default (bart-large)
@@ -159,7 +159,7 @@ class TestSpeakerDetectorDetectHosts(unittest.TestCase):
         """Set up test fixtures."""
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=True,  # Required for detect_hosts() to work
             transcribe_missing=False,  # Don't initialize Whisper for speaker detector tests
         )
@@ -298,7 +298,7 @@ class TestSpeakerDetectorClearCache(unittest.TestCase):
         """Set up test fixtures."""
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,  # clear_cache() doesn't require auto_speakers
             transcribe_missing=False,  # Don't initialize Whisper for speaker detector tests
         )
@@ -361,8 +361,8 @@ class TestProtocolMethodCompleteness(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
-            speaker_detector_provider="ner",
-            summary_provider="local",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
             generate_summaries=False,
             auto_speakers=False,
         )

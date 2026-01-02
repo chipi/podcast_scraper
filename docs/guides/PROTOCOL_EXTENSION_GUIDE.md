@@ -45,16 +45,18 @@ class TranscriptionProvider(Protocol):
         Returns:
             Dictionary with results
 
+```text
         Raises:
             RuntimeError: If provider is not initialized
             ValueError: If operation fails
         """
         ...
+```
 ```text
 
 Add the method implementation to all existing provider implementations:
 
-#### Example: WhisperTranscriptionProvider
+## Example: WhisperTranscriptionProvider
 
 ```python
 
@@ -161,21 +163,27 @@ class TranscriptionProvider(Protocol):
     ) -> tuple[dict[str, object], float]:
         """Transcribe audio file and return full result with segments.
 
+```text
         Returns:
             Tuple of (result_dict, elapsed_time)
         """
+```
 
+```text
         # Default implementation
+```
 
+```python
         import time
         start_time = time.time()
         text = self.transcribe(audio_path, language)
         elapsed = time.time() - start_time
         return {"text": text, "segments": []}, elapsed
+```
 
 ```markdown
 
-#### WhisperTranscriptionProvider
+## WhisperTranscriptionProvider
 
 ```python
 
@@ -229,7 +237,7 @@ if transcription_provider is not None:
 
 ```text
 
-### 1. Provide Default Implementation When Possible
+## 1. Provide Default Implementation When Possible
 
 If a method can have a reasonable default implementation, provide it in the protocol:
 

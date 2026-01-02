@@ -274,7 +274,7 @@ curl -s <https://chipi.github.io/podcast_scraper/metrics/latest.json> | jq '.ale
 ```text
 - Can append without rewriting entire file
 
-### 4. GitHub Actions Integration
+## 4. GitHub Actions Integration
 
 **Workflow Step:**
 
@@ -299,7 +299,9 @@ curl -s <https://chipi.github.io/podcast_scraper/metrics/latest.json> | jq '.ale
       --history metrics/history.jsonl \
       --output metrics/index.html
 
+```text
     # Publish to gh-pages branch
+```
 
     git checkout gh-pages || git checkout --orphan gh-pages
     git add metrics/
@@ -324,7 +326,7 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.trend
 ```text
 - No external access needed
 
-### Method 4: Automated Alerts (0 seconds)
+## Method 4: Automated Alerts (0 seconds)
 
 - GitHub Actions can comment on PRs with metric changes
 - Slack/Discord webhooks for significant deviations
@@ -386,7 +388,9 @@ def detect_deviations(current, history):
             "message": f"Coverage dropped by {avg_coverage - current['coverage']:.1f}%"
         })
 
+```text
     return alerts
+```
 
 ```text
 - Simple deviation detection

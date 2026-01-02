@@ -29,25 +29,31 @@ via CLI, config files, and programmatically.
 Use `--transcription-provider`, `--speaker-detector-provider`, and `--summary-provider` flags:
 
 ```bash
+
 # Use all local ML providers (default)
+
 podcast-scraper --rss https://example.com/feed.xml
 
 # Use OpenAI for transcription
+
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider openai \
   --openai-api-key sk-your-key-here
 
 # Use OpenAI for speaker detection
+
 podcast-scraper --rss https://example.com/feed.xml \
   --speaker-detector-provider openai \
   --openai-api-key sk-your-key-here
 
 # Use OpenAI for summarization
+
 podcast-scraper --rss https://example.com/feed.xml \
   --summary-provider openai \
   --openai-api-key sk-your-key-here
 
 # Mixed configuration: Whisper transcription + OpenAI speaker detection + Local summarization
+
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider whisper \
   --speaker-detector-provider openai \
@@ -55,6 +61,7 @@ podcast-scraper --rss https://example.com/feed.xml \
   --openai-api-key sk-your-key-here
 
 # All OpenAI providers
+
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider openai \
   --speaker-detector-provider openai \
@@ -77,33 +84,40 @@ podcast-scraper --rss https://example.com/feed.xml \
   --openai-api-key sk-test123
 ```
 
-### 2. Configuration File (YAML/JSON)
+## 2. Configuration File (YAML/JSON)
 
 Create a config file (e.g., `config.yaml`) with provider settings:
 
 ```yaml
+
 # config.yaml
+
 rss: https://example.com/feed.xml
 output_dir: ./transcripts
 
 # Provider configuration
+
 transcription_provider: whisper  # or "openai"
 speaker_detector_provider: ner  # or "openai"
 summary_provider: local  # or "openai"
 
 # OpenAI configuration (required if using OpenAI providers)
+
 openai_api_key: sk-your-key-here  # Optional: can use OPENAI_API_KEY env var instead
 openai_api_base: null  # Optional: custom base URL (e.g., "http://localhost:8000/v1" for E2E testing)
 
 # Transcription settings (for whisper provider)
+
 transcribe_missing: true
 whisper_model: base  # or "tiny", "small", "medium", "large", etc.
 
 # Speaker detection settings (for spacy provider)
+
 auto_speakers: true
 ner_model: en_core_web_sm  # spaCy model name
 
 # Summarization settings (for local provider)
+
 generate_summaries: true
 summary_model: facebook/bart-large-cnn  # Transformers model
 summary_device: cpu  # or "cuda", "mps"
@@ -135,11 +149,13 @@ podcast-scraper --config config.yaml
 **Config file with CLI overrides:**
 
 ```bash
+
 # Config file sets defaults, CLI flags override
+
 podcast-scraper --config config.yaml --transcription-provider openai
 ```
 
-### 3. Programmatic (Library API)
+## 3. Programmatic (Library API)
 
 Create a `Config` object and pass it to `run_pipeline()`:
 
@@ -147,6 +163,7 @@ Create a `Config` object and pass it to `run_pipeline()`:
 from podcast_scraper import Config, run_pipeline
 
 # All local ML providers (default)
+
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     output_dir="./transcripts",
@@ -156,6 +173,7 @@ cfg = Config(
 )
 
 # OpenAI transcription
+
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="openai",
@@ -163,6 +181,7 @@ cfg = Config(
 )
 
 # OpenAI speaker detection
+
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     speaker_detector_provider="openai",
@@ -170,6 +189,7 @@ cfg = Config(
 )
 
 # OpenAI summarization
+
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     summary_provider="openai",
@@ -178,6 +198,7 @@ cfg = Config(
 )
 
 # Mixed configuration
+
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="whisper",      # MLProvider
@@ -187,6 +208,7 @@ cfg = Config(
 )
 
 # All OpenAI providers
+
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="openai",
@@ -199,9 +221,10 @@ cfg = Config(
 )
 
 # Run pipeline
+
 count, summary = run_pipeline(cfg)
 print(f"Processed {count} episodes: {summary}")
-```
+```python
 
 **Load from config file programmatically:**
 
@@ -209,10 +232,12 @@ print(f"Processed {count} episodes: {summary}")
 from podcast_scraper import Config, load_config_file
 
 # Load config file
+
 config_dict = load_config_file("config.yaml")
 cfg = Config(**config_dict)
 
 # Override provider settings
+
 cfg = Config(
     **config_dict,
     transcription_provider="openai",  # Override from file
@@ -220,6 +245,7 @@ cfg = Config(
 )
 
 # Run pipeline
+
 count, summary = run_pipeline(cfg)
 ```
 
@@ -246,9 +272,11 @@ When using multiple methods, priority is:
 Example:
 
 ```bash
+
 # config.yaml has: transcription_provider: whisper
 # CLI has: --transcription-provider openai
 # Result: openai (CLI overrides config file)
+
 podcast-scraper --config config.yaml --transcription-provider openai
 ```
 
@@ -257,13 +285,17 @@ podcast-scraper --config config.yaml --transcription-provider openai
 You can also set provider-related settings via environment variables:
 
 ```bash
+
 # OpenAI API key
+
 export OPENAI_API_KEY=sk-your-key-here
 
 # OpenAI API base URL (for E2E testing)
+
 export OPENAI_API_BASE=http://localhost:8000/v1
 
 # Then use in CLI or config
+
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider openai
 ```
@@ -312,7 +344,9 @@ openai_api_key: sk-your-key-here
 ```yaml
 transcription_provider: whisper
 transcribe_missing: true
+
 # No speaker detection or summarization
+
 auto_speakers: false
 generate_summaries: false
 ```
@@ -322,13 +356,16 @@ generate_summaries: false
 Invalid provider types will raise `ValueError`:
 
 ```python
+
 # ❌ Invalid - will raise ValueError
+
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="invalid",  # Not "whisper" or "openai"
 )
 
 # ✅ Valid
+
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="whisper",  # Valid option
@@ -338,7 +375,9 @@ cfg = Config(
 Missing OpenAI API key when using OpenAI providers will raise `ValueError`:
 
 ```python
+
 # ❌ Invalid - will raise ValueError
+
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="openai",
@@ -346,6 +385,7 @@ cfg = Config(
 )
 
 # ✅ Valid
+
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="openai",
@@ -376,19 +416,20 @@ podcast-scraper --rss https://example.com/feed.xml \
 ### Example 3: Mixed Providers (Config File)
 
 ```yaml
+
 # config.yaml
+
 rss: https://example.com/feed.xml
 transcription_provider: whisper
 speaker_detector_provider: openai
 summary_provider: local
 openai_api_key: sk-your-key-here
 ```
-
 ```bash
 podcast-scraper --config config.yaml
 ```
 
-### Example 4: Programmatic Mixed Providers
+## Example 4: Programmatic Mixed Providers
 
 ```python
 from podcast_scraper import Config, run_pipeline

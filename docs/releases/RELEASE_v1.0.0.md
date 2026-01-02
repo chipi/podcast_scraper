@@ -93,7 +93,6 @@ prefer_type:
   - .srt
 speaker_names:
 
-
   - Host
   - Guest
 workers: 6
@@ -110,7 +109,7 @@ dry_run: false
 - `openai-whisper` - Transcription engine (optional)
 - `ffmpeg` - Audio processing for Whisper (optional)
 
-### Architecture
+## Architecture
 
 - Single-file monolithic architecture for simplicity
 - Function-based design with clear separation of concerns
@@ -184,4 +183,5 @@ MIT License - see LICENSE file for details
 ---
 
 **Note:** This is the baseline release that established the core functionality. Version 2.0.0 introduced a major refactoring to a modular architecture while maintaining backward compatibility with v1.0.0 configurations and usage patterns.
+
 ````

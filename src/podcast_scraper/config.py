@@ -32,6 +32,28 @@ DEFAULT_USER_AGENT = (
 )
 DEFAULT_WORKERS = max(1, min(8, os.cpu_count() or 4))
 DEFAULT_LANGUAGE = "en"
+
+
+def _is_test_environment() -> bool:
+    """Check if we're running in a test environment.
+
+    Returns:
+        True if running in pytest or other test framework, False otherwise
+    """
+    # Check for pytest environment variable
+    if os.environ.get("PYTEST_CURRENT_TEST") is not None:
+        return True
+    # Check for unittest environment
+    if "unittest" in os.environ.get("_", ""):
+        return True
+    # Check if pytest is in sys.modules (already imported)
+    import sys
+
+    if "pytest" in sys.modules:
+        return True
+    return False
+
+
 DEFAULT_NER_MODEL = "en_core_web_sm"
 DEFAULT_MAX_DETECTED_NAMES = 4
 MIN_NUM_SPEAKERS = 1
@@ -72,6 +94,16 @@ DEFAULT_SUMMARY_MIN_LENGTH = (
     60  # Per SUMMARY_REVIEW.md: chunk summaries should be at least 60 tokens
 )
 DEFAULT_SUMMARY_BATCH_SIZE = 1
+# Maximum parallel workers for episode summarization (memory-bound)
+# Lower values reduce memory usage but may slow down processing
+# Production: Higher values for better throughput
+# Tests/Dev: Lower values to reduce memory footprint
+DEFAULT_SUMMARY_MAX_WORKERS_CPU = 4  # Production default for CPU
+DEFAULT_SUMMARY_MAX_WORKERS_CPU_TEST = (
+    1  # Test/dev default for CPU (reduces memory - sequential processing)
+)
+DEFAULT_SUMMARY_MAX_WORKERS_GPU = 2  # Production default for GPU
+DEFAULT_SUMMARY_MAX_WORKERS_GPU_TEST = 1  # Test/dev default for GPU (reduces memory)
 DEFAULT_SUMMARY_CHUNK_SIZE = (
     2048  # Default token chunk size (BART models support up to 1024, but larger chunks work safely)
 )
@@ -382,6 +414,24 @@ class Config(BaseModel):
             "API providers handle internally via rate limiting)"
         ),
     )
+    summary_max_workers_cpu: Optional[int] = Field(
+        default=None,  # Will be set by validator based on environment
+        alias="summary_max_workers_cpu",
+        description=(
+            "Maximum parallel workers for episode summarization on CPU. "
+            "Defaults to 1 in test environments, 4 in production. "
+            "Lower values reduce memory usage."
+        ),
+    )
+    summary_max_workers_gpu: Optional[int] = Field(
+        default=None,  # Will be set by validator based on environment
+        alias="summary_max_workers_gpu",
+        description=(
+            "Maximum parallel workers for episode summarization on GPU. "
+            "Defaults to 1 in test environments, 2 in production. "
+            "Lower values reduce memory usage."
+        ),
+    )
     summary_chunk_size: Optional[int] = Field(default=None, alias="summary_chunk_size")
     summary_word_chunk_size: Optional[int] = Field(
         default=DEFAULT_SUMMARY_WORD_CHUNK_SIZE,
@@ -522,12 +572,25 @@ class Config(BaseModel):
                     data["log_file"] = env_value
 
         # SUMMARY_CACHE_DIR / CACHE_DIR: Only set from env if not in config
+        # Also check for local cache in project root
         if "summary_cache_dir" not in data or data.get("summary_cache_dir") is None:
             env_cache_dir = os.getenv("SUMMARY_CACHE_DIR") or os.getenv("CACHE_DIR")
             if env_cache_dir:
                 env_value = str(env_cache_dir).strip()
                 if env_value:
                     data["summary_cache_dir"] = env_value
+            else:
+                # Check for local cache in project root
+                try:
+                    from .cache_utils import get_project_root
+
+                    project_root = get_project_root()
+                    local_cache = project_root / ".cache" / "huggingface" / "hub"
+                    if local_cache.exists():
+                        data["summary_cache_dir"] = str(local_cache)
+                except Exception:
+                    # If cache_utils not available, continue without local cache
+                    pass
 
         # WORKERS: Only set from env if not in config
         if "workers" not in data or data.get("workers") is None:
@@ -1037,6 +1100,38 @@ class Config(BaseModel):
             raise ValueError("summary_batch_size must be at least 1")
         return batch_size
 
+    @field_validator("summary_max_workers_cpu", mode="before")
+    @classmethod
+    def _validate_summary_max_workers_cpu(cls, v: Any) -> Optional[int]:
+        """Set default max workers for CPU based on environment."""
+        if v is None or v == "":
+            # Return None - will be handled in workflow code based on environment
+            return None
+        if not isinstance(v, int):
+            try:
+                v = int(v)
+            except (ValueError, TypeError) as exc:
+                raise ValueError("summary_max_workers_cpu must be an integer") from exc
+        if v < 1:
+            raise ValueError("summary_max_workers_cpu must be at least 1")
+        return int(v)
+
+    @field_validator("summary_max_workers_gpu", mode="before")
+    @classmethod
+    def _validate_summary_max_workers_gpu(cls, v: Any) -> Optional[int]:
+        """Set default max workers for GPU based on environment."""
+        if v is None or v == "":
+            # Return None - will be handled in workflow code based on environment
+            return None
+        if not isinstance(v, int):
+            try:
+                v = int(v)
+            except (ValueError, TypeError) as exc:
+                raise ValueError("summary_max_workers_gpu must be an integer") from exc
+        if v < 1:
+            raise ValueError("summary_max_workers_gpu must be at least 1")
+        return int(v)
+
     @field_validator("summary_chunk_parallelism", mode="before")
     @classmethod
     def _ensure_chunk_parallelism(cls, value: Any) -> int:
@@ -1077,6 +1172,8 @@ class Config(BaseModel):
     @model_validator(mode="after")
     def _validate_cross_field_settings(self) -> "Config":
         """Cross-field validation for configuration settings.
+
+        Also sets default values for summary_max_workers based on environment.
 
         Validates logical relationships and dependencies between configuration fields:
 

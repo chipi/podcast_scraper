@@ -126,7 +126,7 @@ class TestLibraryAPIBasic:
                 max_episodes=1,
                 generate_metadata=True,  # Required for summaries
                 generate_summaries=True,
-                summary_provider="local",  # Use local provider (no API key needed)
+                summary_provider="transformers",  # Use transformers provider (no API key needed)
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Test default: bart-base
                 transcribe_missing=True,
             )
@@ -164,7 +164,7 @@ class TestLibraryAPIBasic:
                 generate_metadata=True,
                 metadata_format="json",
                 generate_summaries=True,
-                summary_provider="local",  # Use local provider (no API key needed)
+                summary_provider="transformers",  # Use transformers provider (no API key needed)
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Test default: bart-base
                 transcribe_missing=True,
             )

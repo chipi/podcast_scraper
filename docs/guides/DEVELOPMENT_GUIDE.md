@@ -39,9 +39,9 @@ The test suite is organized into three main categories (RFC-018):
 
 **Key Features:**
 
-- **Test Execution**: Tests run sequentially by default (simpler, clearer output)
-- **Flaky Test Reruns**: Failed tests can be automatically retried using
-  `pytest-rerunfailures` (`--reruns 2 --reruns-delay 1`)
+- **Test Execution**: Serial tests run first, then parallel tests (`-n auto`)
+- **Network Isolation**: All tests use `--disable-socket --allow-hosts=127.0.0.1,localhost`
+- **Flaky Test Reruns**: Integration/E2E tests retry with `--reruns 2 --reruns-delay 1`
 
 - **Test Markers**: All integration tests have `@pytest.mark.integration`, all e2e tests have `@pytest.mark.e2e`
 - **Network Marker**: E2E tests that make real network calls should have `@pytest.mark.network`
@@ -94,6 +94,7 @@ make test-reruns
 
    with patch.dict("sys.modules", {"spacy": MagicMock()}):
        from podcast_scraper import speaker_detection
+
 ````
 
 1. **Use lazy imports** (future improvement): Import ML dependencies inside functions, not at module level
@@ -112,8 +113,10 @@ See `TESTING_STRATEGY.md` for comprehensive testing guidelines and `../CONTRIBUT
 **Quick setup:**
 
 ````bash
+
 bash scripts/setup_venv.sh
 source .venv/bin/activate
+
 ```text
 ```text
 
@@ -442,7 +445,7 @@ from podcast_scraper.models import Episode
 
 ```javascript
 
-### Every New Function Needs
+## Every New Function Needs
 
 ✅ **Unit test with mocks for external dependencies:**
 
@@ -489,7 +492,7 @@ def test_whisper(self):
 - **Documentation update** (README, API docs, or relevant guide)
 - **Examples** if user-facing
 
-### Mock External Dependencies
+## Mock External Dependencies
 
 Always mock external dependencies in tests:
 
@@ -587,52 +590,49 @@ pytest tests/unit/ -v  # Unit tests, sequential, verbose
 
 If your test needs to perform file operations, use `tempfile` operations (which are allowed), or move the test to `tests/integration/` or `tests/e2e/`.
 
-**Test Execution (Sequential by Default):**
+**Test Execution (Serial First, Then Parallel):**
 
-All tests run sequentially by default for simpler execution and clearer output. This makes debugging easier and avoids parallel execution issues.
+Tests run with serial tests first (sequentially), then remaining tests in parallel:
 
 ```bash
 
-# Default: sequential execution (simpler, clearer output)
+# Default: serial first, then parallel
 
-make test
-pytest
+make test-unit            # Unit tests with network isolation
+make test-integration     # Integration tests with reruns
+make test-e2e             # E2E tests (serial first, then parallel)
+make test                 # All tests
 
-# Explicitly sequential (same as default, for clarity)
+# Fast variants (critical path only)
+
+make test-fast            # Unit + critical path integration + e2e
+make test-integration-fast
+make test-e2e-fast
+
+# Sequential (for debugging)
 
 make test-sequential
-pytest  # No -n flag
+make test-unit-sequential
 
-# Parallel execution (default for most targets)
+```
 
-make test-unit  # Already runs in parallel (-n auto)
-pytest -n auto  # Or use pytest directly with -n auto
+**Network isolation**: All tests use `--disable-socket --allow-hosts=127.0.0.1,localhost`.
 
-```yaml
-- **Simpler debugging**: Sequential output is easier to read and debug
-- **No parallel issues**: Avoids race conditions and timing problems
-- **Clearer test output**: Easier to identify which test failed
-- **Resource usage**: More predictable CPU and memory usage
+**E2E test modes** (`E2E_TEST_MODE` env var):
 
-**When to Use Parallel Execution:**
+- `fast`: 1 episode (quick)
+- `multi_episode`: 5 episodes (full validation)
+- `data_quality`: All mock data (nightly)
 
-- **Large test suites**: If test execution time becomes a bottleneck
-- **CI/CD optimization**: When speed is critical and tests are stable
-- **Use with caution**: Parallel execution can mask timing issues and make debugging harder
-
-**Flaky Test Reruns:**
-
-For tests that occasionally fail due to timing or external factors:
+**Flaky Test Reruns** (integration/E2E only):
 
 ```bash
 
-# Retry failed tests (2 retries, 1 second delay)
+# Automatic in make targets, or manually:
 
 pytest --reruns 2 --reruns-delay 1
 
-```text
-
-- New user-facing features
+```
 - Significant functionality additions
 - Changes that affect user workflows
 
@@ -643,7 +643,7 @@ pytest --reruns 2 --reruns-delay 1
 - PRD-004: Metadata Generation
 - PRD-005: Episode Summarization
 
-### When to Create RFC (Request for Comments)
+## When to Create RFC (Request for Comments)
 
 Create an RFC for:
 
@@ -842,7 +842,7 @@ make install-hooks
 
 ```yaml
 
-### Modularity
+## Modularity
 
 - **Single Responsibility:** Each module should have one clear purpose
 - **Loose Coupling:** Modules should depend on abstractions, not concrete implementations
@@ -877,7 +877,7 @@ transcribe_missing(jobs, model="base")
 3. Document in README options section
 4. Update config examples in `examples/`
 
-### Error Handling
+## Error Handling
 
 **Follow these patterns:**
 
@@ -904,15 +904,18 @@ if cfg.workers < 1:
 # Graceful degradation for optional features
 
 try:
+
+```python
     import whisper
     WHISPER_AVAILABLE = True
-except ImportError:
+```
+
     WHISPER_AVAILABLE = False
     logger.warning("Whisper not available, transcription disabled")
 
 ```text
 
-#### Log Level Guidelines
+## Log Level Guidelines
 
 **Use `logger.info()` for:**
 
@@ -948,7 +951,7 @@ except ImportError:
 - Critical failures
 - Validation failures
 
-#### Examples
+### Examples
 
 ```python
 
@@ -1002,7 +1005,7 @@ logger.debug("[MAP-REDUCE VALIDATION] Input text: %d chars, %d words", ...)
 - INFO: Detection results ("→ Guest: %s")
 - DEBUG: Model download attempts, detection failures
 
-#### Rationale
+## Rationale
 
 This approach ensures:
 
@@ -1076,7 +1079,7 @@ def load_whisper():
 
 **Keep concerns separated** - don't mix HTTP calls in CLI, don't put business logic in config, etc.
 
-### When to Create New Files
+## When to Create New Files
 
 **Create new modules when:**
 

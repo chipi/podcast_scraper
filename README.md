@@ -65,7 +65,7 @@ make init
 
 See `pyproject.toml` for complete dependency specifications.
 
-### Basic Usage
+## Basic Usage
 
 ```bash
 
@@ -111,4 +111,5 @@ mkdocs serve
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 **Important:** The MIT license applies only to the source code in this repository. It does not grant any rights to redistribute or publicly share any third-party podcast content retrieved or processed using this software. See [Legal Notice & Appropriate Use](docs/LEGAL.md) for more information.
+
 ````

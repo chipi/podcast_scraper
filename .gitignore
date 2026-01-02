@@ -37,3 +37,7 @@ data/results/
 .env
 .env.local
 .env.*.local
+
+# Local ML model cache - ignore all contents except README.md
+.cache/*
+!.cache/README.md

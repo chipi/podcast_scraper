@@ -208,7 +208,7 @@ class TestProviderSwitching(unittest.TestCase):
     def test_speaker_detector_switching(self):
         """Test that speaker detector can be switched via config."""
         cfg1 = config.Config(
-            rss_url="https://example.com/feed.xml", speaker_detector_provider="ner"
+            rss_url="https://example.com/feed.xml", speaker_detector_provider="spacy"
         )
         detector1 = create_speaker_detector(cfg1)
         # Verify protocol compliance, not class name
@@ -239,7 +239,7 @@ class TestProviderSwitching(unittest.TestCase):
         """Test that summarization provider can be switched via config."""
         cfg1 = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
         provider1 = create_summarization_provider(cfg1)
@@ -289,7 +289,7 @@ class TestProviderErrorHandling(unittest.TestCase):
         """Test graceful handling when speaker detector fails to initialize."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
         )
         detector = create_speaker_detector(cfg)
@@ -303,7 +303,7 @@ class TestProviderErrorHandling(unittest.TestCase):
         """Test graceful handling when summarization provider fails to initialize."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
         provider = create_summarization_provider(cfg)
@@ -317,7 +317,7 @@ class TestProviderErrorHandling(unittest.TestCase):
         """Test graceful handling when provider methods fail after initialization."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
         provider = create_summarization_provider(cfg)

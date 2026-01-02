@@ -130,7 +130,6 @@
   "example": "output structure"
 }
 ```
-output: "structure"
 
 ```json
 - [Question 3: e.g., "How to handle multi-speaker transcripts in summaries?"]

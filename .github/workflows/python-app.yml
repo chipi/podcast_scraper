@@ -30,6 +30,7 @@ jobs:
   # Fast checks - no heavy ML dependencies
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # Conservative timeout for linting
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
@@ -60,6 +61,7 @@ jobs:
   # Unit tests - fast, no ML dependencies, network isolation enforced
   test-unit:
     runs-on: ubuntu-latest
+    timeout-minutes: 15  # Conservative timeout for fast unit tests
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
@@ -83,7 +85,7 @@ jobs:
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         # Run tests and capture output and exit code
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/unit/ -v --tb=short -n auto 2>&1)
+        OUTPUT=$(pytest tests/unit/ -v --tb=short -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -116,6 +118,7 @@ jobs:
   # Optimized: Check cache FIRST (no Python needed), only set up Python if cache misses
   preload-ml-models:
     runs-on: ubuntu-latest
+    timeout-minutes: 20  # Conservative timeout for model preloading (usually cache hit, ~2 min)
     steps:
     - uses: actions/checkout@v4
     - name: Cache ML models (check first - no Python needed, if cache hits job completes in ~6-12s)
@@ -156,6 +159,7 @@ jobs:
   # Full integration tests - all integration tests, runs on PRs and main branch
   test-integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 30  # Conservative timeout for integration tests with ML models
     needs: [preload-ml-models]
     if: |
       (github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')) ||
@@ -196,7 +200,7 @@ jobs:
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         # Run all integration tests with network guard
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/integration/ -v -m integration -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(pytest tests/integration/ -v -m integration -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -267,7 +271,7 @@ jobs:
         # Run tests with network guard: --disable-socket --allow-hosts=127.0.0.1,localhost
         # Critical path tests only for faster CI feedback
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/integration/ -v -m "integration and critical_path" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        OUTPUT=$(pytest tests/integration/ -v -m "integration and critical_path" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -341,7 +345,7 @@ jobs:
         # Run tests with network guard: --disable-socket --allow-hosts=127.0.0.1,localhost
         # Critical path tests only for faster CI feedback
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/e2e/ -v -m "e2e and critical_path" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        OUTPUT=$(pytest tests/e2e/ -v -m "e2e and critical_path" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -370,6 +374,7 @@ jobs:
   # Full E2E tests - all E2E tests, runs on PRs and main branch
   test-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 45  # Conservative timeout for E2E tests with ML models
     needs: [preload-ml-models]
     if: |
       (github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')) ||
@@ -414,7 +419,7 @@ jobs:
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         # Run all E2E tests with network guard
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/e2e/ -v -m e2e -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(pytest tests/e2e/ -v -m e2e -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"

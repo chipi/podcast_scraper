@@ -174,16 +174,24 @@ openai_api_key: Optional[str] = Field(
 @field_validator('openai_api_key', mode='before')
 @classmethod
 def load_api_key_from_env(cls, v: Any) -> Optional[str]:
+
+```python
     """Load API key from environment variable if not provided."""
     if v is not None:
         return v
     return os.getenv('OPENAI_API_KEY')
+```
 
 @model_validator(mode='after')
 def validate_openai_config(self) -> 'Config':
-    """Validate OpenAI provider configuration."""
 
+```text
+    """Validate OpenAI provider configuration."""
+```
+
+```text
     # Check if OpenAI provider is selected but API key is missing
+```
 
     needs_key = (
         self.speaker_detector_provider == "openai" or
@@ -191,6 +199,7 @@ def validate_openai_config(self) -> 'Config':
         self.summary_provider == "openai"
     )
 
+```text
     if needs_key and not self.openai_api_key:
         raise ValueError(
             "OpenAI API key required when using OpenAI providers. "
@@ -198,6 +207,7 @@ def validate_openai_config(self) -> 'Config':
             "or set openai_api_key in config file."
         )
     return self
+```
 ```text
 
 1. **Create `.env` file** in project root (never commit to git):
@@ -338,9 +348,9 @@ API key resolution order (highest to lowest priority):
 3. **`.env` file** (`OPENAI_API_KEY` from `.env` file)
 4. **None** (raises error if OpenAI provider is selected)
 
-### 3. OpenAI Provider Implementations
+## 3. OpenAI Provider Implementations
 
-#### 3.1 Speaker Detection Provider
+### 3.1 Speaker Detection Provider
 
 **File**: `podcast_scraper/speaker_detectors/openai_detector.py`
 
@@ -367,9 +377,13 @@ class OpenAISpeakerDetector:
         feed_description: Optional[str],
         feed_authors: Optional[List[str]],
     ) -> Set[str]:
+
+```python
         """Detect hosts from feed metadata using OpenAI API."""
         prompt = self._build_host_detection_prompt(feed_title, feed_description, feed_authors)
+```
 
+```python
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -380,15 +394,19 @@ class OpenAISpeakerDetector:
                 temperature=0.3,
                 max_tokens=200,
             )
+```
 
             hosts_text = response.choices[0].message.content
             hosts = self._parse_hosts_from_response(hosts_text)
             return hosts
 
+```text
         except Exception as e:
             logger.error(f"OpenAI API error in host detection: {e}")
             raise
+```
 
+```python
     def detect_speakers(
         self,
         episode_title: str,
@@ -399,7 +417,9 @@ class OpenAISpeakerDetector:
         prompt = self._build_speaker_detection_prompt(
             episode_title, episode_description, known_hosts
         )
+```
 
+```text
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -410,6 +430,7 @@ class OpenAISpeakerDetector:
                 temperature=0.3,
                 max_tokens=300,
             )
+```
 
             speakers_text = response.choices[0].message.content
             speakers, detected_hosts, success = self._parse_speakers_from_response(
@@ -417,23 +438,34 @@ class OpenAISpeakerDetector:
             )
             return speakers, detected_hosts, success
 
+```text
         except Exception as e:
             logger.error(f"OpenAI API error in speaker detection: {e}")
             raise
+```
 
+```python
     def analyze_patterns(
         self,
         episodes: List[models.Episode],
         known_hosts: Set[str],
     ) -> Optional[Dict[str, Any]]:
         """Analyze episode patterns using OpenAI API (optional, can use local logic)."""
+```
 
+```text
         # Can use local pattern analysis or OpenAI API
+```
 
+```text
         # For now, return None to use local logic
+```
 
+```text
         return None
+```
 
+```python
     def _build_host_detection_prompt(
         self,
         feed_title: str,
@@ -441,12 +473,14 @@ class OpenAISpeakerDetector:
         feed_authors: Optional[List[str]],
     ) -> str:
         """Build prompt for host detection using prompt_store (RFC-017).
+```
 
         Prompts are loaded from versioned files via prompt_store, enabling
         prompt engineering without code changes.
         """
         from ..prompt_store import render_prompt
 
+```text
         return render_prompt(
             self.cfg.ner_user_prompt or "ner/guest_host_v1",
             feed_title=feed_title,
@@ -454,11 +488,16 @@ class OpenAISpeakerDetector:
             feed_authors=", ".join(feed_authors) if feed_authors else "",
             **self.cfg.ner_prompt_params,
         )
+```
 
+```python
     def _parse_hosts_from_response(self, response_text: str) -> Set[str]:
         """Parse host names from API response."""
+```
 
+```text
         # Implementation details...
+```
 
         pass
 
@@ -511,6 +550,7 @@ class OpenAITranscriptionProvider:
         """Initialize provider (no local model loading needed for API)."""
         return self  # Return self as resource
 
+```python
     def transcribe(
         self,
         media_path: str,
@@ -519,9 +559,13 @@ class OpenAITranscriptionProvider:
     ) -> Tuple[Dict[str, Any], float]:
         """Transcribe media file using OpenAI Whisper API."""
         import time
+```
 
+```text
         start_time = time.time()
+```
 
+```text
         try:
             with open(media_path, 'rb') as audio_file:
                 transcript = self.client.audio.transcriptions.create(
@@ -530,10 +574,15 @@ class OpenAITranscriptionProvider:
                     language=getattr(cfg, 'whisper_language', None),  # Optional language hint
                     response_format="verbose_json",  # Get segments
                 )
+```
 
+```text
             elapsed = time.time() - start_time
+```
 
+```text
             # Convert to same format as local Whisper provider
+```
 
             result = {
                 'text': transcript.text,
@@ -549,15 +598,21 @@ class OpenAITranscriptionProvider:
                 'language': transcript.language if hasattr(transcript, 'language') else None,
             }
 
+```text
             return result, elapsed
+```
 
+```text
         except Exception as e:
             logger.error(f"OpenAI Whisper API error: {e}")
             raise
+```
 
+```python
     def cleanup(self, resource: Any) -> None:
         """Cleanup provider resources (no-op for API provider)."""
         pass
+```
 
 ```text
 
@@ -566,7 +621,7 @@ class OpenAITranscriptionProvider:
 - Handle file uploads correctly
 - Support parallelism (multiple API calls can run concurrently)
 
-#### 3.3 Summarization Provider
+## 3.3 Summarization Provider
 
 **File**: `podcast_scraper/summarization/openai_provider.py`
 
@@ -593,10 +648,13 @@ class OpenAISummarizationProvider:
 
         self.max_context_tokens = 128000  # Conservative estimate
 
+```python
     def initialize(self, cfg: config.Config) -> Optional[Any]:
         """Initialize provider (no local model loading needed for API)."""
         return self  # Return self as resource
+```
 
+```python
     def summarize(
         self,
         text: str,
@@ -606,15 +664,21 @@ class OpenAISummarizationProvider:
         min_length: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Summarize text using OpenAI GPT API.
+```
 
+```text
         Can handle full transcripts directly due to large context window (128k+ tokens).
         No chunking needed for most podcast transcripts.
         """
         max_length = max_length or getattr(cfg, 'summary_max_length', 150)
         min_length = min_length or getattr(cfg, 'summary_min_length', 30)
+```
 
+```text
         prompt = self._build_summarization_prompt(text, max_length, min_length)
+```
 
+```text
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -625,9 +689,11 @@ class OpenAISummarizationProvider:
                 temperature=0.3,
                 max_tokens=max_length,
             )
+```
 
             summary = response.choices[0].message.content
 
+```text
             return {
                 'summary': summary,
                 'metadata': {
@@ -635,11 +701,15 @@ class OpenAISummarizationProvider:
                     'provider': 'openai',
                 }
             }
+```
 
+```text
         except Exception as e:
             logger.error(f"OpenAI API error in summarization: {e}")
             raise
+```
 
+```python
     def summarize_chunks(
         self,
         chunks: List[str],
@@ -647,6 +717,7 @@ class OpenAISummarizationProvider:
         resource: Any,
     ) -> List[str]:
         """Summarize multiple text chunks (MAP phase).
+```
 
         NOTE: For OpenAI, this is typically not needed due to large context window.
         However, we maintain this interface for compatibility. If chunks can fit in
@@ -654,32 +725,51 @@ class OpenAISummarizationProvider:
         summarize each chunk separately.
         """
 
+```text
         # Check if we can combine chunks into single API call
+```
 
+```text
         combined_text = "\n\n".join(chunks)
         estimated_tokens = len(combined_text.split()) * 1.3  # Rough token estimate
+```
 
+```text
         if estimated_tokens < self.max_context_tokens * 0.8:  # 80% safety margin
+```
 
+```text
             # Can fit all chunks in one call - more efficient
+```
 
+```text
             logger.debug("Combining chunks for single OpenAI API call (fits in context window)")
             result = self.summarize(combined_text, cfg, resource)
+```
 
+```text
             # Return as single summary (workflow will handle this correctly)
+```
 
+```text
             return [result['summary']]
         else:
+```
 
+```text
             # Too long, summarize chunks separately (rare case)
+```
 
+```text
             logger.debug("Chunks too long, summarizing separately")
             summaries = []
             for chunk in chunks:
                 result = self.summarize(chunk, cfg, resource)
                 summaries.append(result['summary'])
             return summaries
+```
 
+```python
     def combine_summaries(
         self,
         summaries: List[str],
@@ -687,22 +777,34 @@ class OpenAISummarizationProvider:
         resource: Any,
     ) -> str:
         """Combine multiple summaries into final summary (REDUCE phase).
+```
 
+```text
         NOTE: For OpenAI, if summarize_chunks() combined chunks into one call,
         this method may receive a single summary. In that case, we can return it
         directly or refine it. For multiple summaries, we combine them.
         """
         if len(summaries) == 1:
+```
 
+```text
             # Already combined in summarize_chunks() - can return directly or refine
+```
 
+```text
             return summaries[0]
+```
 
+```text
         # Multiple summaries to combine
+```
 
+```text
         combined_text = "\n\n".join(summaries)
         prompt = self._build_combination_prompt(combined_text)
+```
 
+```text
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -713,16 +815,23 @@ class OpenAISummarizationProvider:
                 temperature=0.3,
                 max_tokens=getattr(cfg, 'summary_max_length', 150),
             )
+```
 
+```text
             return response.choices[0].message.content
+```
 
+```text
         except Exception as e:
             logger.error(f"OpenAI API error in summary combination: {e}")
             raise
+```
 
+```python
     def cleanup(self, resource: Any) -> None:
         """Cleanup provider resources (no-op for API provider)."""
         pass
+```
 
 ```yaml
 
@@ -818,9 +927,9 @@ user_prompt = render_prompt(
 
 See RFC-017 for complete prompt management design.
 
-### 5. Parallelism Considerations
+## 5. Parallelism Considerations
 
-#### 5.1 Current Parallelism
+### 5.1 Current Parallelism
 
 **Local Providers:**
 
@@ -871,22 +980,32 @@ class RateLimiter:
 
             self.call_times = [t for t in self.call_times if now - t < 60]
 
+```text
             if len(self.call_times) >= self.max_calls_per_minute:
+```
 
+```text
                 # Wait until we can make a call
+```
 
+```text
                 sleep_time = 60 - (now - self.call_times[0])
                 if sleep_time > 0:
                     time.sleep(sleep_time)
                     self.call_times = [t for t in self.call_times if now - t < 60]
+```
 
+```text
         self.semaphore.acquire()
         with self.lock:
             self.call_times.append(time.time())
+```
 
+```python
     def release(self):
         """Release after API call completes."""
         self.semaphore.release()
+```
 
 ```text
 
@@ -909,8 +1028,11 @@ class OpenAISummarizationProvider:
                     summary = future.result()
                     summaries.append(summary)
                 finally:
+
+```text
                     _openai_rate_limiter.release()
         return summaries
+```
 ```text
 ```python
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -933,7 +1055,7 @@ def _call_openai_api(self, ...):
 - Actionable error messages (e.g., "Check OPENAI_API_KEY environment variable")
 - Log API errors with context (but not API keys)
 
-### 7. Dependencies
+## 7. Dependencies
 
 **Add to `pyproject.toml`:**
 
@@ -949,25 +1071,27 @@ openai = [
 ````
 
 ```bash
+
 # For OpenAI support
+
 pip install -e ".[openai]"
 
 # Or with all ML dependencies
+
 ```
-pip install -e ".[ml,openai]"
 
 ````text
 - Test error handling and retries
 - Test rate limiting
 
-#### 8.2 Integration Tests
+## 8.2 Integration Tests
 
 - Optional tests with real API (requires API key)
 - Test end-to-end workflow with OpenAI providers
 - Test parallelism with API providers
 - Test error scenarios (invalid key, rate limits)
 
-#### 8.3 Backward Compatibility Tests
+### 8.3 Backward Compatibility Tests
 
 - Verify default behavior unchanged (local providers)
 - Verify existing tests still pass
@@ -1077,9 +1201,13 @@ class CustomSpeakerDetector:
 
         pass
 
+```python
     def analyze_patterns(self, ...) -> Optional[Dict[str, Any]]:
+```
 
+```text
         # Custom implementation
+```
 
         pass
 
@@ -1108,15 +1236,22 @@ class SpeakerDetectorFactory:
             from .ner_detector import NERSpeakerDetector
             return NERSpeakerDetector(cfg)
         elif detector_type == 'openai':
+
+```python
             from .openai_detector import OpenAISpeakerDetector
             return OpenAISpeakerDetector(cfg)
+```
 
+```text
         # Contributors can add custom providers here
+```
 
+```python
         elif detector_type == 'custom':
             from external_package import CustomSpeakerDetector
             return CustomSpeakerDetector(cfg)
         return None
+```
 ```text
 ```python
 
@@ -1149,7 +1284,7 @@ These serve as:
 - **Default providers** for users who don't need custom implementations
 - **Examples** for contributors
 
-### Contributor Implementations
+## Contributor Implementations
 
 We expect and encourage contributors to create their own provider implementations.
 
@@ -1175,6 +1310,7 @@ class DeepgramTranscriptionProvider:
         """Initialize Deepgram client."""
         return self
 
+```python
     def transcribe(
         self,
         media_path: str,
@@ -1184,27 +1320,38 @@ class DeepgramTranscriptionProvider:
         """Transcribe using Deepgram API."""
         import time
         start_time = time.time()
+```
 
+```text
         with open(media_path, 'rb') as audio_file:
             response = self.client.transcription.sync_prerecorded(
                 {'buffer': audio_file},
                 {'punctuate': True, 'model': 'nova'}
             )
+```
 
+```text
         elapsed = time.time() - start_time
+```
 
+```text
         # Return same format as protocol requires
+```
 
         result = {
             'text': response['results']['channels'][0]['alternatives'][0]['transcript'],
             'segments': [...],  # Convert Deepgram format to standard format
         }
 
+```text
         return result, elapsed
+```
 
+```python
     def cleanup(self, resource: Any) -> None:
         """Cleanup resources."""
         pass
+```
 ```python
 
 # In factory or plugin system
@@ -1237,13 +1384,19 @@ def test_speaker_detector_protocol():
 
     # Type checker verifies protocol compliance
 
+```text
     detector: SpeakerDetector = MockDetector()  # Must pass type check
+```
 
+```text
     # Runtime verification
+```
 
+```text
     assert hasattr(detector, 'detect_hosts')
     assert hasattr(detector, 'detect_speakers')
     assert hasattr(detector, 'analyze_patterns')
+```
 
 ```python
 
@@ -1294,19 +1447,27 @@ class TestNERSpeakerDetector:
         assert isinstance(detected_hosts, set)
         assert isinstance(success, bool)
 
+```python
     def test_protocol_compliance(self):
         """Verify protocol interface compliance."""
         detector = NERSpeakerDetector(cfg)
+```
 
+```text
         # Type check
+```
 
         detector_typed: SpeakerDetector = detector
 
+```text
         # Runtime check
+```
 
+```text
         assert hasattr(detector, 'detect_hosts')
         assert hasattr(detector, 'detect_speakers')
         assert hasattr(detector, 'analyze_patterns')
+```
 
 ```text
 
@@ -1316,11 +1477,11 @@ class TestNERSpeakerDetector:
 - ✅ Mock providers for testing workflow without real providers
 - ✅ Integration tests with real providers (optional, requires API keys)
 
-### Documentation & Examples
+## Documentation & Examples
 
 **New Extensibility Documentation** (`docs/EXTENSIBILITY.md`):
 
-#### Architecture Overview
+### Architecture Overview
 
 - How provider system works (protocol-based design)
 - Factory pattern usage
@@ -1374,11 +1535,15 @@ class MinimalSpeakerDetector:
         feed_description: Optional[str],
         feed_authors: Optional[List[str]],
     ) -> Set[str]:
+
+```text
         """Detect hosts - minimal implementation."""
         if feed_authors:
             return set(feed_authors)
         return set()
+```
 
+```python
     def detect_speakers(
         self,
         episode_title: str,
@@ -1388,7 +1553,9 @@ class MinimalSpeakerDetector:
         """Detect speakers - minimal implementation."""
         speakers = list(known_hosts)
         return speakers, known_hosts, True
+```
 
+```python
     def analyze_patterns(
         self,
         episodes: List[models.Episode],
@@ -1396,6 +1563,7 @@ class MinimalSpeakerDetector:
     ) -> Optional[Dict[str, Any]]:
         """Analyze patterns - optional."""
         return None
+```
 
 ```python
 
@@ -1418,10 +1586,15 @@ class FullFeaturedSpeakerDetector:
 
             pass
         except Exception as e:
+
+```text
             self.logger.error(f"Error detecting hosts: {e}")
             raise
+```
 
+```text
     # ... rest of implementation
+```
 
 ```text
 
@@ -1443,10 +1616,14 @@ def test_custom_provider_protocol():
     assert hasattr(custom_detector, 'detect_speakers')
     assert hasattr(custom_detector, 'analyze_patterns')
 
+```text
     # Functional tests
+```
 
+```text
     hosts = custom_detector.detect_hosts(...)
     assert isinstance(hosts, set)
+```
 
 ```text
 
@@ -1549,9 +1726,11 @@ def test_summarization_provider_protocol_compliance():
 
     # Return type validation
 
+```text
     result = provider.summarize("test text", cfg)
     assert isinstance(result, dict)
     assert 'summary' in result
+```
 
 ```text
 
@@ -1594,20 +1773,30 @@ class MyCustomSummarizationProvider:
     def __init__(self, cfg: config.Config):
         self.cfg = cfg
 
+```python
     def initialize(self) -> None:
         """Initialize provider resources."""
         pass
+```
 
+```python
     def summarize(self, text: str, cfg: config.Config) -> Dict[str, Any]:
         """Summarize text using custom logic."""
+```
 
+```text
         # Your implementation here
+```
 
+```text
         return {"summary": "Custom summary", "method": "custom"}
+```
 
+```python
     def cleanup(self) -> None:
         """Clean up provider resources."""
         pass
+```
 \`\`\`
 
 ## Registering Your Provider
@@ -1617,17 +1806,22 @@ class MyCustomSummarizationProvider:
 # In podcast_scraper/summarization/factory.py
 
 def create(cfg: config.Config):
+
+```python
     if cfg.summary_provider == "my-custom":
         from .my_custom_provider import MyCustomSummarizationProvider
         return MyCustomSummarizationProvider(cfg)
+```
 
+```text
     # ... existing logic
+```
 
 \`\`\`
 
 ```text
 
-### 3. Environment Variable Documentation (`docs/api/CONFIGURATION.md`)
+## 3. Environment Variable Documentation (`docs/api/CONFIGURATION.md`)
 
 **Purpose:** Comprehensive reference for all environment variables
 
@@ -1687,7 +1881,7 @@ environment:
 - Verify key hasn't been revoked: https://platform.openai.com/api-keys
 - Test with: `python -c "import os; print(os.getenv('OPENAI_API_KEY')[:10])"`
 
-### OPENAI_ORGANIZATION (Optional)
+## OPENAI_ORGANIZATION (Optional)
 
 **Description:** OpenAI organization ID (for users in multiple orgs)
 
@@ -1803,7 +1997,7 @@ def migrate_local_to_transformers(cls, v):
 
 ```text
 
-### OpenAI Rate Limits (as of December 2025)
+## OpenAI Rate Limits (as of December 2025)
 
 OpenAI uses a tiered rate limiting system based on usage:
 
@@ -1907,7 +2101,7 @@ openai_tokens_per_minute: 1000000
    - **Retry-able:** RateLimitError, APITimeoutError, APIConnectionError, InternalServerError
    - **Non-retry-able:** AuthenticationError, PermissionDeniedError, BadRequestError, NotFoundError
 
-### Error Messages
+## Error Messages
 
 **Rate Limit Error (after retries):**
 
@@ -1945,9 +2139,10 @@ Get your API key: https://platform.openai.com/api-keys
 - Integration tests for API error handling
 - Protocol compliance tests
 
-### References
+## References
 
 - [OpenAI Rate Limits Documentation](https://platform.openai.com/docs/guides/rate-limits)
 - [OpenAI API Reference](https://platform.openai.com/docs/api-reference)
 - [Tenacity Library](https://tenacity.readthedocs.io/)
+
 ````

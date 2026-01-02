@@ -245,7 +245,7 @@ pytest --reruns 2 --reruns-delay 1
 - Fail test run if unit test makes network request or performs filesystem I/O
 - Add to CI pipeline as separate check
 
-### 5. Implementation Stages
+## 5. Implementation Stages
 
 **Stage 1: Setup Structure**
 
@@ -575,13 +575,17 @@ jobs:
       - name: Run unit tests
         run: |
 
+```text
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/unit/ -n auto --cov=podcast_scraper --cov-report=term-missing
+```
 
       - name: Verify no network calls or filesystem I/O in unit tests
         run: |
 
+```text
           # Plugin automatically detects network calls and filesystem I/O
+```
 
           pytest tests/unit/ || exit 1
 
@@ -595,10 +599,12 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
 
+```text
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
+```
 
       - name: Install dependencies
         run: |
@@ -609,8 +615,10 @@ jobs:
       - name: Run integration tests
         run: |
 
+```text
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/integration/ -m integration -n auto --reruns 2 --reruns-delay 1
+```
 
   # Workflow E2E tests - run on main branch
 
@@ -623,10 +631,12 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
 
+```text
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
+```
 
       - name: Install dependencies
         run: |
@@ -637,8 +647,10 @@ jobs:
       - name: Run workflow E2E tests
         run: |
 
+```text
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/e2e/ -m e2e --reruns 2 --reruns-delay 1
+```
 
   # Full test suite (backward compatibility)
 
@@ -650,10 +662,12 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
 
+```text
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
+```
 
       - name: Install dependencies
         run: |
@@ -661,11 +675,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev,ml]
 
+```text
       - name: Run all tests (except network)
         run: |
+```
 
+```text
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/ -m "not network" -n auto --cov=podcast_scraper --cov-report=term-missing --reruns 2 --reruns-delay 1
+```
 ```text
 ```yaml
 paths:
@@ -724,4 +742,5 @@ Together, these three RFCs form a complete testing strategy:
 - [pytest-xdist documentation](https://pytest-xdist.readthedocs.io/)
 - [pytest-rerunfailures documentation](https://pytest-rerunfailures.readthedocs.io/)
 - Follow-up work: `docs/rfc/RFC-019-e2e-test-improvements.md`, `docs/rfc/RFC-020-integration-test-improvements.md`
+
 ````

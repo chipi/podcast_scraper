@@ -77,10 +77,13 @@ For each:
 1. **Prepare:**
    - Cleaned transcript (input)
    - A human-written "reference summary":
+
+```text
      - Could be:
        - Show notes
        - Detailed episode description
        - Manually written by you (best, but time-consuming)
+```
 
 2. **Store in a simple structure, e.g.:**
 
@@ -153,15 +156,21 @@ If you have human/reference summaries, you can compute:
     ```
 
     ```python
+```python
     from pathlib import Path
     from rouge_score import rouge_scorer
+```
 
+```python
     def load_text(path):
         return Path(path).read_text(encoding="utf-8")
+```
 
+```python
     def rouge_for_pair(pred_path, ref_path):
         pred = load_text(pred_path)
         ref = load_text(ref_path)
+```
 
         scorer = rouge_scorer.RougeScorer(
             ["rouge1", "rouge2", "rougeL"],
@@ -169,11 +178,17 @@ If you have human/reference summaries, you can compute:
         )
         scores = scorer.score(ref, pred)
 
+```text
         # scores is a dict with precision/recall/fmeasure
+```
 
+```text
         return scores
+```
 
+```text
     # example
+```
 
     scores = rouge_for_pair(
         "data/eval/ep01/model_summary.txt",
@@ -250,7 +265,9 @@ You can create a simple regression test workflow:
         --output results/bart_run_01.json
     ```
 
+```text
     Or use a config file:
+```
 
     ```bash
     python scripts/eval_summaries.py \
@@ -271,6 +288,7 @@ You can create a simple regression test workflow:
 1. Keep baseline numbers in version control, e.g.:
 
     ```json
+```text
     {
     "model": "bart_map_reduce",
     "mean_rougeL_f": 0.29,
@@ -278,6 +296,7 @@ You can create a simple regression test workflow:
     "avg_runtime_seconds": 41.2
     }
     ```
+```
 
 1. When you change model, chunking strategy, or cleaning, re-run eval and compare:
 

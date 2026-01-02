@@ -71,7 +71,6 @@ The unified provider architecture addresses these issues by:
 ### Unified Provider Structure
 
 ```
-├── ML Provider (ml/ml_provider.py)
 │   ├── TranscriptionProvider (Whisper)
 │   ├── SpeakerDetector (spaCy)
 │   └── SummarizationProvider (Transformers)
@@ -500,7 +499,6 @@ The naming is inconsistent:
 ### Test File Organization
 
 ```
-├── unit/
 │   └── podcast_scraper/
 │       ├── ml/
 │       │   ├── test_ml_provider.py              # Core functionality

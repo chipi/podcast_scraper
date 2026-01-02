@@ -17,11 +17,11 @@ import os
 import sys
 import time
 from contextlib import contextmanager
-from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from .. import config, models, progress, speaker_detection, summarizer
+from ..cache_utils import get_whisper_cache_dir
 
 logger = logging.getLogger(__name__)
 
@@ -284,8 +284,8 @@ class MLProvider:
             logger.debug("Fallback chain: %s", fallback_models)
 
         # Check cache directory for pre-cached models
-        # Whisper caches models in ~/.cache/whisper/{model_name}.pt
-        whisper_cache = Path.home() / ".cache" / "whisper"
+        # Prefer local cache in project root, fallback to ~/.cache/whisper/
+        whisper_cache = get_whisper_cache_dir()
         logger.debug(
             "Whisper cache directory: %s (exists: %s)", whisper_cache, whisper_cache.exists()
         )
@@ -313,13 +313,16 @@ class MLProvider:
                 )
 
             try:
+                # Use download_root parameter to specify cache directory directly
+                # This is more reliable than environment variable
+                whisper_cache_str = str(whisper_cache)
                 if attempt_model != model_name:
                     logger.debug(
                         "Trying fallback Whisper model: %s (requested: %s)",
                         attempt_model,
                         model_name,
                     )
-                model = whisper_lib.load_model(attempt_model)
+                model = whisper_lib.load_model(attempt_model, download_root=whisper_cache_str)
                 if attempt_model != model_name:
                     logger.debug(
                         "Loaded fallback Whisper model: %s (requested %s was not available)",
@@ -868,8 +871,11 @@ class MLProvider:
         # Cleanup Transformers
         if self._transformers_initialized:
             logger.debug("Cleaning up Transformers models")
+            # Properly unload models to free memory and clean up threads
             if self._reduce_model and self._reduce_model != self._map_model:
-                self._reduce_model = None
+                summarizer.unload_model(self._reduce_model)
+            if self._map_model:
+                summarizer.unload_model(self._map_model)
             self._map_model = None
             self._reduce_model = None
             self._transformers_initialized = False

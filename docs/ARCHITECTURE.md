@@ -147,6 +147,7 @@ graph TB
         Summarizer[summarizer.py]
     end
 
+```python
     CLI --> Config
     CLI --> Workflow
     CLI --> Progress
@@ -179,6 +180,7 @@ graph TB
     Metadata --> Models
     Summarizer --> Models
     SpeakerDetect --> Models
+```
 
     style CLI fill:#e1f5ff
     style Config fill:#fff3cd
