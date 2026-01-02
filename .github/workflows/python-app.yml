@@ -153,11 +153,13 @@ jobs:
       if: steps.cache-models.outputs.cache-hit != 'true'
       run: make preload-ml-models
 
-  # Full integration tests - all integration tests, runs on main branch only
+  # Full integration tests - all integration tests, runs on PRs and main branch
   test-integration:
     runs-on: ubuntu-latest
     needs: [preload-ml-models]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: |
+      (github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -221,15 +223,13 @@ jobs:
         # Keep model caches for next run (they're cached via GitHub Actions cache)
         rm -rf .pytest_cache .mypy_cache .build dist
 
-  # Fast integration tests - critical path only, runs on PRs only (not on main)
-  # Skip for documentation-only PRs
+  # Fast integration tests - DISABLED: Fast tests take similar time as full tests
+  # These are kept for local use only via `make test-integration-fast`
+  # Full integration tests now run on both PRs and main branch
   test-integration-fast:
     runs-on: ubuntu-latest
     needs: [preload-ml-models]
-    if: |
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
-      !contains(github.event.pull_request.head.ref, 'docs/')
+    if: false  # Disabled - fast tests don't provide value, use full tests instead
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -293,15 +293,13 @@ jobs:
       run: |
         rm -rf .pytest_cache .mypy_cache .build dist
 
-  # Fast E2E tests - critical path only, runs on PRs only (not on main)
-  # Skip for documentation-only PRs
+  # Fast E2E tests - DISABLED: Fast tests take similar time as full tests
+  # These are kept for local use only via `make test-e2e-fast`
+  # Full E2E tests now run on both PRs and main branch
   test-e2e-fast:
     runs-on: ubuntu-latest
     needs: [preload-ml-models]
-    if: |
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
-      !contains(github.event.pull_request.head.ref, 'docs/')
+    if: false  # Disabled - fast tests don't provide value, use full tests instead
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -369,11 +367,13 @@ jobs:
       run: |
         rm -rf .pytest_cache .mypy_cache .build dist
 
-  # Full E2E tests - all E2E tests, runs on main branch only
+  # Full E2E tests - all E2E tests, runs on PRs and main branch
   test-e2e:
     runs-on: ubuntu-latest
     needs: [preload-ml-models]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: |
+      (github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space

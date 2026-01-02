@@ -125,7 +125,8 @@ class TestSpeakerDetectorErrorHandling(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ner",
-            auto_speakers=False,
+            auto_speakers=True,  # Required for detect_speakers() to work
+            transcribe_missing=False,  # Don't initialize Whisper for speaker detector tests
         )
         detector = create_speaker_detector(cfg)
 

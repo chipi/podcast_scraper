@@ -31,7 +31,7 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
             summary_provider="local",
             generate_summaries=False,
             auto_speakers=False,
-            transcribe_missing=True,
+            transcribe_missing=False,  # Don't initialize Whisper for speaker detector tests
         )
 
     def test_transcription_provider_has_initialize(self):
@@ -148,7 +148,8 @@ class TestSpeakerDetectorDetectHosts(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ner",
-            auto_speakers=False,
+            auto_speakers=True,  # Required for detect_hosts() to work
+            transcribe_missing=False,  # Don't initialize Whisper for speaker detector tests
         )
 
     def test_detector_has_detect_hosts_method(self):
@@ -286,7 +287,8 @@ class TestSpeakerDetectorClearCache(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ner",
-            auto_speakers=False,
+            auto_speakers=False,  # clear_cache() doesn't require auto_speakers
+            transcribe_missing=False,  # Don't initialize Whisper for speaker detector tests
         )
 
     def test_detector_has_clear_cache_method(self):

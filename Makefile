@@ -101,11 +101,13 @@ docs:
 
 test-unit:
 	# Unit tests: parallel execution for faster feedback
-	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n auto
+	# Network isolation enabled to match CI behavior and catch network dependency issues early
+	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-unit-sequential:
 	# Unit tests: sequential execution (slower but clearer output, useful for debugging)
-	pytest --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e'
+	# Network isolation enabled to match CI behavior and catch network dependency issues early
+	pytest --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-unit-no-ml: init-no-ml
 	@echo "Running unit tests without ML dependencies (matches CI test-unit job)..."
@@ -115,16 +117,19 @@ test-unit-no-ml: init-no-ml
 	@$(PYTHON) scripts/check_unit_test_imports.py
 	@echo ""
 	@echo "Step 2: Running unit tests..."
-	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e'
+	# Network isolation enabled to match CI behavior and catch network dependency issues early
+	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration:
 	# Integration tests: parallel execution (3.4x faster, significant benefit)
 	# Includes reruns for flaky tests (matches CI behavior)
-	pytest tests/integration/ -m integration -n auto --reruns 2 --reruns-delay 1
+	# Network isolation enabled to match CI behavior and catch network dependency issues early
+	pytest tests/integration/ -m integration -n auto --reruns 2 --reruns-delay 1 --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration-sequential:
 	# Integration tests: sequential execution (slower but clearer output, useful for debugging)
-	pytest tests/integration/ -m integration
+	# Network isolation enabled to match CI behavior and catch network dependency issues early
+	pytest tests/integration/ -m integration --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration-fast:
 	# Fast integration tests: critical path tests only (includes ML tests if models are cached)
@@ -187,7 +192,8 @@ test:
 test-sequential:
 	# All tests: sequential execution (slower but clearer output, useful for debugging)
 	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
-	E2E_TEST_MODE=multi_episode pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing
+	# Network isolation enabled to match CI behavior and catch network dependency issues early
+	E2E_TEST_MODE=multi_episode pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-fast:
 	# Fast tests: serial tests first (sequentially), then parallel execution for the rest
@@ -199,7 +205,8 @@ test-fast:
 	@E2E_TEST_MODE=fast pytest -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
 
 test-reruns:
-	pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e'
+	# Network isolation enabled to match CI behavior and catch network dependency issues early
+	pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
 
 coverage: test-unit
 
