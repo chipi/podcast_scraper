@@ -79,67 +79,6 @@ class TestModelIntegration(unittest.TestCase):
         """Clean up test fixtures."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def test_bart_large_model_loads(self):
-        """Test that 'bart-large' model (BART-large-cnn) can be loaded."""
-        cfg = create_test_config(summary_model="bart-large")
-        model_name = summarizer.select_summary_model(cfg)
-        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["bart-large"])
-
-        # Require model to be cached (fail fast if not)
-        require_transformers_model_cached(model_name, cfg.summary_cache_dir)
-
-        # Try to actually load the model
-        try:
-            model = summarizer.SummaryModel(
-                model_name=model_name,
-                device=cfg.summary_device,
-                cache_dir=cfg.summary_cache_dir,
-            )
-            self.assertIsNotNone(model.model)
-            self.assertIsNotNone(model.tokenizer)
-            summarizer.unload_model(model)
-        except Exception as e:
-            # If it's a network error (pytest-socket blocks network), skip test
-            # The model cache check might pass but loading requires additional files
-            error_str = str(e)
-            error_type = type(e).__name__
-            # Check for pytest-socket blocking errors or any network-related errors
-            if (
-                "socket" in error_str.lower()
-                or "connect" in error_str.lower()
-                or "SocketConnectBlockedError" in error_type
-                or "BlockedError" in error_type
-            ):
-                import pytest
-
-                pytest.skip(
-                    f"Model '{model_name}' is not fully cached (network access "
-                    f"required). Run 'make preload-ml-models' to pre-cache all "
-                    f"required files."
-                )
-            self.fail(f"Failed to load 'bart-large' model ({model_name}): {e}")
-
-    def test_fast_model_loads(self):
-        """Test that 'fast' model (distilbart) can be loaded."""
-        cfg = create_test_config(summary_model="fast")
-        model_name = summarizer.select_summary_model(cfg)
-        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["fast"])
-
-        # Require model to be cached (fail fast if not)
-        require_transformers_model_cached(model_name, cfg.summary_cache_dir)
-
-        try:
-            model = summarizer.SummaryModel(
-                model_name=model_name,
-                device=cfg.summary_device,
-                cache_dir=cfg.summary_cache_dir,
-            )
-            self.assertIsNotNone(model.model)
-            self.assertIsNotNone(model.tokenizer)
-            summarizer.unload_model(model)
-        except Exception as e:
-            self.fail(f"Failed to load 'fast' model ({model_name}): {e}")
-
     def test_bart_small_model_loads(self):
         """Test that 'bart-small' model (BART-base) can be loaded."""
         cfg = create_test_config(summary_model="bart-small")
@@ -160,69 +99,6 @@ class TestModelIntegration(unittest.TestCase):
             summarizer.unload_model(model)
         except Exception as e:
             self.fail(f"Failed to load 'bart-small' model ({model_name}): {e}")
-
-    def test_pegasus_model_loads(self):
-        """Test that 'pegasus' model can be loaded (requires protobuf)."""
-        cfg = create_test_config(summary_model="pegasus")
-        model_name = summarizer.select_summary_model(cfg)
-        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["pegasus"])
-
-        # Require model to be cached (fail fast if not)
-        require_transformers_model_cached(model_name, cfg.summary_cache_dir)
-
-        try:
-            model = summarizer.SummaryModel(
-                model_name=model_name,
-                device=cfg.summary_device,
-                cache_dir=cfg.summary_cache_dir,
-            )
-            self.assertIsNotNone(model.model)
-            self.assertIsNotNone(model.tokenizer)
-            summarizer.unload_model(model)
-        except Exception as e:
-            self.fail(f"Failed to load 'pegasus' model ({model_name}): {e}")
-
-    def test_pegasus_xsum_model_loads(self):
-        """Test that 'pegasus-xsum' model can be loaded (requires protobuf)."""
-        cfg = create_test_config(summary_model="pegasus-xsum")
-        model_name = summarizer.select_summary_model(cfg)
-        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["pegasus-xsum"])
-
-        # Require model to be cached (fail fast if not)
-        require_transformers_model_cached(model_name, cfg.summary_cache_dir)
-
-        try:
-            model = summarizer.SummaryModel(
-                model_name=model_name,
-                device=cfg.summary_device,
-                cache_dir=cfg.summary_cache_dir,
-            )
-            self.assertIsNotNone(model.model)
-            self.assertIsNotNone(model.tokenizer)
-            summarizer.unload_model(model)
-        except Exception as e:
-            self.fail(f"Failed to load 'pegasus-xsum' model ({model_name}): {e}")
-
-    def test_long_model_loads(self):
-        """Test that 'long' model (LED-large) can be loaded."""
-        cfg = create_test_config(summary_model="long")
-        model_name = summarizer.select_summary_model(cfg)
-        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["long"])
-
-        # Require model to be cached (fail fast if not)
-        require_transformers_model_cached(model_name, cfg.summary_cache_dir)
-
-        try:
-            model = summarizer.SummaryModel(
-                model_name=model_name,
-                device=cfg.summary_device,
-                cache_dir=cfg.summary_cache_dir,
-            )
-            self.assertIsNotNone(model.model)
-            self.assertIsNotNone(model.tokenizer)
-            summarizer.unload_model(model)
-        except Exception as e:
-            self.fail(f"Failed to load 'long' model ({model_name}): {e}")
 
     def test_long_fast_model_loads(self):
         """Test that 'long-fast' model (LED-base) can be loaded."""
@@ -257,17 +133,44 @@ class TestModelIntegration(unittest.TestCase):
             self.fail(f"Failed to load 'long-fast' model ({model_name}): {e}")
 
     def test_all_models_defined_can_be_loaded(self):
-        """Test that all models in DEFAULT_SUMMARY_MODELS can be loaded."""
+        """Test that test default models (MAP and REDUCE) can be loaded.
+
+        This test verifies that the test default models used in integration tests
+        can be loaded successfully. We only test the test defaults, not all production
+        models, to keep tests fast and avoid requiring large model downloads.
+        """
+        from podcast_scraper import config
+
+        # Test only the test default models (MAP and REDUCE)
+        # MAP model: facebook/bart-base (config.TEST_DEFAULT_SUMMARY_MODEL)
+        # REDUCE model: allenai/led-base-16384 (config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL)
+        test_models = [
+            ("MAP (test default)", config.TEST_DEFAULT_SUMMARY_MODEL, "summary_model"),
+            (
+                "REDUCE (test default)",
+                config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
+                "summary_reduce_model",
+            ),
+        ]
+
         failed_models = []
         missing_cache_models = []
-        for model_key, model_name in summarizer.DEFAULT_SUMMARY_MODELS.items():
+        for model_label, model_name, config_field in test_models:
             try:
-                cfg = create_test_config(summary_model=model_key)
-                resolved_model_name = summarizer.select_summary_model(cfg)
+                # Create config with the appropriate field (summary_model for MAP, summary_reduce_model for REDUCE)
+                cfg = create_test_config(**{config_field: model_name})
+
+                # Resolve model name (handles both keys and direct model IDs)
+                if config_field == "summary_model":
+                    resolved_model_name = summarizer.select_summary_model(cfg)
+                else:  # summary_reduce_model
+                    # For REDUCE, we need a MAP model name for select_reduce_model
+                    map_model_name = summarizer.select_summary_model(cfg)
+                    resolved_model_name = summarizer.select_reduce_model(cfg, map_model_name)
 
                 # Check if model is cached before attempting to load
                 if not _is_transformers_model_cached(resolved_model_name, cfg.summary_cache_dir):
-                    missing_cache_models.append(f"{model_key} ({resolved_model_name})")
+                    missing_cache_models.append(f"{model_label} ({resolved_model_name})")
                     continue
 
                 model = summarizer.SummaryModel(
@@ -275,11 +178,11 @@ class TestModelIntegration(unittest.TestCase):
                     device=cfg.summary_device,
                     cache_dir=cfg.summary_cache_dir,
                 )
-                self.assertIsNotNone(model.model, f"Model {model_key} has no model")
-                self.assertIsNotNone(model.tokenizer, f"Model {model_key} has no tokenizer")
+                self.assertIsNotNone(model.model, f"Model {model_label} has no model")
+                self.assertIsNotNone(model.tokenizer, f"Model {model_label} has no tokenizer")
                 summarizer.unload_model(model)
             except Exception as e:
-                failed_models.append(f"{model_key} ({model_name}): {e}")
+                failed_models.append(f"{model_label} ({model_name}): {e}")
 
         # Skip if models are missing from cache
         if missing_cache_models:

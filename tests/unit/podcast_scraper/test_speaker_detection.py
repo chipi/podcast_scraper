@@ -89,7 +89,7 @@ class TestSpeakerDetection(unittest.TestCase):
 
         nlp = speaker_detection.get_ner_model(self.cfg)
         self.assertEqual(nlp, mock_nlp)
-        mock_load.assert_called_once_with("en_core_web_sm")
+        mock_load.assert_called_once_with(config.DEFAULT_NER_MODEL)
 
         # Second call should use cache (no additional load call)
         mock_load.reset_mock()

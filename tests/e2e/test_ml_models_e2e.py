@@ -116,7 +116,7 @@ class TestTransformersSummarization:
         rss_url = e2e_server.urls.feed("podcast1")
 
         # Require Whisper model for transcription (podcast1 has no transcript URL)
-        require_whisper_model_cached("tiny.en")
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -128,7 +128,7 @@ class TestTransformersSummarization:
                 summary_provider="transformers",
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 transcribe_missing=True,  # Required: podcast1 has no transcript URL
-                whisper_model="tiny.en",  # Smallest English-only model for speed
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             )
 
             # Run pipeline
@@ -163,7 +163,7 @@ class TestSpacySpeakerDetection:
             # Create config with smallest spaCy model for speed
             cfg = Config(
                 speaker_detector_provider="spacy",
-                ner_model="en_core_web_sm",  # Smallest spaCy model
+                ner_model=config.DEFAULT_NER_MODEL,  # Default: en_core_web_sm
                 auto_speakers=True,
             )
 
@@ -208,7 +208,7 @@ class TestSpacySpeakerDetection:
                 max_episodes=1,
                 auto_speakers=True,
                 speaker_detector_provider="spacy",
-                ner_model="en_core_web_sm",  # Smallest spaCy model
+                ner_model=config.DEFAULT_NER_MODEL,  # Default: en_core_web_sm
             )
 
             # Run pipeline

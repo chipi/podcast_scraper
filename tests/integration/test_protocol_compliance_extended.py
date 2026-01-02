@@ -31,7 +31,7 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
             summary_provider="local",
             generate_summaries=False,
             auto_speakers=False,
-            transcribe_missing=True,
+            transcribe_missing=False,  # Don't initialize Whisper for speaker detector tests
         )
 
     def test_transcription_provider_has_initialize(self):
@@ -77,7 +77,17 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
         mock_whisper_model = Mock()
         mock_whisper_lib.load_model.return_value = mock_whisper_model
         mock_import_whisper.return_value = mock_whisper_lib
-        provider = create_transcription_provider(self.cfg)
+        # Create config with transcribe_missing=True to enable Whisper initialization
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            speaker_detector_provider="ner",
+            summary_provider="local",
+            generate_summaries=False,
+            auto_speakers=False,
+            transcribe_missing=True,  # Enable Whisper initialization for transcription provider test
+        )
+        provider = create_transcription_provider(cfg)
 
         # Should not be initialized initially
         if hasattr(provider, "is_initialized"):
@@ -114,16 +124,18 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
         """Test that summarization provider can be initialized and cleaned up."""
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summary_model.return_value = Mock()
 
         # Use config with generate_summaries=True to ensure initialization
+        # Use test default (bart-base) for MAP model, not production default (bart-large)
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="local",
             generate_metadata=True,
             generate_summaries=True,
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (bart-base), not production default (bart-large)
         )
         provider = create_summarization_provider(cfg)
 
@@ -148,7 +160,8 @@ class TestSpeakerDetectorDetectHosts(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ner",
-            auto_speakers=False,
+            auto_speakers=True,  # Required for detect_hosts() to work
+            transcribe_missing=False,  # Don't initialize Whisper for speaker detector tests
         )
 
     def test_detector_has_detect_hosts_method(self):
@@ -286,7 +299,8 @@ class TestSpeakerDetectorClearCache(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ner",
-            auto_speakers=False,
+            auto_speakers=False,  # clear_cache() doesn't require auto_speakers
+            transcribe_missing=False,  # Don't initialize Whisper for speaker detector tests
         )
 
     def test_detector_has_clear_cache_method(self):

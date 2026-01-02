@@ -189,9 +189,13 @@ class TestMultiEpisodeE2E:
         # Require ML models to be cached
         from tests.integration.ml_model_cache_helpers import (
             require_transformers_model_cached,
+            require_whisper_model_cached,
         )
 
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
+        # Require Whisper model to be cached - needed to transcribe episodes 3-5
+        # Tests should use tiny.en (TEST_DEFAULT_WHISPER_MODEL), not base.en
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
         rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
@@ -202,8 +206,9 @@ class TestMultiEpisodeE2E:
                 max_episodes=5,  # Process all 5 multi-episode episodes
                 transcribe_missing=True,
                 generate_summaries=True,  # Enable summarization
-                summary_provider="local",
+                summary_provider="transformers",  # Use transformers (not deprecated "local")
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
                 generate_metadata=True,
                 metadata_format="json",
             )
@@ -212,25 +217,24 @@ class TestMultiEpisodeE2E:
             count, summary = run_pipeline(cfg)
 
             # Determine expected episode count based on test mode
-            import os
-
             test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
             expected_episodes = 1 if test_mode == "fast" else 5
 
             # Validate processing (adjust expectations based on test mode)
-            # In multi-episode mode, episodes 1 and 2 have transcripts (will be processed)
-            # Episodes 3, 4, 5 need transcription (will only be processed if Whisper is cached)
+            # In multi-episode mode:
+            # - Episodes 1 and 2 have transcripts (will be processed)
+            # - Episodes 3, 4, 5 need transcription (will be processed if Whisper is cached)
+            # Since we require Whisper to be cached, all 5 episodes should be processed
             if test_mode == "fast":
                 assert count == expected_episodes, (
                     f"Should process {expected_episodes} episode(s) with "
                     f"summarization (mode: {test_mode}), got {count}"
                 )
             else:
-                # In multi-episode mode, at least 2 episodes (with transcripts) should be processed
-                # More if Whisper is cached
-                assert count >= 2, (
-                    f"Should process at least 2 episodes (with transcripts) with "
-                    f"summarization in multi-episode mode, got {count}"
+                # In multi-episode mode, all 5 episodes should be processed when Whisper is cached
+                assert count == 5, (
+                    f"Should process all 5 episodes with summarization when Whisper is cached, "
+                    f"got {count}"
                 )
 
             # Verify summaries were generated for all episodes
@@ -241,14 +245,32 @@ class TestMultiEpisodeE2E:
                     f"file(s), got {len(metadata_files)}"
                 )
             else:
-                assert len(metadata_files) >= 2, (
-                    f"Should have at least 2 metadata file(s) in multi-episode mode, "
+                # When Whisper is cached, all 5 episodes should be processed and have metadata
+                assert len(metadata_files) == 5, (
+                    f"Should have exactly 5 metadata file(s) when Whisper is cached, "
                     f"got {len(metadata_files)}"
                 )
 
-            # Check that summaries are present
+            # Check that summaries are present for all episodes
+            # When Whisper is cached, all 5 episodes should have transcripts and summaries
             for metadata_file in sorted(metadata_files):
                 with open(metadata_file, "r", encoding="utf-8") as f:
                     metadata = json.load(f)
-                    assert "summary" in metadata, "Metadata should have summary section"
-                    assert metadata["summary"] is not None, "Summary should not be None"
+                    # All episodes should have content (transcript) when Whisper is cached
+                    assert metadata.get(
+                        "content"
+                    ), f"Metadata should have content section (file: {metadata_file.name})"
+                    assert metadata["content"].get(
+                        "transcript_source"
+                    ), f"Metadata should have transcript_source (file: {metadata_file.name})"
+                    # All episodes should have summaries
+                    assert (
+                        "summary" in metadata
+                    ), f"Metadata should have summary section (file: {metadata_file.name})"
+                    assert (
+                        metadata["summary"] is not None
+                    ), f"Summary should not be None (file: {metadata_file.name})"
+                    # Verify summary has content
+                    assert metadata["summary"].get(
+                        "short_summary"
+                    ), f"Summary should have short_summary field (file: {metadata_file.name})"

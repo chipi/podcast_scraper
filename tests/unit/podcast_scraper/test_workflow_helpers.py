@@ -517,7 +517,7 @@ class TestCallGenerateMetadata(unittest.TestCase):
             run_suffix=None,
             transcript_path=None,
             transcript_source=None,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             feed_metadata=feed_metadata,
             host_detection_result=host_result,
             detected_names=["Guest"],
@@ -530,7 +530,7 @@ class TestCallGenerateMetadata(unittest.TestCase):
         # cached_hosts is a set, so convert to sorted list for comparison
         self.assertEqual(sorted(call_kwargs["detected_hosts"]), sorted(["Host1", "Host2"]))
         self.assertEqual(call_kwargs["detected_guests"], ["Guest"])
-        self.assertEqual(call_kwargs["whisper_model"], "base")
+        self.assertEqual(call_kwargs["whisper_model"], config.TEST_DEFAULT_WHISPER_MODEL)
 
 
 class TestApplyLogLevel(unittest.TestCase):

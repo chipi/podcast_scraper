@@ -76,6 +76,7 @@ class TestSpeakerDetectorFallback(unittest.TestCase):
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ner",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en), not production default (base)
             auto_speakers=True,  # Required for speaker detection tests
         )
 
@@ -100,6 +101,7 @@ class TestSpeakerDetectorFallback(unittest.TestCase):
         cfg = config.Config(
             rss_url=self.cfg.rss_url,
             speaker_detector_provider=self.cfg.speaker_detector_provider,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en), not production default (base)
             auto_speakers=True,  # Required for speaker detection
         )
         detector = create_speaker_detector(cfg)

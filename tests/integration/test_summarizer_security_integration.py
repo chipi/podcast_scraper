@@ -32,7 +32,7 @@ if str(tests_dir) not in sys.path:
 
 # Try to import summarizer, skip tests if dependencies not available
 try:
-    from podcast_scraper import summarizer
+    from podcast_scraper import config, summarizer
 
     SUMMARIZER_AVAILABLE = True
 except ImportError:
@@ -78,7 +78,7 @@ class TestRevisionPinning(unittest.TestCase):
 
         revision = "abc123def456"
         summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
             revision=revision,
@@ -121,7 +121,7 @@ class TestRevisionPinning(unittest.TestCase):
 
         revision = "main"
         summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
             revision=revision,
@@ -159,7 +159,7 @@ class TestRevisionPinning(unittest.TestCase):
         # any exceptions from pipeline and still verify the revision parameter
         try:
             summarizer.SummaryModel(
-                model_name="facebook/bart-base",
+                model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
                 device="cpu",
                 cache_dir=self.temp_dir,
                 revision=None,
@@ -202,7 +202,7 @@ class TestRevisionPinning(unittest.TestCase):
 
         revision = "abc123def456"
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
             revision=revision,
@@ -231,7 +231,7 @@ class TestRevisionPinning(unittest.TestCase):
         mock_pipeline.return_value = mock_pipe
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
             revision=None,
@@ -419,7 +419,7 @@ class TestMemoryCleanup(unittest.TestCase):
         mock_pipeline.return_value = mock_pipe
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
         )
@@ -463,7 +463,7 @@ class TestMemoryCleanup(unittest.TestCase):
         mock_pipeline.return_value = mock_pipe
 
         model = summarizer.SummaryModel(
-            model_name="facebook/bart-base",
+            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
             device="cpu",
             cache_dir=self.temp_dir,
         )
@@ -503,7 +503,7 @@ class TestModelLoadingFailures(unittest.TestCase):
 
         with self.assertRaises(Exception) as context:
             summarizer.SummaryModel(
-                model_name="facebook/bart-base",
+                model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
                 device=None,
                 cache_dir=self.temp_dir,
             )
@@ -553,7 +553,7 @@ class TestModelLoadingFailures(unittest.TestCase):
 
         with self.assertRaises(RuntimeError) as context:
             summarizer.SummaryModel(
-                model_name="facebook/bart-base",
+                model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
                 device=None,
                 cache_dir=self.temp_dir,
             )

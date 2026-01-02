@@ -17,6 +17,7 @@ import os
 import sys
 import time
 from contextlib import contextmanager
+from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -187,20 +188,37 @@ class MLProvider:
         - Transformers: if generate_summaries is True
 
         This method is idempotent and can be called multiple times safely.
+
+        Note: If one component fails to initialize (e.g., Whisper due to missing cache),
+        other components will still be initialized. This allows summarization to work
+        even if transcription is unavailable.
         """
         # Initialize Whisper if transcription enabled
+        # If Whisper fails, log warning but continue with other components
         if self.cfg.transcribe_missing and not self._whisper_initialized:
-            self._initialize_whisper()
+            try:
+                self._initialize_whisper()
+            except Exception as e:
+                logger.warning(
+                    "Failed to initialize Whisper (transcription will be unavailable): %s", e
+                )
+                # Don't raise - allow other components to initialize
 
         # Initialize spaCy if speaker detection enabled
         if self.cfg.auto_speakers and not self._spacy_initialized:
-            self._initialize_spacy()
+            try:
+                self._initialize_spacy()
+            except Exception as e:
+                logger.warning(
+                    "Failed to initialize spaCy (speaker detection will be unavailable): %s", e
+                )
+                # Don't raise - allow other components to initialize
 
         # Initialize Transformers if summarization enabled
         if self.cfg.generate_summaries and not self._transformers_initialized:
             self._initialize_transformers()
 
-    def _initialize_whisper(self) -> None:
+    def _initialize_whisper(self) -> None:  # noqa: C901
         """Initialize Whisper model for transcription."""
         logger.debug("Initializing Whisper transcription (model: %s)", self.cfg.whisper_model)
 
@@ -265,8 +283,35 @@ class MLProvider:
         if len(fallback_models) > 1:
             logger.debug("Fallback chain: %s", fallback_models)
 
+        # Check cache directory for pre-cached models
+        # Whisper caches models in ~/.cache/whisper/{model_name}.pt
+        whisper_cache = Path.home() / ".cache" / "whisper"
+        logger.debug(
+            "Whisper cache directory: %s (exists: %s)", whisper_cache, whisper_cache.exists()
+        )
+
         last_error: Optional[Union[FileNotFoundError, RuntimeError, OSError]] = None
         for attempt_model in fallback_models:
+            # Check if model is cached before attempting to load
+            # This helps avoid network calls when models are pre-cached
+            model_file = whisper_cache / f"{attempt_model}.pt"
+            if not model_file.exists():
+                logger.debug(
+                    "Whisper model %s not found in cache: %s (will try download if network available)",  # noqa: E501
+                    attempt_model,
+                    model_file,
+                )
+                # Continue to next model in fallback chain
+                # Don't set last_error here - we want to try loading anyway
+                # in case the cache path is different or the model is in a different location
+            else:
+                logger.debug(
+                    "Whisper model %s found in cache: %s (size: %s MB)",
+                    attempt_model,
+                    model_file,
+                    model_file.stat().st_size / (1024 * 1024) if model_file.exists() else 0,
+                )
+
             try:
                 if attempt_model != model_name:
                     logger.debug(

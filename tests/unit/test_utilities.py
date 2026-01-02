@@ -63,6 +63,8 @@ from conftest import (  # noqa: F401, E402
     TEST_TRANSCRIPT_URL_SRT,
 )
 
+from podcast_scraper import config
+
 
 class TestFormatScreenplay(unittest.TestCase):
     """Tests for format_screenplay_from_segments function."""
@@ -93,7 +95,7 @@ class TestModelLoading(unittest.TestCase):
         """Test that Whisper model loading works with fallback logic."""
         cfg = create_test_config(
             transcribe_missing=True,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             language="en",
         )
         # This should either load the model or fail gracefully with clear error
@@ -115,7 +117,7 @@ class TestModelLoading(unittest.TestCase):
         """Test that Whisper falls back to tiny model if base fails."""
         cfg = create_test_config(
             transcribe_missing=True,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             language="en",
         )
         # Try loading - should either succeed or fail gracefully
@@ -173,7 +175,7 @@ class TestModelLoading(unittest.TestCase):
         """Test that English models prefer .en variants."""
         cfg = create_test_config(
             transcribe_missing=True,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             language="en",
         )
         # The function should prefer base.en over base for English
@@ -189,9 +191,10 @@ class TestModelLoading(unittest.TestCase):
     )
     def test_whisper_model_selection_non_english(self):
         """Test that non-English models use multilingual variants."""
+        # Use test default (tiny.en) - should be converted to tiny for French
         cfg = create_test_config(
             transcribe_missing=True,
-            whisper_model="base.en",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # tiny.en
             language="fr",
         )
         # For French, should use multilingual model (no .en suffix)

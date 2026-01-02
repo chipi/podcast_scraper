@@ -269,7 +269,7 @@ class TestConfigBackwardCompatibility(unittest.TestCase):
         self.assertEqual(cfg.rss_url, "https://example.com/feed.xml")
         self.assertEqual(cfg.output_dir, "./test")
         self.assertEqual(cfg.max_episodes, 10)
-        self.assertEqual(cfg.whisper_model, "tiny.en")
+        self.assertEqual(cfg.whisper_model, config.TEST_DEFAULT_WHISPER_MODEL)
         self.assertTrue(cfg.transcribe_missing)
 
     def test_defaults_match_current_behavior(self):

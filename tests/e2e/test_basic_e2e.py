@@ -137,7 +137,7 @@ class TestBasicCLIE2E:
                     "1",
                     "--transcribe-missing",  # Enable Whisper transcription
                     "--whisper-model",
-                    "tiny.en",  # Use smallest English-only model for speed
+                    config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
                     "--auto-speakers",  # Enable NER (speaker detection) - uses local ML (spaCy)
                     "--generate-summaries",  # Enable summarization - uses local ML (transformers)
                     "--summary-model",

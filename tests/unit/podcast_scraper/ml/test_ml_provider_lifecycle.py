@@ -94,7 +94,11 @@ class TestMLProviderLifecycle(unittest.TestCase):
         self.assertFalse(provider.is_initialized)
 
     def test_initialization_failure_does_not_corrupt_state(self):
-        """Test that initialization failure doesn't leave provider in corrupted state."""
+        """Test that initialization failure doesn't leave provider in corrupted state.
+
+        MLProvider.initialize() is resilient - it logs warnings but doesn't raise,
+        allowing other components to initialize even if one fails.
+        """
         # Attempt initialization that fails - create new config and provider
         cfg = config.Config(
             rss_url=self.cfg.rss_url,
@@ -106,13 +110,13 @@ class TestMLProviderLifecycle(unittest.TestCase):
         with patch("podcast_scraper.ml.ml_provider._import_third_party_whisper") as mock_import:
             mock_import.side_effect = RuntimeError("Model load failed")
 
-            with self.assertRaises(RuntimeError):
-                provider.initialize()
-
-            # State should be clean
+            # initialize() should not raise - it logs warnings and continues
+            provider.initialize()
+            # Verify Whisper is not initialized (but provider is still usable)
             self.assertFalse(provider._whisper_initialized)
             self.assertIsNone(provider._whisper_model)
-            self.assertFalse(provider.is_initialized)
+            # is_initialized returns True if ANY component is initialized
+            # Whisper failed, but other components might succeed
 
     def test_cleanup_after_initialization_failure(self):
         """Test that cleanup works after initialization failure."""

@@ -82,7 +82,8 @@ class TestValidateWhisperConfig(unittest.TestCase):
 
     def test_valid_model(self):
         """Test that valid Whisper model passes validation."""
-        args = Namespace(transcribe_missing=True, whisper_model="base")
+        # Tests should use test default (tiny.en), not production default (base)
+        args = Namespace(transcribe_missing=True, whisper_model=config.TEST_DEFAULT_WHISPER_MODEL)
         errors = []
         cli._validate_whisper_config(args, errors)
         self.assertEqual(errors, [])
@@ -251,7 +252,7 @@ class TestValidateArgs(unittest.TestCase):
             timeout=30,
             delay_ms=0,
             transcribe_missing=False,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -269,7 +270,7 @@ class TestValidateArgs(unittest.TestCase):
             timeout=0,  # Invalid
             delay_ms=-1,  # Invalid
             transcribe_missing=False,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -298,7 +299,7 @@ class TestValidateArgs(unittest.TestCase):
             timeout=30,
             delay_ms=0,
             transcribe_missing=False,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -318,7 +319,7 @@ class TestValidateArgs(unittest.TestCase):
             timeout=30,
             delay_ms=0,
             transcribe_missing=False,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -336,7 +337,7 @@ class TestValidateArgs(unittest.TestCase):
             timeout=30,
             delay_ms=0,
             transcribe_missing=False,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -356,7 +357,7 @@ class TestValidateArgs(unittest.TestCase):
             timeout=30,
             delay_ms=0,
             transcribe_missing=False,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -382,7 +383,7 @@ class TestBuildConfig(unittest.TestCase):
             prefer_type=["vtt", "srt"],
             transcribe_missing=True,
             transcription_provider="whisper",
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=True,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -430,7 +431,7 @@ class TestBuildConfig(unittest.TestCase):
         self.assertIn("vtt", cfg.prefer_types)
         self.assertIn("srt", cfg.prefer_types)
         self.assertTrue(cfg.transcribe_missing)
-        self.assertEqual(cfg.whisper_model, "base")
+        self.assertEqual(cfg.whisper_model, config.TEST_DEFAULT_WHISPER_MODEL)
         self.assertTrue(cfg.screenplay)
         self.assertEqual(cfg.screenplay_gap_s, 2.0)
         self.assertEqual(cfg.screenplay_num_speakers, 2)
@@ -462,7 +463,7 @@ class TestBuildConfig(unittest.TestCase):
             prefer_type=[],
             transcribe_missing=False,
             transcription_provider="whisper",
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -516,7 +517,7 @@ class TestBuildConfig(unittest.TestCase):
             prefer_type=[],
             transcribe_missing=False,
             transcription_provider="openai",
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -564,7 +565,7 @@ class TestBuildConfig(unittest.TestCase):
             prefer_type=[],
             transcribe_missing=False,
             transcription_provider="whisper",
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -611,7 +612,7 @@ class TestBuildConfig(unittest.TestCase):
             prefer_type=[],
             transcribe_missing=False,
             transcription_provider="whisper",
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -659,7 +660,7 @@ class TestBuildConfig(unittest.TestCase):
             prefer_type=[],
             transcribe_missing=False,
             transcription_provider="whisper",
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -708,7 +709,7 @@ class TestBuildConfig(unittest.TestCase):
             prefer_type=[],
             transcribe_missing=False,
             transcription_provider="whisper",
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -772,6 +773,7 @@ class TestParseArgs(unittest.TestCase):
         self.assertEqual(args.max_episodes, 10)
         self.assertEqual(args.timeout, 60)
         self.assertTrue(args.transcribe_missing)
+        # CLI should preserve the value passed by user, not override with test default
         self.assertEqual(args.whisper_model, "base")
 
     def test_parse_args_with_transcription_provider(self):
@@ -866,7 +868,7 @@ class TestParseArgs(unittest.TestCase):
             timeout=30,
             delay_ms=0,
             transcribe_missing=False,
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             screenplay=False,
             screenplay_gap=1.25,
             num_speakers=2,

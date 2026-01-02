@@ -142,11 +142,11 @@ class TestMLProviderStandalone(unittest.TestCase):
         provider = MLProvider(cfg)
 
         mock_model = Mock()
-        mock_model.model_name = "facebook/bart-base"
+        mock_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_model.device = "cpu"
         mock_summary_model.return_value = mock_model
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
 
         provider.initialize()
 
@@ -192,11 +192,11 @@ class TestMLProviderStandalone(unittest.TestCase):
             mock_get_ner.return_value = mock_nlp
 
             mock_transformers_model = Mock()
-            mock_transformers_model.model_name = "facebook/bart-base"
+            mock_transformers_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
             mock_transformers_model.device = "cpu"
             mock_summary_model.return_value = mock_transformers_model
-            mock_select_map.return_value = "facebook/bart-base"
-            mock_select_reduce.return_value = "facebook/bart-base"
+            mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+            mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
 
             provider = MLProvider(cfg)
             provider.initialize()
@@ -249,7 +249,7 @@ class TestMLProviderTranscription(unittest.TestCase):
             transcription_provider="whisper",
             transcribe_missing=True,
             auto_speakers=False,  # Disable to avoid loading spaCy
-            whisper_model="tiny",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
 
     @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
@@ -522,11 +522,11 @@ class TestMLProviderSummarization(unittest.TestCase):
     ):
         """Test successful summarization."""
         mock_model = Mock()
-        mock_model.model_name = "facebook/bart-base"
+        mock_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_model.device = "cpu"
         mock_summary_model.return_value = mock_model
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summarize.return_value = "This is a summary."
 
         provider = MLProvider(self.cfg)
@@ -536,7 +536,7 @@ class TestMLProviderSummarization(unittest.TestCase):
 
         self.assertEqual(result["summary"], "This is a summary.")
         self.assertIn("metadata", result)
-        self.assertEqual(result["metadata"]["model_used"], "facebook/bart-base")
+        self.assertEqual(result["metadata"]["model_used"], config.TEST_DEFAULT_SUMMARY_MODEL)
 
     def test_summarize_not_initialized(self):
         """Test summarize raises RuntimeError if not initialized."""
@@ -557,11 +557,11 @@ class TestMLProviderSummarization(unittest.TestCase):
     ):
         """Test summarization with custom parameters."""
         mock_model = Mock()
-        mock_model.model_name = "facebook/bart-base"
+        mock_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_model.device = "cpu"
         mock_summary_model.return_value = mock_model
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summarize.return_value = "Summary"
 
         provider = MLProvider(self.cfg)
@@ -584,11 +584,11 @@ class TestMLProviderSummarization(unittest.TestCase):
     ):
         """Test summarization error handling."""
         mock_model = Mock()
-        mock_model.model_name = "facebook/bart-base"
+        mock_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_model.device = "cpu"
         mock_summary_model.return_value = mock_model
-        mock_select_map.return_value = "facebook/bart-base"
-        mock_select_reduce.return_value = "facebook/bart-base"
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summarize.side_effect = Exception("Summarization failed")
 
         provider = MLProvider(self.cfg)
