@@ -129,6 +129,7 @@ cache_detected_hosts: true        # Cache host detection
 
    ```bash
    python -m spacy download en_core_web_sm
+
 ````
 
 1. **Automatic Speaker Detection**: Enabled by default (`auto_speakers: true`). To disable:
@@ -151,6 +152,7 @@ cache_detected_hosts: true        # Cache host detection
 ### Configuration Example
 
 ````yaml
+
 rss: "https://example.com/feed.xml"
 output_dir: "./transcripts"
 language: "en"                    # New: Controls Whisper + NER
@@ -158,6 +160,7 @@ auto_speakers: true               # New: Enable automatic detection
 ner_model: "en_core_web_sm"       # New: spaCy model
 cache_detected_hosts: true        # New: Cache hosts across episodes
 speaker_names: "Host, Guest"      # Fallback if detection fails
+
 ```text
 
 - 63 tests passing

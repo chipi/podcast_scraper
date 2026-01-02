@@ -129,7 +129,6 @@
 - **`docs/guides/DEVELOPMENT_GUIDE.md`** - Detailed technical information (code style, testing, CI/CD,
   architecture, logging, documentation standards)
 
-
 - **`docs/guides/TESTING_GUIDE.md`** - Testing guide (unit, integration, E2E implementation)
 - **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** - Markdown style and linting guide (style rules, automated fixing, table
   formatting, pre-commit hooks, CI/CD integration)

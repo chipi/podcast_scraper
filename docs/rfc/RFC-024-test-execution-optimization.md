@@ -288,7 +288,7 @@ test-e2e-slow:
 - Fast/slow test separation (excludes slow/ml_models for faster feedback)
 - Coverage included in CI suite (unified coverage report)
 
-### Phase 1: Optimize Test Execution (Immediate)
+## Phase 1: Optimize Test Execution (Immediate)
 
 - [x] Update Makefile targets with optimized execution strategies
 - [x] Document test speed tiers
@@ -409,4 +409,5 @@ Beyond the original RFC requirements, the following enhancements were implemente
 - Test execution optimization based on empirical measurements
 - See `RFC-025-test-metrics-and-health-tracking.md` for metrics collection and health tracking strategy
 - See `docs/CI_CD.md` for complete CI/CD pipeline documentation
+
 ````

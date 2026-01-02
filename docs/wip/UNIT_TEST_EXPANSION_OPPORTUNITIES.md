@@ -90,45 +90,51 @@ def test_load_experiment_config_success():
     # Load and validate
 
 ```text
-    # Check all fields are populated correctly
-```
 
+    # Check all fields are populated correctly
+
+```python
 def test_load_experiment_config_missing_file():
 
 ```text
+
     """Test error handling for missing file."""
     with pytest.raises(FileNotFoundError):
         load_experiment_config("nonexistent.yaml")
-```
 
+```python
 def test_discover_input_files():
 
 ```text
+
     """Test file discovery with glob patterns."""
     # Create temp directory with test files
     # Test glob matching
     # Test file filtering (only files, not dirs)
-```
+
 ```python
 
 def test_episode_id_from_path_stem():
 
 ```python
+
     """Test episode ID extraction from file stem."""
     path = Path("data/episodes/ep01/transcript.txt")
     cfg = DataConfig(episodes_glob="*.txt", id_from="stem")
     assert episode_id_from_path(path, cfg) == "transcript"
+
 ```python
 
 def test_episode_id_from_path_parent_dir():
 
 ```python
+
     """Test episode ID extraction from parent directory."""
     path = Path("data/episodes/ep01/transcript.txt")
     cfg = DataConfig(episodes_glob="*.txt", id_from="parent_dir")
     assert episode_id_from_path(path, cfg) == "ep01"
-```
 
+```
 ### 2. `workflow.py` (22.93% Coverage) - **CRITICAL**
 
 **Status:** Only helper functions are tested (`test_workflow_helpers.py`). Main
@@ -167,27 +173,31 @@ pipeline and many internal functions lack coverage.
    def test_detect_hosts_from_rss_authors():
 
 ```python
-       """Test host detection from RSS author tags."""
-```
 
+       """Test host detection from RSS author tags."""
+
+```python
    def test_detect_hosts_fallback_to_ner():
 
 ```text
-       """Test fallback to NER when no author tags."""
-```
 
+       """Test fallback to NER when no author tags."""
+
+```python
    def test_detect_hosts_with_auto_speakers_disabled():
 
 ```text
-       """Test behavior when auto_speakers is False."""
-```
 
+       """Test behavior when auto_speakers is False."""
+
+```python
    def test_analyze_patterns_with_multiple_episodes():
 
 ```text
+
        """Test pattern analysis across episodes."""
-```
-   ```
+
+```python
 
 2. **`_setup_transcription_resources()`**:
 
@@ -195,21 +205,24 @@ pipeline and many internal functions lack coverage.
    def test_setup_transcription_resources_with_whisper():
 
 ```text
-       """Test transcription resource setup with Whisper enabled."""
-```
 
+       """Test transcription resource setup with Whisper enabled."""
+
+```python
    def test_setup_transcription_resources_without_whisper():
 
 ```text
-       """Test setup when transcription is disabled."""
-```
 
+       """Test setup when transcription is disabled."""
+
+```python
    def test_setup_transcription_resources_with_openai():
 
 ```text
+
        """Test setup with OpenAI transcription provider."""
-```
-   ```
+
+```python
 
 3. **`_process_episodes()`**:
 
@@ -217,21 +230,24 @@ pipeline and many internal functions lack coverage.
    def test_process_episodes_download_transcripts():
 
 ```text
-       """Test episode processing with transcript downloads."""
-```
 
+       """Test episode processing with transcript downloads."""
+
+```python
    def test_process_episodes_queue_for_transcription():
 
 ```text
-       """Test episode processing queuing for transcription."""
-```
 
+       """Test episode processing queuing for transcription."""
+
+```python
    def test_process_episodes_with_skip_existing():
 
 ```text
+
        """Test skip_existing flag behavior."""
+
 ```
-   ```
 
 ### 3. `episode_processor.py` (33.72% Coverage) - **CRITICAL**
 
@@ -264,28 +280,32 @@ pipeline and many internal functions lack coverage.
    def test_derive_media_extension_from_type():
 
 ```python
+
        """Test extension derivation from media type."""
        assert derive_media_extension("audio/mpeg", "") == ".mp3"
        assert derive_media_extension("audio/mp4", "") == ".m4a"
-```
 
+```python
    def test_derive_media_extension_from_url():
 
 ```python
+
        """Test extension derivation from URL."""
        assert derive_media_extension(None, "https://example.com/audio.mp3") == ".mp3"
        assert derive_media_extension(None, "https://example.com/audio.m4a") == ".m4a"
-```
 
+```python
    def test_derive_transcript_extension():
 
 ```text
+
        """Test transcript extension derivation."""
        assert derive_transcript_extension("text/vtt", "") == ".vtt"
        assert derive_transcript_extension("text/srt", "") == ".srt"
-```
 
+```
 ```python
+
 2. **Path Determination** (Pure Functions - Easy):
    ```python
 
@@ -297,6 +317,7 @@ pipeline and many internal functions lack coverage.
 
    def test_determine_output_path_with_whisper_suffix():
        """Test output path with Whisper model suffix."""
+
 ```python
 
 3. **File Operations** (Requires Mocking):
@@ -312,6 +333,7 @@ pipeline and many internal functions lack coverage.
        """Test writing transcript to file."""
 
 ```
+
 ### 4. `whisper_integration.py` (21.81% Coverage) - **HIGH PRIORITY**
 
 **Status:** Core Whisper integration functions are not tested.
@@ -351,12 +373,15 @@ def test_format_screenplay_from_segments():
     # Test with speaker names
 
 ```text
-    # Test without speaker names
-```
 
+    # Test without speaker names
+
+```
 ```text
+
     # Test gap handling
     # Test speaker rotation
+
 ```python
 
 def test_select_whisper_model_prefers_en_variant():
@@ -370,6 +395,7 @@ def test_normalize_language_code():
     assert _normalize_language_code("EN") == "en"
 
 ```
+
 ### 5. `summarizer.py` (46.99% Coverage) - **HIGH PRIORITY**
 
 **Status:** Many core functions are tested, but complex logic paths are not.

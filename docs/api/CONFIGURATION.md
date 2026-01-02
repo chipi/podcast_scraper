@@ -147,6 +147,7 @@ OPENAI_API_KEY=sk-your-key-here python3 -m podcast_scraper <https://example.com/
 
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
 python3 -m podcast_scraper <https://example.com/feed.xml>
+
 ```
 
 ## Docker
@@ -389,4 +390,5 @@ from pydantic import ValidationError
 
 try:
     pass  # Your code here
+
 ```

@@ -335,7 +335,7 @@ make docs          # Build documentation
 - **Testing:** pytest with mocks for external dependencies
 - **Documentation:** Update README, API docs, and PRD/RFC as needed
 
-### PR Checklist
+## PR Checklist
 
 - [ ] Run `make ci` locally (all checks pass)
 - [ ] Add/update tests for new functionality

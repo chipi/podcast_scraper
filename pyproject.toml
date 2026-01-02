@@ -126,9 +126,17 @@ testpaths = ["tests"]
 # Note: -m marker filter removed from addopts to avoid conflicts with explicit -m flags
 # Use explicit -m flags in Makefile/CI commands instead
 addopts = "-q -ra"
+# Suppress warnings from external libraries that we can't fix
+filterwarnings = [
+    # spaCy/Click deprecation warning (external library, will be fixed in future Click version)
+    "ignore::DeprecationWarning:spacy.cli._util",
+    # Whisper FP16 warning (expected on CPU, harmless)
+    "ignore::UserWarning:whisper.transcribe",
+]
 # Parallel execution: use -n auto to enable, or -n 0 to disable
 # Reruns: use --reruns 2 --reruns-delay 1 for flaky tests
 markers = [
+    "unit: marks tests as unit tests (deselect with '-m \"not unit\"')",
     "multi_episode: multi-episode tests with multiple short episodes (10-15 seconds each) for testing multi-episode processing logic",
     "data_quality: data quality validation tests with multiple episodes (nightly only)",
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",

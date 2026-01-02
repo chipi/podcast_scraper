@@ -159,7 +159,7 @@ class ServiceResult:
 - [API Boundaries](../api/BOUNDARIES.md) - API design and boundaries
 - [API Migration Guide](../api/MIGRATION_GUIDE.md) - Migration between versions
 
-### 📊 Performance Metrics
+## 📊 Performance Metrics
 
 **Comprehensive performance tracking for A/B testing and optimization:**
 
@@ -247,7 +247,7 @@ python scripts/eval_cleaning.py --episode ep01
 
 - `data/eval/MANUAL_EVAL_CHECKLIST.md` - Manual evaluation rubric (coverage, faithfulness, clarity, conciseness)
 
-### 🗂️ Root Directory Reorganization
+## 🗂️ Root Directory Reorganization
 
 **Cleaner project structure with organized build artifacts:**
 
@@ -424,7 +424,7 @@ reuse_media: false                         # Reuse existing media files
 - Now allows output generation (summaries, metadata) from existing transcripts even when skipping other processing steps
 - Useful for testing summarization without re-downloading or re-transcribing
 
-### 🔄 Backward Compatibility
+## 🔄 Backward Compatibility
 
 - ✅ Fully backward compatible
 - ✅ All existing functionality preserved
@@ -532,4 +532,5 @@ reuse_media: true
 - Add more comprehensive E2E tests
 
 **Full Changelog**: <https://github.com/chipi/podcast_scraper/compare/v2.2.0...v2.3.0>
+
 ````

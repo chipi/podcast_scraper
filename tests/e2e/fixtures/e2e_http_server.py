@@ -959,10 +959,14 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     # All validation checks passed above, safe to open
                     # CodeQL recognizes validated_path as safe because it was verified using
                     # string comparison after normalization (CodeQL recommended pattern)
-                    with open(validated_path, "rb") as f:
-                        f.seek(start)
-                        self.wfile.write(f.read(end - start + 1))
-                    return
+                    try:
+                        with open(validated_path, "rb") as f:
+                            f.seek(start)
+                            self.wfile.write(f.read(end - start + 1))
+                        return
+                    except BrokenPipeError:
+                        # Client disconnected before response completed - normal and harmless
+                        return
                 except (ValueError, IndexError):
                     # Invalid range header, fall through to full file
                     pass
@@ -979,11 +983,25 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # All validation checks passed above, safe to open
             # CodeQL recognizes validated_path as safe because it was verified using
             # string comparison after normalization (CodeQL recommended pattern)
-            with open(validated_path, "rb") as f:
-                self.wfile.write(f.read())
+            try:
+                with open(validated_path, "rb") as f:
+                    self.wfile.write(f.read())
+            except BrokenPipeError:
+                # Client disconnected before response completed - this is normal and harmless
+                # Don't log as error, just ignore it
+                pass
 
+        except BrokenPipeError:
+            # Client disconnected before response completed - this is normal and harmless
+            # Don't log as error, just ignore it
+            pass
         except Exception as e:
-            self.send_error(500, f"Error serving file: {e}")
+            # Only log actual errors, not client disconnections
+            try:
+                self.send_error(500, f"Error serving file: {e}")
+            except BrokenPipeError:
+                # Client already disconnected, can't send error response
+                pass
 
     def log_message(self, format, *args):
         """Suppress server log messages during tests."""

@@ -128,6 +128,7 @@ class SummarizationProvider(Protocol):
             episode_description: Optional episode description
             params: Optional parameters (max_length, min_length, etc.)
 
+```text
         Returns:
             Dictionary with summary results:
             {
@@ -137,6 +138,7 @@ class SummarizationProvider(Protocol):
             }
         """
         ...
+```
 
 ```python
 
@@ -161,9 +163,14 @@ class LocalSummarizationProvider:
         episode_description: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Summarize using local transformer models."""
 
+```text
+        """Summarize using local transformer models."""
+```
+
+```text
         # Current summarizer.py logic, but as a provider
+```
 
         ...
 
@@ -187,12 +194,18 @@ def generate_episode_metadata(
     """
     if summarization_provider is None:
 
+```python
         # Create default provider from config (backward compatibility)
+```
 
+```python
         from .providers.summarization.factory import create_summarization_provider
         summarization_provider = create_summarization_provider(cfg)
+```
 
+```text
     # Use provider instead of direct summarizer calls
+```
 
     summary_result = summarization_provider.summarize(
         text=transcript_text,
@@ -222,9 +235,14 @@ def clean_transcript(
     ...
 
 def remove_sponsor_blocks(text: str) -> str:
-    """Remove sponsor blocks (moved from summarizer.py)."""
 
+```python
+    """Remove sponsor blocks (moved from summarizer.py)."""
+```
+
+```text
     # Current remove_sponsor_blocks() implementation
+```
 
     ...
 
@@ -234,7 +252,7 @@ def remove_sponsor_blocks(text: str) -> str:
 - `providers/summarization/local.py` imports from `preprocessing` if needed
 - All providers receive preprocessed text
 
-### 3.1 Prompt Management Integration
+## 3.1 Prompt Management Integration
 
 **Prompt management is a provider-specific concern** (see RFC-017):
 
@@ -267,7 +285,9 @@ class OpenAISummarizationProvider:
             **cfg.summary_prompt_params,
         )
 
+```text
         # Use prompts in API call...
+```
 
 ```text
 
@@ -277,7 +297,7 @@ class OpenAISummarizationProvider:
 
 See RFC-017 for complete prompt management design.
 
-### 4. Create Experiment Backend Adapters
+## 4. Create Experiment Backend Adapters
 
 **Create `scripts/experiments/backends/`:**
 
@@ -314,14 +334,23 @@ class SummarizationBackend:
         """Initialize backend from experiment config."""
         self.config = experiment_config
 
+```text
         # Convert experiment config to Config object
+```
 
+```text
         cfg = self._create_config_from_experiment(experiment_config)
+```
 
+```text
         # Create provider using factory
+```
 
+```text
         self.provider = create_summarization_provider(cfg)
+```
 
+```python
     def summarize(
         self,
         transcript: str,
@@ -330,22 +359,33 @@ class SummarizationBackend:
         params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Summarize transcript using configured provider."""
+```
 
+```text
         # Merge experiment params with method params
+```
 
+```text
         merged_params = {**(self.config.get("params", {})), **(params or {})}
+```
 
+```text
         return self.provider.summarize(
             text=transcript,
             episode_title=episode_title,
             episode_description=episode_description,
             params=merged_params,
         )
+```
 
+```python
     def _create_config_from_experiment(self, exp_config: Dict[str, Any]) -> config.Config:
         """Convert experiment config to Config object."""
+```
 
+```text
         # Map experiment config to Config fields
+```
 
         ...
 
@@ -372,13 +412,17 @@ def evaluate_summaries(
                 }
             }
         gold_data: Dict mapping episode_id to gold summary:
+
+```text
             {
                 "ep01": {
                     "summary": "...",
                     "summary_short": "..."
                 }
             }
+```
 
+```text
     Returns:
         Metrics dictionary:
         {
@@ -393,8 +437,11 @@ def evaluate_summaries(
             }
         }
     """
+```
 
+```text
     # Current evaluation logic, but with standardized input/output
+```
 
     ...
 
@@ -402,13 +449,21 @@ def evaluate_summaries(
 
 def main():
 
+```text
     # Parse CLI args
+```
 
+```text
     # Load predictions and gold data
+```
 
+```text
     # Call evaluate_summaries()
+```
 
+```text
     # Print results
+```
 
 ```python
 
@@ -430,7 +485,9 @@ def load_predictions_from_jsonl(predictions_file: Path) -> List[Dict[str, Any]]:
 def load_predictions_from_metadata(metadata_dir: Path) -> List[Dict[str, Any]]:
     """Load predictions from production metadata files (for comparison)."""
 
+```python
     # Load from existing metadata.json files
+```
 
     ...
 
@@ -458,11 +515,18 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
     transcription_provider = None
     if cfg.transcribe_missing:
+
+```text
         transcription_provider = create_transcription_provider(cfg)
+```
 
+```text
     # Pass providers to metadata generation
+```
 
+```text
     # ...
+```
 
 ```text
 ```python
@@ -492,8 +556,11 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
 
     config_dict = {}
 
+```text
     # Map models
+```
 
+```text
     if "summarizer" in experiment_config.get("models", {}):
         model_config = experiment_config["models"]["summarizer"]
         if model_config["type"] == "openai":
@@ -502,16 +569,24 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
         elif model_config["type"] == "hf_local":
             config_dict["summary_provider"] = "transformers"
             config_dict["summary_model"] = model_config["name"]
+```
 
+```text
             # For local models, map reduce model if specified
+```
 
+```text
             if "reduce" in experiment_config.get("models", {}):
                 reduce_config = experiment_config["models"]["reduce"]
                 if reduce_config["type"] == "hf_local":
                     config_dict["summary_reduce_model"] = reduce_config["name"]
+```
 
+```text
     # Map params
+```
 
+```text
     if "params" in experiment_config:
         params = experiment_config["params"]
         if "max_length" in params:
@@ -526,28 +601,45 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
             config_dict["summary_word_overlap"] = params["word_overlap"]
         if "device" in params:
             config_dict["summary_device"] = params["device"]
+```
 
+```text
         # OpenAI-specific params (if supported in Config)
+```
 
+```text
         # Note: Some OpenAI params (temperature, etc.) may need to be passed
+```
 
+```text
         # directly to provider, not via Config
+```
 
+```python
     # Map prompts (using prompt_store from RFC-017)
+```
 
+```text
     if "prompts" in experiment_config:
         prompts = experiment_config["prompts"]
+```
 
+```text
         # Map prompt names to config fields
+```
 
+```text
         if "system" in prompts:
             config_dict["summary_system_prompt"] = prompts["system"]
         if "user" in prompts:
             config_dict["summary_user_prompt"] = prompts["user"]
         if "params" in prompts:
             config_dict["summary_prompt_params"] = prompts["params"]
+```
 
+```text
     return config.Config(**config_dict)
+```
 
 ```text
 

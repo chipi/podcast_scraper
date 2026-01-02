@@ -33,26 +33,37 @@ Automating speaker name extraction improves UX, increases transcript quality, an
 
 1. **Dependency & Configuration**
    - Add spaCy to runtime dependencies and expose configurable model selection driven by language:
+
+```python
      - `cfg.language` (default `"en"`) governing both Whisper transcription language and NER pipeline.
      - `cfg.ner_model` optional override; default model derived from language (e.g., `"en_core_web_sm"`).
+```
    - CLI gains `--language` (reused by Whisper) and `--ner-model` flags; config supports `language`, `ner_model`, and `auto_speakers` toggle (default `true`).
    - Maintain compatibility with existing Whisper language handling; ensure screenplay formatter respects detected language.
 
 2. **Whisper Model Selection Based on Language**
    - Per [Whisper documentation](https://github.com/openai/whisper), English-only models (`.en` variants) exist for `tiny`, `base`, `small`, and `medium` sizes and perform better for English-only applications, especially for `tiny.en` and `base.en`.
    - **Model selection logic**:
+
+```text
      - When `cfg.language` is `"en"` or `"English"`:
        - If user specifies `whisper_model` as `tiny`, `base`, `small`, or `medium`, automatically prefer the `.en` variant (e.g., `base` → `base.en`).
        - For `large` and `turbo` models, no `.en` variant exists; use multilingual versions as-is.
      - When `cfg.language` is any other language:
        - Always use multilingual models (no `.en` suffix), regardless of model size.
      - This selection happens transparently in `whisper.load_whisper_model()`; users can still explicitly request `.en` models via `--whisper-model base.en` if desired.
+```
    - **Language parameter propagation**:
+
+```text
      - The `cfg.language` value is passed to `whisper_model.transcribe()` as the `language` parameter, enabling proper language-specific transcription and improving accuracy for non-English content.
      - Default behavior (when language not specified) remains English (`"en"`) for backwards compatibility.
+```
 
 3. **Extraction Pipeline**
    - **Host Detection** (feed-level only):
+
+```python
      - **Priority 1**: Extract host names from RSS author tags (channel-level only).
        - RSS 2.0 `<author>` tag (channel-level, should be single author).
        - iTunes `<itunes:author>` tag (channel-level, can help confirm host).
@@ -67,6 +78,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
        - Validate detected hosts by checking if they also appear in the first episode's title/description.
        - Only hosts that appear in both feed metadata AND first episode are kept (validation step).
      - Hosts are cached and reused across all episodes in a run.
+```
    - **Guest Detection** (episode-level only):
      - Extract PERSON entities from episode title and first 20 characters of episode description.
      - Descriptions are limited to first 20 characters to focus on the most relevant part (often contains guest name).
@@ -74,6 +86,8 @@ Automating speaker name extraction improves UX, increases transcript quality, an
      - Remove any detected hosts from the episode persons list to get pure guests.
      - Each episode's guests are detected independently.
      - **Name Sanitization**: All extracted person names are sanitized to remove non-letter characters:
+
+```python
        - Parentheses and their contents: `"John (Smith)"` → `"John"`
        - Trailing punctuation: `"John,"` → `"John"`
        - Leading punctuation
@@ -85,6 +99,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
        - Matches pattern: 2-3 words, each starting with capital letter
        - Filters out common non-name phrases (e.g., "Guest", "Host", "Interview")
        - Adds candidates with lower confidence (0.7) compared to NER-based detection (1.0)
+```
 
 4. **Caching Strategy**
    - Introduce a feature flag (`cfg.cache_detected_hosts`) controlling whether host detection is memoized across episodes within a run.
@@ -122,28 +137,37 @@ Automating speaker name extraction improves UX, increases transcript quality, an
   - Remove detected hosts from episode persons to get pure guests.
   - Each episode's guests are detected independently.
   - **Name Sanitization**: All extracted person names are sanitized:
+
+```text
     - Removes parentheses and their contents: `"John (Smith)"` → `"John"`
     - Removes trailing/leading punctuation (commas, periods, etc.)
     - Removes non-letter characters except spaces, hyphens, and apostrophes
     - Normalizes whitespace
     - Validates: must be at least 2 characters and contain at least one letter
+```
   - **Deduplication**: Names are deduplicated case-insensitively to avoid duplicates.
   - **Pattern-based Fallback**: When NER fails (e.g., spaCy misclassifies names or fails on long titles), a pattern-based fallback:
+
+```text
     - Splits title on common separators (`|`, `—`, `–`, `-`)
     - Extracts the last segment (often contains guest name)
     - Matches pattern: 2-3 words, each starting with capital letter
     - Filters out common non-name phrases
     - Adds candidates with confidence 0.7 (lower than NER-based 1.0)
+```
 - **Fallback Behavior**:
   - If zero guests detected, preserve host-only labels (`Host`, `Co-Host`, etc.).
   - If zero hosts detected, fall back to default `["Host", "Guest"]`.
   - **Manual Speaker Names Fallback**: Manual speaker names (configured via `--speaker-names` or `speaker_names` in config) are ONLY used as a fallback when automatic detection fails:
+
+```text
     - Manual names format: first item = host, second item = guest (e.g., `["Lenny", "Guest"]`).
     - When guest detection fails for an episode:
       - If hosts were detected: keep detected hosts + use manual guest name (second item) as fallback.
       - If no hosts detected: use both manual names (host + guest).
     - Manual names are never used to override successful detection; they only activate when detection fails.
     - This ensures detected hosts are preserved across episodes while allowing manual guest fallback per episode when needed.
+```
 
 ## Feature Flags & Experiments
 

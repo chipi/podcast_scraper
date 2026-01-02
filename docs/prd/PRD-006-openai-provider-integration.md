@@ -86,7 +86,7 @@ openai_max_tokens: Optional[int] = Field(
 
 **Note:** Prices subject to change. Check [OpenAI Pricing](https://openai.com/api/pricing/) for current rates.
 
-### Cost Comparison: Local vs OpenAI (Per 100 Episodes)
+## Cost Comparison: Local vs OpenAI (Per 100 Episodes)
 
 | Component | Local (Transformers) | OpenAI (gpt-4o-mini) | Difference |
 | --------- | ------------------- | -------------------- | ---------- |

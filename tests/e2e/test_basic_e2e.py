@@ -210,7 +210,7 @@ class TestBasicLibraryAPIE2E:
                 transcribe_missing=False,  # No transcription needed when transcript URL exists
                 auto_speakers=True,  # Enable NER (speaker detection) - uses local ML (spaCy)
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
-                summary_provider="local",  # Use local ML provider (transformers) - default
+                summary_provider="transformers",  # Use transformers ML provider - default
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
@@ -280,7 +280,7 @@ class TestBasicLibraryAPIE2E:
                 whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                 auto_speakers=True,  # Enable NER (speaker detection) - uses local ML (spaCy)
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
-                summary_provider="local",  # Use local ML provider (transformers) - default
+                summary_provider="transformers",  # Use transformers ML provider - default
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
@@ -353,7 +353,7 @@ class TestBasicServiceAPIE2E:
                 transcribe_missing=False,  # No transcription needed when transcript URL exists
                 auto_speakers=True,  # Enable NER (speaker detection) - uses local ML (spaCy)
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
-                summary_provider="local",  # Use local ML provider (transformers) - default
+                summary_provider="transformers",  # Use transformers ML provider - default
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
@@ -428,7 +428,7 @@ class TestBasicServiceAPIE2E:
                 whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                 auto_speakers=True,  # Enable NER (speaker detection) - uses local ML (spaCy)
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
-                summary_provider="local",  # Use local ML provider (transformers) - default
+                summary_provider="transformers",  # Use transformers ML provider - default
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",

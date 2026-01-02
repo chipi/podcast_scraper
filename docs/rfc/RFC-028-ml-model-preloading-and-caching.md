@@ -106,7 +106,6 @@ make preload-ml-models
 1. **Cache Step:**
    ```yaml
 
-
    - name: Cache ML models
      uses: actions/cache@v4
 
@@ -123,7 +122,6 @@ make preload-ml-models
 
 2. **Preload on Cache Miss:**
    ```yaml
-
 
    - name: Preload ML models (if cache miss)
      if: steps.cache-models.outputs.cache-hit != 'true'
@@ -327,4 +325,3 @@ make preload-ml-models
 This RFC successfully addresses the network dependency and performance issues with ML model downloads. By implementing local preloading and CI caching, we've eliminated network dependencies, significantly improved CI performance, and made the development experience more reliable and faster.
 
 The implementation is complete and ready for use. Developers should run `make preload-ml-models` once to cache models locally, and CI will automatically cache models across runs for optimal performance.
-

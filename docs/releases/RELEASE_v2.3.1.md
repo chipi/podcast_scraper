@@ -252,4 +252,5 @@ logger.debug("[MAP-REDUCE VALIDATION] Input text: %d chars, %d words", ...)
 - Enhance documentation
 
 **Full Changelog**: <https://github.com/chipi/podcast_scraper/compare/v2.3.0...v2.3.1>
+
 ````

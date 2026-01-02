@@ -42,28 +42,39 @@ graph TB
         P1 -->|Type Check| P1D[mypy]
         P1 -->|Security| P1E[bandit/safety]
 
+```python
         P2 -->|Install ML deps| P2A[pytest + coverage]
+```
 
+```python
         P3 -->|Install docs deps| P3A[mkdocs build]
+```
 
+```python
         P4 -->|Install build tools| P4A[python -m build]
     end
+```
 
     subgraph "Documentation Workflow"
         D1[Build Docs]
         D2[Deploy to Pages]
 
+```python
         D1 -->|mkdocs build| D1A[Generate Site]
         D1 -->|Upload| D1B[Pages Artifact]
         D1B -->|Only on push| D2
         D2 -->|Deploy| D2A[GitHub Pages]
     end
+```
 
     subgraph "CodeQL Workflow"
     C1[CodeQL Matrix]
+
+```python
     C1 -->|Python Analysis| C1A[Scan Python Code]
     C1 -->|Actions Analysis| C1B[Scan GitHub Actions]
     end
+```
 
     subgraph "Docker Workflow"
     DOCK1[Build Docker Image]
@@ -79,23 +90,33 @@ graph TB
     SNYK3[Monitor]
     end
 
+```python
     T1 --> P1 & P2 & P3 & P4
     T2 --> P1 & P2 & P3 & P4
+```
 
+```python
     T1 --> D1
     T2 --> D1
     T4 --> D1
+```
 
+```python
     T1 --> C1
     T2 --> C1
     T3 --> C1
+```
 
+```python
     T1 --> DOCK1
     T2 -->|Only if Dockerfile/.dockerignore change| DOCK1
+```
 
+```python
     T1 --> SNYK1 & SNYK2
     T2 --> SNYK1 & SNYK2
     T3 --> SNYK3
+```
 
     style P1 fill:#e1f5e1
     style P2 fill:#e1f5e1
@@ -187,6 +208,7 @@ graph LR
     style F fill:#90EE90
     style G fill:#90EE90
 ```
+
 - **Parallel execution:** All jobs run simultaneously for maximum speed
 - **Critical path focus:** Fast jobs run only critical path tests
 - **Fast feedback:** Critical path tests provide early pass/fail signal
@@ -259,13 +281,14 @@ graph LR
 **When:** Pull requests only (not on push to main, with exceptions for docs-only PRs)
 
 **Conditional Execution:**
+
 ```yaml
 if: |
   github.event_name == 'pull_request' &&
   github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
   !contains(github.event.pull_request.head.ref, 'docs/')
 ```
-**Skips if:**
+
 - Push to main (full integration tests run instead)
 - PR branch is `fix/ai-guidelines-linting`
 - PR branch name contains `docs/`
@@ -296,13 +319,14 @@ if: |
 **When:** Pull requests only (not on push to main, with exceptions for docs-only PRs)
 
 **Conditional Execution:**
+
 ```yaml
 if: |
   github.event_name == 'pull_request' &&
   github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
   !contains(github.event.pull_request.head.ref, 'docs/')
 ```
-**Skips if:**
+
 - Push to main (full E2E tests run instead)
 - PR branch is `fix/ai-guidelines-linting`
 - PR branch name contains `docs/`
@@ -355,10 +379,10 @@ if: |
 **When:** Push to main branch only
 
 **Conditional Execution:**
+
 ```yaml
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 ```
-**Duration:** ~2-5 minutes
 
 **Steps:**
 1. Checkout code
@@ -382,11 +406,11 @@ if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 **When:** Push to main branch only
 
 **Conditional Execution:**
+
 ```yaml
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 needs: [preload-ml-models]
 ```
-**Dependencies:** Runs after `preload-ml-models` completes
 
 **Duration:** ~10-15 minutes
 
@@ -412,11 +436,11 @@ needs: [preload-ml-models]
 **When:** Push to main branch only
 
 **Conditional Execution:**
+
 ```yaml
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 needs: [preload-ml-models]
 ```
-**Dependencies:** Runs after `preload-ml-models` completes
 
 **Duration:** ~20-30 minutes
 
@@ -546,6 +570,7 @@ needs: [preload-ml-models]
 **Purpose:** Monitor dependencies for security updates
 
 **Conditional Execution:**
+
 ```yaml
 if: github.event_name == 'pull_request' || github.event_name == 'schedule'
 ```
@@ -647,7 +672,6 @@ This ensures:
 **Timeline: PR Creation → Merge → Slow Jobs**
 
 ```
-├─────────────────────────────────────────────────────────────┤
 │ ✅ Fast jobs run:                                            │
 │   - lint, test-unit, test-integration-fast, test-e2e-fast    │
 │   - docs, build, test (coverage)                            │
@@ -718,7 +742,6 @@ If `test-integration` or `test-e2e` fail after merging:
 **Typical PR Flow (All Jobs Run):**
 
 ```
-│  ├─ lint (2-3 min)
 │  ├─ test-unit (3-5 min)
 │  ├─ test-integration-fast (5-8 min)
 │  ├─ test-e2e-fast (8-12 min)
@@ -820,15 +843,20 @@ graph TD
     E2 --> E2B[pytest-socket for network guard]
     E2 --> E2C[No ML deps - critical path only]
 
+```python
     B -->|test-e2e-fast Job| E5[dev + pytest-socket]
     E5 --> E5A[pytest]
     E5 --> E5B[pytest-socket for network guard]
     E5 --> E5C[No ML deps - critical path only]
+```
 
+```python
     B -->|preload-ml-models Job Main| F[dev + ml dependencies]
     F --> F1[make preload-ml-models]
     F --> F2[Cache ML models]
+```
 
+```python
     B -->|test-integration Job Main| D[dev + ml dependencies]
     D --> D1[pytest]
     D --> D2[transformers]
@@ -836,7 +864,9 @@ graph TD
     D --> D4[whisper]
     D --> D5[spacy]
     D --> D6[Uses preloaded models]
+```
 
+```python
     B -->|test-e2e Job Main| E3[dev + ml dependencies + pytest-socket]
     E3 --> E3A[pytest]
     E3 --> E3B[pytest-socket for network guard]
@@ -844,14 +874,19 @@ graph TD
     E3 --> E3D[torch]
     E3 --> E3E[whisper]
     E3 --> E3F[spacy]
+```
 
+```python
     B -->|Docs Job| E[docs + ml dependencies]
     E --> E1[mkdocs-material]
     E --> E2D[mkdocstrings]
     E --> E3G[ML packages for API docs]
+```
 
+```python
     B -->|Build Job| F[build tools only]
     F --> F1[python -m build]
+```
 ```text
 
 **File:** `.github/workflows/docs.yml`
@@ -1250,6 +1285,7 @@ This maximizes parallelism and reduces total CI time.
 ├── Docs Job (2-3 min)
 └── Build Job (1-2 min)
 ```text
+
 **Within Python Application Workflow - Push to Main:**
 
 ```text
@@ -1387,7 +1423,7 @@ git commit -m "Update API documentation"
 
 **Total CI time:** ~3-5 minutes (vs. 20+ minutes before)
 
-#### Example 2: Python Code Change
+## Example 2: Python Code Change
 
 ```bash
 
@@ -1402,7 +1438,7 @@ git commit -m "Fix download retry logic"
 
 **Total CI time:** ~15-20 minutes (all workflows needed)
 
-#### Example 3: Mixed Changes
+## Example 3: Mixed Changes
 
 ```bash
 
@@ -1415,7 +1451,7 @@ git commit -m "Update docs and fix service"
 
 **Total CI time:** ~15-20 minutes (appropriate for code changes)
 
-### Minimal Docs CI/CD Validation ✅
+## Minimal Docs CI/CD Validation ✅
 
 The system now passes the "minimal docs CI/CD" requirement:
 
@@ -1506,7 +1542,7 @@ make install-hooks
 
 **If any check fails, the commit is blocked** until you fix the issues.
 
-#### Skip Hook (Not Recommended)
+## Skip Hook (Not Recommended)
 
 ```bash
 
@@ -1874,13 +1910,16 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 
 **Via Automation:**
 ```bash
+
 # Fetch latest metrics
+
 curl https://[username].github.io/podcast_scraper/metrics/latest.json | jq
 
 # Check history
-curl https://[username].github.io/podcast_scraper/metrics/history.jsonl | tail -1 | jq
-```
 
+curl https://[username].github.io/podcast_scraper/metrics/history.jsonl | tail -1 | jq
+
+```yaml
 - [RFC-025: Test Metrics and Health Tracking](../rfc/RFC-025-test-metrics-and-health-tracking.md) - Metrics collection strategy
 - [RFC-026: Metrics Consumption and Dashboards](../rfc/RFC-026-metrics-consumption-and-dashboards.md) - Metrics consumption methods
 - [GitHub Pages Setup Complete](../wip/GITHUB_PAGES_SETUP_COMPLETE.md) - Setup details

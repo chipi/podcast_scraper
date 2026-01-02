@@ -65,7 +65,7 @@ class TestSpeakerDetectorProtocol(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.cfg = config.Config(
-            rss_url="https://example.com/feed.xml", speaker_detector_provider="ner"
+            rss_url="https://example.com/feed.xml", speaker_detector_provider="spacy"
         )
         self.detector = create_speaker_detector(self.cfg)
 
@@ -117,7 +117,7 @@ class TestSummarizationProviderProtocol(unittest.TestCase):
         """Set up test fixtures."""
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
         self.provider = create_summarization_provider(self.cfg)

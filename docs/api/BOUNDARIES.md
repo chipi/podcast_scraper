@@ -38,7 +38,7 @@ result = service.run_from_config_file("config.yaml")
 - `success: bool` - Whether run completed successfully
 - `error: Optional[str]` - Error message if failed
 
-### CLI API (`cli.py`)
+## CLI API (`cli.py`)
 
 The CLI module is for interactive command-line use:
 

@@ -100,20 +100,28 @@ class WhisperProgressInterceptor:
                 kwargs['disable'] = True  # Disable tqdm's display
                 super().__init__(*args, **kwargs)
 
+```python
             def update(self, n=1):
                 super().update(n)
+```
 
+```text
                 # Forward to our progress bar
+```
 
+```text
                 if self.our_bar:
                     self.our_bar.update(n)
+```
 
         tqdm.tqdm = InterceptedTqdm
         return self
 
+```python
     def __exit__(self, *args):
         import tqdm
         tqdm.tqdm = self.original_tqdm
+```
 ```text
 
 1. **Real Progress**: Users see actual transcription progress (e.g., "45% complete, 2:30 remaining")
@@ -139,4 +147,5 @@ If intercepting is too complex, we could:
 4. Better UX for long transcriptions
 
 **Fallback**: If Option C proves too complex or fragile, keep current suppression (Option A) but improve our placeholder progress bar to show more useful information (e.g., "Transcribing episode 5/10...").
+
 ````

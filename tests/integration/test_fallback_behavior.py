@@ -75,7 +75,7 @@ class TestSpeakerDetectorFallback(unittest.TestCase):
         """Set up test fixtures."""
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en), not production default (base)
             auto_speakers=True,  # Required for speaker detection tests
         )
@@ -126,7 +126,7 @@ class TestSummarizationProviderFallback(unittest.TestCase):
         """Set up test fixtures."""
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
 
@@ -155,7 +155,7 @@ class TestCacheClearingFallback(unittest.TestCase):
         """Set up test fixtures."""
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
         )
 
@@ -213,7 +213,7 @@ class TestBackwardCompatibilityFallbacks(unittest.TestCase):
         # When summary_provider is None, it falls back to direct model loading
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
 
@@ -235,8 +235,8 @@ class TestFallbackRemovalImpact(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
-            speaker_detector_provider="ner",
-            summary_provider="local",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
             generate_summaries=False,
             auto_speakers=False,
         )
@@ -261,7 +261,7 @@ class TestFallbackRemovalImpact(unittest.TestCase):
         """Test that protocol methods are always available (no hasattr checks needed)."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=True,  # Required for speaker detection methods
         )
 

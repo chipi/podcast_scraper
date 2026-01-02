@@ -136,7 +136,7 @@ pytest tests/unit/test_package_imports.py -v
 - **`test_api_versioning.py`** - API versioning tests
 - **`test_prompt_store.py`** - Prompt store functionality
 
-### Unit Test Fixtures
+## Unit Test Fixtures
 
 **Network and Filesystem Isolation**:
 
@@ -288,7 +288,7 @@ pytest tests/integration/test_provider_config_integration.py -v -m integration
 - **`test_fallback_behavior.py`** - Fallback mechanisms (Whisper, etc.)
 - **`test_provider_config_integration.py`** - Provider configuration and factory integration tests
 
-### Integration Test Fixtures
+## Integration Test Fixtures
 
 **Local HTTP Server**:
 
@@ -315,7 +315,7 @@ def test_http_integration(local_http_server):
 - **External APIs**: OpenAI, etc. are mocked
 - **ML Models**: May be mocked for speed, or real for model integration testing
 
-### Integration Test Requirements
+## Integration Test Requirements
 
 - **ML dependencies**: Integration tests require ML packages installed (for real model testing)
 - **Real filesystem I/O**: Tests use real file operations in temp directories
@@ -475,7 +475,7 @@ pytest tests/e2e/test_http_behaviors_e2e.py -v -m e2e --disable-socket --allow-h
 - **`test_http_behaviors_e2e.py`** (13 tests)
   - HTTP client behaviors in full workflow context
 
-### E2E Test Fixtures
+## E2E Test Fixtures
 
 **E2E Server Fixture**:
 
@@ -496,6 +496,7 @@ def test_example(e2e_server):
 For API providers (e.g., OpenAI), the E2E server provides mock endpoints that return realistic API responses. Tests configure providers to use `e2e_server.urls.openai_api_base()` instead of the production API, allowing tests to run without real API calls.
 
 **Example**:
+
 ```python
 def test_openai_provider(e2e_server):
     cfg = create_test_config(
@@ -505,7 +506,7 @@ def test_openai_provider(e2e_server):
     )
     # Test uses real HTTP client but hits mock endpoints
 ```
-**Mock Endpoints**:
+
 - `/v1/chat/completions` - For summarization and speaker detection
 - `/v1/audio/transcriptions` - For transcription
 
@@ -574,63 +575,64 @@ See [Issue #143](https://github.com/chipi/podcast_scraper/issues/143) for detail
 
 ```bash
 
-# Run unit tests only (default pytest behavior)
-
-pytest
-
-# Or explicitly:
-
-pytest tests/unit/
-```text
-```bash
-
 # Unit tests only
 
-pytest tests/unit/
 make test-unit
 
 # Integration tests only
 
-pytest tests/integration/ -m integration
 make test-integration
 
-# Workflow E2E tests only
+# E2E tests only
 
-pytest tests/e2e/ -m e2e
 make test-e2e
 
-# All tests (excluding network tests)
+# Fast tests (critical path only)
 
-pytest -m "not network"
+make test-fast
+
+# All tests
+
 make test
-```text
+```
 
-### Parallel Execution
+## Parallel and Serial Execution
 
-Tests run in parallel by default for faster feedback (2-4x speedup for unit tests, 3.4x for integration tests). This matches CI behavior:
+Tests run in parallel by default for faster feedback. Tests marked `serial` run first (sequentially), then remaining tests run in parallel:
 
 ```bash
 
-# Default: parallel execution (auto-detects CPU count)
+# Default: serial tests first, then parallel
 
-make test-unit
-pytest -n auto
+make test-unit            # Unit tests (parallel, with network isolation)
+make test-integration     # Integration tests (parallel, with reruns)
+make test-e2e             # E2E tests (serial first, then parallel)
+make test                 # All tests (serial first, then parallel)
 
-# Sequential execution (slower but clearer output, useful for debugging)
+# Sequential execution (for debugging)
 
 make test-unit-sequential
-pytest  # No -n flag
+make test-integration-sequential
+make test-e2e-sequential
+make test-sequential
 
-# Run with specific number of workers
+# Fast variants (critical path only)
 
-pytest -n 4
+make test-integration-fast  # Critical path integration tests
+make test-e2e-fast          # Critical path E2E tests
+make test-fast              # Unit + critical path integration + critical path E2E
+```
 
-# Test suite-specific targets
+**Serial marker**: Tests marked `@pytest.mark.serial` run sequentially first due to resource conflicts or race conditions.
 
-make test-unit            # Unit tests (parallel)
-make test-integration     # Integration tests (parallel)
-make test-e2e             # E2E tests (parallel)
-make test                 # All tests (parallel)
+**Network isolation**: All tests use `--disable-socket --allow-hosts=127.0.0.1,localhost` to block external network calls.
+
+**E2E test modes** (via `E2E_TEST_MODE` environment variable):
+
+- `fast`: 1 episode per test (quick feedback)
+- `multi_episode`: 5 episodes per test (full validation)
+- `data_quality`: Multiple episodes with all mock data (nightly only)
+
 ```yaml
 
 - **Debugging test failures**: Sequential output is easier to read and debug
@@ -639,7 +641,7 @@ make test                 # All tests (parallel)
 
 **Note:** Parallel execution creates `.coverage.*` files (one per worker process) which are automatically merged into `.coverage`. These files are gitignored and can be cleaned with `make clean`.
 
-### Verifying Test Markers
+## Verifying Test Markers
 
 After changing pytest configuration (especially `pyproject.toml` `addopts`), verify markers work:
 
@@ -656,6 +658,7 @@ pytest tests/e2e/ -m e2e --collect-only -q | wc -l
 # Should collect unit tests (default)
 
 pytest tests/unit/ --collect-only -q | wc -l
+
 ```yaml
 
 - Integration tests: > 50
@@ -664,7 +667,7 @@ pytest tests/unit/ --collect-only -q | wc -l
 
 If any count is 0, check for marker conflicts in `pyproject.toml` `addopts`. See `docs/wip/TEST_INFRASTRUCTURE_VALIDATION.md` for details.
 
-### Flaky Test Reruns
+## Flaky Test Reruns
 
 ```bash
 
@@ -676,6 +679,7 @@ make test-reruns
 # Combine with parallel execution
 
 pytest -n auto --reruns 2 --reruns-delay 1
+
 ```text
 
 # - Network calls → NetworkCallDetectedError
@@ -794,22 +798,28 @@ The test suite is organized into three main categories:
 
 ### Test Markers
 
-- `@pytest.mark.integration` - Integration tests (test component interactions)
-- `@pytest.mark.e2e` - Workflow end-to-end tests (test complete workflows)
-- `@pytest.mark.network` - Tests that hit the network (off by default)
-- `@pytest.mark.slow` - Slow-running tests (existing)
-- `@pytest.mark.whisper` - Requires Whisper dependency (existing)
-- `@pytest.mark.spacy` - Requires spaCy dependency (existing)
-- `@pytest.mark.ml_models` - Requires ML model dependencies
+- `@pytest.mark.unit` - Unit tests (fast, isolated)
+- `@pytest.mark.integration` - Integration tests (component interactions)
+- `@pytest.mark.e2e` - End-to-end workflow tests
+- `@pytest.mark.critical_path` - Critical path tests (run in fast suite regardless of ml_models marker if cached)
+- `@pytest.mark.serial` - Tests that must run sequentially (resource conflicts/race conditions)
+- `@pytest.mark.ml_models` - Requires ML dependencies (whisper, spacy, transformers)
+- `@pytest.mark.slow` - Slow-running tests
+- `@pytest.mark.network` - Tests that hit external network (off by default)
+- `@pytest.mark.multi_episode` - Multi-episode tests (10-15 seconds each)
+- `@pytest.mark.data_quality` - Data quality validation tests (nightly only)
+- `@pytest.mark.llm` - Tests using LLM APIs (may incur costs)
+- `@pytest.mark.openai` - Tests using OpenAI API specifically
+- `@pytest.mark.integration_http` - HTTP integration tests with test server
+- `@pytest.mark.infrastructure` - Tests for test infrastructure itself
 
 **Marker Usage:**
 
 - All integration tests must have `@pytest.mark.integration`
 - All e2e tests must have `@pytest.mark.e2e`
 - Unit tests should NOT have integration/e2e markers
-- **E2E tests that make real network calls** should have `@pytest.mark.network`
-- **Integration tests** typically mock network calls (for speed), so they usually don't need `@pytest.mark.network`
-- **E2E tests** should use real HTTP client and be marked with `@pytest.mark.e2e`
+- **Critical path tests** should have `@pytest.mark.critical_path` to run in fast suite
+- **Tests with resource conflicts** should have `@pytest.mark.serial` to run sequentially
 
 ---
 
@@ -891,6 +901,7 @@ Start: What are you testing?
       └─ NO → Integration Test
 
 ```text
+
 **Question**: Both integration and E2E tests use local HTTP servers. What's the difference?
 
 **Answer**:
@@ -1015,4 +1026,5 @@ Keep a test as integration if:
 - CI workflow: `.github/workflows/python-app.yml`
 - Architecture: [ARCHITECTURE.md](../ARCHITECTURE.md) (Testing Notes section)
 - Contributing guide: `CONTRIBUTING.md` (Testing Requirements section)
+
 ````

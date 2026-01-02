@@ -107,13 +107,19 @@ class SpeakerDetector(Protocol):
         episode_description: Optional[str],
         known_hosts: Set[str],
     ) -> Tuple[List[str], Set[str], bool]:
-        """Detect speakers for an episode.
 
+```text
+        """Detect speakers for an episode.
+```
+
+```text
         Returns:
             (speaker_names, detected_hosts, success)
         """
         ...
+```
 
+```python
     def analyze_patterns(
         self,
         episodes: List[models.Episode],
@@ -121,6 +127,7 @@ class SpeakerDetector(Protocol):
     ) -> Optional[Dict[str, Any]]:
         """Analyze episode patterns for heuristics."""
         ...
+```
 ```python
 
 from .. import config
@@ -154,6 +161,7 @@ class SpeakerDetectorFactory:
    # Keep ner_model for backward compatibility
 
    ner_model: Optional[str] = Field(default=None, alias="ner_model")
+
 ````
 
 2. **Create protocol definitions:**
@@ -165,7 +173,7 @@ class SpeakerDetectorFactory:
    - Create `factory.py` with `SpeakerDetectorFactory.create()`
    - Returns current NER implementation wrapped in protocol
 
-#### Phase 2: Refactor Current Implementation - Speaker Detection
+## Phase 2: Refactor Current Implementation - Speaker Detection
 
 1. **Refactor `speaker_detection.py` → `speaker_detectors/ner_detector.py`:**
    - Extract helper functions from large functions:
@@ -185,10 +193,13 @@ class SpeakerDetectorFactory:
 
    detector = SpeakerDetectorFactory.create(cfg)
    if detector:
+
+```text
        hosts = detector.detect_hosts(feed.title, feed.description, feed.authors)
+```
    ```
 
-#### Phase 3: Add OpenAI Provider - Speaker Detection (Future)
+### Phase 3: Add OpenAI Provider - Speaker Detection (Future)
 
 1. **Create `speaker_detectors/openai_detector.py`:**
    - Implement `SpeakerDetector` protocol
@@ -285,27 +296,38 @@ class TranscriptionProvider(Protocol):
         cfg: config.Config,
         resource: Any,  # Provider-specific resource
     ) -> Tuple[Dict[str, Any], float]:
-        """Transcribe media file.
 
+```text
+        """Transcribe media file.
+```
+
+```text
         Args:
             media_path: Path to media file
             cfg: Configuration object
             resource: Provider-specific resource (model, client, etc.)
+```
 
+```text
         Returns:
             Tuple of (result_dict, elapsed_seconds)
             result_dict should have 'text' and optionally 'segments'
         """
         ...
+```
 
+```python
     def cleanup(self, resource: Any) -> None:
         """Cleanup provider resources."""
         ...
+```
+
 ```python
 
 from .. import config
 
 ```python
+
 from .base import TranscriptionProvider
 
 class TranscriptionProviderFactory:
@@ -324,6 +346,7 @@ class TranscriptionProviderFactory:
             from .openai_provider import OpenAITranscriptionProvider
             return OpenAITranscriptionProvider(cfg)
         return None
+
 ```text
 
 1. **Add provider type field to `config.py`:**
@@ -345,7 +368,7 @@ class TranscriptionProviderFactory:
    - Create `factory.py` with `TranscriptionProviderFactory.create()`
    - Returns current Whisper implementation wrapped in protocol
 
-#### Phase 2: Refactor Current Implementation - Transcription
+## Phase 2: Refactor Current Implementation - Transcription
 
 1. **Refactor `whisper_integration.py` → `transcription/whisper_provider.py`:**
    - Keep all current logic
@@ -363,8 +386,11 @@ class TranscriptionProviderFactory:
 
    provider = TranscriptionProviderFactory.create(cfg)
    if provider:
+
+```text
        resource = provider.initialize(cfg)
        result, elapsed = provider.transcribe(media_path, cfg, resource)
+```
    ```
 
 3. **Update `_TranscriptionResources`:**
@@ -376,11 +402,13 @@ class TranscriptionProviderFactory:
        temp_dir: Optional[str]
        transcription_jobs: List[models.TranscriptionJob]
 
+```text
        # ... rest
+```
 
    ```
 
-#### Phase 3: Add OpenAI Provider - Transcription (Future)
+### Phase 3: Add OpenAI Provider - Transcription (Future)
 
 1. **Create `transcription/openai_provider.py`:**
    - Implement `TranscriptionProvider` protocol
@@ -479,20 +507,28 @@ class SummarizationProvider(Protocol):
         max_length: Optional[int] = None,
         min_length: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Summarize text.
 
+```text
+        """Summarize text.
+```
+
+```text
         Args:
             text: Text to summarize
             cfg: Configuration object
             resource: Provider-specific resource (model, client, etc.)
             max_length: Maximum summary length
             min_length: Minimum summary length
+```
 
+```text
         Returns:
             Dictionary with 'summary' and optionally 'chunks', 'metadata'
         """
         ...
+```
 
+```python
     def summarize_chunks(
         self,
         chunks: List[str],
@@ -500,12 +536,16 @@ class SummarizationProvider(Protocol):
         resource: Any,
     ) -> List[str]:
         """Summarize multiple text chunks (MAP phase).
+```
 
+```text
         Returns:
             List of chunk summaries
         """
         ...
+```
 
+```python
     def combine_summaries(
         self,
         summaries: List[str],
@@ -513,15 +553,20 @@ class SummarizationProvider(Protocol):
         resource: Any,
     ) -> str:
         """Combine multiple summaries into final summary (REDUCE phase).
+```
 
+```text
         Returns:
             Final combined summary
         """
         ...
+```
 
+```python
     def cleanup(self, resource: Any) -> None:
         """Cleanup provider resources."""
         ...
+```
 ```python
 
 from .. import config
@@ -555,6 +600,7 @@ class SummarizationProviderFactory:
    # Keep summary_model for backward compatibility
 
    summary_model: Optional[str] = Field(default=None, alias="summary_model")
+
 ````
 
 2. **Create protocol definitions:**
@@ -566,7 +612,7 @@ class SummarizationProviderFactory:
    - Create `factory.py` with `SummarizationProviderFactory.create()`
    - Returns current local implementation wrapped in protocol
 
-#### Phase 2: Refactor Current Implementation - Summarization
+## Phase 2: Refactor Current Implementation - Summarization
 
 1. **Extract Preprocessing to Shared Module:**
    - Create `podcast_scraper/preprocessing.py` module
@@ -580,10 +626,13 @@ class SummarizationProviderFactory:
    - Wrap existing `SummaryModel` class as provider
    - Remove preprocessing functions (moved to shared module)
    - Extract helper functions from `metadata.py`:
+
+```text
      - `_build_feed_metadata()` - Construct FeedMetadata
      - `_build_episode_metadata()` - Construct EpisodeMetadata
      - `_build_content_metadata()` - Construct ContentMetadata
      - `_build_processing_metadata()` - Construct ProcessingMetadata
+```
 
 3. **Update `workflow.py`:**
 
@@ -592,7 +641,10 @@ class SummarizationProviderFactory:
 
    provider = SummarizationProviderFactory.create(cfg)
    if provider:
+
+```text
        resource = provider.initialize(cfg)
+```
    ```
 
 4. **Update `metadata.py`:**
@@ -600,7 +652,7 @@ class SummarizationProviderFactory:
    - Extract helper functions for model building
    - Use provider for summarization instead of direct model calls
 
-#### Phase 3: Add OpenAI Provider - Summarization (Future)
+### Phase 3: Add OpenAI Provider - Summarization (Future)
 
 1. **Create `summarization/openai_provider.py`:**
    - Implement `SummarizationProvider` protocol
@@ -681,6 +733,7 @@ class SummarizationProviderFactory:
 ## File Structure (Proposed)
 
 ````text
+
 podcast_scraper/
 ├── preprocessing.py         # NEW: Provider-agnostic preprocessing utilities
 │                           # - clean_transcript() (timestamp removal, speaker normalization)
@@ -709,6 +762,7 @@ podcast_scraper/
 ├── metadata.py              # Refactored (smaller functions), calls preprocessing BEFORE providers
 ├── config.py                # Has provider type fields
 └── ...
+
 ```text
 
 1. **Backward Compatibility First**

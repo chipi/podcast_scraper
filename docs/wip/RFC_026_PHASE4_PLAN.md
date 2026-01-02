@@ -127,8 +127,7 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
        # Generate alerts
        # Format as markdown
        return comment_markdown
-```
-   ```
+```python
 
 2. **Add to PR workflow** (`.github/workflows/python-app.yml`):
 
@@ -147,7 +146,6 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
          --reports-dir reports \
          --output metrics/pr-metrics.json
 ```
-
 ```text
        # Generate comment
        python scripts/generate_pr_comment.py \
@@ -155,11 +153,9 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
          --baseline "$BASELINE" \
          --output pr-comment.md
 ```
-
 ```text
        # Post comment using GitHub CLI or API
 ```
-   ```
 
 3. **Post comment using GitHub CLI:**
 
@@ -178,7 +174,6 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
            body: comment
          });
 ```
-   ```
 
 **Comment Format:**
 
@@ -247,7 +242,6 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
            --threshold error  # Only send critical alerts
        fi
 ```
-   ```
 
 3. **Configuration:**
    - Add `METRICS_WEBHOOK_URL` to repository secrets
@@ -369,7 +363,7 @@ env:
   ENABLE_PR_COMMENTS: true
   ENABLE_WEBHOOK_ALERTS: false  # Requires secret
   ALERT_THRESHOLD: error  # error, warning, or info
-```
+```yaml
 
 ## Success Criteria
 

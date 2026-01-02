@@ -205,10 +205,14 @@ The decision questions above provide a quick way to determine test type. For cri
     - Verify model and tokenizer are properly initialized
     - Test model unloading after loading
   - **Map-reduce strategy**:
+
+```text
     - Map phase: chunking (word-based and token-based), chunk summarization
     - Reduce phase decision logic: single abstractive (≤800 tokens), mini map-reduce (800-4000 tokens), extractive (>4000 tokens)
     - Mini map-reduce: re-chunking combined summaries into 3-5 sections (650 words each), second map phase (summarize each section), final abstractive reduce
     - Extractive fallback behavior for extremely large combined summaries
+```
+
   - Summary generation with various text lengths
   - Key takeaways extraction
   - Text chunking for long transcripts
@@ -228,9 +232,12 @@ The decision questions above provide a quick way to determine test type. For cri
   - **E2E Tests**: Test unified providers in full pipeline, providers work with real HTTP client (E2E server mock endpoints for API providers), real ML models (for local providers), multiple providers work together, error scenarios (API failures, rate limits)
   - **E2E Server Tests**: Mock endpoint returns correct format, mock endpoint handles different request types, mock endpoint error handling, URL helper methods work correctly
   - **Provider-specific tests**:
+
+```text
     - **MLProvider**: Unified provider for Whisper (transcription), spaCy (speaker detection), Transformers (summarization) - test all three capabilities together
     - **OpenAIProvider**: Unified provider for OpenAI API (transcription, speaker detection, summarization) - test all three capabilities together
     - **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
+```python
 
 #### Service API (`service.py`)
 
@@ -361,14 +368,22 @@ The test suite is organized into three main categories:
 
 ### Test Markers
 
-- `@pytest.mark.integration` - Integration tests
-- `@pytest.mark.e2e` - E2E tests (formerly `workflow_e2e`)
-- `@pytest.mark.slow` - Slow-running tests (mutually exclusive with `ml_models`)
-- `@pytest.mark.ml_models` - Requires ML model dependencies (implies slow, mutually exclusive with `slow`)
-- `@pytest.mark.llm` - Tests that use LLM providers (may incur costs or rate limits)
-- `@pytest.mark.openai` - Tests that use OpenAI API specifically (subset of `llm` marker)
+- `@pytest.mark.unit` - Unit tests (fast, isolated)
+- `@pytest.mark.integration` - Integration tests (component interactions)
+- `@pytest.mark.e2e` - End-to-end workflow tests
+- `@pytest.mark.critical_path` - Critical path tests (run in fast suite)
+- `@pytest.mark.serial` - Tests that must run sequentially (resource conflicts)
+- `@pytest.mark.ml_models` - Requires ML dependencies (whisper, spacy, transformers)
+- `@pytest.mark.slow` - Slow-running tests
+- `@pytest.mark.network` - Tests that hit external network
+- `@pytest.mark.multi_episode` - Multi-episode tests (nightly)
+- `@pytest.mark.data_quality` - Data quality validation (nightly only)
+- `@pytest.mark.llm` - Tests using LLM APIs (may incur costs)
+- `@pytest.mark.openai` - Tests using OpenAI API specifically
 
-**For detailed test infrastructure information, including network/filesystem isolation, fixtures, and marker usage, see [Testing Guide - Test Infrastructure Details](TESTING_GUIDE.md#test-infrastructure-details).**
+**Execution Pattern**: Tests marked `serial` run first sequentially, then remaining tests run in parallel with `-n auto`. All tests use network isolation via `--disable-socket --allow-hosts=127.0.0.1,localhost`.
+
+**For detailed test infrastructure information, see [Testing Guide - Test Infrastructure Details](guides/TESTING_GUIDE.md#test-infrastructure-details).**
 
 ## CI/CD Integration
 
@@ -707,4 +722,5 @@ Ideal Pyramid:
 - Related Issues: #14 (E2E testing), #16 (Library API E2E tests), #94 (src/ layout), #98 (Test structure reorganization)
 - Architecture: `docs/ARCHITECTURE.md` (Testing Notes section)
 - Contributing guide: `CONTRIBUTING.md` (Testing Requirements section)
+
 ````

@@ -326,6 +326,7 @@ class E2EServerURLs:
             TranscriptionProvider instance
         """
         # Implementation here
+
 ```
 
 #### Unit Tests
@@ -519,6 +520,7 @@ class TestOpenAIProviderE2E:
             assert len(transcript_files) >= 1
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
+
 ```
 
 #### E2E Server Endpoint Tests

@@ -110,7 +110,7 @@ class TestSpeakerDetectorErrorHandling(unittest.TestCase):
         """Test that initialization failure raises exception."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
         )
         detector = create_speaker_detector(cfg)
@@ -124,7 +124,7 @@ class TestSpeakerDetectorErrorHandling(unittest.TestCase):
         """Test that detect_speakers() auto-initializes if needed."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=True,  # Required for detect_speakers() to work
             transcribe_missing=False,  # Don't initialize Whisper for speaker detector tests
         )
@@ -139,7 +139,7 @@ class TestSpeakerDetectorErrorHandling(unittest.TestCase):
         """Test error handling when detect_hosts() fails."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
         )
         detector = create_speaker_detector(cfg)
@@ -162,7 +162,7 @@ class TestSpeakerDetectorErrorHandling(unittest.TestCase):
         """Test error handling when clear_cache() fails."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
         )
         detector = create_speaker_detector(cfg)
@@ -182,7 +182,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
         """Test that initialization failure raises exception."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
         provider = create_summarization_provider(cfg)
@@ -205,7 +205,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
 
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
         provider = create_summarization_provider(cfg)
@@ -227,7 +227,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
 
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            summary_provider="local",
+            summary_provider="transformers",
             generate_summaries=False,
         )
         provider = create_summarization_provider(cfg)
@@ -304,8 +304,8 @@ class TestGracefulDegradation(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
-            speaker_detector_provider="ner",
-            summary_provider="local",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
             generate_summaries=False,
             auto_speakers=False,
         )
@@ -330,7 +330,7 @@ class TestGracefulDegradation(unittest.TestCase):
         """Test that multiple initialization calls are safe (idempotent)."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
         )
         detector = create_speaker_detector(cfg)
@@ -347,7 +347,7 @@ class TestGracefulDegradation(unittest.TestCase):
         """Test that multiple cleanup calls are safe (idempotent)."""
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
-            speaker_detector_provider="ner",
+            speaker_detector_provider="spacy",
             auto_speakers=False,
         )
         detector = create_speaker_detector(cfg)

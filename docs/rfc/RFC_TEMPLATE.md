@@ -86,7 +86,7 @@ component/
 
 ```text
 
-### 3. [Integration Points]
+## 3. [Integration Points]
 
 [How this integrates with existing systems:]
 

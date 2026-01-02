@@ -75,7 +75,7 @@ cp examples/.env.example .env
 
 > **Note:** Build artifacts (distributions, documentation site, coverage reports) are organized in `.build/` directory. Test outputs are stored in `.test_outputs/`. Use `make clean` to remove all build artifacts.
 
-### 3. Common Commands
+## 3. Common Commands
 
 Use the Makefile targets to work faster:
 

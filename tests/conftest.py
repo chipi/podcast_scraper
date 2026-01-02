@@ -11,6 +11,7 @@ All test files can import from this module using pytest's conftest.py mechanism.
 """
 
 import argparse
+import gc
 import unittest.mock
 
 # Bandit: tests construct safe XML elements
@@ -385,3 +386,67 @@ def pytest_collection_modifyitems(config, items):
                     "ERROR: Running with -m 'not network' but no tests collected! "
                     "Check marker configuration."
                 )
+
+
+@pytest.fixture(autouse=True, scope="function")
+def cleanup_ml_resources_after_test(monkeypatch):
+    """Ensure ML resources are cleaned up after each test.
+
+    This fixture runs automatically after each test to:
+    - Limit PyTorch thread pools to prevent excessive thread spawning
+    - Force garbage collection to clean up any lingering model references
+    - Help prevent memory leaks and thread accumulation in parallel test execution
+
+    This is especially important when running tests in parallel with pytest-xdist,
+    where multiple worker processes load ML models simultaneously.
+
+    PyTorch/Transformers can spawn many threads per model, so we limit them:
+    - OMP_NUM_THREADS: OpenMP threads (used by PyTorch)
+    - MKL_NUM_THREADS: Intel MKL threads (if available)
+    - TORCH_NUM_THREADS: PyTorch CPU threads
+    """
+    import os
+    import sys
+
+    # Limit PyTorch thread pools to prevent excessive thread spawning
+    # Set to 1 thread per worker to minimize resource usage in parallel tests
+    # This prevents PyTorch from spawning many threads per model
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("MKL_NUM_THREADS", "1")
+    os.environ.setdefault("TORCH_NUM_THREADS", "1")
+
+    # Also set via monkeypatch to ensure it applies even if already imported
+    monkeypatch.setenv("OMP_NUM_THREADS", "1")
+    monkeypatch.setenv("MKL_NUM_THREADS", "1")
+    monkeypatch.setenv("TORCH_NUM_THREADS", "1")
+
+    # Try to set PyTorch thread count directly if already imported
+    # Note: set_num_interop_threads can only be called once per process,
+    # so we catch RuntimeError if it's already been set
+    # Only check if torch is already imported (don't import it ourselves to save memory)
+    if "torch" in sys.modules:
+        try:
+            import torch
+
+            if hasattr(torch, "set_num_threads"):
+                try:
+                    torch.set_num_threads(1)
+                except RuntimeError:
+                    pass  # Already set, ignore
+            if hasattr(torch, "set_num_interop_threads"):
+                try:
+                    torch.set_num_interop_threads(1)
+                except RuntimeError:
+                    pass  # Already set or parallel work started, ignore
+        except ImportError:
+            pass  # PyTorch not available, skip
+
+    # Run the test
+    yield
+
+    # After test completes, force garbage collection
+    # This helps clean up any ML models that weren't explicitly cleaned up
+    # and releases threads that might be holding references
+    # Note: Single GC round is more efficient - multiple rounds can actually
+    # cause memory fragmentation and keep objects alive longer
+    gc.collect()

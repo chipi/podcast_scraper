@@ -80,6 +80,8 @@ This PRD integrates with RFC-010 (Automatic Speaker Name Detection) to enhance W
 
 - **Automatic Speaker Detection**: When enabled, speaker names are automatically detected:
   - **Hosts**:
+
+```python
     - **Preferred**: Extracted from RSS author tags (channel-level only):
       - RSS 2.0 `<author>` tag (channel-level, single author).
       - iTunes `<itunes:author>` tag (channel-level, can confirm host).
@@ -87,6 +89,7 @@ This PRD integrates with RFC-010 (Automatic Speaker Name Detection) to enhance W
       - Multiple sources are collected together to confirm/validate hosts.
       - Most reliable source as they explicitly specify the podcast host(s).
     - **Fallback**: If no author tags exist, extracted from feed-level metadata (feed title/description) using spaCy NER and validated by checking they also appear in the first episode.
+```
   - **Guests**: Extracted from episode-specific metadata (episode title and first 20 characters of description) using spaCy NER, never from feed metadata.
     - Descriptions are limited to first 20 characters to focus on the most relevant part (often contains guest name).
     - All extracted names are sanitized (removes parentheses, punctuation, etc.) and deduplicated case-insensitively.
@@ -97,10 +100,13 @@ This PRD integrates with RFC-010 (Automatic Speaker Name Detection) to enhance W
 - **Fallback Behavior**:
   - If NER fails or spaCy is unavailable, fall back to default `["Host", "Guest"]` labels.
   - **Manual Speaker Names Fallback**: Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails:
+
+```text
     - Manual names format: first item = host, second item = guest (e.g., `["Lenny", "Guest"]`).
     - When guest detection fails for an episode:
       - If hosts were detected: keep detected hosts + use manual guest name (second item) as fallback.
       - If no hosts detected: use both manual names (host + guest).
     - Manual names never override successful detection; they only activate when detection fails.
     - This ensures detected hosts are preserved while allowing manual guest fallback per episode when needed.
+```
 - **Metadata Integration**: Detected speaker names are stored in episode metadata documents (per PRD-004) for downstream use cases.

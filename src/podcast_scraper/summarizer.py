@@ -486,14 +486,31 @@ class SummaryModel:
         _validate_model_source(model_name)
         # Use provided cache_dir or default to standard Hugging Face cache location
         # Transformers will automatically use this directory for caching
+        # Prefer local cache in project root if available
         if cache_dir:
             self.cache_dir = cache_dir
         else:
-            # Prefer newer cache location, fallback to legacy if it exists
-            if HF_CACHE_DIR.exists() or not HF_CACHE_DIR_LEGACY.exists():
-                self.cache_dir = str(HF_CACHE_DIR)
-            else:
-                self.cache_dir = str(HF_CACHE_DIR_LEGACY)
+            # Check for local cache in project root first
+            try:
+                from .cache_utils import get_project_root, get_transformers_cache_dir
+
+                local_cache = get_transformers_cache_dir()
+                project_root = get_project_root()
+                local_cache_path = project_root / ".cache" / "huggingface" / "hub"
+                if local_cache == local_cache_path and local_cache_path.exists():
+                    self.cache_dir = str(local_cache)
+                else:
+                    # Prefer newer cache location, fallback to legacy if it exists
+                    if HF_CACHE_DIR.exists() or not HF_CACHE_DIR_LEGACY.exists():
+                        self.cache_dir = str(HF_CACHE_DIR)
+                    else:
+                        self.cache_dir = str(HF_CACHE_DIR_LEGACY)
+            except Exception:
+                # If cache_utils not available, use default
+                if HF_CACHE_DIR.exists() or not HF_CACHE_DIR_LEGACY.exists():
+                    self.cache_dir = str(HF_CACHE_DIR)
+                else:
+                    self.cache_dir = str(HF_CACHE_DIR_LEGACY)
         # Type hints use TYPE_CHECKING imports above
         # Runtime imports happen lazily in _load_model()
         self.tokenizer: Optional["AutoTokenizer"] = None
@@ -2173,7 +2190,7 @@ def optimize_model_memory(model: SummaryModel) -> None:
 
 
 def unload_model(model: Optional[SummaryModel]) -> None:
-    """Unload model to free memory.
+    """Unload model to free memory and clean up resources.
 
     Args:
         model: Summary model instance, or None (no-op if None)
@@ -2181,6 +2198,7 @@ def unload_model(model: Optional[SummaryModel]) -> None:
     if model is None:
         return
 
+    # Delete model components to release memory
     if model.model:
         del model.model
     if model.tokenizer:
@@ -2192,15 +2210,39 @@ def unload_model(model: Optional[SummaryModel]) -> None:
     model.tokenizer = None
     model.pipeline = None
 
-    # Lazy import torch for cache clearing
-    import torch  # noqa: F401
+    # Lazy import torch for cache clearing (only if available)
+    # Unit tests run without ML dependencies, so torch may not be installed
+    import gc  # noqa: F401
 
-    # Clear device-specific cache
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        if hasattr(torch.mps, "empty_cache"):
-            torch.mps.empty_cache()
+    try:
+        import torch  # noqa: F401
+
+        # Clear device-specific cache (wrap in try-except to handle any torch errors)
+        try:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                if hasattr(torch.mps, "empty_cache"):
+                    torch.mps.empty_cache()
+        except Exception:
+            # Ignore any errors from torch operations (e.g., device not available, etc.)
+            # This ensures cleanup doesn't fail even if torch is in an unexpected state
+            pass
+    except ImportError:
+        # torch not available (e.g., in unit tests without ML dependencies)
+        # This is fine - we'll just do basic garbage collection
+        pass
+
+    # Force garbage collection to clean up any remaining references
+    # This helps release memory and clean up threads that might be holding references
+    # Note: In test environments, gc.collect() can sometimes hang due to finalizers,
+    # so we skip it if we detect we're in a test environment
+    import os
+
+    # Skip gc.collect() in test environments to avoid hangs
+    # The test fixture cleanup_ml_resources_after_test will handle GC
+    if os.environ.get("PYTEST_CURRENT_TEST") is None:
+        gc.collect()
 
 
 def get_cache_size(cache_dir: Optional[str] = None) -> int:

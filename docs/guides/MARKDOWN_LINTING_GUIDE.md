@@ -175,7 +175,7 @@ make lint-markdown
 
 See `scripts/README.md` for full documentation.
 
-### Format-on-Save (Recommended)
+## Format-on-Save (Recommended)
 
 **For format-on-save:**
 
@@ -219,7 +219,7 @@ markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site
 markdownlint --fix "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site
 ```text
 
-### Table Formatting Rules
+## Table Formatting Rules
 
 1. **Compact style**: Tables need spaces around pipes
    - ❌ Bad: `|Column1|Column2|`
@@ -402,7 +402,7 @@ make lint-markdown
 **Why:** Automated fixes are fast, consistent, and handle the majority of issues. Manual fixes
 should only be for edge cases.
 
-### 3. Edge Cases to Watch For
+## 3. Edge Cases to Watch For
 
 **MD032 (blanks-around-lists):** Lists that come immediately after bold text (not headings) need
 blank lines:
@@ -441,7 +441,7 @@ descriptions). Consider:
 - Disabling for specific file types (RFCs, PRDs, technical docs)
 - Using Prettier for automatic wrapping
 
-### 4. Script Enhancement Strategy
+## 4. Script Enhancement Strategy
 
 **Enhance the fix script incrementally:**
 

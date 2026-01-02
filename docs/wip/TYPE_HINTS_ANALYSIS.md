@@ -142,4 +142,5 @@ Type hints:
 - ✅ Are appropriate for minor versions
 
 **Recommendation**: Proceed with adding type hints in version 2.4.0.
+
 ````

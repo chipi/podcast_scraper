@@ -186,8 +186,10 @@ test-e2e-data-quality:
 test:
 	# All tests: serial tests first (sequentially), then parallel execution for the rest
 	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
+	# Reduced parallelism: auto minus 2 to reserve buffer for system (was -n auto which used all 14 cores)
+	# This gives us 12 workers instead of 14, reducing memory pressure while still being aggressive
 	@E2E_TEST_MODE=multi_episode pytest tests/ -m serial --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost || true
-	@E2E_TEST_MODE=multi_episode pytest tests/ -m "not serial" --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
+	@E2E_TEST_MODE=multi_episode pytest tests/ -m "not serial" --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $$(python3 -c "import os; print(max(1, (os.cpu_count() or 14) - 2))") --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-sequential:
 	# All tests: sequential execution (slower but clearer output, useful for debugging)

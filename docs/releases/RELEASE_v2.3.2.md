@@ -170,7 +170,7 @@ def _get_worker_models():
 
 **Total**: 24 new security tests
 
-### REDUCE Model Reuse
+## REDUCE Model Reuse
 
 **Before**:
 
@@ -242,4 +242,5 @@ generate_episode_metadata(..., reduce_model=reduce_model)
 - Address summary quality improvements (Issue #83)
 
 **Full Changelog**: <https://github.com/chipi/podcast_scraper/compare/v2.3.1...v2.3.2>
+
 ````

@@ -1843,8 +1843,8 @@ class TestMultipleComponentsWorkflow(unittest.TestCase):
             generate_metadata=True,
             metadata_format="json",
             transcription_provider="whisper",
-            speaker_detector_provider="ner",
-            summary_provider="local",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
             generate_summaries=False,
             auto_speakers=False,
         )
@@ -1903,8 +1903,8 @@ class TestMultipleComponentsWorkflow(unittest.TestCase):
             generate_metadata=True,
             metadata_format="json",
             transcription_provider="whisper",
-            speaker_detector_provider="ner",
-            summary_provider="local",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
             generate_summaries=True,  # Enable summarization
             auto_speakers=True,  # Enable speaker detection
         )

@@ -188,6 +188,7 @@ like transcription and summarization.
 
 - **Why chosen**: Official OpenAI Python SDK with excellent type hints, async support, and comprehensive API coverage.
   Used by OpenAI providers (`OpenAITranscriptionProvider`, `OpenAISpeakerDetector`, `OpenAISummarizationProvider`)
+
   for cloud-based capabilities.
 
 - **Key features utilized**: Chat completions API (summarization, speaker detection), audio transcriptions API

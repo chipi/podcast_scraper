@@ -22,7 +22,7 @@ python scripts/eval_cleaning.py
 - `--output`: Output JSON file path (default: `data/results/cleaning_eval_<timestamp>.json`)
 - `--log-level`: Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`)
 
-### What It Evaluates
+## What It Evaluates
 
 For each episode, the script provides:
 
@@ -105,7 +105,7 @@ python scripts/eval_summaries.py
 - `--use-short-reference`: Use `summary.gold.short.txt` instead of
   `summary.gold.long.txt` for ROUGE scoring
 
-### Model Defaults
+## Model Defaults
 
 When models are not specified, the script uses the same defaults as the main application:
 

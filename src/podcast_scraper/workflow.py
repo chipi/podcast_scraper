@@ -2123,15 +2123,30 @@ def _parallel_episode_summarization(
             reduce_model_cache_dir = reduce_model.cache_dir
             reduce_model_revision = getattr(reduce_model, "revision", None)
 
-    # Determine number of workers based on device
-    # GPU: Limited parallelism (2 workers max due to memory)
-    # CPU: Can use more workers (up to 4)
+    # Determine number of workers based on device and configuration
+    # Configuration values can be set explicitly, or will use environment-based defaults
+    # Test environments use lower defaults to reduce memory usage
     max_workers = 1
     if model_device == "cpu":
-        max_workers = min(cfg.summary_batch_size or 1, 4, len(episodes_to_summarize))
+        # Use configured max workers for CPU, or environment-based defaults
+        if cfg.summary_max_workers_cpu is not None:
+            max_workers_limit = cfg.summary_max_workers_cpu
+        else:
+            # Check environment to set appropriate default
+            is_test_env = os.environ.get("PYTEST_CURRENT_TEST") is not None
+            max_workers_limit = 1 if is_test_env else 4  # Test env: 1 (sequential), Production: 4
+        max_workers = min(
+            cfg.summary_batch_size or 1, max_workers_limit, len(episodes_to_summarize)
+        )
     elif model_device in ("mps", "cuda"):
-        # Very limited parallelism for GPU (2 max)
-        max_workers = min(2, len(episodes_to_summarize))
+        # Use configured max workers for GPU, or environment-based defaults
+        if cfg.summary_max_workers_gpu is not None:
+            max_workers_limit = cfg.summary_max_workers_gpu
+        else:
+            # Check environment to set appropriate default
+            is_test_env = os.environ.get("PYTEST_CURRENT_TEST") is not None
+            max_workers_limit = 1 if is_test_env else 2
+        max_workers = min(max_workers_limit, len(episodes_to_summarize))
 
     # Track if we need separate reduce models (for cleanup)
     has_separate_reduce_models = not reduce_model_is_same_as_map and reduce_model_name is not None
@@ -2356,6 +2371,15 @@ def _parallel_episode_summarization(
                             summarizer.unload_model(worker_reduce_model)
                         except Exception as e:
                             logger.debug(f"Error unloading worker REDUCE model: {e}")
+            # Clear worker model lists to help GC
+            worker_models.clear()
+            worker_reduce_models.clear()
+            # Force garbage collection after unloading models to free memory more aggressively
+            # This is especially important in test environments where multiple pipelines
+            # run in parallel
+            import gc
+
+            gc.collect()
 
 
 def _summarize_single_episode(

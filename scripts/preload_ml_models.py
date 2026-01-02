@@ -41,6 +41,12 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 # Import config to use test defaults
 from podcast_scraper import config
+from podcast_scraper.cache_utils import (
+    get_project_root,
+    get_spacy_cache_dir,
+    get_transformers_cache_dir,
+    get_whisper_cache_dir,
+)
 
 
 def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
@@ -73,9 +79,14 @@ def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
 
     print("Preloading Whisper models...")
 
+    # Use local cache if available, otherwise fall back to user cache
+    whisper_cache = get_whisper_cache_dir()
+    project_root = get_project_root()
+    local_cache = project_root / ".cache" / "whisper"
+
     # Explicit path logging for debugging
-    whisper_cache = Path.home() / ".cache" / "whisper"
     print(f"  Cache directory: {whisper_cache}")
+    print(f"  Using local cache: {whisper_cache == local_cache}")
     print(f"  Cache directory exists: {whisper_cache.exists()}")
     print(f"  User: {os.environ.get('USER', 'unknown')}")
     print(f"  Home: {Path.home()}")
@@ -83,6 +94,9 @@ def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
     # Ensure cache directory exists
     whisper_cache.mkdir(parents=True, exist_ok=True)
 
+    # Use download_root parameter to specify cache directory directly
+    # This is more reliable than environment variable
+    whisper_cache_str = str(whisper_cache)
     for model_name in model_names:
         print(f"  - {model_name}...")
         try:
@@ -91,7 +105,8 @@ def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
             print(f"    Expected model file: {model_file}")
             print(f"    Model file exists before load: {model_file.exists()}")
 
-            model = whisper.load_model(model_name)
+            # Use download_root parameter to cache to local directory
+            model = whisper.load_model(model_name, download_root=whisper_cache_str)
             assert model is not None, f"Model {model_name} loaded but is None"
             assert (
                 hasattr(model, "dims") and model.dims is not None
@@ -106,7 +121,7 @@ def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
             print(f"  ✓ Whisper {model_name} cached and verified")
             print(f"    Location: {model_file}")
         except Exception as e:
-            print(f"ERROR: Failed to preload Whisper {model_name}: {e}")
+            print(f"  ✗ Failed to preload Whisper model {model_name}: {e}")
             print(f"       Cache directory: {whisper_cache}")
             print(f"       Expected model file: {whisper_cache / f'{model_name}.pt'}")
             print("       Install with: pip install openai-whisper")
@@ -234,16 +249,17 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
 
     print("Preloading Transformers models...")
 
-    # Ensure cache directory exists before loading models
-    # This is important because transformers will cache models here, and we need
-    # the directory to exist for both local and Docker environments
-    from transformers import file_utils
+    # Use local cache if available, otherwise fall back to default
+    cache_dir = get_transformers_cache_dir()
+    project_root = get_project_root()
+    local_cache = project_root / ".cache" / "huggingface" / "hub"
 
-    cache_dir = Path(file_utils.default_cache_path)
+    # Ensure cache directory exists before loading models
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     # Explicit path logging for debugging
     print(f"  Cache directory: {cache_dir}")
+    print(f"  Using local cache: {cache_dir == local_cache}")
     print(f"  Cache directory exists: {cache_dir.exists()}")
     print(f"  User: {os.environ.get('USER', 'unknown')}")
     print(f"  Home: {Path.home()}")
@@ -253,8 +269,13 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
         try:
             print("    Downloading...")
             # nosec B615 - Model names pinned in config, preload script for dev/testing
-            tokenizer = AutoTokenizer.from_pretrained(model_name)  # nosec B615
-            model = AutoModelForSeq2SeqLM.from_pretrained(model_name)  # nosec B615
+            # Use cache_dir to ensure models are cached to local cache directory
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_name, cache_dir=str(cache_dir)  # nosec B615
+            )
+            model = AutoModelForSeq2SeqLM.from_pretrained(
+                model_name, cache_dir=str(cache_dir)  # nosec B615
+            )
 
             # Verify model loads
             assert (
@@ -278,10 +299,8 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             # This is critical: we need to verify the model is actually on disk and loadable,
             # not just that it was loaded into memory. This matches what tests do and ensures
             # the model will work in network-isolated environments (Docker, CI, etc.)
-            # file_utils.default_cache_path returns the actual cache directory used
-            # This handles both local (~/.cache/huggingface/hub) and
-            # Docker (/root/.cache/huggingface/hub)
-            transformers_cache_base = Path(file_utils.default_cache_path)
+            # Use the cache directory we already determined (local cache if available)
+            transformers_cache_base = cache_dir
             cache_dir_str = str(transformers_cache_base)
 
             # Explicit path logging for debugging
@@ -379,9 +398,12 @@ def main() -> None:
     print("")
 
     # Show actual paths for debugging
-    whisper_cache = Path.home() / ".cache" / "whisper"
+    whisper_cache = get_whisper_cache_dir()
+    project_root = get_project_root()
+    local_whisper_cache = project_root / ".cache" / "whisper"
     print("  Whisper Models:")
     print(f"    Cache directory: {whisper_cache}")
+    print(f"    Using local cache: {whisper_cache == local_whisper_cache}")
     print(f"    Cache exists: {whisper_cache.exists()}")
     if whisper_cache.exists():
         model_files = list(whisper_cache.glob("*.pt"))
@@ -393,9 +415,15 @@ def main() -> None:
     print("")
 
     print("  spaCy Models:")
-    spacy_cache_user = Path.home() / ".local" / "share" / "spacy"
-    print(f"    User cache: {spacy_cache_user}")
-    print(f"    User cache exists: {spacy_cache_user.exists()}")
+    spacy_cache = get_spacy_cache_dir()
+    project_root = get_project_root()
+    local_spacy_cache = project_root / ".cache" / "spacy"
+    if spacy_cache:
+        print(f"    Cache directory: {spacy_cache}")
+        print(f"    Using local cache: {spacy_cache == local_spacy_cache}")
+        print(f"    Cache exists: {spacy_cache.exists()}")
+    else:
+        print("    Cache directory: Not available (models installed as packages)")
     import site
 
     site_packages_paths = [Path(p) for p in site.getsitepackages()]
@@ -403,11 +431,12 @@ def main() -> None:
     print("    (Models installed as Python package dependencies)")
     print("")
 
-    from transformers import file_utils
-
-    transformers_cache = Path(file_utils.default_cache_path)
+    transformers_cache = get_transformers_cache_dir()
+    project_root = get_project_root()
+    local_transformers_cache = project_root / ".cache" / "huggingface" / "hub"
     print("  Transformers Models:")
     print(f"    Cache directory: {transformers_cache}")
+    print(f"    Using local cache: {transformers_cache == local_transformers_cache}")
     print(f"    Cache exists: {transformers_cache.exists()}")
     if transformers_cache.exists():
         model_dirs = [

@@ -177,7 +177,6 @@ class TestMultiEpisodeE2E:
                     f"processing in multi-episode mode, got {len(metadata_files)}"
                 )
 
-    @pytest.mark.serial  # Must run sequentially - MPS backend segfaults in parallel
     def test_multi_episode_with_summarization(self, e2e_server):
         """Test multi-episode processing with summarization enabled.
 
