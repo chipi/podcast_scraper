@@ -5,7 +5,8 @@
 > - [Testing Strategy](../TESTING_STRATEGY.md) - High-level testing philosophy and test pyramid
 > - [Testing Guide](TESTING_GUIDE.md) - Quick reference and test execution commands
 
-This guide covers integration test implementation: what to mock vs use real, component interaction testing, and mocking guidelines.
+This guide covers integration test implementation: what to mock vs use real, component
+interaction testing, and mocking guidelines.
 
 ## Overview
 
