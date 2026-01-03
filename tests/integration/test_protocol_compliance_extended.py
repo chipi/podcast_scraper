@@ -319,19 +319,21 @@ class TestSpeakerDetectorClearCache(unittest.TestCase):
         # Parameters should be empty or only have optional params
         self.assertEqual(len(params), 0)
 
-    @unittest.skip(
-        "TODO: Fix spacy mocking setup - spacy.load() MagicMock interferes with test mocks"
-    )
-    @patch("podcast_scraper.speaker_detection.clear_spacy_model_cache")
-    def test_ner_detector_clear_cache_calls_module_function(self, mock_clear_cache):
-        """Test that NER detector clear_cache() calls module function."""
+    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    def test_ner_detector_clear_cache_is_noop(self, mock_load_spacy):
+        """Test that NER detector clear_cache() is a no-op (cache was removed in issue #164)."""
+        # Mock spaCy model loading to prevent network calls
+        mock_load_spacy.return_value = Mock()
+
         detector = create_speaker_detector(self.cfg)
 
-        # Call clear_cache
+        # Call clear_cache (now a no-op since cache was removed)
+        # Should not raise and should complete successfully
         detector.clear_cache()
 
-        # Should call module function
-        mock_clear_cache.assert_called_once()
+        # Can be called multiple times safely
+        detector.clear_cache()
+        detector.clear_cache()
 
     def test_openai_detector_clear_cache_is_noop(self):
         """Test that OpenAI detector clear_cache() is a no-op."""

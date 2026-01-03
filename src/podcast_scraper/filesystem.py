@@ -21,6 +21,8 @@ TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
 URL_HASH_LENGTH = 8
 WHISPER_TITLE_MAX_CHARS = 32
 EPISODE_NUMBER_FORMAT_WIDTH = 4
+TRANSCRIPTS_SUBDIR = "transcripts"
+METADATA_SUBDIR = "metadata"
 _PLATFORMDIR_APP_NAMES = ("podcast_scraper", "podcast-scraper", "Podcast Scraper")
 
 
@@ -106,7 +108,17 @@ def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
 
 
 def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str]]:
-    """Derive the effective output directory and run suffix for a configuration."""
+    """Derive the effective output directory and run suffix for a configuration.
+
+    Creates the output directory structure with transcripts/ and metadata/ subdirectories.
+    The structure is:
+    - output_dir/run_<suffix>/transcripts/
+    - output_dir/run_<suffix>/metadata/
+
+    Or if no run_suffix:
+    - output_dir/transcripts/
+    - output_dir/metadata/
+    """
     run_suffix: Optional[str] = None
     if cfg.run_id:
         run_suffix = (
@@ -130,6 +142,13 @@ def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str]]:
     effective_output_dir = (
         os.path.join(output_dir, f"run_{run_suffix}") if run_suffix else output_dir
     )
+
+    # Create transcripts/ and metadata/ subdirectories
+    transcripts_dir = os.path.join(effective_output_dir, TRANSCRIPTS_SUBDIR)
+    metadata_dir = os.path.join(effective_output_dir, METADATA_SUBDIR)
+    os.makedirs(transcripts_dir, exist_ok=True)
+    os.makedirs(metadata_dir, exist_ok=True)
+
     return effective_output_dir, run_suffix
 
 
@@ -154,8 +173,12 @@ def build_whisper_output_name(idx: int, ep_title_safe: str, run_suffix: Optional
 def build_whisper_output_path(
     idx: int, ep_title_safe: str, run_suffix: Optional[str], output_dir: str
 ) -> str:
-    """Return the full path where a Whisper transcript should be stored."""
-    return os.path.join(output_dir, build_whisper_output_name(idx, ep_title_safe, run_suffix))
+    """Return the full path where a Whisper transcript should be stored.
+
+    Transcripts are stored in the transcripts/ subdirectory within the output directory.
+    """
+    transcripts_dir = os.path.join(output_dir, TRANSCRIPTS_SUBDIR)
+    return os.path.join(transcripts_dir, build_whisper_output_name(idx, ep_title_safe, run_suffix))
 
 
 __all__ = [
@@ -164,6 +187,8 @@ __all__ = [
     "URL_HASH_LENGTH",
     "WHISPER_TITLE_MAX_CHARS",
     "EPISODE_NUMBER_FORMAT_WIDTH",
+    "TRANSCRIPTS_SUBDIR",
+    "METADATA_SUBDIR",
     "sanitize_filename",
     "write_file",
     "validate_and_normalize_output_dir",

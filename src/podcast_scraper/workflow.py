@@ -41,6 +41,51 @@ from .transcription.factory import create_transcription_provider
 logger = logging.getLogger(__name__)
 
 
+def _initialize_ml_environment() -> None:
+    """Initialize environment variables for ML libraries.
+
+    This function sets default environment variables that improve the behavior of ML libraries
+    (PyTorch, Transformers, Hugging Face Hub) in production. These defaults can be overridden
+    by setting the environment variables in `.env` file or system environment.
+
+    Environment Variables:
+    - HF_HUB_DISABLE_PROGRESS_BARS: Disables progress bars to avoid misleading
+      "Downloading" messages when loading models from cache. Default: "1" (disabled)
+      Can be overridden in `.env` file or system environment.
+    - OMP_NUM_THREADS, MKL_NUM_THREADS, TORCH_NUM_THREADS: Not set here by default
+      (allows full CPU utilization). Users can set these in `.env` file or system
+      environment to limit thread usage if needed.
+
+    This is called automatically when the pipeline starts, but can also be called
+    manually if needed.
+
+    Note:
+        - These settings are different from test environment settings, which limit
+          threads to reduce resource usage. In production, we want full performance.
+        - User-set values (from `.env` or system environment) take precedence over
+          these defaults (respects `override=False` in dotenv loading).
+        - See `examples/.env.example` for documentation of all environment variables.
+
+    See Also:
+        - `examples/.env.example`: Template with all environment variables
+        - `docs/api/CONFIGURATION.md`: Complete environment variable documentation
+    """
+    # Disable Hugging Face Hub progress bars to avoid misleading "Downloading" messages
+    # when loading models from cache. This is especially important when models are
+    # already cached and no actual download is happening.
+    # Only set if not already set by user (respects .env file or system environment)
+    if "HF_HUB_DISABLE_PROGRESS_BARS" not in os.environ:
+        os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+        logger.debug("Set HF_HUB_DISABLE_PROGRESS_BARS=1 to suppress misleading progress bars")
+
+    # Note: We don't set OMP_NUM_THREADS, MKL_NUM_THREADS, or TORCH_NUM_THREADS here
+    # because in production we want to use all available CPU cores for best performance.
+    # Users can set these environment variables in `.env` file or system environment
+    # if they want to limit threads (e.g., in Docker containers with limited resources).
+    # In tests, these are set to "1" to reduce resource usage (see tests/conftest.py).
+    # See `examples/.env.example` for documentation.
+
+
 class _FeedMetadata(NamedTuple):
     """Feed metadata for metadata generation."""
 
@@ -292,6 +337,9 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         - `service.run()`: Service API with structured error handling
         - `load_config_file()`: Load configuration from JSON/YAML file
     """
+    # Initialize ML environment variables (suppress progress bars, etc.)
+    _initialize_ml_environment()
+
     # Initialize metrics collector
     pipeline_metrics = metrics.Metrics()
 
@@ -521,18 +569,8 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             except Exception as e:
                 logger.warning("Failed to cleanup summarization provider: %s", e)
 
-        # Clear spaCy model cache to free memory
-        # Models are cached at module level, so we clear them after processing
-        # Note: This is provider-specific (MLProvider uses spaCy for speaker detection)
-        # The provider's cleanup() method handles model cleanup, but module-level cache
-        # needs explicit clearing
-        if cfg.auto_speakers and host_detection_result.speaker_detector:
-            try:
-                # Clear cache via provider protocol method
-                host_detection_result.speaker_detector.clear_cache()
-                logger.debug("Cleared spaCy model cache via provider")
-            except Exception as e:
-                logger.warning(f"Failed to clear spaCy model cache: {e}")
+        # Note: spaCy model cache was removed. Models are managed by providers
+        # and cleaned up via provider.cleanup() method above.
 
     # Step 10: Cleanup temporary files
     _cleanup_pipeline(temp_dir=transcription_resources.temp_dir)
@@ -598,6 +636,12 @@ def _setup_pipeline_environment(cfg: config.Config) -> Tuple[str, Optional[str]]
         logger.info(f"Dry-run: not creating output directory {effective_output_dir}")
     else:
         os.makedirs(effective_output_dir, exist_ok=True)
+        # Recreate subdirectories after cleanup (if clean_output was used)
+        # or ensure they exist (setup_output_directory creates them, but they may have been removed)
+        transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
+        metadata_dir = os.path.join(effective_output_dir, filesystem.METADATA_SUBDIR)
+        os.makedirs(transcripts_dir, exist_ok=True)
+        os.makedirs(metadata_dir, exist_ok=True)
 
     return effective_output_dir, run_suffix
 
@@ -1586,9 +1630,78 @@ def _process_processing_jobs_concurrent(
     processed_job_indices = set()  # Track which jobs we've processed
     processed_job_indices_lock = threading.Lock()  # Lock for thread-safe access
 
+    def _wait_for_transcript_file(
+        transcript_path: str, episode_idx: int, max_wait: float = 5.0
+    ) -> bool:
+        """Wait for transcript file to exist before processing.
+
+        This prevents race conditions where metadata generation starts before
+        the transcript file is fully written to disk.
+
+        Args:
+            transcript_path: Path to transcript file (relative or absolute)
+            episode_idx: Episode index for logging
+            max_wait: Maximum time to wait in seconds (default: 5.0)
+
+        Returns:
+            True if file exists, False if timeout exceeded
+        """
+        if not transcript_path:
+            return False
+
+        # Build full path if relative
+        if not os.path.isabs(transcript_path):
+            full_path = os.path.join(effective_output_dir, transcript_path)
+        else:
+            full_path = transcript_path
+
+        # Check if file already exists
+        if os.path.exists(full_path):
+            return True
+
+        # Wait for file to appear (with timeout)
+        wait_interval = 0.1  # Check every 100ms
+        waited = 0.0
+        while waited < max_wait:
+            if os.path.exists(full_path):
+                logger.debug(
+                    "[%s] Transcript file appeared after %.2fs: %s",
+                    episode_idx,
+                    waited,
+                    full_path,
+                )
+                return True
+            time.sleep(wait_interval)
+            waited += wait_interval
+
+        # Timeout exceeded
+        logger.warning(
+            "[%s] Transcript file not found after %.2fs: %s",
+            episode_idx,
+            max_wait,
+            full_path,
+        )
+        return False
+
     def _process_single_processing_job(job: _ProcessingJob) -> None:
         """Process a single processing job (metadata/summarization)."""
         try:
+            # Wait for transcript file to exist if transcript_path is provided
+            # This is a defensive measure to prevent potential race conditions where
+            # metadata generation starts before the transcript file is fully written to disk.
+            # Note: Testing (30 runs) suggests the race condition may have been fixed during
+            # refactoring (filesystem.write_file uses context manager ensuring file is written
+            # before returning), but we keep this check as a safety measure for edge cases
+            # or different filesystem behaviors.
+            if job.transcript_path and job.transcript_source == "whisper_transcription":
+                if not _wait_for_transcript_file(job.transcript_path, job.episode.idx):
+                    logger.warning(
+                        "[%s] Skipping metadata generation: transcript file not found: %s",
+                        job.episode.idx,
+                        job.transcript_path,
+                    )
+                    return
+
             _call_generate_metadata(
                 episode=job.episode,
                 feed=feed,

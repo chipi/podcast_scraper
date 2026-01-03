@@ -489,14 +489,11 @@ class TestMLProviderSpeakerDetection(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    @patch("podcast_scraper.ml.ml_provider.speaker_detection.clear_spacy_model_cache")
-    def test_clear_cache(self, mock_clear):
-        """Test cache clearing."""
+    def test_clear_cache(self):
+        """Test clear_cache method (no-op after cache removal)."""
         provider = MLProvider(self.cfg)
-
+        # clear_cache() is now a no-op, should not raise
         provider.clear_cache()
-
-        mock_clear.assert_called_once()
 
 
 @pytest.mark.unit

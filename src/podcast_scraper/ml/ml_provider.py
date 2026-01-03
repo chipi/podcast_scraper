@@ -640,10 +640,12 @@ class MLProvider:
             self._initialize_spacy()
 
         # Use detect_speaker_names with adapted parameters
+        # Pass self._spacy_nlp directly (required parameter)
         speaker_names, detected_hosts_set, detection_succeeded = (
             speaker_detection.detect_speaker_names(
                 episode_title=episode_title,
                 episode_description=episode_description,
+                nlp=self._spacy_nlp,  # Required: pass pre-loaded model
                 cfg=self.cfg,
                 known_hosts=None,  # Use cached_hosts instead
                 cached_hosts=known_hosts,  # Map known_hosts to cached_hosts
@@ -722,13 +724,12 @@ class MLProvider:
         return self._spacy_heuristics
 
     def clear_cache(self) -> None:
-        """Clear the module-level spaCy model cache.
+        """Clear cache (no-op since cache was removed).
 
-        This clears the shared cache used by all NER providers,
-        which can free memory or force model reloads.
+        This method is kept for backward compatibility but does nothing.
+        Models are managed by providers and cleaned up via cleanup().
         """
-        speaker_detection.clear_spacy_model_cache()
-        logger.debug("Cleared spaCy model cache via ML provider")
+        logger.debug("clear_cache() called (no-op, cache removed)")
 
     # ============================================================================
     # SummarizationProvider Protocol Implementation

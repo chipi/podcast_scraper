@@ -17,12 +17,22 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-# Add tests directory to path for conftest import
-tests_dir = Path(__file__).parent.parent.parent
-if str(tests_dir) not in sys.path:
-    sys.path.insert(0, str(tests_dir))
+# Import from parent conftest explicitly to avoid conflicts
+import importlib.util
 
-from conftest import create_test_config, create_test_episode  # noqa: E402
+parent_tests_dir = Path(__file__).parent.parent.parent
+if str(parent_tests_dir) not in sys.path:
+    sys.path.insert(0, str(parent_tests_dir))
+
+parent_conftest_path = parent_tests_dir / "conftest.py"
+spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load conftest from {parent_conftest_path}")
+parent_conftest = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(parent_conftest)
+
+create_test_config = parent_conftest.create_test_config
+create_test_episode = parent_conftest.create_test_episode
 
 from podcast_scraper import episode_processor
 
@@ -280,7 +290,7 @@ class TestDetermineOutputPath(unittest.TestCase):
             planned_ext=".vtt",
         )
 
-        self.assertEqual(result, "/output/0001 - Episode_Title.vtt")
+        self.assertEqual(result, "/output/transcripts/0001 - Episode_Title.vtt")
 
     def test_determine_output_path_with_run_suffix(self):
         """Test output path with run suffix."""
@@ -294,7 +304,7 @@ class TestDetermineOutputPath(unittest.TestCase):
             planned_ext=".srt",
         )
 
-        self.assertEqual(result, "/output/0005 - Test_Episode_run1.srt")
+        self.assertEqual(result, "/output/transcripts/0005 - Test_Episode_run1.srt")
 
     def test_determine_output_path_single_digit_idx(self):
         """Test output path with single-digit episode index."""
@@ -308,8 +318,8 @@ class TestDetermineOutputPath(unittest.TestCase):
             planned_ext=".txt",
         )
 
-        # Should pad with zeros (EPISODE_NUMBER_FORMAT_WIDTH = 4)
-        self.assertEqual(result, os.path.join(".", "output", "0003 - Short.txt"))
+        # Should pad with zeros (EPISODE_NUMBER_FORMAT_WIDTH = 4) and use transcripts/ subdirectory
+        self.assertEqual(result, os.path.join(".", "output", "transcripts", "0003 - Short.txt"))
 
     def test_determine_output_path_double_digit_idx(self):
         """Test output path with double-digit episode index."""
@@ -323,7 +333,7 @@ class TestDetermineOutputPath(unittest.TestCase):
             planned_ext=".vtt",
         )
 
-        self.assertEqual(result, "/data/output/0042 - Episode_42_test.vtt")
+        self.assertEqual(result, "/data/output/transcripts/0042 - Episode_42_test.vtt")
 
 
 class TestCheckExistingTranscript(unittest.TestCase):
@@ -455,6 +465,893 @@ class TestCheckExistingTranscript(unittest.TestCase):
         )
 
         self.assertTrue(result)
+
+
+class TestProcessEpisodeDownload(unittest.TestCase):
+    """Tests for process_episode_download function."""
+
+    @patch("podcast_scraper.episode_processor.choose_transcript_url")
+    @patch("podcast_scraper.episode_processor.process_transcript_download")
+    def test_process_episode_download_with_transcript(self, mock_process_transcript, mock_choose):
+        """Test process_episode_download when transcript URL is available."""
+        episode = create_test_episode(
+            idx=1, transcript_urls=[("https://example.com/transcript.vtt", "vtt")]
+        )
+        cfg = create_test_config(transcribe_missing=False)
+        transcription_jobs = []
+        mock_choose.return_value = ("https://example.com/transcript.vtt", "vtt")
+        mock_process_transcript.return_value = (True, "transcript.vtt", "direct_download", 1000)
+
+        success, transcript_path, transcript_source, bytes_downloaded = (
+            episode_processor.process_episode_download(
+                episode=episode,
+                cfg=cfg,
+                temp_dir="/tmp",
+                effective_output_dir="/output",
+                run_suffix=None,
+                transcription_jobs=transcription_jobs,
+                transcription_jobs_lock=None,
+            )
+        )
+
+        self.assertTrue(success)
+        self.assertEqual(transcript_path, "transcript.vtt")
+        self.assertEqual(transcript_source, "direct_download")
+        self.assertEqual(bytes_downloaded, 1000)
+        mock_choose.assert_called_once_with(episode.transcript_urls, cfg.prefer_types)
+        mock_process_transcript.assert_called_once()
+
+    @patch("podcast_scraper.episode_processor.choose_transcript_url")
+    @patch("podcast_scraper.episode_processor.process_transcript_download")
+    def test_process_episode_download_with_delay(self, mock_process_transcript, mock_choose):
+        """Test process_episode_download applies delay when configured."""
+        episode = create_test_episode(
+            idx=1, transcript_urls=[("https://example.com/transcript.vtt", "vtt")]
+        )
+        cfg = create_test_config(transcribe_missing=False, delay_ms=100)
+        transcription_jobs = []
+        mock_choose.return_value = ("https://example.com/transcript.vtt", "vtt")
+        mock_process_transcript.return_value = (True, "transcript.vtt", "direct_download", 1000)
+
+        with patch("time.sleep") as mock_sleep:
+            success, transcript_path, transcript_source, bytes_downloaded = (
+                episode_processor.process_episode_download(
+                    episode=episode,
+                    cfg=cfg,
+                    temp_dir="/tmp",
+                    effective_output_dir="/output",
+                    run_suffix=None,
+                    transcription_jobs=transcription_jobs,
+                    transcription_jobs_lock=None,
+                )
+            )
+
+            self.assertTrue(success)
+            mock_sleep.assert_called_once_with(0.1)  # 100ms / 1000
+
+    @patch("podcast_scraper.episode_processor.choose_transcript_url")
+    @patch("podcast_scraper.episode_processor.download_media_for_transcription")
+    def test_process_episode_download_with_transcription(self, mock_download_media, mock_choose):
+        """Test process_episode_download when transcription is needed."""
+        episode = create_test_episode(
+            idx=1, transcript_urls=[], media_url="https://example.com/ep1.mp3"
+        )
+        cfg = create_test_config(transcribe_missing=True)
+        transcription_jobs = []
+        mock_choose.return_value = None  # No transcript URL
+        mock_job = Mock()
+        mock_job.idx = 1
+        mock_download_media.return_value = mock_job
+
+        success, transcript_path, transcript_source, bytes_downloaded = (
+            episode_processor.process_episode_download(
+                episode=episode,
+                cfg=cfg,
+                temp_dir="/tmp",
+                effective_output_dir="/output",
+                run_suffix=None,
+                transcription_jobs=transcription_jobs,
+                transcription_jobs_lock=None,
+            )
+        )
+
+        self.assertFalse(success)
+        self.assertIsNone(transcript_path)
+        self.assertIsNone(transcript_source)
+        self.assertEqual(bytes_downloaded, 0)
+        self.assertEqual(len(transcription_jobs), 1)
+        self.assertEqual(transcription_jobs[0], mock_job)
+        mock_download_media.assert_called_once()
+
+    @patch("podcast_scraper.episode_processor.choose_transcript_url")
+    @patch("podcast_scraper.episode_processor.download_media_for_transcription")
+    def test_process_episode_download_with_transcription_lock(
+        self, mock_download_media, mock_choose
+    ):
+        """Test process_episode_download uses lock when provided."""
+        episode = create_test_episode(
+            idx=1, transcript_urls=[], media_url="https://example.com/ep1.mp3"
+        )
+        cfg = create_test_config(transcribe_missing=True)
+        transcription_jobs = []
+        mock_lock = Mock()
+        mock_lock.__enter__ = Mock(return_value=None)
+        mock_lock.__exit__ = Mock(return_value=None)
+        mock_choose.return_value = None
+        mock_job = Mock()
+        mock_download_media.return_value = mock_job
+
+        success, transcript_path, transcript_source, bytes_downloaded = (
+            episode_processor.process_episode_download(
+                episode=episode,
+                cfg=cfg,
+                temp_dir="/tmp",
+                effective_output_dir="/output",
+                run_suffix=None,
+                transcription_jobs=transcription_jobs,
+                transcription_jobs_lock=mock_lock,
+            )
+        )
+
+        mock_lock.__enter__.assert_called_once()
+        mock_lock.__exit__.assert_called_once()
+        self.assertEqual(len(transcription_jobs), 1)
+
+    @patch("podcast_scraper.episode_processor.choose_transcript_url")
+    @patch("podcast_scraper.episode_processor.download_media_for_transcription")
+    def test_process_episode_download_no_transcript_no_transcription(
+        self, mock_download_media, mock_choose
+    ):
+        """Test process_episode_download when no transcript and transcription disabled."""
+        episode = create_test_episode(
+            idx=1, transcript_urls=[], media_url="https://example.com/ep1.mp3"
+        )
+        cfg = create_test_config(transcribe_missing=False)
+        transcription_jobs = []
+        mock_choose.return_value = None
+
+        success, transcript_path, transcript_source, bytes_downloaded = (
+            episode_processor.process_episode_download(
+                episode=episode,
+                cfg=cfg,
+                temp_dir="/tmp",
+                effective_output_dir="/output",
+                run_suffix=None,
+                transcription_jobs=transcription_jobs,
+                transcription_jobs_lock=None,
+            )
+        )
+
+        self.assertFalse(success)
+        self.assertIsNone(transcript_path)
+        self.assertIsNone(transcript_source)
+        self.assertEqual(bytes_downloaded, 0)
+        self.assertEqual(len(transcription_jobs), 0)
+        mock_download_media.assert_not_called()
+
+    @patch("podcast_scraper.episode_processor.choose_transcript_url")
+    @patch("podcast_scraper.episode_processor.download_media_for_transcription")
+    def test_process_episode_download_no_temp_dir(self, mock_download_media, mock_choose):
+        """Test process_episode_download when temp_dir is None."""
+        episode = create_test_episode(
+            idx=1, transcript_urls=[], media_url="https://example.com/ep1.mp3"
+        )
+        cfg = create_test_config(transcribe_missing=True)
+        transcription_jobs = []
+        mock_choose.return_value = None
+
+        success, transcript_path, transcript_source, bytes_downloaded = (
+            episode_processor.process_episode_download(
+                episode=episode,
+                cfg=cfg,
+                temp_dir=None,
+                effective_output_dir="/output",
+                run_suffix=None,
+                transcription_jobs=transcription_jobs,
+                transcription_jobs_lock=None,
+            )
+        )
+
+        self.assertFalse(success)
+        mock_download_media.assert_not_called()
+
+
+class TestTranscribeMediaToText(unittest.TestCase):
+    """Tests for transcribe_media_to_text function."""
+
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    def test_transcribe_media_to_text_dry_run(self, mock_build_path):
+        """Test transcribe_media_to_text in dry-run mode."""
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_1"
+        job.temp_media = "/tmp/ep1.mp3"
+        job.detected_speaker_names = None
+        cfg = create_test_config(dry_run=True)
+        mock_build_path.return_value = "/output/0001 - Episode_1.txt"
+
+        success, transcript_path, bytes_downloaded = episode_processor.transcribe_media_to_text(
+            job=job,
+            cfg=cfg,
+            whisper_model=None,
+            run_suffix=None,
+            effective_output_dir="/output",
+            transcription_provider=None,
+            pipeline_metrics=None,
+        )
+
+        self.assertTrue(success)
+        self.assertIsNotNone(transcript_path)
+        self.assertEqual(bytes_downloaded, 0)
+
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.relpath")
+    def test_transcribe_media_to_text_reuse_existing(
+        self, mock_relpath, mock_exists, mock_build_path
+    ):
+        """Test transcribe_media_to_text reuses existing transcript."""
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_1"
+        job.temp_media = ""  # Empty means reusing existing
+        job.detected_speaker_names = None
+        cfg = create_test_config(skip_existing=True)
+        mock_build_path.return_value = "/output/0001 - Episode_1.txt"
+        mock_exists.return_value = True
+        mock_relpath.return_value = "0001 - Episode_1.txt"
+
+        success, transcript_path, bytes_downloaded = episode_processor.transcribe_media_to_text(
+            job=job,
+            cfg=cfg,
+            whisper_model=None,
+            run_suffix=None,
+            effective_output_dir="/output",
+            transcription_provider=None,
+            pipeline_metrics=None,
+        )
+
+        self.assertTrue(success)
+        self.assertEqual(transcript_path, "0001 - Episode_1.txt")
+        self.assertEqual(bytes_downloaded, 0)
+
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.getsize")
+    @patch("podcast_scraper.episode_processor._format_transcript_if_needed")
+    @patch("podcast_scraper.episode_processor._save_transcript_file")
+    @patch("podcast_scraper.episode_processor._cleanup_temp_media")
+    def test_transcribe_media_to_text_success(
+        self,
+        mock_cleanup,
+        mock_save,
+        mock_format,
+        mock_getsize,
+        mock_exists,
+        mock_build_path,
+    ):
+        """Test successful transcription."""
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_1"
+        job.temp_media = "/tmp/ep1.mp3"
+        job.detected_speaker_names = ["Host", "Guest"]
+        cfg = create_test_config(dry_run=False)
+        mock_build_path.return_value = "/output/0001 - Episode_1.txt"
+        mock_exists.return_value = True  # File exists for size check
+        mock_getsize.return_value = 5000000  # 5MB
+
+        mock_provider = Mock()
+        mock_provider.transcribe_with_segments.return_value = (
+            {"text": "Hello world", "segments": []},
+            10.5,
+        )
+        mock_format.return_value = "Hello world"
+        mock_save.return_value = "0001 - Episode_1.txt"
+
+        success, transcript_path, bytes_downloaded = episode_processor.transcribe_media_to_text(
+            job=job,
+            cfg=cfg,
+            whisper_model=None,
+            run_suffix=None,
+            effective_output_dir="/output",
+            transcription_provider=mock_provider,
+            pipeline_metrics=None,
+        )
+
+        self.assertTrue(success)
+        self.assertEqual(transcript_path, "0001 - Episode_1.txt")
+        self.assertEqual(bytes_downloaded, 5000000)
+        mock_provider.transcribe_with_segments.assert_called_once_with(
+            "/tmp/ep1.mp3", language=cfg.language
+        )
+        mock_cleanup.assert_called_once()
+
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.getsize")
+    @patch("podcast_scraper.episode_processor._cleanup_temp_media")
+    def test_transcribe_media_to_text_no_provider(
+        self, mock_cleanup, mock_getsize, mock_exists, mock_build_path
+    ):
+        """Test transcribe_media_to_text when provider is None."""
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_1"
+        job.temp_media = "/tmp/ep1.mp3"
+        job.detected_speaker_names = None
+        cfg = create_test_config(dry_run=False)
+        mock_build_path.return_value = "/output/0001 - Episode_1.txt"
+        mock_exists.return_value = False
+
+        success, transcript_path, bytes_downloaded = episode_processor.transcribe_media_to_text(
+            job=job,
+            cfg=cfg,
+            whisper_model=None,
+            run_suffix=None,
+            effective_output_dir="/output",
+            transcription_provider=None,
+            pipeline_metrics=None,
+        )
+
+        self.assertFalse(success)
+        self.assertIsNone(transcript_path)
+        self.assertEqual(bytes_downloaded, 0)
+        mock_cleanup.assert_called_once()
+
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.getsize")
+    @patch("podcast_scraper.episode_processor._cleanup_temp_media")
+    def test_transcribe_media_to_text_transcription_error(
+        self, mock_cleanup, mock_getsize, mock_exists, mock_build_path
+    ):
+        """Test transcribe_media_to_text handles transcription errors."""
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_1"
+        job.temp_media = "/tmp/ep1.mp3"
+        job.detected_speaker_names = None
+        cfg = create_test_config(dry_run=False)
+        mock_build_path.return_value = "/output/0001 - Episode_1.txt"
+        mock_exists.return_value = True  # File exists for size check
+        mock_getsize.return_value = 5000000
+
+        mock_provider = Mock()
+        mock_provider.transcribe_with_segments.side_effect = RuntimeError("Transcription failed")
+
+        success, transcript_path, bytes_downloaded = episode_processor.transcribe_media_to_text(
+            job=job,
+            cfg=cfg,
+            whisper_model=None,
+            run_suffix=None,
+            effective_output_dir="/output",
+            transcription_provider=mock_provider,
+            pipeline_metrics=None,
+        )
+
+        self.assertFalse(success)
+        self.assertIsNone(transcript_path)
+        self.assertEqual(bytes_downloaded, 5000000)  # Should still return bytes downloaded
+        mock_cleanup.assert_called_once()
+
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.getsize")
+    @patch("podcast_scraper.episode_processor._format_transcript_if_needed")
+    @patch("podcast_scraper.episode_processor._save_transcript_file")
+    @patch("podcast_scraper.episode_processor._cleanup_temp_media")
+    def test_transcribe_media_to_text_with_metrics(
+        self,
+        mock_cleanup,
+        mock_save,
+        mock_format,
+        mock_getsize,
+        mock_exists,
+        mock_build_path,
+    ):
+        """Test transcribe_media_to_text records metrics."""
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_1"
+        job.temp_media = "/tmp/ep1.mp3"
+        job.detected_speaker_names = None
+        cfg = create_test_config(dry_run=False)
+        mock_build_path.return_value = "/output/0001 - Episode_1.txt"
+        mock_exists.return_value = False
+        mock_getsize.return_value = 5000000
+
+        mock_provider = Mock()
+        mock_provider.transcribe_with_segments.return_value = (
+            {"text": "Hello world", "segments": []},
+            10.5,
+        )
+        mock_format.return_value = "Hello world"
+        mock_save.return_value = "0001 - Episode_1.txt"
+
+        mock_metrics = Mock()
+        mock_metrics.record_transcribe_time = Mock()
+
+        success, transcript_path, bytes_downloaded = episode_processor.transcribe_media_to_text(
+            job=job,
+            cfg=cfg,
+            whisper_model=None,
+            run_suffix=None,
+            effective_output_dir="/output",
+            transcription_provider=mock_provider,
+            pipeline_metrics=mock_metrics,
+        )
+
+        self.assertTrue(success)
+        mock_metrics.record_transcribe_time.assert_called_once_with(10.5)
+
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.getsize")
+    @patch("podcast_scraper.episode_processor._format_transcript_if_needed")
+    @patch("podcast_scraper.episode_processor._save_transcript_file")
+    @patch("podcast_scraper.episode_processor._cleanup_temp_media")
+    def test_transcribe_media_to_text_file_size_error(
+        self,
+        mock_cleanup,
+        mock_save,
+        mock_format,
+        mock_getsize,
+        mock_exists,
+        mock_build_path,
+    ):
+        """Test transcribe_media_to_text handles file size check errors."""
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_1"
+        job.temp_media = "/tmp/ep1.mp3"
+        job.detected_speaker_names = None
+        cfg = create_test_config(dry_run=False)
+        mock_build_path.return_value = "/output/0001 - Episode_1.txt"
+        mock_exists.return_value = True
+        mock_getsize.side_effect = OSError("Permission denied")
+
+        mock_provider = Mock()
+        mock_provider.transcribe_with_segments.return_value = (
+            {"text": "Hello world", "segments": []},
+            10.5,
+        )
+        mock_format.return_value = "Hello world"
+        mock_save.return_value = "0001 - Episode_1.txt"
+
+        success, transcript_path, bytes_downloaded = episode_processor.transcribe_media_to_text(
+            job=job,
+            cfg=cfg,
+            whisper_model=None,
+            run_suffix=None,
+            effective_output_dir="/output",
+            transcription_provider=mock_provider,
+            pipeline_metrics=None,
+        )
+
+        # Should succeed but with 0 bytes downloaded (file size check failed)
+        self.assertTrue(success)
+        self.assertEqual(bytes_downloaded, 0)
+
+
+class TestDownloadMediaForTranscription(unittest.TestCase):
+    """Tests for download_media_for_transcription function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = create_test_config()
+        self.episode = create_test_episode(
+            idx=1, title="Test Episode", media_url="https://example.com/episode.mp3"
+        )
+        self.temp_dir = "/tmp"
+        self.effective_output_dir = "/output"
+
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    def test_download_media_skip_existing(self, mock_exists, mock_build_path):
+        """Test that download is skipped when transcript exists and skip_existing is True."""
+        self.cfg = create_test_config(skip_existing=True)
+        mock_exists.return_value = True
+        mock_build_path.return_value = "/output/transcript.txt"
+
+        result = episode_processor.download_media_for_transcription(
+            episode=self.episode,
+            cfg=self.cfg,
+            temp_dir=self.temp_dir,
+            effective_output_dir=self.effective_output_dir,
+            run_suffix=None,
+        )
+
+        self.assertIsNone(result)
+
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("podcast_scraper.episode_processor.downloader.http_download_to_file")
+    def test_download_media_success(self, mock_download, mock_exists, mock_build_path):
+        """Test successful media download."""
+        self.cfg = create_test_config(skip_existing=False, dry_run=False)
+        mock_exists.return_value = False
+        mock_build_path.return_value = "/output/transcript.txt"
+        mock_download.return_value = (True, 1000000)  # 1MB
+
+        result = episode_processor.download_media_for_transcription(
+            episode=self.episode,
+            cfg=self.cfg,
+            temp_dir=self.temp_dir,
+            effective_output_dir=self.effective_output_dir,
+            run_suffix=None,
+        )
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.idx, 1)
+        mock_download.assert_called_once()
+
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    def test_download_media_dry_run(self, mock_exists, mock_build_path):
+        """Test media download in dry-run mode."""
+        self.cfg = create_test_config(skip_existing=False, dry_run=True)
+        mock_exists.return_value = False
+        mock_build_path.return_value = "/output/transcript.txt"
+
+        result = episode_processor.download_media_for_transcription(
+            episode=self.episode,
+            cfg=self.cfg,
+            temp_dir=self.temp_dir,
+            effective_output_dir=self.effective_output_dir,
+            run_suffix=None,
+        )
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.idx, 1)
+        self.assertEqual(result.temp_media, "")  # Empty in dry-run
+
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    def test_download_media_no_media_url(self, mock_exists, mock_build_path):
+        """Test that download returns None when episode has no media_url."""
+        self.cfg = create_test_config(skip_existing=False)
+        self.episode.media_url = None
+        mock_exists.return_value = False
+        mock_build_path.return_value = "/output/transcript.txt"
+
+        result = episode_processor.download_media_for_transcription(
+            episode=self.episode,
+            cfg=self.cfg,
+            temp_dir=self.temp_dir,
+            effective_output_dir=self.effective_output_dir,
+            run_suffix=None,
+        )
+
+        self.assertIsNone(result)
+
+
+class TestFormatTranscriptIfNeeded(unittest.TestCase):
+    """Tests for _format_transcript_if_needed function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = create_test_config()
+
+    @patch("podcast_scraper.episode_processor.logger")
+    def test_format_transcript_screenplay_enabled(self, mock_logger):
+        """Test formatting transcript when screenplay is enabled."""
+        self.cfg = create_test_config(
+            screenplay=True, screenplay_num_speakers=2, screenplay_speaker_names=["Host", "Guest"]
+        )
+
+        mock_provider = Mock()
+        mock_provider.format_screenplay_from_segments.return_value = "Host: Hello\nGuest: Hi"
+
+        result = episode_processor._format_transcript_if_needed(
+            result={"text": "Raw transcript", "segments": []},
+            cfg=self.cfg,
+            detected_speaker_names=["Host", "Guest"],
+            transcription_provider=mock_provider,
+        )
+
+        self.assertEqual(result, "Host: Hello\nGuest: Hi")
+        mock_provider.format_screenplay_from_segments.assert_called_once()
+
+    def test_format_transcript_screenplay_disabled(self):
+        """Test that transcript is returned unchanged when screenplay is disabled."""
+        self.cfg = create_test_config(screenplay=False)
+
+        result = episode_processor._format_transcript_if_needed(
+            result={"text": "Raw transcript"},
+            cfg=self.cfg,
+            detected_speaker_names=None,
+        )
+
+        self.assertEqual(result, "Raw transcript")
+
+
+class TestSaveTranscriptFile(unittest.TestCase):
+    """Tests for _save_transcript_file function."""
+
+    @patch("podcast_scraper.episode_processor.filesystem.write_file")
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.relpath")
+    def test_save_transcript_success(self, mock_relpath, mock_build_path, mock_write):
+        """Test successfully saving transcript file."""
+        mock_build_path.return_value = "/output/transcript.txt"
+        mock_relpath.return_value = "transcript.txt"
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_Title"
+
+        result = episode_processor._save_transcript_file(
+            text="Transcript content",
+            job=job,
+            run_suffix=None,
+            effective_output_dir="/output",
+        )
+
+        self.assertEqual(result, "transcript.txt")
+        mock_write.assert_called_once()
+
+    def test_save_transcript_empty_text(self):
+        """Test that saving empty text raises RuntimeError."""
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_Title"
+
+        with self.assertRaises(RuntimeError):
+            episode_processor._save_transcript_file(
+                text="",
+                job=job,
+                run_suffix=None,
+                effective_output_dir="/output",
+            )
+
+
+class TestCleanupTempMedia(unittest.TestCase):
+    """Tests for _cleanup_temp_media function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = create_test_config()
+
+    @patch("os.remove")
+    def test_cleanup_temp_media_success(self, mock_remove):
+        """Test successfully cleaning up temp media file."""
+        episode_processor._cleanup_temp_media("/tmp/media.mp3", self.cfg)
+
+        mock_remove.assert_called_once_with("/tmp/media.mp3")
+
+    @patch("os.remove")
+    def test_cleanup_temp_media_reuse_enabled(self, mock_remove):
+        """Test cleanup is skipped when reuse_media is enabled."""
+        self.cfg = create_test_config(reuse_media=True)
+
+        episode_processor._cleanup_temp_media("/tmp/media.mp3", self.cfg)
+
+        mock_remove.assert_not_called()
+
+    @patch("os.remove")
+    def test_cleanup_temp_media_os_error(self, mock_remove):
+        """Test cleanup handles OSError gracefully."""
+        mock_remove.side_effect = OSError("Permission denied")
+
+        # Should not raise
+        episode_processor._cleanup_temp_media("/tmp/media.mp3", self.cfg)
+
+
+class TestFetchTranscriptContent(unittest.TestCase):
+    """Tests for _fetch_transcript_content function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = create_test_config()
+
+    @patch("podcast_scraper.episode_processor.downloader.http_get")
+    def test_fetch_transcript_success(self, mock_get):
+        """Test successfully fetching transcript content."""
+        mock_get.return_value = (b"Transcript content", "text/vtt")
+
+        result = episode_processor._fetch_transcript_content(
+            transcript_url="https://example.com/transcript.vtt",
+            cfg=self.cfg,
+        )
+
+        self.assertEqual(result, (b"Transcript content", "text/vtt"))
+        mock_get.assert_called_once()
+
+    @patch("podcast_scraper.episode_processor.downloader.http_get")
+    def test_fetch_transcript_failure(self, mock_get):
+        """Test handling transcript fetch failure."""
+        mock_get.return_value = (None, None)
+
+        result = episode_processor._fetch_transcript_content(
+            transcript_url="https://example.com/transcript.vtt",
+            cfg=self.cfg,
+        )
+
+        self.assertIsNone(result)
+
+
+class TestWriteTranscriptFile(unittest.TestCase):
+    """Tests for _write_transcript_file function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = create_test_config()
+        self.episode = create_test_episode(idx=1, title="Test Episode")
+
+    @patch("podcast_scraper.episode_processor.filesystem.write_file")
+    @patch("os.path.exists")
+    @patch("os.path.relpath")
+    def test_write_transcript_success(self, mock_relpath, mock_exists, mock_write):
+        """Test successfully writing transcript file."""
+        mock_exists.return_value = False
+        mock_relpath.return_value = "transcript.txt"
+
+        result = episode_processor._write_transcript_file(
+            data=b"Transcript content",
+            out_path="/output/transcript.txt",
+            cfg=self.cfg,
+            episode=self.episode,
+            effective_output_dir="/output",
+        )
+
+        self.assertEqual(result, "transcript.txt")
+        mock_write.assert_called_once()
+
+    @patch("os.path.exists")
+    def test_write_transcript_skip_existing(self, mock_exists):
+        """Test that writing is skipped when file exists and skip_existing is True."""
+        self.cfg = create_test_config(skip_existing=True)
+        mock_exists.return_value = True
+
+        result = episode_processor._write_transcript_file(
+            data=b"Transcript content",
+            out_path="/output/transcript.txt",
+            cfg=self.cfg,
+            episode=self.episode,
+            effective_output_dir="/output",
+        )
+
+        self.assertIsNone(result)
+
+    @patch("podcast_scraper.episode_processor.filesystem.write_file")
+    @patch("os.path.exists")
+    def test_write_transcript_io_error(self, mock_exists, mock_write):
+        """Test handling IOError during write."""
+        mock_exists.return_value = False
+        mock_write.side_effect = IOError("Disk full")
+
+        result = episode_processor._write_transcript_file(
+            data=b"Transcript content",
+            out_path="/output/transcript.txt",
+            cfg=self.cfg,
+            episode=self.episode,
+            effective_output_dir="/output",
+        )
+
+        self.assertIsNone(result)
+
+
+class TestProcessTranscriptDownload(unittest.TestCase):
+    """Tests for process_transcript_download function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = create_test_config(skip_existing=False)
+        self.episode = create_test_episode(
+            idx=1,
+            title="Test Episode",
+            transcript_urls=[("https://example.com/transcript.vtt", "text/vtt")],
+        )
+
+    @patch("podcast_scraper.episode_processor.os.path.relpath")
+    @patch("podcast_scraper.episode_processor.os.path.exists")
+    @patch("podcast_scraper.episode_processor.filesystem.write_file")
+    @patch("podcast_scraper.episode_processor.derive_transcript_extension")
+    @patch("podcast_scraper.episode_processor._write_transcript_file")
+    @patch("podcast_scraper.episode_processor._fetch_transcript_content")
+    @patch("podcast_scraper.episode_processor._determine_output_path")
+    @patch("podcast_scraper.episode_processor._check_existing_transcript")
+    def test_process_transcript_download_success(
+        self,
+        mock_check,
+        mock_determine,
+        mock_fetch,
+        mock_write,
+        mock_derive_ext,
+        mock_write_file,
+        mock_exists,
+        mock_relpath,
+    ):
+        """Test successful transcript download."""
+        mock_check.return_value = False  # Not found, proceed
+        mock_determine.return_value = "/output/transcript.vtt"
+        mock_fetch.return_value = (b"Transcript content", "text/vtt")
+        mock_derive_ext.return_value = ".vtt"
+        mock_exists.return_value = False
+        mock_relpath.return_value = "transcript.vtt"
+        mock_write.return_value = "transcript.vtt"
+
+        result = episode_processor.process_transcript_download(
+            episode=self.episode,
+            transcript_url="https://example.com/transcript.vtt",
+            transcript_type="text/vtt",
+            cfg=self.cfg,
+            effective_output_dir="/output",
+            run_suffix=None,
+        )
+
+        # Verify mocks were called
+        self.assertTrue(mock_fetch.called, "_fetch_transcript_content should be called")
+        self.assertTrue(mock_write.called, "_write_transcript_file should be called")
+
+        self.assertTrue(result[0], f"Expected success but got: {result}")  # success
+        self.assertEqual(result[1], "transcript.vtt")  # path
+        self.assertEqual(result[2], "direct_download")  # source
+        self.assertEqual(result[3], len(b"Transcript content"))  # bytes
+
+    @patch("podcast_scraper.episode_processor._check_existing_transcript")
+    def test_process_transcript_download_skip_existing(self, mock_check):
+        """Test skipping transcript download when already exists."""
+        mock_check.return_value = True  # Found, skip
+
+        result = episode_processor.process_transcript_download(
+            episode=self.episode,
+            transcript_url="https://example.com/transcript.vtt",
+            transcript_type="text/vtt",
+            cfg=self.cfg,
+            effective_output_dir="/output",
+            run_suffix=None,
+        )
+
+        self.assertFalse(result[0])  # skipped
+        self.assertIsNone(result[1])  # no path
+
+    @patch("podcast_scraper.episode_processor._fetch_transcript_content")
+    @patch("podcast_scraper.episode_processor._determine_output_path")
+    @patch("podcast_scraper.episode_processor._check_existing_transcript")
+    def test_process_transcript_download_fetch_failure(
+        self, mock_check, mock_determine, mock_fetch
+    ):
+        """Test handling transcript fetch failure."""
+        mock_check.return_value = (False, None)  # Not found, proceed
+        mock_determine.return_value = "/output/transcript.vtt"
+        mock_fetch.return_value = None  # Fetch failed
+
+        result = episode_processor.process_transcript_download(
+            episode=self.episode,
+            transcript_url="https://example.com/transcript.vtt",
+            transcript_type="text/vtt",
+            cfg=self.cfg,
+            effective_output_dir="/output",
+            run_suffix=None,
+        )
+
+        self.assertFalse(result[0])  # failure
+        self.assertIsNone(result[1])  # no path
+
+    @patch("podcast_scraper.episode_processor.derive_transcript_extension")
+    @patch("podcast_scraper.episode_processor._determine_output_path")
+    @patch("podcast_scraper.episode_processor._check_existing_transcript")
+    def test_process_transcript_download_dry_run(self, mock_check, mock_determine, mock_derive_ext):
+        """Test transcript download in dry-run mode."""
+        self.cfg = create_test_config(dry_run=True)
+        mock_check.return_value = False  # Not found, proceed
+        mock_determine.return_value = "/output/transcript.vtt"
+        mock_derive_ext.return_value = ".vtt"
+
+        result = episode_processor.process_transcript_download(
+            episode=self.episode,
+            transcript_url="https://example.com/transcript.vtt",
+            transcript_type="text/vtt",
+            cfg=self.cfg,
+            effective_output_dir="/output",
+            run_suffix=None,
+        )
+
+        self.assertTrue(result[0])  # success (dry-run)
+        self.assertEqual(result[1], "/output/transcript.vtt")  # path
+        self.assertEqual(result[2], "direct_download")  # source
+        self.assertEqual(result[3], 0)  # no bytes in dry-run
 
 
 if __name__ == "__main__":

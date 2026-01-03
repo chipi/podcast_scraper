@@ -32,11 +32,12 @@ tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
-from conftest import (  # noqa: E402
+from podcast_scraper import config
+
+# Import from parent conftest explicitly to avoid pytest resolution issues
+from tests.conftest import (  # noqa: E402
     create_test_config,
 )
-
-from podcast_scraper import config
 
 
 @pytest.mark.e2e

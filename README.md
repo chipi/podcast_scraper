@@ -59,6 +59,9 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-summaries
 ```
 
+Output is organized into `output/` with subdirectories: `transcripts/` for transcript files
+and `metadata/` for JSON/YAML metadata.
+
 ---
 
 ## Documentation

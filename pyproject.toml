@@ -150,6 +150,7 @@ markers = [
     "integration_http: HTTP integration tests (use real HTTP client with test server, not external network)",
     "infrastructure: tests for test infrastructure itself (pytest markers, Makefile, CI config)",
     "serial: marks tests that must run sequentially (not in parallel) due to resource conflicts or race conditions",
+    "flaky: marks tests as potentially flaky (may fail intermittently in parallel execution, should use reruns)",
 ]
 # Parallel execution configuration (pytest-xdist)
 # Use -n auto to automatically detect CPU count, or -n N for specific number

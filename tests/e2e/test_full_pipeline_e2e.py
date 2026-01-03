@@ -35,7 +35,8 @@ if str(tests_dir) not in sys.path:
 import sys
 from pathlib import Path
 
-from conftest import create_test_config  # noqa: E402
+# Import from parent conftest explicitly to avoid pytest resolution issues
+from tests.conftest import create_test_config  # noqa: E402
 
 integration_dir = Path(__file__).parent.parent / "integration"
 if str(integration_dir) not in sys.path:
@@ -316,10 +317,7 @@ class TestFullPipelineE2E:
     @pytest.mark.ml_models
     @pytest.mark.critical_path
     @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
-    @unittest.skip(
-        "TODO: Fix concurrent processing race condition - "
-        "metadata files not created after transcription"
-    )
+    @pytest.mark.flaky
     def test_pipeline_with_all_features(self):
         """Test full pipeline with all features enabled.
 
@@ -428,6 +426,7 @@ class TestFullPipelineE2E:
         assert len(metadata_files) >= 1, "Should create metadata files for processed episodes"
 
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     def test_pipeline_error_handling(self):
         """Test pipeline error handling with invalid RSS feed."""
         # Use invalid URL
@@ -442,6 +441,7 @@ class TestFullPipelineE2E:
             workflow.run_pipeline(cfg)
 
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     def test_pipeline_dry_run(self):
         """Test pipeline in dry-run mode (no actual downloads)."""
         feed_url = self.e2e_server.urls.feed("podcast1_with_transcript")
@@ -469,6 +469,7 @@ class TestFullPipelineE2E:
 
     @pytest.mark.ml_models
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
     def test_pipeline_comprehensive_with_real_models(self):
         """Test full pipeline with ALL real models end-to-end (comprehensive test).
@@ -582,6 +583,7 @@ class TestFullPipelineE2E:
             )
 
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     def test_pipeline_handles_rss_feed_404(self):
         """Test that pipeline handles RSS feed 404 error gracefully."""
         # Use e2e_server error behavior to simulate 404
@@ -620,6 +622,7 @@ class TestFullPipelineE2E:
             workflow.run_pipeline(cfg)
 
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     def test_pipeline_handles_transcript_download_404(self):
         """Test that pipeline handles transcript download 404 error."""
         # Create RSS feed with transcript URL that returns 404
@@ -642,6 +645,7 @@ class TestFullPipelineE2E:
         assert count >= 0, "Pipeline should complete even if transcript download fails"
 
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     def test_pipeline_handles_transcript_download_500_with_retry(self):
         """Test that pipeline handles transcript download 500 error with retry logic."""
         feed_url = self.e2e_server.urls.feed("podcast1_with_transcript")

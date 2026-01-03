@@ -49,7 +49,8 @@ class TestSpecialCharactersInTitles:
             assert isinstance(summary, str), "Summary should be a string"
 
             # Verify output file was created with sanitized filename
-            output_files = list(Path(tmpdir).glob("*.txt"))
+            # (now in transcripts/ subdirectory)
+            output_files = list(Path(tmpdir).rglob("*.txt"))
             assert len(output_files) == 1, "Should create one transcript file"
             # Filename should be sanitized (no special chars)
             assert "Special Chars" in output_files[0].name or "Episode 1" in output_files[0].name
@@ -85,8 +86,8 @@ class TestUnicodeCharacters:
             )
             assert isinstance(summary, str), "Summary should be a string"
 
-            # Verify output files were created
-            output_files = list(Path(tmpdir).glob("*.txt"))
+            # Verify output files were created (now in transcripts/ subdirectory)
+            output_files = list(Path(tmpdir).rglob("*.txt"))
             assert (
                 len(output_files) == expected_episodes
             ), f"Should create {expected_episodes} transcript file(s), got {len(output_files)}"
@@ -299,8 +300,8 @@ class TestAllEdgeCasesTogether:
             )
             assert isinstance(summary, str), "Summary should be a string"
 
-            # Verify metadata files were created
-            metadata_files = list(Path(tmpdir).glob("*.metadata.json"))
+            # Verify metadata files were created (now in metadata/ subdirectory)
+            metadata_files = list(Path(tmpdir).rglob("*.metadata.json"))
             assert (
                 len(metadata_files) == expected_episodes
             ), f"Should create {expected_episodes} metadata file(s), got {len(metadata_files)}"
@@ -347,8 +348,8 @@ class TestAllEdgeCasesTogether:
             assert isinstance(result.summary, str), "Summary should be a string"
             assert result.error is None, "Should not have errors"
 
-            # Verify output files were created
-            output_files = list(Path(tmpdir).glob("*.txt"))
+            # Verify output files were created (now in transcripts/ subdirectory)
+            output_files = list(Path(tmpdir).rglob("*.txt"))
             assert (
                 len(output_files) == expected_episodes
             ), f"Should create {expected_episodes} transcript file(s), got {len(output_files)}"

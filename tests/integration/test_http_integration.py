@@ -38,7 +38,21 @@ tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
-from conftest import create_test_config  # noqa: E402
+# Import from parent conftest explicitly to avoid conflicts with infrastructure conftest
+import importlib.util
+
+tests_dir = Path(__file__).parent.parent
+if str(tests_dir) not in sys.path:
+    sys.path.insert(0, str(tests_dir))
+
+parent_conftest_path = tests_dir / "conftest.py"
+spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load conftest from {parent_conftest_path}")
+parent_conftest = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(parent_conftest)
+
+create_test_config = parent_conftest.create_test_config
 
 
 class MockHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -175,7 +189,6 @@ def test_http_server():
 
 @pytest.mark.integration
 @pytest.mark.integration_http
-@pytest.mark.critical_path
 class TestHTTPClientIntegration:
     """Test HTTP client with real HTTP server."""
 
@@ -187,6 +200,7 @@ class TestHTTPClientIntegration:
             timeout=5,
         )
 
+    @pytest.mark.critical_path
     def test_successful_http_request(self, test_http_server):
         """Test successful HTTP request."""
         url = test_http_server.url("/success")
@@ -202,6 +216,7 @@ class TestHTTPClientIntegration:
         # Clean up
         resp.close()  # type: ignore[attr-defined]
 
+    @pytest.mark.critical_path
     def test_rss_feed_download(self, test_http_server):
         """Test RSS feed download."""
         url = test_http_server.url("/rss")
@@ -219,6 +234,7 @@ class TestHTTPClientIntegration:
         # Clean up
         resp.close()  # type: ignore[attr-defined]
 
+    @pytest.mark.critical_path
     def test_transcript_download(self, test_http_server):
         """Test transcript download."""
         url = test_http_server.url("/transcript")
@@ -237,6 +253,7 @@ class TestHTTPClientIntegration:
         # Clean up
         resp.close()  # type: ignore[attr-defined]
 
+    @pytest.mark.critical_path
     def test_streaming_download(self, test_http_server):
         """Test streaming download."""
         url = test_http_server.url("/large")
@@ -262,6 +279,7 @@ class TestHTTPClientIntegration:
         # Clean up
         resp.close()  # type: ignore[attr-defined]
 
+    @pytest.mark.critical_path
     def test_user_agent_header(self, test_http_server):
         """Test that User-Agent header is sent correctly."""
         url = test_http_server.url("/check-user-agent")
@@ -289,6 +307,7 @@ class TestHTTPClientIntegration:
         assert resp is None, "fetch_url should return None on 404 error"
 
     @pytest.mark.slow
+    # Not critical_path - this is error handling, not part of the core workflow
     def test_500_error_handling(self, test_http_server):
         """Test 500 error handling.
 
@@ -304,6 +323,7 @@ class TestHTTPClientIntegration:
         assert resp is None, "fetch_url should return None on 500 error"
 
     @pytest.mark.slow
+    # Not critical_path - this is error handling/retry logic, not part of the core workflow
     def test_retry_logic(self, test_http_server):
         """Test retry logic for transient errors.
 
@@ -327,6 +347,7 @@ class TestHTTPClientIntegration:
             resp.close()  # type: ignore[attr-defined]
 
     @pytest.mark.slow
+    # Not critical_path - this is error handling, not part of the core workflow
     def test_timeout_handling(self, test_http_server):
         """Test timeout handling.
 
@@ -341,6 +362,7 @@ class TestHTTPClientIntegration:
         # Verify timeout handling (fetch_url returns None on timeout)
         assert resp is None, "fetch_url should return None on timeout"
 
+    @pytest.mark.critical_path
     def test_http_get_function(self, test_http_server):
         """Test http_get() function with real HTTP."""
         url = test_http_server.url("/transcript")
@@ -354,6 +376,7 @@ class TestHTTPClientIntegration:
         assert content == b"Episode 1 transcript content"
         assert "text/vtt" in content_type
 
+    @pytest.mark.critical_path
     def test_http_download_to_file(self, test_http_server):
         """Test http_download_to_file() with real HTTP."""
         url = test_http_server.url("/transcript")
@@ -381,6 +404,7 @@ class TestHTTPClientIntegration:
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
 
+    @pytest.mark.critical_path
     def test_url_normalization(self, test_http_server):
         """Test URL normalization with real HTTP."""
         # Test with URL that needs normalization

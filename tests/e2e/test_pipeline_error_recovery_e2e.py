@@ -20,7 +20,6 @@ import socketserver
 import sys
 import threading
 import time
-import unittest
 from pathlib import Path
 from typing import Optional
 
@@ -38,7 +37,8 @@ tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
-from conftest import (  # noqa: E402
+# Import from parent conftest explicitly to avoid pytest resolution issues
+from tests.conftest import (  # noqa: E402
     create_test_config,
     TEST_FEED_TITLE,
     TEST_TRANSCRIPT_TYPE_VTT,
@@ -159,10 +159,17 @@ class ErrorRecoveryHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Error endpoints
         elif path == "/transcript-error-404.vtt":
             self._send_response(404, b"Not Found", "text/plain")
-        # Audio file endpoint
+        # Audio file endpoint - serve real audio file from fixtures
         elif path == "/episode1.mp3":
-            mp3_header = b"\xFF\xFB\x90\x00" * 32
-            self._send_response(200, mp3_header, "audio/mpeg")
+            # Use real audio fixture file (fast audio for quick testing)
+            fixture_path = Path(__file__).parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
+            if fixture_path.exists():
+                with open(fixture_path, "rb") as f:
+                    audio_data = f.read()
+                self._send_response(200, audio_data, "audio/mpeg")
+            else:
+                # Fallback: return 404 if fixture not found
+                self._send_response(404, b"Audio fixture not found", "text/plain")
         else:
             self._send_response(404, b"Not Found", "text/plain")
 
@@ -323,10 +330,6 @@ class TestPipelineErrorRecoveryE2E:
             # ValueError is also acceptable for malformed RSS
             pass
 
-    @unittest.skip(
-        "TODO: Fix concurrent processing race condition - "
-        "metadata files not created after transcription"
-    )
     def test_pipeline_fallback_to_whisper_when_no_transcript_url(self):
         """Test that pipeline falls back to Whisper when no transcript URL is provided."""
         feed_url = self.http_server.url("/feed-fallback.xml")

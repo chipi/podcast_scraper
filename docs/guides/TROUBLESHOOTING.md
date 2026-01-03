@@ -27,19 +27,39 @@ Common issues and solutions for podcast_scraper development and usage.
 **Solution:**
 
 ```bash
-
 # Preload all ML models (requires network)
-
 make preload-ml-models
 
-# Verify models are cached
-
-ls -la ~/.cache/huggingface/
-ls -la ~/.cache/whisper/
+# Verify models are cached (project-local cache)
+ls -la .cache/whisper/          # Whisper models (tiny.en.pt, etc.)
+ls -la .cache/huggingface/hub/  # Transformers models (bart, led)
 python -c "import spacy; spacy.load('en_core_web_sm')"
 ```
 
-## transformers/torch Import Errors
+**Note:** Models are cached in the project-local `.cache/` directory, not `~/.cache/`.
+See `.cache/README.md` for cache structure details.
+
+### Whisper Model Download Fails
+
+**Symptom:** Network errors when loading Whisper models.
+
+**Solution:**
+
+```bash
+# Preload models using make target (recommended)
+make preload-ml-models
+
+# Or download model manually
+python -c "import whisper; whisper.load_model('tiny.en')"
+
+# Check project-local cache
+ls .cache/whisper/
+
+# Use smaller model for testing
+python3 -m podcast_scraper.cli feed.xml --whisper-model tiny
+```
+
+### transformers/torch Import Errors
 
 **Symptom:** `ModuleNotFoundError: No module named 'transformers'`
 
@@ -129,27 +149,6 @@ sudo apt install ffmpeg
 
 ffmpeg -version
 ```
-
-## Whisper Model Download Fails
-
-**Symptom:** Network errors when loading Whisper models.
-
-**Solution:**
-
-```bash
-
-# Download model manually
-
-python -c "import whisper; whisper.load_model('base')"
-
-# Check cache location
-
-ls ~/.cache/whisper/
-
-# Use smaller model for testing
-
-python3 -m podcast_scraper.cli feed.xml --whisper-model tiny
-```yaml
 
 ---
 

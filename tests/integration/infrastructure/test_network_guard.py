@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Network guard verification tests for E2E tests.
+"""Integration tests for network guard infrastructure.
 
 These tests verify that the network guard correctly blocks external network calls
-and allows localhost connections.
+and allows localhost connections. Moved from tests/e2e/ as part of Phase 3 test
+pyramid refactoring - these test infrastructure components, not user workflows.
 """
 
 import os
@@ -17,8 +18,7 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 
-@pytest.mark.e2e
-@pytest.mark.slow
+@pytest.mark.integration
 class TestNetworkGuard(unittest.TestCase):
     """Test that network guard blocks external network calls."""
 

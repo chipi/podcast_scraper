@@ -1,6 +1,14 @@
 PYTHON ?= python3
 PACKAGE = podcast_scraper
 
+# Test parallelism: Smart default that adapts to CPU count
+# Formula: min(max(1, cpu_count - 2), 8)
+# - Reserves 2 cores for system operations
+# - Caps at 8 to prevent excessive memory usage
+# - Falls back to 2 if CPU detection fails
+# Can be overridden: PYTEST_WORKERS=4 make test
+PYTEST_WORKERS ?= $(shell python3 -c "import os; print(min(max(1, (os.cpu_count() or 4) - 2), 8))")
+
 .PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test test-sequential test-fast test-reruns coverage docs build ci ci-fast ci-sequential ci-clean clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models
 
 help:
@@ -101,8 +109,9 @@ docs:
 
 test-unit:
 	# Unit tests: parallel execution for faster feedback
+	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
-	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n auto --disable-socket --allow-hosts=127.0.0.1,localhost
+	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-unit-sequential:
 	# Unit tests: sequential execution (slower but clearer output, useful for debugging)
@@ -122,9 +131,11 @@ test-unit-no-ml: init-no-ml
 
 test-integration:
 	# Integration tests: parallel execution (3.4x faster, significant benefit)
+	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
+	# Integration tests load ML models which consume ~1-2 GB per worker
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
-	pytest tests/integration/ -m integration -n auto --reruns 2 --reruns-delay 1 --disable-socket --allow-hosts=127.0.0.1,localhost
+	pytest tests/integration/ -m integration -n $(PYTEST_WORKERS) --reruns 2 --reruns-delay 1 --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration-sequential:
 	# Integration tests: sequential execution (slower but clearer output, useful for debugging)
@@ -133,17 +144,18 @@ test-integration-sequential:
 
 test-integration-fast:
 	# Fast integration tests: critical path tests only (includes ML tests if models are cached)
+	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
-	pytest tests/integration/ -m "integration and critical_path" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
+	pytest tests/integration/ -m "integration and critical_path" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
 
 test-ci:
 	# CI test suite: serial tests first (sequentially), then parallel execution for the rest
 	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
 	# Note: Non-critical path tests run on main branch only
 	pytest -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov-report=term-missing || true
-	pytest -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov-report=term-missing --cov-append
+	pytest -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov-report=term-missing --cov-append
 
 test-ci-fast:
 	# Fast CI test suite: serial tests first (sequentially), then parallel execution for the rest
@@ -151,15 +163,16 @@ test-ci-fast:
 	# Note: Coverage is excluded here for faster execution; full validation job includes unified coverage
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
-	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 || true
-	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+	# Includes reruns for flaky tests (matches CI behavior)
+	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 2 --reruns-delay 1 || true
+	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 2 --reruns-delay 1
 
 test-e2e:
 	# E2E tests: serial tests first (sequentially), then parallel execution for the rest
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
 	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 || true
-	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and not serial" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and not serial" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
 
 test-e2e-sequential:
 	# E2E tests: sequential execution (slower but clearer output, useful for debugging)
@@ -174,22 +187,21 @@ test-e2e-fast:
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 || true
-	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and not serial" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
+	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and not serial" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
 
 test-e2e-data-quality:
 	# Data quality E2E tests: full pipeline validation with multiple episodes
 	# Uses all original mock data (not fast fixtures)
 	# Runs with 3-5 episodes per test to validate data quality and consistency
 	# For nightly builds only - not part of regular CI/CD code quality checks
-	@E2E_TEST_MODE=data_quality pytest tests/e2e/ -m "e2e and data_quality" -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
+	@E2E_TEST_MODE=data_quality pytest tests/e2e/ -m "e2e and data_quality" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
 
 test:
 	# All tests: serial tests first (sequentially), then parallel execution for the rest
 	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
-	# Reduced parallelism: auto minus 2 to reserve buffer for system (was -n auto which used all 14 cores)
-	# This gives us 12 workers instead of 14, reducing memory pressure while still being aggressive
+	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
 	@E2E_TEST_MODE=multi_episode pytest tests/ -m serial --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost || true
-	@E2E_TEST_MODE=multi_episode pytest tests/ -m "not serial" --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $$(python3 -c "import os; print(max(1, (os.cpu_count() or 14) - 2))") --disable-socket --allow-hosts=127.0.0.1,localhost
+	@E2E_TEST_MODE=multi_episode pytest tests/ -m "not serial" --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-sequential:
 	# All tests: sequential execution (slower but clearer output, useful for debugging)
@@ -204,7 +216,7 @@ test-fast:
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	@E2E_TEST_MODE=fast pytest -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 || true
-	@E2E_TEST_MODE=fast pytest -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n auto --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+	@E2E_TEST_MODE=fast pytest -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
 
 test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early

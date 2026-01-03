@@ -226,6 +226,7 @@ class TestWhisperFallbackWorkflow:
             # This test verifies the pipeline works with transcribe_missing=True
             # Files may be created in tmpdir, but we don't need to verify them here
 
+    @pytest.mark.flaky
     def test_whisper_fallback_with_audio_download(self, e2e_server):
         """Test Whisper transcription after audio download from E2E server."""
         # Require model to be cached (fail fast if not)

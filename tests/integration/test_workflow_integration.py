@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Integration and E2E tests for podcast_scraper."""
+"""Integration tests for podcast_scraper workflow.
+
+These tests verify component interactions using mocked HTTP responses and mocked Whisper.
+Moved from tests/e2e/test_workflow_e2e.py as part of Phase 3 test pyramid refactoring.
+"""
 
 import os
 import sys
 
 # Allow importing the package when tests run from within the package directory.
-PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PACKAGE_ROOT not in sys.path:
+    sys.path.insert(0, PACKAGE_ROOT)
 
 # Import shared test utilities from conftest
 # Note: pytest automatically loads conftest.py, but we need explicit imports for unittest
@@ -35,45 +38,53 @@ except ImportError:
     pass
 
 # Add tests directory to path for conftest import
-tests_dir = Path(__file__).parent
+tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
-from conftest import (  # noqa: F401, E402
-    build_rss_xml_with_media,
-    build_rss_xml_with_speakers,
-    build_rss_xml_with_transcript,
-    create_media_response,
-    create_mock_spacy_model,
-    create_rss_response,
-    create_test_args,
-    create_test_config,
-    create_test_episode,
-    create_test_feed,
-    create_transcript_response,
-    MockHTTPResponse,
-    TEST_BASE_URL,
-    TEST_CONTENT_TYPE_SRT,
-    TEST_CONTENT_TYPE_VTT,
-    TEST_CUSTOM_OUTPUT_DIR,
-    TEST_EPISODE_TITLE,
-    TEST_EPISODE_TITLE_SPECIAL,
-    TEST_FEED_TITLE,
-    TEST_FEED_URL,
-    TEST_FULL_URL,
-    TEST_MEDIA_TYPE_M4A,
-    TEST_MEDIA_TYPE_MP3,
-    TEST_MEDIA_URL,
-    TEST_OUTPUT_DIR,
-    TEST_PATH,
-    TEST_RELATIVE_MEDIA,
-    TEST_RELATIVE_TRANSCRIPT,
-    TEST_RUN_ID,
-    TEST_TRANSCRIPT_TYPE_SRT,
-    TEST_TRANSCRIPT_TYPE_VTT,
-    TEST_TRANSCRIPT_URL,
-    TEST_TRANSCRIPT_URL_SRT,
-)
+# Import from parent conftest explicitly to avoid conflicts with infrastructure conftest
+import importlib.util
+
+parent_conftest_path = tests_dir / "conftest.py"
+spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load conftest from {parent_conftest_path}")
+parent_conftest = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(parent_conftest)
+
+build_rss_xml_with_media = parent_conftest.build_rss_xml_with_media
+build_rss_xml_with_speakers = parent_conftest.build_rss_xml_with_speakers
+build_rss_xml_with_transcript = parent_conftest.build_rss_xml_with_transcript
+create_media_response = parent_conftest.create_media_response
+create_mock_spacy_model = parent_conftest.create_mock_spacy_model
+create_rss_response = parent_conftest.create_rss_response
+create_test_args = parent_conftest.create_test_args
+create_test_config = parent_conftest.create_test_config
+create_test_episode = parent_conftest.create_test_episode
+create_test_feed = parent_conftest.create_test_feed
+create_transcript_response = parent_conftest.create_transcript_response
+MockHTTPResponse = parent_conftest.MockHTTPResponse
+TEST_BASE_URL = parent_conftest.TEST_BASE_URL
+TEST_CONTENT_TYPE_SRT = parent_conftest.TEST_CONTENT_TYPE_SRT
+TEST_CONTENT_TYPE_VTT = parent_conftest.TEST_CONTENT_TYPE_VTT
+TEST_CUSTOM_OUTPUT_DIR = parent_conftest.TEST_CUSTOM_OUTPUT_DIR
+TEST_EPISODE_TITLE = parent_conftest.TEST_EPISODE_TITLE
+TEST_EPISODE_TITLE_SPECIAL = parent_conftest.TEST_EPISODE_TITLE_SPECIAL
+TEST_FEED_TITLE = parent_conftest.TEST_FEED_TITLE
+TEST_FEED_URL = parent_conftest.TEST_FEED_URL
+TEST_FULL_URL = parent_conftest.TEST_FULL_URL
+TEST_MEDIA_TYPE_M4A = parent_conftest.TEST_MEDIA_TYPE_M4A
+TEST_MEDIA_TYPE_MP3 = parent_conftest.TEST_MEDIA_TYPE_MP3
+TEST_MEDIA_URL = parent_conftest.TEST_MEDIA_URL
+TEST_OUTPUT_DIR = parent_conftest.TEST_OUTPUT_DIR
+TEST_PATH = parent_conftest.TEST_PATH
+TEST_RELATIVE_MEDIA = parent_conftest.TEST_RELATIVE_MEDIA
+TEST_RELATIVE_TRANSCRIPT = parent_conftest.TEST_RELATIVE_TRANSCRIPT
+TEST_RUN_ID = parent_conftest.TEST_RUN_ID
+TEST_TRANSCRIPT_TYPE_SRT = parent_conftest.TEST_TRANSCRIPT_TYPE_SRT
+TEST_TRANSCRIPT_TYPE_VTT = parent_conftest.TEST_TRANSCRIPT_TYPE_VTT
+TEST_TRANSCRIPT_URL = parent_conftest.TEST_TRANSCRIPT_URL
+TEST_TRANSCRIPT_URL_SRT = parent_conftest.TEST_TRANSCRIPT_URL_SRT
 
 
 @pytest.mark.integration
@@ -109,7 +120,7 @@ class TestIntegrationMain(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tmpdir:
                 exit_code = cli.main([rss_url, "--output-dir", tmpdir])
                 self.assertEqual(exit_code, 0)
-                expected_path = os.path.join(tmpdir, "0001 - Episode 1.txt")
+                expected_path = os.path.join(tmpdir, "transcripts", "0001 - Episode 1.txt")
                 self.assertTrue(os.path.exists(expected_path))
                 with open(expected_path, "r", encoding="utf-8") as fh:
                     self.assertEqual(fh.read().strip(), transcript_text)
@@ -158,7 +169,11 @@ class TestIntegrationMain(unittest.TestCase):
                         if mock_import_whisper.called:
                             mock_transcribe.assert_called()
                             effective_dir = Path(tmpdir).resolve() / "run_testrun_whisper_base"
-                            out_path = effective_dir / "0001 - Episode 1_testrun_whisper_base.txt"
+                            out_path = (
+                                effective_dir
+                                / "transcripts"
+                                / "0001 - Episode 1_testrun_whisper_base.txt"
+                            )
                             self.assertTrue(out_path.exists())
                         self.assertEqual(
                             out_path.read_text(encoding="utf-8").strip(), transcribed_text
@@ -183,7 +198,7 @@ class TestIntegrationMain(unittest.TestCase):
                 exit_code = cli.main([rss_url, "--output-dir", malicious])
                 self.assertEqual(exit_code, 0)
                 effective_dir = Path(malicious).expanduser().resolve()
-                out_path = effective_dir / "0001 - Episode 1.txt"
+                out_path = effective_dir / "transcripts" / "0001 - Episode 1.txt"
                 self.assertTrue(out_path.exists())
                 self.assertNotIn("..", str(out_path))
 
@@ -247,7 +262,7 @@ class TestIntegrationMain(unittest.TestCase):
         http_mock = self._mock_http_map(responses)
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             with tempfile.TemporaryDirectory() as tmpdir:
-                expected_path = os.path.join(tmpdir, "0001 - Episode 1.txt")
+                expected_path = os.path.join(tmpdir, "transcripts", "0001 - Episode 1.txt")
                 import logging
 
                 with self.assertLogs(logging.getLogger("podcast_scraper"), level="INFO") as log_ctx:
@@ -387,8 +402,8 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertIsInstance(summary, str)
             self.assertIn("transcripts", summary.lower())
 
-            # Verify file was created
-            expected_path = os.path.join(self.temp_dir, "0001 - Episode 1.txt")
+            # Verify file was created (now in transcripts/ subdirectory)
+            expected_path = os.path.join(self.temp_dir, "transcripts", "0001 - Episode 1.txt")
             self.assertTrue(os.path.exists(expected_path))
             with open(expected_path, "r", encoding="utf-8") as fh:
                 self.assertEqual(fh.read().strip(), transcript_text)
@@ -431,8 +446,8 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertGreaterEqual(count, 0)
             self.assertIsInstance(summary, str)
 
-            # Verify file was created
-            expected_path = os.path.join(self.temp_dir, "0001 - Episode 1.txt")
+            # Verify file was created (now in transcripts/ subdirectory)
+            expected_path = os.path.join(self.temp_dir, "transcripts", "0001 - Episode 1.txt")
             self.assertTrue(os.path.exists(expected_path))
 
     def test_e2e_library_whisper_fallback(self):
@@ -616,6 +631,6 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertGreaterEqual(count, 0)
             self.assertIsInstance(summary, str)
 
-            # Verify file was created
-            expected_path = os.path.join(self.temp_dir, "0001 - Episode 1.txt")
+            # Verify file was created (now in transcripts/ subdirectory)
+            expected_path = os.path.join(self.temp_dir, "transcripts", "0001 - Episode 1.txt")
             self.assertTrue(os.path.exists(expected_path))
