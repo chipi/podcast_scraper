@@ -307,11 +307,20 @@ class TestChunking(unittest.TestCase):
         from unittest.mock import MagicMock
 
         self.temp_dir = tempfile.mkdtemp()
-        # Create fake transformers module in sys.modules for patching
-        # Store original to restore in tearDown
+        # Create fake transformers and torch modules in sys.modules for patching
+        # Store originals to restore in tearDown
         self._original_transformers = sys.modules.get("transformers")
+        self._original_torch = sys.modules.get("torch")
         if "transformers" not in sys.modules:
             sys.modules["transformers"] = MagicMock()
+        if "torch" not in sys.modules:
+            mock_torch = MagicMock()
+            mock_torch.backends = MagicMock()
+            mock_torch.backends.mps = MagicMock()
+            mock_torch.backends.mps.is_available.return_value = False
+            mock_torch.cuda = MagicMock()
+            mock_torch.cuda.is_available.return_value = False
+            sys.modules["torch"] = mock_torch
 
     def tearDown(self):
         """Clean up test fixtures."""
@@ -325,6 +334,12 @@ class TestChunking(unittest.TestCase):
                 del sys.modules["transformers"]
         else:
             sys.modules["transformers"] = self._original_transformers
+        # Restore original torch module or remove our mock
+        if self._original_torch is None:
+            if "torch" in sys.modules:
+                del sys.modules["torch"]
+        else:
+            sys.modules["torch"] = self._original_torch
 
     @patch("transformers.AutoTokenizer", create=True)
     @patch("transformers.AutoModelForSeq2SeqLM", create=True)
@@ -595,11 +610,20 @@ class TestSafeSummarize(unittest.TestCase):
         from unittest.mock import MagicMock
 
         self.temp_dir = tempfile.mkdtemp()
-        # Create fake transformers module in sys.modules for patching
-        # Store original to restore in tearDown
+        # Create fake transformers and torch modules in sys.modules for patching
+        # Store originals to restore in tearDown
         self._original_transformers = sys.modules.get("transformers")
+        self._original_torch = sys.modules.get("torch")
         if "transformers" not in sys.modules:
             sys.modules["transformers"] = MagicMock()
+        if "torch" not in sys.modules:
+            mock_torch = MagicMock()
+            mock_torch.backends = MagicMock()
+            mock_torch.backends.mps = MagicMock()
+            mock_torch.backends.mps.is_available.return_value = False
+            mock_torch.cuda = MagicMock()
+            mock_torch.cuda.is_available.return_value = False
+            sys.modules["torch"] = mock_torch
 
     def tearDown(self):
         """Clean up test fixtures."""
@@ -613,6 +637,12 @@ class TestSafeSummarize(unittest.TestCase):
                 del sys.modules["transformers"]
         else:
             sys.modules["transformers"] = self._original_transformers
+        # Restore original torch module or remove our mock
+        if self._original_torch is None:
+            if "torch" in sys.modules:
+                del sys.modules["torch"]
+        else:
+            sys.modules["torch"] = self._original_torch
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
@@ -736,11 +766,20 @@ class TestMemoryOptimization(unittest.TestCase):
         from unittest.mock import MagicMock
 
         self.temp_dir = tempfile.mkdtemp()
-        # Create fake transformers module in sys.modules for patching
-        # Store original to restore in tearDown
+        # Create fake transformers and torch modules in sys.modules for patching
+        # Store originals to restore in tearDown
         self._original_transformers = sys.modules.get("transformers")
+        self._original_torch = sys.modules.get("torch")
         if "transformers" not in sys.modules:
             sys.modules["transformers"] = MagicMock()
+        if "torch" not in sys.modules:
+            mock_torch = MagicMock()
+            mock_torch.backends = MagicMock()
+            mock_torch.backends.mps = MagicMock()
+            mock_torch.backends.mps.is_available.return_value = False
+            mock_torch.cuda = MagicMock()
+            mock_torch.cuda.is_available.return_value = False
+            sys.modules["torch"] = mock_torch
 
     def tearDown(self):
         """Clean up test fixtures."""
@@ -754,6 +793,12 @@ class TestMemoryOptimization(unittest.TestCase):
                 del sys.modules["transformers"]
         else:
             sys.modules["transformers"] = self._original_transformers
+        # Restore original torch module or remove our mock
+        if self._original_torch is None:
+            if "torch" in sys.modules:
+                del sys.modules["torch"]
+        else:
+            sys.modules["torch"] = self._original_torch
 
     @patch("podcast_scraper.summarizer.torch", create=True)
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
