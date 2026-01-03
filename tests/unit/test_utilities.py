@@ -15,53 +15,61 @@ if PROJECT_ROOT not in sys.path:
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 # Mock ML dependencies before importing modules that require them
 # Unit tests run without ML dependencies installed
 with patch.dict("sys.modules", {"spacy": MagicMock()}):
     from podcast_scraper import speaker_detection, whisper_integration as whisper
 
-# Add tests directory to path for conftest import
-tests_dir = Path(__file__).parent
-if str(tests_dir) not in sys.path:
-    sys.path.insert(0, str(tests_dir))
+# Import from parent conftest explicitly to avoid conflicts
+import importlib.util
 
-from conftest import (  # noqa: F401, E402
-    build_rss_xml_with_media,
-    build_rss_xml_with_speakers,
-    build_rss_xml_with_transcript,
-    create_media_response,
-    create_mock_spacy_model,
-    create_rss_response,
-    create_test_args,
-    create_test_config,
-    create_test_episode,
-    create_test_feed,
-    create_transcript_response,
-    MockHTTPResponse,
-    TEST_BASE_URL,
-    TEST_CONTENT_TYPE_SRT,
-    TEST_CONTENT_TYPE_VTT,
-    TEST_CUSTOM_OUTPUT_DIR,
-    TEST_EPISODE_TITLE,
-    TEST_EPISODE_TITLE_SPECIAL,
-    TEST_FEED_TITLE,
-    TEST_FEED_URL,
-    TEST_FULL_URL,
-    TEST_MEDIA_TYPE_M4A,
-    TEST_MEDIA_TYPE_MP3,
-    TEST_MEDIA_URL,
-    TEST_OUTPUT_DIR,
-    TEST_PATH,
-    TEST_RELATIVE_MEDIA,
-    TEST_RELATIVE_TRANSCRIPT,
-    TEST_RUN_ID,
-    TEST_TRANSCRIPT_TYPE_SRT,
-    TEST_TRANSCRIPT_TYPE_VTT,
-    TEST_TRANSCRIPT_URL,
-    TEST_TRANSCRIPT_URL_SRT,
-)
+parent_tests_dir = Path(__file__).parent.parent
+if str(parent_tests_dir) not in sys.path:
+    sys.path.insert(0, str(parent_tests_dir))
+
+parent_conftest_path = parent_tests_dir / "conftest.py"
+spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load conftest from {parent_conftest_path}")
+parent_conftest = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(parent_conftest)
+
+# Import helper functions from parent conftest
+build_rss_xml_with_media = parent_conftest.build_rss_xml_with_media
+build_rss_xml_with_speakers = parent_conftest.build_rss_xml_with_speakers
+build_rss_xml_with_transcript = parent_conftest.build_rss_xml_with_transcript
+create_media_response = parent_conftest.create_media_response
+create_mock_spacy_model = parent_conftest.create_mock_spacy_model
+create_rss_response = parent_conftest.create_rss_response
+create_test_args = parent_conftest.create_test_args
+create_test_config = parent_conftest.create_test_config
+create_test_episode = parent_conftest.create_test_episode
+create_test_feed = parent_conftest.create_test_feed
+create_transcript_response = parent_conftest.create_transcript_response
+MockHTTPResponse = parent_conftest.MockHTTPResponse
+TEST_BASE_URL = parent_conftest.TEST_BASE_URL
+TEST_CONTENT_TYPE_SRT = parent_conftest.TEST_CONTENT_TYPE_SRT
+TEST_CONTENT_TYPE_VTT = parent_conftest.TEST_CONTENT_TYPE_VTT
+TEST_CUSTOM_OUTPUT_DIR = parent_conftest.TEST_CUSTOM_OUTPUT_DIR
+TEST_EPISODE_TITLE = parent_conftest.TEST_EPISODE_TITLE
+TEST_EPISODE_TITLE_SPECIAL = parent_conftest.TEST_EPISODE_TITLE_SPECIAL
+TEST_FEED_TITLE = parent_conftest.TEST_FEED_TITLE
+TEST_FEED_URL = parent_conftest.TEST_FEED_URL
+TEST_FULL_URL = parent_conftest.TEST_FULL_URL
+TEST_MEDIA_TYPE_M4A = parent_conftest.TEST_MEDIA_TYPE_M4A
+TEST_MEDIA_TYPE_MP3 = parent_conftest.TEST_MEDIA_TYPE_MP3
+TEST_MEDIA_URL = parent_conftest.TEST_MEDIA_URL
+TEST_OUTPUT_DIR = parent_conftest.TEST_OUTPUT_DIR
+TEST_PATH = parent_conftest.TEST_PATH
+TEST_RELATIVE_MEDIA = parent_conftest.TEST_RELATIVE_MEDIA
+TEST_RELATIVE_TRANSCRIPT = parent_conftest.TEST_RELATIVE_TRANSCRIPT
+TEST_RUN_ID = parent_conftest.TEST_RUN_ID
+TEST_TRANSCRIPT_TYPE_SRT = parent_conftest.TEST_TRANSCRIPT_TYPE_SRT
+TEST_TRANSCRIPT_TYPE_VTT = parent_conftest.TEST_TRANSCRIPT_TYPE_VTT
+TEST_TRANSCRIPT_URL = parent_conftest.TEST_TRANSCRIPT_URL
+TEST_TRANSCRIPT_URL_SRT = parent_conftest.TEST_TRANSCRIPT_URL_SRT
 
 from podcast_scraper import config
 
@@ -88,73 +96,66 @@ class TestFormatScreenplay(unittest.TestCase):
 class TestModelLoading(unittest.TestCase):
     """Test that Whisper and spaCy models can be loaded."""
 
-    @unittest.skip(
-        "TODO: Mock whisper model loading or move to integration tests - requires network access"
-    )
-    def test_whisper_model_loading_with_fallback(self):
+    @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
+    def test_whisper_model_loading_with_fallback(self, mock_import_whisper):
         """Test that Whisper model loading works with fallback logic."""
         cfg = create_test_config(
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             language="en",
         )
-        # This should either load the model or fail gracefully with clear error
-        model = whisper.load_whisper_model(cfg)
-        if model is None:
-            # If model loading fails, check that we got helpful error messages
-            # This test validates that the error handling works correctly
-            # In CI, models might not be available, so we just verify graceful failure
-            self.assertIsNone(model)
-        else:
-            # If model loads successfully, verify it's usable
-            self.assertIsNotNone(model)
-            self.assertTrue(hasattr(model, "transcribe") or hasattr(model, "device"))
 
-    @unittest.skip(
-        "TODO: Mock whisper model loading or move to integration tests - requires network access"
-    )
-    def test_whisper_model_loading_tiny_fallback(self):
+        # Mock Whisper library and model
+        mock_whisper_lib = Mock()
+        mock_model = Mock()
+        mock_model.transcribe = Mock()
+        mock_whisper_lib.load_model.return_value = mock_model
+        mock_import_whisper.return_value = mock_whisper_lib
+
+        # This should load the model using the mocked library
+        model = whisper.load_whisper_model(cfg)
+        self.assertIsNotNone(model)
+        self.assertTrue(hasattr(model, "transcribe") or hasattr(model, "device"))
+
+    @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
+    def test_whisper_model_loading_tiny_fallback(self, mock_import_whisper):
         """Test that Whisper falls back to tiny model if base fails."""
         cfg = create_test_config(
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             language="en",
         )
-        # Try loading - should either succeed or fail gracefully
+
+        # Mock Whisper library and model
+        mock_whisper_lib = Mock()
+        mock_model = Mock()
+        mock_model.transcribe = Mock()
+        mock_whisper_lib.load_model.return_value = mock_model
+        mock_import_whisper.return_value = mock_whisper_lib
+
+        # Try loading - should succeed with mocked library
         model = whisper.load_whisper_model(cfg)
-        # Just verify the function doesn't crash
-        # Model might be None if Whisper isn't installed or download fails
-        # This test validates the fallback logic doesn't crash
-        if model is not None:
-            # If model loads, verify it has expected attributes
-            self.assertTrue(hasattr(model, "transcribe") or hasattr(model, "device"))
+        self.assertIsNotNone(model)
+        self.assertTrue(hasattr(model, "transcribe") or hasattr(model, "device"))
 
-    @unittest.skip(
-        "TODO: Fix spacy mocking setup - spacy.load() MagicMock interferes with test mocks"
-    )
-    def test_spacy_model_loading(self):
+    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    def test_spacy_model_loading(self, mock_load):
         """Test that spaCy model can be loaded."""
-        # Clear cache to ensure fresh load
-        speaker_detection.clear_spacy_model_cache()
-
         cfg = create_test_config(
             auto_speakers=True,
             language="en",
             ner_model=None,  # Should default to en_core_web_sm
         )
+
+        # Mock spaCy model
+        mock_nlp = Mock()
+        mock_load.return_value = mock_nlp
+
         # Test that get_ner_model works
         nlp = speaker_detection.get_ner_model(cfg)
-        if nlp is None:
-            # spaCy might not be installed or model might not be downloaded
-            # This is acceptable - we just verify graceful failure
-            self.assertIsNone(nlp)
-        else:
-            # If model loads, verify it can process text
-            self.assertIsNotNone(nlp)
-            # Test basic NER functionality
-            doc = nlp("John Smith interviewed Jane Doe.")
-            persons = [ent.text for ent in doc.ents if ent.label_ == "PERSON"]
-            self.assertGreater(len(persons), 0, "Should detect at least one PERSON entity")
+        self.assertIsNotNone(nlp)
+        self.assertEqual(nlp, mock_nlp)
+        mock_load.assert_called_once_with(config.DEFAULT_NER_MODEL)
 
     def test_spacy_model_validation(self):
         """Test that spaCy model name validation works."""
@@ -168,28 +169,29 @@ class TestModelLoading(unittest.TestCase):
         self.assertFalse(speaker_detection._validate_model_name(""))
         self.assertFalse(speaker_detection._validate_model_name("a" * 101))  # Too long
 
-    @unittest.skip(
-        "TODO: Mock whisper model loading or move to integration tests - requires network access"
-    )
-    def test_whisper_model_selection_english(self):
+    @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
+    def test_whisper_model_selection_english(self, mock_import_whisper):
         """Test that English models prefer .en variants."""
         cfg = create_test_config(
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             language="en",
         )
-        # The function should prefer base.en over base for English
-        # We can't easily test the internal selection without mocking,
-        # but we can verify it doesn't crash and handles gracefully
-        model = whisper.load_whisper_model(cfg)
-        # Just verify graceful handling - model might be None if Whisper not installed
-        if model is not None:
-            self.assertTrue(hasattr(model, "transcribe") or hasattr(model, "device"))
 
-    @unittest.skip(
-        "TODO: Mock whisper model loading or move to integration tests - requires network access"
-    )
-    def test_whisper_model_selection_non_english(self):
+        # Mock Whisper library and model
+        mock_whisper_lib = Mock()
+        mock_model = Mock()
+        mock_model.transcribe = Mock()
+        mock_whisper_lib.load_model.return_value = mock_model
+        mock_import_whisper.return_value = mock_whisper_lib
+
+        # The function should load the model using the mocked library
+        model = whisper.load_whisper_model(cfg)
+        self.assertIsNotNone(model)
+        self.assertTrue(hasattr(model, "transcribe") or hasattr(model, "device"))
+
+    @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
+    def test_whisper_model_selection_non_english(self, mock_import_whisper):
         """Test that non-English models use multilingual variants."""
         # Use test default (tiny.en) - should be converted to tiny for French
         cfg = create_test_config(
@@ -197,13 +199,19 @@ class TestModelLoading(unittest.TestCase):
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # tiny.en
             language="fr",
         )
+
+        # Mock Whisper library and model
+        mock_whisper_lib = Mock()
+        mock_model = Mock()
+        mock_model.transcribe = Mock()
+        mock_whisper_lib.load_model.return_value = mock_model
+        mock_import_whisper.return_value = mock_whisper_lib
+
         # For French, should use multilingual model (no .en suffix)
-        # We can't easily test the internal selection without mocking,
-        # but we can verify it doesn't crash and handles gracefully
+        # The function should load the model using the mocked library
         model = whisper.load_whisper_model(cfg)
-        # Just verify graceful handling - model might be None if Whisper not installed
-        if model is not None:
-            self.assertTrue(hasattr(model, "transcribe") or hasattr(model, "device"))
+        self.assertIsNotNone(model)
+        self.assertTrue(hasattr(model, "transcribe") or hasattr(model, "device"))
 
 
 # Metadata test classes moved to tests/test_metadata.py

@@ -19,8 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts import eval_cleaning, eval_summaries
 
 
-@pytest.mark.e2e
-@pytest.mark.slow
+@pytest.mark.unit
 class TestEvalCleaning(unittest.TestCase):
     """Tests for eval_cleaning.py"""
 
@@ -123,8 +122,7 @@ class TestEvalCleaning(unittest.TestCase):
             self.assertIn("flags", result)
 
 
-@pytest.mark.e2e
-@pytest.mark.slow
+@pytest.mark.unit
 class TestEvalSummaries(unittest.TestCase):
     """Tests for eval_summaries.py"""
 
@@ -266,8 +264,7 @@ class TestEvalSummaries(unittest.TestCase):
             self.assertIn("checks", result)
 
 
-@pytest.mark.e2e
-@pytest.mark.slow
+@pytest.mark.unit
 class TestEvalScriptsIntegration(unittest.TestCase):
     """Integration tests for eval scripts (require minimal setup)."""
 

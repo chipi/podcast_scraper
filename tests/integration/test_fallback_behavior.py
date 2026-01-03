@@ -166,23 +166,21 @@ class TestCacheClearingFallback(unittest.TestCase):
         # clear_cache() should be available via protocol
         self.assertTrue(hasattr(detector, "clear_cache"))
 
-        # Should not need fallback to direct speaker_detection.clear_spacy_model_cache()
-        # This was removed in favor of protocol method
+        # clear_cache() is now a no-op (cache was removed)
         detector.clear_cache()  # Should work without fallback
 
-    @unittest.skip(
-        "TODO: Fix spacy mocking setup - spacy.load() MagicMock interferes with test mocks"
-    )
-    @patch("podcast_scraper.speaker_detection.clear_spacy_model_cache")
-    def test_ner_detector_cache_clearing(self, mock_clear_cache):
-        """Test that NER detector clear_cache() works correctly."""
+    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    def test_ner_detector_cache_clearing(self, mock_load_spacy):
+        """Test that NER detector clear_cache() works correctly (no-op)."""
+        # Mock spaCy model loading to prevent network calls
+        mock_load_spacy.return_value = Mock()
+
         detector = create_speaker_detector(self.cfg)
 
-        # Call clear_cache via protocol method
+        # Call clear_cache via protocol method (now a no-op)
         detector.clear_cache()
 
-        # Should call module function (no fallback needed)
-        mock_clear_cache.assert_called_once()
+        # clear_cache() is now a no-op, should not raise
 
 
 @pytest.mark.integration

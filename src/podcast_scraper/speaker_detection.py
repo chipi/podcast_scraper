@@ -8,7 +8,6 @@ import re
 # Bandit: subprocess is needed for spaCy model download
 import subprocess  # nosec B404
 import sys
-import threading
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from . import config
@@ -18,11 +17,6 @@ from . import config
 
 
 logger = logging.getLogger(__name__)
-
-# Module-level cache for loaded spaCy models (keyed by model name)
-# This avoids reloading the same model multiple times during a single run
-_spacy_model_cache: Dict[str, Any] = {}
-_spacy_model_cache_lock = threading.Lock()
 
 # Default speaker names when detection fails
 DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
@@ -158,8 +152,9 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
 def get_ner_model(cfg: config.Config) -> Optional[Any]:
     """Get the appropriate spaCy NER model based on configuration.
 
-    Models are cached at module level to avoid expensive reloads on every episode.
-    Thread-safe caching ensures safe concurrent access.
+    This function loads the spaCy model directly without caching.
+    Providers should load the model once during initialization and pass it
+    to detect_speaker_names() to avoid redundant loads.
 
     Args:
         cfg: Configuration object
@@ -181,20 +176,10 @@ def get_ner_model(cfg: config.Config) -> Optional[Any]:
             logger.debug("No default NER model for language '%s', skipping detection", cfg.language)
             return None
 
-    # Check cache first (thread-safe)
-    with _spacy_model_cache_lock:
-        if model_name in _spacy_model_cache:
-            logger.debug("Using cached spaCy model: %s", model_name)
-            return _spacy_model_cache[model_name]
-
-    # Load model if not in cache
+    # Load model directly (no caching)
     nlp = _load_spacy_model(model_name)
-
-    # Cache the loaded model (thread-safe)
     if nlp is not None:
-        with _spacy_model_cache_lock:
-            _spacy_model_cache[model_name] = nlp
-            logger.debug("Cached spaCy model: %s", model_name)
+        logger.debug("Loaded spaCy model: %s", model_name)
 
     return nlp
 
@@ -276,9 +261,9 @@ def _extract_confidence_score(ent: Any) -> float:
     Returns:
         Confidence score (defaults to DEFAULT_CONFIDENCE_SCORE if not available)
     """
-    if hasattr(ent, "score"):
+    if hasattr(ent, "score") and ent.score is not None:
         return float(ent.score)
-    elif hasattr(ent, "_") and hasattr(ent._, "score"):
+    elif hasattr(ent, "_") and hasattr(ent._, "score") and ent._.score is not None:
         return float(ent._.score)
     return DEFAULT_CONFIDENCE_SCORE
 
@@ -743,6 +728,7 @@ def analyze_episode_patterns(
 def detect_speaker_names(
     episode_title: str,
     episode_description: Optional[str],
+    nlp: Any,
     cfg: Optional[config.Config] = None,
     known_hosts: Optional[Set[str]] = None,
     cached_hosts: Optional[Set[str]] = None,
@@ -759,7 +745,9 @@ def detect_speaker_names(
         episode_title: Episode title (required for guest detection)
         episode_description: Episode description (only first
             DESCRIPTION_SNIPPET_LENGTH chars used for guest detection)
-        cfg: Configuration object
+        nlp: Pre-loaded spaCy model (required). Providers should load the model
+            once during initialization and pass it here to avoid redundant loads.
+        cfg: Configuration object (optional, used for validation)
         known_hosts: Manually specified host names (optional)
         cached_hosts: Previously detected hosts to reuse (optional)
         heuristics: Pattern-based heuristics from sample episodes (optional)
@@ -769,11 +757,10 @@ def detect_speaker_names(
         - detection_succeeded: True if real names were detected, False if defaults were used
         Note: detected_hosts_set will be empty as hosts are not detected here
     """
-    if not cfg or not cfg.auto_speakers:
+    if cfg and not cfg.auto_speakers:
         logger.debug("Auto-speakers disabled, detection failed")
         return DEFAULT_SPEAKER_NAMES.copy(), set(), False
 
-    nlp = get_ner_model(cfg)
     if not nlp:
         logger.debug("spaCy model not available, detection failed")
         return DEFAULT_SPEAKER_NAMES.copy(), set(), False
@@ -838,8 +825,9 @@ def detect_speaker_names(
 
     # Build final speaker names list
     guests = [selected_guest] if selected_guest else []
+    screenplay_num_speakers = cfg.screenplay_num_speakers if cfg else 2
     speaker_names, detection_succeeded = _build_speaker_names_list(
-        hosts, guests, cfg.screenplay_num_speakers
+        hosts, guests, screenplay_num_speakers
     )
 
     # Return hosts set (hosts are passed in, not detected here)
@@ -1079,21 +1067,10 @@ def _build_speaker_names_list(
     return speaker_names[:max_names], detection_succeeded
 
 
-def clear_spacy_model_cache() -> None:
-    """Clear the module-level spaCy model cache.
-
-    Useful for testing or when you want to force reload models.
-    """
-    with _spacy_model_cache_lock:
-        _spacy_model_cache.clear()
-        logger.debug("Cleared spaCy model cache")
-
-
 __all__ = [
     "detect_speaker_names",
     "detect_hosts_from_feed",
     "get_ner_model",
     "extract_person_entities",
-    "clear_spacy_model_cache",
     "DEFAULT_SPEAKER_NAMES",
 ]

@@ -551,6 +551,8 @@ class SummaryModel:
         """Load model and tokenizer from cache or download."""
         # Lazy import: Only import transformers when this method is called
         # This allows the module to be imported without ML dependencies installed
+        import os
+
         import torch  # noqa: F401
         from transformers import (  # noqa: F401
             AutoModelForSeq2SeqLM,
@@ -560,52 +562,69 @@ class SummaryModel:
         )
 
         try:
-            # Log device detection details for debugging
-            device_info = f"{self.device}"
-            if self.device == "mps":
-                device_info += " (Apple Silicon GPU)"
-            elif self.device == "cuda":
-                device_info += " (NVIDIA GPU)"
-            else:
-                device_info += " (CPU)"
-            logger.info(f"Loading summarization model: {self.model_name} on {device_info}")
-            logger.debug(f"Cache directory: {self.cache_dir}")
+            # Disable progress bars to avoid misleading "Downloading" messages
+            # when loading from cache. This is especially important in test environments
+            # where network is blocked and progress bars can be confusing.
+            # Set environment variable to suppress Hugging Face Hub progress bars
+            original_hf_disable = os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS")
+            os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
-            # Load tokenizer
-            # Security: Revision pinning provides reproducibility and prevents supply chain attacks
-            # If revision is None, latest version is used (less secure but more convenient)
-            # Use local_files_only=True to prevent network access when models are cached
-            # This is critical for tests where network is blocked (pytest-socket)
-            logger.debug("Loading tokenizer (will use cache if available)...")
-            tokenizer_kwargs = {
-                "cache_dir": self.cache_dir,
-                "local_files_only": True,  # Prevent network access - use cache only
-            }
-            if self.revision:
-                tokenizer_kwargs["revision"] = self.revision
-                logger.debug(f"Using pinned revision: {self.revision}")
-            self.tokenizer = AutoTokenizer.from_pretrained(  # nosec B615
-                self.model_name,
-                **tokenizer_kwargs,
-            )
+            try:
+                # Log device detection details for debugging
+                device_info = f"{self.device}"
+                if self.device == "mps":
+                    device_info += " (Apple Silicon GPU)"
+                elif self.device == "cuda":
+                    device_info += " (NVIDIA GPU)"
+                else:
+                    device_info += " (CPU)"
+                logger.info(f"Loading summarization model: {self.model_name} on {device_info}")
+                logger.debug(f"Cache directory: {self.cache_dir}")
 
-            # Load model
-            # Security: Revision pinning provides reproducibility and prevents supply chain attacks
-            # If revision is None, latest version is used (less secure but more convenient)
-            # Use local_files_only=True to prevent network access when models are cached
-            # This is critical for tests where network is blocked (pytest-socket)
-            logger.debug("Loading model (will use cache if available)...")
-            model_kwargs = {
-                "cache_dir": self.cache_dir,
-                "local_files_only": True,  # Prevent network access - use cache only
-            }
-            if self.revision:
-                model_kwargs["revision"] = self.revision
-            self.model = AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
-                self.model_name,
-                **model_kwargs,
-            )
-            logger.debug("Model loaded successfully (cached for future runs)")
+                # Load tokenizer
+                # Security: Revision pinning provides reproducibility and prevents
+                # supply chain attacks. If revision is None, latest version is used
+                # (less secure but more convenient). Use local_files_only=True to
+                # prevent network access when models are cached
+                # This is critical for tests where network is blocked (pytest-socket)
+                logger.debug("Loading tokenizer (will use cache if available)...")
+                tokenizer_kwargs = {
+                    "cache_dir": self.cache_dir,
+                    "local_files_only": True,  # Prevent network access - use cache only
+                }
+                if self.revision:
+                    tokenizer_kwargs["revision"] = self.revision
+                    logger.debug(f"Using pinned revision: {self.revision}")
+                self.tokenizer = AutoTokenizer.from_pretrained(  # nosec B615
+                    self.model_name,
+                    **tokenizer_kwargs,
+                )
+
+                # Load model
+                # Security: Revision pinning provides reproducibility and prevents
+                # supply chain attacks. If revision is None, latest version is used
+                # (less secure but more convenient). Use local_files_only=True to
+                # prevent network access when models are cached
+                # This is critical for tests where network is blocked (pytest-socket)
+                logger.debug("Loading model (will use cache if available)...")
+                model_kwargs = {
+                    "cache_dir": self.cache_dir,
+                    # Prevent network access - use cache only
+                    "local_files_only": True,
+                }
+                if self.revision:
+                    model_kwargs["revision"] = self.revision
+                self.model = AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
+                    self.model_name,
+                    **model_kwargs,
+                )
+                logger.debug("Model loaded successfully (cached for future runs)")
+            finally:
+                # Restore original environment variable
+                if original_hf_disable is None:
+                    os.environ.pop("HF_HUB_DISABLE_PROGRESS_BARS", None)
+                else:
+                    os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = original_hf_disable
 
             # Move model to device
             self.model = self.model.to(self.device)  # type: ignore[union-attr]

@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Fixture mapping and RSS linkage verification tests.
+"""Integration tests for fixture mapping and RSS linkage.
 
 These tests verify that:
 1. All required fixtures exist
 2. Podcast mapping is correct
 3. RSS linkage requirements are met (guid == filename, enclosure URLs)
+
+Moved from tests/e2e/ as part of Phase 3 test pyramid refactoring - these
+test infrastructure components, not user workflows.
 """
 
 import os
@@ -24,21 +27,21 @@ if PACKAGE_ROOT not in sys.path:
 from tests.e2e.fixtures.e2e_http_server import E2EHTTPRequestHandler
 
 
-@pytest.mark.e2e
-@pytest.mark.slow
+@pytest.mark.integration
 class TestFixtureMapping:
     """Test fixture structure and mapping."""
 
     @classmethod
     def get_fixture_root(cls) -> Path:
         """Get the root directory for test fixtures."""
-        # This file is in tests/e2e/
+        # This file is in tests/integration/infrastructure/
         # Fixtures are in tests/fixtures/
-        # Path structure: tests/e2e/test_fixture_mapping.py
-        #                 -> tests/e2e (parent)
-        #                 -> tests (parent.parent)
-        #                 -> tests/fixtures (parent.parent / "fixtures")
-        return Path(__file__).parent.parent / "fixtures"
+        # Path structure: tests/integration/infrastructure/test_fixture_mapping.py
+        #                 -> tests/integration/infrastructure (parent)
+        #                 -> tests/integration (parent.parent)
+        #                 -> tests (parent.parent.parent)
+        #                 -> tests/fixtures (parent.parent.parent / "fixtures")
+        return Path(__file__).parent.parent.parent / "fixtures"
 
     def test_fixture_structure_exists(self):
         """Test that fixture structure exists."""

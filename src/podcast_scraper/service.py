@@ -167,6 +167,11 @@ def main() -> int:
     """
     import argparse
 
+    from . import workflow
+
+    # Initialize ML environment variables early (before any ML imports)
+    workflow._initialize_ml_environment()
+
     parser = argparse.ArgumentParser(
         description="Podcast Scraper Service - Run pipeline from configuration file",
         formatter_class=argparse.RawDescriptionHelpFormatter,

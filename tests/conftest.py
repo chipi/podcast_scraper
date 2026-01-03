@@ -388,8 +388,19 @@ def pytest_collection_modifyitems(config, items):
                 )
 
 
+def _is_unit_test_safe() -> bool:
+    """Safely check if current test is a unit test without accessing request object.
+
+    This function only uses environment variables to avoid hangs when -s flag is used.
+    """
+    import os
+
+    test_name = os.environ.get("PYTEST_CURRENT_TEST", "")
+    return "/unit/" in test_name
+
+
 @pytest.fixture(autouse=True, scope="function")
-def cleanup_ml_resources_after_test(monkeypatch):
+def cleanup_ml_resources_after_test(request):
     """Ensure ML resources are cleaned up after each test.
 
     This fixture runs automatically after each test to:
@@ -404,9 +415,45 @@ def cleanup_ml_resources_after_test(monkeypatch):
     - OMP_NUM_THREADS: OpenMP threads (used by PyTorch)
     - MKL_NUM_THREADS: Intel MKL threads (if available)
     - TORCH_NUM_THREADS: PyTorch CPU threads
+
+    Note: This fixture skips all logic for unit tests to avoid hangs.
+    Unit tests don't load real ML models, so they don't need this cleanup.
+
+    WARNING: When using pytest with `-s` or `--capture=no` flags, unit tests may
+    hang due to pytest's fixture parameter resolution. This is a pytest behavior
+    issue, not a test logic problem. Tests pass normally without these flags.
+
+    WORKAROUND: Use `-v` (verbose) instead of `-s` for better output without hangs:
+        pytest tests/unit/ -v  # Works fine
+        pytest tests/unit/ -s  # May hang
+
+    IMPORTANT: When using pytest with `-s` or `--capture=no` flags, accessing
+    request.node attributes can hang. This fixture checks PYTEST_CURRENT_TEST
+    environment variable FIRST (before accessing request) to avoid hangs.
     """
     import os
     import sys
+
+    # CRITICAL: Check if unit test FIRST using safe method (env var only)
+    # This MUST be done before accessing request or monkeypatch to avoid hangs with -s flag
+    is_unit_test = _is_unit_test_safe()
+
+    # For unit tests, exit immediately - don't even request monkeypatch fixture
+    # This prevents pytest from trying to resolve fixture parameters which can hang
+    if is_unit_test:
+        yield
+        return
+
+    # For non-unit tests, we need monkeypatch, so request it now
+    # This is safe because we've already determined it's not a unit test
+    monkeypatch = request.getfixturevalue("monkeypatch")
+
+    # Disable Hugging Face Hub progress bars to avoid misleading "Downloading" messages
+    # when loading models from cache. This is especially important in test environments
+    # where network is blocked and progress bars can be confusing.
+    # Set this early before any transformers imports
+    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    monkeypatch.setenv("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 
     # Limit PyTorch thread pools to prevent excessive thread spawning
     # Set to 1 thread per worker to minimize resource usage in parallel tests
@@ -424,7 +471,9 @@ def cleanup_ml_resources_after_test(monkeypatch):
     # Note: set_num_interop_threads can only be called once per process,
     # so we catch RuntimeError if it's already been set
     # Only check if torch is already imported (don't import it ourselves to save memory)
-    if "torch" in sys.modules:
+    # Skip this for unit tests to avoid any potential hangs
+    # Reuse is_unit_test from earlier check
+    if "torch" in sys.modules and not is_unit_test:
         try:
             import torch
 
@@ -449,4 +498,16 @@ def cleanup_ml_resources_after_test(monkeypatch):
     # and releases threads that might be holding references
     # Note: Single GC round is more efficient - multiple rounds can actually
     # cause memory fragmentation and keep objects alive longer
-    gc.collect()
+    # Skip gc.collect() for unit tests to avoid hangs from mock finalizers
+    # Unit tests should clean up explicitly, and integration/E2E tests will benefit from GC
+    # Only run GC for integration/E2E tests, skip for unit tests
+    # Check test name from env var (safer than request.node)
+    test_name_after = os.environ.get("PYTEST_CURRENT_TEST", "")
+    if not is_unit_test and (
+        "test_integration" in test_name_after or "test_e2e" in test_name_after
+    ):
+        try:
+            gc.collect()
+        except Exception:
+            # Ignore any errors from GC (e.g., finalizer issues)
+            pass

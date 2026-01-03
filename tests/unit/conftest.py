@@ -456,6 +456,11 @@ def block_network_and_filesystem_io(request):  # noqa: C901
                     def blocker(*args, **kwargs):
                         if _is_filesystem_test(req):
                             return original_func(*args, **kwargs)
+                        # If dir_fd is provided, this is a relative path operation within a
+                        # directory context (e.g., during shutil.rmtree() cleanup of temp dirs).
+                        # Allow these operations for unlink/rmdir since they're cleanup operations.
+                        if "dir_fd" in kwargs and operation_name in ("rmdir", "unlink"):
+                            return original_func(*args, **kwargs)
                         path = args[0] if args else None
                         if path:
                             path_str = str(path)
@@ -466,9 +471,32 @@ def block_network_and_filesystem_io(request):  # noqa: C901
                                     # Resolve relative to current working directory
                                     path_obj = path_obj.resolve()
                                 path_str = str(path_obj)
-                                # Also check if the file exists at this path and is in temp
+                                # Check if the path is in a temp directory
+                                if _is_temp_path(path_str):
+                                    return original_func(*args, **kwargs)
+                                # Check if the path exists and is in a temp directory
                                 if path_obj.exists() and _is_temp_path(path_str):
                                     return original_func(*args, **kwargs)
+                                # For rmdir/unlink operations during cleanup, check if path would
+                                # be in temp by checking if any parent directory is a temp
+                                # directory. This handles cases where shutil.rmtree() uses
+                                # relative paths with dir_fd during temp directory cleanup
+                                if operation_name in ("rmdir", "unlink"):
+                                    try:
+                                        # Check all parent directories
+                                        for parent in path_obj.parents:
+                                            if parent.exists() and _is_temp_path(str(parent)):
+                                                return original_func(*args, **kwargs)
+                                        # If path doesn't exist (being cleaned up), check if any
+                                        # existing parent is in temp
+                                        if not path_obj.exists():
+                                            for parent in path_obj.parents:
+                                                if parent.exists():
+                                                    # Check if this parent is in a temp directory
+                                                    if _is_temp_path(str(parent)):
+                                                        return original_func(*args, **kwargs)
+                                    except (OSError, RuntimeError):
+                                        pass
                             except (OSError, RuntimeError):
                                 # If we can't resolve or check, allow if path string suggests temp
                                 if _is_temp_path(path_str):
@@ -506,9 +534,22 @@ def block_network_and_filesystem_io(request):  # noqa: C901
                                     # Resolve relative to current working directory
                                     path_obj = path_obj.resolve()
                                 path_str = str(path_obj)
+                                # Check if the path is in a temp directory
+                                if _is_temp_path(path_str):
+                                    return original_func(*args, **kwargs)
                                 # Also check if the path exists and is in temp
+                                # (needed for cleanup operations where path might be removed)
                                 if path_obj.exists() and _is_temp_path(path_str):
                                     return original_func(*args, **kwargs)
+                                # Check parent directories (for relative paths during cleanup)
+                                # This handles cases where shutil.rmtree() uses relative paths
+                                # with dir_fd during temp directory cleanup
+                                try:
+                                    for parent in path_obj.parents:
+                                        if _is_temp_path(str(parent)):
+                                            return original_func(*args, **kwargs)
+                                except (OSError, RuntimeError):
+                                    pass
                             except (OSError, RuntimeError):
                                 # If we can't resolve or check, allow if path string suggests temp
                                 if _is_temp_path(path_str):

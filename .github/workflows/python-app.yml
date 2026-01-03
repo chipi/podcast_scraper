@@ -156,14 +156,13 @@ jobs:
       if: steps.cache-models.outputs.cache-hit != 'true'
       run: make preload-ml-models
 
-  # Full integration tests - all integration tests, runs on PRs and main branch
+  # Full integration tests - all integration tests, runs on main branch only
   test-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30  # Conservative timeout for integration tests with ML models
     needs: [preload-ml-models]
     if: |
-      (github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')) ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -227,13 +226,14 @@ jobs:
         # Keep model caches for next run (they're cached via GitHub Actions cache)
         rm -rf .pytest_cache .mypy_cache .build dist
 
-  # Fast integration tests - DISABLED: Fast tests take similar time as full tests
-  # These are kept for local use only via `make test-integration-fast`
-  # Full integration tests now run on both PRs and main branch
+  # Fast integration tests - critical path only, runs on PRs only
+  # Full integration tests run on main branch only
   test-integration-fast:
     runs-on: ubuntu-latest
+    timeout-minutes: 20  # Conservative timeout for fast integration tests
     needs: [preload-ml-models]
-    if: false  # Disabled - fast tests don't provide value, use full tests instead
+    if: |
+      github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -297,13 +297,14 @@ jobs:
       run: |
         rm -rf .pytest_cache .mypy_cache .build dist
 
-  # Fast E2E tests - DISABLED: Fast tests take similar time as full tests
-  # These are kept for local use only via `make test-e2e-fast`
-  # Full E2E tests now run on both PRs and main branch
+  # Fast E2E tests - critical path only, runs on PRs only
+  # Full E2E tests run on main branch only
   test-e2e-fast:
     runs-on: ubuntu-latest
+    timeout-minutes: 25  # Conservative timeout for fast E2E tests
     needs: [preload-ml-models]
-    if: false  # Disabled - fast tests don't provide value, use full tests instead
+    if: |
+      github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -342,10 +343,16 @@ jobs:
     - name: Run fast E2E tests (critical path only, with network guard)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export E2E_TEST_MODE=fast
         # Run tests with network guard: --disable-socket --allow-hosts=127.0.0.1,localhost
         # Critical path tests only for faster CI feedback
+        # Serial tests first, then parallel tests (matches Makefile pattern)
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/e2e/ -v -m "e2e and critical_path" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        # Run serial tests first
+        OUTPUT_SERIAL=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1 || true)
+        echo "$OUTPUT_SERIAL"
+        # Run parallel tests
+        OUTPUT=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path and not serial" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -371,14 +378,13 @@ jobs:
       run: |
         rm -rf .pytest_cache .mypy_cache .build dist
 
-  # Full E2E tests - all E2E tests, runs on PRs and main branch
+  # Full E2E tests - all E2E tests, runs on main branch only
   test-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 45  # Conservative timeout for E2E tests with ML models
     needs: [preload-ml-models]
     if: |
-      (github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')) ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -417,9 +423,15 @@ jobs:
     - name: Run all E2E tests (full suite, with network guard)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        export E2E_TEST_MODE=multi_episode
         # Run all E2E tests with network guard
+        # Serial tests first, then parallel tests (matches Makefile pattern)
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/e2e/ -v -m e2e -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
+        # Run serial tests first
+        OUTPUT_SERIAL=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1 || true)
+        echo "$OUTPUT_SERIAL"
+        # Run parallel tests
+        OUTPUT=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and not serial" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"

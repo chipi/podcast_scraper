@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Tests for environment variable loading in Config."""
+"""Unit tests for environment variable loading in Config.
+
+Moved from tests/e2e/ as part of Phase 3 test pyramid refactoring - these
+test Config component behavior, not user workflows.
+"""
 
 import os
 import sys
@@ -16,8 +20,7 @@ if PROJECT_ROOT not in sys.path:
 from podcast_scraper import config
 
 
-@pytest.mark.e2e
-@pytest.mark.slow
+@pytest.mark.unit
 class TestEnvironmentVariables(unittest.TestCase):
     """Test environment variable loading for Config."""
 

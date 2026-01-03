@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""OpenAI E2E server integration tests.
+"""Integration tests for OpenAI E2E server mock endpoints.
 
 These tests verify that OpenAI providers correctly use the E2E server's
-OpenAI mock endpoints via HTTP requests, testing the full HTTP flow.
+OpenAI mock endpoints via HTTP requests. Moved from tests/e2e/ as part of
+Phase 3 test pyramid refactoring - these test component interactions with
+infrastructure, not complete user workflows.
 """
 
 import os
@@ -22,8 +24,7 @@ from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
 
-@pytest.mark.e2e
-@pytest.mark.slow
+@pytest.mark.integration
 @pytest.mark.llm
 @pytest.mark.openai
 class TestOpenAIE2EServerIntegration:
@@ -63,7 +64,9 @@ class TestOpenAIE2EServerIntegration:
             assert len(transcript) > 0
             assert "test transcription" in transcript.lower()
         finally:
-            # Clean up
+            # Clean up provider
+            provider.cleanup()
+            # Clean up temporary file
             if os.path.exists(audio_path):
                 os.unlink(audio_path)
 
@@ -100,6 +103,9 @@ class TestOpenAIE2EServerIntegration:
         assert len(result["summary"]) > 0
         assert "test summary" in result["summary"].lower()
 
+        # Clean up provider
+        provider.cleanup()
+
     def test_openai_speaker_detector_uses_e2e_server(self, e2e_server):
         """Test that OpenAI speaker detector uses E2E server endpoints."""
         cfg = config.Config(
@@ -131,3 +137,6 @@ class TestOpenAIE2EServerIntegration:
         assert len(speakers) > 0
         assert isinstance(detected_hosts, set)
         assert isinstance(success, bool)
+
+        # Clean up detector
+        detector.cleanup()

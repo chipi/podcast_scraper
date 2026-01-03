@@ -9,6 +9,7 @@ Tests cover:
 import os
 import sys
 import unittest
+from unittest.mock import Mock, patch
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -372,6 +373,307 @@ class TestFormatScreenplayFromSegments(unittest.TestCase):
         # Should handle string numbers correctly
         self.assertIn("First", result)
         self.assertIn("Second", result)
+
+
+class TestImportThirdPartyWhisper(unittest.TestCase):
+    """Tests for _import_third_party_whisper function."""
+
+    @patch("importlib.import_module")
+    def test_import_whisper_success(self, mock_import):
+        """Test successful import of whisper library."""
+        mock_whisper = Mock()
+        mock_whisper.load_model = Mock()
+        mock_import.return_value = mock_whisper
+
+        # Clear whisper from sys.modules if present
+        if "whisper" in sys.modules:
+            del sys.modules["whisper"]
+
+        result = whisper_integration._import_third_party_whisper()
+
+        self.assertEqual(result, mock_whisper)
+        mock_import.assert_called_once_with("whisper")
+
+    @patch("importlib.import_module")
+    def test_import_whisper_already_imported(self, mock_import):
+        """Test import when whisper is already in sys.modules."""
+        mock_whisper = Mock()
+        mock_whisper.load_model = Mock()
+
+        # Set whisper in sys.modules
+        original_whisper = sys.modules.get("whisper")
+        sys.modules["whisper"] = mock_whisper
+        try:
+            result = whisper_integration._import_third_party_whisper()
+
+            self.assertEqual(result, mock_whisper)
+            mock_import.assert_not_called()
+        finally:
+            # Clean up - always remove to prevent test isolation issues
+            if "whisper" in sys.modules:
+                del sys.modules["whisper"]
+            # Restore original if it existed
+            if original_whisper is not None:
+                sys.modules["whisper"] = original_whisper
+
+    @patch("importlib.import_module")
+    def test_import_whisper_missing_load_model(self, mock_import):
+        """Test import fails when whisper module lacks load_model."""
+        # Clear whisper from sys.modules if present
+        if "whisper" in sys.modules:
+            del sys.modules["whisper"]
+
+        mock_whisper = Mock()
+        del mock_whisper.load_model  # Remove load_model attribute
+        mock_import.return_value = mock_whisper
+
+        with self.assertRaises(ImportError) as context:
+            whisper_integration._import_third_party_whisper()
+
+        self.assertIn("load_model", str(context.exception))
+
+    @patch("importlib.import_module")
+    def test_import_whisper_import_error(self, mock_import):
+        """Test import raises ImportError when module not found."""
+        # Clear whisper from sys.modules if present
+        if "whisper" in sys.modules:
+            del sys.modules["whisper"]
+
+        mock_import.side_effect = ImportError("No module named 'whisper'")
+
+        with self.assertRaises(ImportError) as context:
+            whisper_integration._import_third_party_whisper()
+
+        self.assertIn("openai-whisper", str(context.exception))
+
+
+class TestInterceptWhisperProgress(unittest.TestCase):
+    """Tests for _intercept_whisper_progress context manager."""
+
+    @patch("builtins.__import__")
+    def test_intercept_whisper_progress_no_tqdm(self, mock_import):
+        """Test intercept works when tqdm is not available."""
+        mock_reporter = Mock()
+
+        # Make import fail for tqdm
+        def side_effect(name, *args, **kwargs):
+            if name == "tqdm":
+                raise ImportError("No module named 'tqdm'")
+            return __import__(name, *args, **kwargs)
+
+        mock_import.side_effect = side_effect
+
+        # Should not raise even if tqdm is not available
+        with whisper_integration._intercept_whisper_progress(mock_reporter):
+            pass  # Context manager should work
+
+    @patch("tqdm.tqdm")
+    @patch("builtins.open", create=True)
+    def test_intercept_whisper_progress_intercepts_tqdm(self, mock_open, mock_tqdm_class):
+        """Test that tqdm calls are intercepted and forwarded."""
+        mock_reporter = Mock()
+        mock_file = Mock()
+        mock_open.return_value = mock_file
+
+        # Import tqdm to get the real module
+        try:
+            import tqdm
+
+            original_tqdm = tqdm.tqdm
+        except ImportError:
+            # tqdm not available, skip test
+            self.skipTest("tqdm not available")
+
+        with whisper_integration._intercept_whisper_progress(mock_reporter):
+            # tqdm should be replaced
+            import tqdm
+
+            self.assertNotEqual(tqdm.tqdm, original_tqdm)
+
+        # Should be restored after context
+        import tqdm
+
+        self.assertEqual(tqdm.tqdm, original_tqdm)
+
+    @patch("builtins.open", create=True)
+    def test_intercept_whisper_progress_forwards_updates(self, mock_open):
+        """Test that intercepted tqdm forwards updates to reporter."""
+        mock_reporter = Mock()
+        mock_file = Mock()
+        mock_open.return_value = mock_file
+
+        # Import tqdm to get the real module
+        try:
+            import tqdm
+        except ImportError:
+            # tqdm not available, skip test
+            self.skipTest("tqdm not available")
+
+        with whisper_integration._intercept_whisper_progress(mock_reporter):
+            intercepted_tqdm = tqdm.tqdm(total=100)
+            intercepted_tqdm.update(50)
+
+            # Should forward to reporter
+            mock_reporter.update.assert_called_with(50)
+
+
+class TestLoadWhisperModel(unittest.TestCase):
+    """Tests for load_whisper_model function."""
+
+    def test_load_whisper_model_transcribe_disabled(self):
+        """Test load_whisper_model returns None when transcribe_missing is False."""
+        cfg = Mock()
+        cfg.transcribe_missing = False
+
+        result = whisper_integration.load_whisper_model(cfg)
+
+        self.assertIsNone(result)
+
+    @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
+    def test_load_whisper_model_import_error(self, mock_import):
+        """Test load_whisper_model handles import errors."""
+        cfg = Mock()
+        cfg.transcribe_missing = True
+        mock_import.side_effect = ImportError("whisper not found")
+
+        result = whisper_integration.load_whisper_model(cfg)
+
+        self.assertIsNone(result)
+
+    @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
+    def test_load_whisper_model_success(self, mock_import):
+        """Test successful model loading."""
+        cfg = Mock()
+        cfg.transcribe_missing = True
+        cfg.whisper_model = "base"
+        cfg.language = "en"
+
+        mock_whisper = Mock()
+        mock_model = Mock()
+        mock_model.device = Mock()
+        mock_model.device.type = "cpu"
+        mock_model.dtype = None
+        mock_model.num_parameters = Mock(return_value=1000000)
+        mock_whisper.load_model.return_value = mock_model
+        mock_import.return_value = mock_whisper
+
+        result = whisper_integration.load_whisper_model(cfg)
+
+        self.assertEqual(result, mock_model)
+        # Should prefer .en variant for English
+        mock_whisper.load_model.assert_called_with("base.en")
+
+    @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
+    def test_load_whisper_model_fallback(self, mock_import):
+        """Test model loading with fallback to smaller model."""
+        cfg = Mock()
+        cfg.transcribe_missing = True
+        cfg.whisper_model = "large"
+        cfg.language = "en"
+
+        mock_whisper = Mock()
+        mock_model = Mock()
+        mock_model.device = Mock()
+        mock_model.device.type = "cpu"
+        mock_model.dtype = None
+        mock_model.num_parameters = Mock(return_value=1000000)
+
+        # First attempt fails, fallback succeeds
+        mock_whisper.load_model.side_effect = [
+            FileNotFoundError("Model not found"),
+            mock_model,
+        ]
+        mock_import.return_value = mock_whisper
+
+        result = whisper_integration.load_whisper_model(cfg)
+
+        self.assertEqual(result, mock_model)
+        # Should try large.en first, then fallback
+        self.assertEqual(mock_whisper.load_model.call_count, 2)
+
+    @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
+    def test_load_whisper_model_all_fail(self, mock_import):
+        """Test model loading when all models fail."""
+        cfg = Mock()
+        cfg.transcribe_missing = True
+        cfg.whisper_model = "base"
+        cfg.language = "en"
+
+        mock_whisper = Mock()
+        mock_whisper.load_model.side_effect = FileNotFoundError("Model not found")
+        mock_import.return_value = mock_whisper
+
+        result = whisper_integration.load_whisper_model(cfg)
+
+        self.assertIsNone(result)
+
+
+class TestTranscribeWithWhisper(unittest.TestCase):
+    """Tests for transcribe_with_whisper function."""
+
+    @patch("podcast_scraper.whisper_integration._intercept_whisper_progress")
+    @patch("podcast_scraper.whisper_integration.progress.progress_context")
+    @patch("time.time")
+    def test_transcribe_with_whisper_success(self, mock_time, mock_progress, mock_intercept):
+        """Test successful transcription."""
+        mock_model = Mock()
+        mock_model._is_cpu_device = False
+        mock_model.dtype = None
+        mock_model.transcribe.return_value = {
+            "text": "Hello world",
+            "segments": [{"start": 0.0, "end": 5.0, "text": "Hello world"}],
+        }
+
+        cfg = Mock()
+        cfg.whisper_model = "base"
+        cfg.language = "en"
+
+        mock_reporter = Mock()
+        mock_progress.return_value.__enter__.return_value = mock_reporter
+        mock_progress.return_value.__exit__.return_value = None
+
+        mock_time.side_effect = [0.0, 10.5]  # start, end
+
+        result, elapsed = whisper_integration.transcribe_with_whisper(
+            mock_model, "/tmp/ep1.mp3", cfg
+        )
+
+        self.assertEqual(result["text"], "Hello world")
+        self.assertEqual(elapsed, 10.5)
+        mock_model.transcribe.assert_called_once_with(
+            "/tmp/ep1.mp3", task="transcribe", language="en", verbose=False
+        )
+
+    @patch("podcast_scraper.whisper_integration._intercept_whisper_progress")
+    @patch("podcast_scraper.whisper_integration.progress.progress_context")
+    @patch("time.time")
+    def test_transcribe_with_whisper_default_language(
+        self, mock_time, mock_progress, mock_intercept
+    ):
+        """Test transcription with default language when not specified."""
+        mock_model = Mock()
+        mock_model._is_cpu_device = False
+        mock_model.dtype = None
+        mock_model.transcribe.return_value = {"text": "Hello", "segments": []}
+
+        cfg = Mock()
+        cfg.whisper_model = "base"
+        cfg.language = None  # Not specified
+
+        mock_reporter = Mock()
+        mock_progress.return_value.__enter__.return_value = mock_reporter
+        mock_progress.return_value.__exit__.return_value = None
+
+        mock_time.side_effect = [0.0, 5.0]
+
+        result, elapsed = whisper_integration.transcribe_with_whisper(
+            mock_model, "/tmp/ep1.mp3", cfg
+        )
+
+        # Should default to "en"
+        mock_model.transcribe.assert_called_once_with(
+            "/tmp/ep1.mp3", task="transcribe", language="en", verbose=False
+        )
 
 
 if __name__ == "__main__":

@@ -10,6 +10,9 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+# Import from parent conftest explicitly to avoid conflicts
+import importlib.util
+
 # Import shared test utilities from conftest
 # Note: pytest automatically loads conftest.py, but we need explicit imports for unittest
 import sys
@@ -26,46 +29,51 @@ from platformdirs import user_cache_dir, user_data_dir
 import podcast_scraper
 from podcast_scraper import config, episode_processor, filesystem
 
-# Add tests directory to path for conftest import
-tests_dir = Path(__file__).parent
-if str(tests_dir) not in sys.path:
-    sys.path.insert(0, str(tests_dir))
+parent_tests_dir = Path(__file__).parent.parent.parent
+if str(parent_tests_dir) not in sys.path:
+    sys.path.insert(0, str(parent_tests_dir))
 
-from conftest import (  # noqa: F401, E402
-    build_rss_xml_with_media,
-    build_rss_xml_with_speakers,
-    build_rss_xml_with_transcript,
-    create_media_response,
-    create_mock_spacy_model,
-    create_rss_response,
-    create_test_args,
-    create_test_config,
-    create_test_episode,
-    create_test_feed,
-    create_transcript_response,
-    MockHTTPResponse,
-    TEST_BASE_URL,
-    TEST_CONTENT_TYPE_SRT,
-    TEST_CONTENT_TYPE_VTT,
-    TEST_CUSTOM_OUTPUT_DIR,
-    TEST_EPISODE_TITLE,
-    TEST_EPISODE_TITLE_SPECIAL,
-    TEST_FEED_TITLE,
-    TEST_FEED_URL,
-    TEST_FULL_URL,
-    TEST_MEDIA_TYPE_M4A,
-    TEST_MEDIA_TYPE_MP3,
-    TEST_MEDIA_URL,
-    TEST_OUTPUT_DIR,
-    TEST_PATH,
-    TEST_RELATIVE_MEDIA,
-    TEST_RELATIVE_TRANSCRIPT,
-    TEST_RUN_ID,
-    TEST_TRANSCRIPT_TYPE_SRT,
-    TEST_TRANSCRIPT_TYPE_VTT,
-    TEST_TRANSCRIPT_URL,
-    TEST_TRANSCRIPT_URL_SRT,
-)
+parent_conftest_path = parent_tests_dir / "conftest.py"
+spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load conftest from {parent_conftest_path}")
+parent_conftest = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(parent_conftest)
+
+# Import helper functions from parent conftest
+build_rss_xml_with_media = parent_conftest.build_rss_xml_with_media
+build_rss_xml_with_speakers = parent_conftest.build_rss_xml_with_speakers
+build_rss_xml_with_transcript = parent_conftest.build_rss_xml_with_transcript
+create_media_response = parent_conftest.create_media_response
+create_mock_spacy_model = parent_conftest.create_mock_spacy_model
+create_rss_response = parent_conftest.create_rss_response
+create_test_args = parent_conftest.create_test_args
+create_test_config = parent_conftest.create_test_config
+create_test_episode = parent_conftest.create_test_episode
+create_test_feed = parent_conftest.create_test_feed
+create_transcript_response = parent_conftest.create_transcript_response
+MockHTTPResponse = parent_conftest.MockHTTPResponse
+TEST_BASE_URL = parent_conftest.TEST_BASE_URL
+TEST_CONTENT_TYPE_SRT = parent_conftest.TEST_CONTENT_TYPE_SRT
+TEST_CONTENT_TYPE_VTT = parent_conftest.TEST_CONTENT_TYPE_VTT
+TEST_CUSTOM_OUTPUT_DIR = parent_conftest.TEST_CUSTOM_OUTPUT_DIR
+TEST_EPISODE_TITLE = parent_conftest.TEST_EPISODE_TITLE
+TEST_EPISODE_TITLE_SPECIAL = parent_conftest.TEST_EPISODE_TITLE_SPECIAL
+TEST_FEED_TITLE = parent_conftest.TEST_FEED_TITLE
+TEST_FEED_URL = parent_conftest.TEST_FEED_URL
+TEST_FULL_URL = parent_conftest.TEST_FULL_URL
+TEST_MEDIA_TYPE_M4A = parent_conftest.TEST_MEDIA_TYPE_M4A
+TEST_MEDIA_TYPE_MP3 = parent_conftest.TEST_MEDIA_TYPE_MP3
+TEST_MEDIA_URL = parent_conftest.TEST_MEDIA_URL
+TEST_OUTPUT_DIR = parent_conftest.TEST_OUTPUT_DIR
+TEST_PATH = parent_conftest.TEST_PATH
+TEST_RELATIVE_MEDIA = parent_conftest.TEST_RELATIVE_MEDIA
+TEST_RELATIVE_TRANSCRIPT = parent_conftest.TEST_RELATIVE_TRANSCRIPT
+TEST_RUN_ID = parent_conftest.TEST_RUN_ID
+TEST_TRANSCRIPT_TYPE_SRT = parent_conftest.TEST_TRANSCRIPT_TYPE_SRT
+TEST_TRANSCRIPT_TYPE_VTT = parent_conftest.TEST_TRANSCRIPT_TYPE_VTT
+TEST_TRANSCRIPT_URL = parent_conftest.TEST_TRANSCRIPT_URL
+TEST_TRANSCRIPT_URL_SRT = parent_conftest.TEST_TRANSCRIPT_URL_SRT
 
 
 class TestSanitizeFilename(unittest.TestCase):
