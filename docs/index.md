@@ -31,7 +31,7 @@ Whisper transcription when episodes lack published transcripts.
 
 ### Installation
 
-````bash
+```bash
 
 # Clone or download the repository
 
@@ -43,27 +43,35 @@ cd podcast_scraper
 pip install -e .
 
 # For Whisper transcription, ensure ffmpeg is installed
-
 # macOS: brew install ffmpeg
-
 # Ubuntu: sudo apt install ffmpeg
 
-```text
+```
 
+## Basic Usage
+
+```bash
+
+# Download transcripts from a podcast
+
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --max-episodes 10 \
   --output-dir ./my_transcripts
 
-## Use Whisper when transcripts are missing
+# Use Whisper when transcripts are missing
 
-python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --transcribe-missing \
   --whisper-model base
 
-## Generate metadata and summaries
+# Generate metadata and summaries
 
-python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-metadata \
   --generate-summaries
+```
+
+## Configuration File
 
 ```yaml
 
@@ -83,8 +91,10 @@ workers: 4
 skip_existing: true
 ```yaml
 
-- [config.example.json](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) - JSON format with all options
-- [config.example.yaml](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) - YAML format with comments
+**Example configs:**
+
+- [config.example.json](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) - JSON format
+- [config.example.yaml](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) - YAML format
 
 ---
 
@@ -114,13 +124,16 @@ skip_existing: true
 
 | Resource | Description |
 | -------- | ----------- |
+| **[Quick Reference](guides/QUICK_REFERENCE.md)** | ⭐ One-page cheat sheet for common commands |
 | **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** | Development workflow, code style, testing requirements |
 | **[Architecture Overview](ARCHITECTURE.md)** | High-level system design and module responsibilities |
 | **[Testing Strategy](TESTING_STRATEGY.md)** | Test coverage, quality assurance, and testing guidelines |
 | **[Testing Guide](guides/TESTING_GUIDE.md)** | Detailed test execution, fixtures, and coverage information |
-| **[CI/CD Pipeline](CI_CD.md)** | GitHub Actions workflows, parallel execution, and pipeline visualization |
+| **[CI/CD Pipeline](CI_CD.md)** | GitHub Actions workflows, parallel execution |
 | **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** | Development environment setup and tooling |
 | **[Dependencies Guide](guides/DEPENDENCIES_GUIDE.md)** | Third-party dependencies, rationale, and management |
+| **[Troubleshooting](guides/TROUBLESHOOTING.md)** | Common issues and solutions |
+| **[Glossary](guides/GLOSSARY.md)** | Key terms and concepts |
 | **[Markdown Linting](guides/MARKDOWN_LINTING_GUIDE.md)** | Markdown linting practices and workflows |
 | **[Summarization Guide](guides/SUMMARIZATION_GUIDE.md)** | Summarization implementation details |
 | **[API Boundaries](api/BOUNDARIES.md)** | API design principles and stability guarantees |
@@ -226,32 +239,50 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-```text
+```
 
+### Supervisor Configuration
+
+```ini
+[program:podcast_scraper]
+command=/usr/bin/python3 -m podcast_scraper.service --config /path/to/config.yaml
 directory=/path/to/working/directory
 user=your_username
 autostart=true
 autorestart=true
 stdout_logfile=/var/log/podcast_scraper/stdout.log
 stderr_logfile=/var/log/podcast_scraper/stderr.log
+```yaml
 
-```text
+---
+
+## 🎙️ Advanced Features
+
+### Speaker Detection
+
+```bash
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --num-speakers 2 \
   --auto-speakers
-```text
+```
 
+### Summarization
+
+```bash
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-summaries \
   --summary-model bart-large \
   --summary-device mps
+```yaml
 
-```text
+---
+
+## 📊 Evaluation Scripts
 
 | Script | Purpose |
 | ------ | ------- |
-| **eval_cleaning.py** | Evaluate transcript cleaning quality (sponsor removal, word counts, diffs) |
-| **eval_summaries.py** | Evaluate summarization quality (ROUGE metrics, compression, keyword coverage) |
-
-**Usage:**
+| **eval_cleaning.py** | Evaluate transcript cleaning quality |
+| **eval_summaries.py** | Evaluate summarization quality |
 
 ```bash
 
@@ -262,8 +293,13 @@ python scripts/eval_cleaning.py --episode ep01
 # Evaluate summarization quality
 
 python scripts/eval_summaries.py --map-model bart-large --reduce-model long-fast
+```yaml
 
-```text
+---
+
+## 🛠️ Development
+
+```bash
 source .venv/bin/activate
 pip install -e .
 
@@ -272,10 +308,13 @@ pip install -e .
 ```bash
 
 make ci
+```
+
+## Python API
 
 ```python
 
-# Configure and run
+import podcast_scraper
 
 cfg = podcast_scraper.Config(
     rss="https://example.com/feed.xml",
@@ -286,7 +325,8 @@ cfg = podcast_scraper.Config(
 
 podcast_scraper.run_pipeline(cfg)
 
-```text
+```json
+**Other entry points:**
 
 - `podcast_scraper.cli.main(argv)` — CLI entry point
 
@@ -308,6 +348,11 @@ docker run --rm \
   podcast-scraper \
   --config /app/config.yaml
 
+```yaml
+---
+
+## 👩‍💻 Contributing
+
 ```bash
 
 # Set up development environment
@@ -325,12 +370,16 @@ make lint          # Run linting
 make type          # Type checking
 make test-unit     # Run unit tests with coverage
 make docs          # Build documentation
+```
 
-```yaml
+**Resources:**
 
-- **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** — Complete development workflow, code style, testing requirements
-- **[Architecture](ARCHITECTURE.md)** — Module boundaries and design principles
-- **[Testing Strategy](TESTING_STRATEGY.md)** — Test coverage and quality standards
+- **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** — Development workflow
+- **[Architecture](ARCHITECTURE.md)** — Module boundaries and design
+- **[Testing Strategy](TESTING_STRATEGY.md)** — Test coverage and quality
+
+**Standards:**
+
 - **Code Style:** Black + isort + flake8 + mypy (line length: 100)
 - **Testing:** pytest with mocks for external dependencies
 - **Documentation:** Update README, API docs, and PRD/RFC as needed
@@ -361,11 +410,12 @@ pip install mkdocs mkdocs-material pymdown-extensions mkdocstrings mkdocstrings-
 
 mkdocs serve
 
-```text
+```yaml
+---
+
+## 📋 Work In Progress
 
 - [WIP Overview](wip/WIP_README.md) — Purpose and guidelines for WIP docs
-- [RFC-021: Modularization Refactoring Plan](rfc/RFC-021-modularization-refactoring-plan.md) — Historical reference: Refactoring strategy for OpenAI provider integration (completed)
-- [RFC-022: Environment Variable Candidates Analysis](rfc/RFC-022-environment-variable-candidates-analysis.md) — Historical reference: Analysis and implementation plan for environment variable support (completed)
 - [Summarization Testing Evaluation](wip/SUMMARIZATION_TESTING_EVALUATION.md)
 - [Summary Review](wip/SUMMARY_REVIEW.md)
 - [Whisper Progress Analysis](wip/WHISPER_PROGRESS_ANALYSIS.md)
@@ -377,7 +427,9 @@ mkdocs serve
 
 ## ⚖️ Legal & Fair Use
 
-This project is intended for **personal, non-commercial use only**. All downloaded content must remain local to your device and must not be shared, uploaded, or redistributed.
+This project is intended for **personal, non-commercial use only**. All downloaded
+content must remain local to your device and must not be shared, uploaded, or
+redistributed.
 
 **You are responsible for ensuring compliance with:**
 
@@ -385,7 +437,9 @@ This project is intended for **personal, non-commercial use only**. All download
 - RSS feed terms of service
 - Podcast platform policies
 
-This software is provided for educational and personal-use purposes only. It is not intended to power a public dataset, index, or any commercial service without explicit permission from rights holders.
+This software is provided for educational and personal-use purposes only. It is not
+intended to power a public dataset, index, or any commercial service without explicit
+permission from rights holders.
 
 [Read full legal notice →](LEGAL.md)
 
@@ -393,9 +447,11 @@ This software is provided for educational and personal-use purposes only. It is 
 
 ## 📄 License
 
-MIT License - See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main/LICENSE) for details.
+MIT License - See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main/LICENSE)
+for details.
 
-**Important:** The MIT license applies only to the source code. It does not grant any rights to redistribute third-party podcast content.
+**Important:** The MIT license applies only to the source code. It does not grant any
+rights to redistribute third-party podcast content.
 
 ---
 
@@ -410,16 +466,26 @@ MIT License - See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main/L
 
 ### Essential Documentation
 
-| Category | Links |
-| -------- | ----- |
-| **Getting Started** | [Quick Start](#quick-start) • [Configuration](api/CONFIGURATION.md) • [CLI Ref](api/CLI.md) |
-| **Examples** | [Config YAML](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) • [Config JSON](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) • [systemd](https://github.com/chipi/podcast_scraper/blob/main/examples/systemd.service.example) • [supervisor](https://github.com/chipi/podcast_scraper/blob/main/examples/supervisor.conf.example) |
-| **Development** | [Contributing](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md) • [Architecture](ARCHITECTURE.md) • [Testing Strategy](TESTING_STRATEGY.md) • [Testing Guide](guides/TESTING_GUIDE.md) • [CI/CD](CI_CD.md) • [Development Guide](guides/DEVELOPMENT_GUIDE.md) • [Dependencies](guides/DEPENDENCIES_GUIDE.md) • [Markdown Linting](guides/MARKDOWN_LINTING_GUIDE.md) • [Summarization](guides/SUMMARIZATION_GUIDE.md) • [Scripts](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md) |
-| **Provider System** | [Configuration Quick Reference](guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) • [Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) • [Protocol Extension](guides/PROTOCOL_EXTENSION_GUIDE.md) |
-| **Specifications** | [PRDs](prd/index.md) • [RFCs](rfc/index.md) • [Releases](releases/RELEASE_v2.3.0.md) |
-| **Legal** | [Legal Notice](LEGAL.md) • [License](https://github.com/chipi/podcast_scraper/blob/main/LICENSE) |
+**Getting Started:**
+[Quick Start](#quick-start) • [Configuration](api/CONFIGURATION.md) • [CLI Ref](api/CLI.md)
+
+**Examples:**
+[Config YAML](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) •
+[Config JSON](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json)
+
+**Development:**
+[Contributing](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md) •
+[Architecture](ARCHITECTURE.md) • [Testing](guides/TESTING_GUIDE.md) • [CI/CD](CI_CD.md)
+
+**Provider System:**
+[Quick Reference](guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) •
+[Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md)
+
+**Specifications:**
+[PRDs](prd/index.md) • [RFCs](rfc/index.md) • [Releases](releases/RELEASE_v2.3.0.md)
 
 ---
 
-**Need help?** Check the [documentation](https://chipi.github.io/podcast_scraper/), search [existing issues](https://github.com/chipi/podcast_scraper/issues), or open a new issue for support.
-````
+**Need help?** Check the [documentation](https://chipi.github.io/podcast_scraper/),
+search [existing issues](https://github.com/chipi/podcast_scraper/issues), or open a
+new issue for support.

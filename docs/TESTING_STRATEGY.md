@@ -1,21 +1,20 @@
 # Testing Strategy
 
-> **See also:**
+> **Document Structure:**
 >
-> - [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md) for what to test based on the critical path
-> - [Testing Guide](guides/TESTING_GUIDE.md) for detailed implementation instructions, test execution commands,
->   test file descriptions, fixtures, and coverage details.
+> - **This document** - High-level strategy, test pyramid, decision criteria
+> - **[Testing Guide](guides/TESTING_GUIDE.md)** - Quick reference, test execution commands
+> - **[Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
+> - **[Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md)** - Integration test mocking guidelines
+> - **[E2E Testing Guide](guides/E2E_TESTING_GUIDE.md)** - E2E server, real ML models, OpenAI mocking
+> - **[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md)** - What to test and prioritization
 
 ## Overview
 
 This document defines the testing strategy for the podcast scraper codebase. It establishes the test pyramid approach,
 decision criteria for choosing test types, and high-level testing patterns.
 
-**Document Structure:**
-
-- **This document**: High-level strategy, test pyramid, decision criteria, test categories
-- **[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md)**: What to test based on the critical path, prioritization
-- **[Testing Guide](guides/TESTING_GUIDE.md)**: Detailed implementation instructions, test execution, fixtures, coverage
+For detailed implementation guides per test layer, see the layer-specific guides linked above.
 
 ## Problem Statement
 

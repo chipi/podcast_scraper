@@ -71,9 +71,6 @@ The unified provider architecture addresses these issues by:
 ### Unified Provider Structure
 
 ```
-│   ├── TranscriptionProvider (Whisper)
-│   ├── SpeakerDetector (spaCy)
-│   └── SummarizationProvider (Transformers)
 │
 └── OpenAI Provider (openai/openai_provider.py)
     ├── TranscriptionProvider (Whisper API)
@@ -499,9 +496,6 @@ The naming is inconsistent:
 ### Test File Organization
 
 ```
-│   └── podcast_scraper/
-│       ├── ml/
-│       │   ├── test_ml_provider.py              # Core functionality
 │       │   └── test_ml_provider_lifecycle.py    # Lifecycle & edge cases
 │       ├── openai/
 │       │   ├── test_openai_provider.py          # Core functionality

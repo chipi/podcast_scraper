@@ -2,11 +2,14 @@
 
 > **See also:**
 >
-> - [Testing Strategy](../TESTING_STRATEGY.md) for overall testing strategy and test pyramid concepts
-> - [Testing Guide](TESTING_GUIDE.md) for detailed implementation instructions and test execution
->
-> This guide bridges testing strategy and implementation by focusing on **what to test** based on the critical path.
-> It helps you understand which tests matter most and how to prioritize your testing efforts.
+> - [Testing Strategy](../TESTING_STRATEGY.md) - Overall testing philosophy and test pyramid
+> - [Testing Guide](TESTING_GUIDE.md) - Quick reference and test execution commands
+> - [Unit Testing Guide](UNIT_TESTING_GUIDE.md) - Unit test implementation
+> - [Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md) - Integration test guidelines
+> - [E2E Testing Guide](E2E_TESTING_GUIDE.md) - E2E testing with real ML models
+
+This guide focuses on **what to test** and **how to prioritize**. Use the `@pytest.mark.critical_path`
+marker for tests that validate the critical path - these run in the fast test suite.
 
 ## What is the Critical Path?
 
@@ -342,7 +345,10 @@ critical path is solid, then expand to extended features.
 
 ## References
 
-- [Testing Strategy](../TESTING_STRATEGY.md) - Overall testing strategy and test pyramid
-- [Testing Guide](TESTING_GUIDE.md) - Detailed implementation instructions
+- [Testing Strategy](../TESTING_STRATEGY.md) - Overall testing philosophy
+- [Testing Guide](TESTING_GUIDE.md) - Quick reference and test execution
+- [Unit Testing Guide](UNIT_TESTING_GUIDE.md) - Unit test implementation
+- [Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md) - Integration test guidelines
+- [E2E Testing Guide](E2E_TESTING_GUIDE.md) - E2E testing with real ML
 - Critical path tests: `tests/integration/test_component_workflows.py`
 - Critical path E2E tests: `tests/e2e/test_basic_e2e.py`

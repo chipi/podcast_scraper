@@ -129,9 +129,8 @@
 {
   "example": "output structure"
 }
-```
-
 ```json
+
 - [Question 3: e.g., "How to handle multi-speaker transcripts in summaries?"]
 
 ## Related Work
@@ -152,4 +151,5 @@
 - [ ] Tests cover [key scenarios]
 - [ ] Documentation updated (README, config examples)
 - [ ] Integration with [related feature] verified
+
 ```

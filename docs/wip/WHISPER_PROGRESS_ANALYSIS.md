@@ -101,30 +101,27 @@ class WhisperProgressInterceptor:
                 super().__init__(*args, **kwargs)
 
 ```python
+
             def update(self, n=1):
                 super().update(n)
-```
 
-```text
+```
                 # Forward to our progress bar
+
 ```
 
-```text
                 if self.our_bar:
                     self.our_bar.update(n)
+
 ```
 
-        tqdm.tqdm = InterceptedTqdm
-        return self
-
 ```python
+
     def __exit__(self, *args):
         import tqdm
         tqdm.tqdm = self.original_tqdm
-```
-```text
 
-1. **Real Progress**: Users see actual transcription progress (e.g., "45% complete, 2:30 remaining")
+```
 2. **Clean Output**: Single progress bar, no multiple lines
 3. **Consistent UX**: Matches our other progress bars
 4. **Episode Context**: Can show which episode is being transcribed

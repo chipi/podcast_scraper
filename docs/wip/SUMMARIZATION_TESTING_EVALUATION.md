@@ -157,21 +157,22 @@ If you have human/reference summaries, you can compute:
 
     ```python
 ```python
+
     from pathlib import Path
     from rouge_score import rouge_scorer
-```
 
 ```python
+
     def load_text(path):
         return Path(path).read_text(encoding="utf-8")
-```
 
 ```python
+
     def rouge_for_pair(pred_path, ref_path):
         pred = load_text(pred_path)
         ref = load_text(ref_path)
-```
 
+```json
         scorer = rouge_scorer.RougeScorer(
             ["rouge1", "rouge2", "rougeL"],
             use_stemmer=True,
@@ -179,19 +180,17 @@ If you have human/reference summaries, you can compute:
         scores = scorer.score(ref, pred)
 
 ```text
+
         # scores is a dict with precision/recall/fmeasure
-```
 
-```text
+```
         return scores
+
 ```
 
-```text
     # example
-```
 
-    scores = rouge_for_pair(
-        "data/eval/ep01/model_summary.txt",
+```
         "data/eval/ep01/reference_summary.txt"
     )
     print(scores["rougeL"].fmeasure)
@@ -266,11 +265,10 @@ You can create a simple regression test workflow:
     ```
 
 ```text
-    Or use a config file:
-```
 
-    ```bash
-    python scripts/eval_summaries.py \
+    Or use a config file:
+
+```
         --config config.yaml \
         --output results/config_run.json
     ```
@@ -289,6 +287,7 @@ You can create a simple regression test workflow:
 
     ```json
 ```text
+
     {
     "model": "bart_map_reduce",
     "mean_rougeL_f": 0.29,
@@ -297,7 +296,6 @@ You can create a simple regression test workflow:
     }
     ```
 ```
-
 1. When you change model, chunking strategy, or cleaning, re-run eval and compare:
 
    - Did mean ROUGE go up or down?

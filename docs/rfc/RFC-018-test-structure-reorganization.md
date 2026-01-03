@@ -576,19 +576,17 @@ jobs:
         run: |
 
 ```text
+
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/unit/ -n auto --cov=podcast_scraper --cov-report=term-missing
-```
 
-      - name: Verify no network calls or filesystem I/O in unit tests
-        run: |
+```
 
 ```text
+
           # Plugin automatically detects network calls and filesystem I/O
+
 ```
-
-          pytest tests/unit/ || exit 1
-
   # Integration tests - run on main branch and PRs
 
   test-integration:
@@ -600,14 +598,13 @@ jobs:
         uses: actions/setup-python@v5
 
 ```text
+
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
-```
 
-      - name: Install dependencies
-        run: |
+```
 
           python -m pip install --upgrade pip
           pip install -e .[dev,ml]
@@ -616,12 +613,11 @@ jobs:
         run: |
 
 ```text
+
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/integration/ -m integration -n auto --reruns 2 --reruns-delay 1
+
 ```
-
-  # Workflow E2E tests - run on main branch
-
   test-e2e:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -632,14 +628,13 @@ jobs:
         uses: actions/setup-python@v5
 
 ```text
+
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
-```
 
-      - name: Install dependencies
-        run: |
+```
 
           python -m pip install --upgrade pip
           pip install -e .[dev,ml]
@@ -648,12 +643,11 @@ jobs:
         run: |
 
 ```text
+
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/e2e/ -m e2e --reruns 2 --reruns-delay 1
+
 ```
-
-  # Full test suite (backward compatibility)
-
   test:
     runs-on: ubuntu-latest
     steps:
@@ -663,35 +657,36 @@ jobs:
         uses: actions/setup-python@v5
 
 ```text
+
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
-```
 
-      - name: Install dependencies
-        run: |
+```
 
           python -m pip install --upgrade pip
           pip install -e .[dev,ml]
 
 ```text
+
       - name: Run all tests (except network)
         run: |
-```
 
-```text
+```bash
+
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/ -m "not network" -n auto --cov=podcast_scraper --cov-report=term-missing --reruns 2 --reruns-delay 1
+
 ```
-```text
-```yaml
+
 paths:
 
   - '**.py'
   - 'tests/**'  # Already covers all test subdirectories
   - 'pyproject.toml'
   - 'Makefile'
+
 ```text
 
 **Note:** The existing `tests/**` pattern already covers all subdirectories, so no changes needed to path triggers.

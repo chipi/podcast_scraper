@@ -145,16 +145,14 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
        python scripts/generate_metrics.py \
          --reports-dir reports \
          --output metrics/pr-metrics.json
-```
-```text
+```bash
+
        # Generate comment
        python scripts/generate_pr_comment.py \
          --pr-metrics metrics/pr-metrics.json \
          --baseline "$BASELINE" \
          --output pr-comment.md
-```
-```text
-       # Post comment using GitHub CLI or API
+
 ```
 
 3. **Post comment using GitHub CLI:**
@@ -164,6 +162,7 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
      uses: actions/github-script@v7
 
 ```javascript
+
      with:
        script: |
          const comment = fs.readFileSync('pr-comment.md', 'utf8');
@@ -173,8 +172,8 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
            repo: context.repo.repo,
            body: comment
          });
-```
 
+```
 **Comment Format:**
 
 ```markdown
@@ -193,6 +192,7 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
 ### Recommendations:
 - Review slowest tests to identify bottlenecks
 - Consider optimizing test setup/teardown
+
 ```yaml
 
 ---
@@ -232,6 +232,7 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
      if: always() && github.ref == 'refs/heads/main'
 
 ```text
+
      env:
        WEBHOOK_URL: ${{ secrets.METRICS_WEBHOOK_URL }}
      run: |
@@ -241,8 +242,8 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
            --metrics metrics/latest.json \
            --threshold error  # Only send critical alerts
        fi
-```
 
+```
 3. **Configuration:**
    - Add `METRICS_WEBHOOK_URL` to repository secrets
    - Support Slack, Discord, or generic webhooks
@@ -251,6 +252,7 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
 **Webhook Format (Slack):**
 
 ```json
+
 {
   "text": "🚨 Test Metrics Alert",
   "attachments": [{
@@ -265,6 +267,7 @@ Phase 4 adds automated alerting for metric regressions and changes. The goal is 
     ]
   }]
 }
+
 ```python
 
 ### Step 3: Email Alerts (Optional, Future)
@@ -363,6 +366,7 @@ env:
   ENABLE_PR_COMMENTS: true
   ENABLE_WEBHOOK_ALERTS: false  # Requires secret
   ALERT_THRESHOLD: error  # error, warning, or info
+
 ```yaml
 
 ## Success Criteria

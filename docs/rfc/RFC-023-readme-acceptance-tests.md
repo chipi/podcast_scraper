@@ -332,6 +332,7 @@ test-acceptance:
 ```text
     - name: Run acceptance tests (final validation gate)
       timeout-minutes: 30
+
 ```
 
       run: |

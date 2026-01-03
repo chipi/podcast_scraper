@@ -283,14 +283,15 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         path = self.path.split('?')[0]  # Remove query string
 
 ```text
+
         # Route 1: RSS feeds
-```
 
 ```python
+
         # /feeds/podcast1/feed.xml -> rss/p01_mtb.xml
+
 ```
 
-```text
         if path.startswith("/feeds/") and path.endswith("/feed.xml"):
             podcast_name = path.split("/")[2]  # Extract "podcast1"
             rss_file = self.PODCAST_RSS_MAP.get(podcast_name)
@@ -298,42 +299,37 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 file_path = self.FIXTURE_ROOT / "rss" / rss_file
                 self._serve_file(file_path, content_type="application/xml")
                 return
-```
 
-```text
-        # Route 2: Direct flat URLs (keep existing RSS URLs)
 ```
+        # Route 2: Direct flat URLs (keep existing RSS URLs)
 
 ```python
-        # /audio/p01_e01.mp3 -> audio/p01_e01.mp3
-```
 
-```text
+        # /audio/p01_e01.mp3 -> audio/p01_e01.mp3
+
+```
         if path.startswith("/audio/"):
             filename = path.split("/")[-1]  # Extract "p01_e01.mp3"
             file_path = self.FIXTURE_ROOT / "audio" / filename
             self._serve_file(file_path, content_type="audio/mpeg")
             return
+
 ```
 
-```text
         if path.startswith("/transcripts/"):
             filename = path.split("/")[-1]  # Extract "p01_e01.txt"
             file_path = self.FIXTURE_ROOT / "transcripts" / filename
             self._serve_file(file_path, content_type="text/plain")
             return
-```
 
-```text
+```
         # 404 if not found
+
 ```
 
-```text
         self.send_error(404, "File not found")
-```
-```text
 
-- Updated `E2EHTTPRequestHandler` with flat structure file serving
+```
 - URL mapping logic (podcast name → RSS file, episode name → flat files)
 - URL helper methods
 - Tests verifying file serving

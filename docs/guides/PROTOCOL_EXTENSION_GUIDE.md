@@ -46,15 +46,14 @@ class TranscriptionProvider(Protocol):
             Dictionary with results
 
 ```text
+
         Raises:
             RuntimeError: If provider is not initialized
             ValueError: If operation fails
         """
         ...
-```
-```text
 
-Add the method implementation to all existing provider implementations:
+```
 
 ## Example: WhisperTranscriptionProvider
 
@@ -78,6 +77,7 @@ class WhisperTranscriptionProvider:
         # Implementation here
 
         return {"result": "value"}
+
 ```python
 
 # transcription/openai_provider.py
@@ -132,6 +132,7 @@ class TestTranscriptionProvider(unittest.TestCase):
         self.assertIn("result", result)
 
 ```text
+
 3. **API reference** - Add method to API docs
 4. **Migration guide** - If migration is needed
 
@@ -164,25 +165,23 @@ class TranscriptionProvider(Protocol):
         """Transcribe audio file and return full result with segments.
 
 ```text
+
         Returns:
             Tuple of (result_dict, elapsed_time)
         """
-```
 
-```text
-        # Default implementation
 ```
+        # Default implementation
 
 ```python
+
         import time
         start_time = time.time()
         text = self.transcribe(audio_path, language)
         elapsed = time.time() - start_time
         return {"text": text, "segments": []}, elapsed
+
 ```
-
-```markdown
-
 ## WhisperTranscriptionProvider
 
 ```python
@@ -224,6 +223,7 @@ class OpenAITranscriptionProvider:
 
         result_dict, elapsed = self._transcribe_with_openai(audio_path, language)
         return result_dict, elapsed
+
 ```text
 
 # episode_processor.py
@@ -252,6 +252,7 @@ class TranscriptionProvider(Protocol):
         return f"default: {param}"
 
 ```bash
+
 - ✅ Make new parameters optional with defaults
 - ✅ Don't break existing method signatures
 - ✅ Provide migration path for old code
@@ -299,8 +300,10 @@ class TranscriptionProvider(Protocol):
         return {}
 
 ```python
+
         """Override with Whisper-specific implementation."""
         return {"whisper_specific": "value"}
+
 ```python
 
 class TranscriptionProvider(Protocol):
@@ -309,6 +312,7 @@ class TranscriptionProvider(Protocol):
         ...
 
 ```python
+
         if not self.is_initialized:
             raise RuntimeError("Provider not initialized")
 
@@ -316,6 +320,7 @@ class TranscriptionProvider(Protocol):
 
 ```text
 ```python
+
 class TranscriptionProvider(Protocol):
     def get_model_info(self) -> dict[str, object]:
         """Get information about the model being used.
@@ -325,6 +330,7 @@ class TranscriptionProvider(Protocol):
             Structure may vary by provider.
         """
         ...
+
 ```python
 
 class WhisperTranscriptionProvider:
@@ -336,11 +342,13 @@ class WhisperTranscriptionProvider:
         }
 
 ```python
+
         return {
             "type": "api",
             "model": self.model,
             "api_endpoint": "https://api.openai.com/v1/audio/transcriptions",
         }
+
 ```text
 
 - [ ] Define method signature in protocol

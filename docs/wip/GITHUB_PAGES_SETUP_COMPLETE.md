@@ -29,9 +29,6 @@ The nightly workflow (`.github/workflows/nightly.yml`) has been updated to use *
 ### Workflow Flow
 
 ```
-  ↓
-Generate metrics/latest.json
-  ↓
 Load existing history.jsonl (if exists)
   ↓
 Append latest.json to history.jsonl

@@ -43,39 +43,38 @@ graph TB
         P1 -->|Security| P1E[bandit/safety]
 
 ```python
+
         P2 -->|Install ML deps| P2A[pytest + coverage]
-```
 
 ```python
+
         P3 -->|Install docs deps| P3A[mkdocs build]
-```
 
 ```python
+
         P4 -->|Install build tools| P4A[python -m build]
     end
-```
 
-    subgraph "Documentation Workflow"
-        D1[Build Docs]
+```
         D2[Deploy to Pages]
 
 ```python
+
         D1 -->|mkdocs build| D1A[Generate Site]
         D1 -->|Upload| D1B[Pages Artifact]
         D1B -->|Only on push| D2
         D2 -->|Deploy| D2A[GitHub Pages]
     end
+
 ```
 
-    subgraph "CodeQL Workflow"
-    C1[CodeQL Matrix]
-
 ```python
+
     C1 -->|Python Analysis| C1A[Scan Python Code]
     C1 -->|Actions Analysis| C1B[Scan GitHub Actions]
     end
-```
 
+```python
     subgraph "Docker Workflow"
     DOCK1[Build Docker Image]
     DOCK2[Test Docker Image]
@@ -91,35 +90,34 @@ graph TB
     end
 
 ```python
+
     T1 --> P1 & P2 & P3 & P4
     T2 --> P1 & P2 & P3 & P4
-```
 
 ```python
+
     T1 --> D1
     T2 --> D1
     T4 --> D1
-```
 
 ```python
+
     T1 --> C1
     T2 --> C1
     T3 --> C1
-```
 
 ```python
+
     T1 --> DOCK1
     T2 -->|Only if Dockerfile/.dockerignore change| DOCK1
-```
 
 ```python
+
     T1 --> SNYK1 & SNYK2
     T2 --> SNYK1 & SNYK2
     T3 --> SNYK3
-```
 
-    style P1 fill:#e1f5e1
-    style P2 fill:#e1f5e1
+```
     style P3 fill:#e1f5e1
     style P4 fill:#e1f5e1
     style D1 fill:#e1e5ff
@@ -672,9 +670,6 @@ This ensures:
 **Timeline: PR Creation → Merge → Slow Jobs**
 
 ```
-│ ✅ Fast jobs run:                                            │
-│   - lint, test-unit, test-integration-fast, test-e2e-fast    │
-│   - docs, build, test (coverage)                            │
 │                                                              │
 │ ❌ Full suite jobs DO NOT run:                               │
 │   - preload-ml-models                                        │
@@ -742,9 +737,6 @@ If `test-integration` or `test-e2e` fail after merging:
 **Typical PR Flow (All Jobs Run):**
 
 ```
-│  ├─ test-unit (3-5 min)
-│  ├─ test-integration-fast (5-8 min)
-│  ├─ test-e2e-fast (8-12 min)
 │  ├─ docs (3-5 min)
 │  ├─ build (1-2 min)
 │  ├─ docker-build (5-8 min) [if Docker files changed]
@@ -844,19 +836,20 @@ graph TD
     E2 --> E2C[No ML deps - critical path only]
 
 ```python
+
     B -->|test-e2e-fast Job| E5[dev + pytest-socket]
     E5 --> E5A[pytest]
     E5 --> E5B[pytest-socket for network guard]
     E5 --> E5C[No ML deps - critical path only]
-```
 
 ```python
+
     B -->|preload-ml-models Job Main| F[dev + ml dependencies]
     F --> F1[make preload-ml-models]
     F --> F2[Cache ML models]
-```
 
 ```python
+
     B -->|test-integration Job Main| D[dev + ml dependencies]
     D --> D1[pytest]
     D --> D2[transformers]
@@ -864,9 +857,9 @@ graph TD
     D --> D4[whisper]
     D --> D5[spacy]
     D --> D6[Uses preloaded models]
-```
 
 ```python
+
     B -->|test-e2e Job Main| E3[dev + ml dependencies + pytest-socket]
     E3 --> E3A[pytest]
     E3 --> E3B[pytest-socket for network guard]
@@ -874,20 +867,20 @@ graph TD
     E3 --> E3D[torch]
     E3 --> E3E[whisper]
     E3 --> E3F[spacy]
-```
 
 ```python
+
     B -->|Docs Job| E[docs + ml dependencies]
     E --> E1[mkdocs-material]
     E --> E2D[mkdocstrings]
     E --> E3G[ML packages for API docs]
-```
 
 ```python
+
     B -->|Build Job| F[build tools only]
     F --> F1[python -m build]
+
 ```
-```text
 
 **File:** `.github/workflows/docs.yml`
 **Triggers:**
@@ -909,6 +902,7 @@ graph TD
 Unlike the Python app workflow, this has a sequential dependency:
 
 ```mermaid
+
 graph LR
     A[Trigger] --> B[Build Job]
     B -->|Generate Site| C[Upload Artifact]
@@ -917,6 +911,7 @@ graph LR
 
     style B fill:#87CEEB
     style D fill:#90EE90
+
 ```python
 
 **Purpose:** Build MkDocs site from documentation sources
@@ -953,9 +948,11 @@ graph LR
 ### Concurrency Control
 
 ```yaml
+
 concurrency:
   group: "pages"
   cancel-in-progress: true
+
 ```text
 
 ## CodeQL Security Workflow
@@ -979,6 +976,7 @@ concurrency:
 CodeQL analyzes multiple languages in parallel using a matrix:
 
 ```mermaid
+
 graph TB
     A[CodeQL Workflow] --> B{Matrix Strategy}
 
@@ -995,6 +993,7 @@ graph TB
 
     style C fill:#FFE4B5
     style D fill:#FFE4B5
+
 ```text
 
 | Language | Build Mode | Purpose |
@@ -1026,9 +1025,11 @@ graph TB
 ### Schedule Details
 
 ```yaml
+
 schedule:
 
   - cron: '17 13 * * 4'
+
 ```text
 
 **Runs:** Every Thursday at 13:17 UTC
@@ -1231,9 +1232,11 @@ Provides comprehensive security scanning for both Python dependencies and Docker
 ### Snyk Schedule Details
 
 ```yaml
+
 schedule:
 
   - cron: '0 0 * * 1'
+
 ```text
 
 **Runs:** Every Monday at 00:00 UTC
@@ -1278,17 +1281,20 @@ This maximizes parallelism and reduces total CI time.
 **Within Python Application Workflow - Pull Requests:**
 
 ```text
+
 ├── Lint Job (1-2 min)
 ├── test-unit (2-5 min) - All unit tests
 ├── test-integration-fast (5-8 min) - Critical path only
 ├── test-e2e-fast (8-12 min) - Critical path only
 ├── Docs Job (2-3 min)
 └── Build Job (1-2 min)
+
 ```text
 
 **Within Python Application Workflow - Push to Main:**
 
 ```text
+
 ├── Lint Job (1-2 min)
 ├── test-unit Job (2-5 min) - No ML deps, fast
 ├── preload-ml-models (2-5 min) - Preloads ML models for full suite
@@ -1296,10 +1302,13 @@ This maximizes parallelism and reduces total CI time.
 ├── test-e2e (20-30 min) - Full suite, includes re-runs, ML deps, network guard, needs preload-ml-models
 ├── Docs Job (2-3 min)
 └── Build Job (1-2 min)
+
 ```text
 ```text
+
 ├── Python Analysis
 └── Actions Analysis
+
 ```text
 
 - All three workflows (Python app, docs, CodeQL) trigger independently
@@ -1310,7 +1319,9 @@ This maximizes parallelism and reduces total CI time.
 **Documentation Workflow:**
 
 ```text
+
 Build Job → Deploy Job
+
 ```text
 
 ## Performance Optimizations
@@ -1320,14 +1331,17 @@ Build Job → Deploy Job
 All workflows use pip caching to speed up dependency installation:
 
 ```yaml
+
 - uses: actions/setup-python@v5
   with:
 
     python-version: "3.11"
     cache: "pip"
     cache-dependency-path: pyproject.toml
+
 ```text
 ```mermaid
+
 graph TD
     A[Dependency Strategy] --> B[Lint: dev only]
     A --> C[Test: dev + ml]
@@ -1338,11 +1352,13 @@ graph TD
     C --> G[Slow: 10-15 min]
     D --> H[Medium: 3-5 min]
     E --> I[Fast: 2-3 min]
+
 ```text
 
 Test job proactively frees ~30GB of disk space before installing ML dependencies:
 
 ```bash
+
 sudo rm -rf /usr/share/dotnet
 sudo rm -rf /usr/local/lib/android
 sudo rm -rf /opt/ghc
@@ -1351,9 +1367,11 @@ sudo rm -rf /opt/ghc
 
 ```text
 ```bash
+
 rm -rf ~/.cache/huggingface
 rm -rf ~/.cache/torch
 rm -rf ~/.cache/whisper
+
 ```text
 
 ## Workflow Triggers Matrix
@@ -1415,6 +1433,7 @@ When you change files, here's what runs:
 # You change only: docs/api/REFERENCE.md
 
 git commit -m "Update API documentation"
+
 ```text
 
 - ✅ `docs.yml` runs (3-5 min)
@@ -1430,6 +1449,7 @@ git commit -m "Update API documentation"
 # You change: downloader.py
 
 git commit -m "Fix download retry logic"
+
 ```text
 
 - ✅ `python-app.yml` runs (lint, test, docs, build)
@@ -1445,6 +1465,7 @@ git commit -m "Fix download retry logic"
 # You change: docs/index.md AND service.py
 
 git commit -m "Update docs and fix service"
+
 ```text
 
 - ✅ All workflows run (code changed = full validation needed)
@@ -1532,6 +1553,7 @@ Install the git pre-commit hook to automatically check your code before every co
 # One-time setup
 
 make install-hooks
+
 ```python
 
 - ✅ **Black** formatting check
@@ -1549,6 +1571,7 @@ make install-hooks
 # Skip pre-commit checks for a specific commit
 
 git commit --no-verify -m "your message"
+
 ```bash
 
 make format
@@ -1742,6 +1765,7 @@ make test-e2e-fast
 make test-e2e-slow
 
 ```python
+
 - All RSS and audio must be served from local E2E HTTP server
 - Tests fail hard if a real URL is hit
 
@@ -1909,6 +1933,7 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 - Artifacts available for download (90-day retention)
 
 **Via Automation:**
+
 ```bash
 
 # Fetch latest metrics
@@ -1920,6 +1945,7 @@ curl https://[username].github.io/podcast_scraper/metrics/latest.json | jq
 curl https://[username].github.io/podcast_scraper/metrics/history.jsonl | tail -1 | jq
 
 ```yaml
+
 - [RFC-025: Test Metrics and Health Tracking](../rfc/RFC-025-test-metrics-and-health-tracking.md) - Metrics collection strategy
 - [RFC-026: Metrics Consumption and Dashboards](../rfc/RFC-026-metrics-consumption-and-dashboards.md) - Metrics consumption methods
 - [GitHub Pages Setup Complete](../wip/GITHUB_PAGES_SETUP_COMPLETE.md) - Setup details
@@ -1989,6 +2015,7 @@ echo "# Test comment" >> downloader.py
 git add downloader.py
 git commit -m "feat: test python path filtering"
 git push
+
 ```text
 ```bash
 
@@ -1998,6 +2025,7 @@ echo "# Test comment" >> Dockerfile
 git add Dockerfile
 git commit -m "chore: test docker path filtering"
 git push
+
 ```text
 ```bash
 
@@ -2007,14 +2035,17 @@ echo "Test update" >> README.md
 git add README.md
 git commit -m "docs: test readme path filtering"
 git push
+
 ```text
 ```text
 
 ## Related Documentation
 
-- **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** - Development workflow and local testing
-- **[Testing Strategy](TESTING_STRATEGY.md)** - Test coverage and quality standards
+- **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** - Development workflow
 - **[Architecture](ARCHITECTURE.md)** - System design and module boundaries
+- **[Testing Strategy](TESTING_STRATEGY.md)** - Test coverage and quality standards
+- **[Testing Guide](guides/TESTING_GUIDE.md)** - Test execution commands
+- **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** - Implementation instructions
 
 ---
 

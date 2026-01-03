@@ -424,15 +424,17 @@ transcription_provider: whisper
 speaker_detector_provider: openai
 summary_provider: local
 openai_api_key: sk-your-key-here
+
 ```
 
-```bash
 podcast-scraper --config config.yaml
-```
+
+```bash
 
 ## Example 4: Programmatic Mixed Providers
 
 ```python
+
 from podcast_scraper import Config, run_pipeline
 
 cfg = Config(
@@ -447,6 +449,7 @@ cfg = Config(
 )
 
 count, summary = run_pipeline(cfg)
+
 ```
 
 ## See Also

@@ -89,7 +89,8 @@ This PRD integrates with RFC-010 (Automatic Speaker Name Detection) to enhance W
       - Multiple sources are collected together to confirm/validate hosts.
       - Most reliable source as they explicitly specify the podcast host(s).
     - **Fallback**: If no author tags exist, extracted from feed-level metadata (feed title/description) using spaCy NER and validated by checking they also appear in the first episode.
-```
+```python
+
   - **Guests**: Extracted from episode-specific metadata (episode title and first 20 characters of description) using spaCy NER, never from feed metadata.
     - Descriptions are limited to first 20 characters to focus on the most relevant part (often contains guest name).
     - All extracted names are sanitized (removes parentheses, punctuation, etc.) and deduplicated case-insensitively.
@@ -109,4 +110,5 @@ This PRD integrates with RFC-010 (Automatic Speaker Name Detection) to enhance W
     - Manual names never override successful detection; they only activate when detection fails.
     - This ensures detected hosts are preserved while allowing manual guest fallback per episode when needed.
 ```
+
 - **Metadata Integration**: Detected speaker names are stored in episode metadata documents (per PRD-004) for downstream use cases.
