@@ -35,11 +35,25 @@ tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
+# Import from parent conftest explicitly to avoid conflicts with infrastructure conftest
+import importlib.util
+
 # Import cache helpers from same directory
 import sys
 from pathlib import Path
 
-from conftest import create_test_config  # noqa: E402
+tests_dir = Path(__file__).parent.parent
+if str(tests_dir) not in sys.path:
+    sys.path.insert(0, str(tests_dir))
+
+parent_conftest_path = tests_dir / "conftest.py"
+spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load conftest from {parent_conftest_path}")
+parent_conftest = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(parent_conftest)
+
+create_test_config = parent_conftest.create_test_config
 
 integration_dir = Path(__file__).parent
 if str(integration_dir) not in sys.path:
@@ -258,6 +272,9 @@ class TestTransformersProviderRealModel(unittest.TestCase):
         self.assertIsNotNone(model.tokenizer, "Model should have tokenizer attribute")
         self.assertIsNotNone(model.pipeline, "Model should have pipeline attribute")
 
+        # Clean up model to prevent memory leak
+        summarizer.unload_model(model)
+
     def test_summarization_provider_with_real_model(self):
         """Test summarization provider with real transformer model."""
         from podcast_scraper import summarizer
@@ -304,6 +321,9 @@ class TestTransformersProviderRealModel(unittest.TestCase):
         self.assertIn("summary", result)
         self.assertIsInstance(result["summary"], str)
         self.assertGreater(len(result["summary"]), 0)
+
+        # Clean up provider to prevent memory leak
+        provider.cleanup()  # type: ignore[attr-defined]
 
 
 @pytest.mark.integration
@@ -423,6 +443,11 @@ class TestAllProvidersRealModels(unittest.TestCase):
         # Transformer model
         transformer_model = summarization_provider._map_model  # type: ignore[attr-defined]
         self.assertIsNotNone(transformer_model.pipeline)  # type: ignore[attr-defined]
+
+        # Clean up all providers to prevent memory leak
+        transcription_provider.cleanup()  # type: ignore[attr-defined]
+        speaker_detector.cleanup()  # type: ignore[attr-defined]
+        summarization_provider.cleanup()  # type: ignore[attr-defined]
 
     @pytest.mark.critical_path
     def test_critical_path_with_real_models(self):

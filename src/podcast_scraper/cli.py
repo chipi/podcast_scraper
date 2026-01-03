@@ -687,6 +687,9 @@ def main(
     logger: Optional[logging.Logger] = None,
 ) -> int:
     """Entry point for the CLI; returns an exit status code."""
+    # Initialize ML environment variables early (before any ML imports)
+    workflow._initialize_ml_environment()
+
     progress.set_progress_factory(_tqdm_progress)
     log = logger or _LOGGER
     if apply_log_level_fn is None:

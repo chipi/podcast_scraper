@@ -18,8 +18,7 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 
-@pytest.mark.e2e
-@pytest.mark.critical_path
+@pytest.mark.integration
 class TestE2EServer:
     """Test that E2E server serves fixtures correctly."""
 
@@ -108,7 +107,7 @@ class TestE2EServer:
         assert len(response.content) == 1024
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 @pytest.mark.critical_path
 class TestE2EServerOpenAIEndpoints:
     """Test that E2E server OpenAI mock endpoints work correctly."""
@@ -260,6 +259,11 @@ class TestE2EServerOpenAIEndpoints:
             "/"
         )
 
+        # Clean up all providers
+        transcription_provider.cleanup()
+        speaker_detector.cleanup()
+        summarization_provider.cleanup()
+
     def test_openai_provider_transcription_works(self, e2e_server):
         """Test that OpenAI transcription provider can transcribe via E2E server."""
         import tempfile
@@ -291,6 +295,9 @@ class TestE2EServerOpenAIEndpoints:
         finally:
             import os
 
+            # Clean up provider
+            provider.cleanup()
+            # Clean up temporary file
             os.unlink(audio_path)
 
     def test_openai_provider_speaker_detection_works(self, e2e_server):
@@ -323,6 +330,9 @@ class TestE2EServerOpenAIEndpoints:
             assert len(speakers) > 0
             assert "Host" in speakers or "Guest" in speakers
 
+        # Clean up detector
+        detector.cleanup()
+
     def test_openai_provider_summarization_works(self, e2e_server):
         """Test that OpenAI summarization provider can summarize via E2E server."""
         from unittest.mock import patch
@@ -354,8 +364,11 @@ class TestE2EServerOpenAIEndpoints:
             assert len(result["summary"]) > 0
             assert "test summary" in result["summary"].lower()
 
+        # Clean up provider
+        provider.cleanup()
 
-@pytest.mark.e2e
+
+@pytest.mark.integration
 class TestE2EServerMultiEpisodeFeed:
     """Test that E2E server multi-episode feed works correctly with mocks."""
 

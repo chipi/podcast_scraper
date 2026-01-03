@@ -206,11 +206,15 @@ class TransformersSummarizationProvider:
 
         logger.debug("Cleaning up summarization models")
 
-        # Note: SummaryModel doesn't have explicit cleanup, but we can
-        # set references to None to help GC
+        # Properly unload models to free memory and clean up threads
+        # This is critical for preventing memory leaks in test environments
+        from podcast_scraper import summarizer
+
         if self._reduce_model and self._reduce_model != self._map_model:
-            # Only cleanup reduce_model if it's different from map_model
-            self._reduce_model = None
+            # Only unload reduce_model if it's different from map_model
+            summarizer.unload_model(self._reduce_model)
+        if self._map_model:
+            summarizer.unload_model(self._map_model)
 
         self._map_model = None
         self._reduce_model = None

@@ -31,11 +31,25 @@ tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
+import importlib.util
+
 # Import cache helpers from same directory
 import sys
 from pathlib import Path
 
-from conftest import create_test_config  # noqa: E402
+# Import from parent conftest explicitly to avoid conflicts with infrastructure conftest
+tests_dir = Path(__file__).parent.parent
+if str(tests_dir) not in sys.path:
+    sys.path.insert(0, str(tests_dir))
+
+parent_conftest_path = tests_dir / "conftest.py"
+spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load conftest from {parent_conftest_path}")
+parent_conftest = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(parent_conftest)
+
+create_test_config = parent_conftest.create_test_config
 
 integration_dir = Path(__file__).parent
 if str(integration_dir) not in sys.path:

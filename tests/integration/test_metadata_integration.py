@@ -25,16 +25,26 @@ tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
-from conftest import (  # noqa: E402
-    create_test_config,
-    create_test_episode,
-    create_test_feed,
-    TEST_FEED_URL,
-    TEST_TRANSCRIPT_TYPE_SRT,
-    TEST_TRANSCRIPT_TYPE_VTT,
-    TEST_TRANSCRIPT_URL,
-    TEST_TRANSCRIPT_URL_SRT,
-)
+# Import from parent conftest explicitly to avoid conflicts with infrastructure conftest
+import importlib.util
+
+parent_conftest_path = tests_dir / "conftest.py"
+spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load conftest from {parent_conftest_path}")
+parent_conftest = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(parent_conftest)
+
+create_test_config = parent_conftest.create_test_config
+create_test_episode = parent_conftest.create_test_episode
+create_test_feed = parent_conftest.create_test_feed
+TEST_FEED_URL = parent_conftest.TEST_FEED_URL
+TEST_FEED_TITLE = parent_conftest.TEST_FEED_TITLE
+TEST_EPISODE_TITLE = parent_conftest.TEST_EPISODE_TITLE
+TEST_TRANSCRIPT_TYPE_SRT = parent_conftest.TEST_TRANSCRIPT_TYPE_SRT
+TEST_TRANSCRIPT_TYPE_VTT = parent_conftest.TEST_TRANSCRIPT_TYPE_VTT
+TEST_TRANSCRIPT_URL = parent_conftest.TEST_TRANSCRIPT_URL
+TEST_TRANSCRIPT_URL_SRT = parent_conftest.TEST_TRANSCRIPT_URL_SRT
 
 
 @pytest.mark.integration
@@ -61,8 +71,6 @@ class TestMetadataGenerationIntegration(unittest.TestCase):
 
     def test_generate_metadata_json(self):
         """Test metadata generation in JSON format."""
-        from conftest import TEST_EPISODE_TITLE, TEST_FEED_TITLE  # noqa: E402
-
         metadata_path = metadata.generate_episode_metadata(
             feed=self.feed,
             episode=self.episode,

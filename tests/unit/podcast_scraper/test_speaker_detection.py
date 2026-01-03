@@ -20,48 +20,58 @@ from unittest.mock import MagicMock, patch
 # Mock ML dependencies before importing modules that require them
 # Unit tests run without ML dependencies installed
 with patch.dict("sys.modules", {"spacy": MagicMock()}):
-    from podcast_scraper import config, speaker_detection
+    from podcast_scraper import speaker_detection
 
-# Add tests directory to path for conftest import
-tests_dir = Path(__file__).parent
-if str(tests_dir) not in sys.path:
-    sys.path.insert(0, str(tests_dir))
+# Import from parent conftest explicitly to avoid conflicts
+import importlib.util
 
-from conftest import (  # noqa: F401, E402
-    build_rss_xml_with_media,
-    build_rss_xml_with_speakers,
-    build_rss_xml_with_transcript,
-    create_media_response,
-    create_mock_spacy_model,
-    create_rss_response,
-    create_test_args,
-    create_test_config,
-    create_test_episode,
-    create_test_feed,
-    create_transcript_response,
-    MockHTTPResponse,
-    TEST_BASE_URL,
-    TEST_CONTENT_TYPE_SRT,
-    TEST_CONTENT_TYPE_VTT,
-    TEST_CUSTOM_OUTPUT_DIR,
-    TEST_EPISODE_TITLE,
-    TEST_EPISODE_TITLE_SPECIAL,
-    TEST_FEED_TITLE,
-    TEST_FEED_URL,
-    TEST_FULL_URL,
-    TEST_MEDIA_TYPE_M4A,
-    TEST_MEDIA_TYPE_MP3,
-    TEST_MEDIA_URL,
-    TEST_OUTPUT_DIR,
-    TEST_PATH,
-    TEST_RELATIVE_MEDIA,
-    TEST_RELATIVE_TRANSCRIPT,
-    TEST_RUN_ID,
-    TEST_TRANSCRIPT_TYPE_SRT,
-    TEST_TRANSCRIPT_TYPE_VTT,
-    TEST_TRANSCRIPT_URL,
-    TEST_TRANSCRIPT_URL_SRT,
-)
+from podcast_scraper import config
+
+parent_tests_dir = Path(__file__).parent.parent.parent
+if str(parent_tests_dir) not in sys.path:
+    sys.path.insert(0, str(parent_tests_dir))
+
+parent_conftest_path = parent_tests_dir / "conftest.py"
+spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load conftest from {parent_conftest_path}")
+parent_conftest = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(parent_conftest)
+
+# Import helper functions from parent conftest
+build_rss_xml_with_media = parent_conftest.build_rss_xml_with_media
+build_rss_xml_with_speakers = parent_conftest.build_rss_xml_with_speakers
+build_rss_xml_with_transcript = parent_conftest.build_rss_xml_with_transcript
+create_media_response = parent_conftest.create_media_response
+create_mock_spacy_model = parent_conftest.create_mock_spacy_model
+create_rss_response = parent_conftest.create_rss_response
+create_test_args = parent_conftest.create_test_args
+create_test_config = parent_conftest.create_test_config
+create_test_episode = parent_conftest.create_test_episode
+create_test_feed = parent_conftest.create_test_feed
+create_transcript_response = parent_conftest.create_transcript_response
+MockHTTPResponse = parent_conftest.MockHTTPResponse
+TEST_BASE_URL = parent_conftest.TEST_BASE_URL
+TEST_CONTENT_TYPE_SRT = parent_conftest.TEST_CONTENT_TYPE_SRT
+TEST_CONTENT_TYPE_VTT = parent_conftest.TEST_CONTENT_TYPE_VTT
+TEST_CUSTOM_OUTPUT_DIR = parent_conftest.TEST_CUSTOM_OUTPUT_DIR
+TEST_EPISODE_TITLE = parent_conftest.TEST_EPISODE_TITLE
+TEST_EPISODE_TITLE_SPECIAL = parent_conftest.TEST_EPISODE_TITLE_SPECIAL
+TEST_FEED_TITLE = parent_conftest.TEST_FEED_TITLE
+TEST_FEED_URL = parent_conftest.TEST_FEED_URL
+TEST_FULL_URL = parent_conftest.TEST_FULL_URL
+TEST_MEDIA_TYPE_M4A = parent_conftest.TEST_MEDIA_TYPE_M4A
+TEST_MEDIA_TYPE_MP3 = parent_conftest.TEST_MEDIA_TYPE_MP3
+TEST_MEDIA_URL = parent_conftest.TEST_MEDIA_URL
+TEST_OUTPUT_DIR = parent_conftest.TEST_OUTPUT_DIR
+TEST_PATH = parent_conftest.TEST_PATH
+TEST_RELATIVE_MEDIA = parent_conftest.TEST_RELATIVE_MEDIA
+TEST_RELATIVE_TRANSCRIPT = parent_conftest.TEST_RELATIVE_TRANSCRIPT
+TEST_RUN_ID = parent_conftest.TEST_RUN_ID
+TEST_TRANSCRIPT_TYPE_SRT = parent_conftest.TEST_TRANSCRIPT_TYPE_SRT
+TEST_TRANSCRIPT_TYPE_VTT = parent_conftest.TEST_TRANSCRIPT_TYPE_VTT
+TEST_TRANSCRIPT_URL = parent_conftest.TEST_TRANSCRIPT_URL
+TEST_TRANSCRIPT_URL_SRT = parent_conftest.TEST_TRANSCRIPT_URL_SRT
 
 
 class TestSpeakerDetection(unittest.TestCase):
@@ -75,15 +85,9 @@ class TestSpeakerDetection(unittest.TestCase):
             ner_model=config.DEFAULT_NER_MODEL,
         )
 
-    @unittest.skip(
-        "TODO: Fix spacy mocking setup - spacy.load() MagicMock interferes with test mocks"
-    )
-    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    @patch.object(speaker_detection, "_load_spacy_model")
     def test_get_ner_model_enabled(self, mock_load):
         """Test getting NER model when auto_speakers is enabled."""
-        # Clear cache to ensure fresh load
-        speaker_detection.clear_spacy_model_cache()
-
         mock_nlp = unittest.mock.MagicMock()
         mock_load.return_value = mock_nlp
 
@@ -91,11 +95,13 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertEqual(nlp, mock_nlp)
         mock_load.assert_called_once_with(config.DEFAULT_NER_MODEL)
 
-        # Second call should use cache (no additional load call)
+        # Second call should load again (no caching)
         mock_load.reset_mock()
         nlp2 = speaker_detection.get_ner_model(self.cfg)
         self.assertEqual(nlp2, mock_nlp)
-        mock_load.assert_not_called()
+        # Verify it was called again (no caching)
+        self.assertEqual(mock_load.call_count, 1)
+        mock_load.assert_called_with(config.DEFAULT_NER_MODEL)
 
     def test_get_ner_model_disabled(self):
         """Test getting NER model when auto_speakers is disabled."""
@@ -106,15 +112,9 @@ class TestSpeakerDetection(unittest.TestCase):
         nlp = speaker_detection.get_ner_model(cfg)
         self.assertIsNone(nlp)
 
-    @unittest.skip(
-        "TODO: Fix spacy mocking setup - spacy.load() MagicMock interferes with test mocks"
-    )
-    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    @patch.object(speaker_detection, "_load_spacy_model")
     def test_extract_person_entities(self, mock_load):
         """Test extracting person entities from text."""
-        # Clear cache to ensure fresh load
-        speaker_detection.clear_spacy_model_cache()
-
         # Mock spaCy model
         mock_nlp = unittest.mock.MagicMock()
         mock_doc = unittest.mock.MagicMock()
@@ -133,15 +133,9 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertEqual(result[0][0], "John Doe")
         self.assertEqual(result[0][1], 0.95)
 
-    @unittest.skip(
-        "TODO: Fix spacy mocking setup - spacy.load() MagicMock interferes with test mocks"
-    )
-    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    @patch.object(speaker_detection, "_load_spacy_model")
     def test_extract_person_entities_sanitizes_names(self, mock_load):
         """Test that person entity extraction sanitizes names."""
-        # Clear cache to ensure fresh load
-        speaker_detection.clear_spacy_model_cache()
-
         mock_nlp = unittest.mock.MagicMock()
         mock_doc = unittest.mock.MagicMock()
         mock_ent = unittest.mock.MagicMock()
@@ -159,12 +153,9 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][0], "John")
 
-    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    @patch.object(speaker_detection, "_load_spacy_model")
     def test_extract_person_entities_filters_short_names(self, mock_load):
         """Test that very short names are filtered out."""
-        # Clear cache to ensure fresh load
-        speaker_detection.clear_spacy_model_cache()
-
         # Ensure spacy exists in sys.modules and patch load to prevent filesystem I/O
         if "spacy" not in sys.modules:
             sys.modules["spacy"] = MagicMock()
@@ -207,15 +198,10 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertEqual(len(hosts), 1)
         self.assertIn("John Doe", hosts)
 
-    @unittest.skip(
-        "TODO: Fix spacy mocking setup - spacy.load() MagicMock interferes with test mocks"
-    )
-    @patch("podcast_scraper.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.speaker_detection.extract_person_entities")
-    def test_detect_hosts_from_feed_ner(self, mock_extract, mock_get_model):
+    @patch.object(speaker_detection, "extract_person_entities")
+    def test_detect_hosts_from_feed_ner(self, mock_extract):
         """Test detecting hosts from feed title using NER."""
         mock_nlp = unittest.mock.MagicMock()
-        mock_get_model.return_value = mock_nlp
         mock_extract.side_effect = [
             [("John Doe", 0.9)],  # Title entities
             [("Jane Smith", 0.85)],  # Description entities
@@ -231,16 +217,14 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertEqual(len(hosts), 2)
         self.assertIn("John Doe", hosts)
         self.assertIn("Jane Smith", hosts)
+        # Verify extract_person_entities was called twice (title and description)
+        self.assertEqual(mock_extract.call_count, 2)
 
-    @unittest.skip(
-        "TODO: Fix spacy mocking setup - spacy.load() MagicMock interferes with test mocks"
-    )
-    @patch("podcast_scraper.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.speaker_detection.extract_person_entities")
-    def test_detect_speaker_names_guests(self, mock_extract, mock_get_model):
+    @patch.object(speaker_detection, "extract_person_entities")
+    def test_detect_speaker_names_guests(self, mock_extract):
         """Test detecting guest names from episode title."""
         mock_nlp = unittest.mock.MagicMock()
-        mock_get_model.return_value = mock_nlp
+        # Mock extract_person_entities to return guest name for title
         mock_extract.return_value = [("Guest Name", 0.9)]
 
         cfg = config.Config(
@@ -251,17 +235,20 @@ class TestSpeakerDetection(unittest.TestCase):
         speakers, hosts, succeeded = speaker_detection.detect_speaker_names(
             episode_title="Interview with Guest Name",
             episode_description=None,
+            nlp=mock_nlp,  # Required parameter
             cfg=cfg,
             known_hosts={"Host Name"},
         )
 
+        # Verify extract_person_entities was called
+        self.assertTrue(mock_extract.called, "extract_person_entities should be called")
         self.assertTrue(succeeded)
         self.assertIn("Guest Name", speakers)
         self.assertIn("Host Name", hosts)
 
-    @patch("podcast_scraper.speaker_detection.get_ner_model")
-    def test_detect_speaker_names_disabled(self, mock_get_model):
+    def test_detect_speaker_names_disabled(self):
         """Test that speaker detection returns defaults when disabled."""
+        mock_nlp = unittest.mock.MagicMock()
         cfg = config.Config(
             rss_url=TEST_FEED_URL,
             auto_speakers=False,
@@ -270,6 +257,7 @@ class TestSpeakerDetection(unittest.TestCase):
         speakers, hosts, succeeded = speaker_detection.detect_speaker_names(
             episode_title="Test Episode",
             episode_description=None,
+            nlp=mock_nlp,  # Required parameter
             cfg=cfg,
         )
 
@@ -507,11 +495,181 @@ class TestSpeakerDetectionHelpers(unittest.TestCase):
         self.assertEqual(names, ["Host", "Guest"])
 
 
+class TestSanitizePersonName(unittest.TestCase):
+    """Tests for _sanitize_person_name function."""
+
+    def test_sanitize_removes_parentheses(self):
+        """Test sanitizing removes parentheses and contents."""
+        result = speaker_detection._sanitize_person_name("John (Smith)")
+        self.assertEqual(result, "John")
+
+    def test_sanitize_removes_trailing_punctuation(self):
+        """Test sanitizing removes trailing punctuation."""
+        result = speaker_detection._sanitize_person_name("John,")
+        self.assertEqual(result, "John")
+
+    def test_sanitize_removes_leading_punctuation(self):
+        """Test sanitizing removes leading punctuation."""
+        result = speaker_detection._sanitize_person_name(",John")
+        self.assertEqual(result, "John")
+
+    def test_sanitize_preserves_hyphen(self):
+        """Test sanitizing preserves hyphens in names."""
+        result = speaker_detection._sanitize_person_name("Mary-Jane")
+        self.assertEqual(result, "Mary-Jane")
+
+    def test_sanitize_preserves_apostrophe(self):
+        """Test sanitizing preserves apostrophes in names."""
+        result = speaker_detection._sanitize_person_name("O'Brien")
+        self.assertEqual(result, "O'Brien")
+
+    def test_sanitize_normalizes_whitespace(self):
+        """Test sanitizing normalizes whitespace."""
+        result = speaker_detection._sanitize_person_name("John   Smith")
+        self.assertEqual(result, "John Smith")
+
+    def test_sanitize_too_short(self):
+        """Test sanitizing returns None for too short names."""
+        result = speaker_detection._sanitize_person_name("A")
+        self.assertIsNone(result)
+
+    def test_sanitize_no_letters(self):
+        """Test sanitizing returns None for names without letters."""
+        result = speaker_detection._sanitize_person_name("123")
+        self.assertIsNone(result)
+
+    def test_sanitize_empty(self):
+        """Test sanitizing returns None for empty string."""
+        result = speaker_detection._sanitize_person_name("")
+        self.assertIsNone(result)
+
+
+class TestValidatePersonEntity(unittest.TestCase):
+    """Tests for _validate_person_entity function."""
+
+    def test_validate_person_entity_valid(self):
+        """Test validating valid person entity."""
+        result = speaker_detection._validate_person_entity("John Doe")
+        self.assertTrue(result)
+
+    def test_validate_person_entity_too_short(self):
+        """Test validating too short entity."""
+        result = speaker_detection._validate_person_entity("A")
+        self.assertFalse(result)
+
+    def test_validate_person_entity_pure_numbers(self):
+        """Test validating pure numbers."""
+        result = speaker_detection._validate_person_entity("123")
+        self.assertFalse(result)
+
+    def test_validate_person_entity_html_pattern(self):
+        """Test validating HTML-like patterns."""
+        result = speaker_detection._validate_person_entity("<script>")
+        self.assertFalse(result)
+
+    def test_validate_person_entity_empty(self):
+        """Test validating empty string."""
+        result = speaker_detection._validate_person_entity("")
+        self.assertFalse(result)
+
+
+class TestExtractConfidenceScore(unittest.TestCase):
+    """Tests for _extract_confidence_score function."""
+
+    def test_extract_confidence_score_from_ent(self):
+        """Test extracting confidence score from entity."""
+        mock_ent = unittest.mock.MagicMock()
+        mock_ent.score = 0.95
+        result = speaker_detection._extract_confidence_score(mock_ent)
+        self.assertEqual(result, 0.95)
+
+    def test_extract_confidence_score_from_underscore(self):
+        """Test extracting confidence score from entity._.score."""
+        mock_ent = unittest.mock.MagicMock()
+        mock_ent.score = None
+        mock_ent._ = unittest.mock.MagicMock()
+        mock_ent._.score = 0.85
+        result = speaker_detection._extract_confidence_score(mock_ent)
+        self.assertEqual(result, 0.85)
+
+    def test_extract_confidence_score_default(self):
+        """Test extracting confidence score defaults when not available."""
+        mock_ent = unittest.mock.MagicMock()
+        del mock_ent.score
+        result = speaker_detection._extract_confidence_score(mock_ent)
+        self.assertEqual(result, speaker_detection.DEFAULT_CONFIDENCE_SCORE)
+
+
+class TestSplitTextOnSeparators(unittest.TestCase):
+    """Tests for _split_text_on_separators function."""
+
+    def test_split_text_on_pipe(self):
+        """Test splitting text on pipe separator."""
+        segments, last_segment = speaker_detection._split_text_on_separators("Title | Guest")
+        self.assertEqual(len(segments), 2)
+        self.assertEqual(last_segment, "Guest")
+
+    def test_split_text_on_em_dash(self):
+        """Test splitting text on em dash."""
+        segments, last_segment = speaker_detection._split_text_on_separators("Title — Guest")
+        self.assertEqual(len(segments), 2)
+        self.assertEqual(last_segment, "Guest")
+
+    def test_split_text_on_en_dash(self):
+        """Test splitting text on en dash."""
+        segments, last_segment = speaker_detection._split_text_on_separators("Title – Guest")
+        self.assertEqual(len(segments), 2)
+        self.assertEqual(last_segment, "Guest")
+
+    def test_split_text_on_hyphen(self):
+        """Test splitting text on hyphen with spaces."""
+        segments, last_segment = speaker_detection._split_text_on_separators("Title - Guest")
+        self.assertEqual(len(segments), 2)
+        self.assertEqual(last_segment, "Guest")
+
+    def test_split_text_no_separator(self):
+        """Test splitting text with no separator."""
+        segments, last_segment = speaker_detection._split_text_on_separators("Title")
+        self.assertEqual(len(segments), 1)
+        self.assertIsNone(last_segment)
+
+
+class TestPatternBasedFallback(unittest.TestCase):
+    """Tests for _pattern_based_fallback function."""
+
+    def test_pattern_based_fallback_valid_name(self):
+        """Test pattern-based fallback with valid name pattern."""
+        result = speaker_detection._pattern_based_fallback("John Doe", set())
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], "John Doe")
+        self.assertEqual(result[1], speaker_detection.PATTERN_BASED_CONFIDENCE_SCORE)
+
+    def test_pattern_based_fallback_common_phrase(self):
+        """Test pattern-based fallback rejects common phrases."""
+        result = speaker_detection._pattern_based_fallback("Guest Interview", set())
+        self.assertIsNone(result)
+
+    def test_pattern_based_fallback_invalid_pattern(self):
+        """Test pattern-based fallback rejects invalid patterns."""
+        result = speaker_detection._pattern_based_fallback("lowercase name", set())
+        self.assertIsNone(result)
+
+    def test_pattern_based_fallback_empty(self):
+        """Test pattern-based fallback with empty string."""
+        result = speaker_detection._pattern_based_fallback("", set())
+        self.assertIsNone(result)
+
+    def test_pattern_based_fallback_seen_name(self):
+        """Test pattern-based fallback rejects already seen names."""
+        result = speaker_detection._pattern_based_fallback("John Doe", {"john doe"})
+        self.assertIsNone(result)
+
+
 class TestSpeakerDetectionCaching(unittest.TestCase):
     """Additional tests for speaker detection caching and CLI precedence."""
 
-    @patch("podcast_scraper.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.speaker_detection.extract_person_entities")
+    @patch.object(speaker_detection, "get_ner_model")
+    @patch.object(speaker_detection, "extract_person_entities")
     def test_cli_override_precedence(self, mock_extract, mock_get_model):
         """Test that CLI speaker names override detected names."""
         # Ensure spacy exists in sys.modules and patch load to prevent filesystem I/O
@@ -528,9 +686,11 @@ class TestSpeakerDetectionCaching(unittest.TestCase):
                 screenplay_speaker_names=["Manual Host", "Manual Guest"],
             )
 
+            mock_nlp = unittest.mock.MagicMock()
             speakers, hosts, succeeded = speaker_detection.detect_speaker_names(
                 episode_title="Interview with Detected Guest",
                 episode_description=None,
+                nlp=mock_nlp,  # Required parameter
                 cfg=cfg,
                 known_hosts=None,
             )
@@ -539,11 +699,8 @@ class TestSpeakerDetectionCaching(unittest.TestCase):
         # Note: This tests the integration, actual precedence is tested in workflow
         self.assertIsNotNone(speakers)
 
-    @patch("podcast_scraper.speaker_detection.get_ner_model")
-    def test_cache_detected_hosts_flag(self, mock_get_model):
+    def test_cache_detected_hosts_flag(self):
         """Test that cache_detected_hosts flag affects behavior."""
-        mock_nlp = unittest.mock.MagicMock()
-        mock_get_model.return_value = mock_nlp
 
         # Both should work, flag affects workflow behavior
         # Actual caching is tested in workflow integration tests

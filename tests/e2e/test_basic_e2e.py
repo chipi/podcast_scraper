@@ -192,13 +192,20 @@ class TestBasicLibraryAPIE2E:
         Uses real ML providers (local spaCy for NER, local transformers for summarization).
         Requires models to be pre-cached (skip if not available).
         Enables NER, summarization, and metadata to cover the full critical path.
+
+        This test also validates MAP-REDUCE summarization workflow with REDUCE model
+        (addresses issue #144). By setting summary_chunk_size=350, we force chunking
+        even though the fast transcript (~345-388 tokens) would normally fit in a single
+        chunk. This ensures REDUCE model (allenai/led-base-16384) is tested in fast tests.
         """
         # Require ML models to be cached (skip if not available)
         from tests.integration.ml_model_cache_helpers import (
             require_transformers_model_cached,
         )
 
+        # Require both MAP and REDUCE models to be cached
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL, None)
 
         rss_url = e2e_server.urls.feed("podcast1_with_transcript")
 
@@ -211,7 +218,9 @@ class TestBasicLibraryAPIE2E:
                 auto_speakers=True,  # Enable NER (speaker detection) - uses local ML (spaCy)
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
                 summary_provider="transformers",  # Use transformers ML provider - default
-                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # MAP: bart-base
+                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # REDUCE: led
+                summary_chunk_size=350,  # Force chunking: fast transcript > chunk_size
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
             )
