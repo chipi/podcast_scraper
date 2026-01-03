@@ -38,6 +38,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
      - `cfg.language` (default `"en"`) governing both Whisper transcription language and NER pipeline.
      - `cfg.ner_model` optional override; default model derived from language (e.g., `"en_core_web_sm"`).
 ```
+
    - CLI gains `--language` (reused by Whisper) and `--ner-model` flags; config supports `language`, `ner_model`, and `auto_speakers` toggle (default `true`).
    - Maintain compatibility with existing Whisper language handling; ensure screenplay formatter respects detected language.
 
@@ -53,6 +54,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
        - Always use multilingual models (no `.en` suffix), regardless of model size.
      - This selection happens transparently in `whisper.load_whisper_model()`; users can still explicitly request `.en` models via `--whisper-model base.en` if desired.
 ```
+
    - **Language parameter propagation**:
 
 ```text
@@ -78,7 +80,8 @@ Automating speaker name extraction improves UX, increases transcript quality, an
        - Validate detected hosts by checking if they also appear in the first episode's title/description.
        - Only hosts that appear in both feed metadata AND first episode are kept (validation step).
      - Hosts are cached and reused across all episodes in a run.
-```
+```python
+
    - **Guest Detection** (episode-level only):
      - Extract PERSON entities from episode title and first 20 characters of episode description.
      - Descriptions are limited to first 20 characters to focus on the most relevant part (often contains guest name).
@@ -99,7 +102,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
        - Matches pattern: 2-3 words, each starting with capital letter
        - Filters out common non-name phrases (e.g., "Guest", "Host", "Interview")
        - Adds candidates with lower confidence (0.7) compared to NER-based detection (1.0)
-```
+```python
 
 4. **Caching Strategy**
    - Introduce a feature flag (`cfg.cache_detected_hosts`) controlling whether host detection is memoized across episodes within a run.
@@ -145,6 +148,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
     - Normalizes whitespace
     - Validates: must be at least 2 characters and contain at least one letter
 ```
+
   - **Deduplication**: Names are deduplicated case-insensitively to avoid duplicates.
   - **Pattern-based Fallback**: When NER fails (e.g., spaCy misclassifies names or fails on long titles), a pattern-based fallback:
 
@@ -155,6 +159,7 @@ Automating speaker name extraction improves UX, increases transcript quality, an
     - Filters out common non-name phrases
     - Adds candidates with confidence 0.7 (lower than NER-based 1.0)
 ```
+
 - **Fallback Behavior**:
   - If zero guests detected, preserve host-only labels (`Host`, `Co-Host`, etc.).
   - If zero hosts detected, fall back to default `["Host", "Guest"]`.

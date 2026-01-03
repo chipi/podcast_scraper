@@ -77,6 +77,7 @@ class FeedMetadata(BaseModel):
 class EpisodeMetadata(BaseModel):
 
 ```text
+
     """Episode-level metadata."""
     title: str
     description: Optional[str] = None
@@ -87,28 +88,32 @@ class EpisodeMetadata(BaseModel):
     episode_number: Optional[int] = None
     image_url: Optional[str] = None
     episode_id: str  # Stable unique identifier for database primary keys
-```
 
 ```python
+
     @field_serializer('published_date')
     def serialize_published_date(self, value: Optional[datetime]) -> Optional[str]:
         """Serialize datetime as ISO 8601 string for database compatibility."""
         return value.isoformat() if value else None
-```
+
+```python
 
 class TranscriptInfo(BaseModel):
 
 ```text
+
     """Transcript URL and type information."""
     url: str
     transcript_id: Optional[str] = None  # Optional stable identifier for tracking individual transcripts
     type: Optional[str] = None  # e.g., "text/plain", "text/vtt"
     language: Optional[str] = None
-```
+
+```python
 
 class ContentMetadata(BaseModel):
 
 ```text
+
     """Content-related metadata."""
     transcript_urls: List[TranscriptInfo] = Field(default_factory=list)
     media_url: Optional[str] = None
@@ -119,41 +124,44 @@ class ContentMetadata(BaseModel):
     whisper_model: Optional[str] = None
     detected_hosts: List[str] = Field(default_factory=list)
     detected_guests: List[str] = Field(default_factory=list)
-```
+
+```python
 
 class ProcessingMetadata(BaseModel):
 
 ```text
+
     """Processing-related metadata."""
     processing_timestamp: datetime
     output_directory: str
     run_id: Optional[str] = None
     config_snapshot: Dict[str, Any] = Field(default_factory=dict)
     schema_version: str = "1.0.0"
-```
 
 ```python
+
     @field_serializer('processing_timestamp')
     def serialize_processing_timestamp(self, value: datetime) -> str:
         """Serialize datetime as ISO 8601 string for database compatibility."""
         return value.isoformat()
-```
 
+```python
 class EpisodeMetadataDocument(BaseModel):
 
 ```text
-    """Complete episode metadata document.
-```
 
-```text
+    """Complete episode metadata document.
+
+```
     Schema designed for direct ingestion into databases:
+
     - PostgreSQL JSONB: Nested structure works natively
     - MongoDB: Document structure matches MongoDB document model
     - Elasticsearch: Nested objects can be indexed and queried
     - ClickHouse: JSON column type supports nested queries
+
 ```
 
-    Field naming uses snake_case for database compatibility.
     All datetime fields are serialized as ISO 8601 strings.
 
     The `feed.feed_id` and `episode.episode_id` fields provide stable, unique identifiers
@@ -164,8 +172,10 @@ class EpisodeMetadataDocument(BaseModel):
     episode: EpisodeMetadata
     content: ContentMetadata
     processing: ProcessingMetadata
+
 ```text
 ```python
+
 def generate_episode_metadata(
     feed: RssFeed,
     episode: Episode,
@@ -184,8 +194,9 @@ def generate_episode_metadata(
 
     # Write to file (JSON or YAML)
 
+```text
     # Return file path
-
+```
 ```python
 
 - Generate metadata after episode processing completes
@@ -237,6 +248,7 @@ def generate_episode_metadata(
 Capture relevant configuration fields in metadata:
 
 ```python
+
 config_snapshot = {
     "language": cfg.language,
     "whisper_model": cfg.whisper_model if cfg.transcribe_missing else None,
@@ -244,6 +256,7 @@ config_snapshot = {
     "screenplay": cfg.screenplay,
     "max_episodes": cfg.max_episodes,
 }
+
 ```python
 
 1. **Feed Metadata**: Extract from `RssFeed` object and RSS parsing
@@ -277,6 +290,7 @@ Each metadata document must include stable, unique identifiers suitable for use 
 The feed ID is generated from the feed URL (normalized):
 
 ```python
+
 import hashlib
 from urllib.parse import urlparse
 
@@ -295,18 +309,18 @@ def generate_feed_id(feed_url: str) -> str:
     parsed = urlparse(feed_url)
     normalized = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip('/').lower()
 
+```text
     # Generate SHA-256 hash
-
+```
 ```text
+
     hash_digest = hashlib.sha256(normalized.encode('utf-8')).hexdigest()
+
 ```
 
-```text
     return f"sha256:{hash_digest}"
-```
-```text
 
-- Stable across runs (same feed URL = same ID)
+```
 - Unique (different feeds = different IDs)
 - Database-friendly (string format)
 - Deterministic and collision-resistant
@@ -337,6 +351,7 @@ Episode ID generation follows this priority:
 **Implementation**:
 
 ```python
+
 import hashlib
 from urllib.parse import urlparse
 
@@ -355,71 +370,57 @@ def generate_episode_id(
     2. Deterministic hash from feed URL + title + published_date + link
     3. Composite key as last resort
 
+```text
     Returns:
         Stable unique identifier string
     """
-
-```text
-    # Priority 1: Use RSS GUID if available
 ```
 
-```text
+    # Priority 1: Use RSS GUID if available
+
+```
     if episode_guid:
         return episode_guid.strip()
-```
 
-```text
-    # Priority 2: Generate deterministic hash
 ```
-
-```text
+```
     # Normalize feed URL (remove trailing slash, lowercase)
-```
 
-```text
-    normalized_feed = urlparse(feed_url).geturl().rstrip('/').lower()
 ```
-
-```text
+```
     # Normalize title (lowercase, strip whitespace)
-```
 
-```text
-    normalized_title = episode_title.strip().lower()
 ```
-
 ```python
+
     # Build hash input from stable components
+
 ```
 
-    hash_components = [
         normalized_feed,
         normalized_title,
     ]
 
 ```text
+
     if published_date:
         hash_components.append(published_date.isoformat())
+
 ```
 
-```text
-    if episode_link:
         normalized_link = urlparse(episode_link).geturl().rstrip('/').lower()
         hash_components.append(normalized_link)
-```
 
-```text
+```
     # Generate SHA-256 hash
+
 ```
 
-```text
-    hash_input = '|'.join(hash_components).encode('utf-8')
     hash_digest = hashlib.sha256(hash_input).hexdigest()
-```
 
-```text
-    return f"sha256:{hash_digest}"
 ```
+    return f"sha256:{hash_digest}"
+
 ```python
 
 **Transcript ID** (`transcript_id`):
@@ -435,6 +436,7 @@ def generate_episode_id(
 - Useful for tracking media files across episodes
 
 ```python
+
 def generate_content_id(content_url: str) -> str:
     """Generate stable unique identifier for content item (transcript or media).
 
@@ -455,10 +457,10 @@ def generate_content_id(content_url: str) -> str:
     hash_digest = hashlib.sha256(normalized.encode('utf-8')).hexdigest()
 
 ```text
-    return f"sha256:{hash_digest}"
-```
-```text
 
+    return f"sha256:{hash_digest}"
+
+```
 - When tracking content items in separate tables/collections
 - When building content-level indexes or analytics
 - When linking episodes to shared content (same transcript/media used by multiple episodes)
@@ -651,6 +653,7 @@ def generate_content_id(content_url: str) -> str:
 ### Example: PostgreSQL JSONB
 
 ```sql
+
 -- Create table
 CREATE TABLE episode_metadata (
     id SERIAL PRIMARY KEY,
@@ -684,6 +687,7 @@ WHERE metadata @> '{"content": {"detected_guests": ["John Doe"]}}';
 SELECT metadata->'content'->'detected_hosts' as hosts
 FROM episode_metadata
 WHERE jsonb_array_length(metadata->'content'->'detected_hosts') > 0;
+
 ```javascript
 
 // Load single document (using episode_id as _id)
@@ -765,6 +769,7 @@ GET /episodes/_search
     }
   }
 }
+
 ```text
 
 -- Create table with JSON column, using episode_id as ordering key
@@ -791,6 +796,7 @@ SELECT * FROM episode_metadata
 WHERE toDate(metadata.episode.published_date) >= '2025-01-01';
 
 ```text
+
 - Should metadata support incremental updates? (Decision: Regenerate on each run)
 - Should metadata include transcript excerpts? (Decision: No, transcripts are separate files)
 - Do we need database-specific format variations? (Decision: No, unified JSON with snake_case and ISO 8601 dates works universally across all target databases)
@@ -803,4 +809,5 @@ WHERE toDate(metadata.episode.published_date) >= '2025-01-01';
 - RFC-001: Workflow Orchestration
 - Pydantic documentation: <https://docs.pydantic.dev/>
 - JSON Schema: <https://json-schema.org/>
+
 ````

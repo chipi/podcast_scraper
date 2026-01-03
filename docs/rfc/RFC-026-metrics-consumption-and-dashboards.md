@@ -301,7 +301,7 @@ curl -s <https://chipi.github.io/podcast_scraper/metrics/latest.json> | jq '.ale
 
 ```text
     # Publish to gh-pages branch
-```
+```bash
 
     git checkout gh-pages || git checkout --orphan gh-pages
     git add metrics/
@@ -390,9 +390,8 @@ def detect_deviations(current, history):
 
 ```text
     return alerts
-```
+```python
 
-```text
 - Simple deviation detection
 
 **Deliverables:**
@@ -541,4 +540,5 @@ def detect_deviations(current, history):
 - GitHub Pages must be enabled for the repository
 - Metrics are public (no authentication)
 - Historical data grows over time (consider retention policy)
+
 ````

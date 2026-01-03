@@ -109,17 +109,17 @@ class SpeakerDetector(Protocol):
     ) -> Tuple[List[str], Set[str], bool]:
 
 ```text
-        """Detect speakers for an episode.
-```
 
-```text
+        """Detect speakers for an episode.
+
+```
         Returns:
             (speaker_names, detected_hosts, success)
         """
         ...
-```
 
 ```python
+
     def analyze_patterns(
         self,
         episodes: List[models.Episode],
@@ -127,12 +127,13 @@ class SpeakerDetector(Protocol):
     ) -> Optional[Dict[str, Any]]:
         """Analyze episode patterns for heuristics."""
         ...
-```
+
 ```python
 
 from .. import config
 
 ```python
+
 from .base import SpeakerDetector
 
 class SpeakerDetectorFactory:
@@ -151,6 +152,7 @@ class SpeakerDetectorFactory:
             from .openai_detector import OpenAISpeakerDetector
             return OpenAISpeakerDetector(cfg)
         return None
+
 ```text
 
 1. **Add provider type field to `config.py`:**
@@ -197,7 +199,6 @@ class SpeakerDetectorFactory:
 ```text
        hosts = detector.detect_hosts(feed.title, feed.description, feed.authors)
 ```
-   ```
 
 ### Phase 3: Add OpenAI Provider - Speaker Detection (Future)
 
@@ -298,29 +299,28 @@ class TranscriptionProvider(Protocol):
     ) -> Tuple[Dict[str, Any], float]:
 
 ```text
-        """Transcribe media file.
-```
 
-```text
+        """Transcribe media file.
+
+```
         Args:
             media_path: Path to media file
             cfg: Configuration object
             resource: Provider-specific resource (model, client, etc.)
+
 ```
 
-```text
         Returns:
             Tuple of (result_dict, elapsed_seconds)
             result_dict should have 'text' and optionally 'segments'
         """
         ...
-```
 
 ```python
+
     def cleanup(self, resource: Any) -> None:
         """Cleanup provider resources."""
         ...
-```
 
 ```python
 
@@ -357,6 +357,7 @@ class TranscriptionProviderFactory:
    # Keep whisper_model for backward compatibility
 
    whisper_model: str = Field(default="base", alias="whisper_model")
+
 ````
 
 2. **Create protocol definitions:**
@@ -388,10 +389,11 @@ class TranscriptionProviderFactory:
    if provider:
 
 ```text
+
        resource = provider.initialize(cfg)
        result, elapsed = provider.transcribe(media_path, cfg, resource)
-```
-   ```
+
+```python
 
 3. **Update `_TranscriptionResources`:**
 
@@ -403,11 +405,10 @@ class TranscriptionProviderFactory:
        transcription_jobs: List[models.TranscriptionJob]
 
 ```text
+
        # ... rest
+
 ```
-
-   ```
-
 ### Phase 3: Add OpenAI Provider - Transcription (Future)
 
 1. **Create `transcription/openai_provider.py`:**
@@ -512,23 +513,19 @@ class SummarizationProvider(Protocol):
         """Summarize text.
 ```
 
-```text
         Args:
             text: Text to summarize
             cfg: Configuration object
             resource: Provider-specific resource (model, client, etc.)
             max_length: Maximum summary length
             min_length: Minimum summary length
-```
 
-```text
-        Returns:
+```
             Dictionary with 'summary' and optionally 'chunks', 'metadata'
         """
         ...
-```
-
 ```python
+
     def summarize_chunks(
         self,
         chunks: List[str],
@@ -536,16 +533,13 @@ class SummarizationProvider(Protocol):
         resource: Any,
     ) -> List[str]:
         """Summarize multiple text chunks (MAP phase).
-```
 
-```text
-        Returns:
+```
             List of chunk summaries
         """
         ...
-```
-
 ```python
+
     def combine_summaries(
         self,
         summaries: List[str],
@@ -553,25 +547,23 @@ class SummarizationProvider(Protocol):
         resource: Any,
     ) -> str:
         """Combine multiple summaries into final summary (REDUCE phase).
-```
 
-```text
-        Returns:
+```
             Final combined summary
         """
         ...
-```
-
 ```python
+
     def cleanup(self, resource: Any) -> None:
         """Cleanup provider resources."""
         ...
-```
+
 ```python
 
 from .. import config
 
 ```python
+
 from .base import SummarizationProvider
 
 class SummarizationProviderFactory:
@@ -590,6 +582,7 @@ class SummarizationProviderFactory:
             from .openai_provider import OpenAISummarizationProvider
             return OpenAISummarizationProvider(cfg)
         return None
+
 ```text
 
 1. **Add provider type field to `config.py`:**
@@ -628,11 +621,13 @@ class SummarizationProviderFactory:
    - Extract helper functions from `metadata.py`:
 
 ```text
+
      - `_build_feed_metadata()` - Construct FeedMetadata
      - `_build_episode_metadata()` - Construct EpisodeMetadata
      - `_build_content_metadata()` - Construct ContentMetadata
      - `_build_processing_metadata()` - Construct ProcessingMetadata
-```
+
+```python
 
 3. **Update `workflow.py`:**
 
@@ -643,9 +638,10 @@ class SummarizationProviderFactory:
    if provider:
 
 ```text
+
        resource = provider.initialize(cfg)
+
 ```
-   ```
 
 4. **Update `metadata.py`:**
    - Refactor `generate_episode_metadata()` to use provider
@@ -873,4 +869,5 @@ Once this refactoring is complete, adding OpenAI API providers will be straightf
 - Consider backward compatibility for public APIs
 - Document provider interfaces clearly
 - Provide examples for each provider type
+
 ````

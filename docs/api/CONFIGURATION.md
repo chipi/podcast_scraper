@@ -124,6 +124,44 @@ Environment variables are automatically loaded when the `podcast_scraper.config`
 - **Priority**: Config file → Environment variable → Default
 - **Use Cases**: Docker containers (`SUMMARY_DEVICE=cpu`), CI/CD (`SUMMARY_DEVICE=cpu`), NVIDIA GPU (`SUMMARY_DEVICE=cuda` or auto-detect), Apple Silicon (`SUMMARY_DEVICE=mps` or auto-detect)
 
+#### ML Library Configuration (Advanced)
+
+**`HF_HUB_DISABLE_PROGRESS_BARS`**
+
+- **Description**: Disable Hugging Face Hub progress bars to suppress misleading "Downloading" messages when loading models from cache
+- **Required**: No (defaults to "1" - disabled, set programmatically)
+- **Valid Values**: `"1"` (disabled) or `"0"` (enabled)
+- **Priority**: System environment → `.env` file → Programmatic default
+- **Use Cases**: Cleaner output when models are cached, Suppress progress bars in production logs
+- **Note**: This is set automatically by the application, but can be overridden in `.env` file or system environment
+
+**`OMP_NUM_THREADS`**
+
+- **Description**: Number of OpenMP threads used by PyTorch for CPU operations
+- **Required**: No (not set by default - uses all available CPU cores)
+- **Valid Values**: Positive integer (e.g., `"1"`, `"4"`, `"8"`)
+- **Priority**: System environment → `.env` file → Not set (full CPU utilization)
+- **Use Cases**: Docker containers with limited resources, Memory-constrained environments, Performance tuning
+- **Note**: Only set this if you want to limit CPU usage. By default, all CPU cores are used for best performance.
+
+**`MKL_NUM_THREADS`**
+
+- **Description**: Number of Intel MKL threads used by PyTorch (if MKL is available)
+- **Required**: No (not set by default - uses all available CPU cores)
+- **Valid Values**: Positive integer (e.g., `"1"`, `"4"`, `"8"`)
+- **Priority**: System environment → `.env` file → Not set (full CPU utilization)
+- **Use Cases**: Docker containers with limited resources, Memory-constrained environments, Performance tuning
+- **Note**: Only set this if you want to limit CPU usage. By default, all CPU cores are used for best performance.
+
+**`TORCH_NUM_THREADS`**
+
+- **Description**: Number of CPU threads used by PyTorch
+- **Required**: No (not set by default - uses all available CPU cores)
+- **Valid Values**: Positive integer (e.g., `"1"`, `"4"`, `"8"`)
+- **Priority**: System environment → `.env` file → Not set (full CPU utilization)
+- **Use Cases**: Docker containers with limited resources, Memory-constrained environments, Performance tuning
+- **Note**: Only set this if you want to limit CPU usage. By default, all CPU cores are used for best performance.
+
 ### Usage Examples
 
 #### macOS / Linux
@@ -252,6 +290,12 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 # TIMEOUT=60
 
 # SUMMARY_DEVICE=cpu
+
+# ML Library Configuration (Advanced)
+# HF_HUB_DISABLE_PROGRESS_BARS=1  # Disable progress bars (default: 1)
+# OMP_NUM_THREADS=4  # Limit OpenMP threads (optional, not set by default)
+# MKL_NUM_THREADS=4  # Limit MKL threads (optional, not set by default)
+# TORCH_NUM_THREADS=4  # Limit PyTorch threads (optional, not set by default)
 
 ```text
 

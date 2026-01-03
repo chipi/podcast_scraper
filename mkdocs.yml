@@ -74,16 +74,23 @@ nav:
       - Type Hints Analysis: wip/TYPE_HINTS_ANALYSIS.md
       - Whisper Progress Analysis: wip/WHISPER_PROGRESS_ANALYSIS.md
   - Guides:
+      - Quick Reference: guides/QUICK_REFERENCE.md
+      - Development Guide: guides/DEVELOPMENT_GUIDE.md
+      - Testing Guide: guides/TESTING_GUIDE.md
+      - Unit Testing Guide: guides/UNIT_TESTING_GUIDE.md
+      - Integration Testing Guide: guides/INTEGRATION_TESTING_GUIDE.md
+      - E2E Testing Guide: guides/E2E_TESTING_GUIDE.md
+      - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
       - Provider Configuration Quick Reference: guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md
       - Provider Implementation Guide: guides/PROVIDER_IMPLEMENTATION_GUIDE.md
-      - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
-      - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md
-      - Dependencies: guides/DEPENDENCIES_GUIDE.md
-      - Development Guide: guides/DEVELOPMENT_GUIDE.md
-      - Markdown Style and Linting: guides/MARKDOWN_LINTING_GUIDE.md
       - Protocol Extension Guide: guides/PROTOCOL_EXTENSION_GUIDE.md
       - Summarization Guide: guides/SUMMARIZATION_GUIDE.md
-      - Testing Guide: guides/TESTING_GUIDE.md
+      - Dependencies: guides/DEPENDENCIES_GUIDE.md
+      - Markdown Style and Linting: guides/MARKDOWN_LINTING_GUIDE.md
+      - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md
+      - Documentation Agent Guide: guides/DOCUMENTATION_AGENT_GUIDE.md
+      - Troubleshooting: guides/TROUBLESHOOTING.md
+      - Glossary: guides/GLOSSARY.md
   - Legal Notice: LEGAL.md
 theme:
   name: material

@@ -160,7 +160,13 @@ Write comprehensive unit, integration, and E2E tests.
 
 ## Testing Your Provider
 
-See the "Step 8: Write Tests" section above for testing guidelines.
+> **See also:**
+>
+> - [Unit Testing Guide](UNIT_TESTING_GUIDE.md) - General unit test patterns and isolation
+> - [Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md) - Integration test mocking guidelines
+> - [E2E Testing Guide](E2E_TESTING_GUIDE.md) - E2E server and real ML model usage
+
+Provider tests follow the standard test pyramid but require **provider-specific patterns** at each tier.
 
 ### E2E Server Mock Endpoints
 
@@ -767,7 +773,10 @@ result, elapsed = whisper.transcribe_with_whisper(whisper_model, audio_path, cfg
 ## Related Documentation
 
 - [Protocol Extension Guide](./PROTOCOL_EXTENSION_GUIDE.md) - How to extend protocols
-- [Testing Guide](./TESTING_GUIDE.md) - General testing practices
+- [Testing Guide](./TESTING_GUIDE.md) - Quick reference and test execution
+- [Unit Testing Guide](./UNIT_TESTING_GUIDE.md) - Unit test patterns
+- [Integration Testing Guide](./INTEGRATION_TESTING_GUIDE.md) - Integration test guidelines
+- [E2E Testing Guide](./E2E_TESTING_GUIDE.md) - E2E testing with real ML
 - [Development Guide](./DEVELOPMENT_GUIDE.md) - Development workflow
 
 ## Questions?

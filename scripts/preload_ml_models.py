@@ -270,12 +270,36 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             print("    Downloading...")
             # nosec B615 - Model names pinned in config, preload script for dev/testing
             # Use cache_dir to ensure models are cached to local cache directory
+            # Force download of all files by not using local_files_only
+            # This ensures all required files (including optional ones) are cached
             tokenizer = AutoTokenizer.from_pretrained(
-                model_name, cache_dir=str(cache_dir)  # nosec B615
+                model_name, cache_dir=str(cache_dir), local_files_only=False  # nosec B615
             )
             model = AutoModelForSeq2SeqLM.from_pretrained(
-                model_name, cache_dir=str(cache_dir)  # nosec B615
+                model_name, cache_dir=str(cache_dir), local_files_only=False  # nosec B615
             )
+
+            # Try to download any optional files that might be needed
+            # Some models have optional files like tokenizer_config.json that might
+            # be requested at runtime. Download them now to ensure they're cached.
+            try:
+                from huggingface_hub import hf_hub_download
+
+                optional_files = ["tokenizer_config.json", "special_tokens_map.json"]
+                for filename in optional_files:
+                    try:
+                        hf_hub_download(  # nosec B615
+                            repo_id=model_name,
+                            filename=filename,
+                            cache_dir=str(cache_dir),
+                            local_files_only=False,
+                        )
+                    except Exception:
+                        # File doesn't exist for this model - that's fine, it's optional
+                        pass
+            except ImportError:
+                # huggingface_hub not available - that's fine, we'll rely on transformers
+                pass
 
             # Verify model loads
             assert (

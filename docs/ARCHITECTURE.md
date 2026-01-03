@@ -10,7 +10,11 @@ This architecture document is the central hub for understanding the system. For 
 
 - **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** — Detailed implementation instructions, dependency management, code patterns, and development workflows
 - **[Testing Strategy](TESTING_STRATEGY.md)** — Testing philosophy, test pyramid, and quality standards
-- **[Testing Guide](guides/TESTING_GUIDE.md)** — Detailed test execution, fixtures, and coverage information
+- **[Testing Guide](guides/TESTING_GUIDE.md)** — Quick reference and test execution commands
+  - [Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md) — Unit test mocking patterns
+  - [Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md) — Integration test guidelines
+  - [E2E Testing Guide](guides/E2E_TESTING_GUIDE.md) — E2E server, real ML models
+  - [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md) — What to test, prioritization
 - **[CI/CD](CI_CD.md)** — Continuous integration and deployment pipeline
 
 ### API Documentation
@@ -148,6 +152,7 @@ graph TB
     end
 
 ```python
+
     CLI --> Config
     CLI --> Workflow
     CLI --> Progress
@@ -180,10 +185,8 @@ graph TB
     Metadata --> Models
     Summarizer --> Models
     SpeakerDetect --> Models
-```
 
-    style CLI fill:#e1f5ff
-    style Config fill:#fff3cd
+```
     style Workflow fill:#d1ecf1
     style Whisper fill:#f8d7da
     style SpeakerDetect fill:#d4edda
@@ -298,9 +301,16 @@ For detailed error handling patterns and implementation guidelines, see [Develop
 
 ## Testing
 
-The project follows a three-tier testing strategy (Unit, Integration, E2E) with distinct purposes, speeds, scopes, and I/O policies. For comprehensive testing information, see:
+The project follows a three-tier testing strategy (Unit, Integration, E2E). For comprehensive testing information:
 
-- **[Testing Strategy](TESTING_STRATEGY.md)** — Testing philosophy, test pyramid, decision criteria, and quality standards
-- **[Testing Guide](guides/TESTING_GUIDE.md)** — Detailed test execution, fixtures, coverage, and implementation specifics
+| Document | Purpose |
+| ---------- | --------- |
+| **[Testing Strategy](TESTING_STRATEGY.md)** | Testing philosophy, test pyramid, decision criteria |
+| **[Testing Guide](guides/TESTING_GUIDE.md)** | Quick reference, test execution commands |
+| **[Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md)** | Unit test mocking patterns and isolation |
+| **[Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md)** | Integration test guidelines |
+| **[E2E Testing Guide](guides/E2E_TESTING_GUIDE.md)** | E2E server, real ML models |
+| **[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md)** | What to test, prioritization |
+| **[Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** | Provider-specific testing
 
 ````

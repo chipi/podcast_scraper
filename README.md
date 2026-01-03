@@ -3,113 +3,79 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Personal Use Only](https://img.shields.io/badge/Use-Personal%20Only-orange)](docs/LEGAL.md)
 
-Podcast Scraper downloads transcripts for every episode in a podcast RSS feed. It understands
-Podcasting 2.0 transcript tags, resolves relative URLs, and can fall back to Whisper transcription
-when episodes lack published transcripts.
+Download, transcribe, and summarize podcast episodes. Fetches transcripts from RSS feeds
+(Podcasting 2.0), generates them when missing, detects speakers, and creates summaries.
+Use local models (Whisper, BART) or OpenAI API — your choice.
 
-> **⚠️ Important:** This project is intended for **personal, non-commercial use only**. All downloaded
-> content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate
-> Use](docs/LEGAL.md) for details.
+🎓 **Learning Project:** This is a personal project where I'm exploring AI-assisted coding
+and hands-on work with edge and cloud AI/ML technologies.
 
-## ✨ Key Features
+> **⚠️ Personal use only.** Downloaded content must remain local and not be redistributed.
+> See [Legal Notice](docs/LEGAL.md).
 
-- **Transcript Downloads** — Automatic detection and download of podcast transcripts from RSS feeds
-- **Whisper Fallback** — Generate transcripts using OpenAI Whisper when none exist
-- **Speaker Detection** — Automatic speaker name detection using Named Entity Recognition (NER)
-- **Screenplay Formatting** — Format Whisper transcripts as dialogue with speaker labels
-- **Episode Summarization** — Generate concise summaries using local transformer models (BART + LED)
-- **Metadata Generation** — Create database-friendly JSON/YAML metadata documents per episode
-- **Multi-threaded Downloads** — Concurrent processing with configurable worker pools
-- **Resumable Operations** — Skip existing files, reuse media, and handle interruptions gracefully
-- **Configuration Files** — JSON/YAML config support for repeatable workflows
-- **Service Mode** — Non-interactive daemon mode for automation and process managers
+---
 
-## 🚀 Quick Start
+## Features
+
+- **Transcript Downloads** — Automatic detection and download from RSS feeds
+- **Transcription** — Generate transcripts with Whisper or OpenAI API
+- **Speaker Detection** — Identify speakers using spaCy NER
+- **Summarization** — Episode summaries with BART/LED (local) or OpenAI
+- **Metadata Generation** — JSON/YAML metadata per episode
+- **Resumable** — Skip existing files, handle interruptions gracefully
+- **Provider System** — Swap between local and cloud providers via config
+
+---
+
+## Quick Start
 
 ### Requirements
 
 - Python 3.10+
-- `ffmpeg` (required for Whisper transcription)
-  - macOS: `brew install ffmpeg`
-  - Ubuntu/Debian: `sudo apt install ffmpeg`
-  - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+- `ffmpeg` (for Whisper): `brew install ffmpeg` / `apt install ffmpeg`
 
-All Python dependencies are managed via `pyproject.toml`. See [Installation](#installation) below.
+### Install
 
-### Installation
-
-````bash
-
-# Clone the repository
-
+```bash
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
-
-# Create virtual environment (recommended)
-
-python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install with ML dependencies (speaker detection, transcription, summarization)
-
+python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[ml]"
+```
 
-# Or for development (includes dev tools + ML dependencies)
-
-make init
-```text
-
-- `pip install -e .` — Core dependencies only
-- `pip install -e ".[ml]"` — Core + ML dependencies (Whisper, spaCy, transformers)
-- `pip install -e ".[dev,ml]"` — Core + ML + development tools
-
-See `pyproject.toml` for complete dependency specifications.
-
-## Basic Usage
+### Run
 
 ```bash
-
-# Download transcripts from a podcast RSS feed
-
+# Download existing transcripts
 python3 -m podcast_scraper.cli https://example.com/feed.xml
 
-# Use Whisper when transcripts are missing
+# Generate transcripts with Whisper when missing
+python3 -m podcast_scraper.cli https://example.com/feed.xml --transcribe-missing
 
+# Full processing: transcripts + metadata + summaries
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --transcribe-missing \
-  --whisper-model base
-
-# Generate metadata and summaries
-
-python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-metadata \
   --generate-summaries
-```text
+```
 
-- **Getting Started Guide** — Installation, configuration, and first steps
-- **CLI Reference** — Complete command-line interface documentation
-- **Python API** — Public API for programmatic usage
-- **Configuration Guide** — JSON/YAML configuration options
-- **Service Mode** — Running as daemon or service (systemd, supervisor)
-- **Environment Variables** — Complete reference for all environment variables
-- **Architecture** — Module boundaries and design principles
-- **Development Notes** — Development setup, testing, and contribution guidelines
+---
 
-**Local preview:**
+## Documentation
 
-```bash
-pip install mkdocs mkdocs-material pymdown-extensions mkdocstrings mkdocstrings-python
-mkdocs serve
-```text
+| Resource | Description |
+| -------- | ----------- |
+| [CLI Reference](docs/api/CLI.md) | All command-line options |
+| [Configuration](docs/api/CONFIGURATION.md) | Config files and environment variables |
+| [Full Documentation](https://chipi.github.io/podcast_scraper/) | Complete docs site |
 
-- Development setup and workflow
-- Code style and testing requirements
-- Architecture and design principles
+**Contributing?** See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 📄 License
+---
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## License
 
-**Important:** The MIT license applies only to the source code in this repository. It does not grant any rights to redistribute or publicly share any third-party podcast content retrieved or processed using this software. See [Legal Notice & Appropriate Use](docs/LEGAL.md) for more information.
+MIT License — see [LICENSE](LICENSE).
 
-````
+**Note:** The license applies to source code only, not to podcast content downloaded
+using this software. See [Legal Notice](docs/LEGAL.md).

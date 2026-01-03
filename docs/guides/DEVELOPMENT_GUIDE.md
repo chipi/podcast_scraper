@@ -8,103 +8,53 @@
 This guide provides detailed implementation instructions for developing the podcast scraper.
 For high-level architectural decisions and design principles, see [Architecture](../ARCHITECTURE.md).
 
-## Test Structure
+## Testing
 
-The test suite is organized into three main categories (RFC-018):
+For comprehensive testing information, see the dedicated testing documentation:
 
-- **`tests/unit/`** - Unit tests (fast, isolated, fully mocked, no I/O)
-- **`tests/integration/`** - Integration tests (component interactions, real internal implementations, mocked external services)
-- **`tests/e2e/`** - Workflow E2E tests (complete workflows, should use real network and I/O)
+- **[Testing Strategy](../TESTING_STRATEGY.md)** - Testing philosophy, test pyramid, decision criteria
+- **[Testing Guide](TESTING_GUIDE.md)** - Quick reference, test execution commands
+- **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
+- **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test guidelines
+- **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models
+- **[Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md)** - What to test, prioritization
 
-**I/O Policy by Test Type:**
+### Quick Reference
 
-- **Unit Tests** (`tests/unit/`):
-  - ❌ **Network calls**: BLOCKED (enforced by `tests/unit/conftest.py`)
-  - ❌ **Filesystem I/O**: BLOCKED (enforced by `tests/unit/conftest.py`)
-  - ✅ **Allows**: `tempfile` operations, operations within temp directories, cache directories
-  - **Purpose**: Fast, isolated, fully mocked
+| Layer | Directory | Speed | Mocking |
+| ------- | ----------- | ------- | --------- |
+| Unit | `tests/unit/` | < 100ms | All mocked |
+| Integration | `tests/integration/` | < 5s | External mocked |
+| E2E | `tests/e2e/` | < 60s | No mocks |
 
-- **Integration Tests** (`tests/integration/`):
-  - ⚠️ **Network calls**: MOCKED (for speed/reliability, not blocked)
-  - ✅ **Filesystem I/O**: ALLOWED (real file operations in temp directories)
-  - ✅ **Real implementations**: Real Config, real providers, real component interactions
-  - **Purpose**: Test how components work together
+### Running Tests
 
-- **E2E Tests** (`tests/e2e/`):
-  - ✅ **Network calls**: ALLOWED (should use real network, marked with `@pytest.mark.network`)
-  - ✅ **Filesystem I/O**: ALLOWED (real file operations, real output directories)
-  - ✅ **Real implementations**: Real HTTP clients, real ML models, real file operations
-  - **Purpose**: Test complete workflows as users would use them
-  - **Note**: Currently some E2E tests still use mocks (historical), but target is real network/I/O
+```bash
+make test-unit            # Unit tests (parallel)
+make test-integration     # Integration tests (parallel, reruns)
+make test-e2e             # E2E tests (serial first, then parallel)
+make test                 # All tests
+make test-fast            # Unit + critical path only
+```
 
-**Key Features:**
+### ML Dependencies in Tests
 
-- **Test Execution**: Serial tests run first, then parallel tests (`-n auto`)
-- **Network Isolation**: All tests use `--disable-socket --allow-hosts=127.0.0.1,localhost`
-- **Flaky Test Reruns**: Integration/E2E tests retry with `--reruns 2 --reruns-delay 1`
+Modules importing ML dependencies at **module level** will fail unit tests in CI.
 
-- **Test Markers**: All integration tests have `@pytest.mark.integration`, all e2e tests have `@pytest.mark.e2e`
-- **Network Marker**: E2E tests that make real network calls should have `@pytest.mark.network`
+**Solutions:**
 
-**Running Tests:**
+1. **Mock before import** (recommended):
 
-````bash
-
-# Unit tests only (default, fast feedback)
-
-make test-unit
-
-# Unit tests without ML dependencies (matches CI, verifies no ML imports at module level)
-
-make test-unit-no-ml
-
-# Integration tests
-
-make test-integration
-
-# Workflow E2E tests
-
-make test-e2e
-
-# All tests
-
-make test
-
-# Parallel execution (default for test-unit, test-integration, test-e2e, test)
-
-make test-unit  # Already runs in parallel
-
-# With reruns for flaky tests
-
-make test-reruns
 ```python
+from unittest.mock import MagicMock, patch
 
-- Fast test execution (no heavy ML package installation)
-- Tests remain isolated from ML dependencies
-- CI can run unit tests quickly
+with patch.dict("sys.modules", {"spacy": MagicMock()}):
+    from podcast_scraper import speaker_detection
+```
 
-**Important:** Modules that import ML dependencies at the **top level** (module import time) will cause unit tests to fail in CI. To prevent this:
+1. **Use lazy imports**: Import inside functions, not at module level
 
-1. **Mock ML dependencies in unit tests** (already done in most tests):
-
-   ```python
-   from unittest.mock import MagicMock, patch
-
-   # Mock ML dependencies before importing modules that need them
-
-   with patch.dict("sys.modules", {"spacy": MagicMock()}):
-       from podcast_scraper import speaker_detection
-
-````
-
-1. **Use lazy imports** (future improvement): Import ML dependencies inside functions, not at module level
-
-2. **Verify imports work without ML deps**: Run `make test-unit-no-ml` or
-   `python scripts/check_unit_test_imports.py` before pushing
-
-The CI automatically checks that unit tests can import modules without ML dependencies before running tests.
-
-See `TESTING_STRATEGY.md` for comprehensive testing guidelines and `../CONTRIBUTING.md` for test running examples.
+1. **Verify locally**: Run `make test-unit-no-ml` before pushing
 
 ## Environment Setup
 
@@ -112,51 +62,47 @@ See `TESTING_STRATEGY.md` for comprehensive testing guidelines and `../CONTRIBUT
 
 **Quick setup:**
 
-````bash
-
+```bash
 bash scripts/setup_venv.sh
 source .venv/bin/activate
+```
 
-```text
-```text
+### Environment Variables
 
 1. **Copy example `.env` file:**
 
-   ```bash
-
-   cp examples/.env.example .env
-
-````
+```bash
+cp examples/.env.example .env
+```
 
 1. **Edit `.env` and add your settings:**
 
-   ```bash
+```bash
 
-   # OpenAI API key (required for OpenAI providers)
+# OpenAI API key (required for OpenAI providers)
 
-   OPENAI_API_KEY=sk-your-actual-key-here
+OPENAI_API_KEY=sk-your-actual-key-here
 
-   # Logging
+# Logging
 
-   LOG_LEVEL=DEBUG
+LOG_LEVEL=DEBUG
 
-   # Paths
+# Paths
 
-   OUTPUT_DIR=/data/transcripts
-   LOG_FILE=/var/log/podcast_scraper.log
-   CACHE_DIR=/cache/models
+OUTPUT_DIR=/data/transcripts
+LOG_FILE=/var/log/podcast_scraper.log
+CACHE_DIR=/cache/models
 
-   # Performance tuning
+# Performance tuning
 
-   WORKERS=4
-   TRANSCRIPTION_PARALLELISM=3
-   PROCESSING_PARALLELISM=4
-   SUMMARY_BATCH_SIZE=2
-   SUMMARY_CHUNK_PARALLELISM=2
-   TIMEOUT=60
-   SUMMARY_DEVICE=cpu
-
-   ```
+WORKERS=4
+TRANSCRIPTION_PARALLELISM=3
+PROCESSING_PARALLELISM=4
+SUMMARY_BATCH_SIZE=2
+SUMMARY_CHUNK_PARALLELISM=2
+TIMEOUT=60
+SUMMARY_DEVICE=cpu
+```
 
 1. **The `.env` file is automatically loaded** via `python-dotenv` when `podcast_scraper.config` module is imported.
 
@@ -311,13 +257,13 @@ The project uses automated formatting tools to ensure consistency:
 
 **Apply formatting automatically:**
 
-````bash
-
+```bash
 make format
+```
 
-```text
-- Use descriptive names that indicate purpose
-- Avoid single-letter names except for common iterators (`i`, `j`, `k`)
+### Naming Conventions
+
+**Functions and Variables:** Use `snake_case` with descriptive names.
 
 ```python
 
@@ -330,9 +276,9 @@ def fetch_rss_feed(url: str) -> RssFeed:
 
 def fetchRSSFeed(url: str):  # camelCase
     x = len(feed.episodes)  # non-descriptive name
+```
 
-```python
-- Use descriptive nouns that represent entities
+**Classes:** Use `PascalCase` with descriptive nouns.
 
 ```python
 
@@ -341,85 +287,62 @@ def fetchRSSFeed(url: str):  # camelCase
 class RssFeed:
     pass
 
-class TranscriptionJob:
-    pass
-
 # Bad
 
 class rss_feed:  # snake_case
     pass
+```
 
-```text
+**Constants:** Use `UPPER_SNAKE_CASE`.
 
 ```python
-
-# Good
-
 DEFAULT_TIMEOUT = 20
 MAX_RETRIES = 3
+```
 
-# Bad
-
-default_timeout = 20  # lowercase
-maxRetries = 3  # camelCase
-
-```text
+**Private Members:** Prefix with underscore.
 
 ```python
-
 class SummaryModel:
     def __init__(self):
         self._device = "cpu"  # Internal attribute
 
     def _load_model(self):  # Internal method
         pass
+```
+
+## Type Hints
+
+All functions should have type hints:
 
 ```python
-
-# Good
-
 def sanitize_filename(filename: str, max_length: int = 255) -> str:
     """Sanitize filename for safe filesystem use."""
     pass
+```
 
-# Bad
+### Docstrings
 
-def sanitize_filename(filename, max_length=255):
-    """Sanitize filename for safe filesystem use."""
-    pass
-
-```python
-
-    episode: Episode,
-    cfg: Config,
-    progress: Optional[ProgressBar] = None
-) -> Dict[str, Union[str, int]]:
-    pass
+Use Google-style docstrings:
 
 ```python
+def run_pipeline(cfg: Config) -> None:
     """Run the complete podcast scraping pipeline.
 
     Args:
         cfg: Configuration object containing RSS URL and processing options.
-        progress_factory: Optional custom progress reporter (default: tqdm).
 
     Raises:
         ValueError: If configuration is invalid.
         HTTPError: If RSS feed cannot be fetched.
-
-    Example:
-        >>> from podcast_scraper import Config, run_pipeline
-        >>> cfg = Config(rss="https://example.com/feed.xml")
-        >>> run_pipeline(cfg)
     """
     pass
+```
 
-```python
+### Import Order
 
-from RSS feeds with optional Whisper fallback for missing transcripts.
-"""
+Follow this order (enforced by isort):
 
-```text
 1. Standard library imports
 2. Third-party imports
 3. Local application imports
@@ -431,7 +354,6 @@ from RSS feeds with optional Whisper fallback for missing transcripts.
 import os
 import sys
 from pathlib import Path
-from typing import Optional, List
 
 # Third-party
 
@@ -442,15 +364,13 @@ from pydantic import BaseModel
 
 from podcast_scraper import config
 from podcast_scraper.models import Episode
-
-```javascript
+```
 
 ## Every New Function Needs
 
 ✅ **Unit test with mocks for external dependencies:**
 
 ```python
-
 @patch("podcast_scraper.downloader.requests.Session")
 def test_fetch_url_with_retry(self, mock_session):
     """Test that fetch_url retries on network failure."""
@@ -460,20 +380,15 @@ def test_fetch_url_with_retry(self, mock_session):
     ]
     result = fetch_url("https://example.com/feed.xml")
     self.assertEqual(result, "Success")
+```
+
+✅ **Descriptive test names:**
 
 ```python
 
-    """Test filename sanitization with valid input."""
-    result = sanitize_filename("Episode 1: Great Content")
-    self.assertEqual(result, "Episode 1 Great Content")
+# Good
 
-def test_sanitize_filename_invalid_chars(self):
-    """Test filename sanitization removes invalid characters."""
-    result = sanitize_filename("Episode<>:\"/\\|?*")
-    self.assertEqual(result, "Episode")
-
-```python
-
+def test_sanitize_filename_removes_invalid_characters(self):
     pass
 
 def test_whisper_model_selection_prefers_en_variant_for_english(self):
@@ -486,9 +401,11 @@ def test_config(self):
 
 def test_whisper(self):
     pass
+```
 
-```text
-- **Integration test** (can be marked `@pytest.mark.slow` or `@pytest.mark.integration`)
+**Also consider:**
+
+- **Integration test** (marked `@pytest.mark.integration`)
 - **Documentation update** (README, API docs, or relevant guide)
 - **Examples** if user-facing
 
@@ -511,11 +428,13 @@ Always mock external dependencies in tests:
 **Provider Testing Patterns:**
 
 - **Unit Tests**: Mock all provider dependencies (API clients, ML models)
-- **Integration Tests**: Use real provider implementations with mocked external services (HTTP APIs) and mocked ML models (Whisper, spaCy, Transformers)
-- **E2E Tests**: Use real providers with E2E server mock endpoints (for API providers) or real implementations (for local providers). ML models are REAL - no mocks allowed.
+- **Integration Tests**: Use real provider implementations with mocked external services
+  (HTTP APIs) and mocked ML models (Whisper, spaCy, Transformers)
+
+- **E2E Tests**: Use real providers with E2E server mock endpoints (for API providers)
+  or real implementations (for local providers). ML models are REAL - no mocks allowed.
 
 ```python
-
 import tempfile
 from unittest.mock import patch, Mock
 
@@ -530,91 +449,14 @@ class TestEpisodeProcessor(unittest.TestCase):
     def test_transcription(self, mock_whisper):
         mock_whisper.load_model.return_value = Mock()
         mock_whisper.transcribe.return_value = {"text": "Test transcript"}
-
         # ... test code ...
-
-```text
-
-- **`tests/unit/`** - Fast unit tests (fully mocked, no network, no filesystem I/O)
-- **`tests/integration/`** - Integration tests (component interactions)
-- **`tests/e2e/`** - Workflow E2E tests (complete workflows)
-
-**Test Execution:**
-
-```bash
-
-# Run all tests (default: unit tests only for fast feedback)
-
-make test
-
-# Run specific test type
-
-make test-unit          # Unit tests only
-make test-integration   # Integration tests only
-make test-e2e          # E2E tests only
-make test              # All tests (unit + integration + e2e)
-
-# Note: test-unit, test-integration, test-e2e, and test all run in parallel by default
-
-# Run with flaky test reruns
-
-make test-reruns        # Retry failed tests (2 retries, 1s delay)
-
-# Run specific test file
-
-pytest tests/unit/podcast_scraper/test_config.py
-
-# Run specific test
-
-pytest tests/unit/podcast_scraper/test_config.py::TestSummaryValidation::test_summary_max_greater_than_min
-
-# Run with verbose output
-
-pytest -v
-
-# Run by marker
-
-pytest -m integration           # Integration tests only
-pytest -m e2e         # Workflow E2E tests only
-pytest -m "not slow"           # Skip slow tests
-pytest -m "not network"        # Skip network tests
-
-# Combine options
-
-pytest tests/unit/ -v  # Unit tests, sequential, verbose
-
-```yaml
-- **Network calls**: If a unit test makes a network call, it will fail with `NetworkCallDetectedError`
-- **Filesystem I/O**: If a unit test performs filesystem I/O (outside temp directories), it will fail with `FilesystemIODetectedError`
-- **Exceptions**: `tempfile` operations, cache directories, site-packages, and Python cache files are allowed
-
-If your test needs to perform file operations, use `tempfile` operations (which are allowed), or move the test to `tests/integration/` or `tests/e2e/`.
-
-**Test Execution (Serial First, Then Parallel):**
-
-Tests run with serial tests first (sequentially), then remaining tests in parallel:
-
-```bash
-
-# Default: serial first, then parallel
-
-make test-unit            # Unit tests with network isolation
-make test-integration     # Integration tests with reruns
-make test-e2e             # E2E tests (serial first, then parallel)
-make test                 # All tests
-
-# Fast variants (critical path only)
-
-make test-fast            # Unit + critical path integration + e2e
-make test-integration-fast
-make test-e2e-fast
-
-# Sequential (for debugging)
-
-make test-sequential
-make test-unit-sequential
-
 ```
+
+For detailed mocking patterns, see:
+
+- [Unit Testing Guide](UNIT_TESTING_GUIDE.md) - Unit test mocking patterns
+- [Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md) - Integration test guidelines
+- [E2E Testing Guide](E2E_TESTING_GUIDE.md) - E2E testing with real ML
 
 **Network isolation**: All tests use `--disable-socket --allow-hosts=127.0.0.1,localhost`.
 
@@ -631,9 +473,13 @@ make test-unit-sequential
 # Automatic in make targets, or manually:
 
 pytest --reruns 2 --reruns-delay 1
-
 ```
-- Significant functionality additions
+
+## When to Create PRD (Product Requirements Document)
+
+Create a PRD for:
+
+- New user-facing features
 - Changes that affect user workflows
 
 **Template:** `docs/prd/PRD-XXX-feature-name.md`
@@ -731,12 +577,11 @@ nav:
 
   - RFCs:
       - RFC-023 README Acceptance Tests: rfc/RFC-023-readme-acceptance-tests.md
-
-```text
+```
 
 ## CI/CD Integration
 
-> **See also:** [`CI_CD.md`](CI_CD.md) for complete CI/CD pipeline documentation with visualizations.
+> **See also:** [`CI_CD.md`](../CI_CD.md) for complete CI/CD pipeline documentation with visualizations.
 
 ### What Runs in CI
 
@@ -840,7 +685,7 @@ make install-hooks
 
 # Now linting failures are caught before commit!
 
-```yaml
+```
 
 ## Modularity
 
@@ -853,7 +698,6 @@ make install-hooks
 **All runtime options flow through the `Config` model:**
 
 ```python
-
 from podcast_scraper import Config
 
 # Good - centralized configuration
@@ -870,8 +714,10 @@ run_pipeline(cfg)
 fetch_rss(url, timeout=30)
 download_transcripts(episodes, workers=8)
 transcribe_missing(jobs, model="base")
+```
 
-```text
+**Adding new configuration options:**
+
 1. Add to `Config` model in `config.py`
 2. Add CLI argument in `cli.py`
 3. Document in README options section
@@ -910,10 +756,11 @@ try:
     WHISPER_AVAILABLE = True
 ```
 
+except ImportError:
     WHISPER_AVAILABLE = False
     logger.warning("Whisper not available, transcription disabled")
 
-```text
+```python
 
 ## Log Level Guidelines
 
@@ -962,48 +809,23 @@ logger.info("Processing summarization for %d episodes in parallel", len(episodes
 # Good - DEBUG for detailed technical info
 
 logger.debug("Pre-loading %d model instances for thread safety", max_workers)
-logger.debug("Successfully pre-loaded %d model instances", len(worker_models))
 
 # Good - INFO for important results
 
 logger.info("Summary generated in %.1fs (length: %d chars)", elapsed, len(summary))
-logger.info("saved transcript: %s (transcribed in %.1fs)", rel_path, elapsed)
 
-# Bad - INFO for technical details
+# Bad - INFO for technical details (should be DEBUG)
 
-logger.info("Loading summarization model: %s on %s", model_name, device)  # Should be DEBUG
-logger.info("Model loaded successfully (cached for future runs)")  # Should be DEBUG
-logger.info("[MAP-REDUCE VALIDATION] Input text: %d chars, %d words", ...)  # Should be DEBUG
+logger.info("Loading summarization model: %s on %s", model_name, device)
+```
 
-# Good - DEBUG for technical details
+**Module-Specific Guidelines:**
 
-logger.debug("Loading summarization model: %s on %s", model_name, device)
-logger.debug("Model loaded successfully (cached for future runs)")
-logger.debug("[MAP-REDUCE VALIDATION] Input text: %d chars, %d words", ...)
-
-```yaml
-- INFO: Episode titles, episode counts, major stages, progress milestones
-- DEBUG: Model loading/unloading, host detection details, cleanup operations
-
-**Summarization (`summarizer.py`, `metadata.py`):**
-
-- INFO: Summary generation start/completion, important results
-- DEBUG: Model selection, loading details, chunking stats, validation metrics, config details
-
-**Whisper (`whisper_integration.py`):**
-
-- INFO: Transcription start ("transcribing with Whisper")
-- DEBUG: Model loading, fallback attempts, device details
-
-**Episode Processing (`episode_processor.py`):**
-
-- INFO: File save operations ("saved transcript", "saved")
-- DEBUG: Download details, file reuse, speaker names
-
-**Speaker Detection (`speaker_detection.py`):**
-
-- INFO: Detection results ("→ Guest: %s")
-- DEBUG: Model download attempts, detection failures
+- **Workflow:** INFO for episode counts, major stages; DEBUG for cleanup
+- **Summarization:** INFO for generation start/completion; DEBUG for model loading
+- **Whisper:** INFO for "transcribing with Whisper"; DEBUG for model loading
+- **Episode Processing:** INFO for file saves; DEBUG for download details
+- **Speaker Detection:** INFO for results; DEBUG for model download
 
 ## Rationale
 
@@ -1021,7 +843,6 @@ When in doubt, prefer DEBUG over INFO - it's easier to promote a log level than 
 **Use the `progress.py` abstraction:**
 
 ```python
-
 from podcast_scraper import progress
 
 # Good - uses progress abstraction
@@ -1039,8 +860,13 @@ with progress.make_progress(
 from tqdm import tqdm
 for episode in tqdm(episodes):
     process_episode(episode)
+```
 
-```text
+## Lazy Loading Pattern
+
+**For optional dependencies:**
+
+```python
 
 # At module level
 
@@ -1059,8 +885,9 @@ def load_whisper():
                 "Install with: pip install openai-whisper"
             )
     return _whisper
+```
 
-```yaml
+## Module Responsibilities
 
 - **`cli.py`**: CLI only, no business logic
 - **`service.py`**: Service API, structured results for daemon use
@@ -1095,49 +922,25 @@ def load_whisper():
 
 ### Provider Implementation Patterns
 
-The project uses a **protocol-based provider system** for transcription, speaker detection, and summarization. When implementing new providers:
+The project uses a **protocol-based provider system** for transcription, speaker detection,
+and summarization. When implementing new providers:
 
-1. **Understand the Protocol**: Read the protocol definition in `{capability}/base.py` (e.g., `TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`)
-
-2. **Implement Provider Class**: Create `{capability}/{provider}_provider.py` with:
-   - `__init__(cfg: config.Config)` - Configuration validation
-   - `initialize()` - Resource setup (idempotent)
-   - Protocol method(s) - Main functionality (e.g., `transcribe()`, `summarize()`)
-   - `cleanup()` - Resource cleanup (idempotent)
-
-3. **Register in Factory**: Update `{capability}/factory.py` to include new provider
-
-4. **Add Configuration**: Update `config.py` to support provider selection
-
-5. **Add CLI Support**: Update `cli.py` with provider arguments (if needed)
-
-6. **Add E2E Server Mocking**: For API providers, add mock endpoints to `tests/e2e/fixtures/e2e_http_server.py`
-
-7. **Write Tests**: Create unit, integration, and E2E tests
-
-**Example**: See OpenAI providers (`transcription/openai_provider.py`, `speaker_detectors/openai_detector.py`, `summarization/openai_provider.py`) for complete reference implementations.
+1. **Understand the Protocol**: Read the protocol definition in `{capability}/base.py`
+1. **Implement Provider Class**: Create `{capability}/{provider}_provider.py`
+1. **Register in Factory**: Update `{capability}/factory.py` to include new provider
+1. **Add Configuration**: Update `config.py` to support provider selection
+1. **Add CLI Support**: Update `cli.py` with provider arguments (if needed)
+1. **Add E2E Server Mocking**: For API providers, add mock endpoints
+1. **Write Tests**: Create unit, integration, and E2E tests
 
 **For complete implementation guide**, see [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md).
 
-### E2E Server Mocking for API Providers
-
-When implementing API-based providers (e.g., OpenAI), add mock endpoints to the E2E server so tests can run without real API calls:
-
-1. **Add Route Handler**: Implement `_handle_{endpoint}()` method in `E2EHTTPRequestHandler`
-2. **Add Route**: Register route in `do_POST()` or `do_GET()` method
-3. **Add URL Helper**: Add helper method to `E2EServerURLs` class
-4. **Write Tests**: Test mock endpoints directly and in full workflows
-
-**Example**: OpenAI providers use `/v1/chat/completions` and `/v1/audio/transcriptions` endpoints. See `tests/e2e/fixtures/e2e_http_server.py` for implementation.
-
-**For complete E2E server mocking guide**, see [Provider Implementation Guide - E2E Server Mocking](PROVIDER_IMPLEMENTATION_GUIDE.md#step-6-add-e2e-server-mock-endpoints).
-
 ## Third-Party Dependencies
 
-For detailed information about third-party dependencies, including rationale for selection, alternatives considered, and dependency management philosophy, see the [Dependencies Guide](DEPENDENCIES_GUIDE.md).
+For detailed information about third-party dependencies, see the
+[Dependencies Guide](DEPENDENCIES_GUIDE.md).
 
 ## Summarization Implementation
 
-For detailed information about the summarization system, including flow diagrams, process details, model selection, and performance characteristics, see the [Summarization Guide](SUMMARIZATION_GUIDE.md).
-
-````
+For detailed information about the summarization system, see the
+[Summarization Guide](SUMMARIZATION_GUIDE.md).

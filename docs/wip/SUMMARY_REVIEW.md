@@ -185,35 +185,31 @@ def summarize_chunk(chunk, max_length=160, min_length=60):
 def summarize_transcript_bart_map_reduce(text: str) -> str:
 
 ```text
+
     # 1) Chunk
-```
 
-```text
+```
     chunks = chunk_text_words(text, chunk_size=900, overlap=150)
+
 ```
 
-```text
     # 2) Map: summarize each chunk
-```
 
-```text
+```
     partial_summaries = [summarize_chunk(c) for c in chunks]
+
 ```
 
-```text
     # 3) Reduce: summarize the summaries
-```
 
-```text
+```
     joined = "\n\n".join(partial_summaries)
+
 ```
 
-```text
     # Optional: re-chunk joined if it gets too long
-```
 
-    final = summarizer(
-        joined,
+```
         max_length=260,
         min_length=100,
         do_sample=False,

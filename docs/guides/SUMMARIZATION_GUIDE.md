@@ -45,41 +45,42 @@ flowchart TD
     SequentialMap --> ChunkSummaries
 
 ```python
+
     ChunkSummaries --> CombineSummaries[Combine Summaries]
     CombineSummaries --> CheckCombinedSize{Combined<br/>Token Count?}
-```
 
 ```python
+
     CheckCombinedSize -->|≤800 tokens| SinglePass[SINGLE-PASS ABSTRACTIVE<br/>Direct Final Summary]
     CheckCombinedSize -->|800-4000 tokens| MiniMapReduce[HIERARCHICAL REDUCE<br/>Mini Map-Reduce]
     CheckCombinedSize -->|>4000 tokens| Extractive[EXTRACTIVE APPROACH<br/>Select Key Chunks]
-```
 
 ```python
+
     MiniMapReduce --> RechunkSummaries[Re-chunk Combined Summaries<br/>3-5 sections, 650 words each]
     RechunkSummaries --> SummarizeSections[Summarize Each Section]
     SummarizeSections --> CheckIterations{More<br/>Iterations<br/>Needed?}
     CheckIterations -->|Yes, <4 passes| RechunkSummaries
     CheckIterations -->|No| FinalAbstractive[Final Abstractive Reduce]
-```
 
 ```python
+
     Extractive --> SelectKeyChunks[Select Representative Chunks<br/>First, Middle, Last, Quartiles]
     SelectKeyChunks --> FinalExtractivePass{Still Too<br/>Long?}
     FinalExtractivePass -->|Yes| FinalExtractSummarize[Final Summarization Pass]
     FinalExtractivePass -->|No| UseExtractiveOutput[Use Selected Chunks]
     FinalExtractSummarize --> FinalSummary
     UseExtractiveOutput --> FinalSummary
-```
 
 ```python
+
     SinglePass --> ReduceModel[Use REDUCE Model<br/>Default: LED long-fast]
     ReduceModel --> FinalAbstractive
     FinalAbstractive --> FinalSummary[Final Summary Generated]
     DirectSummarize --> FinalSummary
-```
 
 ```python
+
     FinalSummary --> ValidateSummary[Validate Summary<br/>Check for repetition/leaks]
     ValidateSummary --> StripLeaks[Strip Instruction Leaks]
     StripLeaks --> FixRepetitive[Fix Repetitive Content]
@@ -87,9 +88,9 @@ flowchart TD
     CreateMetadata --> StoreInMetadata[Store in Episode Metadata<br/>JSON/YAML]
     StoreInMetadata --> Complete([Summarization Complete])
     Skip --> Complete
+
 ```
 
-    style Start fill:#e1f5ff
     style CleanTranscript fill:#fff3cd
     style MapPhase fill:#ffd4a3
     style MiniMapReduce fill:#d4a3ff
@@ -97,6 +98,7 @@ flowchart TD
     style SinglePass fill:#a3ffd4
     style FinalSummary fill:#d4edda
     style Complete fill:#d4edda
+
 ```yaml
 
 - Removes timestamps (language-agnostic: `[00:12:34]` patterns)
