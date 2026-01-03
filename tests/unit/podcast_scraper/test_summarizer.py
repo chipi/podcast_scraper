@@ -303,13 +303,28 @@ class TestChunking(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        import sys
+        from unittest.mock import MagicMock
+
         self.temp_dir = tempfile.mkdtemp()
+        # Create fake transformers module in sys.modules for patching
+        # Store original to restore in tearDown
+        self._original_transformers = sys.modules.get("transformers")
+        if "transformers" not in sys.modules:
+            sys.modules["transformers"] = MagicMock()
 
     def tearDown(self):
         """Clean up test fixtures."""
         import shutil
+        import sys
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+        # Restore original transformers module or remove our mock
+        if self._original_transformers is None:
+            if "transformers" in sys.modules:
+                del sys.modules["transformers"]
+        else:
+            sys.modules["transformers"] = self._original_transformers
 
     @patch("transformers.AutoTokenizer", create=True)
     @patch("transformers.AutoModelForSeq2SeqLM", create=True)
@@ -576,13 +591,28 @@ class TestSafeSummarize(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        import sys
+        from unittest.mock import MagicMock
+
         self.temp_dir = tempfile.mkdtemp()
+        # Create fake transformers module in sys.modules for patching
+        # Store original to restore in tearDown
+        self._original_transformers = sys.modules.get("transformers")
+        if "transformers" not in sys.modules:
+            sys.modules["transformers"] = MagicMock()
 
     def tearDown(self):
         """Clean up test fixtures."""
         import shutil
+        import sys
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+        # Restore original transformers module or remove our mock
+        if self._original_transformers is None:
+            if "transformers" in sys.modules:
+                del sys.modules["transformers"]
+        else:
+            sys.modules["transformers"] = self._original_transformers
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
@@ -702,13 +732,28 @@ class TestMemoryOptimization(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        import sys
+        from unittest.mock import MagicMock
+
         self.temp_dir = tempfile.mkdtemp()
+        # Create fake transformers module in sys.modules for patching
+        # Store original to restore in tearDown
+        self._original_transformers = sys.modules.get("transformers")
+        if "transformers" not in sys.modules:
+            sys.modules["transformers"] = MagicMock()
 
     def tearDown(self):
         """Clean up test fixtures."""
         import shutil
+        import sys
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+        # Restore original transformers module or remove our mock
+        if self._original_transformers is None:
+            if "transformers" in sys.modules:
+                del sys.modules["transformers"]
+        else:
+            sys.modules["transformers"] = self._original_transformers
 
     @patch("podcast_scraper.summarizer.torch", create=True)
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
