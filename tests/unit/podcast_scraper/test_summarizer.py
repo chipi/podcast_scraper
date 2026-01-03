@@ -311,9 +311,9 @@ class TestChunking(unittest.TestCase):
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.AutoTokenizer", create=True)
+    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
+    @patch("transformers.pipeline", create=True)
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_chunk_text_for_summarization(
         self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class
@@ -348,9 +348,9 @@ class TestChunking(unittest.TestCase):
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.AutoTokenizer", create=True)
+    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
+    @patch("transformers.pipeline", create=True)
     def test_summarize_long_text(
         self,
         mock_pipeline,
@@ -421,9 +421,9 @@ class TestChunking(unittest.TestCase):
         # directly to model.pipeline. The warning log confirms the pipeline
         # was called, so we verify the result instead
 
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.AutoTokenizer", create=True)
+    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
+    @patch("transformers.pipeline", create=True)
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_summarize_long_text_with_led_model(
         self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class
@@ -477,9 +477,9 @@ class TestChunking(unittest.TestCase):
         self.assertEqual(result, "Direct summary without chunking.")
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.AutoTokenizer", create=True)
+    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
+    @patch("transformers.pipeline", create=True)
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_summarize_long_text_with_word_chunking(
         self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class, mock_load_model
@@ -586,9 +586,9 @@ class TestSafeSummarize(unittest.TestCase):
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.AutoTokenizer", create=True)
+    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
+    @patch("transformers.pipeline", create=True)
     def test_safe_summarize_success(
         self,
         mock_pipeline,
@@ -636,9 +636,9 @@ class TestSafeSummarize(unittest.TestCase):
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.AutoTokenizer", create=True)
+    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
+    @patch("transformers.pipeline", create=True)
     def test_safe_summarize_oom_error(
         self,
         mock_pipeline,
@@ -713,9 +713,9 @@ class TestMemoryOptimization(unittest.TestCase):
     @patch("podcast_scraper.summarizer.torch", create=True)
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.AutoTokenizer", create=True)
+    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
+    @patch("transformers.pipeline", create=True)
     def test_optimize_model_memory_cuda(
         self,
         mock_pipeline,
@@ -777,9 +777,9 @@ class TestMemoryOptimization(unittest.TestCase):
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.AutoTokenizer", create=True)
+    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
+    @patch("transformers.pipeline", create=True)
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_optimize_model_memory_mps(
         self,
@@ -836,9 +836,9 @@ class TestMemoryOptimization(unittest.TestCase):
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.AutoTokenizer", create=True)
+    @patch("transformers.AutoModelForSeq2SeqLM", create=True)
+    @patch("transformers.pipeline", create=True)
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_unload_model(
         self,

@@ -8,7 +8,7 @@ import os
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -151,9 +151,12 @@ class TestGetTransformersCacheDir(unittest.TestCase):
             # Mock project root
             with patch.object(cache_utils, "get_project_root") as mock_root:
                 mock_root.return_value = Path(temp_dir)
-                # Mock transformers.file_utils.default_cache_path
-                with patch("transformers.file_utils") as mock_file_utils:
-                    mock_file_utils.default_cache_path = str(Path(temp_dir) / "transformers_cache")
+                # Create fake transformers module in sys.modules
+                mock_transformers = MagicMock()
+                mock_file_utils = MagicMock()
+                mock_file_utils.default_cache_path = str(Path(temp_dir) / "transformers_cache")
+                mock_transformers.file_utils = mock_file_utils
+                with patch.dict(sys.modules, {"transformers": mock_transformers}):
                     cache_dir = cache_utils.get_transformers_cache_dir()
                     expected = Path(mock_file_utils.default_cache_path)
                     self.assertEqual(cache_dir, expected)
