@@ -27,6 +27,12 @@ Whisper transcription when episodes lack published transcripts.
 
 ---
 
+## 📊 Metrics Dashboard
+
+- **[Metrics Dashboard](metrics/)** — Test coverage, performance trends, code quality, and nightly results
+
+---
+
 ## 🚀 Quick Start
 
 ### Installation

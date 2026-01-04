@@ -1,5 +1,8 @@
 # PRD-007: AI Experiment Pipeline
 
+- **Status**: 📋 Draft
+- **Related RFCs**: RFC-015, RFC-016
+
 ## Summary
 
 Add a configuration-driven AI experiment pipeline capability that enables rapid iteration on model selection, prompt engineering, and parameter tuning without requiring code changes. **Think of it exactly like your unit/integration test pipeline – just for models instead of code.** This capability separates generation (model inference) from evaluation (metrics computation), enabling efficient experimentation, comparison, and integration with CI/CD workflows.

@@ -142,7 +142,7 @@ jobs:
         mkdir -p reports
         # Run tests with coverage and capture output and exit code
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/unit/ -v --tb=short -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-report=xml:reports/coverage.xml --cov-report=term-missing 2>&1)
+        OUTPUT=$(pytest tests/unit/ -v --tb=short -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-unit.json --cov=podcast_scraper --cov-report=xml:reports/coverage.xml --cov-report=term-missing 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -204,6 +204,14 @@ jobs:
       with:
         name: coverage-unit
         path: reports/coverage.xml
+        retention-days: 7
+        if-no-files-found: ignore
+    - name: Upload pytest JSON report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: pytest-unit
+        path: reports/pytest-unit.json
         retention-days: 7
         if-no-files-found: ignore
     - name: Verify network isolation
@@ -305,7 +313,7 @@ jobs:
         mkdir -p reports
         # Run all integration tests with coverage and network guard
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/integration/ -v -m integration -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(pytest tests/integration/ -v -m integration -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-integration.json --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -332,6 +340,14 @@ jobs:
       with:
         name: coverage-integration
         path: reports/coverage-integration.xml
+        retention-days: 7
+        if-no-files-found: ignore
+    - name: Upload pytest JSON report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: pytest-integration
+        path: reports/pytest-integration.json
         retention-days: 7
         if-no-files-found: ignore
     - name: Post-build cleanup
@@ -568,10 +584,10 @@ jobs:
         # Serial tests first, then parallel tests (matches Makefile pattern)
         set +e  # Don't exit on non-zero return code yet
         # Run serial tests first with coverage
-        OUTPUT_SERIAL=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and serial" --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1 || true)
+        OUTPUT_SERIAL=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and serial" --json-report --json-report-file=reports/pytest-e2e-serial.json --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1 || true)
         echo "$OUTPUT_SERIAL"
         # Run parallel tests with coverage (append to same file)
-        OUTPUT=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and not serial" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and not serial" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-e2e.json --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -598,6 +614,16 @@ jobs:
       with:
         name: coverage-e2e
         path: reports/coverage-e2e.xml
+        retention-days: 7
+        if-no-files-found: ignore
+    - name: Upload pytest JSON reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: pytest-e2e
+        path: |
+          reports/pytest-e2e.json
+          reports/pytest-e2e-serial.json
         retention-days: 7
         if-no-files-found: ignore
     - name: Post-build cleanup
@@ -650,6 +676,55 @@ jobs:
         pattern: coverage-*
         merge-multiple: false
         path: coverage-artifacts
+    - name: Download pytest JSON artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: pytest-*
+        merge-multiple: false
+        path: pytest-artifacts
+      continue-on-error: true  # Some artifacts may not exist
+    - name: Combine pytest JSON reports
+      run: |
+        mkdir -p reports
+        # Merge all pytest JSON reports into a single combined report
+        python3 << 'EOF'
+        import json
+        import os
+        from pathlib import Path
+
+        combined = {
+            "summary": {"total": 0, "passed": 0, "failed": 0, "skipped": 0},
+            "duration": 0.0,
+            "tests": []
+        }
+
+        artifacts_dir = Path("pytest-artifacts")
+        if artifacts_dir.exists():
+            for json_file in artifacts_dir.rglob("*.json"):
+                try:
+                    with open(json_file) as f:
+                        data = json.load(f)
+                    summary = data.get("summary", {})
+                    combined["summary"]["total"] += summary.get("total", 0)
+                    combined["summary"]["passed"] += summary.get("passed", 0)
+                    combined["summary"]["failed"] += summary.get("failed", 0)
+                    combined["summary"]["skipped"] += summary.get("skipped", 0)
+                    combined["duration"] += data.get("duration", 0)
+                    combined["tests"].extend(data.get("tests", []))
+                    print(f"✅ Merged {json_file}: {summary.get('total', 0)} tests")
+                except Exception as e:
+                    print(f"⚠️ Failed to parse {json_file}: {e}")
+
+        # Calculate pass rate
+        total = combined["summary"]["total"]
+        passed = combined["summary"]["passed"]
+        combined["summary"]["pass_rate"] = passed / total if total > 0 else 0.0
+
+        with open("reports/pytest.json", "w") as f:
+            json.dump(combined, f, indent=2)
+
+        print(f"📊 Combined: {total} tests, {passed} passed, {combined['summary']['failed']} failed")
+        EOF
     - name: Combine coverage reports
       run: |
         mkdir -p reports
@@ -730,9 +805,12 @@ jobs:
           python3 -c "import xml.etree.ElementTree as ET; root = ET.Element('testsuites'); root.set('tests', '0'); root.set('failures', '0'); root.set('time', '0'); tree = ET.ElementTree(root); tree.write('reports/junit.xml', encoding='utf-8', xml_declaration=True)"
         fi
 
-        # Create minimal pytest JSON if not available
+        # Create minimal pytest JSON if merge didn't produce one
         if [ ! -f reports/pytest.json ]; then
+          echo "⚠️ No pytest JSON found, creating minimal fallback"
           echo '{"summary": {"total": 0, "passed": 0, "failed": 0, "skipped": 0}, "duration": 0, "tests": []}' > reports/pytest.json
+        else
+          echo "✅ Using merged pytest.json with $(jq '.summary.total' reports/pytest.json) tests"
         fi
 
         # Generate metrics JSON (includes complexity and pipeline metrics)
@@ -785,27 +863,18 @@ jobs:
         name: codecov-unified
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
-    - name: Publish metrics to GitHub Pages
+    - name: Upload metrics as artifact
       if: always() && github.ref == 'refs/heads/main'
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
+        name: metrics
         path: metrics/
-  # Deploy metrics to GitHub Pages (runs after coverage-unified completes)
-  deploy-metrics:
-    if: always() && github.ref == 'refs/heads/main'
-    needs: [coverage-unified]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy metrics to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        retention-days: 30
+
+  # NOTE: Metrics are no longer deployed separately to GitHub Pages.
+  # The docs.yml workflow deploys the main documentation site.
+  # Metrics are available as workflow artifacts for download.
+  # TODO: Integrate metrics into docs site at /metrics/ subdirectory
 
   # Build package
   build:

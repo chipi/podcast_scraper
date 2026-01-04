@@ -19,6 +19,7 @@ nav:
       - PRD-005 Episode Summarization: prd/PRD-005-episode-summarization.md
       - PRD-006 OpenAI Provider Integration: prd/PRD-006-openai-provider-integration.md
       - PRD-007 AI Experiment Pipeline: prd/PRD-007-ai-experiment-pipeline.md
+      - PRD-008 Speaker Name Detection: prd/PRD-008-speaker-name-detection.md
   - RFCs:
       - RFC Overview: rfc/index.md
       - RFC-001 Workflow Orchestration: rfc/RFC-001-workflow-orchestration.md

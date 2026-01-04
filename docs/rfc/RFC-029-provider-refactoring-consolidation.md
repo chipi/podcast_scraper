@@ -3,6 +3,7 @@
 - **Status**: ✅ Completed
 - **Authors**: Maintainers
 - **Stakeholders**: Developers working on provider system, test maintainers
+- **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
 - **Related RFCs**:
   - `docs/rfc/RFC-013-openai-provider-implementation.md` - Original OpenAI provider design
   - `docs/rfc/RFC-016-modularization-for-ai-experiments.md` - Provider system architecture

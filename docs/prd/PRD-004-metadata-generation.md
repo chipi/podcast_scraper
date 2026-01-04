@@ -1,5 +1,8 @@
 # PRD-004: Per-Episode Metadata Document Generation
 
+- **Status**: ✅ Implemented (v2.2.0)
+- **Related RFCs**: RFC-011, RFC-012
+
 ## Summary
 
 Generate comprehensive metadata documents for each episode alongside transcripts, capturing feed-level and episode-level information for search, analytics, integration, and archival use cases.

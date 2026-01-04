@@ -46,6 +46,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read  # Required to download artifacts from other workflows
 
 concurrency:
   group: "pages"
@@ -75,6 +76,93 @@ jobs:
         run: |
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           mkdocs build --strict
+
+      - name: Download latest metrics from CI workflow
+        if: github.event_name == 'push'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: python-app.yml
+          name: metrics
+          path: .build/site/metrics
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Download latest metrics from nightly workflow
+        if: github.event_name == 'push'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: nightly.yml
+          name: nightly-metrics
+          path: .build/site/metrics/nightly
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Create metrics landing page if metrics exist
+        if: github.event_name == 'push'
+        run: |
+          mkdir -p .build/site/metrics
+
+          # Check if CI metrics were downloaded
+          if [ -f ".build/site/metrics/index.html" ]; then
+            echo "✅ CI metrics dashboard available at /metrics/"
+          else
+            echo "⚠️ No CI metrics found, creating placeholder"
+            cat > .build/site/metrics/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Metrics Dashboard</title>
+            <style>
+              body { font-family: system-ui, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+              h1 { color: #333; }
+              p { color: #666; line-height: 1.6; }
+              a { color: #0066cc; }
+              .links { margin-top: 20px; }
+              .links a { display: block; margin: 10px 0; }
+            </style>
+          </head>
+          <body>
+            <h1>📊 Metrics Dashboard</h1>
+            <p>No CI metrics data available yet.</p>
+            <p>Metrics are generated after CI runs on the main branch.</p>
+            <div class="links">
+              <a href="nightly/">📅 Nightly Metrics</a>
+              <a href="/">← Back to Documentation</a>
+            </div>
+          </body>
+          </html>
+          EOF
+          fi
+
+          # Check if nightly metrics were downloaded
+          if [ -d ".build/site/metrics/nightly" ] && [ -f ".build/site/metrics/nightly/index.html" ]; then
+            echo "✅ Nightly metrics available at /metrics/nightly/"
+          else
+            echo "⚠️ No nightly metrics found, creating placeholder"
+            mkdir -p .build/site/metrics/nightly
+            cat > .build/site/metrics/nightly/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Nightly Metrics</title>
+            <style>
+              body { font-family: system-ui, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+              h1 { color: #333; }
+              p { color: #666; }
+              a { color: #0066cc; }
+            </style>
+          </head>
+          <body>
+            <h1>📅 Nightly Metrics</h1>
+            <p>No nightly metrics data available yet.</p>
+            <p>Nightly metrics are generated from scheduled nightly test runs.</p>
+            <p><a href="../">← Back to Metrics</a> | <a href="/">← Back to Documentation</a></p>
+          </body>
+          </html>
+          EOF
+          fi
 
       - name: Upload artifact
         if: github.event_name == 'push'

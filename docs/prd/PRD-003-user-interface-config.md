@@ -1,5 +1,8 @@
 # PRD-003: User Interfaces & Configuration
 
+- **Status**: ✅ Implemented (v2.0.0)
+- **Related RFCs**: RFC-007, RFC-008, RFC-009
+
 ## Summary
 
 Define how operators interact with the podcast scraper via CLI flags and configuration files. Ensure a consistent experience across modes while exposing progress feedback and logging controls.

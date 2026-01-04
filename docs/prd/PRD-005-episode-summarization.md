@@ -1,5 +1,8 @@
 # PRD-005: Episode Summarization
 
+- **Status**: ✅ Implemented (v2.3.0)
+- **Related RFCs**: RFC-012
+
 ## Summary
 
 Generate concise summaries and key takeaways from episode transcripts using local transformer models or optional API-based LLM services. Summaries are stored in episode metadata documents (per PRD-004/RFC-011) to enable quick value discovery without listening to full episodes.

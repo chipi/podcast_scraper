@@ -573,6 +573,11 @@ def generate_dashboard(
             </div>
         </header>
 
+        <div class="alerts-section">
+            <h2>⚠️ Alerts</h2>
+            {alerts_html}
+        </div>
+
         <div class="metrics-grid">
             <div class="metric-card">
                 <div class="metric-label">Total Tests</div>
@@ -659,11 +664,6 @@ def generate_dashboard(
                 <div class="metric-value">{runtime.get("tests_per_second", 0):.1f}</div>
             </div>
             {pipeline_metrics_html}
-        </div>
-
-        <div class="alerts-section">
-            <h2>⚠️ Alerts</h2>
-            {alerts_html}
         </div>
 
         <div class="chart-section">

@@ -53,14 +53,15 @@ def create_nightly_config(output_dir: str, rss_url: str):
     )
 
 
-# Podcast mapping: podcast name -> RSS feed URL
-PODCAST_URLS = {
-    "podcast1": "http://127.0.0.1:8000/podcast1/feed.xml",  # p01 - Mountain Biking
-    "podcast2": "http://127.0.0.1:8000/podcast2/feed.xml",  # p02 - Software Engineering
-    "podcast3": "http://127.0.0.1:8000/podcast3/feed.xml",  # p03 - Scuba Diving
-    "podcast4": "http://127.0.0.1:8000/podcast4/feed.xml",  # p04 - Photography
-    "podcast5": "http://127.0.0.1:8000/podcast5/feed.xml",  # p05 - Investing
-}
+# Podcast names for nightly tests (p01-p05)
+# URLs are generated dynamically using e2e_server.urls.feed()
+PODCAST_NAMES = [
+    "podcast1",  # p01 - Mountain Biking
+    "podcast2",  # p02 - Software Engineering
+    "podcast3",  # p03 - Scuba Diving
+    "podcast4",  # p04 - Photography
+    "podcast5",  # p05 - Investing
+]
 
 
 @pytest.mark.nightly
@@ -85,8 +86,9 @@ class TestNightlyFullSuite:
             e2e_server: E2E HTTP server fixture
             tmpdir: Temporary directory for output
         """
-        # Create config with podcast-specific RSS URL
-        cfg = create_nightly_config(str(tmpdir), PODCAST_URLS[podcast_name])
+        # Create config with podcast-specific RSS URL (dynamic port from e2e_server)
+        rss_url = e2e_server.urls.feed(podcast_name)
+        cfg = create_nightly_config(str(tmpdir), rss_url)
 
         # Run pipeline
         from podcast_scraper import workflow
@@ -129,7 +131,9 @@ class TestNightlyFullSuite:
         """
         results = {}
 
-        for podcast_name, rss_url in PODCAST_URLS.items():
+        for podcast_name in PODCAST_NAMES:
+            # Get RSS URL from e2e_server (dynamic port)
+            rss_url = e2e_server.urls.feed(podcast_name)
             # Create config for this podcast
             podcast_output_dir = str(Path(tmpdir) / podcast_name)
             cfg = create_nightly_config(podcast_output_dir, rss_url)
@@ -161,7 +165,7 @@ class TestNightlyFullSuite:
         ), f"Some podcasts failed: {failed_podcasts}. Results: {results}"
 
         # Verify all podcasts created files
-        for podcast_name in PODCAST_URLS.keys():
+        for podcast_name in PODCAST_NAMES:
             podcast_dir = Path(tmpdir) / podcast_name
             transcripts_dir = podcast_dir / "transcripts"
             transcript_files = (
