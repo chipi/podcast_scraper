@@ -281,6 +281,17 @@ def _create_filesystem_blocker(operation: str, request):
     return blocker
 
 
+def _is_unit_test(request) -> bool:
+    """Check if the current test is in the unit/ directory."""
+    if hasattr(request, "node"):
+        test_file = getattr(request.node, "fspath", None) or getattr(request.node, "path", None)
+        if test_file:
+            test_file_str = str(test_file)
+            # Check if the test is in tests/unit/ directory
+            return "/tests/unit/" in test_file_str or "\\tests\\unit\\" in test_file_str
+    return False
+
+
 @pytest.fixture(autouse=True)
 def block_network_and_filesystem_io(request):  # noqa: C901
     """Automatically block network calls and filesystem I/O in unit tests.
@@ -295,6 +306,12 @@ def block_network_and_filesystem_io(request):  # noqa: C901
 
     Only applies to tests in the unit/ directory.
     """
+    # Skip this fixture for non-unit tests (integration, e2e)
+    # This is important when running all tests together (e.g., nightly builds)
+    if not _is_unit_test(request):
+        yield
+        return
+
     # Create blockers for common network libraries
     network_patches = []
     filesystem_patches = []
