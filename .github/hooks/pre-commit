@@ -191,7 +191,8 @@ if [ -n "$STAGED_PYPROJECT" ] || [ -n "$STAGED_TEST_FILES" ]; then
     echo "→ Validating test infrastructure..."
     # Check that integration marker works
     # Note: grep -c outputs "0" on no matches but returns exit code 1, so we use || true to suppress the exit code
-    INTEGRATION_COUNT=$(python3 -m pytest tests/integration/ -m integration --collect-only -q 2>&1 | grep -c "^tests/" || true)
+    # Disable xdist and rerunfailures plugins during collection (they try to bind sockets which may fail in sandboxed environments)
+    INTEGRATION_COUNT=$(python3 -m pytest tests/integration/ -m integration --collect-only -q -p no:rerunfailures -p no:xdist 2>&1 | grep -c "^tests/" || true)
     # Strip any newlines and ensure we have a valid number (default to 0 if empty)
     INTEGRATION_COUNT=${INTEGRATION_COUNT//$'\n'/}
     INTEGRATION_COUNT=${INTEGRATION_COUNT:-0}
@@ -205,7 +206,8 @@ if [ -n "$STAGED_PYPROJECT" ] || [ -n "$STAGED_TEST_FILES" ]; then
 
     # Check that E2E marker works
     # Note: grep -c outputs "0" on no matches but returns exit code 1, so we use || true to suppress the exit code
-    E2E_COUNT=$(python3 -m pytest tests/e2e/ -m e2e --collect-only -q 2>&1 | grep -c "^tests/" || true)
+    # Disable xdist and rerunfailures plugins during collection (they try to bind sockets which may fail in sandboxed environments)
+    E2E_COUNT=$(python3 -m pytest tests/e2e/ -m e2e --collect-only -q -p no:rerunfailures -p no:xdist 2>&1 | grep -c "^tests/" || true)
     # Strip any newlines and ensure we have a valid number (default to 0 if empty)
     E2E_COUNT=${E2E_COUNT//$'\n'/}
     E2E_COUNT=${E2E_COUNT:-0}

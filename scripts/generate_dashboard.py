@@ -611,8 +611,10 @@ def generate_dashboard(
             </div>
 
             <div class="metric-card">
-                <div class="metric-label">Coverage</div>
-                <div class="metric-value">{coverage.get("overall", 0):.1f}%</div>
+                <div class="metric-label">Coverage (threshold: {coverage.get("threshold", 75):.0f}%)</div>
+                <div class="metric-value" style="color: {'#27ae60' if coverage.get('meets_threshold', True) else '#e74c3c'};">
+                    {coverage.get("overall", 0):.1f}%
+                </div>
                 {coverage_trend}
             </div>
 

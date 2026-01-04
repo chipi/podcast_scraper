@@ -54,7 +54,7 @@ Modules importing ML dependencies at **module level** will fail unit tests in CI
 
 1. **Use lazy imports**: Import inside functions, not at module level
 
-1. **Verify locally**: Run `make test-unit-no-ml` before pushing
+1. **Verify locally**: Run `make test-unit` before pushing
 
 ## Environment Setup
 

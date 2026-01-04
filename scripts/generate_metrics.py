@@ -77,15 +77,24 @@ def extract_runtime_metrics(pytest_json_path: Path) -> dict:
     }
 
 
-def extract_coverage_metrics(coverage_xml_path: Path) -> dict:
-    """Extract coverage metrics from coverage XML report."""
+def extract_coverage_metrics(coverage_xml_path: Path, threshold: float = 80.0) -> dict:
+    """Extract coverage metrics from coverage XML report.
+
+    Args:
+        coverage_xml_path: Path to coverage.xml file
+        threshold: Coverage threshold percentage (default: 80.0)
+                   This is used for display and alerting purposes.
+                   Note: Threshold is only enforced on COMBINED coverage,
+                   not on individual test type coverage (unit/integration/e2e).
+    """
     if not coverage_xml_path.exists():
-        return {}
+        return {"threshold": threshold}
 
     tree = ET.parse(coverage_xml_path)  # nosec B314
     root = tree.getroot()
 
     overall = float(root.attrib.get("line-rate", 0)) * 100
+    branch_rate = float(root.attrib.get("branch-rate", 0)) * 100
 
     by_module = {}
     for package in root.findall(".//package"):
@@ -95,6 +104,9 @@ def extract_coverage_metrics(coverage_xml_path: Path) -> dict:
 
     return {
         "overall": overall,
+        "branch": branch_rate,
+        "threshold": threshold,
+        "meets_threshold": overall >= threshold,
         "by_module": by_module,
     }
 
@@ -434,6 +446,7 @@ def generate_metrics(
     branch: str = None,
     workflow_run_url: str = None,
     pipeline_metrics_path: Optional[Path] = None,
+    coverage_threshold: float = 80.0,
 ) -> None:
     """Generate metrics JSON from test artifacts.
 
@@ -445,6 +458,7 @@ def generate_metrics(
         branch: Git branch/ref (default: GITHUB_REF env var)
         workflow_run_url: Workflow run URL (default: constructed from env vars)
         pipeline_metrics_path: Optional path to pipeline metrics JSON file
+        coverage_threshold: Coverage threshold for combined coverage (default: 75.0)
     """
 
     pytest_json_path = reports_dir / "pytest.json"
@@ -472,7 +486,7 @@ def generate_metrics(
         "metrics": {
             "runtime": extract_runtime_metrics(pytest_json_path),
             "test_health": extract_test_metrics(pytest_json_path),
-            "coverage": extract_coverage_metrics(coverage_xml_path),
+            "coverage": extract_coverage_metrics(coverage_xml_path, threshold=coverage_threshold),
             "slowest_tests": extract_slowest_tests(junit_xml_path),
             "complexity": extract_complexity_metrics(reports_dir),
         },
@@ -575,6 +589,13 @@ def main():
         type=Path,
         help="Path to pipeline metrics JSON file (optional)",
     )
+    parser.add_argument(
+        "--coverage-threshold",
+        type=float,
+        default=80.0,
+        help="Coverage threshold percentage for combined coverage (default: 80.0). "
+        "Note: This is only enforced on combined coverage, not on individual test types.",
+    )
 
     args = parser.parse_args()
 
@@ -587,6 +608,7 @@ def main():
             branch=args.branch,
             workflow_run_url=args.workflow_run,
             pipeline_metrics_path=args.pipeline_metrics,
+            coverage_threshold=args.coverage_threshold,
         )
     except Exception as e:
         print(f"❌ Error generating metrics: {e}", file=sys.stderr)

@@ -123,7 +123,12 @@ source = ["podcast_scraper"]
 show_missing = true
 skip_covered = true
 precision = 2
-fail_under = 65
+# Note: fail_under is NOT set globally because different test types have different coverage.
+# - Unit tests: ~70-80% (isolated, high coverage)
+# - Integration tests: ~40-60% (component interactions, lower coverage)
+# - E2E tests: ~30-50% (happy paths only)
+# Coverage threshold (75%) is enforced only on COMBINED coverage in CI.
+# See .github/workflows/python-app.yml coverage-unified job.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

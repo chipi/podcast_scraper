@@ -181,17 +181,19 @@ jobs:
           echo "- **Branch Coverage**: $BRANCH_COVERAGE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Extract threshold from pyproject.toml (simple grep approach)
-          THRESHOLD=$(grep -A 5 "\[tool.coverage.report\]" pyproject.toml | grep "fail_under" | awk '{print $3}' || echo "65")
-          echo "- **Threshold**: ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+          # Coverage threshold - for display only on unit tests
+          # Note: Unit tests typically achieve 70-80% coverage
+          # Threshold is only enforced on COMBINED coverage (see coverage-unified job)
+          THRESHOLD=80
+          echo "- **Combined Threshold**: ${THRESHOLD}% *(enforced on combined coverage only)*" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Check if coverage meets threshold
+          # Check if coverage meets threshold (informational for unit tests)
           COVERAGE_NUM=$(echo "$COVERAGE" | sed 's/%//' | cut -d. -f1)
           if [ "$COVERAGE_NUM" != "N/A" ] && [ "$COVERAGE_NUM" -ge "${THRESHOLD}" ]; then
-            echo "✅ Coverage meets threshold!" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Unit coverage meets combined threshold!" >> $GITHUB_STEP_SUMMARY
           elif [ "$COVERAGE_NUM" != "N/A" ]; then
-            echo "⚠️ Coverage below threshold (${THRESHOLD}%)" >> $GITHUB_STEP_SUMMARY
+            echo "ℹ️ Unit coverage below combined threshold (expected - combined includes integration/E2E)" >> $GITHUB_STEP_SUMMARY
           fi
         else
           echo "⚠️ Coverage report not found" >> $GITHUB_STEP_SUMMARY
@@ -706,8 +708,11 @@ jobs:
           echo "- **Branch Coverage**: $BRANCH_COVERAGE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Extract threshold
-          THRESHOLD=$(grep -A 5 "\[tool.coverage.report\]" pyproject.toml | grep "fail_under" | awk '{print $3}' || echo "65")
+          # Coverage threshold for combined coverage (not per-test-type)
+          # Note: Individual test types (unit/integration/e2e) have different expected coverage:
+          # - Unit: ~70-80%, Integration: ~50-60%, E2E: ~50-55%
+          # Only COMBINED coverage is enforced against this threshold
+          THRESHOLD=80
           echo "- **Threshold**: ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -777,11 +782,13 @@ jobs:
         fi
 
         # Generate metrics JSON (includes complexity and pipeline metrics)
+        # Coverage threshold (80%) is for combined coverage only
         python scripts/generate_metrics.py \
           --reports-dir reports \
           --output metrics/latest.json \
           --history metrics/history.jsonl \
-          --pipeline-metrics reports/pipeline_metrics.json || echo "⚠️ Metrics generation failed (non-blocking)"
+          --pipeline-metrics reports/pipeline_metrics.json \
+          --coverage-threshold 80 || echo "⚠️ Metrics generation failed (non-blocking)"
     - name: Update metrics history
       if: always() && github.ref == 'refs/heads/main'
       run: |

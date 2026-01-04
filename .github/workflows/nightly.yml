@@ -239,11 +239,13 @@ jobs:
     - name: Generate metrics JSON
       if: always()
       run: |
+        # Coverage threshold (80%) is for combined coverage only
         python scripts/generate_metrics.py \
           --reports-dir reports \
           --output metrics/latest.json \
           --history metrics/history.jsonl \
-          --pipeline-metrics reports/pipeline_metrics.json
+          --pipeline-metrics reports/pipeline_metrics.json \
+          --coverage-threshold 80
 
     - name: Update metrics history
       if: always()

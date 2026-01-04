@@ -9,7 +9,7 @@ PACKAGE = podcast_scraper
 # Can be overridden: PYTEST_WORKERS=4 make test
 PYTEST_WORKERS ?= $(shell python3 -c "import os; print(min(max(1, (os.cpu_count() or 4) - 2), 8))")
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit complexity deadcode docstrings spelling quality test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns coverage docs build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production
+.PHONY: help init format format-check lint lint-markdown type security security-bandit security-audit complexity deadcode docstrings spelling quality test-unit test-integration test-integration-fast test-ci test-ci-fast test-e2e test-e2e-fast test-e2e-data-quality test-nightly test test-fast test-reruns coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs build ci ci-fast ci-clean ci-nightly clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production
 
 help:
 	@echo "Common developer commands:"
@@ -28,28 +28,33 @@ help:
 	@echo "  make quality         Run all code quality checks (complexity, deadcode, docstrings, spelling)"
 	@echo ""
 	@echo "Test commands:"
-	@echo "  make test-unit            Run unit tests with coverage in parallel (default, matches CI)"
-	@echo "  make test-unit-sequential Run unit tests sequentially (for debugging, slower but clearer output)"
-	@echo "  make test-unit-no-ml Run unit tests without ML dependencies (matches CI)"
-	@echo "  make test-integration            Run all integration tests (full suite, parallel)"
-	@echo "  make test-integration-sequential Run all integration tests sequentially (for debugging)"
-	@echo "  make test-integration-fast       Run fast integration tests (critical path only)"
-	@echo "  make test-e2e                   Run all E2E tests (full suite, parallel, 1 episode per test)"
-	@echo "  make test-e2e-sequential         Run all E2E tests sequentially (for debugging)"
-	@echo "  make test-e2e-fast              Run fast E2E tests (critical path only, 1 episode per test)"
-	@echo "  make test-e2e-data-quality      Run data quality E2E tests (multiple episodes, all original mock data, nightly only)"
-	@echo "  make test-nightly                Run nightly-only tests (p01-p05 full suite, production models)"
-	@echo "  make test                Run all tests (unit + integration + e2e, full suite, uses multi-episode feed)"
-	@echo "  make test-sequential     Run all tests sequentially (for debugging, uses multi-episode feed)"
-	@echo "  make test-fast           Run fast tests (unit + critical path integration + critical path e2e, uses fast feed)"
-	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
+	@echo "  make test-unit                Run unit tests with coverage in parallel (default, matches CI)"
+	@echo "  make test-integration         Run all integration tests (full suite, parallel)"
+	@echo "  make test-integration-fast    Run fast integration tests (critical path only)"
+	@echo "  make test-e2e                 Run all E2E tests (full suite, parallel, 1 episode per test)"
+	@echo "  make test-e2e-fast            Run fast E2E tests (critical path only, 1 episode per test)"
+	@echo "  make test-e2e-data-quality    Run data quality E2E tests (multiple episodes, nightly only)"
+	@echo "  make test-nightly             Run nightly-only tests (p01-p05 full suite, production models)"
+	@echo "  make test                     Run all tests (unit + integration + e2e, uses multi-episode feed)"
+	@echo "  make test-fast                Run fast tests (unit + critical path integration + e2e)"
+	@echo "  make test-reruns              Run tests with reruns for flaky tests (2 retries, 1s delay)"
+	@echo "  Tip: For debugging, use pytest directly with -n 0 for sequential execution"
 	@echo ""
-	@echo "Other commands:"
+	@echo "Coverage commands:"
+	@echo "  make coverage                Run all tests with coverage (same as make test)"
+	@echo "  make coverage-check          Verify all layers meet minimum thresholds"
+	@echo "  make coverage-check-unit     Check unit coverage >= $(COVERAGE_THRESHOLD_UNIT)%"
+	@echo "  make coverage-check-integration  Check integration coverage >= $(COVERAGE_THRESHOLD_INTEGRATION)%"
+	@echo "  make coverage-check-e2e      Check E2E coverage >= $(COVERAGE_THRESHOLD_E2E)%"
+	@echo "  make coverage-check-combined Check combined coverage >= $(COVERAGE_THRESHOLD_COMBINED)%"
+	@echo "  make coverage-enforce        Fast threshold check on existing .coverage (used by ci)"
+	@echo "  make coverage-report         Generate HTML coverage report from existing .coverage"
+	@echo ""
+	@echo "Other commands:
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
 	@echo "  make build           Build source and wheel distributions (outputs to .build/dist/)"
 	@echo "  make ci              Run the full CI suite locally (all tests: unit + integration + e2e, uses multi-episode feed)"
 	@echo "  make ci-fast         Run fast CI checks (unit + critical path integration + critical path e2e, uses fast feed)"
-	@echo "  make ci-sequential   Run the full CI suite sequentially (all tests, slower but clearer output)"
 	@echo "  make ci-clean        Run complete CI suite with clean first (same as ci but cleans build artifacts first)"
 	@echo "  make ci-nightly      Run full nightly CI chain (unit + integration + e2e + nightly, production models)"
 	@echo "  make docker-build       Build Docker image (default, with model preloading)"
@@ -68,10 +73,6 @@ init:
 	$(PYTHON) -m pip install --upgrade pip setuptools
 	$(PYTHON) -m pip install -e .[dev,ml]
 	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install -r docs/requirements.txt; fi
-
-init-no-ml:
-	$(PYTHON) -m pip install --upgrade pip setuptools
-	$(PYTHON) -m pip install -e .[dev]
 
 format:
 	black .
@@ -116,7 +117,7 @@ complexity:
 
 deadcode:
 	@echo "=== Dead Code Detection ==="
-	@vulture src/podcast_scraper/ --min-confidence 80 || true
+	@vulture src/podcast_scraper/ .vulture_whitelist.py --min-confidence 80 || true
 
 docstrings:
 	@echo "=== Docstring Coverage ==="
@@ -139,27 +140,19 @@ quality: complexity deadcode docstrings spelling
 docs:
 	mkdocs build --strict
 
+# Coverage thresholds per layer (minimums to ensure balanced coverage)
+# These are ambitious but achievable targets based on current coverage levels
+# Combined threshold is enforced in CI; per-layer thresholds ensure no layer is neglected
+COVERAGE_THRESHOLD_UNIT := 70          # Current: ~74%
+COVERAGE_THRESHOLD_INTEGRATION := 50   # Current: ~54%
+COVERAGE_THRESHOLD_E2E := 50           # Current: ~53%
+COVERAGE_THRESHOLD_COMBINED := 80      # Current: ~82%
+
 test-unit:
 	# Unit tests: parallel execution for faster feedback
 	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
-
-test-unit-sequential:
-	# Unit tests: sequential execution (slower but clearer output, useful for debugging)
-	# Network isolation enabled to match CI behavior and catch network dependency issues early
-	pytest --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
-
-test-unit-no-ml: init-no-ml
-	@echo "Running unit tests without ML dependencies (matches CI test-unit job)..."
-	@echo "This verifies that unit tests work when ML dependencies (spacy, torch) are not installed."
-	@echo ""
-	@echo "Step 1: Checking if modules can be imported without ML dependencies..."
-	@$(PYTHON) scripts/check_unit_test_imports.py
-	@echo ""
-	@echo "Step 2: Running unit tests..."
-	# Network isolation enabled to match CI behavior and catch network dependency issues early
-	pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration:
 	# Integration tests: parallel execution (3.4x faster, significant benefit)
@@ -168,11 +161,6 @@ test-integration:
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	pytest tests/integration/ -m integration -n $(PYTEST_WORKERS) --reruns 2 --reruns-delay 1 --disable-socket --allow-hosts=127.0.0.1,localhost
-
-test-integration-sequential:
-	# Integration tests: sequential execution (slower but clearer output, useful for debugging)
-	# Network isolation enabled to match CI behavior and catch network dependency issues early
-	pytest tests/integration/ -m integration --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration-fast:
 	# Fast integration tests: critical path tests only (includes ML tests if models are cached)
@@ -205,11 +193,6 @@ test-e2e:
 	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
 	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 || true
 	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and not serial" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
-
-test-e2e-sequential:
-	# E2E tests: sequential execution (slower but clearer output, useful for debugging)
-	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
-	E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-e2e-fast:
 	# Fast E2E tests: serial tests first (sequentially), then parallel execution for the rest
@@ -248,12 +231,6 @@ test:
 	@E2E_TEST_MODE=multi_episode pytest tests/ -m "serial and not nightly" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost || true
 	@E2E_TEST_MODE=multi_episode pytest tests/ -m "not serial and not nightly" --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
 
-test-sequential:
-	# All tests: sequential execution (slower but clearer output, useful for debugging)
-	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
-	# Network isolation enabled to match CI behavior and catch network dependency issues early
-	E2E_TEST_MODE=multi_episode pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
-
 test-fast:
 	# Fast tests: serial tests first (sequentially), then parallel execution for the rest
 	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
@@ -267,18 +244,57 @@ test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
 
-coverage: test-unit
+coverage: test
+	# Runs all tests with coverage (same as 'make test')
+
+coverage-check: coverage-check-unit coverage-check-integration coverage-check-e2e
+	# Verify all layers meet minimum coverage thresholds
+	@echo "✅ All coverage checks passed!"
+
+coverage-check-unit:
+	# Check unit test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_UNIT)%)
+	@echo "Checking unit test coverage (minimum $(COVERAGE_THRESHOLD_UNIT)%)..."
+	@pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_UNIT) -m 'not integration and not e2e' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost -q
+
+coverage-check-integration:
+	# Check integration test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_INTEGRATION)%)
+	@echo "Checking integration test coverage (minimum $(COVERAGE_THRESHOLD_INTEGRATION)%)..."
+	@pytest tests/integration/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_INTEGRATION) -m 'integration' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
+
+coverage-check-e2e:
+	# Check E2E test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_E2E)%)
+	@echo "Checking E2E test coverage (minimum $(COVERAGE_THRESHOLD_E2E)%)..."
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
+
+coverage-check-combined:
+	# Check combined coverage meets threshold ($(COVERAGE_THRESHOLD_COMBINED)%)
+	# This runs all tests and enforces the combined threshold
+	@echo "Checking combined coverage (minimum $(COVERAGE_THRESHOLD_COMBINED)%)..."
+	@E2E_TEST_MODE=multi_episode pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_COMBINED) -m 'not nightly' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+
+coverage-report:
+	# Generate coverage report without running tests (uses existing .coverage file)
+	@coverage report --show-missing
+	@coverage html -d .build/coverage-html
+	@echo "HTML report: .build/coverage-html/index.html"
+
+coverage-enforce:
+	# Enforce combined coverage threshold on existing .coverage file (fast, no re-run)
+	# Use this after 'make test' to verify coverage meets threshold
+	@echo "Checking combined coverage threshold ($(COVERAGE_THRESHOLD_COMBINED)%)..."
+	@coverage report --fail-under=$(COVERAGE_THRESHOLD_COMBINED) > /dev/null && \
+		echo "✅ Coverage meets $(COVERAGE_THRESHOLD_COMBINED)% threshold" || \
+		(echo "❌ Coverage below $(COVERAGE_THRESHOLD_COMBINED)% threshold" && exit 1)
 
 build:
 	$(PYTHON) -m pip install --quiet build
 	$(PYTHON) -m build
 	@if [ -d dist ]; then mkdir -p .build && rm -rf .build/dist && mv dist .build/ && echo "Moved dist to .build/dist/"; fi
 
-ci: format-check lint lint-markdown type security preload-ml-models test docs build
+ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling preload-ml-models test coverage-enforce docs build
 
-ci-fast: format-check lint lint-markdown type security test-fast docs build
-
-ci-sequential: format-check lint lint-markdown type security preload-ml-models test-sequential docs build
+ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling test-fast docs build
+	# Note: ci-fast skips coverage-enforce because fast tests have partial coverage
 
 ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build
 
@@ -347,6 +363,8 @@ clean:
 	rm -rf build .build .mypy_cache .pytest_cache
 	# Coverage files: .coverage.* are created during parallel test execution (pytest -n auto)
 	rm -f .coverage .coverage.*
+	# Coverage reports (XML, HTML)
+	rm -rf reports/ htmlcov/
 
 clean-cache:
 	@echo "Cleaning ML model caches..."

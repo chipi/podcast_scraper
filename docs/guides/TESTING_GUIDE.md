@@ -56,11 +56,20 @@ make test-e2e-fast          # Critical path E2E tests
 
 ### Sequential (For Debugging)
 
+For debugging test failures, run tests sequentially using pytest directly:
+
 ```bash
-make test-sequential
-make test-unit-sequential
-make test-integration-sequential
-make test-e2e-sequential
+# Run all tests sequentially
+pytest tests/ -n 0
+
+# Run unit tests sequentially
+pytest tests/unit/ -n 0
+
+# Run integration tests sequentially
+pytest tests/integration/ -n 0
+
+# Run E2E tests sequentially
+pytest tests/e2e/ -n 0
 ```
 
 ### Specific Tests
@@ -130,8 +139,7 @@ pytest tests/e2e/ -s -n auto
 
 # DO THIS INSTEAD
 pytest tests/e2e/ -v -n auto     # Use -v for verbose output
-pytest tests/e2e/ -s -n 0        # Or disable parallelism
-make test-e2e-sequential         # Or use sequential target
+pytest tests/e2e/ -s -n 0        # Or disable parallelism with -n 0
 ```
 
 See [Issue #176](https://github.com/chipi/podcast_scraper/issues/176) for details.

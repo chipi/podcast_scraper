@@ -203,7 +203,7 @@ make test-integration-fast
 
 # Sequential (for debugging)
 
-make test-integration-sequential
+pytest tests/integration/ -n 0
 
 # Specific test file
 

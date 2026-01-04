@@ -540,13 +540,13 @@ The following prompt templates are available in `.cursor/prompts/`:
 
 **When debugging tests:**
 
-- Use `make test-unit-sequential` for cleaner output
+- Use `pytest tests/unit/ -n 0` for sequential execution (cleaner output)
 - Use `make test-unit` for fast feedback
 - Use `make test-integration` for integration-specific issues
 
 **Example prompt:**
 
-> "Debug this test failure. Use make test-unit-sequential for cleaner output. Consider parallel execution issues."
+> "Debug this test failure. Use `pytest -n 0` for sequential execution if parallel issues suspected."
 
 ### 4. Documentation Updates
 

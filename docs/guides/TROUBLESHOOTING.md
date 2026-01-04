@@ -101,9 +101,6 @@ pip install -e ".[dev,ml]"
 # Reduce parallel workers (default is 8)
 PYTEST_WORKERS=4 make test-integration
 
-# Run without ML tests
-make test-unit-no-ml
-
 # Set smaller batch sizes
 export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 ```
@@ -240,9 +237,6 @@ pytest tests/unit/ -v
 
 # Disable parallelism when using -s
 pytest tests/unit/ -s -n 0
-
-# Use sequential Makefile targets
-make test-unit-sequential
 
 # Use --tb=short for better error output
 pytest tests/unit/ --tb=short

@@ -261,7 +261,7 @@ make test-e2e-fast
 
 # Sequential (for debugging)
 
-make test-e2e-sequential
+pytest tests/e2e/ -n 0
 
 # Specific test file
 

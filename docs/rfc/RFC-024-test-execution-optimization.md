@@ -153,7 +153,7 @@ If a Tier 0 test causes `make test-unit` to exceed 30 seconds:
 **Current Implementation:**
 
 - `make test-unit` (unit tests only, parallel by default - matches CI behavior)
-- `make test-unit-sequential` (sequential - for debugging, cleaner output)
+- For debugging: use `pytest tests/unit/ -n 0` for sequential execution
 - Pre-commit hooks installed via `make install-hooks`
 
 ### Tier 1 – Fast Confidence
@@ -236,10 +236,8 @@ Based on empirical testing:
 test-unit:
   pytest -n auto --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e'
 
-# Unit tests: sequential execution (for debugging, cleaner output)
-
-test-unit-sequential:
-  pytest --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e'
+# For debugging: use pytest directly with -n 0 for sequential execution
+# Example: pytest tests/unit/ -n 0
 
 # Integration tests: parallel (3.4x faster, significant benefit) with re-runs
 
