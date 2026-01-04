@@ -94,9 +94,10 @@ jobs:
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         # Run all tests (unit + integration + e2e) with comprehensive metrics collection
         # Note: E2E tests are limited to 1 episode per test (code quality validation)
+        # Excludes LLM/OpenAI tests to avoid API costs (see issue #183)
         pytest tests/unit/ tests/integration/ tests/e2e/ \
           -v \
-          -m "not nightly" \
+          -m "not nightly and not llm" \
           -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") \
           --durations=20 \
           --junitxml=reports/junit.xml \

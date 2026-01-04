@@ -231,11 +231,12 @@ test-nightly:
 	# Runs all 15 episodes across 5 podcasts (p01-p05)
 	# Sequential execution per podcast, parallel episodes within podcast (2 workers)
 	# NOT marked with @pytest.mark.e2e - separate category from regular E2E tests
+	# Excludes LLM/OpenAI tests to avoid API costs (see issue #183)
 	@echo "Running nightly tests with production models..."
 	@echo "Podcasts: p01-p05 (15 episodes total)"
 	@echo "Models: Whisper base, BART-large-cnn, LED-large-16384"
 	@mkdir -p reports
-	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly" -v -n 2 --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json
+	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n 2 --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json
 
 test:
 	# All tests: serial tests first (sequentially), then parallel execution for the rest
