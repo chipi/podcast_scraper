@@ -140,7 +140,8 @@ quality: complexity deadcode docstrings spelling
 		(echo "⚠️  Editable install failed, using non-editable install" && \
 		 $(PYTHON) -m pip install --quiet .[ml])
 	# Audit all installed packages (including ML dependencies from pyproject.toml)
-	pip-audit --skip-editable
+	# Ignore PYSEC-2022-42969: py package vulnerability (transitive dep of interrogate, deprecated, not exploitable here)
+	pip-audit --skip-editable --ignore-vuln PYSEC-2022-42969
 
 docs:
 	mkdocs build --strict
