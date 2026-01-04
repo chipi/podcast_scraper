@@ -47,6 +47,10 @@ nav:
       - RFC-025 Test Metrics and Health Tracking: rfc/RFC-025-test-metrics-and-health-tracking.md
       - RFC-026 Metrics Consumption and Dashboards: rfc/RFC-026-metrics-consumption-and-dashboards.md
       - RFC-027 Pipeline Metrics Improvements: rfc/RFC-027-pipeline-metrics-improvements.md
+      - RFC-028 ML Model Preloading and Caching: rfc/RFC-028-ml-model-preloading-and-caching.md
+      - RFC-029 Provider Refactoring Consolidation: rfc/RFC-029-provider-refactoring-consolidation.md
+      - RFC-030 Python Test Coverage Improvements: rfc/RFC-030-python-test-coverage-improvements.md
+      - RFC-031 Code Complexity Analysis Tooling: rfc/RFC-031-code-complexity-analysis-tooling.md
   - API:
       - API Overview: api/index.md
       - API Reference: api/REFERENCE.md
