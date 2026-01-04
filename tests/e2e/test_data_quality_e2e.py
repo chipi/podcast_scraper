@@ -69,6 +69,7 @@ class TestDataQualityE2E:
                 generate_summaries=True,  # Enable summarization
                 summary_provider="transformers",  # Use transformers ML provider
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
+                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
             )
@@ -197,6 +198,7 @@ class TestDataQualityE2E:
                     summary_provider="transformers",
                     # Use test default (small, fast)
                     summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+                    summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
                     generate_metadata=True,
                     metadata_format="json",
                 )

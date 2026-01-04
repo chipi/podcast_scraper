@@ -391,31 +391,64 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
 
 def main() -> None:
     """Main entry point for model preloading."""
-    print("Preloading ML models...")
-    print("This will download and cache models to avoid network calls during testing.")
-    print("")
+    import argparse
 
-    # Check skip flags
-    skip_whisper = os.environ.get("SKIP_WHISPER", "").strip().lower() in ("1", "true", "yes")
-    skip_spacy = os.environ.get("SKIP_SPACY", "").strip().lower() in ("1", "true", "yes")
-    skip_transformers = os.environ.get("SKIP_TRANSFORMERS", "").strip().lower() in (
-        "1",
-        "true",
-        "yes",
+    parser = argparse.ArgumentParser(description="Preload ML models for podcast scraper")
+    parser.add_argument(
+        "--production",
+        action="store_true",
+        help="Preload production models (Whisper base, BART-large-cnn, LED-large-16384)",
     )
+    args = parser.parse_args()
 
-    # Preload models (unless skipped)
-    if not skip_whisper:
-        preload_whisper_models()
+    if args.production:
+        print("Preloading PRODUCTION ML models...")
+        print("Models: Whisper base, BART-large-cnn, LED-large-16384, en_core_web_sm")
+        print("This will download and cache production models for nightly tests.")
         print("")
 
-    if not skip_spacy:
-        preload_spacy_models()
+        # Production models
+        whisper_models = ["base"]  # Production Whisper model
+        transformers_models = [
+            "facebook/bart-large-cnn",  # Production MAP model
+            "allenai/led-large-16384",  # Production REDUCE model (from issue #175)
+        ]
+        spacy_models = ["en_core_web_sm"]  # Same for production
+
+        preload_whisper_models(whisper_models)
         print("")
 
-    if not skip_transformers:
-        preload_transformers_models()
+        preload_spacy_models(spacy_models)
         print("")
+
+        preload_transformers_models(transformers_models)
+        print("")
+    else:
+        print("Preloading ML models...")
+        print("This will download and cache models to avoid network calls during testing.")
+        print("")
+
+        # Check skip flags
+        skip_whisper = os.environ.get("SKIP_WHISPER", "").strip().lower() in ("1", "true", "yes")
+        skip_spacy = os.environ.get("SKIP_SPACY", "").strip().lower() in ("1", "true", "yes")
+        skip_transformers = os.environ.get("SKIP_TRANSFORMERS", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+
+        # Preload models (unless skipped)
+        if not skip_whisper:
+            preload_whisper_models()
+            print("")
+
+        if not skip_spacy:
+            preload_spacy_models()
+            print("")
+
+        if not skip_transformers:
+            preload_transformers_models()
+            print("")
 
     print("All models preloaded and verified successfully!")
     print("Models are cached in:")

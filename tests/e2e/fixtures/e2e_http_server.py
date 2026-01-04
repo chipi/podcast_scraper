@@ -245,7 +245,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             with self._allowed_podcasts_lock:
                 allowed = self._allowed_podcasts
             if allowed is not None and podcast_name not in allowed:
-                self.send_error(404, f"RSS feed not available in fast mode: {podcast_name}")
+                self.send_error(404, f"RSS feed not available in current test mode: {podcast_name}")
                 return
 
             # Use fast RSS feed if in fast mode (allowed_podcasts is set)
@@ -1035,8 +1035,38 @@ class E2EHTTPServer:
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
 
-        # Wait a moment for server to start
-        time.sleep(0.1)
+        # Wait for server to be ready with explicit connection check
+        # This prevents race conditions where tests start before server is accepting
+        self._wait_for_server_ready()
+
+    def _wait_for_server_ready(self, timeout: float = 5.0, interval: float = 0.1):
+        """Wait for server to be ready to accept connections.
+
+        Args:
+            timeout: Maximum time to wait in seconds
+            interval: Time between connection attempts in seconds
+
+        Raises:
+            RuntimeError: If server doesn't start within timeout
+        """
+        import socket
+
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                # Try to connect to the server
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(1.0)
+                result = sock.connect_ex(("127.0.0.1", self.port))
+                sock.close()
+                if result == 0:
+                    # Connection successful - server is ready
+                    return
+            except (OSError, socket.error):
+                pass
+            time.sleep(interval)
+
+        raise RuntimeError(f"E2E server failed to start within {timeout} seconds")
 
     def stop(self):
         """Stop the E2E server."""

@@ -400,7 +400,8 @@ The following environment variables may be added in future versions:
   "generate_metadata": true,
   "generate_summaries": true,
   "summary_batch_size": 1,
-  "summary_chunk_parallelism": 1
+  "summary_chunk_parallelism": 1,
+  "preload_models": true
 }
 
 ```text

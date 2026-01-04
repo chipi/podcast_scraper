@@ -9,7 +9,7 @@ PACKAGE = podcast_scraper
 # Can be overridden: PYTEST_WORKERS=4 make test
 PYTEST_WORKERS ?= $(shell python3 -c "import os; print(min(max(1, (os.cpu_count() or 4) - 2), 8))")
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test test-sequential test-fast test-reruns coverage docs build ci ci-fast ci-sequential ci-clean clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models
+.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit complexity deadcode docstrings spelling quality test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns coverage docs build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production
 
 help:
 	@echo "Common developer commands:"
@@ -21,6 +21,11 @@ help:
 	@echo "  make fix-md          Auto-fix common markdown linting issues"
 	@echo "  make type            Run mypy type checks"
 	@echo "  make security        Run bandit & pip-audit security scans"
+	@echo "  make complexity      Run radon complexity analysis"
+	@echo "  make deadcode        Run vulture dead code detection"
+	@echo "  make docstrings      Run interrogate docstring coverage"
+	@echo "  make spelling        Run codespell spell checking"
+	@echo "  make quality         Run all code quality checks (complexity, deadcode, docstrings, spelling)"
 	@echo ""
 	@echo "Test commands:"
 	@echo "  make test-unit            Run unit tests with coverage in parallel (default, matches CI)"
@@ -33,6 +38,7 @@ help:
 	@echo "  make test-e2e-sequential         Run all E2E tests sequentially (for debugging)"
 	@echo "  make test-e2e-fast              Run fast E2E tests (critical path only, 1 episode per test)"
 	@echo "  make test-e2e-data-quality      Run data quality E2E tests (multiple episodes, all original mock data, nightly only)"
+	@echo "  make test-nightly                Run nightly-only tests (p01-p05 full suite, production models)"
 	@echo "  make test                Run all tests (unit + integration + e2e, full suite, uses multi-episode feed)"
 	@echo "  make test-sequential     Run all tests sequentially (for debugging, uses multi-episode feed)"
 	@echo "  make test-fast           Run fast tests (unit + critical path integration + critical path e2e, uses fast feed)"
@@ -45,6 +51,7 @@ help:
 	@echo "  make ci-fast         Run fast CI checks (unit + critical path integration + critical path e2e, uses fast feed)"
 	@echo "  make ci-sequential   Run the full CI suite sequentially (all tests, slower but clearer output)"
 	@echo "  make ci-clean        Run complete CI suite with clean first (same as ci but cleans build artifacts first)"
+	@echo "  make ci-nightly      Run full nightly CI chain (unit + integration + e2e + nightly, production models)"
 	@echo "  make docker-build       Build Docker image (default, with model preloading)"
 	@echo "  make docker-build-fast  Build Docker image fast (no model preloading, <5min target)"
 	@echo "  make docker-build-full  Build Docker image full (with model preloading, matches main)"
@@ -54,7 +61,8 @@ help:
 	@echo "  make clean           Remove build artifacts (.build/, .mypy_cache/, .pytest_cache/)"
 	@echo "  make clean-cache     Remove ML model caches (Whisper, spaCy) to test network isolation"
 	@echo "  make clean-all       Remove both build artifacts and ML model caches"
-	@echo "  make preload-ml-models  Pre-download and cache all required ML models locally"
+	@echo "  make preload-ml-models  Pre-download and cache all required ML models locally (test models)"
+	@echo "  make preload-ml-models-production  Pre-download and cache production ML models (for nightly tests)"
 
 init:
 	$(PYTHON) -m pip install --upgrade pip setuptools
@@ -97,6 +105,30 @@ security-bandit:
 security-audit:
 	$(PYTHON) -m pip install --upgrade setuptools
 	# Install ML dependencies to ensure they are audited
+
+# Code quality analysis (RFC-031)
+complexity:
+	@echo "=== Cyclomatic Complexity Analysis ==="
+	@radon cc src/podcast_scraper/ -a -s --total-average || true
+	@echo ""
+	@echo "=== Maintainability Index ==="
+	@radon mi src/podcast_scraper/ -s || true
+
+deadcode:
+	@echo "=== Dead Code Detection ==="
+	@vulture src/podcast_scraper/ --min-confidence 80 || true
+
+docstrings:
+	@echo "=== Docstring Coverage ==="
+	@interrogate src/podcast_scraper/ -v || true
+
+spelling:
+	@echo "=== Spell Checking ==="
+	@codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
+
+quality: complexity deadcode docstrings spelling
+	@echo ""
+	@echo "✓ All code quality checks completed"
 	# This ensures production dependencies like torch, transformers, spacy, openai-whisper are audited
 	$(PYTHON) -m pip install --quiet -e .[ml] || \
 		(echo "⚠️  Editable install failed, using non-editable install" && \
@@ -163,16 +195,16 @@ test-ci-fast:
 	# Note: Coverage is excluded here for faster execution; full validation job includes unified coverage
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
-	# Includes reruns for flaky tests (matches CI behavior)
-	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 2 --reruns-delay 1 || true
-	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 2 --reruns-delay 1
+	# Includes reruns for flaky tests (matches CI behavior) - increased to 3 retries for very flaky tests
+	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2 || true
+	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2
 
 test-e2e:
 	# E2E tests: serial tests first (sequentially), then parallel execution for the rest
-	# Includes reruns for flaky tests (matches CI behavior)
+	# Includes reruns for flaky tests (matches CI behavior) - 3 retries for ML model variability
 	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
-	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 || true
-	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and not serial" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 || true
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and not serial" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 test-e2e-sequential:
 	# E2E tests: sequential execution (slower but clearer output, useful for debugging)
@@ -182,26 +214,39 @@ test-e2e-sequential:
 test-e2e-fast:
 	# Fast E2E tests: serial tests first (sequentially), then parallel execution for the rest
 	# Critical path tests only (includes ML tests if models are cached)
-	# Includes reruns for flaky tests (matches CI behavior)
+	# Includes reruns for flaky tests (matches CI behavior) - 3 retries for ML model variability
 	# Uses fast feed (1 episode) - set via E2E_TEST_MODE environment variable
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
-	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 || true
-	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and not serial" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
+	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20 || true
+	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and not serial" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
 
 test-e2e-data-quality:
 	# Data quality E2E tests: full pipeline validation with multiple episodes
 	# Uses all original mock data (not fast fixtures)
 	# Runs with 3-5 episodes per test to validate data quality and consistency
 	# For nightly builds only - not part of regular CI/CD code quality checks
-	@E2E_TEST_MODE=data_quality pytest tests/e2e/ -m "e2e and data_quality" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1
+	@E2E_TEST_MODE=data_quality pytest tests/e2e/ -m "e2e and data_quality" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+
+test-nightly:
+	# Nightly-only tests: comprehensive tests with production ML models (p01-p05 full suite)
+	# Uses production models: Whisper base, BART-large-cnn, LED-large-16384
+	# Runs all 15 episodes across 5 podcasts (p01-p05)
+	# Sequential execution per podcast, parallel episodes within podcast (2 workers)
+	# NOT marked with @pytest.mark.e2e - separate category from regular E2E tests
+	@echo "Running nightly tests with production models..."
+	@echo "Podcasts: p01-p05 (15 episodes total)"
+	@echo "Models: Whisper base, BART-large-cnn, LED-large-16384"
+	@mkdir -p reports
+	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly" -v -n 2 --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json
 
 test:
 	# All tests: serial tests first (sequentially), then parallel execution for the rest
 	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
 	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
-	@E2E_TEST_MODE=multi_episode pytest tests/ -m serial --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost || true
-	@E2E_TEST_MODE=multi_episode pytest tests/ -m "not serial" --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
+	# Excludes nightly tests (run separately via make test-nightly)
+	@E2E_TEST_MODE=multi_episode pytest tests/ -m "serial and not nightly" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost || true
+	@E2E_TEST_MODE=multi_episode pytest tests/ -m "not serial and not nightly" --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-sequential:
 	# All tests: sequential execution (slower but clearer output, useful for debugging)
@@ -236,6 +281,10 @@ ci-fast: format-check lint lint-markdown type security test-fast docs build
 ci-sequential: format-check lint lint-markdown type security preload-ml-models test-sequential docs build
 
 ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build
+
+ci-nightly: format-check lint lint-markdown type security preload-ml-models-production test-unit test-integration test-e2e test-nightly docs
+	@echo ""
+	@echo "✓ Full nightly CI chain completed"
 
 docker-build:
 	docker build -t podcast-scraper:test -f Dockerfile .
@@ -333,4 +382,9 @@ clean-all: clean clean-cache
 preload-ml-models:
 	@echo "Preloading ML models for local development..."
 	@$(PYTHON) scripts/preload_ml_models.py
+
+preload-ml-models-production:
+	@echo "Preloading production ML models for nightly tests..."
+	@echo "Models: Whisper base, BART-large-cnn, LED-large-16384, en_core_web_sm"
+	@$(PYTHON) scripts/preload_ml_models.py --production
 

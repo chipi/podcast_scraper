@@ -67,7 +67,7 @@ TEST_DEFAULT_SUMMARY_MODEL = (
     "facebook/bart-base"  # Small, ~500MB, fast (vs production: bart-large-cnn)
 )
 TEST_DEFAULT_SUMMARY_REDUCE_MODEL = (
-    "allenai/led-base-16384"  # Long-context, used in both tests and production
+    "allenai/led-base-16384"  # Test only (fast); production uses led-large-16384
 )
 # Note: TEST_DEFAULT_NER_MODEL uses DEFAULT_NER_MODEL ("en_core_web_sm")
 # - same for tests and production
@@ -157,6 +157,7 @@ class Config(BaseModel):
         clean_output: Remove output directory before processing.
         reuse_media: Reuse existing media files instead of re-downloading.
         dry_run: Preview planned work without saving files.
+        preload_models: Preload ML models at startup if configured to use them (default: True).
         language: Language code for transcription (e.g., "en", "fr", "de").
         ner_model: spaCy NER model name for speaker detection.
         auto_speakers: Enable automatic speaker name detection using NER.
@@ -259,6 +260,11 @@ class Config(BaseModel):
         description="Reuse existing media files instead of re-downloading (for faster testing)",
     )
     dry_run: bool = Field(default=False, alias="dry_run")
+    preload_models: bool = Field(
+        default=True,
+        alias="preload_models",
+        description="Preload ML models at startup if configured to use them (default: True)",
+    )
     language: str = Field(default=DEFAULT_LANGUAGE, alias="language")
     ner_model: Optional[str] = Field(default=None, alias="ner_model")
     auto_speakers: bool = Field(default=True, alias="auto_speakers")
@@ -375,6 +381,14 @@ class Config(BaseModel):
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
     generate_summaries: bool = Field(default=False, alias="generate_summaries")
+    metrics_output: Optional[str] = Field(
+        default=None,
+        alias="metrics_output",
+        description="Path to save pipeline metrics JSON file. "
+        "If not specified, defaults to {effective_output_dir}/metrics.json "
+        "(same level as transcripts/ and metadata/ subdirectories). "
+        "Set to empty string to disable metrics export.",
+    )
     summary_provider: Literal["transformers", "local", "openai"] = Field(
         default="transformers",
         alias="summary_provider",

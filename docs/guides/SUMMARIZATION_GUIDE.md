@@ -74,7 +74,7 @@ flowchart TD
 
 ```python
 
-    SinglePass --> ReduceModel[Use REDUCE Model<br/>Default: LED long-fast]
+    SinglePass --> ReduceModel[Use REDUCE Model<br/>Default: LED-large]
     ReduceModel --> FinalAbstractive
     FinalAbstractive --> FinalSummary[Final Summary Generated]
     DirectSummarize --> FinalSummary
@@ -189,8 +189,8 @@ The REDUCE phase employs a three-tier decision tree based on combined summary si
 
 ### REDUCE Model (Final Combination)
 
-- **Default**: `allenai/led-base-16384` (long-context, ~1GB, handles 16k tokens)
-- **High quality**: `allenai/led-large-16384` (~2.5GB, better accuracy)
+- **Default**: `allenai/led-large-16384` (long-context, ~2.5GB, handles 16k tokens, production quality)
+- **Fast option**: `allenai/led-base-16384` (~1GB, faster but lower quality)
 - **Fallback**: Falls back to MAP model if not specified
 
 ### Device Selection
@@ -207,7 +207,8 @@ The REDUCE phase employs a three-tier decision tree based on combined summary si
 - **Memory Usage**:
   - BART-large: ~2GB GPU memory
   - DistilBART: ~300MB (recommended for memory-constrained systems)
-  - LED-base: ~1GB (reduce phase)
+  - LED-large: ~2.5GB (reduce phase, production default)
+  - LED-base: ~1GB (reduce phase, fast option)
 
 ## Error Handling
 
@@ -223,7 +224,7 @@ Summarization is configured via the `Config` model. Key options include:
 
 - `generate_summaries`: Enable/disable summarization
 - `summary_model`: MAP model selection (default: `facebook/bart-large-cnn`)
-- `summary_reduce_model`: REDUCE model selection (default: `allenai/led-base-16384`)
+- `summary_reduce_model`: REDUCE model selection (default: `allenai/led-large-16384`)
 - `save_cleaned_transcript`: Save cleaned transcripts to `.cleaned.txt` files
 
 See [Configuration Documentation](api/CONFIGURATION.md) for complete configuration options.

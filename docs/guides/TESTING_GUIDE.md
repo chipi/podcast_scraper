@@ -88,7 +88,9 @@ pytest tests/unit/ --cov=podcast_scraper --cov-report=term-missing
 | `@pytest.mark.integration` | Integration tests |
 | `@pytest.mark.e2e` | End-to-end tests |
 | `@pytest.mark.critical_path` | Critical path tests (run in fast suite) |
-| `@pytest.mark.serial` | Must run sequentially |
+| `@pytest.mark.nightly` | Nightly-only tests (excluded from regular CI) |
+| `@pytest.mark.flaky` | May fail intermittently (gets reruns) |
+| `@pytest.mark.serial` | Must run sequentially (rarely needed) |
 | `@pytest.mark.ml_models` | Requires ML dependencies |
 | `@pytest.mark.slow` | Slow-running tests |
 | `@pytest.mark.network` | Hits external network |
@@ -108,18 +110,82 @@ All tests use network isolation:
 
 ## Parallel Execution
 
-Tests run in parallel by default. Serial tests run first:
+Tests run in parallel by default using `pytest-xdist`:
 
-1. Tests marked `@pytest.mark.serial` run sequentially
+1. Tests marked `@pytest.mark.serial` run sequentially first (if any)
 2. Remaining tests run in parallel with `-n auto`
+
+> **Note:** The `@pytest.mark.serial` marker is rarely needed now. Global state cleanup
+> fixtures in `conftest.py` reset shared state between tests, allowing most tests to run
+> in parallel safely. Only use `serial` for tests with genuine resource conflicts.
+
+### ⚠️ Warning: `-s` Flag and Parallel Execution
+
+**Do not use `-s` (no capture) with parallel tests** — it causes hangs due to tqdm
+progress bars competing for terminal access.
+
+```bash
+# DON'T DO THIS (hangs)
+pytest tests/e2e/ -s -n auto
+
+# DO THIS INSTEAD
+pytest tests/e2e/ -v -n auto     # Use -v for verbose output
+pytest tests/e2e/ -s -n 0        # Or disable parallelism
+make test-e2e-sequential         # Or use sequential target
+```
+
+See [Issue #176](https://github.com/chipi/podcast_scraper/issues/176) for details.
 
 ## Flaky Test Reruns
 
 Integration and E2E tests use reruns:
 
 ```bash
-pytest --reruns 2 --reruns-delay 1
-```yaml
+pytest --reruns 3 --reruns-delay 1
+```
+
+## Flaky Test Markers
+
+Some tests are marked with `@pytest.mark.flaky` to indicate they may fail intermittently
+due to inherent non-determinism. These tests get automatic reruns.
+
+### Why Some Tests Are Flaky
+
+| Category | Tests | Root Cause |
+| -------- | ----- | ---------- |
+| **Whisper Transcription** | 4 | ML inference variability - audio transcription has natural variation |
+| **Full Pipeline + Whisper** | 2 | Whisper timing + audio file I/O |
+| **OpenAI Mock Integration** | 2 | Mock response parsing timing |
+| **Full Pipeline + OpenAI** | 7 | Complex multi-component timing |
+
+### Current Flaky Test Count: 15
+
+| File | Count | Category |
+| ---- | ----- | -------- |
+| `test_basic_e2e.py` | 7 | Full pipeline with OpenAI mocks |
+| `test_whisper_e2e.py` | 4 | Whisper inference variability |
+| `test_full_pipeline_e2e.py` | 2 | Whisper transcription |
+| `test_openai_provider_integration_e2e.py` | 2 | OpenAI mock responses |
+
+### Tests That Are NOT Flaky
+
+The following categories are now **stable** and don't need flaky markers:
+
+- **Transformers/spaCy model loading** - Uses offline mode (`HF_HUB_OFFLINE=1`)
+- **ML model tests** - Explicit `summary_reduce_model` prevents cache misses
+- **HTTP integration tests** - Explicit server waits prevent timing issues
+- **Parallel execution** - Global state cleanup prevents race conditions
+
+### Reducing Flakiness
+
+If you encounter a flaky test, check these common causes:
+
+1. **Network access** - Should be blocked via pytest-socket
+2. **Model cache** - Run `make preload-ml-models` first
+3. **Global state** - Ensure cleanup fixtures reset shared state
+4. **Progress bars** - `TQDM_DISABLE=1` is set automatically in tests
+
+See [Issue #177](https://github.com/chipi/podcast_scraper/issues/177) for investigation details.
 
 ## E2E Test Modes
 

@@ -14,6 +14,7 @@ Common issues and solutions for podcast_scraper development and usage.
 | CI fails but local passes | Different Python/dependency versions | `make ci` locally |
 | Memory errors in tests | ML models loading repeatedly | Use `@pytest.mark.serial` |
 | Import errors after pull | Dependencies changed | `pip install -e ".[dev,ml]"` |
+| Tests hang with `-s` flag | tqdm + parallel execution deadlock | Use `-v` instead, or `-n 0` |
 
 ---
 
@@ -207,19 +208,41 @@ grep -r "scope=" tests/conftest.py
 
 ```
 
-### Test Hangs
+### Test Hangs with `-s` Flag
 
-**Symptom:** Tests hang indefinitely, especially with `-s` flag.
+**Symptom:** Tests hang indefinitely when using `-s` (no capture) with parallel execution.
 
-**Root cause:** The `cleanup_ml_resources_after_test` fixture in `tests/conftest.py` uses
-`autouse=True` with `request` and `monkeypatch` parameters. When `-s` is used, pytest's
-fixture resolution can hang during parameter resolution.
+**Root cause:** The `-s` flag disables pytest's output capturing. When combined with
+pytest-xdist parallel execution (`-n auto`), this causes deadlocks because:
+
+1. Multiple worker processes write to stdout/stderr simultaneously
+2. No buffering means writes can interleave and block
+3. **tqdm progress bars** (used by Whisper) compete for terminal control
+4. Terminal locking causes processes to wait indefinitely
+
+**Files using tqdm:**
+
+| File | Usage |
+| ---- | ----- |
+| `src/podcast_scraper/whisper_integration.py` | `InterceptedTqdm` class |
+| `src/podcast_scraper/transcription/whisper_provider.py` | `InterceptedTqdm` class |
+| `src/podcast_scraper/ml/ml_provider.py` | `InterceptedTqdm` class |
+| `src/podcast_scraper/cli.py` | `_TqdmProgress` class |
+
+**Structural Fix:** Tests set `TQDM_DISABLE=1` environment variable in `tests/conftest.py`
+to disable all tqdm progress bars during test execution.
 
 **Workarounds:**
 
 ```bash
 # Use -v instead of -s (provides verbose output without hang)
 pytest tests/unit/ -v
+
+# Disable parallelism when using -s
+pytest tests/unit/ -s -n 0
+
+# Use sequential Makefile targets
+make test-unit-sequential
 
 # Use --tb=short for better error output
 pytest tests/unit/ --tb=short

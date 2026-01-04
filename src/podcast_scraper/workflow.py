@@ -40,6 +40,10 @@ from .transcription.factory import create_transcription_provider
 
 logger = logging.getLogger(__name__)
 
+# Module-level registry for preloaded MLProvider instance
+# This allows factories to reuse the same instance across capabilities
+_preloaded_ml_provider: Optional[Any] = None
+
 
 def _initialize_ml_environment() -> None:
     """Initialize environment variables for ML libraries.
@@ -128,6 +132,63 @@ class _ProcessingResources(NamedTuple):
     processing_jobs: List[_ProcessingJob]
     processing_jobs_lock: Optional[threading.Lock]
     processing_complete_event: Optional[threading.Event]
+
+
+def _should_preload_ml_models(cfg: config.Config) -> bool:
+    """Check if ML models should be preloaded based on configuration.
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        True if any ML models need to be preloaded, False otherwise
+    """
+    # Check if any ML models are needed
+    needs_whisper = cfg.transcribe_missing and cfg.transcription_provider == "whisper"
+    needs_transformers = cfg.generate_summaries and cfg.summary_provider == "transformers"
+    needs_spacy = cfg.auto_speakers and cfg.speaker_detector_provider == "spacy"
+
+    return needs_whisper or needs_transformers or needs_spacy
+
+
+def _preload_ml_models_if_needed(cfg: config.Config) -> None:
+    """Preload ML models early in the pipeline if configured to use them.
+
+    This function creates an MLProvider instance and calls preload() on it,
+    storing the instance in a module-level registry for reuse by factories.
+
+    Args:
+        cfg: Configuration object
+
+    Raises:
+        RuntimeError: If required model cannot be loaded
+        ImportError: If ML dependencies are not installed
+    """
+    global _preloaded_ml_provider
+
+    # Skip if preloading is disabled or in dry run
+    if not cfg.preload_models or cfg.dry_run:
+        return
+
+    # Skip if no ML models are needed
+    if not _should_preload_ml_models(cfg):
+        return
+
+    # Create MLProvider instance and preload models
+    try:
+        from .ml.ml_provider import MLProvider
+
+        _preloaded_ml_provider = MLProvider(cfg)
+        _preloaded_ml_provider.preload()
+        logger.debug("ML models preloaded successfully, instance stored for reuse")
+    except ImportError as e:
+        logger.warning("ML dependencies not available, skipping model preloading: %s", e)
+        _preloaded_ml_provider = None
+    except Exception as e:
+        logger.error("Failed to preload ML models: %s", e)
+        _preloaded_ml_provider = None
+        # Re-raise to fail fast for required models
+        raise
 
 
 def _update_metric_safely(
@@ -346,6 +407,9 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     # Step 1: Setup pipeline environment
     effective_output_dir, run_suffix = _setup_pipeline_environment(cfg)
 
+    # Step 1.5: Preload ML models if configured
+    _preload_ml_models_if_needed(cfg)
+
     # Step 2: Fetch and parse RSS feed (scraping stage)
     scraping_start = time.time()
     feed, rss_bytes = _fetch_and_parse_feed(cfg)
@@ -562,6 +626,16 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 logger.warning("Failed to cleanup transcription provider: %s", e)
 
         # Stage 4: Cleanup provider (which handles model unloading)
+        # Cleanup preloaded MLProvider instance
+        global _preloaded_ml_provider
+        if _preloaded_ml_provider is not None:
+            try:
+                _preloaded_ml_provider.cleanup()
+            except Exception as e:
+                logger.warning("Error cleaning up preloaded MLProvider: %s", e)
+            finally:
+                _preloaded_ml_provider = None
+
         if summary_provider is not None:
             try:
                 summary_provider.cleanup()
@@ -577,6 +651,25 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
     # Step 11: Generate summary and log metrics
     pipeline_metrics.log_metrics()
+
+    # Step 12: Save metrics to file if configured
+    if cfg.metrics_output is not None:
+        # Explicit path provided
+        if cfg.metrics_output:
+            metrics_path = cfg.metrics_output
+        else:
+            # Empty string means disabled
+            metrics_path = None
+    else:
+        # Default: save to output directory
+        metrics_path = os.path.join(effective_output_dir, "metrics.json")
+
+    if metrics_path:
+        try:
+            pipeline_metrics.save_to_file(metrics_path)
+        except Exception as e:
+            logger.warning(f"Failed to save metrics to {metrics_path}: {e}")
+
     return _generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics
     )

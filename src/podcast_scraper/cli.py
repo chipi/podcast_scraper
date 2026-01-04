@@ -346,6 +346,14 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Store metadata files in subdirectory (default: same as transcripts)",
     )
+    parser.add_argument(
+        "--metrics-output",
+        default=None,
+        help="Path to save pipeline metrics JSON file. "
+        "If not specified, defaults to {effective_output_dir}/metrics.json "
+        "(same level as transcripts/ and metadata/ subdirectories). "
+        "Set to empty string to disable metrics export.",
+    )
 
 
 def _add_speaker_detection_arguments(parser: argparse.ArgumentParser) -> None:
@@ -417,6 +425,12 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         "--summary-model",
         default=None,
         help="Model identifier for local summarization (e.g., facebook/bart-large-cnn)",
+    )
+    parser.add_argument(
+        "--summary-reduce-model",
+        default=None,
+        help="Model identifier for reduce phase of map-reduce summarization "
+        "(e.g., allenai/led-base-16384). Defaults to LED-large if not specified.",
     )
     parser.add_argument(
         "--summary-max-length",
@@ -570,8 +584,10 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "metadata_format": args.metadata_format,
         "metadata_subdirectory": args.metadata_subdirectory,
         "generate_summaries": args.generate_summaries,
+        "metrics_output": args.metrics_output,
         "summary_provider": args.summary_provider,
         "summary_model": args.summary_model,
+        "summary_reduce_model": args.summary_reduce_model,
         "summary_max_length": args.summary_max_length,
         "summary_min_length": args.summary_min_length,
         "summary_device": args.summary_device,

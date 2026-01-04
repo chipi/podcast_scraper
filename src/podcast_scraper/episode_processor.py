@@ -623,12 +623,14 @@ def process_transcript_download(
     if _check_existing_transcript(episode, effective_output_dir, run_suffix, cfg):
         if cfg.generate_summaries:
             # Find existing transcript file to return its path for summarization
+            # Transcripts are now in the transcripts/ subdirectory
             run_tag = f"_{run_suffix}" if run_suffix else ""
             base_name = (
                 f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} "
                 f"- {episode.title_safe}{run_tag}"
             )
-            existing_matches = list(Path(effective_output_dir).glob(f"{base_name}*"))
+            transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
+            existing_matches = list(Path(transcripts_dir).glob(f"{base_name}*"))
             for candidate in existing_matches:
                 if candidate.is_file():
                     rel_path = os.path.relpath(str(candidate), effective_output_dir)
