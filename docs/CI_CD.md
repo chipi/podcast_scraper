@@ -329,7 +329,7 @@ if: |
 **Key Features:**
 
 - **No ML dependencies:** Fast execution (dev dependencies only)
-- **Network isolation:** Verified with dedicated test (`test_network_isolation.py`)
+- **Network isolation:** Enforced via `pytest-socket` (`--disable-socket --allow-hosts=127.0.0.1,localhost`)
 - **Test count verification:** Ensures at least 50 unit tests run
 
 ---
