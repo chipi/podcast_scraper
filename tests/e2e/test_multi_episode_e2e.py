@@ -207,6 +207,7 @@ class TestMultiEpisodeE2E:
                 generate_summaries=True,  # Enable summarization
                 summary_provider="transformers",  # Use transformers (not deprecated "local")
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
+                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
                 whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
                 generate_metadata=True,
                 metadata_format="json",

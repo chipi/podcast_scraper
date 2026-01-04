@@ -179,6 +179,97 @@ class MLProvider:
         # HuggingFace models are not thread-safe and cannot be shared across threads
         self._requires_separate_instances = True
 
+    def preload(self) -> None:
+        """Preload ML models at startup if configured to use them.
+
+        This method is called early in the pipeline to preload models before processing
+        begins. It respects preload_models and dry_run configuration flags.
+
+        Models are preloaded based on configuration:
+        - Whisper: if transcribe_missing=True and transcription_provider="whisper"
+        - Transformers: if generate_summaries=True and summary_provider="transformers"
+        - spaCy: if auto_speakers=True and speaker_detector_provider="spacy"
+
+        This method adds comprehensive logging and error handling for preloading,
+        then calls initialize() to actually load the models.
+
+        Raises:
+            RuntimeError: If required model cannot be loaded
+            ImportError: If ML dependencies are not installed
+        """
+        # Skip preloading if disabled or in dry run mode
+        if not self.cfg.preload_models:
+            logger.debug("Skipping model preloading (preload_models=False)")
+            return
+
+        if self.cfg.dry_run:
+            logger.debug("Skipping model preloading (dry_run=True)")
+            return
+
+        # Determine which models need to be preloaded
+        needs_whisper = self.cfg.transcribe_missing and self.cfg.transcription_provider == "whisper"
+        needs_transformers = (
+            self.cfg.generate_summaries and self.cfg.summary_provider == "transformers"
+        )
+        needs_spacy = self.cfg.auto_speakers and self.cfg.speaker_detector_provider == "spacy"
+
+        # If no models need preloading, return early
+        if not (needs_whisper or needs_transformers or needs_spacy):
+            logger.debug("No ML models need preloading based on configuration")
+            return
+
+        # Log preloading start
+        logger.info("Preloading ML models based on configuration...")
+        preload_start = time.time()
+
+        # Preload each model type with logging
+        if needs_whisper:
+            logger.info("Preloading Whisper model: %s", self.cfg.whisper_model)
+            try:
+                if not self._whisper_initialized:
+                    self._initialize_whisper()
+                logger.info("✓ Whisper model preloaded successfully")
+            except Exception as e:
+                error_msg = f"Failed to preload Whisper model: {e}"
+                logger.error(error_msg)
+                raise RuntimeError(
+                    f"{error_msg}. "
+                    "Make sure 'openai-whisper' is installed: pip install openai-whisper"
+                ) from e
+
+        if needs_spacy:
+            model_name = self.cfg.ner_model or "en_core_web_sm"
+            logger.info("Preloading spaCy model: %s", model_name)
+            try:
+                if not self._spacy_initialized:
+                    self._initialize_spacy()
+                logger.info("✓ spaCy model preloaded successfully")
+            except Exception as e:
+                error_msg = f"Failed to preload spaCy model: {e}"
+                logger.error(error_msg)
+                raise RuntimeError(
+                    f"{error_msg}. "
+                    f"Install spaCy model with: python -m spacy download {model_name}"
+                ) from e
+
+        if needs_transformers:
+            logger.info("Preloading Transformers models for summarization")
+            try:
+                if not self._transformers_initialized:
+                    self._initialize_transformers()
+                logger.info("✓ Transformers models preloaded successfully")
+            except Exception as e:
+                error_msg = f"Failed to preload Transformers models: {e}"
+                logger.error(error_msg)
+                raise RuntimeError(
+                    f"{error_msg}. "
+                    "Check model cache and network connectivity for model downloads."
+                ) from e
+
+        # Log completion with timing
+        preload_elapsed = time.time() - preload_start
+        logger.info("Model preloading completed in %.1fs", preload_elapsed)
+
     def initialize(self) -> None:
         """Initialize all ML models (Whisper, spaCy, Transformers).
 

@@ -100,6 +100,8 @@ def generate_dashboard(
     runtime = metrics.get("runtime", {})
     test_health = metrics.get("test_health", {})
     coverage = metrics.get("coverage", {})
+    complexity = metrics.get("complexity", {})
+    pipeline_metrics = metrics.get("pipeline", {})
     slowest_tests = metrics.get("slowest_tests", [])
     flaky_tests = test_health.get("flaky_tests", [])
     trends = latest.get("trends", {})
@@ -116,6 +118,33 @@ def generate_dashboard(
     ]
     flaky_data = [
         h.get("metrics", {}).get("test_health", {}).get("flaky", 0) for h in chart_history
+    ]
+    complexity_data = [
+        h.get("metrics", {}).get("complexity", {}).get("cyclomatic_complexity", 0)
+        for h in chart_history
+    ]
+    maintainability_data = [
+        h.get("metrics", {}).get("complexity", {}).get("maintainability_index", 0)
+        for h in chart_history
+    ]
+    docstrings_data = [
+        h.get("metrics", {}).get("complexity", {}).get("docstring_coverage", 0)
+        for h in chart_history
+    ]
+    dead_code_data = [
+        h.get("metrics", {}).get("complexity", {}).get("dead_code_count", 0) for h in chart_history
+    ]
+    spelling_errors_data = [
+        h.get("metrics", {}).get("complexity", {}).get("spelling_errors_count", 0)
+        for h in chart_history
+    ]
+    pipeline_run_duration_data = [
+        h.get("metrics", {}).get("pipeline", {}).get("run_duration_seconds", 0)
+        for h in chart_history
+    ]
+    pipeline_episodes_scraped_data = [
+        h.get("metrics", {}).get("pipeline", {}).get("episodes_scraped_total", 0)
+        for h in chart_history
     ]
     timestamps = [h.get("timestamp", "")[:10] for h in chart_history]  # Just the date part
 
@@ -144,7 +173,163 @@ def generate_dashboard(
         )
         coverage_trend = f'<div class="metric-trend trend-{trend_class}">{coverage_change}</div>'
 
+    # Pipeline metrics trends
+    pipeline_duration_trend = ""
+    if trends.get("pipeline_duration_change"):
+        duration_change = trends.get("pipeline_duration_change", "")
+        trend_class = (
+            "up"
+            if duration_change.startswith("+")
+            else "down" if duration_change.startswith("-") else "neutral"
+        )
+        pipeline_duration_trend = (
+            f'<div class="metric-trend trend-{trend_class}">{duration_change}</div>'
+        )
+
+    pipeline_episodes_trend = ""
+    if trends.get("pipeline_episodes_change"):
+        episodes_change = trends.get("pipeline_episodes_change", "")
+        trend_class = (
+            "up"
+            if episodes_change.startswith("+")
+            else "down" if episodes_change.startswith("-") else "neutral"
+        )
+        pipeline_episodes_trend = (
+            f'<div class="metric-trend trend-{trend_class}">{episodes_change}</div>'
+        )
+
     flaky_color = "#e74c3c" if test_health.get("flaky", 0) > 0 else "#27ae60"
+
+    # Build pipeline metrics HTML
+    pipeline_metrics_html = ""
+    if pipeline_metrics:
+        run_duration = pipeline_metrics.get("run_duration_seconds", 0)
+        episodes_scraped = pipeline_metrics.get("episodes_scraped_total", 0)
+        episodes_skipped = pipeline_metrics.get("episodes_skipped_total", 0)
+        transcripts_downloaded = pipeline_metrics.get("transcripts_downloaded", 0)
+        transcripts_transcribed = pipeline_metrics.get("transcripts_transcribed", 0)
+        episodes_summarized = pipeline_metrics.get("episodes_summarized", 0)
+        metadata_files = pipeline_metrics.get("metadata_files_generated", 0)
+
+        pipeline_metrics_html = f"""
+            <div class="metric-card">
+                <div class="metric-label">Pipeline Run Duration</div>
+                <div class="metric-value">{run_duration:.1f}s</div>
+                {pipeline_duration_trend}
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Episodes Scraped</div>
+                <div class="metric-value">{episodes_scraped}</div>
+                {pipeline_episodes_trend}
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Episodes Skipped</div>
+                <div class="metric-value">{episodes_skipped}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Transcripts Downloaded</div>
+                <div class="metric-value">{transcripts_downloaded}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Transcripts Transcribed</div>
+                <div class="metric-value">{transcripts_transcribed}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Episodes Summarized</div>
+                <div class="metric-value">{episodes_summarized}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Metadata Files</div>
+                <div class="metric-value">{metadata_files}</div>
+            </div>
+        """
+    else:
+        pipeline_metrics_html = ""
+
+    # Build pipeline performance section HTML and chart code
+    pipeline_performance_section = ""
+    pipeline_chart_code = ""
+    if pipeline_metrics:
+        pipeline_performance_section = f"""
+        <div class="chart-section">
+            <h2>🚀 Pipeline Performance Trends (Last {len(chart_history)} Runs)</h2>
+            <div class="chart-container">
+                <canvas id="pipeline-chart"></canvas>
+            </div>
+        </div>
+        """
+        pipeline_chart_code = """
+        const pipelineCtx = document.getElementById('pipeline-chart');
+        if (pipelineCtx) {
+            new Chart(pipelineCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [
+                        {
+                            label: 'Run Duration (s)',
+                            data: pipelineRunDurationData,
+                            borderColor: 'rgb(155, 89, 182)',
+                            backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                            yAxisID: 'y',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Episodes Scraped',
+                            data: pipelineEpisodesScrapedData,
+                            borderColor: 'rgb(26, 188, 156)',
+                            backgroundColor: 'rgba(26, 188, 156, 0.1)',
+                            yAxisID: 'y1',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        tooltip: {
+                            enabled: true,
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Run Duration (seconds)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Episodes Scraped'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        """
+    else:
+        pipeline_performance_section = ""
+        pipeline_chart_code = ""
 
     alerts_html = ""
     if alerts:
@@ -207,7 +392,7 @@ def generate_dashboard(
         flaky_tests_html = '<div class="no-data">✅ No flaky tests detected</div>'
 
     # Generate HTML
-    html = f"""<!DOCTYPE html>
+    html = f"""<!DOCTYPE html>  # noqa: E501
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -432,6 +617,35 @@ def generate_dashboard(
             </div>
 
             <div class="metric-card">
+                <div class="metric-label">Cyclomatic Complexity</div>
+                <div class="metric-value">{complexity.get("cyclomatic_complexity", 0):.1f}</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-label">Maintainability Index</div>
+                <div class="metric-value">{complexity.get("maintainability_index", 0):.1f}</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-label">Docstring Coverage</div>
+                <div class="metric-value">{complexity.get("docstring_coverage", 0):.1f}%</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-label">Dead Code Items</div>
+                <div class="metric-value" style="color: {'#e74c3c' if complexity.get('dead_code_count', 0) > 0 else '#27ae60'};">
+                    {complexity.get("dead_code_count", 0)}
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-label">Spelling Errors</div>
+                <div class="metric-value" style="color: {'#e74c3c' if complexity.get('spelling_errors_count', 0) > 0 else '#27ae60'};">
+                    {complexity.get("spelling_errors_count", 0)}
+                </div>
+            </div>
+
+            <div class="metric-card">
                 <div class="metric-label">Flaky Tests</div>
                 <div class="metric-value" style="color: {flaky_color};">
                     {test_health.get("flaky", 0)}
@@ -442,6 +656,7 @@ def generate_dashboard(
                 <div class="metric-label">Tests/Second</div>
                 <div class="metric-value">{runtime.get("tests_per_second", 0):.1f}</div>
             </div>
+            {pipeline_metrics_html}
         </div>
 
         <div class="alerts-section">
@@ -450,11 +665,20 @@ def generate_dashboard(
         </div>
 
         <div class="chart-section">
-            <h2>📈 Trends (Last {len(chart_history)} Runs)</h2>
+            <h2>📈 Test Metrics Trends (Last {len(chart_history)} Runs)</h2>
             <div class="chart-container">
                 <canvas id="trendsChart"></canvas>
             </div>
         </div>
+
+        <div class="chart-section">
+            <h2>📊 Code Quality Trends (Last {len(chart_history)} Runs)</h2>
+            <div class="chart-container">
+                <canvas id="quality-chart"></canvas>
+            </div>
+        </div>
+
+        {pipeline_performance_section}
 
         <div class="slowest-tests">
             <h2>🐌 Slowest Tests (Top 10)</h2>
@@ -474,7 +698,14 @@ def generate_dashboard(
         const runtimeData = {json.dumps(runtime_data)};
         const coverageData = {json.dumps(coverage_data)};
         const testCountData = {json.dumps(test_count_data)};
+        const complexityData = {json.dumps(complexity_data)};
+        const maintainabilityData = {json.dumps(maintainability_data)};
+        const docstringsData = {json.dumps(docstrings_data)};
+        const deadCodeData = {json.dumps(dead_code_data)};
+        const spellingErrorsData = {json.dumps(spelling_errors_data)};
         const flakyData = {json.dumps(flaky_data)};
+        const pipelineRunDurationData = {json.dumps(pipeline_run_duration_data)};
+        const pipelineEpisodesScrapedData = {json.dumps(pipeline_episodes_scraped_data)};
 
         new Chart(ctx, {{
             type: 'line',
@@ -560,6 +791,123 @@ def generate_dashboard(
                 }}
             }}
         }});
+
+        // Code Quality Chart
+        const qualityCtx = document.getElementById('quality-chart').getContext('2d');
+        new Chart(qualityCtx, {{
+            type: 'line',
+            data: {{
+                labels: timestamps,
+                datasets: [
+                    {{
+                        label: 'Cyclomatic Complexity',
+                        data: complexityData,
+                        borderColor: 'rgb(231, 76, 60)',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        yAxisID: 'y',
+                        tension: 0.1
+                    }},
+                    {{
+                        label: 'Maintainability Index',
+                        data: maintainabilityData,
+                        borderColor: 'rgb(46, 204, 113)',
+                        backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                        yAxisID: 'y1',
+                        tension: 0.1
+                    }},
+                    {{
+                        label: 'Docstring Coverage (%)',
+                        data: docstringsData,
+                        borderColor: 'rgb(52, 152, 219)',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        yAxisID: 'y2',
+                        tension: 0.1
+                    }},
+                    {{
+                        label: 'Dead Code Items',
+                        data: deadCodeData,
+                        borderColor: 'rgb(231, 76, 60)',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        yAxisID: 'y3',
+                        tension: 0.1
+                    }},
+                    {{
+                        label: 'Spelling Errors',
+                        data: spellingErrorsData,
+                        borderColor: 'rgb(243, 156, 18)',
+                        backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                        yAxisID: 'y3',
+                        tension: 0.1
+                    }}
+                ]
+            }},
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {{
+                    mode: 'index',
+                    intersect: false,
+                }},
+                plugins: {{
+                    legend: {{
+                        display: true,
+                        position: 'top',
+                    }},
+                    tooltip: {{
+                        enabled: true,
+                    }}
+                }},
+                scales: {{
+                    x: {{
+                        display: true,
+                        title: {{
+                            display: true,
+                            text: 'Date'
+                        }}
+                    }},
+                    y: {{
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {{
+                            display: true,
+                            text: 'Cyclomatic Complexity'
+                        }}
+                    }},
+                    y1: {{
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {{
+                            display: true,
+                            text: 'Maintainability Index'
+                        }},
+                        grid: {{
+                            drawOnChartArea: false,
+                        }}
+                    }},
+                    y2: {{
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {{
+                            display: true,
+                            text: 'Docstring Coverage (%)'
+                        }},
+                        grid: {{
+                            drawOnChartArea: false,
+                        }}
+                    }},
+                    y3: {{
+                        type: 'linear',
+                        display: false,
+                    }}
+                }}
+            }}
+        }});
+
+        // Pipeline Performance Chart (only if pipeline metrics available)
+        {pipeline_chart_code}
     </script>
 </body>
 </html>

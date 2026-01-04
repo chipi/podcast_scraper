@@ -99,12 +99,13 @@ class TestModelSelection(unittest.TestCase):
         self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["bart-large"])
 
     def test_select_reduce_model_defaults_to_led(self):
-        """Test that reduce model defaults to LED (long-fast) when not configured."""
+        """Test that reduce model defaults to LED-large when not configured."""
         cfg = create_test_config(summary_reduce_model=None)
         map_model_name = summarizer.select_summary_model(cfg)
         reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
-        # Should default to LED for reduce phase, not fall back to map model
-        self.assertEqual(reduce_model_name, summarizer.DEFAULT_SUMMARY_MODELS["long-fast"])
+        # Should default to LED-large for reduce phase (production quality),
+        # not fall back to map model
+        self.assertEqual(reduce_model_name, summarizer.DEFAULT_SUMMARY_MODELS["long"])
 
     def test_select_reduce_model_with_explicit_model(self):
         """Test that explicit reduce model selection works."""

@@ -9,12 +9,15 @@ See RFC-025: Test Metrics and Health Tracking
 """
 
 import json
+import logging
 import os
 import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 def extract_test_metrics(pytest_json_path: Path) -> dict:
@@ -94,6 +97,98 @@ def extract_coverage_metrics(coverage_xml_path: Path) -> dict:
         "overall": overall,
         "by_module": by_module,
     }
+
+
+def extract_complexity_metrics(reports_dir: Path) -> dict:
+    """Extract complexity metrics from radon reports."""
+    complexity_json_path = reports_dir / "complexity.json"
+    maintainability_json_path = reports_dir / "maintainability.json"
+    docstrings_json_path = reports_dir / "docstrings.json"
+    vulture_json_path = reports_dir / "vulture.json"
+    codespell_txt_path = reports_dir / "codespell.txt"
+
+    metrics = {}
+
+    # Cyclomatic complexity
+    if complexity_json_path.exists():
+        try:
+            with open(complexity_json_path) as f:
+                complexity_data = json.load(f)
+                if isinstance(complexity_data, dict):
+                    metrics["cyclomatic_complexity"] = complexity_data.get("total_average", 0)
+                elif isinstance(complexity_data, list) and complexity_data:
+                    # Handle list format
+                    total_cc = sum(
+                        item.get("complexity", 0)
+                        for item in complexity_data
+                        if isinstance(item, dict)
+                    )
+                    count = len([item for item in complexity_data if isinstance(item, dict)])
+                    metrics["cyclomatic_complexity"] = total_cc / count if count > 0 else 0
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    # Maintainability index
+    if maintainability_json_path.exists():
+        try:
+            with open(maintainability_json_path) as f:
+                mi_data = json.load(f)
+                if isinstance(mi_data, list) and mi_data:
+                    # Calculate average MI
+                    mi_values = [
+                        item.get("mi", 0)
+                        for item in mi_data
+                        if isinstance(item, dict) and "mi" in item
+                    ]
+                    metrics["maintainability_index"] = (
+                        sum(mi_values) / len(mi_values) if mi_values else 0
+                    )
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    # Docstring coverage
+    if docstrings_json_path.exists():
+        try:
+            with open(docstrings_json_path) as f:
+                docstrings_data = json.load(f)
+                if isinstance(docstrings_data, dict):
+                    metrics["docstring_coverage"] = docstrings_data.get("coverage_percent", 0)
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    # Dead code detection (vulture)
+    if vulture_json_path.exists():
+        try:
+            with open(vulture_json_path) as f:
+                vulture_data = json.load(f)
+                if isinstance(vulture_data, list):
+                    metrics["dead_code_count"] = len(vulture_data)
+                else:
+                    metrics["dead_code_count"] = 0
+        except (json.JSONDecodeError, IOError):
+            metrics["dead_code_count"] = 0
+    else:
+        metrics["dead_code_count"] = 0
+
+    # Spell checking (codespell)
+    if codespell_txt_path.exists():
+        try:
+            with open(codespell_txt_path) as f:
+                codespell_output = f.read().strip()
+                # Count lines that contain file paths (actual errors)
+                # Codespell outputs errors as: path/to/file:line:word
+                error_lines = [
+                    line
+                    for line in codespell_output.split("\n")
+                    if line.strip() and ":" in line and not line.startswith("#")
+                ]
+                metrics["spelling_errors_count"] = len(error_lines)
+        except (IOError, UnicodeDecodeError):
+            metrics["spelling_errors_count"] = 0
+    else:
+        metrics["spelling_errors_count"] = 0
+
+    return metrics
 
 
 def extract_slowest_tests(junit_xml_path: Path, top_n: int = 20) -> list:
@@ -176,6 +271,29 @@ def calculate_trends(current: Dict[str, Any], previous: Optional[Dict[str, Any]]
     current_total = current.get("metrics", {}).get("test_health", {}).get("total", 0)
     prev_total = previous.get("metrics", {}).get("test_health", {}).get("total", 0)
     trends["test_count_change"] = f"{current_total - prev_total:+d}"
+
+    # Pipeline metrics trends
+    current_pipeline = current.get("metrics", {}).get("pipeline", {})
+    prev_pipeline = previous.get("metrics", {}).get("pipeline", {})
+    if current_pipeline and prev_pipeline:
+        # Pipeline run duration change
+        current_duration = current_pipeline.get("run_duration_seconds", 0)
+        prev_duration = prev_pipeline.get("run_duration_seconds", 0)
+        if prev_duration > 0:
+            change = current_duration - prev_duration
+            trends["pipeline_duration_change"] = f"{change:+.1f}s"
+        elif current_duration > 0:
+            trends["pipeline_duration_change"] = f"+{current_duration:.1f}s"  # First run
+
+        # Episodes scraped change
+        current_episodes = current_pipeline.get("episodes_scraped_total", 0)
+        prev_episodes = prev_pipeline.get("episodes_scraped_total", 0)
+        trends["pipeline_episodes_change"] = f"{current_episodes - prev_episodes:+d}"
+
+        # Transcripts transcribed change
+        current_transcribed = current_pipeline.get("transcripts_transcribed", 0)
+        prev_transcribed = prev_pipeline.get("transcripts_transcribed", 0)
+        trends["pipeline_transcribed_change"] = f"{current_transcribed - prev_transcribed:+d}"
 
     return trends
 
@@ -288,6 +406,26 @@ def detect_deviations(
     return alerts
 
 
+def extract_pipeline_metrics(pipeline_metrics_path: Path) -> dict:
+    """Extract pipeline performance metrics from JSON file.
+
+    Args:
+        pipeline_metrics_path: Path to pipeline metrics JSON file
+
+    Returns:
+        Dictionary with pipeline metrics or empty dict if file not found
+    """
+    if not pipeline_metrics_path.exists():
+        return {}
+
+    try:
+        with open(pipeline_metrics_path) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError) as e:
+        logger.warning(f"Could not load pipeline metrics from {pipeline_metrics_path}: {e}")
+        return {}
+
+
 def generate_metrics(
     reports_dir: Path,
     output_path: Path,
@@ -295,8 +433,19 @@ def generate_metrics(
     commit: str = None,
     branch: str = None,
     workflow_run_url: str = None,
+    pipeline_metrics_path: Optional[Path] = None,
 ) -> None:
-    """Generate metrics JSON from test artifacts."""
+    """Generate metrics JSON from test artifacts.
+
+    Args:
+        reports_dir: Directory containing test artifacts
+        output_path: Path to output metrics JSON file
+        history_path: Optional path to history.jsonl file for trend calculation
+        commit: Git commit SHA (default: GITHUB_SHA env var)
+        branch: Git branch/ref (default: GITHUB_REF env var)
+        workflow_run_url: Workflow run URL (default: constructed from env vars)
+        pipeline_metrics_path: Optional path to pipeline metrics JSON file
+    """
 
     pytest_json_path = reports_dir / "pytest.json"
     coverage_xml_path = reports_dir / "coverage.xml"
@@ -325,8 +474,15 @@ def generate_metrics(
             "test_health": extract_test_metrics(pytest_json_path),
             "coverage": extract_coverage_metrics(coverage_xml_path),
             "slowest_tests": extract_slowest_tests(junit_xml_path),
+            "complexity": extract_complexity_metrics(reports_dir),
         },
     }
+
+    # Add pipeline metrics if available
+    if pipeline_metrics_path:
+        pipeline_metrics = extract_pipeline_metrics(pipeline_metrics_path)
+        if pipeline_metrics:
+            metrics["metrics"]["pipeline"] = pipeline_metrics
 
     # Load history and calculate trends/alerts
     history = []
@@ -414,6 +570,11 @@ def main():
         type=Path,
         help="Path to history.jsonl file for trend and alert calculation (optional)",
     )
+    parser.add_argument(
+        "--pipeline-metrics",
+        type=Path,
+        help="Path to pipeline metrics JSON file (optional)",
+    )
 
     args = parser.parse_args()
 
@@ -425,6 +586,7 @@ def main():
             commit=args.commit,
             branch=args.branch,
             workflow_run_url=args.workflow_run,
+            pipeline_metrics_path=args.pipeline_metrics,
         )
     except Exception as e:
         print(f"❌ Error generating metrics: {e}", file=sys.stderr)

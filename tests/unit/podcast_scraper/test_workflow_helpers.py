@@ -2130,12 +2130,14 @@ class TestRunPipeline(unittest.TestCase):
     @patch("podcast_scraper.workflow._prepare_episodes_from_feed")
     @patch("podcast_scraper.workflow._extract_feed_metadata_for_generation")
     @patch("podcast_scraper.workflow._fetch_and_parse_feed")
+    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
     @patch("podcast_scraper.workflow._setup_pipeline_environment")
     @patch("podcast_scraper.workflow._initialize_ml_environment")
     def test_run_pipeline_basic_success(
         self,
         mock_init_env,
         mock_setup_env,
+        mock_preload_models,
         mock_fetch_feed,
         mock_extract_metadata,
         mock_prepare_episodes,
@@ -2184,6 +2186,7 @@ class TestRunPipeline(unittest.TestCase):
 
     @patch("podcast_scraper.workflow._cleanup_pipeline")
     @patch("podcast_scraper.workflow._generate_pipeline_summary")
+    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
     @patch("podcast_scraper.workflow._setup_pipeline_environment")
     @patch("podcast_scraper.workflow._initialize_ml_environment")
     @patch("podcast_scraper.workflow._fetch_and_parse_feed")
@@ -2192,6 +2195,7 @@ class TestRunPipeline(unittest.TestCase):
         mock_fetch_feed,
         mock_init_env,
         mock_setup_env,
+        mock_preload_models,
         mock_generate_summary,
         mock_cleanup,
     ):
@@ -2204,6 +2208,7 @@ class TestRunPipeline(unittest.TestCase):
 
     @patch("podcast_scraper.workflow._cleanup_pipeline")
     @patch("podcast_scraper.workflow._generate_pipeline_summary")
+    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
     @patch("podcast_scraper.workflow._setup_pipeline_environment")
     @patch("podcast_scraper.workflow._initialize_ml_environment")
     @patch("podcast_scraper.workflow._fetch_and_parse_feed")
@@ -2212,6 +2217,7 @@ class TestRunPipeline(unittest.TestCase):
         mock_fetch_feed,
         mock_init_env,
         mock_setup_env,
+        mock_preload_models,
         mock_generate_summary,
         mock_cleanup,
     ):
@@ -2233,12 +2239,14 @@ class TestRunPipeline(unittest.TestCase):
     @patch("podcast_scraper.workflow._prepare_episodes_from_feed")
     @patch("podcast_scraper.workflow._extract_feed_metadata_for_generation")
     @patch("podcast_scraper.workflow._fetch_and_parse_feed")
+    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
     @patch("podcast_scraper.workflow._setup_pipeline_environment")
     @patch("podcast_scraper.workflow._initialize_ml_environment")
     def test_run_pipeline_dry_run(
         self,
         mock_init_env,
         mock_setup_env,
+        mock_preload_models,
         mock_fetch_feed,
         mock_extract_metadata,
         mock_prepare_episodes,
@@ -2295,12 +2303,14 @@ class TestRunPipeline(unittest.TestCase):
     @patch("podcast_scraper.workflow._prepare_episodes_from_feed")
     @patch("podcast_scraper.workflow._extract_feed_metadata_for_generation")
     @patch("podcast_scraper.workflow._fetch_and_parse_feed")
+    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
     @patch("podcast_scraper.workflow._setup_pipeline_environment")
     @patch("podcast_scraper.workflow._initialize_ml_environment")
     def test_run_pipeline_dry_run_with_transcription(
         self,
         mock_init_env,
         mock_setup_env,
+        mock_preload_models,
         mock_fetch_feed,
         mock_extract_metadata,
         mock_prepare_episodes,
@@ -2358,12 +2368,14 @@ class TestRunPipeline(unittest.TestCase):
     @patch("podcast_scraper.workflow._prepare_episodes_from_feed")
     @patch("podcast_scraper.workflow._extract_feed_metadata_for_generation")
     @patch("podcast_scraper.workflow._fetch_and_parse_feed")
+    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
     @patch("podcast_scraper.workflow._setup_pipeline_environment")
     @patch("podcast_scraper.workflow._initialize_ml_environment")
     def test_run_pipeline_with_summarization(
         self,
         mock_init_env,
         mock_setup_env,
+        mock_preload_models,
         mock_fetch_feed,
         mock_extract_metadata,
         mock_prepare_episodes,
@@ -2423,12 +2435,14 @@ class TestRunPipeline(unittest.TestCase):
     @patch("podcast_scraper.workflow._prepare_episodes_from_feed")
     @patch("podcast_scraper.workflow._extract_feed_metadata_for_generation")
     @patch("podcast_scraper.workflow._fetch_and_parse_feed")
+    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
     @patch("podcast_scraper.workflow._setup_pipeline_environment")
     @patch("podcast_scraper.workflow._initialize_ml_environment")
     def test_run_pipeline_cleanup_on_exception(
         self,
         mock_init_env,
         mock_setup_env,
+        mock_preload_models,
         mock_fetch_feed,
         mock_extract_metadata,
         mock_prepare_episodes,

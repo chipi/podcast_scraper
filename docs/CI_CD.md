@@ -267,6 +267,13 @@ graph LR
    - `make lint-markdown` - Markdown file linting
    - `make type` - mypy static type checking
    - `make security` - bandit & pip-audit security scanning
+7. Run code quality analysis (continue-on-error):
+   - `radon cc` - Cyclomatic complexity analysis
+   - `radon mi` - Maintainability index
+   - `interrogate` - Docstring coverage
+   - `vulture` - Dead code detection
+   - `codespell` - Spell checking
+   - Saves metrics to `reports/` for dashboard consumption
 
 **Why separate from test?** Linting is much faster without ML dependencies, providing quick feedback.
 
@@ -390,7 +397,13 @@ if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 5. Install full dependencies (including ML)
 6. Preload ML models (if cache miss): `make preload-ml-models`
 
+**Variants:**
+
+- `make preload-ml-models` - Test models (Whisper tiny, small BART, en_core_web_sm)
+- `make preload-ml-models-production` - Production models (Whisper base, BART-large-cnn, LED-large-16384)
+
 **Key Features:**
+
 - **Dependency for full test jobs:** `test-integration` and `test-e2e` depend on this job
 - **ML model caching:** Ensures models are available before test jobs run
 - **Efficiency:** Models are cached, so subsequent jobs can use them immediately
@@ -500,9 +513,53 @@ needs: [preload-ml-models]
 
 ---
 
+#### 9. coverage-unified Job (Main Branch Only)
+
+**Purpose:** Combine coverage from all test jobs and publish to GitHub Pages
+
+**When:** Push to main branch only (after test-unit completes)
+
+**Duration:** ~3-5 minutes
+
+**Steps:**
+
+1. Download coverage artifacts from all test jobs (unit, integration, e2e)
+2. Combine coverage reports into unified report
+3. Generate unified coverage summary in job summary
+4. Generate code quality metrics (complexity, maintainability, docstrings)
+5. Collect pipeline performance metrics (if ML dependencies available)
+6. Generate metrics JSON (`metrics/latest.json`)
+7. Update metrics history (`metrics/history.jsonl`)
+8. Generate HTML dashboard (`metrics/index.html`)
+9. Upload unified coverage to Codecov
+10. Publish metrics to GitHub Pages
+
+**Outputs:**
+
+- `reports/coverage-unified.xml` - Combined coverage report
+- `metrics/latest.json` - Current metrics for dashboard
+- `metrics/history.jsonl` - Historical trend data
+- `metrics/index.html` - Interactive dashboard
+
+---
+
+#### 10. deploy-metrics Job (Main Branch Only)
+
+**Purpose:** Deploy metrics dashboard to GitHub Pages
+
+**When:** After coverage-unified completes (even if it fails)
+
+**Steps:**
+
+1. Deploy metrics to GitHub Pages using `actions/deploy-pages@v4`
+
+**Result:** Dashboard accessible at `https://[username].github.io/podcast_scraper/metrics/`
+
+---
+
 ### Additional Jobs (Conditional)
 
-#### 9. docker-build Job (Runs if Docker files changed)
+#### 11. docker-build Job (Runs if Docker files changed)
 
 **Purpose:** Build and test Docker image
 
@@ -1831,9 +1888,9 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 
 #### nightly-tests Job
 
-**Purpose:** Run all tests with comprehensive metrics collection
+**Purpose:** Run all tests with comprehensive metrics collection using production ML models
 
-**Duration:** ~30-60 minutes (includes all slow/ml_models tests)
+**Duration:** ~4-5 hours (includes all tests with production models: Whisper base, BART-large-cnn, LED-large-16384)
 
 **Steps:**
 1. Checkout code (full history for trend tracking)
@@ -1841,8 +1898,13 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 3. Set up Python 3.11
 4. Cache ML models (for faster execution)
 5. Install full dependencies (including ML + pytest-json-report)
-6. Preload ML models (if cache miss)
-7. Run all tests with comprehensive metrics:
+6. Preload **production** ML models via `make preload-ml-models-production` (if cache miss)
+7. Run regular tests (unit + integration + e2e, excluding nightly-only tests):
+8. Run **nightly-only tests** via `make test-nightly`:
+   - Uses production models: Whisper base, BART-large-cnn, LED-large-16384
+   - Processes all 15 episodes across 5 podcasts (p01-p05)
+   - Validates full pipeline with production-quality models
+9. Run all tests with comprehensive metrics:
    - `--junitxml=reports/junit.xml` (JUnit XML for test results)
    - `--json-report --json-report-file=reports/pytest.json` (Structured JSON metrics)
    - `--cov-report=xml:reports/coverage.xml` (Coverage XML)

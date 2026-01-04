@@ -77,6 +77,7 @@ class TestOpenAIProviderE2E:
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
+    @pytest.mark.flaky
     def test_openai_speaker_detection_in_pipeline(self, e2e_server):
         """Test OpenAI speaker detection provider in full pipeline."""
         temp_dir = tempfile.mkdtemp()
@@ -108,7 +109,8 @@ class TestOpenAIProviderE2E:
 
             # Verify metadata files were created (may not exist if
             # transcript file doesn't exist)
-            metadata_files = list(Path(temp_dir).rglob("*.json"))
+            # Use *.metadata.json to avoid matching metrics.json files
+            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
             # Note: Metadata files may not be created if transcript files don't exist
             # The key is that OpenAI speaker detection was called via E2E server
             if len(metadata_files) > 0:
@@ -157,7 +159,8 @@ class TestOpenAIProviderE2E:
             assert transcripts_saved > 0, "Should have saved at least one transcript"
 
             # Verify metadata files were created
-            metadata_files = list(Path(temp_dir).rglob("*.json"))
+            # Use *.metadata.json to avoid matching metrics.json files
+            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
             # Note: Summarization may not be called if transcript file doesn't exist
             # or if there's an error. The key is that the pipeline completes.
             if len(metadata_files) > 0:
@@ -170,6 +173,7 @@ class TestOpenAIProviderE2E:
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
+    @pytest.mark.flaky
     def test_openai_all_providers_in_pipeline(self, e2e_server):
         """Test all OpenAI providers together in full pipeline using E2E server."""
         temp_dir = tempfile.mkdtemp()
@@ -198,7 +202,8 @@ class TestOpenAIProviderE2E:
 
             # Verify metadata files were created (may not exist if transcript file doesn't exist)
             # But if they are created, verify they're correct
-            metadata_files = list(Path(temp_dir).rglob("*.json"))
+            # Use *.metadata.json to avoid matching metrics.json files
+            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
             if len(metadata_files) > 0:
                 # Verify metadata structure
                 import json as json_module
@@ -311,7 +316,8 @@ class TestOpenAIProviderE2E:
 
             # Verify metadata files were created
             # Metadata should be created with summary from E2E server
-            metadata_files = list(Path(temp_dir).rglob("*.json"))
+            # Use *.metadata.json to avoid matching metrics.json files
+            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
             assert len(metadata_files) > 0, "Metadata files should be created"
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)

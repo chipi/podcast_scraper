@@ -258,6 +258,27 @@ class TestValidationEdgeCases(unittest.TestCase):
         self.assertTrue(cfg.reuse_media)
         self.assertFalse(cfg.clean_output)
 
+    def test_preload_models_default(self):
+        """Test that preload_models defaults to True."""
+        cfg = Config(rss_url="https://example.com/feed.xml")
+        self.assertTrue(cfg.preload_models)
+
+    def test_preload_models_can_be_disabled(self):
+        """Test that preload_models can be set to False."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=False,
+        )
+        self.assertFalse(cfg.preload_models)
+
+    def test_preload_models_can_be_enabled(self):
+        """Test that preload_models can be explicitly set to True."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=True,
+        )
+        self.assertTrue(cfg.preload_models)
+
 
 class TestConfigFieldValidators(unittest.TestCase):
     """Tests for Config field validators."""

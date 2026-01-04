@@ -335,7 +335,7 @@ class TestFinish(unittest.TestCase):
 class TestLogMetrics(unittest.TestCase):
     """Test log_metrics method."""
 
-    @patch("podcast_scraper.metrics.logger.info")
+    @patch("podcast_scraper.metrics.logger.debug")
     @patch("podcast_scraper.metrics.time.time")
     def test_log_metrics_calls_finish(self, mock_time, mock_log):
         """Test that log_metrics calls finish and logs the result."""
@@ -346,13 +346,13 @@ class TestLogMetrics(unittest.TestCase):
 
         m.log_metrics()
 
-        # Should call finish (which calculates duration)
+        # Should call finish (which calculates duration) and log at DEBUG level (per RFC-027)
         mock_log.assert_called_once()
         call_args = mock_log.call_args[0][0]
-        self.assertIn("Pipeline finished:", call_args)
+        self.assertIn("Pipeline finished", call_args)
         self.assertIn("Episodes Scraped Total: 10", call_args)
 
-    @patch("podcast_scraper.metrics.logger.info")
+    @patch("podcast_scraper.metrics.logger.debug")
     @patch("podcast_scraper.metrics.time.time")
     def test_log_metrics_format(self, mock_time, mock_log):
         """Test that log_metrics formats output correctly."""
@@ -366,7 +366,7 @@ class TestLogMetrics(unittest.TestCase):
 
         call_args = mock_log.call_args[0][0]
         # Should have header
-        self.assertIn("Pipeline finished:", call_args)
+        self.assertIn("Pipeline finished", call_args)
         # Should have formatted keys (underscores replaced, title case)
         self.assertIn("Episodes Scraped Total", call_args)
         self.assertIn("Transcripts Downloaded", call_args)
@@ -374,7 +374,7 @@ class TestLogMetrics(unittest.TestCase):
         self.assertIn(": 5", call_args)
         self.assertIn(": 3", call_args)
 
-    @patch("podcast_scraper.metrics.logger.info")
+    @patch("podcast_scraper.metrics.logger.debug")
     @patch("podcast_scraper.metrics.time.time")
     def test_log_metrics_includes_all_metrics(self, mock_time, mock_log):
         """Test that log_metrics includes all metrics from finish()."""

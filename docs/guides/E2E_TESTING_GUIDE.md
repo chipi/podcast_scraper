@@ -103,7 +103,7 @@ Tests use smaller, faster models for speed:
 | Whisper | `tiny.en` | `base.en` |
 | spaCy | `en_core_web_sm` | `en_core_web_sm` |
 | Transformers MAP | `facebook/bart-base` | `facebook/bart-large-cnn` |
-| Transformers REDUCE | `allenai/led-base-16384` | `allenai/led-base-16384` |
+| Transformers REDUCE | `allenai/led-base-16384` | `allenai/led-large-16384` |
 
 ### Model Cache Requirements
 

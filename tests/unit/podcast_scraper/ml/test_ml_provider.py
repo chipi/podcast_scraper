@@ -595,3 +595,357 @@ class TestMLProviderSummarization(unittest.TestCase):
             provider.summarize("Text")
 
         self.assertIn("Summarization failed", str(context.exception))
+
+
+@pytest.mark.unit
+class TestMLProviderPreload(unittest.TestCase):
+    """Tests for MLProvider.preload() method.
+
+    These tests focus on the preload functionality, which is a characteristic
+    of MLProvider. All preloading logic is encapsulated within the provider.
+    """
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
+            preload_models=True,  # Enable preloading by default
+        )
+
+    def test_preload_has_method(self):
+        """Test that MLProvider has preload() method."""
+        provider = MLProvider(self.cfg)
+        self.assertTrue(hasattr(provider, "preload"))
+        self.assertTrue(callable(provider.preload))
+
+    def test_preload_skips_when_disabled(self):
+        """Test that preload() skips when preload_models=False."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=False,
+            transcribe_missing=True,
+            transcription_provider="whisper",
+        )
+        provider = MLProvider(cfg)
+
+        # Should not raise and should not initialize
+        provider.preload()
+        self.assertFalse(provider._whisper_initialized)
+
+    def test_preload_skips_when_dry_run(self):
+        """Test that preload() skips when dry_run=True."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            dry_run=True,
+            transcribe_missing=True,
+            transcription_provider="whisper",
+        )
+        provider = MLProvider(cfg)
+
+        # Should not raise and should not initialize
+        provider.preload()
+        self.assertFalse(provider._whisper_initialized)
+
+    def test_preload_skips_when_no_models_needed(self):
+        """Test that preload() skips when no models are needed."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            transcribe_missing=False,
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+        provider = MLProvider(cfg)
+
+        # Should not raise and should not initialize anything
+        provider.preload()
+        self.assertFalse(provider._whisper_initialized)
+        self.assertFalse(provider._spacy_initialized)
+        self.assertFalse(provider._transformers_initialized)
+
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    def test_preload_whisper_success(self, mock_import_whisper):
+        """Test successful Whisper model preloading."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            transcribe_missing=True,
+            transcription_provider="whisper",
+            whisper_model="base.en",
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+        provider = MLProvider(cfg)
+
+        mock_model = Mock()
+        mock_model.device.type = "cpu"
+        mock_whisper_lib = Mock()
+        mock_whisper_lib.load_model.return_value = mock_model
+        mock_import_whisper.return_value = mock_whisper_lib
+
+        provider.preload()
+
+        # Verify model was initialized
+        self.assertTrue(provider._whisper_initialized)
+        self.assertEqual(provider._whisper_model, mock_model)
+
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    def test_preload_spacy_success(self, mock_get_ner):
+        """Test successful spaCy model preloading."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            auto_speakers=True,
+            speaker_detector_provider="spacy",
+            ner_model="en_core_web_sm",
+            transcribe_missing=False,
+            generate_summaries=False,
+        )
+        provider = MLProvider(cfg)
+
+        mock_nlp = Mock()
+        mock_get_ner.return_value = mock_nlp
+
+        provider.preload()
+
+        # Verify model was initialized
+        self.assertTrue(provider._spacy_initialized)
+        self.assertEqual(provider._spacy_nlp, mock_nlp)
+
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    def test_preload_transformers_success(
+        self, mock_summary_model, mock_select_map, mock_select_reduce
+    ):
+        """Test successful Transformers model preloading."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            generate_summaries=True,
+            summary_provider="transformers",
+            generate_metadata=True,  # Required when generate_summaries=True
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        provider = MLProvider(cfg)
+
+        mock_model = Mock()
+        mock_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_model.device = "cpu"
+        mock_summary_model.return_value = mock_model
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
+
+        provider.preload()
+
+        # Verify model was initialized
+        self.assertTrue(provider._transformers_initialized)
+        self.assertEqual(provider._map_model, mock_model)
+
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    def test_preload_whisper_fails_fast(self, mock_import_whisper):
+        """Test that preload() fails fast when Whisper model cannot be loaded."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            transcribe_missing=True,
+            transcription_provider="whisper",
+            whisper_model="base.en",
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+        provider = MLProvider(cfg)
+
+        mock_import_whisper.side_effect = ImportError("openai-whisper not installed")
+
+        with self.assertRaises(RuntimeError) as context:
+            provider.preload()
+
+        # Verify error message
+        self.assertIn("Failed to preload Whisper model", str(context.exception))
+        self.assertIn("openai-whisper", str(context.exception))
+
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    def test_preload_spacy_fails_fast(self, mock_get_ner):
+        """Test that preload() fails fast when spaCy model cannot be loaded."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            auto_speakers=True,
+            speaker_detector_provider="spacy",
+            ner_model="en_core_web_sm",
+            transcribe_missing=False,
+            generate_summaries=False,
+        )
+        provider = MLProvider(cfg)
+
+        mock_get_ner.side_effect = OSError("Model not found")
+
+        with self.assertRaises(RuntimeError) as context:
+            provider.preload()
+
+        # Verify error message
+        self.assertIn("Failed to preload spaCy model", str(context.exception))
+        self.assertIn("spacy download", str(context.exception))
+
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    def test_preload_transformers_fails_fast(
+        self, mock_summary_model, mock_select_map, mock_select_reduce
+    ):
+        """Test that preload() fails fast when Transformers model cannot be loaded."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            generate_summaries=True,
+            summary_provider="transformers",
+            generate_metadata=True,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        provider = MLProvider(cfg)
+
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
+        mock_summary_model.side_effect = RuntimeError("Model download failed")
+
+        with self.assertRaises(RuntimeError) as context:
+            provider.preload()
+
+        # Verify error message
+        self.assertIn("Failed to preload Transformers models", str(context.exception))
+        self.assertIn("model cache", str(context.exception).lower())
+
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    def test_preload_all_models_success(
+        self,
+        mock_summary_model,
+        mock_select_map,
+        mock_select_reduce,
+        mock_get_ner,
+        mock_import_whisper,
+    ):
+        """Test preloading all three model types together."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            transcribe_missing=True,
+            transcription_provider="whisper",
+            auto_speakers=True,
+            speaker_detector_provider="spacy",
+            generate_summaries=True,
+            summary_provider="transformers",
+            generate_metadata=True,
+            whisper_model="base.en",
+        )
+        provider = MLProvider(cfg)
+
+        # Setup mocks
+        mock_whisper_model = Mock()
+        mock_whisper_model.device.type = "cpu"
+        mock_whisper_lib = Mock()
+        mock_whisper_lib.load_model.return_value = mock_whisper_model
+        mock_import_whisper.return_value = mock_whisper_lib
+
+        mock_nlp = Mock()
+        mock_get_ner.return_value = mock_nlp
+
+        mock_transformers_model = Mock()
+        mock_transformers_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_transformers_model.device = "cpu"
+        mock_summary_model.return_value = mock_transformers_model
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
+
+        provider.preload()
+
+        # Verify all models were initialized
+        self.assertTrue(provider._whisper_initialized)
+        self.assertTrue(provider._spacy_initialized)
+        self.assertTrue(provider._transformers_initialized)
+
+    def test_preload_skips_openai_providers(self):
+        """Test that preload() skips when using OpenAI providers."""
+        # Whisper with OpenAI provider - should skip
+        cfg1 = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            transcribe_missing=True,
+            transcription_provider="openai",  # OpenAI, not whisper
+            openai_api_key="sk-test123",  # Required for OpenAI provider
+            auto_speakers=False,  # Disable to avoid spaCy loading
+            generate_summaries=False,  # Disable to avoid Transformers loading
+        )
+        provider1 = MLProvider(cfg1)
+        provider1.preload()
+        self.assertFalse(provider1._whisper_initialized)
+
+        # Summarization with OpenAI provider - should skip
+        cfg2 = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            generate_summaries=True,
+            summary_provider="openai",  # OpenAI, not transformers
+            openai_api_key="sk-test123",  # Required for OpenAI provider
+            generate_metadata=True,
+            auto_speakers=False,  # Disable to avoid spaCy loading
+            transcribe_missing=False,  # Disable to avoid Whisper loading
+        )
+        provider2 = MLProvider(cfg2)
+        provider2.preload()
+        self.assertFalse(provider2._transformers_initialized)
+
+        # Speaker detection with OpenAI provider - should skip
+        cfg3 = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            auto_speakers=True,
+            speaker_detector_provider="openai",  # OpenAI, not spacy
+            openai_api_key="sk-test123",  # Required for OpenAI provider
+            transcribe_missing=False,  # Disable to avoid Whisper loading
+            generate_summaries=False,  # Disable to avoid Transformers loading
+        )
+        provider3 = MLProvider(cfg3)
+        provider3.preload()
+        self.assertFalse(provider3._spacy_initialized)
+
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    def test_preload_idempotent(self, mock_import_whisper):
+        """Test that preload() is idempotent (can be called multiple times safely)."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            preload_models=True,
+            transcribe_missing=True,
+            transcription_provider="whisper",
+            whisper_model="base.en",
+            auto_speakers=False,  # Disable to avoid spaCy filesystem I/O
+            generate_summaries=False,  # Disable to avoid Transformers loading
+        )
+        provider = MLProvider(cfg)
+
+        mock_model = Mock()
+        mock_model.device.type = "cpu"
+        mock_whisper_lib = Mock()
+        mock_whisper_lib.load_model.return_value = mock_model
+        mock_import_whisper.return_value = mock_whisper_lib
+
+        # First preload
+        provider.preload()
+        self.assertTrue(provider._whisper_initialized)
+        first_call_count = mock_whisper_lib.load_model.call_count
+
+        # Second preload should not reload (initialize() is idempotent)
+        provider.preload()
+        self.assertTrue(provider._whisper_initialized)
+        # Should still only be called once (initialize() checks _whisper_initialized)
+        self.assertEqual(mock_whisper_lib.load_model.call_count, first_call_count)

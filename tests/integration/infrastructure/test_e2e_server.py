@@ -602,7 +602,7 @@ class TestE2EServerMultiEpisodeFeed:
         """
         import tempfile
 
-        from podcast_scraper import Config, run_pipeline
+        from podcast_scraper import Config, config as config_module, run_pipeline
 
         rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
@@ -612,6 +612,7 @@ class TestE2EServerMultiEpisodeFeed:
                 output_dir=tmpdir,
                 max_episodes=1,  # Fast variant: 1 episode for critical path
                 transcribe_missing=True,  # Enable transcription
+                whisper_model=config_module.TEST_DEFAULT_WHISPER_MODEL,  # Use cached test model
                 generate_metadata=True,
                 metadata_format="json",
             )
@@ -641,7 +642,7 @@ class TestE2EServerMultiEpisodeFeed:
         import os
         import tempfile
 
-        from podcast_scraper import Config, run_pipeline
+        from podcast_scraper import Config, config as config_module, run_pipeline
 
         # Determine expected episode count based on test mode
         test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
@@ -655,6 +656,7 @@ class TestE2EServerMultiEpisodeFeed:
                 output_dir=tmpdir,
                 max_episodes=5,  # Request 5 episodes (will be limited to 1 in fast mode)
                 transcribe_missing=True,  # Enable transcription
+                whisper_model=config_module.TEST_DEFAULT_WHISPER_MODEL,  # Use cached test model
                 generate_metadata=True,
                 metadata_format="json",
             )
