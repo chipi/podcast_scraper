@@ -54,31 +54,31 @@ This architecture document is the central hub for understanding the system. For 
 
 ### Pipeline Flow Diagram
 
-````mermaid
+```mermaid
 flowchart TD
     Start([CLI Entry]) --> Parse[Parse CLI Args & Config Files]
     Parse --> Validate[Validate & Normalize Config]
     Validate --> Setup[Setup Output Directory]
     Setup --> FetchRSS[Fetch & Parse RSS Feed]
     FetchRSS --> ExtractEpisodes[Extract Episode Metadata]
-    ExtractEpisodes --> DetectSpeakers{Speaker Detection<br/>Enabled?}
-    DetectSpeakers -->|Yes| ExtractHosts[Extract Host Names<br/>RSS Author Tags]
-    ExtractHosts --> ExtractGuests[Extract Guest Names<br/>NER from Episodes]
+    ExtractEpisodes --> DetectSpeakers{Speaker Detection Enabled?}
+    DetectSpeakers -->|Yes| ExtractHosts[Extract Host Names from RSS]
+    ExtractHosts --> ExtractGuests[Extract Guest Names via NER]
     DetectSpeakers -->|No| ProcessEpisodes[Process Episodes]
     ExtractGuests --> ProcessEpisodes
-    ProcessEpisodes --> CheckTranscript{Transcript<br/>Available?}
-    CheckTranscript -->|Yes| DownloadTranscript[Download Transcript<br/>Concurrent]
+    ProcessEpisodes --> CheckTranscript{Transcript Available?}
+    CheckTranscript -->|Yes| DownloadTranscript[Download Transcript]
     CheckTranscript -->|No| QueueWhisper[Queue for Whisper]
     DownloadTranscript --> SaveTranscript[Save Transcript File]
     QueueWhisper --> DownloadMedia[Download Media File]
-    DownloadMedia --> Transcribe[Whisper Transcription<br/>Sequential]
+    DownloadMedia --> Transcribe[Whisper Transcription]
     Transcribe --> FormatScreenplay[Format with Speaker Names]
     FormatScreenplay --> SaveTranscript
-    SaveTranscript --> GenerateMetadata{Metadata<br/>Generation?}
+    SaveTranscript --> GenerateMetadata{Metadata Generation?}
     GenerateMetadata -->|Yes| CreateMetadata[Generate Metadata JSON/YAML]
     GenerateMetadata -->|No| Cleanup
-    CreateMetadata --> GenerateSummary{Summarization<br/>Enabled?}
-    GenerateSummary -->|Yes| Summarize[Generate Summary & Takeaways<br/>Local Transformer Models]
+    CreateMetadata --> GenerateSummary{Summarization Enabled?}
+    GenerateSummary -->|Yes| Summarize[Generate Summary]
     GenerateSummary -->|No| Cleanup
     Summarize --> AddSummaryToMetadata[Add Summary to Metadata]
     AddSummaryToMetadata --> Cleanup[Cleanup Temp Files]
@@ -89,7 +89,7 @@ flowchart TD
     style ProcessEpisodes fill:#fff3cd
     style Transcribe fill:#f8d7da
     style GenerateMetadata fill:#d1ecf1
-```yaml
+```
 
 - `cli.py`: Parse/validate CLI arguments, integrate config files, set up progress reporting, trigger `run_pipeline`. Optimized for interactive command-line use.
 - `service.py`: Service API for programmatic/daemon use. Provides `service.run()` and `service.run_from_config_file()` functions that return structured `ServiceResult` objects. Works exclusively with configuration files (no CLI arguments), optimized for non-interactive use (supervisor, systemd, etc.). Entry point: `python -m podcast_scraper.service --config config.yaml`.

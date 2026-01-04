@@ -416,6 +416,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=4,
             openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         self.assertIsInstance(cfg, config.Config)
@@ -498,6 +502,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=1,
             openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         self.assertIsInstance(cfg, config.Config)
@@ -554,6 +562,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=1,
             openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         self.assertEqual(cfg.transcription_provider, "openai")
@@ -604,6 +616,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=1,
             openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         self.assertEqual(cfg.speaker_detector_provider, "openai")
@@ -653,6 +669,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=1,
             openai_api_base="http://localhost:8000/v1",
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         self.assertEqual(cfg.openai_api_base, "http://localhost:8000/v1")
@@ -703,6 +723,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=1,
             openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         # The Config object should load the key from environment via field validator
@@ -754,6 +778,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=1,
             openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         # The Config object should have None when env var is not set
@@ -1021,11 +1049,25 @@ class TestAddArgumentGroups(unittest.TestCase):
         # Check that OpenAI arguments are present
         action_dests = [a.dest for a in parser._actions]
         self.assertIn("openai_api_base", action_dests)
+        self.assertIn("openai_transcription_model", action_dests)
+        self.assertIn("openai_speaker_model", action_dests)
+        self.assertIn("openai_summary_model", action_dests)
+        self.assertIn("openai_temperature", action_dests)
 
         # Check that openai_api_base has correct default
         openai_action = next((a for a in parser._actions if a.dest == "openai_api_base"), None)
         self.assertIsNotNone(openai_action)
         self.assertIsNone(openai_action.default)
+
+        # Check that model arguments have correct defaults (None, uses config defaults)
+        for model_arg in [
+            "openai_transcription_model",
+            "openai_speaker_model",
+            "openai_summary_model",
+        ]:
+            action = next((a for a in parser._actions if a.dest == model_arg), None)
+            self.assertIsNotNone(action, f"{model_arg} should be present")
+            self.assertIsNone(action.default, f"{model_arg} default should be None")
 
 
 class TestLoadAndMergeConfig(unittest.TestCase):

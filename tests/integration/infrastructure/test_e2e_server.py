@@ -17,6 +17,8 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
+from podcast_scraper import config as config_module  # noqa: E402
+
 
 @pytest.mark.integration
 class TestE2EServer:
@@ -126,7 +128,7 @@ class TestE2EServerOpenAIEndpoints:
 
         # Create a summarization request (no response_format)
         request_data = {
-            "model": "gpt-4o-mini",
+            "model": config_module.TEST_DEFAULT_OPENAI_SUMMARY_MODEL,
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": "This is a test transcript. Please summarize it."},
@@ -156,7 +158,7 @@ class TestE2EServerOpenAIEndpoints:
 
         # Create a speaker detection request (with response_format={"type": "json_object"})
         request_data = {
-            "model": "gpt-4o-mini",
+            "model": config_module.TEST_DEFAULT_OPENAI_SPEAKER_MODEL,
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": "Detect speakers in this episode."},
@@ -203,7 +205,7 @@ class TestE2EServerOpenAIEndpoints:
             # Create multipart form data request
             with open(audio_path, "rb") as audio_file:
                 files = {"file": ("test_audio.mp3", audio_file, "audio/mpeg")}
-                data = {"model": "whisper-1"}
+                data = {"model": config_module.TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL}
 
                 response = requests.post(url, files=files, data=data, timeout=5)
                 assert (

@@ -1333,7 +1333,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 "summary_short": None,
                 "metadata": {
                     "provider": "openai",
-                    "model_used": "gpt-4o-mini",
+                    "model_used": config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL,
                 },
             },
         ):

@@ -37,6 +37,7 @@ spec.loader.exec_module(parent_conftest)
 create_test_config = parent_conftest.create_test_config
 create_test_episode = parent_conftest.create_test_episode
 
+from podcast_scraper import config  # noqa: E402
 from podcast_scraper.speaker_detectors.openai_detector import OpenAISpeakerDetector  # noqa: E402
 
 
@@ -56,7 +57,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         detector = OpenAISpeakerDetector(self.cfg)
         self.assertEqual(detector.cfg, self.cfg)
         self.assertIsNotNone(detector.client)
-        self.assertEqual(detector.model, "gpt-4o-mini")
+        self.assertEqual(detector.model, config.TEST_DEFAULT_OPENAI_SPEAKER_MODEL)
         self.assertEqual(detector.temperature, 0.3)
         self.assertFalse(detector._initialized)
 

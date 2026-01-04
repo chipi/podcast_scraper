@@ -71,6 +71,25 @@ TEST_DEFAULT_SUMMARY_REDUCE_MODEL = (
 )
 # Note: TEST_DEFAULT_NER_MODEL uses DEFAULT_NER_MODEL ("en_core_web_sm")
 # - same for tests and production
+
+# OpenAI model defaults (Issue #191)
+# Test defaults: cheapest models for dev/testing (minimize API costs)
+# Production defaults: best quality/cost balance
+#
+# Pricing (Jan 2026, per million tokens):
+#   gpt-5-nano:  $0.05 input / $0.40 output (cheapest)
+#   gpt-5-mini:  $0.25 input / $2.00 output (balanced)
+#   gpt-5:       $1.25 input / $10.00 output (highest quality)
+#   gpt-4o-mini: $0.15 input / $0.60 output (legacy budget)
+#   gpt-4o:      $5.00 input / $15.00 output (legacy quality)
+#
+# See: https://openai.com/pricing
+TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
+TEST_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
+TEST_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
+PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
+PROD_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o"  # Higher quality for production
+PROD_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o"  # Higher quality for production
 VALID_WHISPER_MODELS = (
     "tiny",
     "base",

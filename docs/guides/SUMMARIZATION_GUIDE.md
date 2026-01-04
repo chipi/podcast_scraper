@@ -23,83 +23,49 @@ from short episodes to very long multi-hour conversations.
 
 ## Summarization Flow
 
-````mermaid
+```mermaid
 flowchart TD
-    Start([Transcript Available]) --> CheckEnabled{Summarization<br/>Enabled?}
+    Start([Transcript Available]) --> CheckEnabled{Summarization Enabled?}
     CheckEnabled -->|No| Skip[Skip Summarization]
-    CheckEnabled -->|Yes| CleanTranscript[Clean Transcript<br/>Remove timestamps, sponsors, fillers]
-    CleanTranscript --> SaveCleaned{Save Cleaned<br/>Transcript?}
-    SaveCleaned -->|Yes| WriteCleaned[Write .cleaned.txt File]
-    SaveCleaned -->|No| CheckSize
-    WriteCleaned --> CheckSize{Text Size<br/>Check}
-    CheckSize -->|Fits in Context| DirectSummarize[Direct Summarization<br/>Single Pass]
-    CheckSize -->|Too Long| StartMapReduce[Begin MAP-REDUCE Pipeline]
+    CheckEnabled -->|Yes| CleanTranscript[Clean Transcript]
+    CleanTranscript --> CheckSize{Text Size Check}
+    CheckSize -->|Fits in Context| DirectSummarize[Direct Summarization]
+    CheckSize -->|Too Long| StartMapReduce[Begin MAP-REDUCE]
 
-    StartMapReduce --> ChunkText[Chunk Text<br/>Token-based or Word-based]
-    ChunkText --> MapPhase[MAP PHASE<br/>Summarize Each Chunk]
-    MapPhase --> MapModel[Use MAP Model<br/>Default: BART-large]
-    MapModel --> ParallelCheck{Device<br/>Type?}
-    ParallelCheck -->|CPU| ParallelMap[Parallel Processing<br/>ThreadPoolExecutor]
-    ParallelCheck -->|GPU/MPS| SequentialMap[Sequential Processing<br/>Avoid Thrashing]
-    ParallelMap --> ChunkSummaries[Chunk Summaries<br/>Generated]
-    SequentialMap --> ChunkSummaries
-
-```python
-
+    StartMapReduce --> ChunkText[Chunk Text]
+    ChunkText --> MapPhase[MAP PHASE - Summarize Chunks]
+    MapPhase --> ChunkSummaries[Chunk Summaries Generated]
     ChunkSummaries --> CombineSummaries[Combine Summaries]
-    CombineSummaries --> CheckCombinedSize{Combined<br/>Token Count?}
+    CombineSummaries --> CheckCombinedSize{Combined Size?}
 
-```python
+    CheckCombinedSize -->|Small| SinglePass[Single-Pass Reduce]
+    CheckCombinedSize -->|Medium| MiniMapReduce[Hierarchical Reduce]
+    CheckCombinedSize -->|Large| Extractive[Extractive Approach]
 
-    CheckCombinedSize -->|≤800 tokens| SinglePass[SINGLE-PASS ABSTRACTIVE<br/>Direct Final Summary]
-    CheckCombinedSize -->|800-4000 tokens| MiniMapReduce[HIERARCHICAL REDUCE<br/>Mini Map-Reduce]
-    CheckCombinedSize -->|>4000 tokens| Extractive[EXTRACTIVE APPROACH<br/>Select Key Chunks]
-
-```python
-
-    MiniMapReduce --> RechunkSummaries[Re-chunk Combined Summaries<br/>3-5 sections, 650 words each]
-    RechunkSummaries --> SummarizeSections[Summarize Each Section]
-    SummarizeSections --> CheckIterations{More<br/>Iterations<br/>Needed?}
-    CheckIterations -->|Yes, <4 passes| RechunkSummaries
-    CheckIterations -->|No| FinalAbstractive[Final Abstractive Reduce]
-
-```python
-
-    Extractive --> SelectKeyChunks[Select Representative Chunks<br/>First, Middle, Last, Quartiles]
-    SelectKeyChunks --> FinalExtractivePass{Still Too<br/>Long?}
-    FinalExtractivePass -->|Yes| FinalExtractSummarize[Final Summarization Pass]
-    FinalExtractivePass -->|No| UseExtractiveOutput[Use Selected Chunks]
-    FinalExtractSummarize --> FinalSummary
-    UseExtractiveOutput --> FinalSummary
-
-```python
-
-    SinglePass --> ReduceModel[Use REDUCE Model<br/>Default: LED-large]
-    ReduceModel --> FinalAbstractive
+    MiniMapReduce --> FinalAbstractive[Final Abstractive Reduce]
+    Extractive --> FinalSummary
+    SinglePass --> FinalAbstractive
     FinalAbstractive --> FinalSummary[Final Summary Generated]
     DirectSummarize --> FinalSummary
 
 ```python
-
-    FinalSummary --> ValidateSummary[Validate Summary<br/>Check for repetition/leaks]
-    ValidateSummary --> StripLeaks[Strip Instruction Leaks]
-    StripLeaks --> FixRepetitive[Fix Repetitive Content]
-    FixRepetitive --> CreateMetadata[Create Summary Metadata<br/>Timestamp, Model, Word Count]
-    CreateMetadata --> StoreInMetadata[Store in Episode Metadata<br/>JSON/YAML]
+    FinalSummary --> ValidateSummary[Validate Summary]
+    ValidateSummary --> StoreInMetadata[Store in Episode Metadata]
     StoreInMetadata --> Complete([Summarization Complete])
     Skip --> Complete
-
 ```
 
-    style CleanTranscript fill:#fff3cd
-    style MapPhase fill:#ffd4a3
-    style MiniMapReduce fill:#d4a3ff
-    style Extractive fill:#ffa3d4
-    style SinglePass fill:#a3ffd4
-    style FinalSummary fill:#d4edda
-    style Complete fill:#d4edda
+```text
+style CleanTranscript fill:#fff3cd
+style MapPhase fill:#ffd4a3
+style MiniMapReduce fill:#d4a3ff
+style Extractive fill:#ffa3d4
+style SinglePass fill:#a3ffd4
+style FinalSummary fill:#d4edda
+style Complete fill:#d4edda
+```
 
-```yaml
+### 1. Transcript Cleaning
 
 - Removes timestamps (language-agnostic: `[00:12:34]` patterns)
 - Strips generic speaker tags while preserving actual speaker names
@@ -227,14 +193,13 @@ Summarization is configured via the `Config` model. Key options include:
 - `summary_reduce_model`: REDUCE model selection (default: `allenai/led-large-16384`)
 - `save_cleaned_transcript`: Save cleaned transcripts to `.cleaned.txt` files
 
-See [Configuration Documentation](api/CONFIGURATION.md) for complete configuration options.
+See [Configuration Documentation](../api/CONFIGURATION.md) for complete configuration options.
 
 ## Related Documentation
 
 - [Architecture](../ARCHITECTURE.md) - High-level system design
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices
-- [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md) - Complete guide for implementing new providers (includes OpenAI example)
+- [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md) - Complete guide for implementing new
+  providers (includes OpenAI example)
 - [PRD-005](../prd/PRD-005-episode-summarization.md) - Product requirements for summarization
-- [RFC-012](rfc/RFC-012-episode-summarization.md) - Design decisions for summarization
-
-````
+- [RFC-012](../rfc/RFC-012-episode-summarization.md) - Design decisions for summarization
