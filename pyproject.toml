@@ -58,6 +58,10 @@ dev = [
   "pip-audit>=2.6.0,<3.0.0",
   "build",
   "rouge-score>=0.1.2,<1.0.0",  # Required for scripts/eval_summaries.py
+  "radon>=6.0.0,<7.0.0",  # Code complexity analysis (RFC-031)
+  "vulture>=2.10,<3.0.0",  # Dead code detection (RFC-031)
+  "interrogate>=1.5.0,<2.0.0",  # Docstring coverage (RFC-031)
+  "codespell>=2.2.0,<3.0.0",  # Spell checking (RFC-031)
 ]
 # Documentation - see docs/requirements.txt
 
@@ -119,6 +123,7 @@ source = ["podcast_scraper"]
 show_missing = true
 skip_covered = true
 precision = 2
+fail_under = 65
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -139,6 +144,7 @@ markers = [
     "unit: marks tests as unit tests (deselect with '-m \"not unit\"')",
     "multi_episode: multi-episode tests with multiple short episodes (10-15 seconds each) for testing multi-episode processing logic",
     "data_quality: data quality validation tests with multiple episodes (nightly only)",
+    "nightly: marks tests as nightly-only (comprehensive tests with production models, not run in regular CI)",
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: integration tests (slower, test component interactions)",
     "e2e: end-to-end workflow tests (slowest, test full workflows)",
@@ -161,3 +167,16 @@ markers = [
 # Network blocking configuration (pytest-socket) for E2E tests
 # Block all external network calls except localhost/127.0.0.1
 # This is configured per-test-directory in conftest.py files
+
+[tool.interrogate]
+ignore-init-module = true
+ignore-init-method = true
+ignore-magic = true
+ignore-semiprivate = true
+ignore-private = true
+ignore-property-decorators = true
+ignore-module = true
+ignore-nested-functions = true
+fail-under = 60
+exclude = ["tests", "scripts"]
+verbose = 1

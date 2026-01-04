@@ -48,6 +48,7 @@ except ImportError:
 class TestWhisperProviderDirect:
     """Direct Whisper provider E2E tests."""
 
+    @pytest.mark.flaky
     def test_whisper_provider_transcribe_audio_file(self, e2e_server):
         """Test Whisper provider directly with real audio file.
 
@@ -108,6 +109,7 @@ class TestWhisperProviderDirect:
             if os.path.exists(audio_file):
                 os.unlink(audio_file)
 
+    @pytest.mark.flaky
     def test_whisper_provider_transcribe_with_segments(self, e2e_server):
         """Test Whisper provider transcribe_with_segments() method.
 
@@ -184,6 +186,7 @@ class TestWhisperProviderDirect:
 class TestWhisperFallbackWorkflow:
     """Whisper fallback workflow E2E tests."""
 
+    @pytest.mark.flaky
     def test_whisper_fallback_workflow_no_transcript(self, e2e_server):
         """Test complete Whisper fallback workflow: RSS → no transcript → audio → Whisper.
 

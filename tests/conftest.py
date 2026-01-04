@@ -10,6 +10,19 @@ This module contains:
 All test files can import from this module using pytest's conftest.py mechanism.
 """
 
+# Disable tqdm progress bars in tests to prevent hangs with -s flag
+# and pytest-xdist parallel execution. Must be set BEFORE any tqdm imports.
+# See: https://github.com/chipi/podcast_scraper/issues/176
+import os
+
+os.environ["TQDM_DISABLE"] = "1"
+
+# Force Hugging Face libraries to work offline (use only cached models)
+# This prevents network access attempts that would fail with pytest-socket blocking
+# Must be set BEFORE any transformers/huggingface_hub imports
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
 import argparse
 import gc
 import unittest.mock
@@ -490,8 +503,33 @@ def cleanup_ml_resources_after_test(request):
         except ImportError:
             pass  # PyTorch not available, skip
 
+    # Reset preloaded ML provider global BEFORE test runs
+    # This ensures each test starts with clean state and prevents cross-test interference
+    # in parallel execution (pytest-xdist) where the global could be shared
+    # See: https://github.com/chipi/podcast_scraper/issues/177 (flaky tests)
+    try:
+        from podcast_scraper import workflow
+
+        workflow._preloaded_ml_provider = None
+    except ImportError:
+        pass  # workflow module not available
+
     # Run the test
     yield
+
+    # Reset preloaded ML provider global AFTER test completes
+    # This prevents one test's cleanup from affecting another test that's still running
+    try:
+        from podcast_scraper import workflow
+
+        if workflow._preloaded_ml_provider is not None:
+            try:
+                workflow._preloaded_ml_provider.cleanup()
+            except Exception:
+                pass  # Ignore cleanup errors
+            workflow._preloaded_ml_provider = None
+    except ImportError:
+        pass  # workflow module not available
 
     # After test completes, force garbage collection
     # This helps clean up any ML models that weren't explicitly cleaned up

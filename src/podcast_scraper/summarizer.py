@@ -430,12 +430,13 @@ def select_summary_model(cfg) -> str:
 def select_reduce_model(cfg, default_model_name: str) -> str:
     """Select reduce-phase model based on configuration.
 
-    Defaults to LED (long-fast) for accurate, long-context final summarization.
+    Defaults to LED-large for accurate, long-context final summarization.
     This hybrid approach is widely used in production:
     - MAP with BART (fast, efficient chunk summaries)
-    - REDUCE with LED (slower but accurate, handles long combined summaries without hallucination)
+    - REDUCE with LED-large (slower but accurate, handles long combined
+      summaries without hallucination)
 
-    If ``cfg.summary_reduce_model`` is not set, defaults to LED (long-fast) instead
+    If ``cfg.summary_reduce_model`` is not set, defaults to LED-large instead
     of falling back to the map model. This provides the best quality by default.
 
     Args:
@@ -447,8 +448,8 @@ def select_reduce_model(cfg, default_model_name: str) -> str:
     """
     reduce_key = getattr(cfg, "summary_reduce_model", None)
     if not reduce_key:
-        # Default to LED for reduce phase (best quality, long-context)
-        return DEFAULT_SUMMARY_MODELS["long-fast"]
+        # Default to LED-large for reduce phase (best quality, long-context)
+        return DEFAULT_SUMMARY_MODELS["long"]
 
     reduce_key = cast(str, reduce_key)
     # Allow using keys from DEFAULT_SUMMARY_MODELS (e.g., "long-fast", "long", "bart-large")

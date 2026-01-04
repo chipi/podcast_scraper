@@ -86,6 +86,7 @@ class TestTransformersSummarization:
                 generate_summaries=True,  # Required for provider to initialize
                 summary_provider="transformers",
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
+                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
                 language="en",
             )
 
@@ -108,7 +109,6 @@ class TestTransformersSummarization:
             # Cleanup
             provider.cleanup()
 
-    @pytest.mark.flaky
     def test_transformers_provider_in_full_workflow(self, e2e_server):
         """Test Transformers summarization provider in full workflow."""
         # Require model to be cached (fail fast if not)
@@ -128,6 +128,7 @@ class TestTransformersSummarization:
                 generate_summaries=True,
                 summary_provider="transformers",
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
+                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
                 transcribe_missing=True,  # Required: podcast1 has no transcript URL
                 whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             )
@@ -256,6 +257,7 @@ class TestAllMLModelsTogether:
                 generate_summaries=True,
                 summary_provider="transformers",
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
                 auto_speakers=True,
                 speaker_detector_provider="spacy",
                 ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
@@ -300,6 +302,7 @@ class TestAllMLModelsTogether:
                 generate_summaries=True,  # Required for provider to initialize
                 summary_provider="transformers",
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
             )
             provider = TransformersSummarizationProvider(cfg_summary)
             provider.initialize()

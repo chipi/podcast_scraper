@@ -119,7 +119,7 @@ class TestVeryLongTitles:
                 assert isinstance(summary, str), "Summary should be a string"
 
                 # Verify output files were created (may be fewer if long title caused issues)
-                output_files = list(Path(tmpdir).glob("*.txt"))
+                output_files = list(Path(tmpdir).rglob("*.txt"))
                 # At least episodes 1 and 2 should be processed
                 assert len(output_files) >= 2, "Should create at least two transcript files"
 
@@ -159,7 +159,7 @@ class TestMissingOptionalFields:
                 assert isinstance(summary, str), "Summary should be a string"
 
                 # Verify output files were created for episodes with transcripts
-                output_files = list(Path(tmpdir).glob("*.txt"))
+                output_files = list(Path(tmpdir).rglob("*.txt"))
                 assert (
                     len(output_files) >= 3
                 ), "Should create transcript files for at least 3 episodes"
@@ -194,7 +194,7 @@ class TestEmptyDescriptions:
                 assert isinstance(summary, str), "Summary should be a string"
 
                 # Verify output files were created
-                output_files = list(Path(tmpdir).glob("*.txt"))
+                output_files = list(Path(tmpdir).rglob("*.txt"))
                 assert len(output_files) >= 4, "Should create at least four transcript files"
             except OSError as e:
                 # On some systems, very long filenames cause OSError
@@ -229,7 +229,7 @@ class TestRelativeURLs:
                 assert isinstance(summary, str), "Summary should be a string"
 
                 # Verify output files were created
-                output_files = list(Path(tmpdir).glob("*.txt"))
+                output_files = list(Path(tmpdir).rglob("*.txt"))
                 assert len(output_files) >= 4, "Should create at least four transcript files"
             except OSError as e:
                 # On some systems, very long filenames cause OSError
@@ -262,7 +262,7 @@ class TestAllEdgeCasesTogether:
                 assert isinstance(summary, str), "Summary should be a string"
 
                 # Verify output files were created
-                output_files = list(Path(tmpdir).glob("*.txt"))
+                output_files = list(Path(tmpdir).rglob("*.txt"))
                 assert len(output_files) >= 4, "Should create at least four transcript files"
 
                 # Verify all files have content

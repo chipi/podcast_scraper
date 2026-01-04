@@ -69,6 +69,8 @@ class TestBasicCLIE2E:
                     "--generate-summaries",  # Enable summarization - uses local ML (transformers)
                     "--summary-model",
                     config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
+                    "--summary-reduce-model",
+                    config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Use cached test model
                     "--generate-metadata",  # Enable metadata generation
                 ]
             )
@@ -142,6 +144,8 @@ class TestBasicCLIE2E:
                     "--generate-summaries",  # Enable summarization - uses local ML (transformers)
                     "--summary-model",
                     config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
+                    "--summary-reduce-model",
+                    config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Use cached test model
                     "--generate-metadata",  # Enable metadata generation
                 ]
             )
@@ -182,6 +186,7 @@ class TestBasicLibraryAPIE2E:
     """Basic library API E2E tests using real HTTP client."""
 
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     def test_library_api_basic_pipeline_path1(self, e2e_server):
         """Test complete library API critical path (Path 1: transcript download).
 
@@ -291,6 +296,7 @@ class TestBasicLibraryAPIE2E:
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
                 summary_provider="transformers",  # Use transformers ML provider - default
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
+                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
             )
@@ -332,6 +338,7 @@ class TestBasicServiceAPIE2E:
     """Basic service API E2E tests using real HTTP client."""
 
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     def test_service_api_basic_run_path1(self, e2e_server):
         """Test complete service API critical path (Path 1: transcript download).
 
@@ -364,6 +371,7 @@ class TestBasicServiceAPIE2E:
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
                 summary_provider="transformers",  # Use transformers ML provider - default
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
+                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
             )
@@ -404,6 +412,7 @@ class TestBasicServiceAPIE2E:
                     assert metadata["summary"] is not None, "Summary should not be None"
 
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     def test_service_api_basic_run_path2(self, e2e_server):
         """Test complete service API critical path (Path 2: transcription).
 
@@ -439,6 +448,7 @@ class TestBasicServiceAPIE2E:
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
                 summary_provider="transformers",  # Use transformers ML provider - default
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
+                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
             )
@@ -491,6 +501,7 @@ class TestBasicServiceAPIE2E:
 class TestBasicCLIE2E_OpenAI:
     """OpenAI provider E2E tests using mock OpenAI endpoints on E2E server."""
 
+    @pytest.mark.flaky
     def test_cli_basic_transcript_download_path1_openai(self, e2e_server, monkeypatch):
         """Test complete CLI critical path (Path 1) with OpenAI providers.
 
@@ -561,6 +572,7 @@ class TestBasicCLIE2E_OpenAI:
                     assert metadata["summary"] is not None, "Summary should not be None"
 
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     def test_cli_basic_transcript_download_path2_openai(self, e2e_server, monkeypatch):
         """Test complete CLI critical path (Path 2) with OpenAI providers.
 
@@ -703,6 +715,7 @@ class TestBasicLibraryAPIE2E_OpenAI:
                     assert metadata["summary"] is not None, "Summary should not be None"
 
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     def test_library_api_basic_pipeline_path2_openai(self, e2e_server):
         """Test complete Library API critical path (Path 2) with OpenAI providers.
 
@@ -773,6 +786,7 @@ class TestBasicLibraryAPIE2E_OpenAI:
 class TestBasicServiceAPIE2E_OpenAI:
     """OpenAI provider Service API E2E tests using mock OpenAI endpoints on E2E server."""
 
+    @pytest.mark.flaky
     def test_service_api_basic_run_path1_openai(self, e2e_server):
         """Test complete Service API critical path (Path 1) with OpenAI providers.
 

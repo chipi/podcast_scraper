@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
@@ -155,6 +157,28 @@ class Metrics:
             "summarize_count": len(self.summarize_times),
         }
 
+    def to_json(self) -> str:
+        """Convert metrics to JSON string.
+
+        Returns:
+            JSON string representation of all metrics
+        """
+        metrics_dict = self.finish()
+        return json.dumps(metrics_dict, indent=2)
+
+    def save_to_file(self, filepath: str | Path) -> None:
+        """Save metrics to JSON file.
+
+        Args:
+            filepath: Path to output JSON file
+        """
+        filepath = Path(filepath)
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+
+        metrics_json = self.to_json()
+        filepath.write_text(metrics_json, encoding="utf-8")
+        logger.info(f"Pipeline metrics saved to: {filepath}")
+
     def log_metrics(self) -> None:
         """Log metrics with each metric on its own line for better readability.
 
@@ -163,13 +187,16 @@ class Metrics:
           - key: value
           - key: value
         ...
+
+        Uses DEBUG level per RFC-027 to avoid cluttering normal logs.
+        Detailed metrics are available at DEBUG level, summary metrics at INFO level.
         """
         metrics_dict = self.finish()
         # Print each metric on its own line for better readability
-        summary_lines = ["Pipeline finished:"]
+        summary_lines = ["Pipeline finished (detailed metrics):"]
         for key, value in metrics_dict.items():
             # Format key names to be more readable (replace underscores with spaces, title case)
             readable_key = key.replace("_", " ").title()
             summary_lines.append(f"  - {readable_key}: {value}")
         summary = "\n".join(summary_lines)
-        logger.info(summary)
+        logger.debug(summary)  # Changed from logger.info() per RFC-027

@@ -34,6 +34,7 @@ source .venv/bin/activate
 make format                  # Auto-format code (black + isort)
 make lint                    # Check style (flake8)
 make type                    # Type check (mypy)
+make quality                 # Code quality (complexity, docstrings, dead code, spelling)
 
 # Before committing
 
@@ -51,6 +52,7 @@ make ci                      # Run full CI suite locally
 | `make test-e2e` | E2E tests (serial, real ML) | ~5min |
 | `make test-fast` | Critical path only | ~1min |
 | `make test` | All tests | ~8min |
+| `make test-nightly` | Nightly tests (production models) | ~4hrs |
 
 ```bash
 

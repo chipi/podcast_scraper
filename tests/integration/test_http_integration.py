@@ -153,8 +153,38 @@ class MockHTTPServer:
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
 
-        # Wait a moment for server to start
-        time.sleep(0.1)
+        # Wait for server to be ready with explicit connection check
+        # This prevents race conditions where tests start before server is accepting
+        self._wait_for_server_ready()
+
+    def _wait_for_server_ready(self, timeout: float = 5.0, interval: float = 0.1):
+        """Wait for server to be ready to accept connections.
+
+        Args:
+            timeout: Maximum time to wait in seconds
+            interval: Time between connection attempts in seconds
+
+        Raises:
+            RuntimeError: If server doesn't start within timeout
+        """
+        import socket
+
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                # Try to connect to the server
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(1.0)
+                result = sock.connect_ex(("127.0.0.1", self.port))
+                sock.close()
+                if result == 0:
+                    # Connection successful - server is ready
+                    return
+            except (OSError, socket.error):
+                pass
+            time.sleep(interval)
+
+        raise RuntimeError(f"Server failed to start within {timeout} seconds")
 
     def stop(self):
         """Stop the test server."""

@@ -6,9 +6,12 @@ providers based on configuration.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from podcast_scraper import config
+    from podcast_scraper.summarization.base import SummarizationProvider
+else:
     from podcast_scraper import config
     from podcast_scraper.summarization.base import SummarizationProvider
 
@@ -30,6 +33,7 @@ def create_summarization_provider(cfg: config.Config) -> SummarizationProvider:
         Returns MLProvider for "transformers" provider type (unified ML provider).
         Returns OpenAIProvider for "openai" provider type (unified OpenAI provider).
         Deprecated: "local" is accepted as alias for "transformers" for backward compatibility.
+        Reuses preloaded MLProvider instance if available (from early preloading).
     """
     provider_type = cfg.summary_provider
 
@@ -38,6 +42,17 @@ def create_summarization_provider(cfg: config.Config) -> SummarizationProvider:
         provider_type = "transformers"
 
     if provider_type == "transformers":
+        # Check for preloaded MLProvider instance (from early preloading)
+        try:
+            from ..workflow import _preloaded_ml_provider
+
+            if _preloaded_ml_provider is not None:
+                return cast(SummarizationProvider, _preloaded_ml_provider)
+        except ImportError:
+            # workflow module not available (e.g., in tests), create new instance
+            pass
+
+        # Create new instance if no preloaded instance available
         from ..ml.ml_provider import MLProvider
 
         return MLProvider(cfg)

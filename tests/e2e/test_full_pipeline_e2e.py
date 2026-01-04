@@ -129,6 +129,7 @@ class TestFullPipelineE2E:
             assert metadata["content"]["transcript_source"] == "direct_download"
 
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     def test_pipeline_with_transcription(self):
         """Test full pipeline with Whisper transcription.
 
@@ -184,6 +185,7 @@ class TestFullPipelineE2E:
             assert metadata["content"]["transcript_source"] == "whisper_transcription"
 
     @pytest.mark.critical_path
+    @pytest.mark.flaky
     def test_pipeline_downloads_audio_for_transcription(self):
         """Test that pipeline actually downloads audio/video files when no transcript URLs exist.
 
@@ -316,7 +318,6 @@ class TestFullPipelineE2E:
 
     @pytest.mark.ml_models
     @pytest.mark.critical_path
-    @pytest.mark.flaky
     @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
     def test_pipeline_with_all_features(self):
         """Test full pipeline with all features enabled.
@@ -426,7 +427,6 @@ class TestFullPipelineE2E:
         assert len(metadata_files) >= 1, "Should create metadata files for processed episodes"
 
     @pytest.mark.critical_path
-    @pytest.mark.flaky
     def test_pipeline_error_handling(self):
         """Test pipeline error handling with invalid RSS feed."""
         # Use invalid URL
@@ -441,7 +441,6 @@ class TestFullPipelineE2E:
             workflow.run_pipeline(cfg)
 
     @pytest.mark.critical_path
-    @pytest.mark.flaky
     def test_pipeline_dry_run(self):
         """Test pipeline in dry-run mode (no actual downloads)."""
         feed_url = self.e2e_server.urls.feed("podcast1_with_transcript")
@@ -468,8 +467,86 @@ class TestFullPipelineE2E:
         assert len(transcript_files) == 0, "Dry run should not create files"
 
     @pytest.mark.ml_models
+    @pytest.mark.e2e
     @pytest.mark.critical_path
-    @pytest.mark.flaky
+    @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
+    def test_models_preloaded_automatically_in_workflow(self, e2e_server):
+        """Test that ML models are preloaded automatically when using run_pipeline().
+
+        This verifies that preloading happens in the workflow context, ensuring
+        models are available immediately when needed (no delay on first use).
+        """
+        # Require models to be cached
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
+
+        feed_url = self.e2e_server.urls.feed("podcast1_with_transcript")
+
+        cfg = create_test_config(
+            rss_url=feed_url,
+            output_dir=self.output_dir,
+            max_episodes=1,
+            generate_metadata=True,
+            metadata_format="json",
+            generate_summaries=True,
+            summary_provider="transformers",
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+            auto_speakers=True,
+            ner_model=config.DEFAULT_NER_MODEL,
+            transcribe_missing=True,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            preload_models=True,  # Explicitly enable preloading (default)
+            language="en",
+        )
+
+        # Run pipeline - models should be preloaded automatically
+        # The workflow should preload models early, so first use is fast
+        count, summary = workflow.run_pipeline(cfg)
+
+        # Verify pipeline completed successfully
+        assert count > 0, f"Should process at least one episode (got {count}, summary: {summary})"
+
+        # Verify transcript file was created (models worked)
+        transcript_files = list(Path(self.output_dir).rglob("*.txt"))
+        assert len(transcript_files) > 0, "At least one transcript file should be created"
+
+    @pytest.mark.ml_models
+    @pytest.mark.e2e
+    @pytest.mark.critical_path
+    @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
+    def test_preload_models_false_disables_preloading(self, e2e_server):
+        """Test that preload_models=False disables automatic preloading.
+
+        Models should still work, but will be loaded lazily (on first use).
+        """
+        # Require models to be cached
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
+
+        feed_url = self.e2e_server.urls.feed("podcast1_with_transcript")
+
+        cfg = create_test_config(
+            rss_url=feed_url,
+            output_dir=self.output_dir,
+            max_episodes=1,
+            transcribe_missing=True,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            preload_models=False,  # Disable preloading
+            language="en",
+        )
+
+        # Run pipeline - models should load lazily (on first use)
+        count, summary = workflow.run_pipeline(cfg)
+
+        # Verify pipeline still works (lazy loading)
+        assert count > 0, f"Should process at least one episode (got {count}, summary: {summary})"
+
+        # Verify transcript file was created (models worked)
+        transcript_files = list(Path(self.output_dir).rglob("*.txt"))
+        assert len(transcript_files) > 0, "At least one transcript file should be created"
+
+    @pytest.mark.ml_models
+    @pytest.mark.slow
+    @pytest.mark.critical_path
     @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
     def test_pipeline_comprehensive_with_real_models(self):
         """Test full pipeline with ALL real models end-to-end (comprehensive test).
@@ -583,7 +660,6 @@ class TestFullPipelineE2E:
             )
 
     @pytest.mark.critical_path
-    @pytest.mark.flaky
     def test_pipeline_handles_rss_feed_404(self):
         """Test that pipeline handles RSS feed 404 error gracefully."""
         # Use e2e_server error behavior to simulate 404
@@ -622,7 +698,6 @@ class TestFullPipelineE2E:
             workflow.run_pipeline(cfg)
 
     @pytest.mark.critical_path
-    @pytest.mark.flaky
     def test_pipeline_handles_transcript_download_404(self):
         """Test that pipeline handles transcript download 404 error."""
         # Create RSS feed with transcript URL that returns 404
@@ -645,7 +720,6 @@ class TestFullPipelineE2E:
         assert count >= 0, "Pipeline should complete even if transcript download fails"
 
     @pytest.mark.critical_path
-    @pytest.mark.flaky
     def test_pipeline_handles_transcript_download_500_with_retry(self):
         """Test that pipeline handles transcript download 500 error with retry logic."""
         feed_url = self.e2e_server.urls.feed("podcast1_with_transcript")

@@ -368,3 +368,98 @@ class TestBackwardCompatibility(unittest.TestCase):
         self.assertEqual(cfg.transcription_provider, "whisper")
         self.assertEqual(cfg.speaker_detector_provider, "spacy")
         self.assertEqual(cfg.summary_provider, "transformers")
+
+
+@pytest.mark.integration
+class TestProviderInstanceReuse(unittest.TestCase):
+    """Test that factories reuse preloaded MLProvider instance."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
+            preload_models=True,
+            transcribe_missing=True,
+            auto_speakers=True,
+            generate_summaries=True,
+            generate_metadata=True,
+        )
+
+    @patch("podcast_scraper.workflow._preloaded_ml_provider", None)
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    def test_factories_reuse_preloaded_instance(
+        self,
+        mock_summary_model,
+        mock_select_map,
+        mock_select_reduce,
+        mock_get_ner,
+        mock_import_whisper,
+    ):
+        """Test that factories reuse preloaded MLProvider instance when available."""
+        from podcast_scraper import workflow
+        from podcast_scraper.ml.ml_provider import MLProvider
+
+        # Setup mocks
+        mock_whisper_model = Mock()
+        mock_whisper_model.device.type = "cpu"
+        mock_whisper_lib = Mock()
+        mock_whisper_lib.load_model.return_value = mock_whisper_model
+        mock_import_whisper.return_value = mock_whisper_lib
+
+        mock_nlp = Mock()
+        mock_get_ner.return_value = mock_nlp
+
+        mock_transformers_model = Mock()
+        mock_transformers_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_transformers_model.device = "cpu"
+        mock_summary_model.return_value = mock_transformers_model
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
+
+        # Simulate early preloading (as done in workflow)
+        preloaded_provider = MLProvider(self.cfg)
+        preloaded_provider.preload()
+        workflow._preloaded_ml_provider = preloaded_provider
+
+        # Create providers via factories - they should reuse the preloaded instance
+        transcription_provider = create_transcription_provider(self.cfg)
+        speaker_detector = create_speaker_detector(self.cfg)
+        summarization_provider = create_summarization_provider(self.cfg)
+
+        # Verify all three factories returned the same instance
+        self.assertIs(transcription_provider, preloaded_provider)
+        self.assertIs(speaker_detector, preloaded_provider)
+        self.assertIs(summarization_provider, preloaded_provider)
+
+        # Verify models were preloaded
+        self.assertTrue(preloaded_provider._whisper_initialized)
+        self.assertTrue(preloaded_provider._spacy_initialized)
+        self.assertTrue(preloaded_provider._transformers_initialized)
+
+    def test_factories_create_new_instance_when_no_preload(self):
+        """Test that factories create new instances when no preloaded instance exists."""
+        # Ensure no preloaded instance
+        from podcast_scraper import workflow
+
+        workflow._preloaded_ml_provider = None
+
+        # Create providers via factories
+        transcription_provider = create_transcription_provider(self.cfg)
+        speaker_detector = create_speaker_detector(self.cfg)
+        summarization_provider = create_summarization_provider(self.cfg)
+
+        # Verify they are MLProvider instances
+        self.assertEqual(transcription_provider.__class__.__name__, "MLProvider")
+        self.assertEqual(speaker_detector.__class__.__name__, "MLProvider")
+        self.assertEqual(summarization_provider.__class__.__name__, "MLProvider")
+
+        # When no preload, each factory creates a new instance
+        # (They may or may not be the same object, but they're separate instances)
+        # The key is that they work correctly without preloading
