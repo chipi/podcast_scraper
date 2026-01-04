@@ -1675,6 +1675,11 @@ make lint          # flake8
 make lint-markdown # markdownlint
 make type          # mypy
 make security      # bandit & pip-audit
+make complexity    # radon cyclomatic complexity
+make deadcode      # vulture dead code detection
+make docstrings    # interrogate docstring coverage
+make spelling      # codespell spell checking
+make quality       # all quality checks (complexity, deadcode, docstrings, spelling)
 make test-unit     # pytest with coverage (parallel, unit tests only)
 make test-integration      # All integration tests (parallel, with re-runs)
 make test-e2e             # All E2E tests (parallel, with re-runs, network guard)

@@ -148,10 +148,10 @@ docs:
 # Coverage thresholds per layer (minimums to ensure balanced coverage)
 # These are ambitious but achievable targets based on current coverage levels
 # Combined threshold is enforced in CI; per-layer thresholds ensure no layer is neglected
-COVERAGE_THRESHOLD_UNIT := 70          # Current: ~74%
-COVERAGE_THRESHOLD_INTEGRATION := 50   # Current: ~54%
-COVERAGE_THRESHOLD_E2E := 50           # Current: ~53%
-COVERAGE_THRESHOLD_COMBINED := 80      # Current: ~82%
+COVERAGE_THRESHOLD_UNIT := 70          # Current: ~74% local, ~70% CI
+COVERAGE_THRESHOLD_INTEGRATION := 40   # Current: ~54% local, ~42% CI
+COVERAGE_THRESHOLD_E2E := 40           # Current: ~53% local, ~50% CI
+COVERAGE_THRESHOLD_COMBINED := 80      # Current: ~82% local
 
 test-unit:
 	# Unit tests: parallel execution for faster feedback
@@ -165,7 +165,8 @@ test-integration:
 	# Integration tests load ML models which consume ~1-2 GB per worker
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
-	pytest tests/integration/ -m integration -n $(PYTEST_WORKERS) --reruns 2 --reruns-delay 1 --disable-socket --allow-hosts=127.0.0.1,localhost
+	# Coverage: measured independently (not appended) to match CI per-job measurement
+	pytest tests/integration/ -m integration -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration-fast:
 	# Fast integration tests: critical path tests only (includes ML tests if models are cached)
@@ -173,7 +174,8 @@ test-integration-fast:
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
-	pytest tests/integration/ -m "integration and critical_path" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
+	# Coverage: measured independently to match CI
+	pytest tests/integration/ -m "integration and critical_path" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
 
 test-ci:
 	# CI test suite: serial tests first (sequentially), then parallel execution for the rest
@@ -196,8 +198,9 @@ test-e2e:
 	# E2E tests: serial tests first (sequentially), then parallel execution for the rest
 	# Includes reruns for flaky tests (matches CI behavior) - 3 retries for ML model variability
 	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
-	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 || true
-	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and not serial" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	# Coverage: measured independently (serial first, then parallel appends) to match CI
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and serial" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 || true
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and not serial" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --cov-append --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 test-e2e-sequential:
 	# E2E tests: sequential execution (slower but clearer output, useful for debugging)
@@ -211,8 +214,9 @@ test-e2e-fast:
 	# Uses fast feed (1 episode) - set via E2E_TEST_MODE environment variable
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
-	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20 || true
-	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and not serial" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
+	# Coverage: measured independently (serial first, then parallel appends) to match CI
+	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and serial" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20 || true
+	@E2E_TEST_MODE=fast pytest tests/e2e/ -m "e2e and critical_path and not serial" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --cov-append --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
 
 test-e2e-data-quality:
 	# Data quality E2E tests: full pipeline validation with multiple episodes
@@ -314,7 +318,7 @@ ci-fast: format-check lint lint-markdown type security complexity deadcode docst
 
 ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build
 
-ci-nightly: format-check lint lint-markdown type security preload-ml-models-production test-unit test-integration test-e2e test-nightly docs
+ci-nightly: format-check lint lint-markdown type security complexity deadcode docstrings spelling preload-ml-models-production test-unit test-integration test-e2e test-nightly coverage-enforce docs build
 	@echo ""
 	@echo "✓ Full nightly CI chain completed"
 

@@ -417,7 +417,7 @@ The test suite is organized into three main categories:
 - **Slow integration tests**: Run only on push to main (includes slow/ml_models, parallel execution, with re-runs)
 - **Fast E2E tests**: Run on PRs and main (excludes slow/ml_models, parallel execution, network guard, with re-runs)
 - **Slow E2E tests**: Run only on push to main (includes slow/ml_models, parallel execution, network guard, with re-runs)
-- **Test execution**: Parallel by default (`-n auto`), sequential variants available for debugging
+- **Test execution**: Parallel by default (`-n auto`), use `pytest -n 0` for sequential debugging
 - **Flaky test reruns**: Enabled for integration and E2E tests (`--reruns 2 --reruns-delay 1`)
 - **Nightly workflow**: Comprehensive test suite with full metrics collection, trend tracking, and dashboard generation (RFC-025 Layer 3)
 

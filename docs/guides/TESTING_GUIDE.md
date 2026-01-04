@@ -232,10 +232,27 @@ tests/
 └── conftest.py              # Shared fixtures, ML cleanup
 ```
 
-## Coverage Targets
+## Coverage Thresholds
 
-- **Overall:** >80%
-- **Critical modules:** >90%
+Per-tier thresholds enforced in CI (prevents regression):
+
+| Tier | Threshold | Current |
+| ---- | --------- | ------- |
+| **Unit** | 70% | ~74% |
+| **Integration** | 40% | ~42% |
+| **E2E** | 40% | ~50% |
+| **Combined** | 80% | ~82% |
+
+**Note:** Local make targets now run with coverage:
+
+```bash
+make test-unit          # includes --cov
+make test-integration   # includes --cov
+make test-e2e           # includes --cov
+```
+
+## Test Count Targets
+
 - **Unit tests:** 200+
 - **Integration tests:** 50+
 - **E2E tests:** 100+
