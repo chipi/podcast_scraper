@@ -474,6 +474,8 @@ def _determine_output_path(
 ) -> str:
     """Determine output path for transcript file.
 
+    Transcripts are stored in the transcripts/ subdirectory within the output directory.
+
     Args:
         episode: Episode object
         transcript_url: Transcript URL
@@ -490,7 +492,8 @@ def _determine_output_path(
         f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
     )
     out_name = f"{base_name}{planned_ext}"
-    return os.path.join(effective_output_dir, out_name)
+    transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
+    return os.path.join(transcripts_dir, out_name)
 
 
 def _check_existing_transcript(
@@ -500,6 +503,8 @@ def _check_existing_transcript(
     cfg: config.Config,
 ) -> bool:
     """Check if transcript already exists and should be skipped.
+
+    Checks in the transcripts/ subdirectory within the output directory.
 
     Args:
         episode: Episode object
@@ -517,7 +522,8 @@ def _check_existing_transcript(
     base_name = (
         f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
     )
-    existing_matches = list(Path(effective_output_dir).glob(f"{base_name}*"))
+    transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
+    existing_matches = list(Path(transcripts_dir).glob(f"{base_name}*"))
     for candidate in existing_matches:
         if candidate.is_file():
             prefix = "[dry-run] " if cfg.dry_run else ""

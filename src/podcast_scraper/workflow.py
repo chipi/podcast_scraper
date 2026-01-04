@@ -636,6 +636,12 @@ def _setup_pipeline_environment(cfg: config.Config) -> Tuple[str, Optional[str]]
         logger.info(f"Dry-run: not creating output directory {effective_output_dir}")
     else:
         os.makedirs(effective_output_dir, exist_ok=True)
+        # Recreate subdirectories after cleanup (if clean_output was used)
+        # or ensure they exist (setup_output_directory creates them, but they may have been removed)
+        transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
+        metadata_dir = os.path.join(effective_output_dir, filesystem.METADATA_SUBDIR)
+        os.makedirs(transcripts_dir, exist_ok=True)
+        os.makedirs(metadata_dir, exist_ok=True)
 
     return effective_output_dir, run_suffix
 

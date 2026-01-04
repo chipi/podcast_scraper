@@ -120,7 +120,7 @@ class TestIntegrationMain(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tmpdir:
                 exit_code = cli.main([rss_url, "--output-dir", tmpdir])
                 self.assertEqual(exit_code, 0)
-                expected_path = os.path.join(tmpdir, "0001 - Episode 1.txt")
+                expected_path = os.path.join(tmpdir, "transcripts", "0001 - Episode 1.txt")
                 self.assertTrue(os.path.exists(expected_path))
                 with open(expected_path, "r", encoding="utf-8") as fh:
                     self.assertEqual(fh.read().strip(), transcript_text)
@@ -169,7 +169,11 @@ class TestIntegrationMain(unittest.TestCase):
                         if mock_import_whisper.called:
                             mock_transcribe.assert_called()
                             effective_dir = Path(tmpdir).resolve() / "run_testrun_whisper_base"
-                            out_path = effective_dir / "0001 - Episode 1_testrun_whisper_base.txt"
+                            out_path = (
+                                effective_dir
+                                / "transcripts"
+                                / "0001 - Episode 1_testrun_whisper_base.txt"
+                            )
                             self.assertTrue(out_path.exists())
                         self.assertEqual(
                             out_path.read_text(encoding="utf-8").strip(), transcribed_text
@@ -194,7 +198,7 @@ class TestIntegrationMain(unittest.TestCase):
                 exit_code = cli.main([rss_url, "--output-dir", malicious])
                 self.assertEqual(exit_code, 0)
                 effective_dir = Path(malicious).expanduser().resolve()
-                out_path = effective_dir / "0001 - Episode 1.txt"
+                out_path = effective_dir / "transcripts" / "0001 - Episode 1.txt"
                 self.assertTrue(out_path.exists())
                 self.assertNotIn("..", str(out_path))
 
@@ -258,7 +262,7 @@ class TestIntegrationMain(unittest.TestCase):
         http_mock = self._mock_http_map(responses)
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             with tempfile.TemporaryDirectory() as tmpdir:
-                expected_path = os.path.join(tmpdir, "0001 - Episode 1.txt")
+                expected_path = os.path.join(tmpdir, "transcripts", "0001 - Episode 1.txt")
                 import logging
 
                 with self.assertLogs(logging.getLogger("podcast_scraper"), level="INFO") as log_ctx:
@@ -398,8 +402,8 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertIsInstance(summary, str)
             self.assertIn("transcripts", summary.lower())
 
-            # Verify file was created
-            expected_path = os.path.join(self.temp_dir, "0001 - Episode 1.txt")
+            # Verify file was created (now in transcripts/ subdirectory)
+            expected_path = os.path.join(self.temp_dir, "transcripts", "0001 - Episode 1.txt")
             self.assertTrue(os.path.exists(expected_path))
             with open(expected_path, "r", encoding="utf-8") as fh:
                 self.assertEqual(fh.read().strip(), transcript_text)
@@ -442,8 +446,8 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertGreaterEqual(count, 0)
             self.assertIsInstance(summary, str)
 
-            # Verify file was created
-            expected_path = os.path.join(self.temp_dir, "0001 - Episode 1.txt")
+            # Verify file was created (now in transcripts/ subdirectory)
+            expected_path = os.path.join(self.temp_dir, "transcripts", "0001 - Episode 1.txt")
             self.assertTrue(os.path.exists(expected_path))
 
     def test_e2e_library_whisper_fallback(self):
@@ -627,6 +631,6 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertGreaterEqual(count, 0)
             self.assertIsInstance(summary, str)
 
-            # Verify file was created
-            expected_path = os.path.join(self.temp_dir, "0001 - Episode 1.txt")
+            # Verify file was created (now in transcripts/ subdirectory)
+            expected_path = os.path.join(self.temp_dir, "transcripts", "0001 - Episode 1.txt")
             self.assertTrue(os.path.exists(expected_path))

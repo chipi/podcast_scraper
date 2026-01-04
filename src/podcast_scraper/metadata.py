@@ -649,6 +649,9 @@ def _determine_metadata_path(
 ) -> str:
     """Determine the output path for metadata file.
 
+    Metadata files are stored in the metadata/ subdirectory within the output directory.
+    If metadata_subdirectory is set in config, it takes precedence (for backward compatibility).
+
     Args:
         episode: Episode object
         output_dir: Output directory path
@@ -663,11 +666,12 @@ def _determine_metadata_path(
     ).replace(".txt", "")
     extension = ".json" if cfg.metadata_format == "json" else ".yaml"
 
+    # Use metadata_subdirectory if set (backward compatibility), otherwise use default metadata/
     if cfg.metadata_subdirectory:
         metadata_dir = os.path.join(output_dir, cfg.metadata_subdirectory)
-        return os.path.join(metadata_dir, f"{base_name}.metadata{extension}")
     else:
-        return os.path.join(output_dir, f"{base_name}.metadata{extension}")
+        metadata_dir = os.path.join(output_dir, filesystem.METADATA_SUBDIR)
+    return os.path.join(metadata_dir, f"{base_name}.metadata{extension}")
 
 
 def _serialize_metadata(

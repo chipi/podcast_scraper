@@ -791,6 +791,7 @@ class TestDetermineMetadataPath(unittest.TestCase):
 
         self.assertTrue(result.endswith(".json"))
         self.assertIn("Episode_Title", result)
+        self.assertIn("/metadata/", result)
 
     def test_determine_metadata_path_yaml(self):
         """Test determining metadata path with YAML format."""
@@ -803,6 +804,7 @@ class TestDetermineMetadataPath(unittest.TestCase):
 
         self.assertTrue(result.endswith(".yaml"))
         self.assertIn("Episode_Title", result)
+        self.assertIn("/metadata/", result)
 
     def test_determine_metadata_path_with_subdirectory(self):
         """Test determining metadata path with subdirectory."""
@@ -826,6 +828,7 @@ class TestDetermineMetadataPath(unittest.TestCase):
         )
 
         self.assertIn("run1", result)
+        self.assertIn("/metadata/", result)
 
 
 class TestSerializeMetadata(unittest.TestCase):

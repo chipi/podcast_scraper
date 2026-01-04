@@ -682,7 +682,11 @@ class TestSetupPipelineEnvironment(unittest.TestCase):
         self.assertEqual(output_dir, "./output")
         self.assertIsNone(run_suffix)
         mock_setup.assert_called_once_with(cfg)
-        mock_makedirs.assert_called_once_with("./output", exist_ok=True)
+        # Should create base directory and subdirectories (transcripts/, metadata/)
+        self.assertEqual(mock_makedirs.call_count, 3)
+        mock_makedirs.assert_any_call("./output", exist_ok=True)
+        mock_makedirs.assert_any_call("./output/transcripts", exist_ok=True)
+        mock_makedirs.assert_any_call("./output/metadata", exist_ok=True)
 
     @patch("podcast_scraper.workflow.filesystem.setup_output_directory")
     @patch("os.path.exists")
@@ -704,7 +708,11 @@ class TestSetupPipelineEnvironment(unittest.TestCase):
         output_dir, run_suffix = workflow._setup_pipeline_environment(cfg)
 
         mock_rmtree.assert_called_once_with("./output")
-        mock_makedirs.assert_called_once_with("./output", exist_ok=True)
+        # Should create base directory and subdirectories (transcripts/, metadata/)
+        self.assertEqual(mock_makedirs.call_count, 3)
+        mock_makedirs.assert_any_call("./output", exist_ok=True)
+        mock_makedirs.assert_any_call("./output/transcripts", exist_ok=True)
+        mock_makedirs.assert_any_call("./output/metadata", exist_ok=True)
 
     @patch("podcast_scraper.workflow.filesystem.setup_output_directory")
     @patch("os.path.exists")
@@ -764,7 +772,11 @@ class TestSetupPipelineEnvironment(unittest.TestCase):
 
         self.assertEqual(output_dir, "./output/run123")
         self.assertEqual(run_suffix, "run123")
-        mock_makedirs.assert_called_once_with("./output/run123", exist_ok=True)
+        # Should create base directory and subdirectories (transcripts/, metadata/)
+        self.assertEqual(mock_makedirs.call_count, 3)
+        mock_makedirs.assert_any_call("./output/run123", exist_ok=True)
+        mock_makedirs.assert_any_call("./output/run123/transcripts", exist_ok=True)
+        mock_makedirs.assert_any_call("./output/run123/metadata", exist_ok=True)
 
 
 class TestFetchAndParseFeed(unittest.TestCase):

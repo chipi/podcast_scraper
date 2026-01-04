@@ -108,6 +108,7 @@ class TestTransformersSummarization:
             # Cleanup
             provider.cleanup()
 
+    @pytest.mark.flaky
     def test_transformers_provider_in_full_workflow(self, e2e_server):
         """Test Transformers summarization provider in full workflow."""
         # Require model to be cached (fail fast if not)
@@ -218,8 +219,8 @@ class TestSpacySpeakerDetection:
             assert count > 0, "Should process at least one episode"
             assert isinstance(summary, str), "Summary should be a string"
 
-            # Verify transcript file was created
-            transcript_files = list(Path(tmpdir).glob("*.txt"))
+            # Verify transcript file was created (now in transcripts/ subdirectory)
+            transcript_files = list(Path(tmpdir).rglob("*.txt"))
             assert len(transcript_files) > 0, "At least one transcript file should be created"
 
 

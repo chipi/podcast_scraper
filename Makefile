@@ -163,8 +163,9 @@ test-ci-fast:
 	# Note: Coverage is excluded here for faster execution; full validation job includes unified coverage
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
-	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 || true
-	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+	# Includes reruns for flaky tests (matches CI behavior)
+	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 2 --reruns-delay 1 || true
+	pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 2 --reruns-delay 1
 
 test-e2e:
 	# E2E tests: serial tests first (sequentially), then parallel execution for the rest

@@ -290,7 +290,7 @@ class TestDetermineOutputPath(unittest.TestCase):
             planned_ext=".vtt",
         )
 
-        self.assertEqual(result, "/output/0001 - Episode_Title.vtt")
+        self.assertEqual(result, "/output/transcripts/0001 - Episode_Title.vtt")
 
     def test_determine_output_path_with_run_suffix(self):
         """Test output path with run suffix."""
@@ -304,7 +304,7 @@ class TestDetermineOutputPath(unittest.TestCase):
             planned_ext=".srt",
         )
 
-        self.assertEqual(result, "/output/0005 - Test_Episode_run1.srt")
+        self.assertEqual(result, "/output/transcripts/0005 - Test_Episode_run1.srt")
 
     def test_determine_output_path_single_digit_idx(self):
         """Test output path with single-digit episode index."""
@@ -318,8 +318,8 @@ class TestDetermineOutputPath(unittest.TestCase):
             planned_ext=".txt",
         )
 
-        # Should pad with zeros (EPISODE_NUMBER_FORMAT_WIDTH = 4)
-        self.assertEqual(result, os.path.join(".", "output", "0003 - Short.txt"))
+        # Should pad with zeros (EPISODE_NUMBER_FORMAT_WIDTH = 4) and use transcripts/ subdirectory
+        self.assertEqual(result, os.path.join(".", "output", "transcripts", "0003 - Short.txt"))
 
     def test_determine_output_path_double_digit_idx(self):
         """Test output path with double-digit episode index."""
@@ -333,7 +333,7 @@ class TestDetermineOutputPath(unittest.TestCase):
             planned_ext=".vtt",
         )
 
-        self.assertEqual(result, "/data/output/0042 - Episode_42_test.vtt")
+        self.assertEqual(result, "/data/output/transcripts/0042 - Episode_42_test.vtt")
 
 
 class TestCheckExistingTranscript(unittest.TestCase):

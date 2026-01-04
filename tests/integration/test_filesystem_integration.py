@@ -205,6 +205,11 @@ class TestFilesystemOperations(unittest.TestCase):
         self.assertTrue(path.endswith(".txt"), "Path should end with .txt")
         self.assertIn("0001", path, "Path should include episode number")
         self.assertIn("Episode_Title", path, "Path should include episode title")
+        self.assertIn(
+            f"/{filesystem.TRANSCRIPTS_SUBDIR}/",
+            path,
+            "Path should include transcripts subdirectory",
+        )
 
     def test_derive_output_dir(self):
         """Test deriving output directory from RSS URL."""

@@ -329,7 +329,10 @@ class TestSkipExisting(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             ep_title = "Episode 1"
             ep_title_safe = filesystem.sanitize_filename(ep_title)
-            existing_path = os.path.join(tmpdir, f"0001 - {ep_title_safe}.txt")
+            # Create transcripts subdirectory
+            transcripts_dir = os.path.join(tmpdir, filesystem.TRANSCRIPTS_SUBDIR)
+            os.makedirs(transcripts_dir, exist_ok=True)
+            existing_path = os.path.join(transcripts_dir, f"0001 - {ep_title_safe}.txt")
             with open(existing_path, "wb") as fh:
                 fh.write(b"original")
 
@@ -371,6 +374,9 @@ class TestSkipExisting(unittest.TestCase):
             ep_title = "Episode 2"
             ep_title_safe = filesystem.sanitize_filename(ep_title)
 
+            # Create transcripts subdirectory
+            transcripts_dir = os.path.join(tmpdir, filesystem.TRANSCRIPTS_SUBDIR)
+            os.makedirs(transcripts_dir, exist_ok=True)
             final_path = filesystem.build_whisper_output_path(1, ep_title_safe, None, tmpdir)
             with open(final_path, "wb") as fh:
                 fh.write(b"existing transcript")
