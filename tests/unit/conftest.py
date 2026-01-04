@@ -281,50 +281,59 @@ def _create_filesystem_blocker(operation: str, request):
     return blocker
 
 
+# Get the directory where this conftest.py is located (tests/unit/)
+_THIS_CONFTEST_DIR = Path(__file__).parent.resolve()
+
+
 def _is_unit_test(request) -> bool:
     """Check if the current test is in the unit/ directory.
 
-    Returns True only for tests in tests/unit/ directory.
-    Returns False for tests in tests/integration/ or tests/e2e/.
+    Returns True only for tests that are within the tests/unit/ directory tree.
+    Returns False for tests in tests/integration/, tests/e2e/, or anywhere else.
 
-    Uses multiple detection methods for reliability across different
-    pytest configurations (local, CI, parallel with xdist).
+    Uses the conftest file's own location as the reference point - if the test
+    file is not under the same directory as this conftest, it's not a unit test.
     """
-    # Method 1: Check nodeid (most reliable, always available)
-    # nodeid format: "tests/unit/podcast_scraper/test_config.py::TestConfig::test_method"
+    # Get the test file path from multiple possible sources
+    test_file_path = None
+
+    # Try to get the test file path from various attributes
+    if hasattr(request, "fspath") and request.fspath:
+        test_file_path = Path(str(request.fspath))
+    elif hasattr(request, "path") and request.path:
+        test_file_path = Path(str(request.path))
+    elif hasattr(request, "node"):
+        node = request.node
+        if hasattr(node, "fspath") and node.fspath:
+            test_file_path = Path(str(node.fspath))
+        elif hasattr(node, "path") and node.path:
+            test_file_path = Path(str(node.path))
+
+    # If we got a path, check if it's under tests/unit/
+    if test_file_path:
+        try:
+            test_file_resolved = test_file_path.resolve()
+            # Check if test file is under the unit tests directory
+            try:
+                test_file_resolved.relative_to(_THIS_CONFTEST_DIR)
+                return True  # Test is under tests/unit/
+            except ValueError:
+                return False  # Test is NOT under tests/unit/
+        except (OSError, RuntimeError):
+            pass
+
+    # Fallback: check nodeid for path patterns
     if hasattr(request, "node"):
         nodeid = getattr(request.node, "nodeid", "")
         if nodeid:
-            # Explicitly check for non-unit test paths first
+            # Explicitly reject integration/e2e tests
             if "tests/integration/" in nodeid or "tests/e2e/" in nodeid:
                 return False
+            # Accept unit tests
             if "tests/unit/" in nodeid:
                 return True
 
-    # Method 2: Check fspath/path attributes
-    if hasattr(request, "node"):
-        test_file = getattr(request.node, "fspath", None) or getattr(request.node, "path", None)
-        if test_file:
-            test_file_str = str(test_file)
-            # Explicitly check for non-unit test paths first
-            if "/tests/integration/" in test_file_str or "\\tests\\integration\\" in test_file_str:
-                return False
-            if "/tests/e2e/" in test_file_str or "\\tests\\e2e\\" in test_file_str:
-                return False
-            # Check if the test is in tests/unit/ directory
-            if "/tests/unit/" in test_file_str or "\\tests\\unit\\" in test_file_str:
-                return True
-
-    # Method 3: Check module name as fallback
-    if hasattr(request, "module"):
-        module_file = getattr(request.module, "__file__", "")
-        if module_file:
-            if "/tests/integration/" in module_file or "/tests/e2e/" in module_file:
-                return False
-            if "/tests/unit/" in module_file:
-                return True
-
-    # Default: assume NOT a unit test (safer - don't block network for unknown tests)
+    # Default: assume NOT a unit test (safer - don't block network)
     return False
 
 
