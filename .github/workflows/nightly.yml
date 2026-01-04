@@ -6,10 +6,10 @@
 name: Nightly Comprehensive Tests
 
 on:
-  # schedule:
-  #   # Run nightly at 2 AM UTC
-  #   - cron: '0 2 * * *'
-  workflow_dispatch:  # Allow manual triggering only (schedule disabled for development)
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual triggering
 
 permissions:
   contents: write  # For publishing metrics to gh-pages branch
@@ -24,7 +24,7 @@ jobs:
   # Comprehensive test suite with full metrics collection
   nightly-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 60  # Conservative timeout for comprehensive nightly tests
+    timeout-minutes: 300  # 5 hours for comprehensive tests with production models (~261 min audio)
     steps:
     - uses: actions/checkout@v4
       with:
@@ -68,9 +68,23 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends ffmpeg
 
-    - name: Preload ML models (if cache miss)
+    - name: Install markdownlint
+      run: npm install -g markdownlint-cli
+
+    - name: Run code quality checks
+      run: |
+        echo "Running code quality checks..."
+        make format-check
+        make lint
+        make lint-markdown
+        make type
+        make security
+        make quality
+      continue-on-error: false
+
+    - name: Preload production ML models (if cache miss)
       if: steps.cache-models.outputs.cache-hit != 'true'
-      run: make preload-ml-models
+      run: make preload-ml-models-production
 
     - name: Create reports directory
       run: mkdir -p reports
@@ -80,8 +94,9 @@ jobs:
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         # Run all tests (unit + integration + e2e) with comprehensive metrics collection
         # Note: E2E tests are limited to 1 episode per test (code quality validation)
-        pytest tests/ \
+        pytest tests/unit/ tests/integration/ tests/e2e/ \
           -v \
+          -m "not nightly" \
           -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") \
           --durations=20 \
           --junitxml=reports/junit.xml \
@@ -98,16 +113,23 @@ jobs:
       env:
         PACKAGE: podcast_scraper
 
-    - name: Run data quality E2E tests
+    - name: Run nightly-only tests with production models
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        # Run data quality E2E tests with multiple episodes and all original mock data
-        # These tests validate data quality and consistency with volume (3-5 episodes)
-        # Separate from code quality checks - runs in nightly builds only
-        make test-e2e-data-quality || echo "⚠️  Data quality tests failed (non-blocking)"
+        # Run nightly-only tests (p01-p05 full suite, production models)
+        # Uses production models: Whisper base, BART-large-cnn, LED-large-16384
+        # Processes all 15 episodes across 5 podcasts
+        make test-nightly || echo "⚠️  Nightly tests failed (non-blocking)"
       env:
         PACKAGE: podcast_scraper
-      continue-on-error: true  # Don't fail nightly build if data quality tests fail
+      continue-on-error: true  # Don't fail nightly build if nightly tests fail (for now)
+
+    - name: Enforce coverage threshold
+      if: always()
+      run: |
+        echo "Checking combined coverage threshold (80%)..."
+        make coverage-enforce || echo "⚠️  Coverage below 80% threshold"
+      continue-on-error: true  # Report but don't fail nightly for coverage
 
     - name: Generate job summary
       if: always()
@@ -227,13 +249,24 @@ jobs:
           touch metrics/history.jsonl
         fi
 
+    - name: Collect pipeline metrics
+      if: always()
+      run: |
+        # Run minimal pipeline to collect performance metrics
+        python scripts/collect_pipeline_metrics.py \
+          --output reports/pipeline_metrics.json \
+          --max-episodes 1 || echo "⚠️ Pipeline metrics collection failed (non-blocking)"
+      continue-on-error: true  # Don't fail if pipeline metrics collection fails
     - name: Generate metrics JSON
       if: always()
       run: |
+        # Coverage threshold (80%) is for combined coverage only
         python scripts/generate_metrics.py \
           --reports-dir reports \
           --output metrics/latest.json \
-          --history metrics/history.jsonl
+          --history metrics/history.jsonl \
+          --pipeline-metrics reports/pipeline_metrics.json \
+          --coverage-threshold 80
 
     - name: Update metrics history
       if: always()

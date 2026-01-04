@@ -8,6 +8,7 @@ podcast_scraper.egg-info/
 # Test outputs
 .test_outputs/
 output_*/
+reports/
 
 # Python cache
 *.pyc
@@ -19,6 +20,7 @@ __pycache__/
 # Coverage
 .coverage
 .coverage.*
+coverage.json
 
 # IDE
 .vscode/

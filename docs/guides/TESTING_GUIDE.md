@@ -56,11 +56,20 @@ make test-e2e-fast          # Critical path E2E tests
 
 ### Sequential (For Debugging)
 
+For debugging test failures, run tests sequentially using pytest directly:
+
 ```bash
-make test-sequential
-make test-unit-sequential
-make test-integration-sequential
-make test-e2e-sequential
+# Run all tests sequentially
+pytest tests/ -n 0
+
+# Run unit tests sequentially
+pytest tests/unit/ -n 0
+
+# Run integration tests sequentially
+pytest tests/integration/ -n 0
+
+# Run E2E tests sequentially
+pytest tests/e2e/ -n 0
 ```
 
 ### Specific Tests
@@ -223,10 +232,27 @@ tests/
 └── conftest.py              # Shared fixtures, ML cleanup
 ```
 
-## Coverage Targets
+## Coverage Thresholds
 
-- **Overall:** >80%
-- **Critical modules:** >90%
+Per-tier thresholds enforced in CI (prevents regression):
+
+| Tier | Threshold | Current |
+| ---- | --------- | ------- |
+| **Unit** | 70% | ~74% |
+| **Integration** | 40% | ~42% |
+| **E2E** | 40% | ~50% |
+| **Combined** | 80% | ~82% |
+
+**Note:** Local make targets now run with coverage:
+
+```bash
+make test-unit          # includes --cov
+make test-integration   # includes --cov
+make test-e2e           # includes --cov
+```
+
+## Test Count Targets
+
 - **Unit tests:** 200+
 - **Integration tests:** 50+
 - **E2E tests:** 100+

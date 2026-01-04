@@ -54,7 +54,7 @@ Modules importing ML dependencies at **module level** will fail unit tests in CI
 
 1. **Use lazy imports**: Import inside functions, not at module level
 
-1. **Verify locally**: Run `make test-unit-no-ml` before pushing
+1. **Verify locally**: Run `make test-unit` before pushing
 
 ## Environment Setup
 
@@ -336,17 +336,27 @@ nothing to commit, working tree clean  ✅
 
 ### Formatting Tools
 
-The project uses automated formatting tools to ensure consistency:
+The project uses automated formatting and quality tools:
 
 - **Black**: Code formatting (line length: 100 characters)
 - **isort**: Import statement organization
 - **flake8**: Linting and style enforcement
 - **mypy**: Static type checking
+- **radon**: Cyclomatic complexity analysis
+- **vulture**: Dead code detection
+- **interrogate**: Docstring coverage
+- **codespell**: Spell checking
 
 **Apply formatting automatically:**
 
 ```bash
 make format
+```
+
+**Run all quality checks:**
+
+```bash
+make quality  # complexity, deadcode, docstrings, spelling
 ```
 
 ### Naming Conventions
@@ -687,6 +697,7 @@ The GitHub Actions workflows use **intelligent path-based filtering** to run onl
    - Markdownlint for docs
    - Mypy type checking
    - Bandit + pip-audit security scanning
+   - Code quality analysis (complexity, dead code, docstrings, spelling)
 
 2. **Test Job** (10-15 min, full ML stack):
    - Full pytest suite with coverage

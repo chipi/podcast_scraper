@@ -193,15 +193,15 @@ pip install vulture
 vulture src/podcast_scraper/ --min-confidence 60
 
 # Generate whitelist for false positives
-vulture src/podcast_scraper/ --make-whitelist > vulture_whitelist.py
+vulture src/podcast_scraper/ --make-whitelist > .vulture_whitelist.py
 ```
 
 **Configuration:**
 
-Create `vulture_whitelist.py` for known false positives:
+Create `.vulture_whitelist.py` for known false positives (hidden file in project root):
 
 ```python
-# vulture_whitelist.py
+# .vulture_whitelist.py
 # These are used dynamically or externally
 
 # Pydantic validators are called by framework

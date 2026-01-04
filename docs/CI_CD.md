@@ -1571,7 +1571,6 @@ The system now passes the "minimal docs CI/CD" requirement:
    - Prevents modules from importing ML deps at top level (which would break CI)
    - Script: `scripts/check_unit_test_imports.py`
    - Runs before unit tests in CI, catches issues early
-   - Local command: `make test-unit-no-ml` to verify locally
 
 4. **Comprehensive Security Scanning**
    - CodeQL for static analysis (Python + Actions)
@@ -1676,12 +1675,17 @@ make lint          # flake8
 make lint-markdown # markdownlint
 make type          # mypy
 make security      # bandit & pip-audit
+make complexity    # radon cyclomatic complexity
+make deadcode      # vulture dead code detection
+make docstrings    # interrogate docstring coverage
+make spelling      # codespell spell checking
+make quality       # all quality checks (complexity, deadcode, docstrings, spelling)
 make test-unit     # pytest with coverage (parallel, unit tests only)
-make test-unit-sequential  # pytest sequentially (for debugging)
 make test-integration      # All integration tests (parallel, with re-runs)
 make test-e2e             # All E2E tests (parallel, with re-runs, network guard)
 make docs          # mkdocs build
 make build         # package build
+# For debugging: use pytest directly with -n 0 for sequential execution
 
 ```yaml
 

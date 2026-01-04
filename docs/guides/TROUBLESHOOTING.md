@@ -101,9 +101,6 @@ pip install -e ".[dev,ml]"
 # Reduce parallel workers (default is 8)
 PYTEST_WORKERS=4 make test-integration
 
-# Run without ML tests
-make test-unit-no-ml
-
 # Set smaller batch sizes
 export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 ```
