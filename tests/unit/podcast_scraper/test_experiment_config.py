@@ -17,7 +17,7 @@ if PROJECT_ROOT not in sys.path:
 
 from pydantic import ValidationError
 
-from podcast_scraper import experiment_config
+from podcast_scraper import config, experiment_config
 
 
 class TestPromptConfig(unittest.TestCase):
@@ -86,9 +86,9 @@ class TestOpenAIBackendConfig(unittest.TestCase):
 
     def test_openai_backend_config(self):
         """Test OpenAIBackendConfig with model name."""
-        cfg = experiment_config.OpenAIBackendConfig(model="gpt-4o-mini")
+        cfg = experiment_config.OpenAIBackendConfig(model=config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL)
         self.assertEqual(cfg.type, "openai")
-        self.assertEqual(cfg.model, "gpt-4o-mini")
+        self.assertEqual(cfg.model, config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL)
 
     def test_openai_backend_config_missing_model(self):
         """Test OpenAIBackendConfig validation fails without required model field."""
@@ -184,13 +184,15 @@ class TestExperimentConfig(unittest.TestCase):
         """Test ExperimentConfig with OpenAI backend."""
         cfg = experiment_config.ExperimentConfig(
             id="test_openai",
-            backend=experiment_config.OpenAIBackendConfig(model="gpt-4o-mini"),
+            backend=experiment_config.OpenAIBackendConfig(
+                model=config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL
+            ),
             prompts=experiment_config.PromptConfig(user="summarization/system_v1"),
             data=experiment_config.DataConfig(episodes_glob="*.txt"),
         )
         self.assertEqual(cfg.id, "test_openai")
         self.assertEqual(cfg.backend.type, "openai")
-        self.assertEqual(cfg.backend.model, "gpt-4o-mini")
+        self.assertEqual(cfg.backend.model, config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL)
 
     def test_experiment_config_ensure_non_empty_id(self):
         """Test ExperimentConfig validation ensures non-empty ID."""
@@ -219,7 +221,9 @@ class TestExperimentConfig(unittest.TestCase):
         cfg = experiment_config.ExperimentConfig(
             id="test_ner",
             task="ner_guest_host",
-            backend=experiment_config.OpenAIBackendConfig(model="gpt-4o-mini"),
+            backend=experiment_config.OpenAIBackendConfig(
+                model=config.TEST_DEFAULT_OPENAI_SPEAKER_MODEL
+            ),
             prompts=experiment_config.PromptConfig(user="ner/guest_host_v1"),
             data=experiment_config.DataConfig(episodes_glob="*.txt"),
         )

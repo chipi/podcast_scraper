@@ -26,6 +26,12 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-016](RFC-016-modularization-for-ai-experiments.md) | Modularization for AI Experiments | PRD-007 | Provider system architecture to support AI experiment pipeline |
 | [RFC-023](RFC-023-readme-acceptance-tests.md) | README Acceptance Tests | - | Acceptance tests validating README documentation accuracy |
 | [RFC-027](RFC-027-pipeline-metrics-improvements.md) | Pipeline Metrics Improvements | - | Improvements to pipeline metrics collection and reporting |
+| [RFC-032](RFC-032-anthropic-provider-implementation.md) | Anthropic Provider Implementation | PRD-009 | Technical design for Anthropic Claude API providers |
+| [RFC-033](RFC-033-mistral-provider-implementation.md) | Mistral Provider Implementation | PRD-010 | Technical design for Mistral AI providers (all 3 capabilities) |
+| [RFC-034](RFC-034-deepseek-provider-implementation.md) | DeepSeek Provider Implementation | PRD-011 | Technical design for DeepSeek AI (ultra low-cost) |
+| [RFC-035](RFC-035-gemini-provider-implementation.md) | Gemini Provider Implementation | PRD-012 | Technical design for Google Gemini (2M context) |
+| [RFC-036](RFC-036-groq-provider-implementation.md) | Groq Provider Implementation | PRD-013 | Technical design for Groq (ultra-fast) |
+| [RFC-037](RFC-037-ollama-provider-implementation.md) | Ollama Provider Implementation | PRD-014 | Technical design for Ollama (local/offline) |
 
 ## Completed RFCs
 
@@ -62,4 +68,10 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 - **[PRDs](../prd/index.md)** - Product requirements documents
 - **[Architecture](../ARCHITECTURE.md)** - System design and module responsibilities
-- **[Releases](../releases/)** - Release notes and version history
+- **[Releases](../releases/index.md)** - Release notes and version history
+
+---
+
+## Creating New RFCs
+
+Use the **[RFC Template](RFC_TEMPLATE.md)** as a starting point for new technical design documents.

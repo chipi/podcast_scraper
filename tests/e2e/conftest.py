@@ -279,11 +279,14 @@ def configure_e2e_feed_limiting(request, e2e_server):
     if test_mode == "data_quality":
         # Data Quality mode: Allow all podcasts (original mock data)
         E2EHTTPRequestHandler.set_allowed_podcasts(None)
+        E2EHTTPRequestHandler.set_use_fast_fixtures(False)  # Use full fixtures
     elif test_mode == "nightly":
         # Nightly mode: Allow podcasts 1-5 (p01-p05) for comprehensive testing
+        # Use full fixtures (not fast) for production-quality testing
         E2EHTTPRequestHandler.set_allowed_podcasts(
             {"podcast1", "podcast2", "podcast3", "podcast4", "podcast5"}
         )
+        E2EHTTPRequestHandler.set_use_fast_fixtures(False)  # Use full fixtures
     elif test_mode == "fast":
         # Fast mode: Allow podcast1 (Path 2: Transcription),
         # podcast1_with_transcript (Path 1: Download), and podcast1_multi_episode
@@ -293,16 +296,20 @@ def configure_e2e_feed_limiting(request, e2e_server):
         E2EHTTPRequestHandler.set_allowed_podcasts(
             {"podcast1", "podcast1_with_transcript", "podcast1_multi_episode"}
         )
+        E2EHTTPRequestHandler.set_use_fast_fixtures(True)  # Use fast fixtures
     else:
         # Default/Multi-episode mode: Use multi-episode feed (5 short episodes for
         # multi-episode testing) and edgecases feed (for edge case tests)
         E2EHTTPRequestHandler.set_allowed_podcasts({"podcast1_multi_episode", "edgecases"})
+        E2EHTTPRequestHandler.set_use_fast_fixtures(True)  # Use fast fixtures
 
     # Reset on test teardown to ensure clean state
     yield
     if E2EHTTPRequestHandler is not None:
         # Clear error behaviors only (don't reset allowed_podcasts - next test will set them)
         E2EHTTPRequestHandler.clear_all_error_behaviors()
+        # Reset to default fast fixtures mode for next test
+        E2EHTTPRequestHandler.set_use_fast_fixtures(True)
 
 
 @pytest.fixture(autouse=True)

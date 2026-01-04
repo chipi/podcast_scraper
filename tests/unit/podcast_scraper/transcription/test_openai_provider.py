@@ -35,6 +35,7 @@ spec.loader.exec_module(parent_conftest)
 
 create_test_config = parent_conftest.create_test_config
 
+from podcast_scraper import config  # noqa: E402
 from podcast_scraper.transcription.openai_provider import OpenAITranscriptionProvider  # noqa: E402
 
 
@@ -54,7 +55,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider = OpenAITranscriptionProvider(self.cfg)
         self.assertEqual(provider.cfg, self.cfg)
         self.assertIsNotNone(provider.client)
-        self.assertEqual(provider.model, "whisper-1")
+        self.assertEqual(provider.model, config.TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL)
         self.assertFalse(provider._initialized)
 
     def test_init_missing_api_key(self):
@@ -195,7 +196,9 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         mock_cfg.openai_api_key = "sk-test123"
         mock_cfg.openai_api_base = None
         mock_cfg.language = None  # No default language
-        type(mock_cfg).openai_transcription_model = property(lambda self: "whisper-1")
+        type(mock_cfg).openai_transcription_model = property(
+            lambda self: config.TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+        )
 
         mock_exists.return_value = True
         mock_file = Mock()

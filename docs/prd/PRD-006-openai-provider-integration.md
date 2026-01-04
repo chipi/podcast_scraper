@@ -40,8 +40,7 @@ This PRD addresses the need to add OpenAI as a provider option while maintaining
 
 Add to `config.py` when implementing OpenAI providers:
 
-````python
-
+```python
 # OpenAI Model Selection
 
 openai_speaker_model: str = Field(
@@ -77,7 +76,9 @@ openai_max_tokens: Optional[int] = Field(
     default=None,
     description="Max tokens for OpenAI generation (None = model default)"
 )
-```text
+```
+
+### Legacy Model Pricing Reference
 
 | Model | Input Cost | Output Cost | Context Window | Best For |
 | ----- | ---------- | ----------- | -------------- | -------- |
@@ -112,15 +113,98 @@ openai_max_tokens: Optional[int] = Field(
 speaker_detector_type: openai      # $0.14/100 (minimal cost)
 transcription_provider: whisper    # Free (local)
 summary_provider: openai          # $0.41/100 (high value)
-```text
+```
 
+**Privacy-First Hybrid:**
+
+```yaml
 speaker_detector_provider: ner        # Free (local, private)
 transcription_provider: whisper   # Free (local, private)
 summary_provider: openai         # $0.41/100 (convenience)
+```
 
-```text
+```
+
 - **Temperature:** 0.3 (deterministic, factual)
 - **Max Tokens:** None (model default)
+
+## OpenAI Model Pricing (January 2026)
+
+### Current Model Pricing (per million tokens)
+
+| Model | Input | Output | Context | Notes |
+|-------|-------|--------|---------|-------|
+| **GPT-5** | $1.25 | $10.00 | 256k | Best quality, 65% fewer hallucinations |
+| **GPT-5 Mini** | $0.25 | $2.00 | 128k | **Recommended for production** |
+| **GPT-5 Nano** | $0.05 | $0.40 | 64k | **Recommended for dev/test** |
+| GPT-4o | ~$5.00 | ~$15.00 | 128k | Legacy, still supported |
+| GPT-4o-mini | ~$0.15 | ~$0.60 | 128k | Legacy budget option |
+| GPT-4 | $30.00 | $60.00 | 128k | Legacy, expensive |
+| **whisper-1** | $0.006/min | N/A | N/A | Audio transcription |
+
+**Note:** Prices subject to change. Check [OpenAI Pricing](https://openai.com/api/pricing/) for current rates.
+
+### Recommended Model Defaults
+
+| Purpose | Test Default | Production Default | Rationale |
+|---------|-------------|-------------------|-----------|
+| Speaker Detection | `gpt-5-nano` | `gpt-5-mini` | Names extraction is simple |
+| Summarization | `gpt-5-nano` | `gpt-5` | Full GPT-5 for quality summaries |
+| Transcription | `whisper-1` | `whisper-1` | Only OpenAI option |
+
+### Cost Estimate Per Episode
+
+Assuming ~10,000 words per episode transcript (~13,000 tokens):
+
+| Task | Test (Nano) | Production |
+|------|-------------|------------|
+| Speaker Detection | ~$0.001 | ~$0.004 (Mini) |
+| Summarization | ~$0.002 | ~$0.02 (GPT-5) |
+| Transcription (60 min) | $0.36 | $0.36 |
+| **Total per episode** | ~$0.36 | ~$0.38 |
+
+### Cost Comparison: Local vs OpenAI (Per 100 Episodes)
+
+| Component | Local | OpenAI (GPT-5 Mini) | OpenAI (GPT-5) |
+|-----------|-------|---------------------|----------------|
+| Speaker Detection | Free | $0.40 | $1.60 |
+| Summarization | Free | $0.80 | $4.00 |
+| Transcription | Free | $36.00 | $36.00 |
+| **Total** | $0 | **$37.20** | **$41.60** |
+
+### GPT-5 vs GPT-4 Advantages
+
+1. **95% cheaper** than GPT-4 for input tokens
+2. **83% cheaper** for output tokens
+3. **65% fewer hallucinations** - more reliable outputs
+4. **50-80% more efficient** - needs fewer tokens for same quality
+5. **94.6% math accuracy** (relevant for numerical content)
+
+### Hybrid Strategy Recommendations
+
+**Cost-Optimized (GPT-5 Nano + Local Whisper):**
+
+```yaml
+speaker_detector_provider: openai
+transcription_provider: whisper      # Free (local)
+summary_provider: openai
+openai_speaker_model: gpt-5-nano
+openai_summary_model: gpt-5-nano
+```
+
+Cost: ~$0.003/episode (excluding transcription)
+
+**Quality-Optimized (GPT-5 + OpenAI Whisper):**
+
+```yaml
+speaker_detector_provider: openai
+transcription_provider: openai
+summary_provider: openai
+openai_speaker_model: gpt-5-mini
+openai_summary_model: gpt-5
+```
+
+Cost: ~$0.38/episode
 
 ## Non-Goals
 
@@ -407,4 +491,3 @@ We expect and encourage contributors to create their own provider implementation
 - Provider performance comparison tools
 - Hybrid processing (use API for some episodes, local for others)
 - Provider plugin system (external packages can register providers)
-````

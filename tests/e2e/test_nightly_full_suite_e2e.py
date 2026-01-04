@@ -53,17 +53,6 @@ def create_nightly_config(output_dir: str, rss_url: str):
     )
 
 
-# Podcast names for nightly tests (p01-p05)
-# URLs are generated dynamically using e2e_server.urls.feed()
-PODCAST_NAMES = [
-    "podcast1",  # p01 - Mountain Biking
-    "podcast2",  # p02 - Software Engineering
-    "podcast3",  # p03 - Scuba Diving
-    "podcast4",  # p04 - Photography
-    "podcast5",  # p05 - Investing
-]
-
-
 @pytest.mark.nightly
 @pytest.mark.slow
 @pytest.mark.ml_models
@@ -72,11 +61,20 @@ class TestNightlyFullSuite:
 
     Tests all 5 podcasts (p01-p05) with all 3 episodes each (15 total episodes).
     Uses production ML models for realistic testing.
+
+    Each podcast is tested independently via parametrization, allowing parallel
+    execution and clear failure attribution.
     """
 
     @pytest.mark.parametrize(
         "podcast_name",
-        ["podcast1", "podcast2", "podcast3", "podcast4", "podcast5"],
+        [
+            "podcast1",  # p01 - Mountain Biking
+            "podcast2",  # p02 - Software Engineering
+            "podcast3",  # p03 - Scuba Diving
+            "podcast4",  # p04 - Photography
+            "podcast5",  # p05 - Investing
+        ],
     )
     def test_nightly_podcast_full_pipeline(self, podcast_name, e2e_server, tmpdir):
         """Test full pipeline for a single podcast with all episodes.
@@ -100,78 +98,23 @@ class TestNightlyFullSuite:
         assert isinstance(summary, str), "Pipeline should return summary string"
 
         # Verify transcript files were created (all 3 episodes)
-        transcripts_dir = Path(tmpdir) / "transcripts"
-        transcript_files = list(transcripts_dir.glob("*.txt"))
-        assert len(transcript_files) >= 3, (
+        # Files are in run_id subdirectory: run_*/transcripts/
+        transcript_files = list(Path(tmpdir).rglob("transcripts/*.txt"))
+        # Filter to only main transcript files (not .cleaned.txt)
+        main_transcripts = [f for f in transcript_files if not f.name.endswith(".cleaned.txt")]
+        assert len(main_transcripts) >= 3, (
             f"Should create at least 3 transcript files for {podcast_name}, "
-            f"found {len(transcript_files)}"
+            f"found {len(main_transcripts)}"
         )
 
         # Verify metadata files were created (if metadata generation enabled)
         if cfg.generate_metadata:
-            metadata_dir = Path(tmpdir) / "metadata"
-            metadata_files = list(metadata_dir.glob("*.metadata.json"))
+            metadata_files = list(Path(tmpdir).rglob("metadata/*.metadata.json"))
             assert len(metadata_files) >= 3, (
                 f"Should create at least 3 metadata files for {podcast_name}, "
                 f"found {len(metadata_files)}"
             )
 
-        # Verify metrics file was created (if metrics output enabled)
-        metrics_file = Path(tmpdir) / "metrics.json"
-        if cfg.metrics_output is not None or cfg.metrics_output != "":
-            # Metrics should be saved by default
-            assert metrics_file.exists(), f"Metrics file should exist for {podcast_name}"
-
-    def test_nightly_all_podcasts_summary(self, e2e_server, tmpdir):
-        """Test that all podcasts can be processed in sequence.
-
-        This test processes all 5 podcasts sequentially to validate
-        that the system can handle multiple different podcast feeds
-        with production models.
-        """
-        results = {}
-
-        for podcast_name in PODCAST_NAMES:
-            # Get RSS URL from e2e_server (dynamic port)
-            rss_url = e2e_server.urls.feed(podcast_name)
-            # Create config for this podcast
-            podcast_output_dir = str(Path(tmpdir) / podcast_name)
-            cfg = create_nightly_config(podcast_output_dir, rss_url)
-
-            # Run pipeline
-            from podcast_scraper import workflow
-
-            try:
-                saved, summary = workflow.run_pipeline(cfg)
-                results[podcast_name] = {
-                    "saved": saved,
-                    "summary": summary,
-                    "success": True,
-                }
-            except Exception as e:
-                results[podcast_name] = {
-                    "saved": 0,
-                    "summary": str(e),
-                    "success": False,
-                    "error": str(e),
-                }
-
-        # Verify all podcasts processed successfully
-        failed_podcasts = [
-            name for name, result in results.items() if not result.get("success", False)
-        ]
-        assert (
-            len(failed_podcasts) == 0
-        ), f"Some podcasts failed: {failed_podcasts}. Results: {results}"
-
-        # Verify all podcasts created files
-        for podcast_name in PODCAST_NAMES:
-            podcast_dir = Path(tmpdir) / podcast_name
-            transcripts_dir = podcast_dir / "transcripts"
-            transcript_files = (
-                list(transcripts_dir.glob("*.txt")) if transcripts_dir.exists() else []
-            )
-            assert len(transcript_files) >= 3, (
-                f"Podcast {podcast_name} should create at least 3 transcript files, "
-                f"found {len(transcript_files)}"
-            )
+        # Verify metrics file was created
+        metrics_files = list(Path(tmpdir).rglob("metrics.json"))
+        assert len(metrics_files) >= 1, f"Metrics file should exist for {podcast_name}"

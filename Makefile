@@ -257,9 +257,10 @@ test-fast:
 	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
 	# Uses fast feed for E2E tests (1 episode) - set via E2E_TEST_MODE environment variable
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
+	# Excludes nightly tests (comprehensive tests run only in nightly builds)
 	# Use --durations=20 to monitor slow tests and optimize them separately
-	@E2E_TEST_MODE=fast pytest -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 || true
-	@E2E_TEST_MODE=fast pytest -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+	@E2E_TEST_MODE=fast pytest -m 'serial and not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 || true
+	@E2E_TEST_MODE=fast pytest -m 'not serial and not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
 
 test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early

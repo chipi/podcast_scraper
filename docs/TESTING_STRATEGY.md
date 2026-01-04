@@ -32,7 +32,7 @@ This unified testing strategy document provides a single source of truth for all
 
 The testing strategy follows a three-tier pyramid:
 
-````text
+```text
         /\
        /E2E\          ← Few, realistic end-to-end tests
       /------\
@@ -40,8 +40,10 @@ The testing strategy follows a three-tier pyramid:
     /------------\
    /    Unit      \   ← Many, fast unit tests
   /----------------\
-```python
+```yaml
 
+| Layer | Scope | Entry Point | HTTP | Fixtures | ML Models |
+| ----- | ----- | ----------- | ---- | -------- | --------- |
 | **Unit** | Individual functions/modules | Function/class level | Mocked | Mocked | Mocked |
 | **Integration** | Component interactions | Component level | Local test server (or mocked) | Test fixtures | Real (optional) |
 | **E2E** | Complete user workflows | User level (CLI/API) | Real HTTP client (local server) | Real data files | Real (in workflow) |
@@ -110,7 +112,7 @@ The testing strategy follows a three-tier pyramid:
 
 ## Decision Criteria
 
-The decision questions above provide a quick way to determine test type. For critical path prioritization, see [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md). For detailed decision trees, edge cases, and migration guidelines, see [Testing Guide - Decision Trees and Edge Cases](guides/TESTING_GUIDE.md#decision-trees-and-edge-cases).
+The decision questions above provide a quick way to determine test type. For critical path prioritization, see [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md). For detailed implementation guidelines, see [Testing Guide](guides/TESTING_GUIDE.md).
 
 **Quick Reference:**
 
@@ -212,31 +214,39 @@ The decision questions above provide a quick way to determine test type. For cri
     - Extractive fallback behavior for extremely large combined summaries
 ```
 
-  - Summary generation with various text lengths
-  - Key takeaways extraction
-  - Text chunking for long transcripts
-  - Safe summarization error handling (OOM, missing dependencies)
-  - Memory optimization (CUDA/MPS)
-  - Model unloading and cleanup
-  - Integration with metadata generation pipeline
+- Summary generation with various text lengths
+- Key takeaways extraction
+- Text chunking for long transcripts
+- Safe summarization error handling (OOM, missing dependencies)
+- Memory optimization (CUDA/MPS)
+- Model unloading and cleanup
+- Integration with metadata generation pipeline
 
-#### Provider System (RFC-013)
+### Provider System (RFC-013)
 
 - **RFC-013**: Protocol-based provider architecture for transcription, speaker detection, and summarization
 - **Unified Provider Architecture**: MLProvider (unified local ML) and OpenAIProvider (unified OpenAI API)
 - **Test Cases**:
-  - **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, all dependencies mocked, test provider creation, initialization, protocol method implementation, error handling, cleanup, configuration validation
-  - **Unit Tests (Factory)**: Test factories create correct unified providers (MLProvider/OpenAIProvider), verify protocol compliance, test factory error handling
-  - **Integration Tests**: Test unified providers working with other components, use real providers with mocked external services, test provider factory, protocol compliance, component interactions, provider switching, error handling in workflow context
-  - **E2E Tests**: Test unified providers in full pipeline, providers work with real HTTP client (E2E server mock endpoints for API providers), real ML models (for local providers), multiple providers work together, error scenarios (API failures, rate limits)
-  - **E2E Server Tests**: Mock endpoint returns correct format, mock endpoint handles different request types, mock endpoint error handling, URL helper methods work correctly
+  - **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, all dependencies
+    mocked, test provider creation, initialization, protocol method implementation, error handling,
+    cleanup, configuration validation
+  - **Unit Tests (Factory)**: Test factories create correct unified providers
+    (MLProvider/OpenAIProvider), verify protocol compliance, test factory error handling
+  - **Integration Tests**: Test unified providers working with other components, use real providers
+    with mocked external services, test provider factory, protocol compliance, component
+    interactions, provider switching, error handling in workflow context
+  - **E2E Tests**: Test unified providers in full pipeline, providers work with real HTTP client
+    (E2E server mock endpoints for API providers), real ML models (for local providers), multiple
+    providers work together, error scenarios (API failures, rate limits)
+  - **E2E Server Tests**: Mock endpoint returns correct format, mock endpoint handles different
+    request types, mock endpoint error handling, URL helper methods work correctly
   - **Provider-specific tests**:
 
-```text
-    - **MLProvider**: Unified provider for Whisper (transcription), spaCy (speaker detection), Transformers (summarization) - test all three capabilities together
-    - **OpenAIProvider**: Unified provider for OpenAI API (transcription, speaker detection, summarization) - test all three capabilities together
-    - **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
-```python
+- **MLProvider**: Unified provider for Whisper (transcription), spaCy (speaker detection),
+  Transformers (summarization) - test all three capabilities together
+- **OpenAIProvider**: Unified provider for OpenAI API (transcription, speaker detection,
+  summarization) - test all three capabilities together
+- **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
 
 #### Service API (`service.py`)
 
@@ -258,7 +268,7 @@ The decision questions above provide a quick way to determine test type. For cri
   - ServiceResult equality and string representation
   - Integration with public API (`Config`, `load_config_file`, `run_pipeline`)
 
-**For detailed unit test execution commands, test file descriptions, fixtures, requirements, and coverage, see [Testing Guide - Unit Test Implementation](TESTING_GUIDE.md#unit-test-implementation).**
+**For detailed unit test execution commands, test file descriptions, fixtures, requirements, and coverage, see [Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md).**
 
 ### 2. Integration Tests
 
@@ -310,13 +320,16 @@ The decision questions above provide a quick way to determine test type. For cri
   - Speaker name override precedence
   - Language-aware model selection
 
-**For detailed integration test execution commands, test file descriptions, fixtures, requirements, and coverage, see [Testing Guide - Integration Test Implementation](TESTING_GUIDE.md#integration-test-implementation).**
+**For detailed integration test execution commands, test file descriptions, fixtures, requirements,
+and coverage, see [Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md).**
 
 ### 3. End-to-End Tests
 
 #### E2E Test Coverage Goals
 
-**Critical Path Priority**: The critical path must have E2E tests for all three entry points (CLI, Library API, Service API). See [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
+**Critical Path Priority**: The critical path must have E2E tests for all three entry points
+(CLI, Library API, Service API). See
+[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
 
 **Every major user-facing entry point should have at least one E2E test:**
 
@@ -332,7 +345,7 @@ The decision questions above provide a quick way to determine test type. For cri
 
 **Rule of Thumb**: E2E tests should cover "as a user, I want to..." scenarios, not every possible configuration combination.
 
-**For detailed E2E test execution commands, test file descriptions, fixtures, requirements, and coverage, see [Testing Guide - E2E Test Implementation](guides/TESTING_GUIDE.md#e2e-test-implementation).**
+**For detailed E2E test execution commands and implementation, see [E2E Testing Guide](guides/E2E_TESTING_GUIDE.md).**
 
 ## Test Infrastructure
 
@@ -345,16 +358,28 @@ The decision questions above provide a quick way to determine test type. For cri
 ### Mocking Strategy
 
 - **Unit Tests**: Mock all external dependencies (HTTP, ML models, file system, API clients)
-- **Integration Tests**: Mock external services (HTTP APIs, external APIs) and ML models (Whisper, spaCy, Transformers), use real internal implementations (real providers, real Config, real workflow logic)
-- **E2E Tests**: Use real implementations (HTTP client, ML models, file system) with local test server. For API providers, use E2E server mock endpoints instead of direct API calls. ML models (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
+- **Integration Tests**: Mock external services (HTTP APIs, external APIs) and ML models (Whisper,
+  spaCy, Transformers), use real internal implementations (real providers, real Config, real
+  workflow logic)
+- **E2E Tests**: Use real implementations (HTTP client, ML models, file system) with local test
+  server. For API providers, use E2E server mock endpoints instead of direct API calls. ML models
+  (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
 
 **Provider Testing Strategy:**
 
-- **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, mock all dependencies (API clients, ML models). Test provider creation, initialization, protocol methods, error handling, cleanup
-- **Unit Tests (Factory)**: Test factories create correct unified providers, verify protocol compliance, test factory error handling
-- **Integration Tests**: Use real unified provider implementations (MLProvider/OpenAIProvider) with mocked external services and mocked ML models. Test provider factory, protocol compliance, component interactions, providers working together. ML models (Whisper, spaCy, Transformers) are mocked for speed.
-- **E2E Tests**: Use real unified providers with E2E server mock endpoints (for API providers like OpenAI) or real implementations (for local providers like MLProvider). Test complete workflows with providers. ML models (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
-- **Key Principle**: Always verify protocol compliance, not class names. Unified providers (MLProvider, OpenAIProvider) replace old separate provider classes
+- **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, mock all
+  dependencies (API clients, ML models). Test provider creation, initialization, protocol methods,
+  error handling, cleanup
+- **Unit Tests (Factory)**: Test factories create correct unified providers, verify protocol
+  compliance, test factory error handling
+- **Integration Tests**: Use real unified provider implementations (MLProvider/OpenAIProvider) with
+  mocked external services and mocked ML models. Test provider factory, protocol compliance,
+  component interactions, providers working together. ML models are mocked for speed.
+- **E2E Tests**: Use real unified providers with E2E server mock endpoints (for API providers like
+  OpenAI) or real implementations (for local providers like MLProvider). Test complete workflows
+  with providers. ML models (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
+- **Key Principle**: Always verify protocol compliance, not class names. Unified providers
+  (MLProvider, OpenAIProvider) replace old separate provider classes
 - **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
 
 ### Test Organization
@@ -372,7 +397,8 @@ The test suite is organized into three main categories:
 - `@pytest.mark.e2e` - End-to-end workflow tests
 - `@pytest.mark.critical_path` - Critical path tests (run in fast suite)
 - `@pytest.mark.serial` - Tests that must run sequentially (resource conflicts)
-- `@pytest.mark.ml_models` - Requires ML dependencies (whisper, spacy, transformers)
+- `@pytest.mark.ml_models` - Requires ML dependencies (whisper, spacy, transformers) or uses real
+  ML models
 - `@pytest.mark.slow` - Slow-running tests
 - `@pytest.mark.network` - Tests that hit external network
 - `@pytest.mark.multi_episode` - Multi-episode tests (nightly)
@@ -380,9 +406,11 @@ The test suite is organized into three main categories:
 - `@pytest.mark.llm` - Tests using LLM APIs (may incur costs)
 - `@pytest.mark.openai` - Tests using OpenAI API specifically
 
-**Execution Pattern**: Tests marked `serial` run first sequentially, then remaining tests run in parallel with `-n auto`. All tests use network isolation via `--disable-socket --allow-hosts=127.0.0.1,localhost`.
+**Execution Pattern**: Tests marked `serial` run first sequentially, then remaining tests run in
+parallel with `-n auto`. All tests use network isolation via
+`--disable-socket --allow-hosts=127.0.0.1,localhost`.
 
-**For detailed test infrastructure information, see [Testing Guide - Test Infrastructure Details](guides/TESTING_GUIDE.md#test-infrastructure-details).**
+**For detailed test infrastructure information, see [Testing Guide](guides/TESTING_GUIDE.md).**
 
 ## CI/CD Integration
 
@@ -411,7 +439,8 @@ The test suite is organized into three main categories:
 **Test Execution Strategy**:
 
 - **PRs**: Fast feedback + full validation run in parallel (both exclude slow/ml_models tests)
-- **Main branch**: Separate test jobs for maximum parallelization (includes all tests, slow jobs run only on push to main)
+- **Main branch**: Separate test jobs for maximum parallelization (includes all tests, slow jobs
+  run only on push to main)
 - **Unit tests**: Run on every PR and push (fast feedback, parallel execution)
 - **Fast integration tests**: Run on PRs and main (excludes slow/ml_models, parallel execution, with re-runs)
 - **Slow integration tests**: Run only on push to main (includes slow/ml_models, parallel execution, with re-runs)
@@ -419,9 +448,11 @@ The test suite is organized into three main categories:
 - **Slow E2E tests**: Run only on push to main (includes slow/ml_models, parallel execution, network guard, with re-runs)
 - **Test execution**: Parallel by default (`-n auto`), use `pytest -n 0` for sequential debugging
 - **Flaky test reruns**: Enabled for integration and E2E tests (`--reruns 2 --reruns-delay 1`)
-- **Nightly workflow**: Comprehensive test suite with full metrics collection, trend tracking, and dashboard generation (RFC-025 Layer 3). **Note:** LLM/OpenAI tests are excluded (`-m "not llm"`) to avoid API costs (see issue #183)
+- **Nightly workflow**: Comprehensive test suite with full metrics collection, trend tracking,
+  and dashboard generation (RFC-025 Layer 3). **Note:** LLM/OpenAI tests are excluded
+  (`-m "not llm"`) to avoid API costs (see issue #183)
 
-**For detailed test execution commands, parallel execution, flaky test reruns, and coverage, see [Testing Guide - Test Execution Details](TESTING_GUIDE.md#test-execution-details).**
+**For detailed test execution commands, parallel execution, flaky test reruns, and coverage, see [Testing Guide](guides/TESTING_GUIDE.md).**
 
 ## Testing Patterns
 
@@ -573,7 +604,9 @@ The test suite is organized into three main categories:
 
 ## Test Pyramid Status
 
-> **Note**: Test distribution numbers should be verified periodically by running test collection and counting tests by layer. Historical progress tracking was documented in `docs/wip/TEST_PYRAMID_ANALYSIS.md` and `docs/wip/TEST_PYRAMID_PLAN.md` (now consolidated here).
+> **Note**: Test distribution numbers should be verified periodically by running test collection
+> and counting tests by layer. Historical progress tracking was documented in
+> `docs/wip/TEST_PYRAMID_ANALYSIS.md` and `docs/wip/TEST_PYRAMID_PLAN.md` (now consolidated here).
 
 ### Current State vs. Ideal Distribution
 

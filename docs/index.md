@@ -27,12 +27,6 @@ Whisper transcription when episodes lack published transcripts.
 
 ---
 
-## 📊 Metrics Dashboard
-
-- **[Metrics Dashboard](metrics/)** — Test coverage, performance trends, code quality, and nightly results
-
----
-
 ## 🚀 Quick Start
 
 ### Installation
@@ -95,7 +89,7 @@ generate_metadata: true
 generate_summaries: true
 workers: 4
 skip_existing: true
-```yaml
+```
 
 **Example configs:**
 
@@ -123,7 +117,7 @@ skip_existing: true
 | **[Service Mode](api/SERVICE.md)** | Running as daemon or service (systemd, supervisor, cron) |
 | **[Service Examples](#service-daemon-examples)** | systemd and supervisor configuration templates |
 | **[Advanced Features](#advanced-features)** | Speaker detection, summarization, language support |
-| **[Configuration Files](#configuration-files)** | JSON/YAML config examples |
+| **[Configuration File](#configuration-file)** | JSON/YAML config examples |
 | **[Configuration API](api/CONFIGURATION.md)** | Configuration API reference (includes environment variables) |
 
 ### For Developers
@@ -258,7 +252,7 @@ autostart=true
 autorestart=true
 stdout_logfile=/var/log/podcast_scraper/stdout.log
 stderr_logfile=/var/log/podcast_scraper/stderr.log
-```yaml
+```
 
 ---
 
@@ -279,7 +273,7 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-summaries \
   --summary-model bart-large \
   --summary-device mps
-```yaml
+```
 
 ---
 
@@ -299,7 +293,7 @@ python scripts/eval_cleaning.py --episode ep01
 # Evaluate summarization quality
 
 python scripts/eval_summaries.py --map-model bart-large --reduce-model long-fast
-```yaml
+```
 
 ---
 
@@ -353,8 +347,8 @@ docker run --rm \
   -v "$(pwd)/config.yaml:/app/config.yaml:ro" \
   podcast-scraper \
   --config /app/config.yaml
+```
 
-```yaml
 ---
 
 ## 👩‍💻 Contributing
@@ -384,48 +378,7 @@ make docs          # Build documentation
 - **[Architecture](ARCHITECTURE.md)** — Module boundaries and design
 - **[Testing Strategy](TESTING_STRATEGY.md)** — Test coverage and quality
 
-**Standards:**
-
-- **Code Style:** Black + isort + flake8 + mypy (line length: 100)
-- **Testing:** pytest with mocks for external dependencies
-- **Documentation:** Update README, API docs, and PRD/RFC as needed
-
-## PR Checklist
-
-- [ ] Run `make ci` locally (all checks pass)
-- [ ] Add/update tests for new functionality
-- [ ] Update documentation (README, API docs, etc.)
-- [ ] Follow conventional commit format
-- [ ] Reference related issues (Fixes #XX)
-
 [View full contributing guide →](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)
-
----
-
-## 📖 Local Documentation Development
-
-Build and preview documentation locally:
-
-```bash
-
-# Install dependencies
-
-pip install mkdocs mkdocs-material pymdown-extensions mkdocstrings mkdocstrings-python
-
-# Serve with live reload
-
-mkdocs serve
-
-```yaml
----
-
-## 📋 Work In Progress
-
-- [WIP Overview](wip/WIP_README.md) — Purpose and guidelines for WIP docs
-- [Summarization Testing Evaluation](wip/SUMMARIZATION_TESTING_EVALUATION.md)
-- [Summary Review](wip/SUMMARY_REVIEW.md)
-- [Whisper Progress Analysis](wip/WHISPER_PROGRESS_ANALYSIS.md)
-- [Type Hints Analysis](wip/TYPE_HINTS_ANALYSIS.md)
 
 > ⚠️ **Note:** WIP documents are temporary, may be incomplete, and are not part of official documentation.
 

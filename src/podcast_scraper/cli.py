@@ -282,6 +282,27 @@ def _add_openai_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="OpenAI API base URL (for E2E testing or custom endpoints)",
     )
+    parser.add_argument(
+        "--openai-transcription-model",
+        default=None,
+        help="OpenAI model for transcription (default: whisper-1)",
+    )
+    parser.add_argument(
+        "--openai-speaker-model",
+        default=None,
+        help="OpenAI model for speaker detection (default: gpt-4o-mini)",
+    )
+    parser.add_argument(
+        "--openai-summary-model",
+        default=None,
+        help="OpenAI model for summarization (default: gpt-4o-mini)",
+    )
+    parser.add_argument(
+        "--openai-temperature",
+        type=float,
+        default=None,
+        help="Temperature for OpenAI generation (0.0-2.0, default: 0.3)",
+    )
 
 
 def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
@@ -598,6 +619,15 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "save_cleaned_transcript": args.save_cleaned_transcript,
         "openai_api_base": args.openai_api_base,
     }
+    # Add OpenAI model args only if provided (fields have non-Optional types with defaults)
+    if args.openai_transcription_model is not None:
+        payload["openai_transcription_model"] = args.openai_transcription_model
+    if args.openai_speaker_model is not None:
+        payload["openai_speaker_model"] = args.openai_speaker_model
+    if args.openai_summary_model is not None:
+        payload["openai_summary_model"] = args.openai_summary_model
+    if args.openai_temperature is not None:
+        payload["openai_temperature"] = args.openai_temperature
     # Explicitly include openai_api_key=None to trigger field validator
     # The field validator will load it from OPENAI_API_KEY env var if available
     payload["openai_api_key"] = None

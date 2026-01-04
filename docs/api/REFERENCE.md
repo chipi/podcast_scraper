@@ -25,9 +25,9 @@ Complete reference documentation for the `podcast_scraper` public API.
 
 Execute the main podcast scraping pipeline.
 
-````python
+```python
 def run_pipeline(cfg: Config) -> Tuple[int, str]
-```text
+```
 
 1. Setup output directory
 2. Fetch and parse RSS feed
@@ -68,7 +68,7 @@ config = Config(
 count, summary = run_pipeline(config)
 print(f"Processed {count} episodes")
 print(summary)
-```text
+```yaml
 
 - [Config](#config) - Configuration options
 - [service.run](#servicerun) - Service API with structured results
@@ -81,7 +81,7 @@ Configuration model for podcast scraping pipeline.
 
 ```python
 class Config(BaseModel)
-```text
+```python
 
 **Fields:**
 
@@ -236,15 +236,18 @@ config = Config(**config_dict)
 # Use the config
 
 count, summary = run_pipeline(config)
-```python
+```
 
+```python
 from podcast_scraper import Config, load_config_file
 
 # One-liner: load and create Config
 
 config = Config(**load_config_file("config.yaml"))
+```
 
 ```json
+
 {
   "rss": "https://example.com/feed.xml",
   "output_dir": "./transcripts",
@@ -256,16 +259,17 @@ config = Config(**load_config_file("config.yaml"))
   "log_level": "INFO"
 }
 
-```text
+```
 
+```yaml
 max_episodes: 10
 transcribe_missing: true
 whisper_model: "base"
 generate_metadata: true
 generate_summaries: true
 log_level: "INFO"
+```
 
-```text
 - [Config](#config) - Configuration model
 - [Examples](../../examples/) - Example configuration files
 
@@ -288,7 +292,7 @@ class ServiceResult:
     success: bool = True
     error: Optional[str] = None
 
-```yaml
+```
 
 - `episodes_processed` (`int`): Number of episodes processed (transcripts saved/planned).
 - `summary` (`str`): Human-readable summary message with processing statistics.
@@ -310,13 +314,19 @@ else:
     print(f"Error: {result.error}")
     sys.exit(1)
 
-```text
+```yaml
+---
+
+### `service.run`
+
+Run the pipeline with a Config object.
 
 ```python
 
 def run(cfg: Config) -> ServiceResult
 
 ```python
+**Parameters:**
 
 - `cfg` (`Config`): Configuration object (can be created from `Config()` or `Config(**load_config_file())`).
 
@@ -344,8 +354,7 @@ if result.success:
 else:
     print(f"Error: {result.error}")
 
-```text
-- [service.run_from_config_file](#servicerun_from_config_file) - Convenience wrapper for config files
+```yaml
 - [Config](#config) - Configuration options
 
 ---
@@ -358,7 +367,7 @@ Run the pipeline from a configuration file.
 
 def run_from_config_file(config_path: str | Path) -> ServiceResult
 
-```yaml
+```
 
 - `config_path` (`str | Path`): Path to configuration file (JSON or YAML).
 
@@ -387,15 +396,14 @@ if not result.success:
 
 print(f"Success: {result.summary}")
 
-```text
+```
 
+```bash
 # Command-line entry point
-
 python -m podcast_scraper.service --config config.yaml
 
 # Exit codes: 0 = success, 1 = failure
-
-```python
+```
 
 - [load_config_file](#load_config_file) - Load configuration from file
 - [Examples](../../examples/) - Supervisor and systemd configuration examples
@@ -415,7 +423,6 @@ import podcast_scraper
 api_version = podcast_scraper.__api_version__  # "2.3.0"
 
 ```javascript
-
 - **Major version (X.y.z)**: Breaking API changes (function signatures, return types, required parameters)
 - **Minor version (x.Y.z)**: New features, backward compatible (new functions, optional parameters)
 - **Patch version (x.y.Z)**: Bug fixes, backward compatible (no API changes)
@@ -439,8 +446,7 @@ else:
 
     pass
 
-```text
-
+```yaml
 - [API Migration Guide](MIGRATION_GUIDE.md) - Migration between major versions
 
 ---
@@ -459,18 +465,23 @@ config = Config(rss_url="https://example.com/feed.xml")
 count, summary = run_pipeline(config)
 print(f"Downloaded {count} transcripts")
 
-````
+```
 
+### Transcription Options
+
+```python
 config = Config(
-rss_url="<https://example.com/feed.xml>",
-transcribe_missing=True,
-whisper_model="base",
-language="en",
+    rss_url="https://example.com/feed.xml",
+    transcribe_missing=True,
+    whisper_model="base",
+    language="en",
 )
 count, summary = run_pipeline(config)
+```
 
-````python
+### Metadata and Summaries
 
+```python
 config = Config(
     rss_url="https://example.com/feed.xml",
     generate_metadata=True,
@@ -481,10 +492,12 @@ config = Config(
 )
 count, summary = run_pipeline(config)
 
-```text
+```
 
+### Service API Usage
+
+```python
 # Recommended for automation/daemon use
-
 result = service.run_from_config_file("config.yaml")
 
 if result.success:
@@ -493,19 +506,21 @@ if result.success:
 else:
     print(f"Error: {result.error}")
     sys.exit(1)
+```
+
+### Loading Configuration
 
 ```python
-
 # Load configuration
-
 config = load_config_file("config.yaml")
 
 # Run pipeline
-
 count, summary = run_pipeline(config)
+```
+
+### Error Handling
 
 ```python
-
 try:
     config = Config(rss_url="https://example.com/feed.xml")
     count, summary = run_pipeline(config)
@@ -516,10 +531,9 @@ except ValueError as e:
 except RuntimeError as e:
     print(f"Runtime error: {e}", file=sys.stderr)
     sys.exit(1)
+```
 
-```text
-
-**Example:**
+### Type Hints Example
 
 ```python
 
@@ -532,9 +546,10 @@ def process_podcast(rss_url: str) -> Tuple[int, str]:
     config = Config(rss_url=rss_url)
     return run_pipeline(config)  # Returns Tuple[int, str]
 
-```text
-- [API Boundaries](BOUNDARIES.md) - API design and boundaries
+```
+
+## See Also
+
 - [Architecture](../ARCHITECTURE.md) - System architecture overview
 - [Configuration Examples](../../examples/) - Example configuration files
 - [Service Examples](../../examples/) - Supervisor and systemd configurations
-````

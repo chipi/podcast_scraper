@@ -24,7 +24,7 @@ jobs:
   # Comprehensive test suite with full metrics collection
   nightly-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 300  # 5 hours for comprehensive tests with production models (~261 min audio)
+    timeout-minutes: 420  # 7 hours for comprehensive tests with production models (~300 min audio on CPU)
     steps:
     - uses: actions/checkout@v4
       with:

@@ -416,6 +416,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=4,
             openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         self.assertIsInstance(cfg, config.Config)
@@ -498,6 +502,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=1,
             openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         self.assertIsInstance(cfg, config.Config)
@@ -554,6 +562,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=1,
             openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         self.assertEqual(cfg.transcription_provider, "openai")
@@ -604,6 +616,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=1,
             openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         self.assertEqual(cfg.speaker_detector_provider, "openai")
@@ -653,6 +669,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=1,
             openai_api_base="http://localhost:8000/v1",
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         self.assertEqual(cfg.openai_api_base, "http://localhost:8000/v1")
@@ -703,6 +723,10 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=1,
             openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         # The Config object should load the key from environment via field validator
@@ -754,10 +778,230 @@ class TestBuildConfig(unittest.TestCase):
             cache_detected_hosts=False,
             workers=1,
             openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
         )
         cfg = cli._build_config(args)
         # The Config object should have None when env var is not set
         self.assertIsNone(cfg.openai_api_key)
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test123"})
+    def test_build_config_with_openai_transcription_model(self):
+        """Test that _build_config includes openai_transcription_model when provided."""
+        args = Namespace(
+            rss="https://example.com/feed.xml",
+            output_dir=None,
+            max_episodes=None,
+            user_agent=None,
+            timeout=30,
+            delay_ms=0,
+            prefer_type=[],
+            transcribe_missing=False,
+            transcription_provider="openai",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            screenplay=False,
+            screenplay_gap=2.0,
+            num_speakers=2,
+            speaker_names=None,
+            run_id=None,
+            skip_existing=False,
+            reuse_media=False,
+            clean_output=False,
+            dry_run=False,
+            generate_metadata=False,
+            metadata_format="json",
+            metadata_subdirectory=None,
+            generate_summaries=False,
+            metrics_output=None,
+            summary_provider=None,
+            summary_model=None,
+            summary_reduce_model=None,
+            summary_max_length=None,
+            summary_min_length=None,
+            summary_device=None,
+            summary_chunk_size=None,
+            summary_prompt=None,
+            save_cleaned_transcript=False,
+            log_level=None,
+            log_file=None,
+            language=None,
+            ner_model=None,
+            speaker_detector_provider="spacy",
+            auto_speakers=False,
+            cache_detected_hosts=False,
+            workers=1,
+            openai_api_base=None,
+            openai_transcription_model="whisper-1",
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
+        )
+        cfg = cli._build_config(args)
+        self.assertEqual(cfg.openai_transcription_model, "whisper-1")
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test123"})
+    def test_build_config_with_openai_speaker_model(self):
+        """Test that _build_config includes openai_speaker_model when provided."""
+        args = Namespace(
+            rss="https://example.com/feed.xml",
+            output_dir=None,
+            max_episodes=None,
+            user_agent=None,
+            timeout=30,
+            delay_ms=0,
+            prefer_type=[],
+            transcribe_missing=False,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            screenplay=False,
+            screenplay_gap=2.0,
+            num_speakers=2,
+            speaker_names=None,
+            run_id=None,
+            skip_existing=False,
+            reuse_media=False,
+            clean_output=False,
+            dry_run=False,
+            generate_metadata=False,
+            metadata_format="json",
+            metadata_subdirectory=None,
+            generate_summaries=False,
+            metrics_output=None,
+            summary_provider=None,
+            summary_model=None,
+            summary_reduce_model=None,
+            summary_max_length=None,
+            summary_min_length=None,
+            summary_device=None,
+            summary_chunk_size=None,
+            summary_prompt=None,
+            save_cleaned_transcript=False,
+            log_level=None,
+            log_file=None,
+            language=None,
+            ner_model=None,
+            speaker_detector_provider="openai",
+            auto_speakers=False,
+            cache_detected_hosts=False,
+            workers=1,
+            openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model="gpt-4o",
+            openai_summary_model=None,
+            openai_temperature=None,
+        )
+        cfg = cli._build_config(args)
+        self.assertEqual(cfg.openai_speaker_model, "gpt-4o")
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test123"})
+    def test_build_config_with_openai_summary_model(self):
+        """Test that _build_config includes openai_summary_model when provided."""
+        args = Namespace(
+            rss="https://example.com/feed.xml",
+            output_dir=None,
+            max_episodes=None,
+            user_agent=None,
+            timeout=30,
+            delay_ms=0,
+            prefer_type=[],
+            transcribe_missing=False,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            screenplay=False,
+            screenplay_gap=2.0,
+            num_speakers=2,
+            speaker_names=None,
+            run_id=None,
+            skip_existing=False,
+            reuse_media=False,
+            clean_output=False,
+            dry_run=False,
+            generate_metadata=True,  # Required when generate_summaries=True
+            metadata_format="json",
+            metadata_subdirectory=None,
+            generate_summaries=True,
+            metrics_output=None,
+            summary_provider="openai",
+            summary_model=None,
+            summary_reduce_model=None,
+            summary_max_length=None,
+            summary_min_length=None,
+            summary_device=None,
+            summary_chunk_size=None,
+            summary_prompt=None,
+            save_cleaned_transcript=False,
+            log_level=None,
+            log_file=None,
+            language=None,
+            ner_model=None,
+            speaker_detector_provider="spacy",
+            auto_speakers=False,
+            cache_detected_hosts=False,
+            workers=1,
+            openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model="gpt-4o-mini",
+            openai_temperature=None,
+        )
+        cfg = cli._build_config(args)
+        self.assertEqual(cfg.openai_summary_model, "gpt-4o-mini")
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test123"})
+    def test_build_config_with_openai_temperature(self):
+        """Test that _build_config includes openai_temperature when provided."""
+        args = Namespace(
+            rss="https://example.com/feed.xml",
+            output_dir=None,
+            max_episodes=None,
+            user_agent=None,
+            timeout=30,
+            delay_ms=0,
+            prefer_type=[],
+            transcribe_missing=False,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            screenplay=False,
+            screenplay_gap=2.0,
+            num_speakers=2,
+            speaker_names=None,
+            run_id=None,
+            skip_existing=False,
+            reuse_media=False,
+            clean_output=False,
+            dry_run=False,
+            generate_metadata=False,
+            metadata_format="json",
+            metadata_subdirectory=None,
+            generate_summaries=False,
+            metrics_output=None,
+            summary_provider=None,
+            summary_model=None,
+            summary_reduce_model=None,
+            summary_max_length=None,
+            summary_min_length=None,
+            summary_device=None,
+            summary_chunk_size=None,
+            summary_prompt=None,
+            save_cleaned_transcript=False,
+            log_level=None,
+            log_file=None,
+            language=None,
+            ner_model=None,
+            speaker_detector_provider="spacy",
+            auto_speakers=False,
+            cache_detected_hosts=False,
+            workers=1,
+            openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=0.7,
+        )
+        cfg = cli._build_config(args)
+        self.assertEqual(cfg.openai_temperature, 0.7)
 
 
 class TestParseArgs(unittest.TestCase):
@@ -837,6 +1081,58 @@ class TestParseArgs(unittest.TestCase):
         """Test that --openai-api-base defaults to None."""
         args = cli.parse_args(["https://example.com/feed.xml"])
         self.assertIsNone(args.openai_api_base)
+
+    def test_parse_args_with_openai_transcription_model(self):
+        """Test parsing --openai-transcription-model argument."""
+        args = cli.parse_args(
+            [
+                "https://example.com/feed.xml",
+                "--openai-transcription-model",
+                "whisper-1",
+            ]
+        )
+        self.assertEqual(args.openai_transcription_model, "whisper-1")
+
+    def test_parse_args_with_openai_speaker_model(self):
+        """Test parsing --openai-speaker-model argument."""
+        args = cli.parse_args(
+            [
+                "https://example.com/feed.xml",
+                "--openai-speaker-model",
+                "gpt-4o",
+            ]
+        )
+        self.assertEqual(args.openai_speaker_model, "gpt-4o")
+
+    def test_parse_args_with_openai_summary_model(self):
+        """Test parsing --openai-summary-model argument."""
+        args = cli.parse_args(
+            [
+                "https://example.com/feed.xml",
+                "--openai-summary-model",
+                "gpt-4o-mini",
+            ]
+        )
+        self.assertEqual(args.openai_summary_model, "gpt-4o-mini")
+
+    def test_parse_args_with_openai_temperature(self):
+        """Test parsing --openai-temperature argument."""
+        args = cli.parse_args(
+            [
+                "https://example.com/feed.xml",
+                "--openai-temperature",
+                "0.7",
+            ]
+        )
+        self.assertEqual(args.openai_temperature, 0.7)
+
+    def test_parse_args_openai_model_defaults(self):
+        """Test that OpenAI model arguments default to None."""
+        args = cli.parse_args(["https://example.com/feed.xml"])
+        self.assertIsNone(args.openai_transcription_model)
+        self.assertIsNone(args.openai_speaker_model)
+        self.assertIsNone(args.openai_summary_model)
+        self.assertIsNone(args.openai_temperature)
 
     def test_parse_args_invalid_transcription_provider(self):
         """Test that invalid --transcription-provider raises error."""
@@ -1021,11 +1317,25 @@ class TestAddArgumentGroups(unittest.TestCase):
         # Check that OpenAI arguments are present
         action_dests = [a.dest for a in parser._actions]
         self.assertIn("openai_api_base", action_dests)
+        self.assertIn("openai_transcription_model", action_dests)
+        self.assertIn("openai_speaker_model", action_dests)
+        self.assertIn("openai_summary_model", action_dests)
+        self.assertIn("openai_temperature", action_dests)
 
         # Check that openai_api_base has correct default
         openai_action = next((a for a in parser._actions if a.dest == "openai_api_base"), None)
         self.assertIsNotNone(openai_action)
         self.assertIsNone(openai_action.default)
+
+        # Check that model arguments have correct defaults (None, uses config defaults)
+        for model_arg in [
+            "openai_transcription_model",
+            "openai_speaker_model",
+            "openai_summary_model",
+        ]:
+            action = next((a for a in parser._actions if a.dest == model_arg), None)
+            self.assertIsNotNone(action, f"{model_arg} should be present")
+            self.assertIsNone(action.default, f"{model_arg} default should be None")
 
 
 class TestLoadAndMergeConfig(unittest.TestCase):

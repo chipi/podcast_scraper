@@ -28,6 +28,8 @@ from typing import Any, Dict, Optional
 
 import pytest
 
+from podcast_scraper import config
+
 
 class E2EServerURLs:
     """URL helper class for E2E server."""
@@ -119,10 +121,16 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         "podcast1_multi_episode": "p01_multi.xml",
     }
 
-    # Allowed podcasts for fast mode (shared across all handler instances)
+    # Allowed podcasts (shared across all handler instances)
     # If None, all podcasts are allowed. If set, only podcasts in this set are served.
     _allowed_podcasts: Optional[set[str]] = None
     _allowed_podcasts_lock = threading.Lock()
+
+    # Use fast fixtures flag (shared across all handler instances)
+    # When True, use PODCAST_RSS_MAP_FAST for available podcasts
+    # When False, always use PODCAST_RSS_MAP (full fixtures)
+    _use_fast_fixtures: bool = True
+    _use_fast_fixtures_lock = threading.Lock()
 
     # Error behavior registry (shared across all handler instances)
     # Format: {url_path: {"status": 404|500, "delay": seconds}}
@@ -168,6 +176,18 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         """
         with cls._allowed_podcasts_lock:
             cls._allowed_podcasts = podcasts
+
+    @classmethod
+    def set_use_fast_fixtures(cls, use_fast: bool):
+        """Set whether to use fast fixtures (shorter episodes) for RSS feeds.
+
+        Args:
+            use_fast: If True, use PODCAST_RSS_MAP_FAST for available podcasts.
+                     If False, always use PODCAST_RSS_MAP (full fixtures).
+                     Default is True for backward compatibility.
+        """
+        with cls._use_fast_fixtures_lock:
+            cls._use_fast_fixtures = use_fast
 
     @classmethod
     def get_allowed_podcasts(cls) -> Optional[set[str]]:
@@ -248,14 +268,14 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_error(404, f"RSS feed not available in current test mode: {podcast_name}")
                 return
 
-            # Use fast RSS feed if in fast mode (allowed_podcasts is set)
-            # Fast mode means we're limiting to specific podcasts, so use fast versions
-            # Data quality mode (allowed_podcasts is None) uses original mock data
-            is_fast_mode = allowed is not None
+            # Use fast RSS feed if fast fixtures mode is enabled
+            # Fast mode uses shorter episodes for faster tests
+            # Data quality/nightly mode uses original mock data with full episodes
+            with self._use_fast_fixtures_lock:
+                use_fast = self._use_fast_fixtures
 
-            # Only use fast fixtures in fast mode (when allowed_podcasts is set)
-            # Data quality tests (allowed_podcasts is None) use original mock data
-            if is_fast_mode and podcast_name in self.PODCAST_RSS_MAP_FAST:
+            # Only use fast fixtures if explicitly enabled AND podcast is in fast map
+            if use_fast and podcast_name in self.PODCAST_RSS_MAP_FAST:
                 rss_file = self.PODCAST_RSS_MAP_FAST.get(podcast_name)
             else:
                 # Use original mock data (for data quality tests or slow tests)
@@ -377,7 +397,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "id": "chatcmpl-test-speaker",
                     "object": "chat.completion",
                     "created": int(time.time()),
-                    "model": request_data.get("model", "gpt-4o-mini"),
+                    "model": request_data.get("model", config.TEST_DEFAULT_OPENAI_SPEAKER_MODEL),
                     "choices": [
                         {
                             "index": 0,
@@ -408,7 +428,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "id": "chatcmpl-test-summary",
                     "object": "chat.completion",
                     "created": int(time.time()),
-                    "model": request_data.get("model", "gpt-4o-mini"),
+                    "model": request_data.get("model", config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL),
                     "choices": [
                         {
                             "index": 0,

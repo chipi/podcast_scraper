@@ -7,11 +7,30 @@ docs_dir: docs
 site_dir: .build/site
 nav:
   - Home: index.md
+  - Guides:
+      - guides/index.md
+      - Quick Reference: guides/QUICK_REFERENCE.md
+      - Development Guide: guides/DEVELOPMENT_GUIDE.md
+      - Testing Guide: guides/TESTING_GUIDE.md
+      - Unit Testing Guide: guides/UNIT_TESTING_GUIDE.md
+      - Integration Testing Guide: guides/INTEGRATION_TESTING_GUIDE.md
+      - E2E Testing Guide: guides/E2E_TESTING_GUIDE.md
+      - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
+      - Provider Configuration Quick Reference: guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md
+      - Provider Implementation Guide: guides/PROVIDER_IMPLEMENTATION_GUIDE.md
+      - Protocol Extension Guide: guides/PROTOCOL_EXTENSION_GUIDE.md
+      - Summarization Guide: guides/SUMMARIZATION_GUIDE.md
+      - Dependencies: guides/DEPENDENCIES_GUIDE.md
+      - Markdown Style and Linting: guides/MARKDOWN_LINTING_GUIDE.md
+      - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md
+      - Documentation Agent Guide: guides/DOCUMENTATION_AGENT_GUIDE.md
+      - Troubleshooting: guides/TROUBLESHOOTING.md
+      - Glossary: guides/GLOSSARY.md
   - Architecture: ARCHITECTURE.md
   - Testing Strategy: TESTING_STRATEGY.md
   - CI/CD Pipeline: CI_CD.md
   - Product Requirements:
-      - PRD Overview: prd/index.md
+      - prd/index.md
       - PRD-001 Transcript Acquisition Pipeline: prd/PRD-001-transcript-pipeline.md
       - PRD-002 Whisper Fallback Transcription: prd/PRD-002-whisper-fallback.md
       - PRD-003 User Interfaces & Configuration: prd/PRD-003-user-interface-config.md
@@ -20,8 +39,15 @@ nav:
       - PRD-006 OpenAI Provider Integration: prd/PRD-006-openai-provider-integration.md
       - PRD-007 AI Experiment Pipeline: prd/PRD-007-ai-experiment-pipeline.md
       - PRD-008 Speaker Name Detection: prd/PRD-008-speaker-name-detection.md
+      - PRD-009 Anthropic Provider Integration: prd/PRD-009-anthropic-provider-integration.md
+      - PRD-010 Mistral Provider Integration: prd/PRD-010-mistral-provider-integration.md
+      - PRD-011 DeepSeek Provider Integration: prd/PRD-011-deepseek-provider-integration.md
+      - PRD-012 Gemini Provider Integration: prd/PRD-012-gemini-provider-integration.md
+      - PRD-013 Groq Provider Integration: prd/PRD-013-groq-provider-integration.md
+      - PRD-014 Ollama Provider Integration: prd/PRD-014-ollama-provider-integration.md
+      - PRD Template: prd/PRD_TEMPLATE.md
   - RFCs:
-      - RFC Overview: rfc/index.md
+      - rfc/index.md
       - RFC-001 Workflow Orchestration: rfc/RFC-001-workflow-orchestration.md
       - RFC-002 RSS Parsing & Episode Modeling: rfc/RFC-002-rss-parsing.md
       - RFC-003 Transcript Download Processing: rfc/RFC-003-transcript-downloads.md
@@ -52,6 +78,13 @@ nav:
       - RFC-029 Provider Refactoring Consolidation: rfc/RFC-029-provider-refactoring-consolidation.md
       - RFC-030 Python Test Coverage Improvements: rfc/RFC-030-python-test-coverage-improvements.md
       - RFC-031 Code Complexity Analysis Tooling: rfc/RFC-031-code-complexity-analysis-tooling.md
+      - RFC-032 Anthropic Provider Implementation: rfc/RFC-032-anthropic-provider-implementation.md
+      - RFC-033 Mistral Provider Implementation: rfc/RFC-033-mistral-provider-implementation.md
+      - RFC-034 DeepSeek Provider Implementation: rfc/RFC-034-deepseek-provider-implementation.md
+      - RFC-035 Gemini Provider Implementation: rfc/RFC-035-gemini-provider-implementation.md
+      - RFC-036 Groq Provider Implementation: rfc/RFC-036-groq-provider-implementation.md
+      - RFC-037 Ollama Provider Implementation: rfc/RFC-037-ollama-provider-implementation.md
+      - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
       - API Reference: api/REFERENCE.md
@@ -64,6 +97,7 @@ nav:
       - API Migration Guide: api/MIGRATION_GUIDE.md
       - API Versioning: api/VERSIONING.md
   - Releases:
+      - releases/index.md
       - v2.3.2 - Security Tests & Thread-Safety Fixes: releases/RELEASE_v2.3.2.md
       - v2.3.1 - Security Fixes & Code Quality Improvements: releases/RELEASE_v2.3.1.md
       - v2.3.0 - Episode Summarization & Public API: releases/RELEASE_v2.3.0.md
@@ -72,36 +106,14 @@ nav:
       - v2.0.1 - Bug Fixes: releases/RELEASE_v2.0.1.md
       - v2.0.0 - Modular Architecture: releases/RELEASE_v2.0.0.md
       - v1.0.0 - Initial Release: releases/RELEASE_v1.0.0.md
-  - Work In Progress:
-      - WIP Overview: wip/WIP_README.md
-      - Summarization Testing Evaluation: wip/SUMMARIZATION_TESTING_EVALUATION.md
-      - Summary Review: wip/SUMMARY_REVIEW.md
-      - Type Hints Analysis: wip/TYPE_HINTS_ANALYSIS.md
-      - Whisper Progress Analysis: wip/WHISPER_PROGRESS_ANALYSIS.md
-  - Guides:
-      - Quick Reference: guides/QUICK_REFERENCE.md
-      - Development Guide: guides/DEVELOPMENT_GUIDE.md
-      - Testing Guide: guides/TESTING_GUIDE.md
-      - Unit Testing Guide: guides/UNIT_TESTING_GUIDE.md
-      - Integration Testing Guide: guides/INTEGRATION_TESTING_GUIDE.md
-      - E2E Testing Guide: guides/E2E_TESTING_GUIDE.md
-      - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
-      - Provider Configuration Quick Reference: guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md
-      - Provider Implementation Guide: guides/PROVIDER_IMPLEMENTATION_GUIDE.md
-      - Protocol Extension Guide: guides/PROTOCOL_EXTENSION_GUIDE.md
-      - Summarization Guide: guides/SUMMARIZATION_GUIDE.md
-      - Dependencies: guides/DEPENDENCIES_GUIDE.md
-      - Markdown Style and Linting: guides/MARKDOWN_LINTING_GUIDE.md
-      - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md
-      - Documentation Agent Guide: guides/DOCUMENTATION_AGENT_GUIDE.md
-      - Troubleshooting: guides/TROUBLESHOOTING.md
-      - Glossary: guides/GLOSSARY.md
+  - CI & Code Quality Metrics: CI_QUALITY_METRICS.md
   - Legal Notice: LEGAL.md
 theme:
   name: material
   features:
     - navigation.instant
     - navigation.tracking
+    - navigation.indexes
     - content.code.copy
     - toc.integrate
 markdown_extensions:
@@ -144,6 +156,8 @@ plugins:
               ignore_init_summary: true
             filters:
               - "!^_"  # Exclude private members
+extra_css:
+  - stylesheets/extra.css
 extra_javascript:
   - https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js
   - javascripts/mermaid.js
