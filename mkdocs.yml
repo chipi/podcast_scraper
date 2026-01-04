@@ -84,6 +84,7 @@ nav:
       - RFC-035 Gemini Provider Implementation: rfc/RFC-035-gemini-provider-implementation.md
       - RFC-036 Groq Provider Implementation: rfc/RFC-036-groq-provider-implementation.md
       - RFC-037 Ollama Provider Implementation: rfc/RFC-037-ollama-provider-implementation.md
+      - RFC-038 Continuous Review Tooling: rfc/RFC-038-continuous-review-tooling.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

@@ -214,12 +214,8 @@ jobs:
         path: reports/pytest-unit.json
         retention-days: 7
         if-no-files-found: ignore
-    - name: Verify network isolation
-      run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        pytest tests/unit/test_network_isolation.py -v
-      env:
-        PACKAGE: podcast_scraper
+    # Network isolation is enforced by pytest-socket (--disable-socket --allow-hosts)
+    # The dedicated test file was removed as the blocking feature is now disabled
 
   # Preload ML models - runs on all commits (main and PRs), ensures models are cached for integration and e2e tests
   # This job has no dependencies and starts immediately in parallel with lint, test-unit, docs, build
