@@ -168,28 +168,25 @@ jobs:
           echo "## Slowest Tests (Top 10)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           # Extract test durations from JUnit XML
-          python3 << 'PYEOF'
-          import xml.etree.ElementTree as ET
-          import sys
-
-          try:
-              tree = ET.parse('reports/junit.xml')
-              root = tree.getroot()
-
-              tests = []
-              for testcase in root.findall('.//testcase'):
-                  name = testcase.get('name', 'unknown')
-                  classname = testcase.get('classname', '')
-                  time = float(testcase.get('time', 0))
-                  full_name = f"{classname}::{name}" if classname else name
-                  tests.append((time, full_name))
-
-              tests.sort(reverse=True)
-              for time, name in tests[:10]:
-                  print(f"{time:.2f}s - {name}")
-          except Exception as e:
-              print(f"Error parsing JUnit XML: {e}", file=sys.stderr)
-          PYEOF
+          python3 -c "
+        import xml.etree.ElementTree as ET
+        import sys
+        try:
+            tree = ET.parse('reports/junit.xml')
+            root = tree.getroot()
+            tests = []
+            for testcase in root.findall('.//testcase'):
+                name = testcase.get('name', 'unknown')
+                classname = testcase.get('classname', '')
+                time = float(testcase.get('time', 0))
+                full_name = f'{classname}::{name}' if classname else name
+                tests.append((time, full_name))
+            tests.sort(reverse=True)
+            for time, name in tests[:10]:
+                print(f'{time:.2f}s - {name}')
+        except Exception as e:
+            print(f'Error parsing JUnit XML: {e}', file=sys.stderr)
+        " >> $GITHUB_STEP_SUMMARY 2>&1 || echo "Unable to parse JUnit XML" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
         fi
 

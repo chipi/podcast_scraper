@@ -193,6 +193,7 @@ class TestDataQualityE2E:
                     output_dir=tmpdir,
                     max_episodes=5,  # Process all 5 multi-episode episodes
                     transcribe_missing=True,
+                    whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
                     auto_speakers=True,
                     generate_summaries=True,
                     summary_provider="transformers",

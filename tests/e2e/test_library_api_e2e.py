@@ -22,7 +22,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import Config, load_config_file, run_pipeline
+from podcast_scraper import Config, config as config_module, load_config_file, run_pipeline
 
 # Removed TestLibraryAPIBasic class (4 tests) as part of Phase 3 consolidation:
 # - test_run_pipeline_basic: Duplicate of test_basic_e2e.py (critical path already covered)
@@ -52,6 +52,7 @@ class TestLibraryAPIConfigFile:
                 "generate_metadata": True,
                 "metadata_format": "json",
                 "transcribe_missing": True,
+                "whisper_model": config_module.TEST_DEFAULT_WHISPER_MODEL,
             }
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(config_data, f)
@@ -132,6 +133,7 @@ class TestLibraryAPIReturnValues:
                 output_dir=tmpdir,
                 max_episodes=2,  # Process 2 episodes
                 transcribe_missing=True,
+                whisper_model=config_module.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             )
 
             count, summary = run_pipeline(cfg)
@@ -155,6 +157,7 @@ class TestLibraryAPIReturnValues:
                 output_dir=tmpdir,
                 max_episodes=1,
                 transcribe_missing=True,
+                whisper_model=config_module.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             )
 
             count, summary = run_pipeline(cfg)
