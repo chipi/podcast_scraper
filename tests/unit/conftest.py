@@ -282,13 +282,49 @@ def _create_filesystem_blocker(operation: str, request):
 
 
 def _is_unit_test(request) -> bool:
-    """Check if the current test is in the unit/ directory."""
+    """Check if the current test is in the unit/ directory.
+
+    Returns True only for tests in tests/unit/ directory.
+    Returns False for tests in tests/integration/ or tests/e2e/.
+
+    Uses multiple detection methods for reliability across different
+    pytest configurations (local, CI, parallel with xdist).
+    """
+    # Method 1: Check nodeid (most reliable, always available)
+    # nodeid format: "tests/unit/podcast_scraper/test_config.py::TestConfig::test_method"
+    if hasattr(request, "node"):
+        nodeid = getattr(request.node, "nodeid", "")
+        if nodeid:
+            # Explicitly check for non-unit test paths first
+            if "tests/integration/" in nodeid or "tests/e2e/" in nodeid:
+                return False
+            if "tests/unit/" in nodeid:
+                return True
+
+    # Method 2: Check fspath/path attributes
     if hasattr(request, "node"):
         test_file = getattr(request.node, "fspath", None) or getattr(request.node, "path", None)
         if test_file:
             test_file_str = str(test_file)
+            # Explicitly check for non-unit test paths first
+            if "/tests/integration/" in test_file_str or "\\tests\\integration\\" in test_file_str:
+                return False
+            if "/tests/e2e/" in test_file_str or "\\tests\\e2e\\" in test_file_str:
+                return False
             # Check if the test is in tests/unit/ directory
-            return "/tests/unit/" in test_file_str or "\\tests\\unit\\" in test_file_str
+            if "/tests/unit/" in test_file_str or "\\tests\\unit\\" in test_file_str:
+                return True
+
+    # Method 3: Check module name as fallback
+    if hasattr(request, "module"):
+        module_file = getattr(request.module, "__file__", "")
+        if module_file:
+            if "/tests/integration/" in module_file or "/tests/e2e/" in module_file:
+                return False
+            if "/tests/unit/" in module_file:
+                return True
+
+    # Default: assume NOT a unit test (safer - don't block network for unknown tests)
     return False
 
 
