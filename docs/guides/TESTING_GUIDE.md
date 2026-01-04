@@ -139,7 +139,8 @@ pytest tests/e2e/ -s -n auto
 
 # DO THIS INSTEAD
 pytest tests/e2e/ -v -n auto     # Use -v for verbose output
-pytest tests/e2e/ -s -n 0        # Or disable parallelism with -n 0
+pytest tests/e2e/ -s -n 0        # Or disable parallelism
+make test-e2e-sequential         # Or use sequential target
 ```
 
 See [Issue #176](https://github.com/chipi/podcast_scraper/issues/176) for details.

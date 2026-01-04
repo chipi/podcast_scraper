@@ -9,7 +9,7 @@ PACKAGE = podcast_scraper
 # Can be overridden: PYTEST_WORKERS=4 make test
 PYTEST_WORKERS ?= $(shell python3 -c "import os; print(min(max(1, (os.cpu_count() or 4) - 2), 8))")
 
-.PHONY: help init format format-check lint lint-markdown type security security-bandit security-audit complexity deadcode docstrings spelling quality test-unit test-integration test-integration-fast test-ci test-ci-fast test-e2e test-e2e-fast test-e2e-data-quality test-nightly test test-fast test-reruns coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs build ci ci-fast ci-clean ci-nightly clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production
+.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit complexity deadcode docstrings spelling quality test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production
 
 help:
 	@echo "Common developer commands:"
@@ -28,16 +28,21 @@ help:
 	@echo "  make quality         Run all code quality checks (complexity, deadcode, docstrings, spelling)"
 	@echo ""
 	@echo "Test commands:"
-	@echo "  make test-unit                Run unit tests with coverage in parallel (default, matches CI)"
-	@echo "  make test-integration         Run all integration tests (full suite, parallel)"
-	@echo "  make test-integration-fast    Run fast integration tests (critical path only)"
-	@echo "  make test-e2e                 Run all E2E tests (full suite, parallel, 1 episode per test)"
-	@echo "  make test-e2e-fast            Run fast E2E tests (critical path only, 1 episode per test)"
-	@echo "  make test-e2e-data-quality    Run data quality E2E tests (multiple episodes, nightly only)"
-	@echo "  make test-nightly             Run nightly-only tests (p01-p05 full suite, production models)"
-	@echo "  make test                     Run all tests (unit + integration + e2e, uses multi-episode feed)"
-	@echo "  make test-fast                Run fast tests (unit + critical path integration + e2e)"
-	@echo "  make test-reruns              Run tests with reruns for flaky tests (2 retries, 1s delay)"
+	@echo "  make test-unit            Run unit tests with coverage in parallel (default, matches CI)"
+	@echo "  make test-unit-sequential Run unit tests sequentially (for debugging, slower but clearer output)"
+	@echo "  make test-unit-no-ml Run unit tests without ML dependencies (matches CI)"
+	@echo "  make test-integration            Run all integration tests (full suite, parallel)"
+	@echo "  make test-integration-sequential Run all integration tests sequentially (for debugging)"
+	@echo "  make test-integration-fast       Run fast integration tests (critical path only)"
+	@echo "  make test-e2e                   Run all E2E tests (full suite, parallel, 1 episode per test)"
+	@echo "  make test-e2e-sequential         Run all E2E tests sequentially (for debugging)"
+	@echo "  make test-e2e-fast              Run fast E2E tests (critical path only, 1 episode per test)"
+	@echo "  make test-e2e-data-quality      Run data quality E2E tests (multiple episodes, all original mock data, nightly only)"
+	@echo "  make test-nightly                Run nightly-only tests (p01-p05 full suite, production models)"
+	@echo "  make test                Run all tests (unit + integration + e2e, full suite, uses multi-episode feed)"
+	@echo "  make test-sequential     Run all tests sequentially (for debugging, uses multi-episode feed)"
+	@echo "  make test-fast           Run fast tests (unit + critical path integration + critical path e2e, uses fast feed)"
+	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
 	@echo "  Tip: For debugging, use pytest directly with -n 0 for sequential execution"
 	@echo ""
 	@echo "Coverage commands:"
@@ -194,6 +199,11 @@ test-e2e:
 	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and serial" --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 || true
 	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m "e2e and not serial" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
+test-e2e-sequential:
+	# E2E tests: sequential execution (slower but clearer output, useful for debugging)
+	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
+	E2E_TEST_MODE=multi_episode pytest tests/e2e/ -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+
 test-e2e-fast:
 	# Fast E2E tests: serial tests first (sequentially), then parallel execution for the rest
 	# Critical path tests only (includes ML tests if models are cached)
@@ -230,6 +240,12 @@ test:
 	# Excludes nightly tests (run separately via make test-nightly)
 	@E2E_TEST_MODE=multi_episode pytest tests/ -m "serial and not nightly" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost || true
 	@E2E_TEST_MODE=multi_episode pytest tests/ -m "not serial and not nightly" --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
+
+test-sequential:
+	# All tests: sequential execution (slower but clearer output, useful for debugging)
+	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
+	# Network isolation enabled to match CI behavior and catch network dependency issues early
+	E2E_TEST_MODE=multi_episode pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-fast:
 	# Fast tests: serial tests first (sequentially), then parallel execution for the rest
