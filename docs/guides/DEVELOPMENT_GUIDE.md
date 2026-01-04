@@ -35,7 +35,7 @@ make test-integration     # Integration tests (parallel, reruns)
 make test-e2e             # E2E tests (serial first, then parallel)
 make test                 # All tests
 make test-fast            # Unit + critical path only
-```
+```python
 
 ### ML Dependencies in Tests
 
@@ -45,12 +45,12 @@ Modules importing ML dependencies at **module level** will fail unit tests in CI
 
 1. **Mock before import** (recommended):
 
-```python
-from unittest.mock import MagicMock, patch
+   ```python
+   from unittest.mock import MagicMock, patch
 
-with patch.dict("sys.modules", {"spacy": MagicMock()}):
-    from podcast_scraper import speaker_detection
-```
+   with patch.dict("sys.modules", {"spacy": MagicMock()}):
+       from podcast_scraper import speaker_detection
+   ```
 
 1. **Use lazy imports**: Import inside functions, not at module level
 
@@ -63,46 +63,48 @@ with patch.dict("sys.modules", {"spacy": MagicMock()}):
 **Quick setup:**
 
 ```bash
+
 bash scripts/setup_venv.sh
 source .venv/bin/activate
+
 ```
 
 ### Environment Variables
 
 1. **Copy example `.env` file:**
 
-```bash
-cp examples/.env.example .env
-```
+   ```bash
+   cp examples/.env.example .env
+   ```
 
 1. **Edit `.env` and add your settings:**
 
-```bash
+   ```bash
 
-# OpenAI API key (required for OpenAI providers)
+   # OpenAI API key (required for OpenAI providers)
 
-OPENAI_API_KEY=sk-your-actual-key-here
+   OPENAI_API_KEY=sk-your-actual-key-here
 
-# Logging
+   # Logging
 
-LOG_LEVEL=DEBUG
+   LOG_LEVEL=DEBUG
 
-# Paths
+   # Paths
 
-OUTPUT_DIR=/data/transcripts
-LOG_FILE=/var/log/podcast_scraper.log
-CACHE_DIR=/cache/models
+   OUTPUT_DIR=/data/transcripts
+   LOG_FILE=/var/log/podcast_scraper.log
+   CACHE_DIR=/cache/models
 
-# Performance tuning
+   # Performance tuning
 
-WORKERS=4
-TRANSCRIPTION_PARALLELISM=3
-PROCESSING_PARALLELISM=4
-SUMMARY_BATCH_SIZE=2
-SUMMARY_CHUNK_PARALLELISM=2
-TIMEOUT=60
-SUMMARY_DEVICE=cpu
-```
+   WORKERS=4
+   TRANSCRIPTION_PARALLELISM=3
+   PROCESSING_PARALLELISM=4
+   SUMMARY_BATCH_SIZE=2
+   SUMMARY_CHUNK_PARALLELISM=2
+   TIMEOUT=60
+   SUMMARY_DEVICE=cpu
+   ```
 
 1. **The `.env` file is automatically loaded** via `python-dotenv` when `podcast_scraper.config` module is imported.
 
@@ -171,6 +173,92 @@ Different AI assistants load guidelines from different locations:
 
 ### Critical Workflow Rules
 
+**🚨 BRANCH CREATION CHECKLIST - MANDATORY BEFORE CREATING ANY BRANCH:**
+
+**CRITICAL: Always check for uncommitted changes before creating a new branch.**
+
+**Step 1: Check Current State**
+
+```bash
+git status
+```
+
+**What to look for:**
+
+- ❌ If you see "Changes not staged for commit" → You have uncommitted changes
+- ❌ If you see "Untracked files" → You have new files
+- ✅ If you see "nothing to commit, working tree clean" → You're good to go!
+
+**Step 2: Handle Uncommitted Changes (if any)**
+
+**Option A: Commit to Current Branch** (if changes belong to current work)
+
+```bash
+git add .
+git commit -m "your message"
+```
+
+**Option B: Stash for Later** (if you want to save but not commit)
+
+```bash
+git stash
+
+# Later: git stash pop
+
+```
+
+**Option C: Discard Changes** (if not needed)
+
+```bash
+git checkout .
+
+# Or for specific files:
+
+git checkout -- path/to/file
+```
+
+**Quick One-Liner Check:**
+
+```bash
+git status --porcelain
+```python
+
+**If you see any output, handle it first!**
+
+**What happens if you don't follow this:**
+- ❌ Uncommitted changes from previous work get included in your new branch
+- ❌ Your commit will show more files than you actually changed
+- ❌ PR will show confusing diffs with unrelated changes
+- ❌ Harder to review and understand what actually changed
+
+**Example: Clean Branch Creation**
+
+```bash
+
+# 1. Check status
+
+$ git status
+On branch main
+Your branch is up to date with 'origin/main'.
+nothing to commit, working tree clean  ✅
+
+# 2. Pull latest
+
+$ git pull origin main
+Already up to date.
+
+# 3. Create branch
+
+$ git checkout -b issue-117-output-organization
+Switched to a new branch 'issue-117-output-organization'
+
+# 4. Verify clean state
+
+$ git status
+On branch issue-117-output-organization
+nothing to commit, working tree clean  ✅
+```
+
 **NEVER commit without:**
 
 - Showing user what files changed (`git status`)
@@ -187,7 +275,7 @@ Different AI assistants load guidelines from different locations:
 **Note:** Use `make ci-fast` for quick feedback during development, but always run
 `make ci` before pushing to ensure full validation.
 
-### What's in `.ai-coding-guidelines.md`
+## What's in `.ai-coding-guidelines.md`
 
 **Sections include:**
 
@@ -750,17 +838,12 @@ if cfg.workers < 1:
 # Graceful degradation for optional features
 
 try:
-
-```python
     import whisper
     WHISPER_AVAILABLE = True
-```
-
 except ImportError:
     WHISPER_AVAILABLE = False
     logger.warning("Whisper not available, transcription disabled")
-
-```python
+```
 
 ## Log Level Guidelines
 
