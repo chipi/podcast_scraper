@@ -8,10 +8,15 @@ on:
       - '.dockerignore'
       - 'pyproject.toml'
       - '*.py'
-  # Fast Docker build always runs on PRs for validation
+  # Fast Docker build runs on PRs when Docker-related files change
   # Full Docker validation still runs on merge to main
   pull_request:
     branches: [ "main" ]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'pyproject.toml'
+      - '*.py'
 
 permissions:
   contents: read
