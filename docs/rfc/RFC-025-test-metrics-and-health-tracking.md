@@ -1,6 +1,6 @@
 # RFC-025: Test Metrics and Health Tracking
 
-- **Status**: Accepted
+- **Status**: ✅ Completed
 - **Authors**:
 - **Stakeholders**: Maintainers, developers, CI/CD pipeline maintainers
 - **Related PRDs**:

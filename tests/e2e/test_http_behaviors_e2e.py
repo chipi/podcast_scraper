@@ -284,6 +284,8 @@ class TestFullPipelineWithLargeFiles:
 
     def test_full_pipeline_with_large_audio(self, e2e_server):
         """Test full pipeline with large audio file (streaming download)."""
+        from podcast_scraper import config as config_module
+
         # This test verifies that the pipeline uses streaming for downloads
         # The RSS feed has transcript URLs, so it will download transcripts (using streaming)
         # rather than transcribing audio
@@ -293,6 +295,7 @@ class TestFullPipelineWithLargeFiles:
                 output_dir=tmpdir,
                 max_episodes=1,  # Process one episode
                 transcribe_missing=True,
+                whisper_model=config_module.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             )
 
             # Run pipeline - should handle large files with streaming
@@ -310,6 +313,8 @@ class TestFullPipelineWithLargeFiles:
 
     def test_full_pipeline_streaming_behavior(self, e2e_server):
         """Test that full pipeline uses streaming for large files."""
+        from podcast_scraper import config as config_module
+
         # This test verifies that the pipeline uses streaming (not loading entire file into memory)
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = Config(
@@ -317,6 +322,7 @@ class TestFullPipelineWithLargeFiles:
                 output_dir=tmpdir,
                 max_episodes=1,
                 transcribe_missing=True,
+                whisper_model=config_module.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
             )
 
             # Run pipeline - should use streaming internally

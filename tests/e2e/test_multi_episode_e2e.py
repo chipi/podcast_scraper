@@ -62,6 +62,7 @@ class TestMultiEpisodeE2E:
                 output_dir=tmpdir,
                 max_episodes=5,  # Request 5 episodes (will be limited to 1 in fast mode)
                 transcribe_missing=True,  # Enable transcription
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
             )
@@ -142,6 +143,7 @@ class TestMultiEpisodeE2E:
                 max_episodes=5,  # Request 5 episodes (will be limited to 1 in fast mode)
                 workers=3,  # Use concurrent processing
                 transcribe_missing=True,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
                 generate_metadata=True,
                 metadata_format="json",
             )

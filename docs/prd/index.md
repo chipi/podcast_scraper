@@ -18,17 +18,23 @@ PRDs serve as the foundation for technical design (RFCs) and help ensure feature
 3. **Track Implementation**: Release notes reference PRDs to show what was delivered
 4. **Document Evolution**: PRDs capture design decisions and rationale
 
-## PRD Index
+## Open PRDs
 
-| PRD                                               | Title                           | Version | Status         | Description                                                                                     |
-| ------------------------------------------------- | ------------------------------- | ------- | -------------- | ----------------------------------------------------------------------------------------------- |
-| [PRD-001](PRD-001-transcript-pipeline.md)         | Transcript Acquisition Pipeline | v2.0.0  | ✅ Implemented | Core pipeline for downloading published transcripts from RSS feeds                              |
-| [PRD-002](PRD-002-whisper-fallback.md)            | Whisper Fallback Transcription  | v2.0.0  | ✅ Implemented | Automatic transcription fallback when episodes lack published transcripts                       |
-| [PRD-003](PRD-003-user-interface-config.md)       | User Interfaces & Configuration | v2.0.0  | ✅ Implemented | CLI interface and configuration file support (JSON/YAML)                                        |
-| [PRD-004](PRD-004-metadata-generation.md)         | Per-Episode Metadata Generation | v2.2.0  | ✅ Implemented | Structured metadata documents (JSON/YAML) for database ingestion and search                     |
-| [PRD-005](PRD-005-episode-summarization.md)       | Episode Summarization           | v2.3.0  | ✅ Implemented | Automatic summary and key takeaways generation using local transformer models                   |
-| [PRD-006](PRD-006-openai-provider-integration.md) | OpenAI Provider Integration     | -       | 📋 Draft       | Add OpenAI API as optional provider for speaker detection, transcription, and summarization     |
-| [PRD-007](PRD-007-ai-experiment-pipeline.md)      | AI Experiment Pipeline          | -       | 📋 Draft       | Configuration-driven experiment pipeline for rapid iteration on models, prompts, and parameters |
+| PRD | Title | Related RFCs | Description |
+| --- | ----- | ------------ | ----------- |
+| [PRD-007](PRD-007-ai-experiment-pipeline.md) | AI Experiment Pipeline | RFC-015 | Configuration-driven experiment pipeline |
+
+## Completed PRDs
+
+| PRD | Title | Version | Related RFCs | Description |
+| --- | ----- | ------- | ------------ | ----------- |
+| [PRD-001](PRD-001-transcript-pipeline.md) | Transcript Acquisition Pipeline | v2.0.0 | RFC-001, 002, 003, 004, 008, 009 | Core pipeline for downloading transcripts |
+| [PRD-002](PRD-002-whisper-fallback.md) | Whisper Fallback Transcription | v2.0.0 | RFC-004, 005, 006, 008, 010 | Automatic transcription fallback |
+| [PRD-003](PRD-003-user-interface-config.md) | User Interfaces & Configuration | v2.0.0 | RFC-007, 008, 009 | CLI interface and configuration |
+| [PRD-004](PRD-004-metadata-generation.md) | Per-Episode Metadata Generation | v2.2.0 | RFC-011, 012 | Structured metadata documents |
+| [PRD-005](PRD-005-episode-summarization.md) | Episode Summarization | v2.3.0 | RFC-012 | Automatic summary generation |
+| [PRD-006](PRD-006-openai-provider-integration.md) | OpenAI Provider Integration | v2.4.0 | RFC-013, 017, 021, 022, 029 | OpenAI API as optional provider |
+| [PRD-008](PRD-008-speaker-name-detection.md) | Automatic Speaker Name Detection | v2.1.0 | RFC-010 | Auto-detect host/guest names via NER |
 
 ## Quick Links
 

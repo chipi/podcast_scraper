@@ -1,5 +1,8 @@
 # PRD-001: Transcript Acquisition Pipeline
 
+- **Status**: ✅ Implemented (v2.0.0)
+- **Related RFCs**: RFC-001, RFC-002, RFC-003, RFC-004, RFC-008, RFC-009
+
 ## Summary
 
 Create a resilient pipeline that ingests a podcast RSS feed, locates published transcripts for each episode, and stores them deterministically so users can archive, compare, or replay runs. This PRD captures functional expectations for the baseline "download what already exists" workflow.

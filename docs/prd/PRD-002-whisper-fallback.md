@@ -1,5 +1,8 @@
 # PRD-002: Whisper Fallback Transcription
 
+- **Status**: ✅ Implemented (v2.0.0)
+- **Related RFCs**: RFC-004, RFC-005, RFC-006, RFC-008, RFC-010
+
 ## Summary
 
 Provide an optional fallback path that transcribes podcast audio with OpenAI Whisper when no published transcript exists. This complements PRD-001 by guaranteeing text output coverage for every episode.

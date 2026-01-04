@@ -1,5 +1,8 @@
 # PRD-006: OpenAI Provider Integration
 
+- **Status**: ✅ Implemented (v2.4.0)
+- **Related RFCs**: RFC-013, RFC-017, RFC-021, RFC-022, RFC-029
+
 ## Summary
 
 Add OpenAI API as an optional provider for speaker detection (NER), transcription, and summarization capabilities, enabling users to choose between local on-device processing and cloud-based API services. This builds on the modularization refactoring (RFC-021) to provide seamless provider switching without changing end-user experience or workflow behavior.
