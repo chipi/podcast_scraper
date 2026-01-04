@@ -103,8 +103,8 @@ pytest tests/unit/ --cov=podcast_scraper --cov-report=term-missing
 | `@pytest.mark.ml_models` | Requires ML dependencies |
 | `@pytest.mark.slow` | Slow-running tests |
 | `@pytest.mark.network` | Hits external network |
-| `@pytest.mark.llm` | Uses LLM APIs (may incur costs) |
-| `@pytest.mark.openai` | Uses OpenAI specifically |
+| `@pytest.mark.llm` | Uses LLM APIs (excluded from nightly to avoid costs) |
+| `@pytest.mark.openai` | Uses OpenAI specifically (subset of `llm`) |
 
 ## Network Isolation
 

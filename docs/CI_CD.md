@@ -1896,6 +1896,8 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 
 **Duration:** ~4-5 hours (includes all tests with production models: Whisper base, BART-large-cnn, LED-large-16384)
 
+**Important:** OpenAI/LLM provider tests are **excluded** from nightly runs to avoid API costs (see issue #183). The nightly build uses only local ML models (Whisper, spaCy, Transformers). This excludes ~50 tests marked with `@pytest.mark.llm`.
+
 **Steps:**
 1. Checkout code (full history for trend tracking)
 2. Free disk space
@@ -1903,8 +1905,10 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 4. Cache ML models (for faster execution)
 5. Install full dependencies (including ML + pytest-json-report)
 6. Preload **production** ML models via `make preload-ml-models-production` (if cache miss)
-7. Run regular tests (unit + integration + e2e, excluding nightly-only tests):
+7. Run regular tests (unit + integration + e2e, excluding nightly-only and LLM tests):
+   - Marker: `-m "not nightly and not llm"`
 8. Run **nightly-only tests** via `make test-nightly`:
+   - Marker: `-m "nightly and not llm"`
    - Uses production models: Whisper base, BART-large-cnn, LED-large-16384
    - Processes all 15 episodes across 5 podcasts (p01-p05)
    - Validates full pipeline with production-quality models
