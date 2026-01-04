@@ -64,12 +64,19 @@ def get_transformers_cache_dir() -> Path:
         return local_cache
     # Fallback to default Transformers cache
     try:
-        from transformers import file_utils
+        # Try modern huggingface_hub API first (transformers 4.20+)
+        from huggingface_hub import constants
 
-        return Path(file_utils.default_cache_path)
+        return Path(constants.HF_HUB_CACHE)
     except ImportError:
-        # If transformers not installed, return standard location
-        return Path.home() / ".cache" / "huggingface" / "hub"
+        try:
+            # Fallback to transformers file_utils (older versions)
+            from transformers import file_utils
+
+            return Path(file_utils.default_cache_path)
+        except (ImportError, AttributeError):
+            # If neither available, return standard location
+            return Path.home() / ".cache" / "huggingface" / "hub"
 
 
 def get_spacy_cache_dir() -> Optional[Path]:

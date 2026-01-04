@@ -557,7 +557,6 @@ class SummaryModel:
         from transformers import (  # noqa: F401
             AutoModelForSeq2SeqLM,
             AutoTokenizer,
-            Pipeline,
             pipeline,
         )
 
