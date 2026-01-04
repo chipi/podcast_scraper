@@ -8,6 +8,7 @@ podcast_scraper.egg-info/
 # Test outputs
 .test_outputs/
 output_*/
+reports/
 
 # Python cache
 *.pyc
