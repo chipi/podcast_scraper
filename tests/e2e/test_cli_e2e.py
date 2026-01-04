@@ -27,6 +27,7 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 import podcast_scraper.cli as cli
+from podcast_scraper import config as config_module
 
 # Removed TestCLIBasicCommands class (5 tests) as part of Phase 3 consolidation:
 # - test_basic_transcript_download: Duplicate of test_basic_e2e.py (critical path already covered)
@@ -57,6 +58,7 @@ class TestCLIConfigFile:
                 "generate_metadata": True,
                 "metadata_format": "json",
                 "transcribe_missing": True,
+                "whisper_model": config_module.TEST_DEFAULT_WHISPER_MODEL,
             }
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(config_data, f)
@@ -93,6 +95,7 @@ class TestCLIConfigFile:
                 "max_episodes": 1,
                 "dry_run": True,
                 "transcribe_missing": True,
+                "whisper_model": config_module.TEST_DEFAULT_WHISPER_MODEL,
             }
             with open(config_path, "w", encoding="utf-8") as f:
                 yaml.dump(config_data, f)
@@ -119,6 +122,7 @@ class TestCLIConfigFile:
                 "output_dir": tmpdir,
                 "max_episodes": 2,
                 "transcribe_missing": True,
+                "whisper_model": config_module.TEST_DEFAULT_WHISPER_MODEL,
             }
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(config_data, f)

@@ -654,44 +654,15 @@ jobs:
       run: |
         mkdir -p reports
         # Use coverage combine to merge XML files
-        # First, convert XML to .coverage format, then combine, then convert back to XML
-        python3 << 'PYEOF'
-        import xml.etree.ElementTree as ET
-        import os
-        import subprocess
-        import sys
-
-        # Find all coverage XML files
-        coverage_files = []
-        for root, dirs, files in os.walk('coverage-artifacts'):
-            for file in files:
-                if file.endswith('.xml'):
-                    coverage_files.append(os.path.join(root, file))
-
-        if not coverage_files:
-            print("No coverage files found")
-            sys.exit(0)
-
-        # Use coverage combine to merge (requires .coverage files)
-        # For now, just use the unit test coverage as the base
-        # In a full implementation, we'd convert XML to .coverage, combine, then convert back
-        # For simplicity, we'll use the unit test coverage XML as the primary source
-        unit_coverage = None
-        for cov_file in coverage_files:
-            if 'coverage-unit' in cov_file or 'coverage.xml' in cov_file:
-                unit_coverage = cov_file
-                break
-
-        if unit_coverage:
-            # Copy unit coverage as unified (in a real implementation, we'd properly merge)
-            import shutil
-            shutil.copy(unit_coverage, 'reports/coverage-unified.xml')
-            print(f"Using {unit_coverage} as unified coverage base")
-            print(f"Note: Full merge of all coverage files requires .coverage format conversion")
-        else:
-            print("No unit coverage found")
-            sys.exit(1)
-        PYEOF
+        # Find unit coverage XML and use it as base for unified coverage
+        UNIT_COV=$(find coverage-artifacts -name "*.xml" | grep -E "(coverage-unit|coverage\.xml)" | head -1)
+        if [ -n "$UNIT_COV" ]; then
+          cp "$UNIT_COV" reports/coverage-unified.xml
+          echo "Using $UNIT_COV as unified coverage base"
+        else
+          echo "No unit coverage found"
+          exit 1
+        fi
     - name: Generate unified coverage summary
       if: always()
       run: |
@@ -756,29 +727,12 @@ jobs:
 
         # Create minimal JUnit XML if not available (metrics script expects it)
         if [ ! -f reports/junit.xml ]; then
-          python3 << 'PYEOF'
-          import xml.etree.ElementTree as ET
-          root = ET.Element("testsuites")
-          root.set("tests", "0")
-          root.set("failures", "0")
-          root.set("time", "0")
-          tree = ET.ElementTree(root)
-          tree.write("reports/junit.xml", encoding="utf-8", xml_declaration=True)
-          PYEOF
+          python3 -c "import xml.etree.ElementTree as ET; root = ET.Element('testsuites'); root.set('tests', '0'); root.set('failures', '0'); root.set('time', '0'); tree = ET.ElementTree(root); tree.write('reports/junit.xml', encoding='utf-8', xml_declaration=True)"
         fi
 
         # Create minimal pytest JSON if not available
         if [ ! -f reports/pytest.json ]; then
-          python3 << 'PYEOF'
-          import json
-          data = {
-            "summary": {"total": 0, "passed": 0, "failed": 0, "skipped": 0},
-            "duration": 0,
-            "tests": []
-          }
-          with open("reports/pytest.json", "w") as f:
-            json.dump(data, f)
-          PYEOF
+          echo '{"summary": {"total": 0, "passed": 0, "failed": 0, "skipped": 0}, "duration": 0, "tests": []}' > reports/pytest.json
         fi
 
         # Generate metrics JSON (includes complexity and pipeline metrics)
