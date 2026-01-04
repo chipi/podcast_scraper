@@ -316,8 +316,8 @@ class TestFullPipelineE2E:
 
     @pytest.mark.ml_models
     @pytest.mark.critical_path
-    @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
     @pytest.mark.flaky
+    @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
     def test_pipeline_with_all_features(self):
         """Test full pipeline with all features enabled.
 
