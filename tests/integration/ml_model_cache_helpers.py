@@ -390,11 +390,23 @@ def require_transformers_model_cached(model_name: str, cache_dir: Optional[str] 
                         f"    - {model_name_cached}: {size_mb:.1f} MB (at {model_dir})"
                     )
 
+        # Debug: check parent directories to understand why cache doesn't exist
+        parent_exists = cache_path.parent.exists() if cache_path.parent else False
+        grandparent_exists = (
+            cache_path.parent.parent.exists()
+            if cache_path.parent and cache_path.parent.parent
+            else False
+        )
+
         skip_message = (
             f"Transformers model '{model_name}' is not cached.\n"
             f"  Expected cache location: {model_cache_path}\n"
             f"  Cache directory: {cache_path}\n"
             f"  Cache directory exists: {cache_path.exists()}\n"
+            f"  Parent ({cache_path.parent}) exists: {parent_exists}\n"
+            f"  Grandparent ({cache_path.parent.parent}) exists: {grandparent_exists}\n"
+            f"  HF_HUB_CACHE env: {os.environ.get('HF_HUB_CACHE', 'NOT SET')}\n"
+            f"  HF_HOME env: {os.environ.get('HF_HOME', 'NOT SET')}\n"
         )
         if cached_models:
             skip_message += "  Currently cached models:\n" + "\n".join(cached_models) + "\n"

@@ -212,14 +212,17 @@ class TestGetTransformersCacheDir(unittest.TestCase):
                 mock_root.return_value = Path(temp_dir)
                 with patch("pathlib.Path.home") as mock_home:
                     mock_home.return_value = Path(temp_dir)
-                    # Mock ImportError when importing transformers
-                    with patch(
-                        "builtins.__import__",
-                        side_effect=ImportError("No module named transformers"),
-                    ):
-                        cache_dir = cache_utils.get_transformers_cache_dir()
-                        expected = Path(temp_dir) / ".cache" / "huggingface" / "hub"
-                        self.assertEqual(cache_dir, expected)
+                    # Clear HF_HUB_CACHE to test the fallback path
+                    env_without_hf = {k: v for k, v in os.environ.items() if k != "HF_HUB_CACHE"}
+                    with patch.dict(os.environ, env_without_hf, clear=True):
+                        # Mock ImportError when importing transformers
+                        with patch(
+                            "builtins.__import__",
+                            side_effect=ImportError("No module named transformers"),
+                        ):
+                            cache_dir = cache_utils.get_transformers_cache_dir()
+                            expected = Path(temp_dir) / ".cache" / "huggingface" / "hub"
+                            self.assertEqual(cache_dir, expected)
 
     def test_get_transformers_cache_dir_home_fallback(self):
         """Test Transformers cache uses home directory for fallback."""
@@ -231,14 +234,17 @@ class TestGetTransformersCacheDir(unittest.TestCase):
                 mock_root.return_value = Path(temp_dir)
                 with patch("pathlib.Path.home") as mock_home:
                     mock_home.return_value = Path(temp_dir)
-                    # Mock ImportError
-                    with patch(
-                        "builtins.__import__",
-                        side_effect=ImportError("No module named transformers"),
-                    ):
-                        cache_dir = cache_utils.get_transformers_cache_dir()
-                        expected = Path(temp_dir) / ".cache" / "huggingface" / "hub"
-                        self.assertEqual(cache_dir, expected)
+                    # Clear HF_HUB_CACHE to test the fallback path
+                    env_without_hf = {k: v for k, v in os.environ.items() if k != "HF_HUB_CACHE"}
+                    with patch.dict(os.environ, env_without_hf, clear=True):
+                        # Mock ImportError
+                        with patch(
+                            "builtins.__import__",
+                            side_effect=ImportError("No module named transformers"),
+                        ):
+                            cache_dir = cache_utils.get_transformers_cache_dir()
+                            expected = Path(temp_dir) / ".cache" / "huggingface" / "hub"
+                            self.assertEqual(cache_dir, expected)
 
 
 class TestGetSpacyCacheDir(unittest.TestCase):
