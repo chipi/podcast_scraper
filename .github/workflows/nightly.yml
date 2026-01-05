@@ -57,14 +57,16 @@ jobs:
       with:
         path: |
           ~/.cache/whisper
-          ~/.local/share/spacy
           ~/.cache/huggingface
-        # Use separate cache key for nightly to include BOTH test and production models
-        # Regular CI uses 'ml-models-*' with only test models
-        # v5: v4 was saved with only Whisper models (192MB), before HF models downloaded
-        #     GitHub cache is immutable, so must bump to v5 to get fresh cache
-        # NOTE: No restore-keys! We want exact match or clean cache miss, not partial restore
-        key: ml-models-nightly-${{ runner.os }}-v5
+        # NOTE: spaCy removed from cache - it's installed as pip package via .[ml]
+        # Fully content-based cache key - NO manual versioning!
+        # Hash includes:
+        #   - preload script (defines download logic)
+        #   - config.py (defines model names like TEST_DEFAULT_WHISPER_MODEL)
+        # Any change to models or preload logic = automatic cache invalidation
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        restore-keys: |
+          ml-models-nightly-${{ runner.os }}-
 
     - name: Install full dependencies (including ML)
       run: |
@@ -91,10 +93,8 @@ jobs:
         make quality
       continue-on-error: false
 
-    - name: Preload production ML models (if cache miss)
-      if: steps.cache-models.outputs.cache-hit != 'true'
-      run: make preload-ml-models-production
-
+    # IMPORTANT: Validate cache BEFORE deciding to preload
+    # This catches incomplete caches that were saved from failed runs
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -103,73 +103,98 @@ jobs:
 
         # Track validation results
         MISSING_MODELS=""
-        CACHE_VALID=true
+        MODELS_COMPLETE=true
 
-        # Check Whisper models
+        # Check Whisper models (actual files, not just directories)
         echo "📦 Whisper models:"
         for model in "tiny.en" "base.en"; do
           WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
-          if [ -f "$WHISPER_PATH" ]; then
+          if [ -f "$WHISPER_PATH" ] && [ -s "$WHISPER_PATH" ]; then
             SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
             echo "  ✅ $model ($SIZE)"
           else
-            echo "  ❌ $model - MISSING at $WHISPER_PATH"
+            echo "  ❌ $model - MISSING or empty"
             MISSING_MODELS="$MISSING_MODELS whisper:$model"
-            CACHE_VALID=false
+            MODELS_COMPLETE=false
           fi
         done
 
-        # Check spaCy models
-        echo ""
-        echo "📦 spaCy models:"
-        SPACY_PATH="$HOME/.local/share/spacy/en_core_web_sm"
-        if [ -d "$SPACY_PATH" ] || python -c "import spacy; spacy.load('en_core_web_sm')" 2>/dev/null; then
-          echo "  ✅ en_core_web_sm"
-        else
-          echo "  ❌ en_core_web_sm - MISSING"
-          MISSING_MODELS="$MISSING_MODELS spacy:en_core_web_sm"
-          CACHE_VALID=false
-        fi
+        # NOTE: spaCy is a pip dependency (.[ml]), not cached - no validation needed
 
-        # Check Hugging Face models
+        # Check Hugging Face models (check for actual model files, not just directories)
         echo ""
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
-        echo "  Cache directory: $HF_CACHE"
-        echo "  Exists: $([ -d "$HF_CACHE" ] && echo "Yes" || echo "No")"
 
         for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
-          # Convert model name to cache directory format (facebook/bart-base -> models--facebook--bart-base)
-          # Note: tr doesn't work for string replacement, must use sed
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
-          if [ -d "$MODEL_PATH" ]; then
+          # Check for snapshots directory with actual files (not just empty dirs)
+          if [ -d "$MODEL_PATH/snapshots" ] && [ "$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | head -1)" ]; then
             SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
             echo "  ✅ $model ($SIZE)"
           else
-            echo "  ❌ $model - MISSING at $MODEL_PATH"
+            echo "  ❌ $model - MISSING or incomplete"
             MISSING_MODELS="$MISSING_MODELS hf:$model"
+            MODELS_COMPLETE=false
+          fi
+        done
+
+        # Summary and set output for conditional preload
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        if [ "$MODELS_COMPLETE" = true ]; then
+          echo "✅ All required ML models are cached!"
+          TOTAL_SIZE=$(du -sh "$HOME/.cache" 2>/dev/null | cut -f1 || echo "unknown")
+          echo "📊 Total cache size: $TOTAL_SIZE"
+          echo "models_complete=true" >> $GITHUB_OUTPUT
+        else
+          echo "⚠️  Some models are missing. Will run preload..."
+          echo "Missing:$MISSING_MODELS"
+          echo "models_complete=false" >> $GITHUB_OUTPUT
+        fi
+
+    # Preload if validation found missing models (regardless of cache-hit)
+    - name: Preload production ML models (if incomplete)
+      if: steps.validate-cache.outputs.models_complete != 'true'
+      run: |
+        echo "🔄 Running model preload (cache was incomplete)..."
+        make preload-ml-models-production
+
+    # Final validation after preload (should always pass now)
+    - name: Final cache validation
+      run: |
+        echo "🔍 Final validation after preload..."
+        echo ""
+
+        CACHE_VALID=true
+
+        # Quick check of all required models
+        for model in "tiny.en" "base.en"; do
+          if [ ! -f "$HOME/.cache/whisper/${model}.pt" ]; then
+            echo "❌ Whisper $model still missing!"
             CACHE_VALID=false
           fi
         done
 
-        # Summary
-        echo ""
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        # NOTE: spaCy is pip dependency - no validation needed
+
+        HF_CACHE="$HOME/.cache/huggingface/hub"
+        for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
+          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          if [ ! -d "$HF_CACHE/$MODEL_DIR/snapshots" ]; then
+            echo "❌ HF $model still missing!"
+            CACHE_VALID=false
+          fi
+        done
+
         if [ "$CACHE_VALID" = true ]; then
-          echo "✅ All required ML models are cached!"
+          echo "✅ All models validated successfully!"
           TOTAL_SIZE=$(du -sh "$HOME/.cache" 2>/dev/null | cut -f1 || echo "unknown")
           echo "📊 Total cache size: $TOTAL_SIZE"
         else
-          echo "❌ CACHE VALIDATION FAILED!"
-          echo "Missing models:$MISSING_MODELS"
-          echo ""
-          echo "This usually means:"
-          echo "  1. Cache was created before models were downloaded"
-          echo "  2. HF_HOME env var mismatch between preload and tests"
-          echo "  3. Cache key needs to be bumped to force rebuild"
-          echo ""
-          echo "The preload step should have run. Check preload logs above."
+          echo "❌ FATAL: Models still missing after preload!"
+          echo "This indicates a bug in preload_ml_models.py"
           exit 1
         fi
 

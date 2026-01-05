@@ -236,8 +236,8 @@ jobs:
       with:
         path: |
           ~/.cache/whisper
-          ~/.local/share/spacy
           ~/.cache/huggingface
+        # NOTE: spaCy removed - installed as pip package via .[ml]
         key: ml-models-${{ runner.os }}-v1
         restore-keys: |
           ml-models-${{ runner.os }}-
@@ -298,8 +298,8 @@ jobs:
       with:
         path: |
           ~/.cache/whisper
-          ~/.local/share/spacy
           ~/.cache/huggingface
+        # NOTE: spaCy removed - installed as pip package via .[ml]
         key: ml-models-${{ runner.os }}-v1
         restore-keys: |
           ml-models-${{ runner.os }}-
@@ -396,8 +396,8 @@ jobs:
       with:
         path: |
           ~/.cache/whisper
-          ~/.local/share/spacy
           ~/.cache/huggingface
+        # NOTE: spaCy removed - installed as pip package via .[ml]
         key: ml-models-${{ runner.os }}-v1
         restore-keys: |
           ml-models-${{ runner.os }}-
@@ -486,8 +486,8 @@ jobs:
       with:
         path: |
           ~/.cache/whisper
-          ~/.local/share/spacy
           ~/.cache/huggingface
+        # NOTE: spaCy removed - installed as pip package via .[ml]
         key: ml-models-${{ runner.os }}-v1
         restore-keys: |
           ml-models-${{ runner.os }}-
@@ -581,8 +581,8 @@ jobs:
       with:
         path: |
           ~/.cache/whisper
-          ~/.local/share/spacy
           ~/.cache/huggingface
+        # NOTE: spaCy removed - installed as pip package via .[ml]
         key: ml-models-${{ runner.os }}-v1
         restore-keys: |
           ml-models-${{ runner.os }}-
