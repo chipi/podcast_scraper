@@ -23,31 +23,6 @@ os.environ["TQDM_DISABLE"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
-# DEBUG: Print cache state inside pytest (before any imports that might affect it)
-import sys
-from pathlib import Path
-
-_hf_home = os.environ.get("HF_HOME", "NOT SET")
-_hf_cache = os.environ.get("HF_HUB_CACHE", "NOT SET")
-_cache_path = Path(_hf_cache) if _hf_cache != "NOT SET" else Path.home() / ".cache" / "huggingface" / "hub"
-print(f"\n[conftest.py DEBUG] HF_HOME={_hf_home}", file=sys.stderr)
-print(f"[conftest.py DEBUG] HF_HUB_CACHE={_hf_cache}", file=sys.stderr)
-print(f"[conftest.py DEBUG] Cache path: {_cache_path}", file=sys.stderr)
-print(f"[conftest.py DEBUG] Cache path exists: {_cache_path.exists()}", file=sys.stderr)
-if _cache_path.exists():
-    print(f"[conftest.py DEBUG] Contents: {list(_cache_path.iterdir())[:5]}", file=sys.stderr)
-else:
-    print(f"[conftest.py DEBUG] Cache directory does NOT exist!", file=sys.stderr)
-    # Try to list parent directories to understand the issue
-    _parent = _cache_path.parent
-    print(f"[conftest.py DEBUG] Parent ({_parent}): exists={_parent.exists()}", file=sys.stderr)
-    if _parent.exists():
-        print(f"[conftest.py DEBUG] Parent contents: {list(_parent.iterdir())}", file=sys.stderr)
-    _grandparent = _parent.parent
-    print(f"[conftest.py DEBUG] Grandparent ({_grandparent}): exists={_grandparent.exists()}", file=sys.stderr)
-    if _grandparent.exists():
-        print(f"[conftest.py DEBUG] Grandparent contents: {list(_grandparent.iterdir())}", file=sys.stderr)
-
 import argparse
 import gc
 import unittest.mock
