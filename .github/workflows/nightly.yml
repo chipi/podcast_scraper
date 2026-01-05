@@ -248,17 +248,12 @@ jobs:
       run: make build
 
   # ===========================================================================
-  # Unit tests - isolated job
+  # Unit tests - isolated job (no ML dependencies, runs in parallel with preload)
   # ===========================================================================
   nightly-test-unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: [preload-ml-models-nightly]
-    env:
-      HF_HOME: /home/runner/.cache/huggingface
-      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
-      HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
-      ML_MODELS_VALIDATED: "true"
+    timeout-minutes: 15
+    # No needs: - unit tests don't require ML models, can run immediately
     steps:
     - uses: actions/checkout@v4
 
@@ -269,20 +264,10 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Cache ML models
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-nightly-${{ runner.os }}-
-
-    - name: Install dependencies
+    - name: Install dev dependencies (no ML)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml]
+        pip install -e .[dev]
         pip install pytest-json-report
 
     - name: Verify unit tests can import without ML dependencies
