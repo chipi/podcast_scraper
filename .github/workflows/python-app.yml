@@ -223,6 +223,11 @@ jobs:
   preload-ml-models:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Conservative timeout for model preloading (usually cache hit, ~2 min)
+    env:
+      # Ensure consistent cache paths for Hugging Face libraries
+      HF_HOME: /home/runner/.cache/huggingface
+      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
+      HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     steps:
     - uses: actions/checkout@v4
     - name: Cache ML models (check first - no Python needed, if cache hits job completes in ~6-12s)
@@ -265,6 +270,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30  # Conservative timeout for integration tests with ML models
     needs: [preload-ml-models]
+    env:
+      # Ensure consistent cache paths for Hugging Face libraries
+      HF_HOME: /home/runner/.cache/huggingface
+      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
+      HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     if: |
       github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
@@ -358,6 +368,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Conservative timeout for fast integration tests
     needs: [preload-ml-models]
+    env:
+      # Ensure consistent cache paths for Hugging Face libraries
+      HF_HOME: /home/runner/.cache/huggingface
+      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
+      HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     if: |
       github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')
     steps:
@@ -443,6 +458,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25  # Conservative timeout for fast E2E tests
     needs: [preload-ml-models]
+    env:
+      # Ensure consistent cache paths for Hugging Face libraries
+      HF_HOME: /home/runner/.cache/huggingface
+      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
+      HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     if: |
       github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')
     steps:
@@ -533,6 +553,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45  # Conservative timeout for E2E tests with ML models
     needs: [preload-ml-models]
+    env:
+      # Ensure consistent cache paths for Hugging Face libraries
+      HF_HOME: /home/runner/.cache/huggingface
+      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
+      HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     if: |
       github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
