@@ -16,6 +16,7 @@ nav:
       - Integration Testing Guide: guides/INTEGRATION_TESTING_GUIDE.md
       - E2E Testing Guide: guides/E2E_TESTING_GUIDE.md
       - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
+      - AI Provider Comparison Guide: guides/AI_PROVIDER_COMPARISON_GUIDE.md
       - Provider Configuration Quick Reference: guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md
       - Provider Implementation Guide: guides/PROVIDER_IMPLEMENTATION_GUIDE.md
       - Protocol Extension Guide: guides/PROTOCOL_EXTENSION_GUIDE.md
@@ -85,6 +86,7 @@ nav:
       - RFC-036 Groq Provider Implementation: rfc/RFC-036-groq-provider-implementation.md
       - RFC-037 Ollama Provider Implementation: rfc/RFC-037-ollama-provider-implementation.md
       - RFC-038 Continuous Review Tooling: rfc/RFC-038-continuous-review-tooling.md
+      - RFC-039 Development Workflow: rfc/RFC-039-development-workflow-worktrees-ci.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

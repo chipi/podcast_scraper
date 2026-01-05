@@ -33,6 +33,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-036](RFC-036-groq-provider-implementation.md) | Groq Provider Implementation | PRD-013 | Technical design for Groq (ultra-fast) |
 | [RFC-037](RFC-037-ollama-provider-implementation.md) | Ollama Provider Implementation | PRD-014 | Technical design for Ollama (local/offline) |
 | [RFC-038](RFC-038-continuous-review-tooling.md) | Continuous Review Tooling | #45 | Dependabot, pydeps, pre-release checklist |
+| [RFC-039](RFC-039-development-workflow-worktrees-ci.md) | Development Workflow | - | Git worktrees, Cursor integration, CI evolution |
 
 ## Completed RFCs
 
