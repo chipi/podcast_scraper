@@ -61,10 +61,10 @@ jobs:
           ~/.cache/huggingface
         # Use separate cache key for nightly to include BOTH test and production models
         # Regular CI uses 'ml-models-*' with only test models
-        # v4: Fixed validation script (sed instead of tr), removed restore-keys to prevent
-        #     restoring corrupted old caches (v2/v3 had path issues)
+        # v5: v4 was saved with only Whisper models (192MB), before HF models downloaded
+        #     GitHub cache is immutable, so must bump to v5 to get fresh cache
         # NOTE: No restore-keys! We want exact match or clean cache miss, not partial restore
-        key: ml-models-nightly-${{ runner.os }}-v4
+        key: ml-models-nightly-${{ runner.os }}-v5
 
     - name: Install full dependencies (including ML)
       run: |
