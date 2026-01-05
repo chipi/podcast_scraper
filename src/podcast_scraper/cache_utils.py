@@ -5,6 +5,7 @@ preferring a local cache directory in the project root if it exists,
 falling back to the standard user cache directories.
 """
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -53,16 +54,29 @@ def get_whisper_cache_dir() -> Path:
 def get_transformers_cache_dir() -> Path:
     """Get Transformers model cache directory.
 
-    Prefers local cache in project root (.cache/huggingface/hub/), falls back to default.
+    Priority order:
+    1. Local cache in project root (.cache/huggingface/hub/) if exists
+    2. HF_HUB_CACHE environment variable (CI sets this explicitly)
+    3. huggingface_hub.constants.HF_HUB_CACHE (respects HF_HOME env var)
+    4. Standard user cache (~/.cache/huggingface/hub/)
 
     Returns:
         Path to Transformers cache directory
     """
+    # 1. Check local cache first (development preference)
     project_root = get_project_root()
     local_cache = project_root / ".cache" / "huggingface" / "hub"
     if local_cache.exists():
         return local_cache
-    # Fallback to default Transformers cache
+
+    # 2. Check HF_HUB_CACHE env var (CI sets this explicitly)
+    # This is checked BEFORE importing huggingface_hub because the constants
+    # are evaluated at import time and may not reflect runtime env changes
+    hf_hub_cache = os.environ.get("HF_HUB_CACHE")
+    if hf_hub_cache:
+        return Path(hf_hub_cache)
+
+    # 3. Fall back to huggingface_hub constants
     try:
         # Try modern huggingface_hub API first (transformers 4.20+)
         from huggingface_hub import constants
@@ -75,8 +89,10 @@ def get_transformers_cache_dir() -> Path:
 
             return Path(file_utils.default_cache_path)
         except (ImportError, AttributeError):
-            # If neither available, return standard location
-            return Path.home() / ".cache" / "huggingface" / "hub"
+            pass
+
+    # 4. Standard user cache as final fallback
+    return Path.home() / ".cache" / "huggingface" / "hub"
 
 
 def get_spacy_cache_dir() -> Optional[Path]:
