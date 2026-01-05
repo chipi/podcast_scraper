@@ -626,18 +626,94 @@ jobs:
         echo "- **Nightly-Only Tests**: ${{ needs.nightly-only-tests.result }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
 
-        # Extract metrics from reports
-        if [ -f metrics/latest.json ]; then
-          echo "## Metrics Summary" >> $GITHUB_STEP_SUMMARY
-          cat metrics/latest.json | python3 -c "
-        import json, sys
-        data = json.load(sys.stdin)
-        print(f\"- **Total Tests**: {data.get('tests', {}).get('total', 'N/A')}\")
-        print(f\"- **Passed**: ✅ {data.get('tests', {}).get('passed', 'N/A')}\")
-        print(f\"- **Failed**: ❌ {data.get('tests', {}).get('failed', 'N/A')}\")
-        print(f\"- **Coverage**: {data.get('coverage', {}).get('line_rate', 'N/A')}%\")
-        " >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Unable to parse metrics" >> $GITHUB_STEP_SUMMARY
+        # Extract metrics from pytest JSON reports
+        for report in reports/pytest-*.json; do
+          if [ -f "$report" ]; then
+            TOTAL=$(jq -r '.summary.total // 0' "$report" 2>/dev/null || echo "0")
+            PASSED=$(jq -r '.summary.passed // 0' "$report" 2>/dev/null || echo "0")
+            FAILED=$(jq -r '.summary.failed // 0' "$report" 2>/dev/null || echo "0")
+            SKIPPED=$(jq -r '.summary.skipped // 0' "$report" 2>/dev/null || echo "0")
+            DURATION=$(jq -r '.duration // 0' "$report" 2>/dev/null || echo "0")
+            REPORT_NAME=$(basename "$report" .json)
+
+            echo "## Test Summary ($REPORT_NAME)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Total Tests**: $TOTAL" >> $GITHUB_STEP_SUMMARY
+            echo "- **Passed**: ✅ $PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "- **Failed**: ❌ $FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "- **Skipped**: ⏭️ $SKIPPED" >> $GITHUB_STEP_SUMMARY
+            echo "- **Duration**: ${DURATION}s" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+        done
+
+        # Extract coverage from coverage.xml
+        if [ -f reports/coverage.xml ]; then
+          COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('reports/coverage.xml'); root = tree.getroot(); print(f\"{float(root.attrib.get('line-rate', 0)) * 100:.1f}%\")" 2>/dev/null || echo "N/A")
+          echo "## Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "- **Overall Coverage**: $COVERAGE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
         fi
+
+        # Extract slowest tests from JUnit XML reports
+        for junit in reports/pytest-*.json; do
+          if [ -f "$junit" ]; then
+            echo "## Slowest Tests (Top 10)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            python3 -c "
+        import json, sys
+        try:
+            with open('$junit') as f:
+                data = json.load(f)
+            tests = [(t.get('duration', 0), t.get('nodeid', 'unknown')) for t in data.get('tests', [])]
+            tests.sort(reverse=True)
+            for time, name in tests[:10]:
+                print(f'{time:.2f}s - {name}')
+        except Exception as e:
+            print(f'Error: {e}', file=sys.stderr)
+        " >> $GITHUB_STEP_SUMMARY 2>&1 || echo "Unable to parse" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            break  # Only show once
+          fi
+        done
+
+        # Check for flaky tests (tests that passed on rerun)
+        for report in reports/pytest-*.json; do
+          if [ -f "$report" ]; then
+            FLAKY_COUNT=$(jq -r '[.tests[] | select(.outcome == "passed" and .rerun == true)] | length' "$report" 2>/dev/null || echo "0")
+            if [ "$FLAKY_COUNT" -gt 0 ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "## ⚠️ Flaky Tests Detected" >> $GITHUB_STEP_SUMMARY
+              echo "- **Count**: $FLAKY_COUNT tests passed on rerun" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Flaky Test Names:" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              jq -r '.tests[] | select(.outcome == "passed" and .rerun == true) | "\(.nodeid)"' "$report" 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to extract"
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+        done
+
+        # Show alerts from metrics (if available)
+        if [ -f metrics/latest.json ]; then
+          ALERT_COUNT=$(jq -r '.alerts | length' metrics/latest.json 2>/dev/null || echo "0")
+          if [ "$ALERT_COUNT" -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## 🚨 Metric Alerts" >> $GITHUB_STEP_SUMMARY
+            jq -r '.alerts[] |
+              if .severity == "error" then "🔴 **ERROR**: \(.message)"
+              elif .severity == "warning" then "⚠️ **WARNING**: \(.message)"
+              else "ℹ️ **INFO**: \(.message)"
+              end' metrics/latest.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to extract alerts"
+          fi
+        fi
+
+    - name: Upload combined test reports (extended retention for trend tracking)
+      uses: actions/upload-artifact@v4
+      with:
+        name: nightly-test-reports
+        path: |
+          reports/
+        retention-days: 90
 
     - name: Upload metrics artifact
       uses: actions/upload-artifact@v4
