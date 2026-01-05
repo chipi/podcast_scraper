@@ -143,6 +143,37 @@ class TestGetTransformersCacheDir(unittest.TestCase):
                 cache_dir = cache_utils.get_transformers_cache_dir()
                 self.assertEqual(cache_dir, local_cache)
 
+    def test_get_transformers_cache_dir_uses_hf_hub_cache_env_var(self):
+        """Test Transformers cache uses HF_HUB_CACHE env var when set."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Mock project root (no local cache)
+            with patch.object(cache_utils, "get_project_root") as mock_root:
+                mock_root.return_value = Path(temp_dir)
+                # Set HF_HUB_CACHE env var
+                custom_cache = Path(temp_dir) / "custom_hf_cache"
+                with patch.dict(os.environ, {"HF_HUB_CACHE": str(custom_cache)}):
+                    cache_dir = cache_utils.get_transformers_cache_dir()
+                    self.assertEqual(cache_dir, custom_cache)
+
+    def test_get_transformers_cache_dir_local_takes_priority_over_env_var(self):
+        """Test local cache takes priority over HF_HUB_CACHE env var."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Mock project root with local cache
+            with patch.object(cache_utils, "get_project_root") as mock_root:
+                mock_root.return_value = Path(temp_dir)
+                local_cache = Path(temp_dir) / ".cache" / "huggingface" / "hub"
+                local_cache.mkdir(parents=True, exist_ok=True)
+                # Set HF_HUB_CACHE env var (should be ignored)
+                custom_cache = Path(temp_dir) / "custom_hf_cache"
+                with patch.dict(os.environ, {"HF_HUB_CACHE": str(custom_cache)}):
+                    cache_dir = cache_utils.get_transformers_cache_dir()
+                    # Local cache takes priority
+                    self.assertEqual(cache_dir, local_cache)
+
     def test_get_transformers_cache_dir_falls_back_to_default(self):
         """Test Transformers cache falls back to default when local doesn't exist.
 
@@ -156,14 +187,20 @@ class TestGetTransformersCacheDir(unittest.TestCase):
             # Mock project root
             with patch.object(cache_utils, "get_project_root") as mock_root:
                 mock_root.return_value = Path(temp_dir)
-                # Verify local cache doesn't exist (should use fallback)
-                local_cache = Path(temp_dir) / ".cache" / "huggingface" / "hub"
-                self.assertFalse(local_cache.exists(), "Local cache should not exist")
+                # Clear HF_HUB_CACHE env var to test huggingface_hub fallback
+                with patch.dict(os.environ, {"HF_HUB_CACHE": ""}, clear=False):
+                    # Remove HF_HUB_CACHE from environment
+                    env_copy = os.environ.copy()
+                    env_copy.pop("HF_HUB_CACHE", None)
+                    with patch.dict(os.environ, env_copy, clear=True):
+                        # Verify local cache doesn't exist (should use fallback)
+                        local_cache = Path(temp_dir) / ".cache" / "huggingface" / "hub"
+                        self.assertFalse(local_cache.exists(), "Local cache should not exist")
 
-                # Function should return a valid Path (will use huggingface_hub or transformers)
-                cache_dir = cache_utils.get_transformers_cache_dir()
-                self.assertIsInstance(cache_dir, Path)
-                self.assertTrue(len(str(cache_dir)) > 0, "Cache dir should be a valid path")
+                        # Function should return a valid Path (will use huggingface_hub)
+                        cache_dir = cache_utils.get_transformers_cache_dir()
+                        self.assertIsInstance(cache_dir, Path)
+                        self.assertTrue(len(str(cache_dir)) > 0, "Cache dir should be valid")
 
     def test_get_transformers_cache_dir_falls_back_when_transformers_not_installed(self):
         """Test Transformers cache falls back when transformers not installed."""
