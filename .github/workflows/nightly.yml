@@ -25,6 +25,12 @@ jobs:
   nightly-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 420  # 7 hours for comprehensive tests with production models (~300 min audio on CPU)
+    env:
+      # Ensure consistent Hugging Face cache paths across all steps
+      # Must match the paths in actions/cache for proper cache hits
+      HF_HOME: /home/runner/.cache/huggingface
+      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
+      HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     steps:
     - uses: actions/checkout@v4
       with:
@@ -55,7 +61,8 @@ jobs:
           ~/.cache/huggingface
         # Use separate cache key for nightly to include BOTH test and production models
         # Regular CI uses 'ml-models-*' with only test models
-        key: ml-models-nightly-${{ runner.os }}-v2
+        # v3: Added HF_HOME env vars to fix cache path mismatch
+        key: ml-models-nightly-${{ runner.os }}-v3
         restore-keys: |
           ml-models-nightly-${{ runner.os }}-
 
@@ -87,6 +94,83 @@ jobs:
     - name: Preload production ML models (if cache miss)
       if: steps.cache-models.outputs.cache-hit != 'true'
       run: make preload-ml-models-production
+
+    - name: Validate ML model cache
+      id: validate-cache
+      run: |
+        echo "🔍 Validating ML model cache..."
+        echo ""
+
+        # Track validation results
+        MISSING_MODELS=""
+        CACHE_VALID=true
+
+        # Check Whisper models
+        echo "📦 Whisper models:"
+        for model in "tiny.en" "base.en"; do
+          WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
+          if [ -f "$WHISPER_PATH" ]; then
+            SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
+            echo "  ✅ $model ($SIZE)"
+          else
+            echo "  ❌ $model - MISSING at $WHISPER_PATH"
+            MISSING_MODELS="$MISSING_MODELS whisper:$model"
+            CACHE_VALID=false
+          fi
+        done
+
+        # Check spaCy models
+        echo ""
+        echo "📦 spaCy models:"
+        SPACY_PATH="$HOME/.local/share/spacy/en_core_web_sm"
+        if [ -d "$SPACY_PATH" ] || python -c "import spacy; spacy.load('en_core_web_sm')" 2>/dev/null; then
+          echo "  ✅ en_core_web_sm"
+        else
+          echo "  ❌ en_core_web_sm - MISSING"
+          MISSING_MODELS="$MISSING_MODELS spacy:en_core_web_sm"
+          CACHE_VALID=false
+        fi
+
+        # Check Hugging Face models
+        echo ""
+        echo "📦 Hugging Face models:"
+        HF_CACHE="$HOME/.cache/huggingface/hub"
+        echo "  Cache directory: $HF_CACHE"
+        echo "  Exists: $([ -d "$HF_CACHE" ] && echo "Yes" || echo "No")"
+
+        for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
+          # Convert model name to cache directory format
+          MODEL_DIR="models--$(echo $model | tr '/' '--')"
+          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
+          if [ -d "$MODEL_PATH" ]; then
+            SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
+            echo "  ✅ $model ($SIZE)"
+          else
+            echo "  ❌ $model - MISSING at $MODEL_PATH"
+            MISSING_MODELS="$MISSING_MODELS hf:$model"
+            CACHE_VALID=false
+          fi
+        done
+
+        # Summary
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        if [ "$CACHE_VALID" = true ]; then
+          echo "✅ All required ML models are cached!"
+          TOTAL_SIZE=$(du -sh "$HOME/.cache" 2>/dev/null | cut -f1 || echo "unknown")
+          echo "📊 Total cache size: $TOTAL_SIZE"
+        else
+          echo "❌ CACHE VALIDATION FAILED!"
+          echo "Missing models:$MISSING_MODELS"
+          echo ""
+          echo "This usually means:"
+          echo "  1. Cache was created before models were downloaded"
+          echo "  2. HF_HOME env var mismatch between preload and tests"
+          echo "  3. Cache key needs to be bumped to force rebuild"
+          echo ""
+          echo "The preload step should have run. Check preload logs above."
+          exit 1
+        fi
 
     - name: Create reports directory
       run: mkdir -p reports
