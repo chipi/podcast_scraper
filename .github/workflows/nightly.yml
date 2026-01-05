@@ -229,6 +229,12 @@ jobs:
           --reruns-delay 1
       env:
         PACKAGE: podcast_scraper
+        # Ensure consistent cache paths (explicit for pytest-xdist workers)
+        HF_HOME: /home/runner/.cache/huggingface
+        TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
+        HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+        # Signal to tests that CI has validated cache
+        ML_MODELS_VALIDATED: "true"
 
     - name: Run nightly-only tests with production models
       run: |
@@ -239,6 +245,12 @@ jobs:
         make test-nightly || echo "⚠️  Nightly tests failed (non-blocking)"
       env:
         PACKAGE: podcast_scraper
+        # Ensure consistent cache paths (explicit for pytest-xdist workers)
+        HF_HOME: /home/runner/.cache/huggingface
+        TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
+        HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+        # Signal to tests that CI has validated cache
+        ML_MODELS_VALIDATED: "true"
       continue-on-error: true  # Don't fail nightly build if nightly tests fail (for now)
 
     - name: Enforce coverage threshold

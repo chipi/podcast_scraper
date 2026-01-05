@@ -130,18 +130,26 @@ class TestGetTransformersCacheDir(unittest.TestCase):
         cache_utils._project_root = None
 
     def test_get_transformers_cache_dir_prefers_local(self):
-        """Test Transformers cache prefers local .cache/ directory."""
+        """Test Transformers cache prefers local .cache/ directory when HF_HUB_CACHE not set.
+
+        Note: HF_HUB_CACHE env var takes priority over local cache (for CI consistency).
+        This test validates local cache preference when HF_HUB_CACHE is not set.
+        """
         import tempfile
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Mock project root
-            with patch.object(cache_utils, "get_project_root") as mock_root:
-                mock_root.return_value = Path(temp_dir)
-                local_cache = Path(temp_dir) / ".cache" / "huggingface" / "hub"
-                local_cache.mkdir(parents=True, exist_ok=True)
+            # Clear HF_HUB_CACHE to test local cache preference
+            # (HF_HUB_CACHE takes priority when set, e.g., in CI)
+            env_without_hf = {k: v for k, v in os.environ.items() if k != "HF_HUB_CACHE"}
+            with patch.dict(os.environ, env_without_hf, clear=True):
+                # Mock project root
+                with patch.object(cache_utils, "get_project_root") as mock_root:
+                    mock_root.return_value = Path(temp_dir)
+                    local_cache = Path(temp_dir) / ".cache" / "huggingface" / "hub"
+                    local_cache.mkdir(parents=True, exist_ok=True)
 
-                cache_dir = cache_utils.get_transformers_cache_dir()
-                self.assertEqual(cache_dir, local_cache)
+                    cache_dir = cache_utils.get_transformers_cache_dir()
+                    self.assertEqual(cache_dir, local_cache)
 
     def test_get_transformers_cache_dir_uses_hf_hub_cache_env_var(self):
         """Test Transformers cache uses HF_HUB_CACHE env var when set."""
