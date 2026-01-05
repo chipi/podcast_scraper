@@ -157,8 +157,13 @@ class TestGetTransformersCacheDir(unittest.TestCase):
                     cache_dir = cache_utils.get_transformers_cache_dir()
                     self.assertEqual(cache_dir, custom_cache)
 
-    def test_get_transformers_cache_dir_local_takes_priority_over_env_var(self):
-        """Test local cache takes priority over HF_HUB_CACHE env var."""
+    def test_get_transformers_cache_dir_env_var_takes_priority_over_local(self):
+        """Test HF_HUB_CACHE env var takes priority over local cache.
+
+        In CI, HF_HUB_CACHE is set explicitly to ensure consistent cache paths
+        across all workers and steps. This is critical for supply chain security -
+        we want to use exactly the cache that CI validated.
+        """
         import tempfile
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -167,12 +172,12 @@ class TestGetTransformersCacheDir(unittest.TestCase):
                 mock_root.return_value = Path(temp_dir)
                 local_cache = Path(temp_dir) / ".cache" / "huggingface" / "hub"
                 local_cache.mkdir(parents=True, exist_ok=True)
-                # Set HF_HUB_CACHE env var (should be ignored)
+                # Set HF_HUB_CACHE env var (should take priority for CI consistency)
                 custom_cache = Path(temp_dir) / "custom_hf_cache"
                 with patch.dict(os.environ, {"HF_HUB_CACHE": str(custom_cache)}):
                     cache_dir = cache_utils.get_transformers_cache_dir()
-                    # Local cache takes priority
-                    self.assertEqual(cache_dir, local_cache)
+                    # Env var takes priority (CI explicitly sets this)
+                    self.assertEqual(cache_dir, custom_cache)
 
     def test_get_transformers_cache_dir_falls_back_to_default(self):
         """Test Transformers cache falls back to default when local doesn't exist.
