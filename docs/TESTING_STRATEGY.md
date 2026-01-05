@@ -352,7 +352,7 @@ and coverage, see [Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.m
 E2E tests are organized into three tiers to balance fast CI feedback with comprehensive validation:
 
 | Tier | Purpose | Episodes | Models | When | Makefile Target |
-|------|---------|----------|--------|------|-----------------|
+| ---- | ------- | -------- | ------ | ---- | --------------- |
 | **Tier 1: Fast** | Code quality, critical path | 1 | Test (tiny/base) | Every PR | `test-e2e-fast` |
 | **Tier 2: Data Quality** | Volume validation | 3 | Test (tiny/base) | Nightly | `test-e2e-data-quality` |
 | **Tier 3: Nightly Full** | Production validation | 15 (5×3) | Production (base, BART-large, LED-large) | Nightly | `test-nightly` |

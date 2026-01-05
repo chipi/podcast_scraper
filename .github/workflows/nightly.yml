@@ -162,7 +162,9 @@ jobs:
         make preload-ml-models-production
 
     # Final validation after preload (should always pass now)
+    # Sets ML_MODELS_VALIDATED=true for subsequent steps to skip redundant checks
     - name: Final cache validation
+      id: final-validation
       run: |
         echo "🔍 Final validation after preload..."
         echo ""
@@ -192,6 +194,8 @@ jobs:
           echo "✅ All models validated successfully!"
           TOTAL_SIZE=$(du -sh "$HOME/.cache" 2>/dev/null | cut -f1 || echo "unknown")
           echo "📊 Total cache size: $TOTAL_SIZE"
+          # Signal to pytest that cache is validated - tests can trust this
+          echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
         else
           echo "❌ FATAL: Models still missing after preload!"
           echo "This indicates a bug in preload_ml_models.py"

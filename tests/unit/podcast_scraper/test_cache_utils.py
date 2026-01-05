@@ -157,8 +157,13 @@ class TestGetTransformersCacheDir(unittest.TestCase):
                     cache_dir = cache_utils.get_transformers_cache_dir()
                     self.assertEqual(cache_dir, custom_cache)
 
-    def test_get_transformers_cache_dir_local_takes_priority_over_env_var(self):
-        """Test local cache takes priority over HF_HUB_CACHE env var."""
+    def test_get_transformers_cache_dir_env_var_takes_priority_over_local(self):
+        """Test HF_HUB_CACHE env var takes priority over local cache.
+
+        In CI, HF_HUB_CACHE is set explicitly to ensure consistent cache paths
+        across all workers and steps. This is critical for supply chain security -
+        we want to use exactly the cache that CI validated.
+        """
         import tempfile
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -167,12 +172,12 @@ class TestGetTransformersCacheDir(unittest.TestCase):
                 mock_root.return_value = Path(temp_dir)
                 local_cache = Path(temp_dir) / ".cache" / "huggingface" / "hub"
                 local_cache.mkdir(parents=True, exist_ok=True)
-                # Set HF_HUB_CACHE env var (should be ignored)
+                # Set HF_HUB_CACHE env var (should take priority for CI consistency)
                 custom_cache = Path(temp_dir) / "custom_hf_cache"
                 with patch.dict(os.environ, {"HF_HUB_CACHE": str(custom_cache)}):
                     cache_dir = cache_utils.get_transformers_cache_dir()
-                    # Local cache takes priority
-                    self.assertEqual(cache_dir, local_cache)
+                    # Env var takes priority (CI explicitly sets this)
+                    self.assertEqual(cache_dir, custom_cache)
 
     def test_get_transformers_cache_dir_falls_back_to_default(self):
         """Test Transformers cache falls back to default when local doesn't exist.
@@ -212,14 +217,17 @@ class TestGetTransformersCacheDir(unittest.TestCase):
                 mock_root.return_value = Path(temp_dir)
                 with patch("pathlib.Path.home") as mock_home:
                     mock_home.return_value = Path(temp_dir)
-                    # Mock ImportError when importing transformers
-                    with patch(
-                        "builtins.__import__",
-                        side_effect=ImportError("No module named transformers"),
-                    ):
-                        cache_dir = cache_utils.get_transformers_cache_dir()
-                        expected = Path(temp_dir) / ".cache" / "huggingface" / "hub"
-                        self.assertEqual(cache_dir, expected)
+                    # Clear HF_HUB_CACHE to test the fallback path
+                    env_without_hf = {k: v for k, v in os.environ.items() if k != "HF_HUB_CACHE"}
+                    with patch.dict(os.environ, env_without_hf, clear=True):
+                        # Mock ImportError when importing transformers
+                        with patch(
+                            "builtins.__import__",
+                            side_effect=ImportError("No module named transformers"),
+                        ):
+                            cache_dir = cache_utils.get_transformers_cache_dir()
+                            expected = Path(temp_dir) / ".cache" / "huggingface" / "hub"
+                            self.assertEqual(cache_dir, expected)
 
     def test_get_transformers_cache_dir_home_fallback(self):
         """Test Transformers cache uses home directory for fallback."""
@@ -231,14 +239,17 @@ class TestGetTransformersCacheDir(unittest.TestCase):
                 mock_root.return_value = Path(temp_dir)
                 with patch("pathlib.Path.home") as mock_home:
                     mock_home.return_value = Path(temp_dir)
-                    # Mock ImportError
-                    with patch(
-                        "builtins.__import__",
-                        side_effect=ImportError("No module named transformers"),
-                    ):
-                        cache_dir = cache_utils.get_transformers_cache_dir()
-                        expected = Path(temp_dir) / ".cache" / "huggingface" / "hub"
-                        self.assertEqual(cache_dir, expected)
+                    # Clear HF_HUB_CACHE to test the fallback path
+                    env_without_hf = {k: v for k, v in os.environ.items() if k != "HF_HUB_CACHE"}
+                    with patch.dict(os.environ, env_without_hf, clear=True):
+                        # Mock ImportError
+                        with patch(
+                            "builtins.__import__",
+                            side_effect=ImportError("No module named transformers"),
+                        ):
+                            cache_dir = cache_utils.get_transformers_cache_dir()
+                            expected = Path(temp_dir) / ".cache" / "huggingface" / "hub"
+                            self.assertEqual(cache_dir, expected)
 
 
 class TestGetSpacyCacheDir(unittest.TestCase):

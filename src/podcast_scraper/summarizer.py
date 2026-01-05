@@ -485,27 +485,19 @@ class SummaryModel:
 
         # Security: Validate model source before loading
         _validate_model_source(model_name)
-        # Use provided cache_dir or default to standard Hugging Face cache location
-        # Transformers will automatically use this directory for caching
-        # Prefer local cache in project root if available
+        # Use provided cache_dir or get from cache_utils (consistent with preload script)
+        # cache_utils.get_transformers_cache_dir() handles all priority logic:
+        # 1. HF_HUB_CACHE env var (CI sets this explicitly)
+        # 2. Local project cache (.cache/huggingface/hub/)
+        # 3. huggingface_hub.constants.HF_HUB_CACHE
+        # 4. Default fallback (~/.cache/huggingface/hub/)
         if cache_dir:
             self.cache_dir = cache_dir
         else:
-            # Check for local cache in project root first
             try:
-                from .cache_utils import get_project_root, get_transformers_cache_dir
+                from .cache_utils import get_transformers_cache_dir
 
-                local_cache = get_transformers_cache_dir()
-                project_root = get_project_root()
-                local_cache_path = project_root / ".cache" / "huggingface" / "hub"
-                if local_cache == local_cache_path and local_cache_path.exists():
-                    self.cache_dir = str(local_cache)
-                else:
-                    # Prefer newer cache location, fallback to legacy if it exists
-                    if HF_CACHE_DIR.exists() or not HF_CACHE_DIR_LEGACY.exists():
-                        self.cache_dir = str(HF_CACHE_DIR)
-                    else:
-                        self.cache_dir = str(HF_CACHE_DIR_LEGACY)
+                self.cache_dir = str(get_transformers_cache_dir())
             except Exception:
                 # If cache_utils not available, use default
                 if HF_CACHE_DIR.exists() or not HF_CACHE_DIR_LEGACY.exists():
@@ -2276,7 +2268,13 @@ def get_cache_size(cache_dir: Optional[str] = None) -> int:
     if cache_dir:
         cache_path = Path(cache_dir)
     else:
-        cache_path = HF_CACHE_DIR if HF_CACHE_DIR.exists() else HF_CACHE_DIR_LEGACY
+        # Use consistent cache path resolution (respects HF_HUB_CACHE env var)
+        try:
+            from .cache_utils import get_transformers_cache_dir
+
+            cache_path = get_transformers_cache_dir()
+        except Exception:
+            cache_path = HF_CACHE_DIR if HF_CACHE_DIR.exists() else HF_CACHE_DIR_LEGACY
 
     if not cache_path.exists():
         return 0
@@ -2349,7 +2347,13 @@ def prune_cache(cache_dir: Optional[str] = None, dry_run: bool = False) -> int:
         except (OSError, RuntimeError) as e:
             raise ValueError(f"Invalid cache directory path: {e}") from e
     else:
-        cache_path = HF_CACHE_DIR if HF_CACHE_DIR.exists() else HF_CACHE_DIR_LEGACY
+        # Use consistent cache path resolution (respects HF_HUB_CACHE env var)
+        try:
+            from .cache_utils import get_transformers_cache_dir
+
+            cache_path = get_transformers_cache_dir()
+        except Exception:
+            cache_path = HF_CACHE_DIR if HF_CACHE_DIR.exists() else HF_CACHE_DIR_LEGACY
 
     if not cache_path.exists():
         logger.info("Cache directory does not exist: %s", cache_path)

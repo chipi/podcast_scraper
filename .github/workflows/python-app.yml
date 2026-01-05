@@ -275,6 +275,8 @@ jobs:
       HF_HOME: /home/runner/.cache/huggingface
       TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+      # Signal to tests that CI has validated cache - skip redundant checks
+      ML_MODELS_VALIDATED: "true"
     if: |
       github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
@@ -373,6 +375,8 @@ jobs:
       HF_HOME: /home/runner/.cache/huggingface
       TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+      # Signal to tests that CI has validated cache - skip redundant checks
+      ML_MODELS_VALIDATED: "true"
     if: |
       github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')
     steps:
@@ -463,6 +467,8 @@ jobs:
       HF_HOME: /home/runner/.cache/huggingface
       TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+      # Signal to tests that CI has validated cache - skip redundant checks
+      ML_MODELS_VALIDATED: "true"
     if: |
       github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')
     steps:
@@ -558,6 +564,8 @@ jobs:
       HF_HOME: /home/runner/.cache/huggingface
       TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+      # Signal to tests that CI has validated cache - skip redundant checks
+      ML_MODELS_VALIDATED: "true"
     if: |
       github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:

@@ -55,26 +55,30 @@ def get_transformers_cache_dir() -> Path:
     """Get Transformers model cache directory.
 
     Priority order:
-    1. Local cache in project root (.cache/huggingface/hub/) if exists
-    2. HF_HUB_CACHE environment variable (CI sets this explicitly)
+    1. HF_HUB_CACHE environment variable (CI sets this explicitly - highest priority)
+    2. Local cache in project root (.cache/huggingface/hub/) if exists
     3. huggingface_hub.constants.HF_HUB_CACHE (respects HF_HOME env var)
     4. Standard user cache (~/.cache/huggingface/hub/)
+
+    The env var takes priority because CI explicitly sets it to ensure consistent
+    cache paths across all workers and steps. This is critical for supply chain
+    security - we want to use exactly the cache that CI validated.
 
     Returns:
         Path to Transformers cache directory
     """
-    # 1. Check local cache first (development preference)
+    # 1. Check HF_HUB_CACHE env var FIRST (CI sets this explicitly)
+    # This takes priority because CI explicitly sets it to ensure consistent paths
+    # and we want to use exactly the cache that CI validated
+    hf_hub_cache = os.environ.get("HF_HUB_CACHE")
+    if hf_hub_cache:
+        return Path(hf_hub_cache)
+
+    # 2. Check local cache (development convenience)
     project_root = get_project_root()
     local_cache = project_root / ".cache" / "huggingface" / "hub"
     if local_cache.exists():
         return local_cache
-
-    # 2. Check HF_HUB_CACHE env var (CI sets this explicitly)
-    # This is checked BEFORE importing huggingface_hub because the constants
-    # are evaluated at import time and may not reflect runtime env changes
-    hf_hub_cache = os.environ.get("HF_HUB_CACHE")
-    if hf_hub_cache:
-        return Path(hf_hub_cache)
 
     # 3. Fall back to huggingface_hub constants
     try:

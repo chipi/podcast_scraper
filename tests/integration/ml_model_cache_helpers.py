@@ -4,11 +4,18 @@
 These functions check if ML models are cached locally before attempting to load them.
 This prevents tests from hanging on network downloads, which violates integration test rules.
 
+Supply Chain Security:
+- CI validates cache in shell BEFORE pytest runs (authoritative check)
+- When ML_MODELS_VALIDATED=true env var is set, tests trust CI validation
+- Tests use local_files_only=True when loading models (hard security boundary)
+- If models not cached, tests fail fast rather than attempting downloads
+
 Models checked (in order of preference):
 - Local cache: .cache/ in project root (if exists)
 - User cache: ~/.cache/whisper/, ~/.cache/huggingface/hub/, ~/.local/share/spacy/
 """
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -16,6 +23,24 @@ from podcast_scraper.cache_utils import (
     get_transformers_cache_dir,
     get_whisper_cache_dir,
 )
+
+
+def _is_ci_cache_validated() -> bool:
+    """Check if CI has already validated the cache.
+
+    In CI (nightly, regular builds), cache is validated in a shell step BEFORE
+    pytest runs. When this validation passes, ML_MODELS_VALIDATED=true is set.
+
+    This allows tests to skip redundant complex directory checks that can fail
+    in multi-worker pytest-xdist environments due to filesystem timing issues.
+
+    The actual security boundary is local_files_only=True when loading models,
+    which is enforced by the model loading code, not by these cache checks.
+
+    Returns:
+        True if CI has validated the cache, False otherwise
+    """
+    return os.environ.get("ML_MODELS_VALIDATED", "").lower() == "true"
 
 
 def _is_whisper_model_cached(model_name: str) -> bool:
@@ -292,15 +317,24 @@ def _validate_transformers_model_integrity(snapshot_dir: Path, model_files: list
 def require_whisper_model_cached(model_name: str) -> None:
     """Require that a Whisper model is cached, skip with helpful message if not.
 
+    If ML_MODELS_VALIDATED=true is set (by CI after shell validation), this function
+    trusts that the cache is valid and skips the complex directory checks. This prevents
+    issues with pytest-xdist workers failing to see the same filesystem state.
+
+    The actual security boundary is enforced by network blocking (--disable-socket)
+    and local_files_only=True when loading models.
+
     Args:
         model_name: Whisper model name
 
     Raises:
         pytest.skip: If model is not cached (for better test reporting)
     """
-    if not _is_whisper_model_cached(model_name):
-        import os
+    # Trust CI validation - skip redundant checks in multi-worker environment
+    if _is_ci_cache_validated():
+        return
 
+    if not _is_whisper_model_cached(model_name):
         import pytest
 
         cache_dir = Path.home() / ".cache" / "whisper"
@@ -311,6 +345,7 @@ def require_whisper_model_cached(model_name: str) -> None:
             f"  Expected cache location: {model_file}\n"
             f"  Cache directory: {cache_dir}\n"
             f"  Cache directory exists: {cache_dir.exists()}\n"
+            f"  ML_MODELS_VALIDATED: {os.environ.get('ML_MODELS_VALIDATED', 'NOT SET')}\n"
             f"  User: {os.environ.get('USER', 'unknown')}\n"
             f"  Home: {Path.home()}\n"
             f"  Run 'make preload-ml-models' to pre-cache all required models."
@@ -320,14 +355,23 @@ def require_whisper_model_cached(model_name: str) -> None:
 def require_spacy_model_cached(model_name: str) -> None:
     """Require that a spaCy model is cached/installed, skip with helpful message if not.
 
+    Note: spaCy models are installed as pip packages (via .[ml] dependency),
+    so they should always be available in CI. This function exists for consistency.
+
+    If ML_MODELS_VALIDATED=true is set (by CI after shell validation), this function
+    trusts that the dependencies are installed and skips the checks.
+
     Args:
         model_name: spaCy model name
 
     Raises:
         pytest.skip: If model is not cached (for better test reporting)
     """
+    # Trust CI validation - skip redundant checks in multi-worker environment
+    if _is_ci_cache_validated():
+        return
+
     if not _is_spacy_model_cached(model_name):
-        import os
         import site
 
         import pytest
@@ -346,6 +390,7 @@ def require_spacy_model_cached(model_name: str) -> None:
             f"  User cache exists: {spacy_data_dir.exists()}\n"
             f"  Site packages: {[str(p) for p in site_packages_paths]}\n"
             f"  Searched paths: {[str(p) for p in search_paths]}\n"
+            f"  ML_MODELS_VALIDATED: {os.environ.get('ML_MODELS_VALIDATED', 'NOT SET')}\n"
             f"  User: {os.environ.get('USER', 'unknown')}\n"
             f"  Home: {Path.home()}\n"
             f"  Run 'make preload-ml-models' to pre-cache all required models."
@@ -355,6 +400,18 @@ def require_spacy_model_cached(model_name: str) -> None:
 def require_transformers_model_cached(model_name: str, cache_dir: Optional[str] = None) -> None:
     """Require that a Transformers model is cached, skip with helpful message if not.
 
+    If ML_MODELS_VALIDATED=true is set (by CI after shell validation), this function
+    trusts that the cache is valid and skips the complex directory checks. This prevents
+    issues with pytest-xdist workers failing to see the same filesystem state.
+
+    The actual security boundary is enforced by:
+    1. Network blocking (--disable-socket in pytest)
+    2. HF_HUB_OFFLINE=1 / TRANSFORMERS_OFFLINE=1 (set in conftest.py)
+    3. local_files_only=True when loading models
+
+    If a model is not cached and these boundaries are active, model loading will fail
+    fast with a clear error rather than attempting a network download.
+
     Args:
         model_name: Hugging Face model identifier
         cache_dir: Cache directory path
@@ -362,9 +419,11 @@ def require_transformers_model_cached(model_name: str, cache_dir: Optional[str] 
     Raises:
         pytest.skip: If model is not cached (for better test reporting)
     """
-    if not _is_transformers_model_cached(model_name, cache_dir):
-        import os
+    # Trust CI validation - skip redundant checks in multi-worker environment
+    if _is_ci_cache_validated():
+        return
 
+    if not _is_transformers_model_cached(model_name, cache_dir):
         import pytest
 
         # Get cache path for debugging - use same logic as _is_transformers_model_cached
@@ -390,11 +449,24 @@ def require_transformers_model_cached(model_name: str, cache_dir: Optional[str] 
                         f"    - {model_name_cached}: {size_mb:.1f} MB (at {model_dir})"
                     )
 
+        # Debug: check parent directories to understand why cache doesn't exist
+        parent_exists = cache_path.parent.exists() if cache_path.parent else False
+        grandparent_exists = (
+            cache_path.parent.parent.exists()
+            if cache_path.parent and cache_path.parent.parent
+            else False
+        )
+
         skip_message = (
             f"Transformers model '{model_name}' is not cached.\n"
             f"  Expected cache location: {model_cache_path}\n"
             f"  Cache directory: {cache_path}\n"
             f"  Cache directory exists: {cache_path.exists()}\n"
+            f"  Parent ({cache_path.parent}) exists: {parent_exists}\n"
+            f"  Grandparent ({cache_path.parent.parent}) exists: {grandparent_exists}\n"
+            f"  ML_MODELS_VALIDATED: {os.environ.get('ML_MODELS_VALIDATED', 'NOT SET')}\n"
+            f"  HF_HUB_CACHE env: {os.environ.get('HF_HUB_CACHE', 'NOT SET')}\n"
+            f"  HF_HOME env: {os.environ.get('HF_HOME', 'NOT SET')}\n"
         )
         if cached_models:
             skip_message += "  Currently cached models:\n" + "\n".join(cached_models) + "\n"
