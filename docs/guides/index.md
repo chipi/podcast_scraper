@@ -32,6 +32,7 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ------------- |
+| [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md) | Compare all 8 providers: cost, quality, speed, privacy |
 | [Provider Configuration](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) | Quick provider configuration reference |
 | [Provider Implementation](PROVIDER_IMPLEMENTATION_GUIDE.md) | Implementing new providers |
 | [Protocol Extension](PROTOCOL_EXTENSION_GUIDE.md) | Extending protocols |

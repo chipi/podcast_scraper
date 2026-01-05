@@ -2004,7 +2004,6 @@ curl https://[username].github.io/podcast_scraper/metrics/history.jsonl | tail -
 
 - [RFC-025: Test Metrics and Health Tracking](rfc/RFC-025-test-metrics-and-health-tracking.md) - Metrics collection strategy
 - [RFC-026: Metrics Consumption and Dashboards](rfc/RFC-026-metrics-consumption-and-dashboards.md) - Metrics consumption methods
-- [GitHub Pages Setup Complete](wip/GITHUB_PAGES_SETUP_COMPLETE.md) - Setup details
 
 ---
 

@@ -12,10 +12,13 @@ are not yet finalized or integrated into the main documentation.
 
 ## Current Contents
 
-- `SUMMARIZATION_TESTING_EVALUATION.md` - Testing and evaluation strategies for summarization
-- `SUMMARY_REVIEW.md` - Review of summarization implementation
-- `WHISPER_PROGRESS_ANALYSIS.md` - Analysis of Whisper transcription progress reporting
-- `TYPE_HINTS_ANALYSIS.md` - Analysis of type hints usage
+| File | Description | Status |
+|------|-------------|--------|
+| `BRANCH_CREATION_CHECKLIST.md` | Checklist for creating new branches | Active |
+| `METRICS_GAP_ANALYSIS.md` | Gap analysis for metrics implementation | Active |
+| `SUMMARIZATION_TESTING_EVALUATION.md` | Testing and evaluation strategies for summarization | Active |
+| `SUMMARY_REVIEW.md` | Review of summarization implementation | Active |
+| `TYPE_HINTS_ANALYSIS.md` | Analysis of type hints usage | Active |
 
 ## Guidelines
 
