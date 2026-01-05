@@ -366,13 +366,13 @@ def require_transformers_model_cached(model_name: str, cache_dir: Optional[str] 
         import os
 
         import pytest
-        from transformers import file_utils
 
-        # Get cache path for debugging
+        # Get cache path for debugging - use same logic as _is_transformers_model_cached
         if cache_dir:
             cache_path = Path(cache_dir)
         else:
-            cache_path = Path(file_utils.default_cache_path)
+            # Use cache_utils to get cache directory (respects HF_HUB_CACHE env var)
+            cache_path = get_transformers_cache_dir()
 
         model_cache_name = model_name.replace("/", "--")
         model_cache_path = cache_path / f"models--{model_cache_name}"
