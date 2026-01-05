@@ -347,6 +347,43 @@ and coverage, see [Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.m
 
 **For detailed E2E test execution commands and implementation, see [E2E Testing Guide](guides/E2E_TESTING_GUIDE.md).**
 
+### E2E Test Tiers (Code Quality vs Data Quality)
+
+E2E tests are organized into three tiers to balance fast CI feedback with comprehensive validation:
+
+| Tier | Purpose | Episodes | Models | When | Makefile Target |
+|------|---------|----------|--------|------|-----------------|
+| **Tier 1: Fast** | Code quality, critical path | 1 | Test (tiny/base) | Every PR | `test-e2e-fast` |
+| **Tier 2: Data Quality** | Volume validation | 3 | Test (tiny/base) | Nightly | `test-e2e-data-quality` |
+| **Tier 3: Nightly Full** | Production validation | 15 (5×3) | Production (base, BART-large, LED-large) | Nightly | `test-nightly` |
+
+**Tier 1: Fast E2E Tests** (`@pytest.mark.e2e` + `@pytest.mark.critical_path`)
+
+- 1 episode per test for fast feedback
+- Test models (Whisper tiny.en, BART-base, LED-base)
+- Run on every PR and push to main
+- Focus: Does the code work correctly?
+
+**Tier 2: Data Quality Tests** (`@pytest.mark.e2e` + `@pytest.mark.data_quality`)
+
+- 3 episodes per test for volume validation
+- Test models (same as Tier 1)
+- Run in nightly builds only
+- Focus: Does data processing work with volume?
+
+**Tier 3: Nightly Full Suite** (`@pytest.mark.nightly`)
+
+- 15 episodes across 5 podcasts (p01-p05)
+- Production models (Whisper base, BART-large-cnn, LED-large-16384)
+- Run in nightly builds only
+- Focus: Production-quality validation with real models
+
+**Key Principle:** Code quality tests (Tier 1) run on every PR. Data quality and nightly tests
+(Tiers 2-3) run only in nightly builds to avoid slowing down CI/CD feedback.
+
+**LLM/OpenAI Exclusion:** Tests marked `@pytest.mark.llm` are excluded from nightly builds
+(`-m "not llm"`) to avoid API costs. See issue #183.
+
 ## Test Infrastructure
 
 ### Test Framework
@@ -402,9 +439,10 @@ The test suite is organized into three main categories:
 - `@pytest.mark.slow` - Slow-running tests
 - `@pytest.mark.network` - Tests that hit external network
 - `@pytest.mark.multi_episode` - Multi-episode tests (nightly)
-- `@pytest.mark.data_quality` - Data quality validation (nightly only)
-- `@pytest.mark.llm` - Tests using LLM APIs (may incur costs)
-- `@pytest.mark.openai` - Tests using OpenAI API specifically
+- `@pytest.mark.data_quality` - Data quality validation (nightly only, 3 episodes)
+- `@pytest.mark.nightly` - Comprehensive nightly tests (15 episodes, production models)
+- `@pytest.mark.llm` - Tests using LLM APIs (excluded from nightly to avoid costs)
+- `@pytest.mark.openai` - Tests using OpenAI API specifically (subset of llm)
 
 **Execution Pattern**: Tests marked `serial` run first sequentially, then remaining tests run in
 parallel with `-n auto`. All tests use network isolation via
