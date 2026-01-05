@@ -486,11 +486,12 @@ jobs:
 
   # ===========================================================================
   # Nightly-only tests - production models, full podcast suite
+  # Only runs after integration and E2E tests pass (expensive, run as final stage)
   # ===========================================================================
   nightly-only-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 360  # 6 hours for production model tests
-    needs: [preload-ml-models-nightly]
+    needs: [nightly-test-integration, nightly-test-e2e]
     env:
       HF_HOME: /home/runner/.cache/huggingface
       TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
