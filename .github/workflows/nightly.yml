@@ -206,6 +206,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
+        docker image prune -af || true
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+        df -h
+
     - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
@@ -336,6 +344,14 @@ jobs:
       ML_MODELS_VALIDATED: "true"
     steps:
     - uses: actions/checkout@v4
+
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
+        docker image prune -af || true
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+        df -h
 
     - name: Set up Python 3.11
       uses: actions/setup-python@v5
