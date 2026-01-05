@@ -427,20 +427,35 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.production:
-        print("Preloading PRODUCTION ML models...")
-        print("Models: Whisper base.en, BART-large-cnn, LED-large-16384, en_core_web_sm")
-        print("This will download and cache production models for nightly tests.")
+        print("Preloading ALL ML models (test + production) for nightly tests...")
+        print("")
+        print("Test models (for regular tests in nightly):")
+        print("  - Whisper: tiny.en")
+        print("  - Transformers: facebook/bart-base, allenai/led-base-16384")
+        print("")
+        print("Production models (for nightly-only tests):")
+        print("  - Whisper: base.en")
+        print("  - Transformers: facebook/bart-large-cnn, allenai/led-large-16384")
+        print("")
+        print("Common: en_core_web_sm (spaCy)")
         print("")
 
-        # Production models
-        # Note: Use "base.en" (not "base") because the code converts "base" to "base.en"
-        # for English language, and Whisper caches models with the exact name used
-        whisper_models = ["base.en"]  # Production Whisper model (English variant)
+        # Include BOTH test AND production models
+        # Nightly workflow runs both regular tests (need test models) and
+        # nightly-only tests (need production models)
+        whisper_models = [
+            "tiny.en",  # Test model (for regular tests in nightly)
+            "base.en",  # Production model (for nightly-only tests)
+        ]
         transformers_models = [
+            # Test models
+            config.TEST_DEFAULT_SUMMARY_MODEL,  # facebook/bart-base
+            config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # allenai/led-base-16384
+            # Production models
             "facebook/bart-large-cnn",  # Production MAP model
             "allenai/led-large-16384",  # Production REDUCE model (from issue #175)
         ]
-        spacy_models = ["en_core_web_sm"]  # Same for production
+        spacy_models = ["en_core_web_sm"]  # Same for both
 
         preload_whisper_models(whisper_models)
         print("")
