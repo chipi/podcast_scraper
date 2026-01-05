@@ -269,7 +269,7 @@ jobs:
   test-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30  # Conservative timeout for integration tests with ML models
-    needs: [preload-ml-models]
+    needs: [test-unit, preload-ml-models]  # Wait for unit tests AND model preload
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -369,7 +369,7 @@ jobs:
   test-integration-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Conservative timeout for fast integration tests
-    needs: [preload-ml-models]
+    needs: [test-unit, preload-ml-models]  # Wait for unit tests AND model preload
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -461,7 +461,7 @@ jobs:
   test-e2e-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 25  # Conservative timeout for fast E2E tests
-    needs: [preload-ml-models]
+    needs: [test-unit, preload-ml-models]  # Wait for unit tests AND model preload
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -558,7 +558,7 @@ jobs:
   test-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 45  # Conservative timeout for E2E tests with ML models
-    needs: [preload-ml-models]
+    needs: [test-unit, preload-ml-models]  # Wait for unit tests AND model preload
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -771,16 +771,16 @@ jobs:
             tree = ET.parse(filepath)
             root = tree.getroot()
             coverage_data = {}
-            
+
             for package in root.findall('.//package'):
                 for cls in package.findall('.//class'):
                     filename = cls.get('filename', '')
                     if not filename:
                         continue
-                    
+
                     if filename not in coverage_data:
                         coverage_data[filename] = {'hits': set(), 'misses': set()}
-                    
+
                     for line in cls.findall('.//line'):
                         line_num = int(line.get('number', 0))
                         hits = int(line.get('hits', 0))
@@ -789,31 +789,31 @@ jobs:
                             coverage_data[filename]['misses'].discard(line_num)
                         elif line_num not in coverage_data[filename]['hits']:
                             coverage_data[filename]['misses'].add(line_num)
-            
+
             return coverage_data, root
 
         # Find all coverage XML files
         artifacts_dir = Path('coverage-artifacts')
         xml_files = list(artifacts_dir.rglob('*.xml')) if artifacts_dir.exists() else []
-        
+
         if not xml_files:
             print("❌ No coverage XML files found!")
             exit(1)
-        
+
         print(f"📊 Found {len(xml_files)} coverage files to combine:")
         for f in xml_files:
             print(f"  - {f}")
-        
+
         # Merge all coverage data
         merged_coverage = {}
         base_root = None
-        
+
         for xml_file in xml_files:
             try:
                 coverage_data, root = parse_coverage_xml(xml_file)
                 if base_root is None:
                     base_root = root
-                
+
                 for filename, data in coverage_data.items():
                     if filename not in merged_coverage:
                         merged_coverage[filename] = {'hits': set(), 'misses': set()}
@@ -822,27 +822,27 @@ jobs:
                     for miss in data['misses']:
                         if miss not in merged_coverage[filename]['hits']:
                             merged_coverage[filename]['misses'].add(miss)
-                
+
                 print(f"  ✅ Merged: {xml_file}")
             except Exception as e:
                 print(f"  ⚠️ Failed to parse {xml_file}: {e}")
-        
+
         # Calculate unified coverage stats
         total_lines = 0
         covered_lines = 0
         for filename, data in merged_coverage.items():
             total_lines += len(data['hits']) + len(data['misses'])
             covered_lines += len(data['hits'])
-        
+
         coverage_pct = (covered_lines / total_lines * 100) if total_lines > 0 else 0
         print(f"\n📈 Unified Coverage: {coverage_pct:.1f}% ({covered_lines}/{total_lines} lines)")
-        
+
         # Use the first XML as base and update its line-rate
         if base_root is not None:
             base_root.set('line-rate', str(covered_lines / total_lines if total_lines > 0 else 0))
             base_root.set('lines-valid', str(total_lines))
             base_root.set('lines-covered', str(covered_lines))
-            
+
             tree = ET.ElementTree(base_root)
             tree.write('reports/coverage-unified.xml', encoding='unicode', xml_declaration=True)
             print(f"✅ Written unified coverage to reports/coverage-unified.xml")
