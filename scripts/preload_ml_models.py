@@ -266,8 +266,24 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
 
     for model_name in model_names:
         print(f"  - {model_name}...")
+        print(f"    Source: Hugging Face (https://huggingface.co/{model_name})")
+        print(f"    Cache location: {cache_dir}")
+
+        # Check if already cached
+        model_cache_name = model_name.replace("/", "--")
+        model_cache_path = cache_dir / f"models--{model_cache_name}"
+        if model_cache_path.exists():
+            # Calculate existing size
+            existing_size = sum(
+                f.stat().st_size for f in model_cache_path.rglob("*") if f.is_file()
+            )
+            existing_size_mb = existing_size / (1024 * 1024)
+            print(f"    Status: Already cached ({existing_size_mb:.1f} MB)")
+            print(f"    Cache path: {model_cache_path}")
+        else:
+            print("    Status: Not cached, downloading...")
+
         try:
-            print("    Downloading...")
             # nosec B615 - Model names pinned in config, preload script for dev/testing
             # Use cache_dir to ensure models are cached to local cache directory
             # Force download of all files by not using local_files_only
@@ -278,6 +294,15 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             model = AutoModelForSeq2SeqLM.from_pretrained(
                 model_name, cache_dir=str(cache_dir), local_files_only=False  # nosec B615
             )
+
+            # Calculate final size after download
+            if model_cache_path.exists():
+                total_size = sum(
+                    f.stat().st_size for f in model_cache_path.rglob("*") if f.is_file()
+                )
+                size_mb = total_size / (1024 * 1024)
+                print(f"    ✓ Downloaded and cached: {size_mb:.1f} MB")
+                print(f"    ✓ Cache path: {model_cache_path}")
 
             # Try to download any optional files that might be needed
             # Some models have optional files like tokenizer_config.json that might
@@ -397,18 +422,20 @@ def main() -> None:
     parser.add_argument(
         "--production",
         action="store_true",
-        help="Preload production models (Whisper base, BART-large-cnn, LED-large-16384)",
+        help="Preload production models (Whisper base.en, BART-large-cnn, LED-large-16384)",
     )
     args = parser.parse_args()
 
     if args.production:
         print("Preloading PRODUCTION ML models...")
-        print("Models: Whisper base, BART-large-cnn, LED-large-16384, en_core_web_sm")
+        print("Models: Whisper base.en, BART-large-cnn, LED-large-16384, en_core_web_sm")
         print("This will download and cache production models for nightly tests.")
         print("")
 
         # Production models
-        whisper_models = ["base"]  # Production Whisper model
+        # Note: Use "base.en" (not "base") because the code converts "base" to "base.en"
+        # for English language, and Whisper caches models with the exact name used
+        whisper_models = ["base.en"]  # Production Whisper model (English variant)
         transformers_models = [
             "facebook/bart-large-cnn",  # Production MAP model
             "allenai/led-large-16384",  # Production REDUCE model (from issue #175)
@@ -501,13 +528,14 @@ def main() -> None:
         ]
         if model_dirs:
             model_names = [d.name.replace("models--", "").replace("--", "/") for d in model_dirs]
-            print(f"    Cached models: {model_names}")
+            print(f"    Cached models ({len(model_names)}): {model_names}")
             for model_dir in sorted(model_dirs):
                 # Calculate total size
                 total_size = sum(f.stat().st_size for f in model_dir.rglob("*") if f.is_file())
                 size_mb = total_size / (1024 * 1024)
                 model_name = model_dir.name.replace("models--", "").replace("--", "/")
-                print(f"      - {model_name}: {size_mb:.1f} MB")
+                file_count = sum(1 for f in model_dir.rglob("*") if f.is_file())
+                print(f"      - {model_name}: {size_mb:.1f} MB ({file_count} files) at {model_dir}")
     print("")
     print("  Environment:")
     print(f"    User: {os.environ.get('USER', 'unknown')}")

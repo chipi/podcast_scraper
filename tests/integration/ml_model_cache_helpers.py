@@ -370,18 +370,40 @@ def require_transformers_model_cached(model_name: str, cache_dir: Optional[str] 
 
         # Get cache path for debugging
         if cache_dir:
-            cache_path_str = str(Path(cache_dir))
+            cache_path = Path(cache_dir)
         else:
-            cache_path_str = str(Path(file_utils.default_cache_path))
+            cache_path = Path(file_utils.default_cache_path)
 
         model_cache_name = model_name.replace("/", "--")
-        model_cache_path = Path(cache_path_str) / f"models--{model_cache_name}"
+        model_cache_path = cache_path / f"models--{model_cache_name}"
 
-        pytest.skip(
+        # List all cached models for debugging
+        cached_models = []
+        if cache_path.exists():
+            for model_dir in cache_path.glob("models--*"):
+                if model_dir.is_dir():
+                    model_name_cached = model_dir.name.replace("--", "/")
+                    # Calculate total size
+                    total_size = sum(f.stat().st_size for f in model_dir.rglob("*") if f.is_file())
+                    size_mb = total_size / (1024 * 1024)
+                    cached_models.append(
+                        f"    - {model_name_cached}: {size_mb:.1f} MB (at {model_dir})"
+                    )
+
+        skip_message = (
             f"Transformers model '{model_name}' is not cached.\n"
             f"  Expected cache location: {model_cache_path}\n"
-            f"  Cache directory: {cache_path_str}\n"
+            f"  Cache directory: {cache_path}\n"
+            f"  Cache directory exists: {cache_path.exists()}\n"
+        )
+        if cached_models:
+            skip_message += "  Currently cached models:\n" + "\n".join(cached_models) + "\n"
+        else:
+            skip_message += "  No models found in cache directory.\n"
+        skip_message += (
             f"  User: {os.environ.get('USER', 'unknown')}\n"
             f"  Home: {Path.home()}\n"
             f"  Run 'make preload-ml-models' to pre-cache all required models."
         )
+
+        pytest.skip(skip_message)
