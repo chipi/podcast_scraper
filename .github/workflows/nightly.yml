@@ -45,7 +45,7 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Cache ML models
+    - name: Cache ML models (production + test models for nightly)
       uses: actions/cache@v4
       id: cache-models
       with:
@@ -53,9 +53,11 @@ jobs:
           ~/.cache/whisper
           ~/.local/share/spacy
           ~/.cache/huggingface
-        key: ml-models-${{ runner.os }}-v1
+        # Use separate cache key for nightly to include BOTH test and production models
+        # Regular CI uses 'ml-models-*' with only test models
+        key: ml-models-nightly-${{ runner.os }}-v2
         restore-keys: |
-          ml-models-${{ runner.os }}-
+          ml-models-nightly-${{ runner.os }}-
 
     - name: Install full dependencies (including ML)
       run: |
