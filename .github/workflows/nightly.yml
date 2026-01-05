@@ -61,10 +61,10 @@ jobs:
           ~/.cache/huggingface
         # Use separate cache key for nightly to include BOTH test and production models
         # Regular CI uses 'ml-models-*' with only test models
-        # v3: Added HF_HOME env vars to fix cache path mismatch
-        key: ml-models-nightly-${{ runner.os }}-v3
-        restore-keys: |
-          ml-models-nightly-${{ runner.os }}-
+        # v4: Fixed validation script (sed instead of tr), removed restore-keys to prevent
+        #     restoring corrupted old caches (v2/v3 had path issues)
+        # NOTE: No restore-keys! We want exact match or clean cache miss, not partial restore
+        key: ml-models-nightly-${{ runner.os }}-v4
 
     - name: Install full dependencies (including ML)
       run: |
@@ -139,8 +139,9 @@ jobs:
         echo "  Exists: $([ -d "$HF_CACHE" ] && echo "Yes" || echo "No")"
 
         for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
-          # Convert model name to cache directory format
-          MODEL_DIR="models--$(echo $model | tr '/' '--')"
+          # Convert model name to cache directory format (facebook/bart-base -> models--facebook--bart-base)
+          # Note: tr doesn't work for string replacement, must use sed
+          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           if [ -d "$MODEL_PATH" ]; then
             SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
