@@ -609,13 +609,69 @@ jobs:
         find downloaded-reports -name "*.xml" -exec cp {} reports/ \;
         ls -la reports/
 
-        # Merge coverage reports
+        # Properly merge coverage reports from all test jobs
         if ls reports/coverage-*.xml 1>/dev/null 2>&1; then
           echo "Merging coverage reports..."
-          # Use the first one as base, others will be combined in metrics
-          cp reports/coverage-unit.xml reports/coverage.xml 2>/dev/null || \
-          cp reports/coverage-integration.xml reports/coverage.xml 2>/dev/null || \
-          cp reports/coverage-e2e.xml reports/coverage.xml 2>/dev/null || true
+          python3 << 'EOF'
+        import xml.etree.ElementTree as ET
+        from pathlib import Path
+
+        def parse_coverage_xml(filepath):
+            tree = ET.parse(filepath)
+            root = tree.getroot()
+            coverage_data = {}
+            for package in root.findall('.//package'):
+                for cls in package.findall('.//class'):
+                    filename = cls.get('filename', '')
+                    if not filename:
+                        continue
+                    if filename not in coverage_data:
+                        coverage_data[filename] = {'hits': set(), 'misses': set()}
+                    for line in cls.findall('.//line'):
+                        line_num = int(line.get('number', 0))
+                        hits = int(line.get('hits', 0))
+                        if hits > 0:
+                            coverage_data[filename]['hits'].add(line_num)
+                            coverage_data[filename]['misses'].discard(line_num)
+                        elif line_num not in coverage_data[filename]['hits']:
+                            coverage_data[filename]['misses'].add(line_num)
+            return coverage_data, root
+
+        xml_files = list(Path('reports').glob('coverage-*.xml'))
+        if not xml_files:
+            print("No coverage files found")
+            exit(0)
+
+        print(f"Merging {len(xml_files)} coverage files...")
+        merged_coverage = {}
+        base_root = None
+
+        for xml_file in xml_files:
+            try:
+                coverage_data, root = parse_coverage_xml(xml_file)
+                if base_root is None:
+                    base_root = root
+                for filename, data in coverage_data.items():
+                    if filename not in merged_coverage:
+                        merged_coverage[filename] = {'hits': set(), 'misses': set()}
+                    merged_coverage[filename]['hits'].update(data['hits'])
+                    for miss in data['misses']:
+                        if miss not in merged_coverage[filename]['hits']:
+                            merged_coverage[filename]['misses'].add(miss)
+                print(f"  ✅ {xml_file}")
+            except Exception as e:
+                print(f"  ⚠️ {xml_file}: {e}")
+
+        total_lines = sum(len(d['hits']) + len(d['misses']) for d in merged_coverage.values())
+        covered_lines = sum(len(d['hits']) for d in merged_coverage.values())
+        coverage_pct = (covered_lines / total_lines * 100) if total_lines > 0 else 0
+        print(f"📈 Unified: {coverage_pct:.1f}% ({covered_lines}/{total_lines})")
+
+        if base_root is not None:
+            base_root.set('line-rate', str(covered_lines / total_lines if total_lines > 0 else 0))
+            ET.ElementTree(base_root).write('reports/coverage.xml', encoding='unicode', xml_declaration=True)
+            print("✅ Written to reports/coverage.xml")
+        EOF
         fi
 
     - name: Load metrics history
