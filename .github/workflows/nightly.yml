@@ -2,6 +2,15 @@
 # Runs all tests (unit + integration + e2e, including slow/ml_models)
 # Generates comprehensive metrics, reports, and trend tracking
 # See RFC-025: Test Metrics and Health Tracking (Layer 3)
+#
+# Structure mirrors python-app.yml with separate jobs for isolation:
+# - preload-ml-models-nightly: Preload and validate ML models
+# - nightly-lint: Code quality checks
+# - nightly-test-unit: Unit tests
+# - nightly-test-integration: Integration tests
+# - nightly-test-e2e: E2E tests (multi_episode mode - same as regular CI)
+# - nightly-only-tests: Nightly-specific tests with production models
+# - nightly-metrics: Collect metrics and generate dashboard
 
 name: Nightly Comprehensive Tests
 
@@ -21,20 +30,347 @@ concurrency:
   cancel-in-progress: false  # Don't cancel, let metrics accumulate
 
 jobs:
-  # Comprehensive test suite with full metrics collection
-  nightly-tests:
+  # ===========================================================================
+  # Preload ML models - runs first, validates cache
+  # ===========================================================================
+  preload-ml-models-nightly:
     runs-on: ubuntu-latest
-    timeout-minutes: 420  # 7 hours for comprehensive tests with production models (~300 min audio on CPU)
+    timeout-minutes: 30  # May need to download production models
     env:
-      # Ensure consistent Hugging Face cache paths across all steps
-      # Must match the paths in actions/cache for proper cache hits
       HF_HOME: /home/runner/.cache/huggingface
       TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     steps:
     - uses: actions/checkout@v4
+
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
+        docker image prune -af || true
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+        df -h
+
+    - name: Cache ML models (production + test models for nightly)
+      uses: actions/cache@v4
+      id: cache-models
       with:
-        fetch-depth: 0  # Full history for trend tracking
+        path: |
+          ~/.cache/whisper
+          ~/.cache/huggingface
+        # Fully content-based cache key
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        restore-keys: |
+          ml-models-nightly-${{ runner.os }}-
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+
+    - name: Install full dependencies (including ML)
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev,ml]
+
+    - name: Validate ML model cache
+      id: validate-cache
+      run: |
+        echo "🔍 Validating ML model cache..."
+        MISSING_MODELS=""
+        MODELS_COMPLETE=true
+
+        # Check Whisper models
+        echo "📦 Whisper models:"
+        for model in "tiny.en" "base.en"; do
+          WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
+          if [ -f "$WHISPER_PATH" ] && [ -s "$WHISPER_PATH" ]; then
+            SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
+            echo "  ✅ $model ($SIZE)"
+          else
+            echo "  ❌ $model - MISSING or empty"
+            MISSING_MODELS="$MISSING_MODELS whisper:$model"
+            MODELS_COMPLETE=false
+          fi
+        done
+
+        # Check Hugging Face models
+        echo ""
+        echo "📦 Hugging Face models:"
+        HF_CACHE="$HOME/.cache/huggingface/hub"
+        for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
+          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
+          if [ -d "$MODEL_PATH/snapshots" ] && [ "$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | head -1)" ]; then
+            SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
+            echo "  ✅ $model ($SIZE)"
+          else
+            echo "  ❌ $model - MISSING or incomplete"
+            MISSING_MODELS="$MISSING_MODELS hf:$model"
+            MODELS_COMPLETE=false
+          fi
+        done
+
+        echo ""
+        if [ "$MODELS_COMPLETE" = true ]; then
+          echo "✅ All required ML models are cached!"
+          echo "models_complete=true" >> $GITHUB_OUTPUT
+        else
+          echo "⚠️  Some models are missing. Will run preload..."
+          echo "models_complete=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Preload production ML models (if incomplete)
+      if: steps.validate-cache.outputs.models_complete != 'true'
+      run: make preload-ml-models-production
+
+    - name: Final cache validation
+      run: |
+        echo "🔍 Final validation..."
+        CACHE_VALID=true
+
+        for model in "tiny.en" "base.en"; do
+          if [ ! -f "$HOME/.cache/whisper/${model}.pt" ]; then
+            echo "❌ Whisper $model still missing!"
+            CACHE_VALID=false
+          fi
+        done
+
+        HF_CACHE="$HOME/.cache/huggingface/hub"
+        for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
+          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          if [ ! -d "$HF_CACHE/$MODEL_DIR/snapshots" ]; then
+            echo "❌ HF $model still missing!"
+            CACHE_VALID=false
+          fi
+        done
+
+        if [ "$CACHE_VALID" = true ]; then
+          echo "✅ All models validated successfully!"
+          TOTAL_SIZE=$(du -sh "$HOME/.cache" 2>/dev/null | cut -f1 || echo "unknown")
+          echo "📊 Total cache size: $TOTAL_SIZE"
+        else
+          echo "❌ FATAL: Models still missing after preload!"
+          exit 1
+        fi
+
+  # ===========================================================================
+  # Code quality checks
+  # ===========================================================================
+  nightly-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+
+    - name: Install markdownlint
+      run: npm install -g markdownlint-cli
+
+    - name: Run code quality checks
+      run: |
+        echo "Running code quality checks..."
+        make format-check
+        make lint
+        make lint-markdown
+        make type
+        make security
+        make quality
+
+  # ===========================================================================
+  # Unit tests - isolated job
+  # ===========================================================================
+  nightly-test-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [preload-ml-models-nightly]
+    env:
+      HF_HOME: /home/runner/.cache/huggingface
+      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
+      HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+      ML_MODELS_VALIDATED: "true"
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+
+    - name: Cache ML models
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/whisper
+          ~/.cache/huggingface
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        restore-keys: |
+          ml-models-nightly-${{ runner.os }}-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev,ml]
+        pip install pytest-json-report
+
+    - name: Verify unit tests can import without ML dependencies
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        python scripts/check_unit_test_imports.py
+      env:
+        PACKAGE: podcast_scraper
+
+    - name: Run unit tests with coverage (parallel execution)
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        mkdir -p reports
+        # Run tests with coverage and capture output and exit code
+        set +e
+        OUTPUT=$(pytest tests/unit/ -v --tb=short -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-unit.json --cov=podcast_scraper --cov-report=xml:reports/coverage-unit.xml --cov-report=term-missing --durations=20 2>&1)
+        PYTEST_EXIT_CODE=$?
+        set -e
+        echo "$OUTPUT"
+        # Verify tests were collected and run
+        if echo "$OUTPUT" | grep -q "no tests collected"; then
+          echo "ERROR: No tests were collected!"
+          exit 1
+        fi
+        # Verify minimum test count
+        TEST_COUNT=$(echo "$OUTPUT" | grep -oE "[0-9]+ passed" | head -1 | grep -oE "[0-9]+" || echo "0")
+        if [ "$TEST_COUNT" -lt 50 ]; then
+          echo "ERROR: Only $TEST_COUNT tests passed, expected at least 50 unit tests"
+          exit 1
+        fi
+        # Exit with pytest's exit code
+        if [ $PYTEST_EXIT_CODE -ne 0 ]; then
+          echo "ERROR: pytest exited with code $PYTEST_EXIT_CODE"
+          exit $PYTEST_EXIT_CODE
+        fi
+      env:
+        PACKAGE: podcast_scraper
+
+    - name: Upload unit test reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: nightly-unit-reports
+        path: reports/
+        retention-days: 30
+
+  # ===========================================================================
+  # Integration tests - isolated job
+  # ===========================================================================
+  nightly-test-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [preload-ml-models-nightly]
+    env:
+      HF_HOME: /home/runner/.cache/huggingface
+      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
+      HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+      ML_MODELS_VALIDATED: "true"
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+
+    - name: Cache ML models
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/whisper
+          ~/.cache/huggingface
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        restore-keys: |
+          ml-models-nightly-${{ runner.os }}-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev,ml]
+        pip install pytest-socket pytest-json-report
+
+    - name: Install ffmpeg
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
+
+    - name: Run integration tests with coverage (network guard, parallel)
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        mkdir -p reports
+        # Run integration tests with coverage and network guard
+        set +e
+        OUTPUT=$(pytest tests/integration/ -v -m "integration and not llm" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-integration.json --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        PYTEST_EXIT_CODE=$?
+        set -e
+        echo "$OUTPUT"
+        # Verify tests were collected and run
+        if echo "$OUTPUT" | grep -q "no tests collected"; then
+          echo "ERROR: No tests were collected!"
+          exit 1
+        fi
+        # Verify minimum test count
+        TEST_COUNT=$(echo "$OUTPUT" | grep -oE "[0-9]+ passed" | head -1 | grep -oE "[0-9]+" || echo "0")
+        if [ "$TEST_COUNT" -lt 50 ]; then
+          echo "ERROR: Only $TEST_COUNT tests passed, expected at least 50 integration tests"
+          exit 1
+        fi
+        # Exit with pytest's exit code
+        if [ $PYTEST_EXIT_CODE -ne 0 ]; then
+          echo "ERROR: pytest exited with code $PYTEST_EXIT_CODE"
+          exit $PYTEST_EXIT_CODE
+        fi
+
+    - name: Upload integration test reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: nightly-integration-reports
+        path: reports/
+        retention-days: 30
+
+  # ===========================================================================
+  # E2E tests - isolated job, multi_episode mode (same as regular CI)
+  # ===========================================================================
+  nightly-test-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [preload-ml-models-nightly]
+    env:
+      HF_HOME: /home/runner/.cache/huggingface
+      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
+      HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+      ML_MODELS_VALIDATED: "true"
+      # E2E test mode - matches regular CI (python-app.yml)
+      E2E_TEST_MODE: "multi_episode"
+    steps:
+    - uses: actions/checkout@v4
 
     - name: Free disk space
       run: |
@@ -51,322 +387,193 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Cache ML models (production + test models for nightly)
+    - name: Cache ML models
       uses: actions/cache@v4
-      id: cache-models
       with:
         path: |
           ~/.cache/whisper
           ~/.cache/huggingface
-        # NOTE: spaCy removed from cache - it's installed as pip package via .[ml]
-        # Fully content-based cache key - NO manual versioning!
-        # Hash includes:
-        #   - preload script (defines download logic)
-        #   - config.py (defines model names like TEST_DEFAULT_WHISPER_MODEL)
-        # Any change to models or preload logic = automatic cache invalidation
         key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-nightly-${{ runner.os }}-
 
-    - name: Install full dependencies (including ML)
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -e .[dev,ml]
         pip install pytest-socket pytest-json-report
 
-    - name: Install ffmpeg (required for Whisper)
+    - name: Install ffmpeg
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends ffmpeg
 
-    - name: Install markdownlint
-      run: npm install -g markdownlint-cli
-
-    - name: Run code quality checks
+    - name: Run E2E tests with coverage (network guard, serial then parallel)
       run: |
-        echo "Running code quality checks..."
-        make format-check
-        make lint
-        make lint-markdown
-        make type
-        make security
-        make quality
-      continue-on-error: false
-
-    # IMPORTANT: Validate cache BEFORE deciding to preload
-    # This catches incomplete caches that were saved from failed runs
-    - name: Validate ML model cache
-      id: validate-cache
-      run: |
-        echo "🔍 Validating ML model cache..."
-        echo ""
-
-        # Track validation results
-        MISSING_MODELS=""
-        MODELS_COMPLETE=true
-
-        # Check Whisper models (actual files, not just directories)
-        echo "📦 Whisper models:"
-        for model in "tiny.en" "base.en"; do
-          WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
-          if [ -f "$WHISPER_PATH" ] && [ -s "$WHISPER_PATH" ]; then
-            SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE)"
-          else
-            echo "  ❌ $model - MISSING or empty"
-            MISSING_MODELS="$MISSING_MODELS whisper:$model"
-            MODELS_COMPLETE=false
-          fi
-        done
-
-        # NOTE: spaCy is a pip dependency (.[ml]), not cached - no validation needed
-
-        # Check Hugging Face models (check for actual model files, not just directories)
-        echo ""
-        echo "📦 Hugging Face models:"
-        HF_CACHE="$HOME/.cache/huggingface/hub"
-
-        for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
-          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
-          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
-          # Check for snapshots directory with actual files (not just empty dirs)
-          if [ -d "$MODEL_PATH/snapshots" ] && [ "$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | head -1)" ]; then
-            SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE)"
-          else
-            echo "  ❌ $model - MISSING or incomplete"
-            MISSING_MODELS="$MISSING_MODELS hf:$model"
-            MODELS_COMPLETE=false
-          fi
-        done
-
-        # Summary and set output for conditional preload
-        echo ""
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        if [ "$MODELS_COMPLETE" = true ]; then
-          echo "✅ All required ML models are cached!"
-          TOTAL_SIZE=$(du -sh "$HOME/.cache" 2>/dev/null | cut -f1 || echo "unknown")
-          echo "📊 Total cache size: $TOTAL_SIZE"
-          echo "models_complete=true" >> $GITHUB_OUTPUT
-        else
-          echo "⚠️  Some models are missing. Will run preload..."
-          echo "Missing:$MISSING_MODELS"
-          echo "models_complete=false" >> $GITHUB_OUTPUT
-        fi
-
-    # Preload if validation found missing models (regardless of cache-hit)
-    - name: Preload production ML models (if incomplete)
-      if: steps.validate-cache.outputs.models_complete != 'true'
-      run: |
-        echo "🔄 Running model preload (cache was incomplete)..."
-        make preload-ml-models-production
-
-    # Final validation after preload (should always pass now)
-    # Sets ML_MODELS_VALIDATED=true for subsequent steps to skip redundant checks
-    - name: Final cache validation
-      id: final-validation
-      run: |
-        echo "🔍 Final validation after preload..."
-        echo ""
-
-        CACHE_VALID=true
-
-        # Quick check of all required models
-        for model in "tiny.en" "base.en"; do
-          if [ ! -f "$HOME/.cache/whisper/${model}.pt" ]; then
-            echo "❌ Whisper $model still missing!"
-            CACHE_VALID=false
-          fi
-        done
-
-        # NOTE: spaCy is pip dependency - no validation needed
-
-        HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
-          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
-          if [ ! -d "$HF_CACHE/$MODEL_DIR/snapshots" ]; then
-            echo "❌ HF $model still missing!"
-            CACHE_VALID=false
-          fi
-        done
-
-        if [ "$CACHE_VALID" = true ]; then
-          echo "✅ All models validated successfully!"
-          TOTAL_SIZE=$(du -sh "$HOME/.cache" 2>/dev/null | cut -f1 || echo "unknown")
-          echo "📊 Total cache size: $TOTAL_SIZE"
-          # Signal to pytest that cache is validated - tests can trust this
-          echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-        else
-          echo "❌ FATAL: Models still missing after preload!"
-          echo "This indicates a bug in preload_ml_models.py"
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        mkdir -p reports
+        # Serial tests first, then parallel (matches regular CI pattern)
+        set +e
+        # Run serial tests first with coverage
+        OUTPUT_SERIAL=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and serial and not nightly and not llm" --json-report --json-report-file=reports/pytest-e2e-serial.json --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1 || true)
+        echo "$OUTPUT_SERIAL"
+        # Run parallel tests with coverage (append to same file)
+        OUTPUT=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and not serial and not nightly and not llm" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-e2e.json --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        PYTEST_EXIT_CODE=$?
+        set -e
+        echo "$OUTPUT"
+        # Verify tests were collected and run
+        if echo "$OUTPUT" | grep -q "no tests collected"; then
+          echo "ERROR: No tests were collected!"
           exit 1
         fi
+        # Verify minimum test count
+        TEST_COUNT=$(echo "$OUTPUT" | grep -oE "[0-9]+ passed" | head -1 | grep -oE "[0-9]+" || echo "0")
+        if [ "$TEST_COUNT" -lt 50 ]; then
+          echo "ERROR: Only $TEST_COUNT tests passed, expected at least 50 E2E tests"
+          exit 1
+        fi
+        # Exit with pytest's exit code
+        if [ $PYTEST_EXIT_CODE -ne 0 ]; then
+          echo "ERROR: pytest exited with code $PYTEST_EXIT_CODE"
+          exit $PYTEST_EXIT_CODE
+        fi
+
+    - name: Upload E2E test reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: nightly-e2e-reports
+        path: reports/
+        retention-days: 30
+
+  # ===========================================================================
+  # Nightly-only tests - production models, full podcast suite
+  # ===========================================================================
+  nightly-only-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 hours for production model tests
+    needs: [preload-ml-models-nightly]
+    env:
+      HF_HOME: /home/runner/.cache/huggingface
+      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
+      HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
+      ML_MODELS_VALIDATED: "true"
+      # Nightly mode uses p01-p05 podcasts with production models
+      E2E_TEST_MODE: "nightly"
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
+        docker image prune -af || true
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+        df -h
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+
+    - name: Cache ML models
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/whisper
+          ~/.cache/huggingface
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        restore-keys: |
+          ml-models-nightly-${{ runner.os }}-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev,ml]
+        pip install pytest-socket pytest-json-report
+
+    - name: Install ffmpeg
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
 
     - name: Create reports directory
       run: mkdir -p reports
 
-    - name: Run comprehensive test suite with metrics
-      run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        # Run all tests (unit + integration + e2e) with comprehensive metrics collection
-        # Note: E2E tests are limited to 1 episode per test (code quality validation)
-        # Excludes LLM/OpenAI tests to avoid API costs (see issue #183)
-        pytest tests/unit/ tests/integration/ tests/e2e/ \
-          -v \
-          -m "not nightly and not llm" \
-          -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") \
-          --durations=20 \
-          --junitxml=reports/junit.xml \
-          --json-report \
-          --json-report-file=reports/pytest.json \
-          --cov=podcast_scraper \
-          --cov-report=xml:reports/coverage.xml \
-          --cov-report=html:reports/coverage-html \
-          --cov-report=term-missing \
-          --disable-socket \
-          --allow-hosts=127.0.0.1,localhost \
-          --reruns 2 \
-          --reruns-delay 1
-      env:
-        PACKAGE: podcast_scraper
-        # Ensure consistent cache paths (explicit for pytest-xdist workers)
-        HF_HOME: /home/runner/.cache/huggingface
-        TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
-        HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
-        # Signal to tests that CI has validated cache
-        ML_MODELS_VALIDATED: "true"
-
     - name: Run nightly-only tests with production models
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        # Run nightly-only tests (p01-p05 full suite, production models)
-        # Uses production models: Whisper base, BART-large-cnn, LED-large-16384
-        # Processes all 15 episodes across 5 podcasts
+        # Uses production models: Whisper base.en, BART-large-cnn, LED-large-16384
+        # Processes all 15 episodes across 5 podcasts (p01-p05)
         make test-nightly || echo "⚠️  Nightly tests failed (non-blocking)"
-      env:
-        PACKAGE: podcast_scraper
-        # Ensure consistent cache paths (explicit for pytest-xdist workers)
-        HF_HOME: /home/runner/.cache/huggingface
-        TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
-        HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
-        # Signal to tests that CI has validated cache
-        ML_MODELS_VALIDATED: "true"
-      continue-on-error: true  # Don't fail nightly build if nightly tests fail (for now)
+      continue-on-error: true
 
-    - name: Enforce coverage threshold
-      if: always()
-      run: |
-        echo "Checking combined coverage threshold (80%)..."
-        make coverage-enforce || echo "⚠️  Coverage below 80% threshold"
-      continue-on-error: true  # Report but don't fail nightly for coverage
-
-    - name: Generate job summary
-      if: always()
-      run: |
-        echo "# 📊 Nightly Test Results" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        # Extract metrics from pytest JSON report
-        if [ -f reports/pytest.json ]; then
-          TOTAL=$(jq -r '.summary.total // 0' reports/pytest.json)
-          PASSED=$(jq -r '.summary.passed // 0' reports/pytest.json)
-          FAILED=$(jq -r '.summary.failed // 0' reports/pytest.json)
-          SKIPPED=$(jq -r '.summary.skipped // 0' reports/pytest.json)
-          DURATION=$(jq -r '.duration // 0' reports/pytest.json)
-
-          echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Total Tests**: $TOTAL" >> $GITHUB_STEP_SUMMARY
-          echo "- **Passed**: ✅ $PASSED" >> $GITHUB_STEP_SUMMARY
-          echo "- **Failed**: ❌ $FAILED" >> $GITHUB_STEP_SUMMARY
-          echo "- **Skipped**: ⏭️ $SKIPPED" >> $GITHUB_STEP_SUMMARY
-          echo "- **Duration**: ${DURATION}s" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-        fi
-
-        # Extract coverage from coverage.xml
-        if [ -f reports/coverage.xml ]; then
-          COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('reports/coverage.xml'); root = tree.getroot(); print(f\"{float(root.attrib.get('line-rate', 0)) * 100:.1f}%\")" 2>/dev/null || echo "N/A")
-          echo "## Coverage" >> $GITHUB_STEP_SUMMARY
-          echo "- **Overall Coverage**: $COVERAGE" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-        fi
-
-        # Extract slowest tests from pytest output
-        if [ -f reports/junit.xml ]; then
-          echo "## Slowest Tests (Top 10)" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          # Extract test durations from JUnit XML
-          python3 -c "
-        import xml.etree.ElementTree as ET
-        import sys
-        try:
-            tree = ET.parse('reports/junit.xml')
-            root = tree.getroot()
-            tests = []
-            for testcase in root.findall('.//testcase'):
-                name = testcase.get('name', 'unknown')
-                classname = testcase.get('classname', '')
-                time = float(testcase.get('time', 0))
-                full_name = f'{classname}::{name}' if classname else name
-                tests.append((time, full_name))
-            tests.sort(reverse=True)
-            for time, name in tests[:10]:
-                print(f'{time:.2f}s - {name}')
-        except Exception as e:
-            print(f'Error parsing JUnit XML: {e}', file=sys.stderr)
-        " >> $GITHUB_STEP_SUMMARY 2>&1 || echo "Unable to parse JUnit XML" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-        fi
-
-        # Check for flaky tests (tests that passed on rerun)
-        if [ -f reports/pytest.json ]; then
-          FLAKY_COUNT=$(jq -r '[.tests[] | select(.outcome == "passed" and .rerun == true)] | length' reports/pytest.json 2>/dev/null || echo "0")
-          if [ "$FLAKY_COUNT" -gt 0 ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "## ⚠️ Flaky Tests Detected" >> $GITHUB_STEP_SUMMARY
-            echo "- **Count**: $FLAKY_COUNT tests passed on rerun" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Flaky Test Names:" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            jq -r '.tests[] | select(.outcome == "passed" and .rerun == true) | "\(.nodeid)"' reports/pytest.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to extract flaky test names"
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-        fi
-
-        # Show alerts from metrics (if available)
-        if [ -f metrics/latest.json ]; then
-          ALERT_COUNT=$(jq -r '.alerts | length' metrics/latest.json 2>/dev/null || echo "0")
-          if [ "$ALERT_COUNT" -gt 0 ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "## 🚨 Metric Alerts" >> $GITHUB_STEP_SUMMARY
-            # Extract alerts with severity indicators
-            jq -r '.alerts[] |
-              if .severity == "error" then "🔴 **ERROR**: \(.message)"
-              elif .severity == "warning" then "⚠️ **WARNING**: \(.message)"
-              else "ℹ️ **INFO**: \(.message)"
-              end' metrics/latest.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to extract alerts"
-          fi
-        fi
-
-    - name: Upload test artifacts
+    - name: Upload nightly-only test reports
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: nightly-test-reports
-        path: |
-          reports/junit.xml
-          reports/pytest.json
-          reports/coverage.xml
-          reports/coverage-html/
-        retention-days: 90  # Extended retention for trend tracking
+        name: nightly-only-reports
+        path: reports/
+        retention-days: 30
 
-    - name: Load metrics history
-      if: always()
+  # ===========================================================================
+  # Metrics collection and dashboard generation
+  # ===========================================================================
+  nightly-metrics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [nightly-lint, nightly-test-unit, nightly-test-integration, nightly-test-e2e, nightly-only-tests]
+    if: always()
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+
+    - name: Install dependencies
       run: |
-        # Create metrics directory if it doesn't exist
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+
+    - name: Create directories
+      run: |
+        mkdir -p reports
         mkdir -p metrics
 
-        # Try to fetch existing history from gh-pages branch
+    - name: Download all test reports
+      uses: actions/download-artifact@v4
+      with:
+        path: downloaded-reports
+        pattern: nightly-*-reports
+        merge-multiple: false
+
+    - name: Merge test reports
+      run: |
+        # Copy all reports to a single directory
+        find downloaded-reports -name "*.json" -exec cp {} reports/ \;
+        find downloaded-reports -name "*.xml" -exec cp {} reports/ \;
+        ls -la reports/
+
+        # Merge coverage reports
+        if ls reports/coverage-*.xml 1>/dev/null 2>&1; then
+          echo "Merging coverage reports..."
+          # Use the first one as base, others will be combined in metrics
+          cp reports/coverage-unit.xml reports/coverage.xml 2>/dev/null || \
+          cp reports/coverage-integration.xml reports/coverage.xml 2>/dev/null || \
+          cp reports/coverage-e2e.xml reports/coverage.xml 2>/dev/null || true
+        fi
+
+    - name: Load metrics history
+      run: |
         git fetch origin gh-pages:gh-pages 2>/dev/null || true
         if git show gh-pages:metrics/history.jsonl > metrics/history.jsonl 2>/dev/null; then
           echo "✅ Loaded existing history"
@@ -376,17 +583,14 @@ jobs:
         fi
 
     - name: Collect pipeline metrics
-      if: always()
       run: |
-        # Run minimal pipeline to collect performance metrics
         python scripts/collect_pipeline_metrics.py \
           --output reports/pipeline_metrics.json \
           --max-episodes 1 || echo "⚠️ Pipeline metrics collection failed (non-blocking)"
-      continue-on-error: true  # Don't fail if pipeline metrics collection fails
+      continue-on-error: true
+
     - name: Generate metrics JSON
-      if: always()
       run: |
-        # Coverage threshold (80%) is for combined coverage only
         python scripts/generate_metrics.py \
           --reports-dir reports \
           --output metrics/latest.json \
@@ -395,24 +599,47 @@ jobs:
           --coverage-threshold 80
 
     - name: Update metrics history
-      if: always()
       run: |
-        # Append latest metrics to history (JSONL format)
         if [ -f metrics/latest.json ]; then
           echo "$(cat metrics/latest.json)" >> metrics/history.jsonl
           echo "✅ Appended to history (total lines: $(wc -l < metrics/history.jsonl))"
         fi
 
     - name: Generate HTML dashboard
-      if: always()
       run: |
         python scripts/generate_dashboard.py \
           --metrics metrics/latest.json \
           --history metrics/history.jsonl \
           --output metrics/index.html
 
+    - name: Generate job summary
+      run: |
+        echo "# 📊 Nightly Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Job status summary
+        echo "## Job Status" >> $GITHUB_STEP_SUMMARY
+        echo "- **Lint**: ${{ needs.nightly-lint.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Unit Tests**: ${{ needs.nightly-test-unit.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Integration Tests**: ${{ needs.nightly-test-integration.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **E2E Tests**: ${{ needs.nightly-test-e2e.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Nightly-Only Tests**: ${{ needs.nightly-only-tests.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Extract metrics from reports
+        if [ -f metrics/latest.json ]; then
+          echo "## Metrics Summary" >> $GITHUB_STEP_SUMMARY
+          cat metrics/latest.json | python3 -c "
+        import json, sys
+        data = json.load(sys.stdin)
+        print(f\"- **Total Tests**: {data.get('tests', {}).get('total', 'N/A')}\")
+        print(f\"- **Passed**: ✅ {data.get('tests', {}).get('passed', 'N/A')}\")
+        print(f\"- **Failed**: ❌ {data.get('tests', {}).get('failed', 'N/A')}\")
+        print(f\"- **Coverage**: {data.get('coverage', {}).get('line_rate', 'N/A')}%\")
+        " >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Unable to parse metrics" >> $GITHUB_STEP_SUMMARY
+        fi
+
     - name: Upload metrics artifact
-      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: nightly-metrics
@@ -421,12 +648,8 @@ jobs:
 
     - name: Post-build cleanup
       if: always()
-      run: |
-        # Keep model caches for next run (they're cached via GitHub Actions cache)
-        rm -rf .pytest_cache .mypy_cache .build dist
+      run: rm -rf .pytest_cache .mypy_cache .build dist downloaded-reports
 
   # NOTE: Metrics are no longer deployed separately to GitHub Pages.
   # The docs.yml workflow deploys the main documentation site.
   # Nightly metrics are available as workflow artifacts for download.
-  # TODO: Integrate nightly metrics into docs site at /metrics/ subdirectory
-
