@@ -59,9 +59,11 @@ class TestSummaryModelCacheFallback(unittest.TestCase):
         self.assertIn("huggingface", model.cache_dir.lower())
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
+    @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
     @patch("podcast_scraper.summarizer._validate_model_source")
-    def test_init_uses_provided_cache_dir(self, mock_validate, mock_load):
+    def test_init_uses_provided_cache_dir(self, mock_validate, mock_detect, mock_load):
         """Test SummaryModel uses provided cache_dir (no fallback needed)."""
+        mock_detect.return_value = "cpu"
         with tempfile.TemporaryDirectory() as tmp_dir:
             model = summarizer.SummaryModel(
                 model_name=config.TEST_DEFAULT_SUMMARY_MODEL, cache_dir=tmp_dir
@@ -69,9 +71,11 @@ class TestSummaryModelCacheFallback(unittest.TestCase):
             self.assertEqual(model.cache_dir, tmp_dir)
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
+    @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
     @patch("podcast_scraper.summarizer._validate_model_source")
-    def test_init_uses_cache_utils_when_available(self, mock_validate, mock_load):
+    def test_init_uses_cache_utils_when_available(self, mock_validate, mock_detect, mock_load):
         """Test SummaryModel uses cache_utils when import succeeds."""
+        mock_detect.return_value = "cpu"
         with tempfile.TemporaryDirectory() as tmp_dir:
             with patch(
                 "podcast_scraper.cache_utils.get_transformers_cache_dir",
