@@ -335,3 +335,108 @@ class TestCleanAllCaches(unittest.TestCase):
         self.assertEqual(results["whisper"], (1, 100))
         self.assertEqual(results["transformers"], (2, 200))
         self.assertEqual(results["spacy"], (1, 50))
+
+    @patch("podcast_scraper.cache_manager.clean_spacy_cache")
+    @patch("podcast_scraper.cache_manager.clean_transformers_cache")
+    @patch("podcast_scraper.cache_manager.clean_whisper_cache")
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
+    @patch("builtins.input")
+    def test_clean_all_caches_cancelled(
+        self, mock_input, mock_get_info, mock_whisper, mock_transformers, mock_spacy
+    ):
+        """Test cleaning all caches when cancelled."""
+        mock_get_info.return_value = {
+            "whisper": {"count": 1, "size": 100},
+            "transformers": {"count": 2, "size": 200},
+            "spacy": {"count": 1, "size": 50},
+            "total_size": 350,
+        }
+        mock_input.return_value = "no"
+
+        results = cache_manager.clean_all_caches(confirm=True)
+        self.assertEqual(results["whisper"], (0, 0))
+        self.assertEqual(results["transformers"], (0, 0))
+        self.assertEqual(results["spacy"], (0, 0))
+        # Should not call clean functions when cancelled
+        mock_whisper.assert_not_called()
+        mock_transformers.assert_not_called()
+        mock_spacy.assert_not_called()
+
+
+class TestCacheManagerEdgeCases(unittest.TestCase):
+    """Test edge cases and error handling in cache_manager."""
+
+    @patch("podcast_scraper.cache_manager.get_whisper_cache_info")
+    def test_clean_whisper_cache_permission_error(self, mock_get_info):
+        """Test cleaning cache handles permission errors gracefully."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model_file = Path(tmpdir) / "base.en.pt"
+            model_file.write_bytes(b"x" * 100)
+            mock_get_info.return_value = (
+                Path(tmpdir),
+                100,
+                [{"name": "base.en.pt", "size": 100, "path": model_file}],
+            )
+
+            # Mock unlink to raise PermissionError
+            with patch.object(model_file, "unlink", side_effect=PermissionError("Access denied")):
+                deleted, freed = cache_manager.clean_whisper_cache(confirm=False)
+                # Should handle error gracefully and continue
+                self.assertGreaterEqual(deleted, 0)
+
+    @patch("podcast_scraper.cache_manager.get_transformers_cache_info")
+    def test_clean_transformers_cache_with_models(self, mock_get_info):
+        """Test cleaning transformers cache with models."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model_dir = Path(tmpdir) / "models--test--model"
+            model_dir.mkdir()
+            (model_dir / "file.bin").write_bytes(b"x" * 200)
+            mock_get_info.return_value = (
+                Path(tmpdir),
+                200,
+                [{"name": "test/model", "size": 200, "path": model_dir}],
+            )
+
+            deleted, freed = cache_manager.clean_transformers_cache(confirm=False)
+            self.assertEqual(deleted, 1)
+            self.assertEqual(freed, 200)
+            self.assertFalse(model_dir.exists())
+
+    @patch("podcast_scraper.cache_manager.get_spacy_cache_info")
+    def test_clean_spacy_cache_with_models(self, mock_get_info):
+        """Test cleaning spacy cache with models."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model_dir = Path(tmpdir) / "en_core_web_sm"
+            model_dir.mkdir()
+            (model_dir / "file.bin").write_bytes(b"x" * 150)
+            mock_get_info.return_value = (
+                Path(tmpdir),
+                150,
+                [{"name": "en_core_web_sm", "size": 150, "path": model_dir}],
+            )
+
+            deleted, freed = cache_manager.clean_spacy_cache(confirm=False)
+            self.assertEqual(deleted, 1)
+            self.assertEqual(freed, 150)
+            self.assertFalse(model_dir.exists())
+
+    def test_format_size_petabytes(self):
+        """Test format_size with very large values."""
+        size = 1024 * 1024 * 1024 * 1024 * 1024  # 1 PB
+        result = cache_manager.format_size(size)
+        self.assertIn("PB", result)
+
+    def test_calculate_directory_size_permission_error(self):
+        """Test calculate_directory_size handles permission errors."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a file we can't access (simulate permission error)
+            restricted_file = Path(tmpdir) / "restricted.txt"
+            restricted_file.write_bytes(b"test")
+
+            # Mock stat to raise PermissionError
+            with patch.object(
+                restricted_file, "stat", side_effect=PermissionError("Access denied")
+            ):
+                size = cache_manager.calculate_directory_size(Path(tmpdir))
+                # Should handle error gracefully and return partial or 0
+                self.assertGreaterEqual(size, 0)

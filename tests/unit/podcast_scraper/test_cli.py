@@ -1445,6 +1445,87 @@ class TestCacheSubcommand(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         mock_clean.assert_called_once_with(confirm=False)
 
+    def test_parse_cache_args_requires_status_or_clean(self):
+        """Test that _parse_cache_args requires either --status or --clean."""
+        with self.assertRaises(SystemExit):
+            cli._parse_cache_args([])
+
+    def test_parse_cache_args_clean_defaults_to_all(self):
+        """Test that --clean without argument defaults to 'all'."""
+        args = cli._parse_cache_args(["--clean"])
+        self.assertEqual(args.clean, "all")
+
+    @patch("podcast_scraper.cache_manager.format_size")
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
+    def test_main_cache_status_with_models(self, mock_get_info, mock_format_size):
+        """Test main() with cache --status when models exist."""
+        from pathlib import Path
+
+        mock_get_info.return_value = {
+            "whisper": {
+                "dir": Path("/whisper"),
+                "size": 100,
+                "count": 1,
+                "models": [{"name": "base.en.pt", "size": 100}],
+            },
+            "transformers": {
+                "dir": Path("/transformers"),
+                "size": 200,
+                "count": 1,
+                "models": [{"name": "facebook/bart-base", "size": 200}],
+            },
+            "spacy": {
+                "dir": Path("/spacy"),
+                "size": 50,
+                "count": 1,
+                "models": [{"name": "en_core_web_sm", "size": 50}],
+            },
+            "total_size": 350,
+        }
+        mock_format_size.side_effect = lambda x: f"{x} B"
+
+        exit_code = cli.main(["cache", "--status"])
+
+        self.assertEqual(exit_code, 0)
+        mock_get_info.assert_called_once()
+
+    @patch("podcast_scraper.cache_manager.format_size")
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
+    def test_main_cache_status_spacy_no_dir(self, mock_get_info, mock_format_size):
+        """Test main() with cache --status when spacy has no cache dir."""
+        from pathlib import Path
+
+        mock_get_info.return_value = {
+            "whisper": {"dir": Path("/whisper"), "size": 100, "count": 0, "models": []},
+            "transformers": {"dir": Path("/transformers"), "size": 0, "count": 0, "models": []},
+            "spacy": {"dir": None, "size": 0, "count": 0, "models": []},
+            "total_size": 100,
+        }
+        mock_format_size.side_effect = lambda x: f"{x} B"
+
+        exit_code = cli.main(["cache", "--status"])
+
+        self.assertEqual(exit_code, 0)
+
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
+    def test_main_cache_status_exception_handling(self, mock_get_info):
+        """Test main() handles exceptions from cache operations."""
+        # Test exception handling path
+        mock_get_info.side_effect = Exception("Cache operation failed")
+
+        exit_code = cli.main(["cache", "--status"])
+        self.assertEqual(exit_code, 1)
+
+    @patch("podcast_scraper.cache_manager.format_size")
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
+    def test_main_cache_status_exception(self, mock_get_info, mock_format_size):
+        """Test main() handles exceptions from cache operations."""
+        mock_get_info.side_effect = Exception("Cache operation failed")
+        mock_format_size.side_effect = lambda x: f"{x} B"
+
+        exit_code = cli.main(["cache", "--status"])
+        self.assertEqual(exit_code, 1)
+
 
 class TestLoadAndMergeConfig(unittest.TestCase):
     """Test _load_and_merge_config function."""
