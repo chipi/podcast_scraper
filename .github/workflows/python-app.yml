@@ -1,16 +1,17 @@
 # This workflow will install Python dependencies, run tests and quality checks with a single version of Python
 # Dependency flow:
-# 1. lint, docs, build run in parallel (no deps) → gate security-quality and test-unit
-# 2. security-quality and test-unit run in parallel (security-quality runs independently to end)
-# 3. test-unit + preload-ml-models → gate integration and e2e tests (security-quality does NOT gate these)
-# 4. security-quality + all test jobs → gate coverage-unified
+# 1. lint, build, preload-ml-models run in parallel (no deps)
+# 2. security-quality and test-unit run in parallel (both gate: lint, build)
+# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models only)
+# 4. coverage-unified gates: security-quality + all test jobs
+# 5. docs gates coverage-unified (very last step, final validation)
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
 name: Python application
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "release/2.4" ]
     paths:
       - '**.py'
       - 'tests/**'
@@ -19,7 +20,7 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "release/2.4" ]
     paths:
       - '**.py'
       - 'tests/**'
@@ -64,11 +65,11 @@ jobs:
         make lint-markdown
         make type
 
-  # Security and quality checks - gated by lint/docs/build, runs independently to coverage-unified (does not gate integration/e2e)
+  # Security and quality checks - gated by lint/build, runs independently to coverage-unified (does not gate tests)
   security-quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Slower checks: security, complexity, deadcode, docstrings, spelling
-    needs: [lint, docs, build]  # Wait for lint, docs, build to pass
+    needs: [lint, build]  # Wait for lint, build to pass (docs removed - doesn't gate security)
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
@@ -143,7 +144,7 @@ jobs:
   test-unit:
     runs-on: ubuntu-latest
     timeout-minutes: 15  # Conservative timeout for fast unit tests
-    needs: [lint, docs, build]  # Wait for lint, docs, build to pass
+    needs: [lint, build]  # Wait for lint, build to pass (docs removed - doesn't gate unit tests)
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
@@ -295,7 +296,7 @@ jobs:
   test-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30  # Conservative timeout for integration tests with ML models
-    needs: [test-unit, preload-ml-models]  # Wait for unit tests AND model preload
+    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -303,7 +304,7 @@ jobs:
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
     if: |
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -394,7 +395,7 @@ jobs:
   test-integration-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Conservative timeout for fast integration tests
-    needs: [test-unit, preload-ml-models]  # Wait for unit tests AND model preload
+    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -485,7 +486,7 @@ jobs:
   test-e2e-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 25  # Conservative timeout for fast E2E tests
-    needs: [test-unit, preload-ml-models]  # Wait for unit tests AND model preload
+    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -581,7 +582,7 @@ jobs:
   test-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 45  # Conservative timeout for E2E tests with ML models
-    needs: [test-unit, preload-ml-models]  # Wait for unit tests AND model preload
+    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -589,7 +590,7 @@ jobs:
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
     if: |
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -683,9 +684,12 @@ jobs:
         # Keep model caches for next run (they're cached via GitHub Actions cache)
         rm -rf .pytest_cache .mypy_cache .build dist
 
-  # Documentation build
+  # Documentation build - validates docs can be built correctly
+  # Runs as very last step after all tests and coverage pass (final validation)
+  # Docs deployment happens in docs.yml workflow (separate, already gated properly)
   docs:
     runs-on: ubuntu-latest
+    needs: [coverage-unified]  # Very last step - validates docs after all tests pass
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
@@ -904,7 +908,7 @@ jobs:
           echo "⚠️ Unified coverage report not found" >> $GITHUB_STEP_SUMMARY
         fi
     - name: Generate code quality metrics
-      if: always() && github.ref == 'refs/heads/main'
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
       run: |
         mkdir -p reports
         # Generate complexity metrics for dashboard
@@ -912,7 +916,7 @@ jobs:
         radon mi src/podcast_scraper/ -s --json > reports/maintainability.json 2>/dev/null || echo '[]' > reports/maintainability.json
         interrogate src/podcast_scraper/ --quiet --output-format json > reports/docstrings.json 2>/dev/null || echo '{"coverage_percent": 0}' > reports/docstrings.json
     - name: Collect pipeline metrics
-      if: always() && github.ref == 'refs/heads/main'
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
       run: |
         # Install ML dependencies for pipeline execution
         pip install -e .[ml] || echo "⚠️ ML dependencies not available, skipping pipeline metrics"
@@ -922,7 +926,7 @@ jobs:
           --max-episodes 1 || echo "⚠️ Pipeline metrics collection failed (non-blocking)"
       continue-on-error: true  # Don't fail if pipeline metrics collection fails
     - name: Generate metrics JSON from unified coverage
-      if: always() && github.ref == 'refs/heads/main'
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
       run: |
         # Create minimal reports structure for metrics generation
         # The unified coverage is already in reports/coverage-unified.xml
@@ -953,7 +957,7 @@ jobs:
           --pipeline-metrics reports/pipeline_metrics.json \
           --coverage-threshold 80 || echo "⚠️ Metrics generation failed (non-blocking)"
     - name: Update metrics history
-      if: always() && github.ref == 'refs/heads/main'
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
       run: |
         # Load existing history from gh-pages if available
         mkdir -p metrics
@@ -971,7 +975,7 @@ jobs:
           echo "✅ Appended to history"
         fi
     - name: Generate HTML dashboard
-      if: always() && github.ref == 'refs/heads/main'
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
       run: |
         python scripts/generate_dashboard.py \
           --metrics metrics/latest.json \
@@ -995,7 +999,7 @@ jobs:
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
     - name: Upload metrics as artifact
-      if: always() && github.ref == 'refs/heads/main'
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
       uses: actions/upload-artifact@v4
       with:
         name: metrics
@@ -1007,7 +1011,10 @@ jobs:
   # Metrics are available as workflow artifacts for download.
   # TODO: Integrate metrics into docs site at /metrics/ subdirectory
 
-  # Build package
+  # Build package - validates package can be built correctly
+  # Builds source distribution (sdist) and wheel distribution
+  # Catches packaging issues (pyproject.toml errors, missing files, etc.)
+  # Fast check (~2-3 min) that gates test-unit to catch packaging issues early
   build:
     runs-on: ubuntu-latest
     steps:
