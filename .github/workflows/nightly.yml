@@ -40,7 +40,6 @@ jobs:
     timeout-minutes: 30  # May need to download production models
     env:
       HF_HOME: /home/runner/.cache/huggingface
-      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     steps:
     - uses: actions/checkout@v4
@@ -339,7 +338,6 @@ jobs:
     needs: [preload-ml-models-nightly]
     env:
       HF_HOME: /home/runner/.cache/huggingface
-      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
       ML_MODELS_VALIDATED: "true"
     steps:
@@ -425,7 +423,6 @@ jobs:
     needs: [preload-ml-models-nightly]
     env:
       HF_HOME: /home/runner/.cache/huggingface
-      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
       ML_MODELS_VALIDATED: "true"
       # E2E test mode - matches regular CI (python-app.yml)
@@ -518,7 +515,6 @@ jobs:
     needs: [nightly-test-integration, nightly-test-e2e]
     env:
       HF_HOME: /home/runner/.cache/huggingface
-      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
       ML_MODELS_VALIDATED: "true"
       # Nightly mode uses p01-p05 podcasts with production models

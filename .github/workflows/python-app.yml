@@ -226,7 +226,6 @@ jobs:
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
-      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     steps:
     - uses: actions/checkout@v4
@@ -273,7 +272,6 @@ jobs:
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
-      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
@@ -373,7 +371,6 @@ jobs:
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
-      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
@@ -465,7 +462,6 @@ jobs:
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
-      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
@@ -562,7 +558,6 @@ jobs:
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
-      TRANSFORMERS_CACHE: /home/runner/.cache/huggingface/hub
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
