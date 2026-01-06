@@ -77,6 +77,8 @@ pip install -e ".[ml]"
 
 Replace `https://example.com/feed.xml` with your podcast's RSS feed URL.
 
+Replace `https://example.com/feed.xml` with your podcast's RSS feed URL.
+
 ```bash
 make init  # Creates venv, installs package, sets up pre-commit hooks
 ```
