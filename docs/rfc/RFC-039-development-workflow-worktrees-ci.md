@@ -81,6 +81,57 @@ This section is the anchor for the rest of the workflow (worktrees, PR targets, 
 
 ---
 
+## Why Git Worktrees (and Not Just Release Branches)
+
+It is possible to implement the PROD / NEXT / FUTURE model using only long‑lived release
+branches and a single working directory. However, this RFC explicitly adopts **git
+worktrees** because they solve a *different operational problem* than branching alone.
+
+### Branches vs Worktrees (Separation of Concerns)
+
+- **Branches** define *history and ownership*
+  (what changes belong to PROD vs NEXT vs FUTURE).
+
+- **Worktrees** define *day‑to‑day working state*
+  (which version you are actively editing, testing, and reasoning about).
+
+This workflow requires working on multiple versions **in parallel**, not sequentially.
+Branches alone do not address that operational need.
+
+### Limitations of a Branch‑Only Workflow
+
+Using a single working directory with frequent branch switching introduces:
+
+- repeated branch switching and stashing
+- risk of committing changes to the wrong branch
+- unstable editor/IDE context when files change under an open session
+- shared virtual environments and caches across incompatible versions
+- increased cognitive load when juggling PROD, NEXT, and FUTURE simultaneously
+
+These issues are amplified when:
+
+- stabilizing NEXT while building FUTURE
+- occasionally hot‑fixing PROD
+- using AI‑assisted tools (Cursor) that rely on filesystem context
+
+### What Worktrees Add
+
+Git worktrees provide:
+
+- **True parallelism**: multiple versions open and usable at the same time
+- **Filesystem isolation**: one branch per directory, no accidental crossover
+- **Stable editor context**: Cursor sees one coherent version per window
+- **Environment isolation**: separate virtualenvs/config per version
+- **Lower operational risk**: no branch switching, no stashing, no ambiguity
+
+### Key Insight
+
+> Release branches solve *what belongs where*.
+> Worktrees solve *how you work on those things safely and efficiently*.
+
+In this workflow, worktrees are not an optimization — they are the mechanism that makes
+simultaneous PROD / NEXT / FUTURE work practical and low‑risk.
+
 ## Problem Statement
 
 ### Current Issues with Single Working Directory
@@ -336,7 +387,7 @@ With 5 active worktrees: ~1GB total
 
 If you're currently using a single checkout folder, follow these steps to migrate:
 
-**Step 1: Prepare your current folder as the **FUTURE (`main`) base** reference**
+**Step 1: Prepare your current folder as the FUTURE (`main`) base reference**
 
 ```bash
 # Navigate to your current clone
@@ -386,6 +437,7 @@ cursor .
 **Step 5: Configure Cursor Python interpreter (one-time)**
 
 In Cursor:
+
 1. Open Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`)
 2. Search: "Python: Select Interpreter"
 3. Choose: `.venv/bin/python` (from the worktree)
@@ -408,6 +460,7 @@ Your original folder (`~/Projects/podcast_scraper`) is now your "base":
 | `podcast_scraper-169-*/` | Active development | ✅ Yes |
 
 **Never edit code in the base folder.** Use it only for:
+
 - `git log` and history exploration
 - `git worktree list` to see all worktrees
 - Quick file viewing without context switching
@@ -546,7 +599,6 @@ git push --force-with-lease   # NEVER use --force
 | Don't rebase during active coding | Creates unnecessary churn |
 | Resolve conflicts immediately | Don't leave rebase in progress |
 | Test after rebase | Ensure nothing broke |
-
 
 #### 4.5 Fix Propagation Rules (PROD → NEXT → FUTURE)
 
@@ -1055,7 +1107,7 @@ git worktree add ../podcast_scraper-next-2.5 release/2.5
 
 5. Conceptually, `main` immediately becomes FUTURE for **2.6+** (no history rewrite; only roles change).
 
-**Reminder:** avoid the word “current” without a qualifier; use PROD/NEXT/FUTURE.
+**Reminder:** avoid the word "current" without a qualifier; use PROD/NEXT/FUTURE.
 
 ## Risks and Mitigations
 

@@ -215,7 +215,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", default=None, help="Path to configuration file (JSON or YAML)")
     parser.add_argument("rss", nargs="?", default=None, help="Podcast RSS feed URL")
     parser.add_argument(
-        "--output-dir", default=None, help="Output directory (default: output_rss_<host>_<hash>)"
+        "--output-dir", default=None, help="Output directory (default: output/rss_<host>_<hash>)"
     )
     parser.add_argument(
         "--max-episodes", type=int, default=None, help="Maximum number of episodes to process"

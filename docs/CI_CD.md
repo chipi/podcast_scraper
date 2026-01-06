@@ -1995,12 +1995,14 @@ preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
 ### Metrics vs Main Branch Jobs
 
 **Main Branch Jobs (`python-app.yml`):**
+
 - ✅ Fast validation (pass/fail)
 - ❌ No metrics collection
 - ✅ Quick feedback (5-20 minutes)
 - **Purpose:** Validate code works
 
 **Nightly Workflow (`nightly.yml`):**
+
 - ✅ Comprehensive metrics collection
 - ✅ Historical trend tracking
 - ✅ Full test suite (including slow tests)
@@ -2017,11 +2019,13 @@ preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
 ### Accessing Metrics
 
 **Via GitHub Pages:**
+
 - Latest metrics: `https://[username].github.io/podcast_scraper/metrics/latest.json`
 - History: `https://[username].github.io/podcast_scraper/metrics/history.jsonl`
 - Dashboard: `https://[username].github.io/podcast_scraper/metrics/index.html` (if generated)
 
 **Via GitHub Actions:**
+
 - Job summaries show key metrics in workflow run
 - Artifacts available for download (90-day retention)
 

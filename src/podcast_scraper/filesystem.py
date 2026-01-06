@@ -104,7 +104,7 @@ def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
     safe_base = sanitize_filename(base)
     # Deterministic hash for directory naming (not security sensitive)
     digest = hashlib.sha1(rss_url.encode("utf-8"), usedforsecurity=False).hexdigest()
-    return f"output_rss_{safe_base}_{digest[:URL_HASH_LENGTH]}"
+    return f"output/rss_{safe_base}_{digest[:URL_HASH_LENGTH]}"
 
 
 def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str]]:
