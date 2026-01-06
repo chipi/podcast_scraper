@@ -5,11 +5,12 @@
 #
 # Structure mirrors python-app.yml with separate jobs for isolation:
 # Dependency flow:
-# 1. lint, docs, build run in parallel (no deps) → gate security-quality and test-unit
-# 2. security-quality and test-unit run in parallel (security-quality runs independently to end)
-# 3. test-unit + preload-ml-models → gate integration and e2e tests (security-quality does NOT gate these)
-# 4. integration and e2e → gate nightly-only-tests
-# 5. security-quality + nightly-only-tests → gate nightly-metrics
+# 1. lint, build, preload-ml-models-nightly run in parallel (no deps)
+# 2. security-quality and test-unit run in parallel (both gate: lint, build)
+# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models-nightly only)
+# 4. nightly-only-tests gates: test-integration, test-e2e
+# 5. nightly-metrics gates: security-quality, nightly-only-tests
+# 6. nightly-docs gates nightly-metrics (very last step, final validation)
 #
 # Jobs:
 # - preload-ml-models-nightly: Preload and validate ML models
@@ -204,11 +205,11 @@ jobs:
         make lint-markdown
         make type
 
-  # Security and quality checks - gated by lint/docs/build, runs independently to nightly-metrics (does not gate integration/e2e)
+  # Security and quality checks - gated by lint/build, runs independently to nightly-metrics (does not gate tests)
   nightly-security-quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Slower checks: security, complexity, deadcode, docstrings, spelling
-    needs: [nightly-lint, nightly-docs, nightly-build]  # Wait for lint, docs, build to pass
+    needs: [nightly-lint, nightly-build]  # Wait for lint, build to pass (docs removed - doesn't gate security)
     steps:
     - uses: actions/checkout@v4
 
@@ -235,11 +236,14 @@ jobs:
         make quality
 
   # ===========================================================================
-  # Documentation build
+  # Documentation build - validates docs can be built correctly
+  # Runs as very last step after all tests and metrics pass (final validation)
+  # Docs deployment happens in docs.yml workflow (separate, already gated properly)
   # ===========================================================================
   nightly-docs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: [nightly-metrics]  # Very last step - validates docs after all tests and metrics pass
     steps:
     - uses: actions/checkout@v4
 
@@ -270,7 +274,10 @@ jobs:
       run: make docs
 
   # ===========================================================================
-  # Package build
+  # Package build - validates package can be built correctly
+  # Builds source distribution (sdist) and wheel distribution
+  # Catches packaging issues (pyproject.toml errors, missing files, etc.)
+  # Fast check (~2-3 min) that gates test-unit to catch packaging issues early
   # ===========================================================================
   nightly-build:
     runs-on: ubuntu-latest
@@ -298,7 +305,7 @@ jobs:
   nightly-test-unit:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [nightly-lint, nightly-docs, nightly-build]  # Wait for lint, docs, build to pass
+    needs: [nightly-lint, nightly-build]  # Wait for lint, build to pass (docs removed - doesn't gate unit tests)
     steps:
     - uses: actions/checkout@v4
 
@@ -373,7 +380,7 @@ jobs:
   nightly-test-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [nightly-test-unit, preload-ml-models-nightly]  # Wait for unit tests and ML models
+    needs: [preload-ml-models-nightly]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
@@ -458,7 +465,7 @@ jobs:
   nightly-test-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [nightly-test-unit, preload-ml-models-nightly]  # Wait for unit tests and ML models
+    needs: [preload-ml-models-nightly]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
