@@ -211,6 +211,7 @@ class TestSpacySpeakerDetection:
                 auto_speakers=True,
                 speaker_detector_provider="spacy",
                 ner_model=config.DEFAULT_NER_MODEL,  # Default: en_core_web_sm
+                transcribe_missing=False,  # Disable transcription - test only needs transcript
             )
 
             # Run pipeline

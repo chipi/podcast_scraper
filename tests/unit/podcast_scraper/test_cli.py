@@ -1338,6 +1338,102 @@ class TestAddArgumentGroups(unittest.TestCase):
             self.assertIsNone(action.default, f"{model_arg} default should be None")
 
 
+class TestCacheSubcommand(unittest.TestCase):
+    """Test cache subcommand parsing and execution."""
+
+    def test_parse_cache_args_status(self):
+        """Test parsing cache --status command."""
+        args = cli._parse_cache_args(["--status"])
+        self.assertTrue(args.status)
+        self.assertFalse(args.clean)
+
+    def test_parse_cache_args_clean_all(self):
+        """Test parsing cache --clean all command."""
+        args = cli._parse_cache_args(["--clean", "all"])
+        self.assertFalse(args.status)
+        self.assertEqual(args.clean, "all")
+
+    def test_parse_cache_args_clean_whisper(self):
+        """Test parsing cache --clean whisper command."""
+        args = cli._parse_cache_args(["--clean", "whisper"])
+        self.assertEqual(args.clean, "whisper")
+
+    def test_parse_cache_args_clean_with_yes(self):
+        """Test parsing cache --clean with --yes flag."""
+        args = cli._parse_cache_args(["--clean", "all", "--yes"])
+        self.assertEqual(args.clean, "all")
+        self.assertTrue(args.yes)
+
+    def test_parse_args_detects_cache_subcommand(self):
+        """Test that parse_args detects cache subcommand."""
+        args = cli.parse_args(["cache", "--status"])
+        self.assertTrue(hasattr(args, "command"))
+        self.assertEqual(args.command, "cache")
+        self.assertTrue(args.status)
+
+    def test_parse_args_normal_command_not_cache(self):
+        """Test that normal command is not treated as cache."""
+        args = cli.parse_args(["https://example.com/feed.xml"])
+        self.assertFalse(hasattr(args, "command") and args.command == "cache")
+
+    @patch("podcast_scraper.cli.cache_manager.get_all_cache_info")
+    def test_main_cache_status(self, mock_get_info):
+        """Test main() with cache --status command."""
+        mock_get_info.return_value = {
+            "whisper": {"dir": "/whisper", "size": 100, "count": 1, "models": []},
+            "transformers": {"dir": "/transformers", "size": 200, "count": 2, "models": []},
+            "spacy": {"dir": "/spacy", "size": 50, "count": 1, "models": []},
+            "total_size": 350,
+        }
+
+        exit_code = cli.main(["cache", "--status"])
+
+        self.assertEqual(exit_code, 0)
+        mock_get_info.assert_called_once()
+
+    @patch("podcast_scraper.cli.cache_manager.clean_all_caches")
+    @patch("podcast_scraper.cli.cache_manager.get_all_cache_info")
+    def test_main_cache_clean_all(self, mock_get_info, mock_clean):
+        """Test main() with cache --clean all --yes command."""
+        mock_get_info.return_value = {"total_size": 350}
+        mock_clean.return_value = {"whisper": (1, 100), "transformers": (2, 200), "spacy": (1, 50)}
+
+        exit_code = cli.main(["cache", "--clean", "all", "--yes"])
+
+        self.assertEqual(exit_code, 0)
+        mock_clean.assert_called_once_with(confirm=False)
+
+    @patch("podcast_scraper.cli.cache_manager.clean_whisper_cache")
+    def test_main_cache_clean_whisper(self, mock_clean):
+        """Test main() with cache --clean whisper --yes command."""
+        mock_clean.return_value = (1, 100)
+
+        exit_code = cli.main(["cache", "--clean", "whisper", "--yes"])
+
+        self.assertEqual(exit_code, 0)
+        mock_clean.assert_called_once_with(confirm=False)
+
+    @patch("podcast_scraper.cli.cache_manager.clean_transformers_cache")
+    def test_main_cache_clean_transformers(self, mock_clean):
+        """Test main() with cache --clean transformers --yes command."""
+        mock_clean.return_value = (2, 200)
+
+        exit_code = cli.main(["cache", "--clean", "transformers", "--yes"])
+
+        self.assertEqual(exit_code, 0)
+        mock_clean.assert_called_once_with(confirm=False)
+
+    @patch("podcast_scraper.cli.cache_manager.clean_spacy_cache")
+    def test_main_cache_clean_spacy(self, mock_clean):
+        """Test main() with cache --clean spacy --yes command."""
+        mock_clean.return_value = (1, 50)
+
+        exit_code = cli.main(["cache", "--clean", "spacy", "--yes"])
+
+        self.assertEqual(exit_code, 0)
+        mock_clean.assert_called_once_with(confirm=False)
+
+
 class TestLoadAndMergeConfig(unittest.TestCase):
     """Test _load_and_merge_config function."""
 
