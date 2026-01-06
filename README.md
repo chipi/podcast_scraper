@@ -38,6 +38,23 @@ and hands-on work with edge and cloud AI/ML technologies.
 
 ### Install
 
+#### Stable (recommended)
+
+Use the latest released version for normal usage.
+
+```bash
+git clone https://github.com/chipi/podcast_scraper.git
+cd podcast_scraper
+git checkout <latest-release-tag>   # e.g. v2.3.0
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[ml]"
+```
+
+#### Development (main)
+
+Use this if you are contributing or experimenting. This branch may contain
+unreleased changes.
+
 ```bash
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
@@ -46,6 +63,8 @@ pip install -e ".[ml]"
 ```
 
 ### Run
+
+Replace `https://example.com/feed.xml` with your podcast's RSS feed URL.
 
 ```bash
 # Download existing transcripts
@@ -62,7 +81,7 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
 ```
 
 Output is organized into `output/` with subdirectories: `transcripts/` for transcript files
-and `metadata/` for JSON/YAML metadata.
+and `metadata/` for JSON/YAML metadata. Use `--output-dir` to customize the location (default: `./output/`).
 
 ---
 
@@ -72,6 +91,8 @@ and `metadata/` for JSON/YAML metadata.
 | -------- | ----------- |
 | [CLI Reference](docs/api/CLI.md) | All command-line options |
 | [Configuration](docs/api/CONFIGURATION.md) | Config files and environment variables |
+| [Guides](docs/guides/) | Development, testing, and usage guides |
+| [Troubleshooting](docs/guides/TROUBLESHOOTING.md) | Common issues and solutions |
 | [Full Documentation](https://chipi.github.io/podcast_scraper/) | Complete docs site |
 
 **Contributing?** See [CONTRIBUTING.md](CONTRIBUTING.md).
