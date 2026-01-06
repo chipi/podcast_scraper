@@ -3,7 +3,7 @@
 # 1. lint, build, preload-ml-models run in parallel (no deps)
 # 2. security-quality and test-unit run in parallel (both gate: lint, build)
 # 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models only)
-# 4. coverage-unified gates: security-quality + all test jobs
+# 4. coverage-unified gates: security-quality + all test jobs (including test-unit)
 # 5. docs gates coverage-unified (very last step, final validation)
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
