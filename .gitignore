@@ -43,3 +43,6 @@ data/results/
 # Local ML model cache - ignore all contents except README.md
 .cache/*
 !.cache/README.md
+
+# Worktree-specific files
+WORKTREE.md
