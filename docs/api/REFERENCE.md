@@ -6,16 +6,16 @@ Complete reference documentation for the `podcast_scraper` public API.
 
 ## Table of Contents
 
-- [Core API](#core-api)
-  - [run_pipeline](#run_pipeline)
-  - [Config](#config)
-  - [load_config_file](#load_config_file)
-- [Service API](#service-api)
-  - [ServiceResult](#serviceresult)
-  - [service.run](#servicerun)
-  - [service.run_from_config_file](#servicerun_from_config_file)
-- [Version Information](#version-information)
-- [Quick Start Examples](#quick-start-examples)
+- Core API
+  - run_pipeline
+  - Config
+  - load_config_file
+- Service API
+  - ServiceResult
+  - service.run
+  - service.run_from_config_file
+- Version Information
+- Quick Start Examples
 
 ---
 

@@ -101,9 +101,12 @@ lint-markdown:
 	markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site --ignore "docs/wip/**" --ignore "tests/fixtures/**" --config .markdownlint.json
 
 fix-md:
-	@echo "Fixing common markdown linting issues..."
-	@python scripts/fix_markdown.py
-	@echo "✓ Markdown fixes applied. Run 'make lint-markdown' to verify."
+	@echo "⚠️  WARNING: fix-md script is disabled due to issues."
+	@echo "Use 'markdownlint --fix' instead for reliable markdown fixes."
+	@echo ""
+	@echo "Example:"
+	@echo "  npx markdownlint-cli2 --fix '**/*.md'"
+	@exit 1
 
 type:
 	mypy --config-file pyproject.toml .
