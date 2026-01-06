@@ -9,7 +9,7 @@
 rss: <https://example.com/feed.xml>
 output_dir: output_podcast_example  # Can also be set via OUTPUT_DIR env var
 max_episodes: 10
-transcribe_missing: true
+transcribe_missing: true  # Default: true (automatically transcribe missing transcripts)
 whisper_model: base
 delay_ms: 250
 language: en

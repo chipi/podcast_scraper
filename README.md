@@ -67,15 +67,14 @@ pip install -e ".[ml]"
 Replace `https://example.com/feed.xml` with your podcast's RSS feed URL.
 
 ```bash
-# Download existing transcripts
+# Download transcripts (automatically generates missing ones with Whisper)
 python3 -m podcast_scraper.cli https://example.com/feed.xml
 
-# Generate transcripts with Whisper when missing
-python3 -m podcast_scraper.cli https://example.com/feed.xml --transcribe-missing
+# Only download existing transcripts (skip transcription)
+python3 -m podcast_scraper.cli https://example.com/feed.xml --no-transcribe-missing
 
 # Full processing: transcripts + metadata + summaries
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
-  --transcribe-missing \
   --generate-metadata \
   --generate-summaries
 ```
