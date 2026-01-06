@@ -5,7 +5,8 @@
 #
 # Structure mirrors python-app.yml with separate jobs for isolation:
 # - preload-ml-models-nightly: Preload and validate ML models
-# - nightly-lint: Code quality checks
+# - nightly-lint: Fast lint checks (format, lint, markdown, type) - blocks tests
+# - nightly-security-quality: Security and quality checks (security, complexity, deadcode, docstrings, spelling) - runs in parallel, syncs at metrics
 # - nightly-docs: Documentation build
 # - nightly-build: Package build
 # - nightly-test-unit: Unit tests
@@ -160,9 +161,10 @@ jobs:
   # ===========================================================================
   # Code quality checks
   # ===========================================================================
+  # Fast lint checks - blocks tests to catch issues early
   nightly-lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10  # Fast checks: format, lint, markdown, type
     steps:
     - uses: actions/checkout@v4
 
@@ -186,14 +188,41 @@ jobs:
     - name: Install markdownlint
       run: npm install -g markdownlint-cli
 
-    - name: Run code quality checks
+    - name: Run fast lint checks
       run: |
-        echo "Running code quality checks..."
+        echo "Running fast lint checks..."
         make format-check
         make lint
         make lint-markdown
         make type
+
+  # Security and quality checks - runs in parallel with tests, syncs at nightly-metrics
+  nightly-security-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20  # Slower checks: security, complexity, deadcode, docstrings, spelling
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+
+    - name: Run security checks
+      run: |
+        echo "Running security checks..."
         make security
+
+    - name: Run quality checks
+      run: |
+        echo "Running quality checks..."
         make quality
 
   # ===========================================================================
@@ -260,7 +289,7 @@ jobs:
   nightly-test-unit:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # No needs: - unit tests don't require ML models, can run immediately
+    needs: [nightly-lint]  # Wait for fast lint checks before running tests
     steps:
     - uses: actions/checkout@v4
 
@@ -583,7 +612,7 @@ jobs:
   nightly-metrics:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [nightly-lint, nightly-docs, nightly-build, nightly-test-unit, nightly-test-integration, nightly-test-e2e, nightly-only-tests]
+    needs: [nightly-lint, nightly-security-quality, nightly-docs, nightly-build, nightly-test-unit, nightly-test-integration, nightly-test-e2e, nightly-only-tests]
     if: always()
     steps:
     - uses: actions/checkout@v4
@@ -734,6 +763,7 @@ jobs:
         # Job status summary
         echo "## Job Status" >> $GITHUB_STEP_SUMMARY
         echo "- **Lint**: ${{ needs.nightly-lint.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Security/Quality**: ${{ needs.nightly-security-quality.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Docs**: ${{ needs.nightly-docs.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Build**: ${{ needs.nightly-build.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Unit Tests**: ${{ needs.nightly-test-unit.result }}" >> $GITHUB_STEP_SUMMARY
