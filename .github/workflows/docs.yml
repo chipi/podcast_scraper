@@ -4,9 +4,7 @@ on:
   push:
     branches:
       - main
-      # Note: Only deploy from main as "latest" documentation
-      # Release branches (release/2.4) are for stabilization and may contain
-      # unstable changes. Production docs should reference the tagged release.
+      - release/2.4
     paths:
       # Only files that are part of the MkDocs site (see mkdocs.yml nav)
       - 'docs/index.md'
@@ -26,7 +24,6 @@ on:
       - 'README.md'
   pull_request:
     branches: [ "main", "release/2.4" ]
-    # PRs can still be tested against both branches, but only main deploys
     paths:
       # Only files that are part of the MkDocs site (see mkdocs.yml nav)
       - 'docs/index.md'

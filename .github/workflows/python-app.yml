@@ -2,8 +2,8 @@
 # Dependency flow:
 # 1. lint, build, preload-ml-models run in parallel (no deps)
 # 2. security-quality and test-unit run in parallel (both gate: lint, build)
-# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models + test-unit)
-# 4. coverage-unified gates: security-quality + all test jobs (including test-unit)
+# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models only)
+# 4. coverage-unified gates: security-quality + all test jobs
 # 5. docs gates coverage-unified (very last step, final validation)
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
@@ -299,7 +299,7 @@ jobs:
   test-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30  # Conservative timeout for integration tests with ML models
-    needs: [preload-ml-models, test-unit]  # Wait for model preload and unit tests to pass
+    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -399,7 +399,7 @@ jobs:
   test-integration-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Conservative timeout for fast integration tests
-    needs: [preload-ml-models, test-unit]  # Wait for model preload and unit tests to pass
+    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -491,7 +491,7 @@ jobs:
   test-e2e-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 25  # Conservative timeout for fast E2E tests
-    needs: [preload-ml-models, test-unit]  # Wait for model preload and unit tests to pass
+    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -588,7 +588,7 @@ jobs:
   test-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 45  # Conservative timeout for E2E tests with ML models
-    needs: [preload-ml-models, test-unit]  # Wait for model preload and unit tests to pass
+    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -982,11 +982,8 @@ jobs:
           echo "$(cat metrics/latest-ci.json)" >> metrics/history-ci.jsonl
           echo "✅ Appended to CI history"
         fi
-    - name: Generate unified HTML dashboard
-      # Only generate dashboard HTML on main branch
-      # Release branches only update metrics data (JSON/JSONL)
-      # The unified dashboard has a dropdown to select which build to view
-      if: always() && github.ref == 'refs/heads/main'
+    - name: Generate HTML dashboard
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
       run: |
         python scripts/generate_dashboard.py \
           --unified \
@@ -1010,7 +1007,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
     - name: Upload metrics as artifact
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v4
       with:
         name: metrics
         path: metrics/
