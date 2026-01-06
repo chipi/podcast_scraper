@@ -2,7 +2,7 @@ name: Docker Build & Test
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "release/2.4" ]
     paths:
       - 'Dockerfile'
       - '.dockerignore'
@@ -11,7 +11,7 @@ on:
   # Fast Docker build runs on PRs when Docker-related files change
   # Full Docker validation still runs on merge to main
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "release/2.4" ]
     paths:
       - 'Dockerfile'
       - '.dockerignore'
@@ -75,7 +75,7 @@ jobs:
 
   # Full Docker build for main branch (parallel builds for speed)
   docker-build-full:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
     runs-on: ubuntu-latest
     strategy:
       matrix:
