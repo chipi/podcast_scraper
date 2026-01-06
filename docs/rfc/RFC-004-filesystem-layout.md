@@ -22,7 +22,7 @@ Without consistent naming and directory policies, transcript archives become har
 ## Design & Implementation
 
 1. **Base output directory**
-   - Default: `output_rss_<sanitized_host>_<hash>` where hash is first 8 chars of SHA-1 of the RSS URL.
+   - Default: `output/rss_<sanitized_host>_<hash>` where hash is first 8 chars of SHA-1 of the RSS URL.
    - `filesystem.derive_output_dir` handles overrides, invoking validation.
 2. **Validation**
    - `filesystem.validate_and_normalize_output_dir` resolves paths, verifies they fall under safe roots (cwd, home, platform dirs), and warns otherwise.

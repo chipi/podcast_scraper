@@ -170,9 +170,9 @@ class TestDeriveOutputDir(unittest.TestCase):
         """Test deriving default output directory from RSS URL."""
         rss_url = TEST_FEED_URL
         result = filesystem.derive_output_dir(rss_url, None)
-        self.assertIn("output_rss", result)
+        self.assertIn("output/rss", result)
         self.assertIn("example.com", result)
-        self.assertEqual(result, "output_rss_example.com_6904f1c4")
+        self.assertEqual(result, "output/rss_example.com_6904f1c4")
 
     def test_custom_output_dir(self):
         """Test using custom output directory."""

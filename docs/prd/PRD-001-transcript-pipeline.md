@@ -43,7 +43,7 @@ Create a resilient pipeline that ingests a podcast RSS feed, locates published t
 - **FR2**: Resolve the feed, parse items safely, and detect transcript URLs via Podcasting 2.0 tags, `<transcript>` nodes, or equivalent.
 - **FR3**: Support preference ordering (`prefer_type`) to pick the best transcript when multiple URLs are provided.
 - **FR4**: Download transcript assets with retry/backoff and surface failures without halting the entire run.
-- **FR5**: Persist transcripts using deterministic filenames `<episode_number> - <title>[ _<run_suffix>].<ext>` in a derived output directory (`output_rss_<host>_<hash>` by default).
+- **FR5**: Persist transcripts using deterministic filenames `<episode_number> - <title>[ _<run_suffix>].<ext>` in a derived output directory (`output/rss_<host>_<hash>` by default).
 - **FR6**: Provide `--skip-existing` semantics so reprocessing avoids already-downloaded episodes.
 - **FR7**: Provide `--dry-run` mode that logs planned work (including file destinations) without touching disk.
 - **FR8**: Allow `--max-episodes` to cap the number of items processed.

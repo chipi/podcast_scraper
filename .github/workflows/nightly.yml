@@ -4,9 +4,17 @@
 # See RFC-025: Test Metrics and Health Tracking (Layer 3)
 #
 # Structure mirrors python-app.yml with separate jobs for isolation:
+# Dependency flow:
+# 1. lint, docs, build run in parallel (no deps) → gate security-quality and test-unit
+# 2. security-quality and test-unit run in parallel (security-quality runs independently to end)
+# 3. test-unit + preload-ml-models → gate integration and e2e tests (security-quality does NOT gate these)
+# 4. integration and e2e → gate nightly-only-tests
+# 5. security-quality + nightly-only-tests → gate nightly-metrics
+#
+# Jobs:
 # - preload-ml-models-nightly: Preload and validate ML models
-# - nightly-lint: Fast lint checks (format, lint, markdown, type) - blocks tests
-# - nightly-security-quality: Security and quality checks (security, complexity, deadcode, docstrings, spelling) - runs in parallel, syncs at metrics
+# - nightly-lint: Fast lint checks (format, lint, markdown, type)
+# - nightly-security-quality: Security and quality checks (security, complexity, deadcode, docstrings, spelling)
 # - nightly-docs: Documentation build
 # - nightly-build: Package build
 # - nightly-test-unit: Unit tests
@@ -196,10 +204,11 @@ jobs:
         make lint-markdown
         make type
 
-  # Security and quality checks - runs in parallel with tests, syncs at nightly-metrics
+  # Security and quality checks - gated by lint/docs/build, runs independently to nightly-metrics (does not gate integration/e2e)
   nightly-security-quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Slower checks: security, complexity, deadcode, docstrings, spelling
+    needs: [nightly-lint, nightly-docs, nightly-build]  # Wait for lint, docs, build to pass
     steps:
     - uses: actions/checkout@v4
 
@@ -289,7 +298,7 @@ jobs:
   nightly-test-unit:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [nightly-lint]  # Wait for fast lint checks before running tests
+    needs: [nightly-lint, nightly-docs, nightly-build]  # Wait for lint, docs, build to pass
     steps:
     - uses: actions/checkout@v4
 
@@ -364,7 +373,7 @@ jobs:
   nightly-test-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [preload-ml-models-nightly]
+    needs: [nightly-test-unit, preload-ml-models-nightly]  # Wait for unit tests and ML models
     env:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
@@ -449,7 +458,7 @@ jobs:
   nightly-test-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [preload-ml-models-nightly]
+    needs: [nightly-test-unit, preload-ml-models-nightly]  # Wait for unit tests and ML models
     env:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
@@ -612,7 +621,7 @@ jobs:
   nightly-metrics:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [nightly-lint, nightly-security-quality, nightly-docs, nightly-build, nightly-test-unit, nightly-test-integration, nightly-test-e2e, nightly-only-tests]
+    needs: [nightly-security-quality, nightly-only-tests]  # Wait for security/quality and nightly-only tests
     if: always()
     steps:
     - uses: actions/checkout@v4

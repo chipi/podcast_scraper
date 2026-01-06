@@ -222,4 +222,4 @@ class TestFilesystemOperations(unittest.TestCase):
         # Without override (should derive from URL)
         derived = filesystem.derive_output_dir("https://example.com/feed.xml", None)
         self.assertIn("example.com", derived or "", "Should include domain from URL")
-        self.assertIn("output_rss_", derived or "", "Should have output_rss_ prefix")
+        self.assertIn("output/rss_", derived or "", "Should have output/rss_ prefix")

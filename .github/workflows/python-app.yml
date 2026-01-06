@@ -1,5 +1,9 @@
 # This workflow will install Python dependencies, run tests and quality checks with a single version of Python
-# Fast lint checks (format, lint, type) block tests; security/quality checks run in parallel and sync at coverage
+# Dependency flow:
+# 1. lint, docs, build run in parallel (no deps) → gate security-quality and test-unit
+# 2. security-quality and test-unit run in parallel (security-quality runs independently to end)
+# 3. test-unit + preload-ml-models → gate integration and e2e tests (security-quality does NOT gate these)
+# 4. security-quality + all test jobs → gate coverage-unified
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
 name: Python application
@@ -60,10 +64,11 @@ jobs:
         make lint-markdown
         make type
 
-  # Security and quality checks - runs in parallel with tests, syncs at coverage-unified
+  # Security and quality checks - gated by lint/docs/build, runs independently to coverage-unified (does not gate integration/e2e)
   security-quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Slower checks: security, complexity, deadcode, docstrings, spelling
+    needs: [lint, docs, build]  # Wait for lint, docs, build to pass
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
@@ -138,7 +143,7 @@ jobs:
   test-unit:
     runs-on: ubuntu-latest
     timeout-minutes: 15  # Conservative timeout for fast unit tests
-    needs: [lint]  # Wait for fast lint checks before running tests
+    needs: [lint, docs, build]  # Wait for lint, docs, build to pass
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
@@ -240,7 +245,7 @@ jobs:
     # The dedicated test file was removed as the blocking feature is now disabled
 
   # Preload ML models - runs on all commits (main and PRs), ensures models are cached for integration and e2e tests
-  # This job has no dependencies and starts immediately in parallel with lint, security-quality, docs, build
+  # This job has no dependencies and starts immediately in parallel with lint, docs, build
   # Optimized: Check cache FIRST (no Python needed), only set up Python if cache misses
   preload-ml-models:
     runs-on: ubuntu-latest
@@ -703,7 +708,7 @@ jobs:
   # Waits for all test jobs to complete, then combines their coverage reports
   coverage-unified:
     runs-on: ubuntu-latest
-    needs: [test-unit, test-integration, test-integration-fast, test-e2e, test-e2e-fast, security-quality]
+    needs: [security-quality, test-integration, test-integration-fast, test-e2e, test-e2e-fast]  # Wait for security/quality and all test jobs
     if: always()
     steps:
     - uses: actions/checkout@v4
