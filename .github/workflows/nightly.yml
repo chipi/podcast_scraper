@@ -8,7 +8,7 @@
 # 1. lint, build, preload-ml-models-nightly run in parallel (no deps)
 # 2. security-quality and test-unit run in parallel (both gate: lint, build)
 # 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models-nightly only)
-# 4. nightly-only-tests gates: test-integration, test-e2e
+# 4. nightly-only-tests gates: test-unit, test-integration, test-e2e
 # 5. nightly-metrics gates: security-quality, nightly-only-tests
 # 6. nightly-docs gates nightly-metrics (very last step, final validation)
 #
@@ -552,12 +552,12 @@ jobs:
 
   # ===========================================================================
   # Nightly-only tests - production models, full podcast suite
-  # Only runs after integration and E2E tests pass (expensive, run as final stage)
+  # Only runs after unit, integration and E2E tests pass (expensive, run as final stage)
   # ===========================================================================
   nightly-only-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 360  # 6 hours for production model tests
-    needs: [nightly-test-integration, nightly-test-e2e]
+    needs: [nightly-test-unit, nightly-test-integration, nightly-test-e2e]
     env:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
