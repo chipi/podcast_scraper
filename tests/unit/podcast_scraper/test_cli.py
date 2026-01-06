@@ -1376,57 +1376,69 @@ class TestCacheSubcommand(unittest.TestCase):
         args = cli.parse_args(["https://example.com/feed.xml"])
         self.assertFalse(hasattr(args, "command") and args.command == "cache")
 
+    @patch("podcast_scraper.cache_manager.format_size")
     @patch("podcast_scraper.cache_manager.get_all_cache_info")
-    def test_main_cache_status(self, mock_get_info):
+    def test_main_cache_status(self, mock_get_info, mock_format_size):
         """Test main() with cache --status command."""
+        from pathlib import Path
+
         mock_get_info.return_value = {
-            "whisper": {"dir": "/whisper", "size": 100, "count": 1, "models": []},
-            "transformers": {"dir": "/transformers", "size": 200, "count": 2, "models": []},
-            "spacy": {"dir": "/spacy", "size": 50, "count": 1, "models": []},
+            "whisper": {"dir": Path("/whisper"), "size": 100, "count": 1, "models": []},
+            "transformers": {"dir": Path("/transformers"), "size": 200, "count": 2, "models": []},
+            "spacy": {"dir": Path("/spacy"), "size": 50, "count": 1, "models": []},
             "total_size": 350,
         }
+        mock_format_size.side_effect = lambda x: f"{x} B"  # Simple formatter
 
         exit_code = cli.main(["cache", "--status"])
 
         self.assertEqual(exit_code, 0)
         mock_get_info.assert_called_once()
 
+    @patch("podcast_scraper.cache_manager.format_size")
     @patch("podcast_scraper.cache_manager.clean_all_caches")
     @patch("podcast_scraper.cache_manager.get_all_cache_info")
-    def test_main_cache_clean_all(self, mock_get_info, mock_clean):
+    def test_main_cache_clean_all(self, mock_get_info, mock_clean, mock_format_size):
         """Test main() with cache --clean all --yes command."""
         mock_get_info.return_value = {"total_size": 350}
         mock_clean.return_value = {"whisper": (1, 100), "transformers": (2, 200), "spacy": (1, 50)}
+        mock_format_size.side_effect = lambda x: f"{x} B"  # Simple formatter
 
         exit_code = cli.main(["cache", "--clean", "all", "--yes"])
 
         self.assertEqual(exit_code, 0)
         mock_clean.assert_called_once_with(confirm=False)
 
+    @patch("podcast_scraper.cache_manager.format_size")
     @patch("podcast_scraper.cache_manager.clean_whisper_cache")
-    def test_main_cache_clean_whisper(self, mock_clean):
+    def test_main_cache_clean_whisper(self, mock_clean, mock_format_size):
         """Test main() with cache --clean whisper --yes command."""
         mock_clean.return_value = (1, 100)
+        mock_format_size.side_effect = lambda x: f"{x} B"  # Simple formatter
 
         exit_code = cli.main(["cache", "--clean", "whisper", "--yes"])
 
         self.assertEqual(exit_code, 0)
         mock_clean.assert_called_once_with(confirm=False)
 
+    @patch("podcast_scraper.cache_manager.format_size")
     @patch("podcast_scraper.cache_manager.clean_transformers_cache")
-    def test_main_cache_clean_transformers(self, mock_clean):
+    def test_main_cache_clean_transformers(self, mock_clean, mock_format_size):
         """Test main() with cache --clean transformers --yes command."""
         mock_clean.return_value = (2, 200)
+        mock_format_size.side_effect = lambda x: f"{x} B"  # Simple formatter
 
         exit_code = cli.main(["cache", "--clean", "transformers", "--yes"])
 
         self.assertEqual(exit_code, 0)
         mock_clean.assert_called_once_with(confirm=False)
 
+    @patch("podcast_scraper.cache_manager.format_size")
     @patch("podcast_scraper.cache_manager.clean_spacy_cache")
-    def test_main_cache_clean_spacy(self, mock_clean):
+    def test_main_cache_clean_spacy(self, mock_clean, mock_format_size):
         """Test main() with cache --clean spacy --yes command."""
         mock_clean.return_value = (1, 50)
+        mock_format_size.side_effect = lambda x: f"{x} B"  # Simple formatter
 
         exit_code = cli.main(["cache", "--clean", "spacy", "--yes"])
 
