@@ -1955,6 +1955,43 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 - Uses `concurrency: group: "pages-metrics"` with `cancel-in-progress: false`
 - Allows multiple nightly runs to accumulate metrics without conflicts
 
+### Nightly Workflow Performance Benchmarks
+
+**Reference timing from January 2026 (with cache hits):**
+
+| Job | Duration | Notes |
+|-----|----------|-------|
+| `preload-ml-models-nightly` | 3:30 | Fast with cache hit |
+| `nightly-lint` | 3:00 | Runs in parallel |
+| `nightly-docs` | 2:40 | Runs in parallel |
+| `nightly-test-unit` | 1:40 | No ML deps, runs in parallel |
+| `nightly-test-integration` | 6:30 | After preload |
+| `nightly-test-e2e` | 11:30 | After preload |
+| `nightly-only-tests` | **64:00** | **77% of total time** |
+| **Total wall time** | **~80 min** | Critical path limited |
+
+**Critical Path:**
+
+```text
+preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
+                                                    ≈ 80 min total
+```
+
+**Key Observations:**
+
+- `nightly-only-tests` dominates at 64 minutes (production models: `bart-large-cnn`, `led-large-16384`)
+- Parallel jobs (`lint`, `docs`, `unit`) complete while `preload` runs
+- With cold cache (first run), `preload` can take 15-20 minutes for model downloads (~10GB)
+- Integration and E2E tests benefit from pre-cached models
+
+**Optimization Notes:**
+
+- Unit tests have no ML dependencies → run immediately without waiting for preload
+- Production models are much larger than test models → explains long `nightly-only` runtime
+- Further optimization would require splitting `nightly-only-tests` or using faster hardware
+
+---
+
 ### Metrics vs Main Branch Jobs
 
 **Main Branch Jobs (`python-app.yml`):**
