@@ -392,7 +392,7 @@ def generate_dashboard(
         flaky_tests_html = '<div class="no-data">✅ No flaky tests detected</div>'
 
     # Generate HTML
-    html = f"""<!DOCTYPE html>  # noqa: E501
+    html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -426,6 +426,18 @@ def generate_dashboard(
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 20px;
+            display: flex;
+            flex-direction: row;
+            gap: 40px;
+            align-items: flex-start;
+        }}
+
+        .header-title {{
+            flex: 1;
+        }}
+
+        .header-alerts {{
+            flex: 1;
         }}
 
         h1 {{
@@ -481,13 +493,6 @@ def generate_dashboard(
             color: #7f8c8d;
         }}
 
-        .alerts-section {{
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }}
 
         .alert {{
             padding: 12px;
@@ -563,20 +568,21 @@ def generate_dashboard(
 <body>
     <div class="container">
         <header>
-            <h1>📊 Test Metrics Dashboard</h1>
-            <div class="timestamp">
-                Last updated: {format_timestamp(latest.get("timestamp", ""))}
+            <div class="header-title">
+                <h1>📊 Test Metrics Dashboard</h1>
+                <div class="timestamp">
+                    Last updated: {format_timestamp(latest.get("timestamp", ""))}
+                </div>
+                <div class="timestamp">
+                    Commit: <code>{latest.get("commit", "unknown")[:8]}</code> |
+                    Branch: <code>{latest.get("branch", "unknown")}</code>
+                </div>
             </div>
-            <div class="timestamp">
-                Commit: <code>{latest.get("commit", "unknown")[:8]}</code> |
-                Branch: <code>{latest.get("branch", "unknown")}</code>
+            <div class="header-alerts">
+                <h1>⚠️ Alerts</h1>
+                {alerts_html}
             </div>
         </header>
-
-        <div class="alerts-section">
-            <h2>⚠️ Alerts</h2>
-            {alerts_html}
-        </div>
 
         <div class="metrics-grid">
             <div class="metric-card">
@@ -616,8 +622,10 @@ def generate_dashboard(
             </div>
 
             <div class="metric-card">
-                <div class="metric-label">Coverage (threshold: {coverage.get("threshold", 75):.0f}%)</div>
-                <div class="metric-value" style="color: {'#27ae60' if coverage.get('meets_threshold', True) else '#e74c3c'};">
+                <div class="metric-label">Coverage (threshold: {
+                    coverage.get("threshold", 75):.0f}%)</div>
+                <div class="metric-value" style="color: {
+                    '#27ae60' if coverage.get('meets_threshold', True) else '#e74c3c'};">
                     {coverage.get("overall", 0):.1f}%
                 </div>
                 {coverage_trend}
@@ -640,14 +648,16 @@ def generate_dashboard(
 
             <div class="metric-card">
                 <div class="metric-label">Dead Code Items</div>
-                <div class="metric-value" style="color: {'#e74c3c' if complexity.get('dead_code_count', 0) > 0 else '#27ae60'};">
+                <div class="metric-value" style="color: {
+                    '#e74c3c' if complexity.get('dead_code_count', 0) > 0 else '#27ae60'};">
                     {complexity.get("dead_code_count", 0)}
                 </div>
             </div>
 
             <div class="metric-card">
                 <div class="metric-label">Spelling Errors</div>
-                <div class="metric-value" style="color: {'#e74c3c' if complexity.get('spelling_errors_count', 0) > 0 else '#27ae60'};">
+                <div class="metric-value" style="color: {
+                    '#e74c3c' if complexity.get('spelling_errors_count', 0) > 0 else '#27ae60'};">
                     {complexity.get("spelling_errors_count", 0)}
                 </div>
             </div>

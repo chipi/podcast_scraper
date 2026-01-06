@@ -203,32 +203,97 @@ def extract_complexity_metrics(reports_dir: Path) -> dict:
     return metrics
 
 
-def extract_slowest_tests(junit_xml_path: Path, top_n: int = 20) -> list:
-    """Extract slowest tests from JUnit XML report."""
-    if not junit_xml_path.exists():
-        return []
-
-    tree = ET.parse(junit_xml_path)  # nosec B314
-    root = tree.getroot()
-
+def _extract_tests_from_json(json_path: Path) -> list:
+    """Extract tests with durations from pytest JSON report."""
     tests = []
-    for testcase in root.findall(".//testcase"):
-        name = testcase.get("name", "unknown")
-        classname = testcase.get("classname", "")
-        time = float(testcase.get("time", 0))
+    try:
+        with open(json_path) as f:
+            pytest_data = json.load(f)
 
-        # Construct full test name
-        if classname:
-            full_name = f"{classname}::{name}"
-        else:
-            full_name = name
+        test_list = pytest_data.get("tests", [])
+        for test in test_list:
+            test_name = test.get("nodeid", "unknown")
+            duration = test.get("duration", 0)
+            if duration > 0:  # Only include tests with duration data
+                tests.append(
+                    {
+                        "name": test_name,
+                        "duration": duration,
+                    }
+                )
+    except (json.JSONDecodeError, KeyError, OSError) as e:
+        logger.warning(f"Failed to extract tests from {json_path}: {e}")
+    return tests
 
-        tests.append(
-            {
-                "name": full_name,
-                "duration": time,
-            }
-        )
+
+def _extract_tests_from_junit(junit_xml_path: Path) -> list:
+    """Extract tests with durations from JUnit XML report."""
+    tests = []
+    try:
+        tree = ET.parse(junit_xml_path)  # nosec B314
+        root = tree.getroot()
+
+        for testcase in root.findall(".//testcase"):
+            name = testcase.get("name", "unknown")
+            classname = testcase.get("classname", "")
+            time = float(testcase.get("time", 0))
+
+            # Construct full test name
+            if classname:
+                full_name = f"{classname}::{name}"
+            else:
+                full_name = name
+
+            if time > 0:  # Only include tests with duration data
+                tests.append(
+                    {
+                        "name": full_name,
+                        "duration": time,
+                    }
+                )
+    except (ET.ParseError, ValueError, OSError) as e:
+        logger.warning(f"Failed to extract tests from {junit_xml_path}: {e}")
+    return tests
+
+
+def extract_slowest_tests(reports_dir: Path, top_n: int = 20) -> list:
+    """Extract slowest tests from pytest JSON reports or JUnit XML.
+
+    Looks for pytest JSON files first (preferred), falls back to JUnit XML.
+    Aggregates tests from multiple JSON files if present.
+
+    Args:
+        reports_dir: Directory containing test reports
+        top_n: Number of slowest tests to return (default: 20)
+
+    Returns:
+        List of dicts with 'name' and 'duration' keys, sorted by duration descending
+    """
+    tests = []
+
+    # Try pytest JSON files first (preferred - always generated in CI)
+    pytest_json_patterns = [
+        "pytest.json",
+        "pytest-unit.json",
+        "pytest-integration.json",
+        "pytest-e2e.json",
+        "pytest-nightly.json",
+        "pytest-e2e-serial.json",
+    ]
+
+    for pattern in pytest_json_patterns:
+        json_path = reports_dir / pattern
+        if json_path.exists():
+            extracted = _extract_tests_from_json(json_path)
+            tests.extend(extracted)
+            logger.debug(f"Extracted {len(extracted)} tests from {pattern}")
+
+    # Fallback to JUnit XML if no JSON files found
+    if not tests:
+        junit_xml_path = reports_dir / "junit.xml"
+        if junit_xml_path.exists():
+            tests = _extract_tests_from_junit(junit_xml_path)
+            logger.debug(f"Extracted {len(tests)} tests from JUnit XML")
 
     # Sort by duration (descending) and return top N
     tests.sort(key=lambda x: x["duration"], reverse=True)
@@ -463,7 +528,6 @@ def generate_metrics(
 
     pytest_json_path = reports_dir / "pytest.json"
     coverage_xml_path = reports_dir / "coverage.xml"
-    junit_xml_path = reports_dir / "junit.xml"
 
     # Get environment variables if not provided
     if commit is None:
@@ -487,7 +551,7 @@ def generate_metrics(
             "runtime": extract_runtime_metrics(pytest_json_path),
             "test_health": extract_test_metrics(pytest_json_path),
             "coverage": extract_coverage_metrics(coverage_xml_path, threshold=coverage_threshold),
-            "slowest_tests": extract_slowest_tests(junit_xml_path),
+            "slowest_tests": extract_slowest_tests(reports_dir),
             "complexity": extract_complexity_metrics(reports_dir),
         },
     }
