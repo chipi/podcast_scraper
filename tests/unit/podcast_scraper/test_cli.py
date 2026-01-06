@@ -1376,7 +1376,7 @@ class TestCacheSubcommand(unittest.TestCase):
         args = cli.parse_args(["https://example.com/feed.xml"])
         self.assertFalse(hasattr(args, "command") and args.command == "cache")
 
-    @patch("podcast_scraper.cli.cache_manager.get_all_cache_info")
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
     def test_main_cache_status(self, mock_get_info):
         """Test main() with cache --status command."""
         mock_get_info.return_value = {
@@ -1391,8 +1391,8 @@ class TestCacheSubcommand(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         mock_get_info.assert_called_once()
 
-    @patch("podcast_scraper.cli.cache_manager.clean_all_caches")
-    @patch("podcast_scraper.cli.cache_manager.get_all_cache_info")
+    @patch("podcast_scraper.cache_manager.clean_all_caches")
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
     def test_main_cache_clean_all(self, mock_get_info, mock_clean):
         """Test main() with cache --clean all --yes command."""
         mock_get_info.return_value = {"total_size": 350}
@@ -1403,7 +1403,7 @@ class TestCacheSubcommand(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         mock_clean.assert_called_once_with(confirm=False)
 
-    @patch("podcast_scraper.cli.cache_manager.clean_whisper_cache")
+    @patch("podcast_scraper.cache_manager.clean_whisper_cache")
     def test_main_cache_clean_whisper(self, mock_clean):
         """Test main() with cache --clean whisper --yes command."""
         mock_clean.return_value = (1, 100)
@@ -1413,7 +1413,7 @@ class TestCacheSubcommand(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         mock_clean.assert_called_once_with(confirm=False)
 
-    @patch("podcast_scraper.cli.cache_manager.clean_transformers_cache")
+    @patch("podcast_scraper.cache_manager.clean_transformers_cache")
     def test_main_cache_clean_transformers(self, mock_clean):
         """Test main() with cache --clean transformers --yes command."""
         mock_clean.return_value = (2, 200)
@@ -1423,7 +1423,7 @@ class TestCacheSubcommand(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         mock_clean.assert_called_once_with(confirm=False)
 
-    @patch("podcast_scraper.cli.cache_manager.clean_spacy_cache")
+    @patch("podcast_scraper.cache_manager.clean_spacy_cache")
     def test_main_cache_clean_spacy(self, mock_clean):
         """Test main() with cache --clean spacy --yes command."""
         mock_clean.return_value = (1, 50)
