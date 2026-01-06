@@ -422,7 +422,11 @@ def main() -> None:
     parser.add_argument(
         "--production",
         action="store_true",
-        help="Preload production models (Whisper base.en, BART-large-cnn, LED-large-16384)",
+        help=(
+            f"Preload production models (Whisper {config.PROD_DEFAULT_WHISPER_MODEL}, "
+            f"BART {config.PROD_DEFAULT_SUMMARY_MODEL}, "
+            f"LED {config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL})"
+        ),
     )
     args = parser.parse_args()
 
@@ -430,32 +434,38 @@ def main() -> None:
         print("Preloading ALL ML models (test + production) for nightly tests...")
         print("")
         print("Test models (for regular tests in nightly):")
-        print("  - Whisper: tiny.en")
-        print("  - Transformers: facebook/bart-base, allenai/led-base-16384")
+        print(f"  - Whisper: {config.TEST_DEFAULT_WHISPER_MODEL}")
+        print(
+            f"  - Transformers: {config.TEST_DEFAULT_SUMMARY_MODEL}, "
+            f"{config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL}"
+        )
         print("")
         print("Production models (for nightly-only tests):")
-        print("  - Whisper: base.en")
-        print("  - Transformers: facebook/bart-large-cnn, allenai/led-large-16384")
+        print(f"  - Whisper: {config.PROD_DEFAULT_WHISPER_MODEL}")
+        print(
+            f"  - Transformers: {config.PROD_DEFAULT_SUMMARY_MODEL}, "
+            f"{config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL}"
+        )
         print("")
-        print("Common: en_core_web_sm (spaCy)")
+        print(f"Common: {config.DEFAULT_NER_MODEL} (spaCy)")
         print("")
 
         # Include BOTH test AND production models
         # Nightly workflow runs both regular tests (need test models) and
         # nightly-only tests (need production models)
         whisper_models = [
-            "tiny.en",  # Test model (for regular tests in nightly)
-            "base.en",  # Production model (for nightly-only tests)
+            config.TEST_DEFAULT_WHISPER_MODEL,  # Test model (for regular tests in nightly)
+            config.PROD_DEFAULT_WHISPER_MODEL,  # Production model (for nightly-only tests)
         ]
         transformers_models = [
             # Test models
-            config.TEST_DEFAULT_SUMMARY_MODEL,  # facebook/bart-base
-            config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # allenai/led-base-16384
+            config.TEST_DEFAULT_SUMMARY_MODEL,
+            config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
             # Production models
-            "facebook/bart-large-cnn",  # Production MAP model
-            "allenai/led-large-16384",  # Production REDUCE model (from issue #175)
+            config.PROD_DEFAULT_SUMMARY_MODEL,  # Production MAP model
+            config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL,  # Production REDUCE model
         ]
-        spacy_models = ["en_core_web_sm"]  # Same for both
+        spacy_models = [config.DEFAULT_NER_MODEL]  # Same for both
 
         preload_whisper_models(whisper_models)
         print("")
