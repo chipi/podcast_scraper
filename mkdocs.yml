@@ -95,6 +95,7 @@ nav:
       - RFC-039 Development Workflow: rfc/RFC-039-development-workflow-worktrees-ci.md
       - RFC-040 Automated Metrics Alerts: rfc/RFC-040-automated-metrics-alerts.md
       - RFC-041 Podcast ML Benchmarking Framework: rfc/RFC-041-podcast-ml-benchmarking-framework.md
+      - RFC-042 Hybrid Summarization Pipeline: rfc/RFC-042-HYBRID-SUMMARIZATION-PIPELINE.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

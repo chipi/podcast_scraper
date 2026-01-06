@@ -330,9 +330,11 @@ class TestOpenAIProviderErrorHandling(unittest.TestCase):
             audio_path = f.name
 
         try:
-            with self.assertRaises(ValueError) as cm:
+            from podcast_scraper.exceptions import ProviderRuntimeError
+
+            with self.assertRaises(ProviderRuntimeError) as cm:
                 provider.transcribe(audio_path)
-            self.assertIn("OpenAI transcription failed", str(cm.exception))
+            self.assertIn("Transcription failed", str(cm.exception))
         finally:
             import os
 

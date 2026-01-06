@@ -5,9 +5,9 @@ This guide provides comprehensive information about tuning local ML providers
 in the podcast scraper system.
 
 For general provider configuration, see
-[Provider Configuration Quick Reference](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md).
+[Provider Configuration Quick Reference](../guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md).
 For implementing new providers, see
-[Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md).
+[Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md).
 
 ## Table of Contents
 
@@ -874,10 +874,10 @@ RuntimeError: MPS backend out of memory
 
 ## Related Documentation
 
-- [Summarization Guide](SUMMARIZATION_GUIDE.md) - High-level summarization architecture
-- [Provider Configuration Quick Reference](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) - Configuration options
-- [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md) - Implementing new providers
-- [Testing Guide](TESTING_GUIDE.md) - Testing strategy and execution
+- [Summarization Guide](../guides/SUMMARIZATION_GUIDE.md) - High-level summarization architecture
+- [Provider Configuration Quick Reference](../guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) - Configuration options
+- [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) - Implementing new providers
+- [Testing Guide](../guides/TESTING_GUIDE.md) - Testing strategy and execution
 - [GitHub Issue #283](https://github.com/chipi/podcast_scraper/issues/283) - Threshold tuning implementation
 
 ## See Also

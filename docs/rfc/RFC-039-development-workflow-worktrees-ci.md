@@ -29,23 +29,23 @@ simultaneously.
 
 ## Table of Contents
 
-1. [Version Semantics](#version-semantics-and-terminology-important)
-2. [Problem Statement](#problem-statement)
-3. [Goals](#goals) | [Non-Goals](#non-goals) | [Constraints](#constraints-assumptions)
-4. [Workflow Rules (Normative)](#workflow-rules-normative)
-5. [Design and Implementation](#design-implementation)
-   - [1. Git Worktree Workflow](#1-git-worktree-workflow)
-   - [2. Complete Worktree Setup](#2-complete-worktree-setup-process)
-   - [3. Cursor Integration](#3-cursor-integration-details)
-   - [4. Rebase Strategy](#4-rebase-strategy-and-decision-tree)
-   - [5. GitHub Actions CI](#5-github-actions-ci-evolution)
-   - [6. Makefile Helpers](#6-makefile-helpers)
-   - [7. Emergency Recovery](#7-emergency-recovery)
-   - [8. Weekly Maintenance](#8-weekly-maintenance-checklist)
-6. [Documentation Updates](#documentation-updates-required)
-7. [Key Decisions](#key-decisions) | [Alternatives](#alternatives-considered)
-8. [Rollout Plan](#rollout-plan)
-9. [Quick Reference Cheat Sheet](#quick-reference-cheat-sheet)
+1. Version Semantics
+2. Problem Statement
+3. Goals | Non-Goals | Constraints
+4. Workflow Rules (Normative)
+5. Design and Implementation
+   - 1. Git Worktree Workflow
+   - 2. Complete Worktree Setup
+   - 3. Cursor Integration
+   - 4. Rebase Strategy
+   - 5. GitHub Actions CI
+   - 6. Makefile Helpers
+   - 7. Emergency Recovery
+   - 8. Weekly Maintenance
+6. Documentation Updates
+7. Key Decisions | Alternatives
+8. Rollout Plan
+9. Quick Reference Cheat Sheet
 
 ---
 

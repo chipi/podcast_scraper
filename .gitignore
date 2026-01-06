@@ -13,6 +13,9 @@ reports/
 reports/deps*.svg
 reports/deps*.json
 
+# Benchmarks
+benchmarks/
+
 # Python cache
 *.pyc
 __pycache__/
