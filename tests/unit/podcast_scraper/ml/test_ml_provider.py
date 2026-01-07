@@ -15,11 +15,6 @@ from unittest.mock import Mock, patch
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.exceptions import (
-    ProviderDependencyError,
-    ProviderNotInitializedError,
-    ProviderRuntimeError,
-)
 from podcast_scraper.ml.ml_provider import MLProvider
 
 
@@ -115,8 +110,7 @@ class TestMLProviderStandalone(unittest.TestCase):
             transcription_provider=self.cfg.transcription_provider,
             auto_speakers=True,
             whisper_model=self.cfg.whisper_model,
-            transcribe_missing=False,  # Explicitly disable to avoid initializing Whisper
-            generate_summaries=False,  # Explicitly disable to avoid initializing Transformers
+            transcribe_missing=False,
         )
         provider = MLProvider(cfg)
 
@@ -145,7 +139,7 @@ class TestMLProviderStandalone(unittest.TestCase):
             generate_metadata=True,  # Required when generate_summaries is True
             whisper_model=self.cfg.whisper_model,
             auto_speakers=False,  # Disable to avoid loading spaCy
-            transcribe_missing=False,  # Explicitly disable to avoid initializing Whisper
+            transcribe_missing=False,
         )
         provider = MLProvider(cfg)
 
@@ -303,15 +297,14 @@ class TestMLProviderTranscription(unittest.TestCase):
         self.assertEqual(call_args[1]["language"], "fr")
 
     def test_transcribe_not_initialized(self):
-        """Test transcribe raises ProviderNotInitializedError if not initialized."""
+        """Test transcribe raises RuntimeError if not initialized."""
         provider = MLProvider(self.cfg)
         # Don't call initialize()
 
-        with self.assertRaises(ProviderNotInitializedError) as context:
+        with self.assertRaises(RuntimeError) as context:
             provider.transcribe("/path/to/audio.mp3")
 
         self.assertIn("not initialized", str(context.exception))
-        self.assertEqual(context.exception.provider, "MLProvider/Whisper")
 
     @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
@@ -328,7 +321,7 @@ class TestMLProviderTranscription(unittest.TestCase):
         provider = MLProvider(self.cfg)
         provider.initialize()
 
-        with self.assertRaises(ProviderRuntimeError) as context:
+        with self.assertRaises(ValueError) as context:
             provider.transcribe("/path/to/audio.mp3")
 
         self.assertIn("empty text", str(context.exception))
@@ -545,15 +538,14 @@ class TestMLProviderSummarization(unittest.TestCase):
         self.assertEqual(result["metadata"]["model_used"], config.TEST_DEFAULT_SUMMARY_MODEL)
 
     def test_summarize_not_initialized(self):
-        """Test summarize raises ProviderNotInitializedError if not initialized."""
+        """Test summarize raises RuntimeError if not initialized."""
         provider = MLProvider(self.cfg)
         # Don't call initialize()
 
-        with self.assertRaises(ProviderNotInitializedError) as context:
+        with self.assertRaises(RuntimeError) as context:
             provider.summarize("Text")
 
         self.assertIn("not initialized", str(context.exception))
-        self.assertEqual(context.exception.provider, "MLProvider/Transformers")
 
     @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
@@ -601,7 +593,7 @@ class TestMLProviderSummarization(unittest.TestCase):
         provider = MLProvider(self.cfg)
         provider.initialize()
 
-        with self.assertRaises(ProviderRuntimeError) as context:
+        with self.assertRaises(ValueError) as context:
             provider.summarize("Text")
 
         self.assertIn("Summarization failed", str(context.exception))
@@ -685,7 +677,7 @@ class TestMLProviderPreload(unittest.TestCase):
             preload_models=True,
             transcribe_missing=True,
             transcription_provider="whisper",
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en)
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=False,
             generate_summaries=False,
         )
@@ -765,7 +757,7 @@ class TestMLProviderPreload(unittest.TestCase):
             preload_models=True,
             transcribe_missing=True,
             transcription_provider="whisper",
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en)
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=False,
             generate_summaries=False,
         )
@@ -773,12 +765,12 @@ class TestMLProviderPreload(unittest.TestCase):
 
         mock_import_whisper.side_effect = ImportError("openai-whisper not installed")
 
-        with self.assertRaises(ProviderDependencyError) as context:
+        with self.assertRaises(RuntimeError) as context:
             provider.preload()
 
         # Verify error message
         self.assertIn("Failed to preload Whisper model", str(context.exception))
-        self.assertEqual(context.exception.provider, "MLProvider/Whisper")
+        self.assertIn("openai-whisper", str(context.exception))
 
     @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
     def test_preload_spacy_fails_fast(self, mock_get_ner):
@@ -796,12 +788,12 @@ class TestMLProviderPreload(unittest.TestCase):
 
         mock_get_ner.side_effect = OSError("Model not found")
 
-        with self.assertRaises(ProviderDependencyError) as context:
+        with self.assertRaises(RuntimeError) as context:
             provider.preload()
 
         # Verify error message
         self.assertIn("Failed to preload spaCy model", str(context.exception))
-        self.assertEqual(context.exception.provider, "MLProvider/spaCy")
+        self.assertIn("spacy download", str(context.exception))
 
     @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
@@ -825,12 +817,12 @@ class TestMLProviderPreload(unittest.TestCase):
         mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summary_model.side_effect = RuntimeError("Model download failed")
 
-        with self.assertRaises(ProviderDependencyError) as context:
+        with self.assertRaises(RuntimeError) as context:
             provider.preload()
 
         # Verify error message
         self.assertIn("Failed to preload Transformers models", str(context.exception))
-        self.assertEqual(context.exception.provider, "MLProvider/Transformers")
+        self.assertIn("model cache", str(context.exception).lower())
 
     @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
@@ -856,7 +848,7 @@ class TestMLProviderPreload(unittest.TestCase):
             generate_summaries=True,
             summary_provider="transformers",
             generate_metadata=True,
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en)
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
         provider = MLProvider(cfg)
 
@@ -937,7 +929,7 @@ class TestMLProviderPreload(unittest.TestCase):
             preload_models=True,
             transcribe_missing=True,
             transcription_provider="whisper",
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en)
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=False,  # Disable to avoid spaCy filesystem I/O
             generate_summaries=False,  # Disable to avoid Transformers loading
         )
