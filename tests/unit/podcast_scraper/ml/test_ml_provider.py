@@ -110,6 +110,7 @@ class TestMLProviderStandalone(unittest.TestCase):
             transcription_provider=self.cfg.transcription_provider,
             auto_speakers=True,
             whisper_model=self.cfg.whisper_model,
+            transcribe_missing=False,
         )
         provider = MLProvider(cfg)
 
@@ -138,6 +139,7 @@ class TestMLProviderStandalone(unittest.TestCase):
             generate_metadata=True,  # Required when generate_summaries is True
             whisper_model=self.cfg.whisper_model,
             auto_speakers=False,  # Disable to avoid loading spaCy
+            transcribe_missing=False,
         )
         provider = MLProvider(cfg)
 
@@ -675,7 +677,7 @@ class TestMLProviderPreload(unittest.TestCase):
             preload_models=True,
             transcribe_missing=True,
             transcription_provider="whisper",
-            whisper_model="base.en",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=False,
             generate_summaries=False,
         )
@@ -755,7 +757,7 @@ class TestMLProviderPreload(unittest.TestCase):
             preload_models=True,
             transcribe_missing=True,
             transcription_provider="whisper",
-            whisper_model="base.en",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=False,
             generate_summaries=False,
         )
@@ -846,7 +848,7 @@ class TestMLProviderPreload(unittest.TestCase):
             generate_summaries=True,
             summary_provider="transformers",
             generate_metadata=True,
-            whisper_model="base.en",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
         provider = MLProvider(cfg)
 
@@ -927,7 +929,7 @@ class TestMLProviderPreload(unittest.TestCase):
             preload_models=True,
             transcribe_missing=True,
             transcription_provider="whisper",
-            whisper_model="base.en",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=False,  # Disable to avoid spaCy filesystem I/O
             generate_summaries=False,  # Disable to avoid Transformers loading
         )

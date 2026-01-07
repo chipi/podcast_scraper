@@ -12,6 +12,7 @@ from types import ModuleType
 from typing import Any, List, Optional, Tuple, Union
 
 from . import config, progress
+from .cache_utils import get_whisper_cache_dir
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +152,11 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
     if len(fallback_models) > 1:
         logger.debug("Fallback chain: %s", fallback_models)
 
+    # Get whisper cache directory (prefers local cache if it exists)
+    whisper_cache = get_whisper_cache_dir()
+    whisper_cache_str = str(whisper_cache)
+    logger.debug("Whisper cache directory: %s", whisper_cache_str)
+
     last_error: Optional[Union[FileNotFoundError, RuntimeError, OSError]] = None
     for attempt_model in fallback_models:
         try:
@@ -158,7 +164,9 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
                 logger.debug(
                     "Trying fallback Whisper model: %s (requested: %s)", attempt_model, model_name
                 )
-            model = whisper_lib.load_model(attempt_model)
+            # Use download_root parameter to specify cache directory directly
+            # This ensures we use pre-cached models and avoid network calls
+            model = whisper_lib.load_model(attempt_model, download_root=whisper_cache_str)
             if attempt_model != model_name:
                 logger.debug(
                     "Loaded fallback Whisper model: %s (requested %s was not available)",

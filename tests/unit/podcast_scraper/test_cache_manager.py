@@ -378,8 +378,15 @@ class TestCacheManagerEdgeCases(unittest.TestCase):
                 [{"name": "base.en.pt", "size": 100, "path": model_file}],
             )
 
-            # Mock unlink to raise PermissionError
-            with patch.object(model_file, "unlink", side_effect=PermissionError("Access denied")):
+            # Mock Path.unlink to raise PermissionError for the model file
+            original_unlink = Path.unlink
+
+            def mock_unlink(self):
+                if self == model_file:
+                    raise PermissionError("Access denied")
+                return original_unlink(self)
+
+            with patch("pathlib.Path.unlink", mock_unlink):
                 deleted, freed = cache_manager.clean_whisper_cache(confirm=False)
                 # Should handle error gracefully and continue
                 self.assertGreaterEqual(deleted, 0)
@@ -433,10 +440,15 @@ class TestCacheManagerEdgeCases(unittest.TestCase):
             restricted_file = Path(tmpdir) / "restricted.txt"
             restricted_file.write_bytes(b"test")
 
-            # Mock stat to raise PermissionError
-            with patch.object(
-                restricted_file, "stat", side_effect=PermissionError("Access denied")
-            ):
+            # Mock Path.stat to raise PermissionError for the restricted file
+            original_stat = Path.stat
+
+            def mock_stat(self):
+                if self == restricted_file:
+                    raise PermissionError("Access denied")
+                return original_stat(self)
+
+            with patch("pathlib.Path.stat", mock_stat):
                 size = cache_manager.calculate_directory_size(Path(tmpdir))
                 # Should handle error gracefully and return partial or 0
                 self.assertGreaterEqual(size, 0)

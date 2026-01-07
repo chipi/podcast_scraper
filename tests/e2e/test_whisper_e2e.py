@@ -83,10 +83,10 @@ class TestWhisperProviderDirect:
             audio_file = tmp_file.name
 
         try:
-            # Create config with base.en model (matches what's preloaded by make preload-ml-models)
+            # Create config with tiny.en model (test default, preloaded by make preload-ml-models)
             cfg = Config(
                 transcribe_missing=True,  # Required for Whisper to load
-                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # tiny.en for tests
                 language="en",
             )
 
@@ -144,10 +144,10 @@ class TestWhisperProviderDirect:
             audio_file = tmp_file.name
 
         try:
-            # Create config with base.en model (matches what's preloaded by make preload-ml-models)
+            # Create config with tiny.en model (test default, preloaded by make preload-ml-models)
             cfg = Config(
                 transcribe_missing=True,  # Required for Whisper to load
-                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # tiny.en for tests
                 language="en",
             )
 

@@ -79,10 +79,16 @@ def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
 
     print("Preloading Whisper models...")
 
-    # Use local cache if available, otherwise fall back to user cache
-    whisper_cache = get_whisper_cache_dir()
+    # Prefer local cache in project root for preloading
     project_root = get_project_root()
     local_cache = project_root / ".cache" / "whisper"
+
+    # Create local cache directory if it doesn't exist (for preloading)
+    # This ensures models are cached in the project directory, not user home
+    local_cache.mkdir(parents=True, exist_ok=True)
+
+    # Use local cache for preloading (even if it didn't exist before)
+    whisper_cache = local_cache
 
     # Explicit path logging for debugging
     print(f"  Cache directory: {whisper_cache}")
@@ -91,7 +97,7 @@ def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
     print(f"  User: {os.environ.get('USER', 'unknown')}")
     print(f"  Home: {Path.home()}")
 
-    # Ensure cache directory exists
+    # Cache directory already created above
     whisper_cache.mkdir(parents=True, exist_ok=True)
 
     # Use download_root parameter to specify cache directory directly
@@ -249,13 +255,16 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
 
     print("Preloading Transformers models...")
 
-    # Use local cache if available, otherwise fall back to default
-    cache_dir = get_transformers_cache_dir()
+    # Prefer local cache in project root for preloading
     project_root = get_project_root()
     local_cache = project_root / ".cache" / "huggingface" / "hub"
 
-    # Ensure cache directory exists before loading models
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    # Create local cache directory if it doesn't exist (for preloading)
+    # This ensures models are cached in the project directory, not user home
+    local_cache.mkdir(parents=True, exist_ok=True)
+
+    # Use local cache for preloading (even if it didn't exist before)
+    cache_dir = local_cache
 
     # Explicit path logging for debugging
     print(f"  Cache directory: {cache_dir}")
