@@ -93,8 +93,11 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
         self.assertEqual(provider._model, mock_model)
         self.assertTrue(provider._initialized)
         self.assertTrue(provider.is_initialized)
-        # Should prefer .en variant for English
-        mock_whisper.load_model.assert_called_with(config.TEST_DEFAULT_WHISPER_MODEL)
+        # Should prefer .en variant for English and use download_root for cache
+        mock_whisper.load_model.assert_called_once()
+        call_args = mock_whisper.load_model.call_args
+        self.assertEqual(call_args[0][0], config.TEST_DEFAULT_WHISPER_MODEL)
+        self.assertIn("download_root", call_args[1])
 
     @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
     def test_initialize_transcribe_disabled(self, mock_import):
@@ -712,10 +715,11 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         provider = WhisperTranscriptionProvider(cfg)
         provider.initialize()
 
-        # Should use model without .en suffix for non-English
-        mock_whisper.load_model.assert_called_with(
-            config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", "")
-        )
+        # Should use model without .en suffix for non-English, with download_root
+        mock_whisper.load_model.assert_called_once()
+        call_args = mock_whisper.load_model.call_args
+        self.assertEqual(call_args[0][0], config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", ""))
+        self.assertIn("download_root", call_args[1])
 
     @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
     def test_initialize_model_missing_attributes(self, mock_import):

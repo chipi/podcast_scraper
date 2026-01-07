@@ -79,26 +79,21 @@ def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
 
     print("Preloading Whisper models...")
 
-    # Prefer local cache in project root for preloading
-    project_root = get_project_root()
-    local_cache = project_root / ".cache" / "whisper"
+    # Use get_whisper_cache_dir() which checks for local cache first,
+    # then falls back to ~/.cache/whisper/ (which CI caches between jobs)
+    whisper_cache = get_whisper_cache_dir()
 
-    # Create local cache directory if it doesn't exist (for preloading)
-    # This ensures models are cached in the project directory, not user home
-    local_cache.mkdir(parents=True, exist_ok=True)
-
-    # Use local cache for preloading (even if it didn't exist before)
-    whisper_cache = local_cache
+    # Ensure cache directory exists
+    whisper_cache.mkdir(parents=True, exist_ok=True)
 
     # Explicit path logging for debugging
+    project_root = get_project_root()
+    local_cache = project_root / ".cache" / "whisper"
     print(f"  Cache directory: {whisper_cache}")
     print(f"  Using local cache: {whisper_cache == local_cache}")
     print(f"  Cache directory exists: {whisper_cache.exists()}")
     print(f"  User: {os.environ.get('USER', 'unknown')}")
     print(f"  Home: {Path.home()}")
-
-    # Cache directory already created above
-    whisper_cache.mkdir(parents=True, exist_ok=True)
 
     # Use download_root parameter to specify cache directory directly
     # This is more reliable than environment variable
@@ -255,18 +250,17 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
 
     print("Preloading Transformers models...")
 
-    # Prefer local cache in project root for preloading
-    project_root = get_project_root()
-    local_cache = project_root / ".cache" / "huggingface" / "hub"
+    # Use get_transformers_cache_dir() which respects HF_HUB_CACHE env var
+    # In CI, this is set to /home/runner/.cache/huggingface/hub
+    # Locally, it falls back to local project cache or user cache
+    cache_dir = get_transformers_cache_dir()
 
-    # Create local cache directory if it doesn't exist (for preloading)
-    # This ensures models are cached in the project directory, not user home
-    local_cache.mkdir(parents=True, exist_ok=True)
-
-    # Use local cache for preloading (even if it didn't exist before)
-    cache_dir = local_cache
+    # Ensure cache directory exists
+    cache_dir.mkdir(parents=True, exist_ok=True)
 
     # Explicit path logging for debugging
+    project_root = get_project_root()
+    local_cache = project_root / ".cache" / "huggingface" / "hub"
     print(f"  Cache directory: {cache_dir}")
     print(f"  Using local cache: {cache_dir == local_cache}")
     print(f"  Cache directory exists: {cache_dir.exists()}")
