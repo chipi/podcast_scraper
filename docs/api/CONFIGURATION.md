@@ -13,8 +13,8 @@ cfg = Config(
     rss="https://example.com/feed.xml",
     output_dir="./transcripts",
     max_episodes=50,
-    transcribe_missing=True,
-    whisper_model="base",
+    transcribe_missing=True,  # Default: True (automatically transcribe missing transcripts)
+    whisper_model="base.en",
     workers=8
 )
 ```text
