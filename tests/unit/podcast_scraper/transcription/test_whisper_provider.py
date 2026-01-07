@@ -34,6 +34,7 @@ spec.loader.exec_module(parent_conftest)
 
 create_test_config = parent_conftest.create_test_config
 
+from podcast_scraper import config  # noqa: E402
 from podcast_scraper.transcription.whisper_provider import (  # noqa: E402
     _import_third_party_whisper,
     _intercept_whisper_progress,
@@ -46,7 +47,11 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.cfg = create_test_config(transcribe_missing=True, whisper_model="base", language="en")
+        self.cfg = create_test_config(
+            transcribe_missing=True,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", ""),
+            language="en",
+        )
         # Save original whisper module if it exists
         self._original_whisper = sys.modules.get("whisper")
         # Clear whisper from sys.modules to ensure clean state
@@ -88,8 +93,11 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
         self.assertEqual(provider._model, mock_model)
         self.assertTrue(provider._initialized)
         self.assertTrue(provider.is_initialized)
-        # Should prefer .en variant for English
-        mock_whisper.load_model.assert_called_with("base.en")
+        # Should prefer .en variant for English and use download_root for cache
+        mock_whisper.load_model.assert_called_once()
+        call_args = mock_whisper.load_model.call_args
+        self.assertEqual(call_args[0][0], config.TEST_DEFAULT_WHISPER_MODEL)
+        self.assertIn("download_root", call_args[1])
 
     @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
     def test_initialize_transcribe_disabled(self, mock_import):
@@ -463,7 +471,11 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.cfg = create_test_config(transcribe_missing=True, whisper_model="base", language="en")
+        self.cfg = create_test_config(
+            transcribe_missing=True,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", ""),
+            language="en",
+        )
         # Save original whisper module if it exists
         self._original_whisper = sys.modules.get("whisper")
         # Clear whisper from sys.modules to ensure clean state
@@ -686,7 +698,11 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
     @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
     def test_initialize_non_english_language(self, mock_import):
         """Test initialize with non-English language (removes .en suffix)."""
-        cfg = create_test_config(transcribe_missing=True, whisper_model="base.en", language="fr")
+        cfg = create_test_config(
+            transcribe_missing=True,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            language="fr",
+        )
         mock_whisper = Mock()
         mock_model = Mock()
         mock_model.device = Mock()
@@ -699,8 +715,11 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         provider = WhisperTranscriptionProvider(cfg)
         provider.initialize()
 
-        # Should use "base" (without .en) for non-English
-        mock_whisper.load_model.assert_called_with("base")
+        # Should use model without .en suffix for non-English, with download_root
+        mock_whisper.load_model.assert_called_once()
+        call_args = mock_whisper.load_model.call_args
+        self.assertEqual(call_args[0][0], config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", ""))
+        self.assertIn("download_root", call_args[1])
 
     @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
     def test_initialize_model_missing_attributes(self, mock_import):

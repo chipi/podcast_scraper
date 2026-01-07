@@ -1247,6 +1247,7 @@ def _process_episodes(
                     args[5],
                     args[6],
                     args[7],
+                    pipeline_metrics=pipeline_metrics,
                 ): args[0].idx
                 for args in download_args
             }

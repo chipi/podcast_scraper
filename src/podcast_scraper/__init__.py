@@ -46,6 +46,7 @@ __all__ = [
     "run_pipeline",
     "__version__",
     "__api_version__",
+    "cache_manager",
 ]
 # Note: 'cli' and 'service' are available via __getattr__ for lazy loading
 # Use: from podcast_scraper import cli, service
@@ -78,4 +79,10 @@ def __getattr__(name: str):
         _service = importlib.import_module(f"{__name__}.service")
         _import_cache[name] = _service
         return _service
+    if name == "cache_manager":
+        import importlib
+
+        _cache_manager = importlib.import_module(f"{__name__}.cache_manager")
+        _import_cache[name] = _cache_manager
+        return _cache_manager
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

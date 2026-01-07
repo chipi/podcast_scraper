@@ -107,8 +107,8 @@ class Config(BaseModel)
 
 #### Transcription Configuration
 
-- `transcribe_missing` (`bool`, default: `False`, alias: `"transcribe_missing"`): Enable Whisper transcription for episodes without transcripts.
-- `whisper_model` (`str`, default: `"base"`, alias: `"whisper_model"`): Whisper model to use. Valid values: `"tiny"`, `"base"`, `"small"`, `"medium"`, `"large"`, `"large-v2"`, `"large-v3"`, or language-specific variants (e.g., `"base.en"`).
+- `transcribe_missing` (`bool`, default: `True`, alias: `"transcribe_missing"`): Enable Whisper transcription for episodes without transcripts. Set to `False` to only download existing transcripts.
+- `whisper_model` (`str`, default: `"base.en"`, alias: `"whisper_model"`): Whisper model to use. Valid values: `"tiny"`, `"base"`, `"small"`, `"medium"`, `"large"`, `"large-v2"`, `"large-v3"`, or language-specific variants (e.g., `"base.en"`). For English (the default language), the default is `"base.en"` which matches the actual model used at runtime. The conversion logic still works for backward compatibility if you explicitly specify `"base"`.
 - `language` (`str`, default: `"en"`, alias: `"language"`): Language code for transcription (e.g., `"en"`, `"fr"`, `"de"`).
 
 #### Screenplay Formatting

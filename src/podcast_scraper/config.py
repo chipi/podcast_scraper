@@ -162,7 +162,8 @@ class Config(BaseModel):
         timeout: Request timeout in seconds (minimum: 1).
         delay_ms: Delay between requests in milliseconds.
         prefer_types: Preferred transcript types or extensions (e.g., ["text/vtt", ".srt"]).
-        transcribe_missing: Enable Whisper transcription for episodes without transcripts.
+        transcribe_missing: Enable Whisper transcription for episodes without transcripts
+            (default: True). Set to False to only download existing transcripts.
         whisper_model: Whisper model name (e.g., "base", "small", "medium").
         screenplay: Format transcripts as screenplay with speaker labels.
         screenplay_gap_s: Minimum gap in seconds between speaker segments.
@@ -256,8 +257,8 @@ class Config(BaseModel):
     timeout: int = Field(default=DEFAULT_TIMEOUT_SECONDS, alias="timeout")
     delay_ms: int = Field(default=0, alias="delay_ms")
     prefer_types: List[str] = Field(default_factory=list, alias="prefer_type")
-    transcribe_missing: bool = Field(default=False, alias="transcribe_missing")
-    whisper_model: str = Field(default="base", alias="whisper_model")
+    transcribe_missing: bool = Field(default=True, alias="transcribe_missing")
+    whisper_model: str = Field(default="base.en", alias="whisper_model")
     screenplay: bool = Field(default=False, alias="screenplay")
     screenplay_gap_s: float = Field(default=DEFAULT_SCREENPLAY_GAP_SECONDS, alias="screenplay_gap")
     screenplay_num_speakers: int = Field(default=DEFAULT_NUM_SPEAKERS, alias="num_speakers")

@@ -114,6 +114,7 @@ class TestFilesystemOperations(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             output_dir=self.temp_dir,
+            transcribe_missing=False,  # Explicitly disable to test basic case
         )
         effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
         self.assertEqual(effective_dir, self.temp_dir)
@@ -124,6 +125,7 @@ class TestFilesystemOperations(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             output_dir=self.temp_dir,
             run_id="test_run",
+            transcribe_missing=False,  # Explicitly disable to test run_id only
         )
         effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
         self.assertIn("test_run", effective_dir)

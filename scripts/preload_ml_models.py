@@ -79,20 +79,21 @@ def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
 
     print("Preloading Whisper models...")
 
-    # Use local cache if available, otherwise fall back to user cache
+    # Use get_whisper_cache_dir() which checks for local cache first,
+    # then falls back to ~/.cache/whisper/ (which CI caches between jobs)
     whisper_cache = get_whisper_cache_dir()
-    project_root = get_project_root()
-    local_cache = project_root / ".cache" / "whisper"
+
+    # Ensure cache directory exists
+    whisper_cache.mkdir(parents=True, exist_ok=True)
 
     # Explicit path logging for debugging
+    project_root = get_project_root()
+    local_cache = project_root / ".cache" / "whisper"
     print(f"  Cache directory: {whisper_cache}")
     print(f"  Using local cache: {whisper_cache == local_cache}")
     print(f"  Cache directory exists: {whisper_cache.exists()}")
     print(f"  User: {os.environ.get('USER', 'unknown')}")
     print(f"  Home: {Path.home()}")
-
-    # Ensure cache directory exists
-    whisper_cache.mkdir(parents=True, exist_ok=True)
 
     # Use download_root parameter to specify cache directory directly
     # This is more reliable than environment variable
@@ -249,15 +250,17 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
 
     print("Preloading Transformers models...")
 
-    # Use local cache if available, otherwise fall back to default
+    # Use get_transformers_cache_dir() which respects HF_HUB_CACHE env var
+    # In CI, this is set to /home/runner/.cache/huggingface/hub
+    # Locally, it falls back to local project cache or user cache
     cache_dir = get_transformers_cache_dir()
-    project_root = get_project_root()
-    local_cache = project_root / ".cache" / "huggingface" / "hub"
 
-    # Ensure cache directory exists before loading models
+    # Ensure cache directory exists
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     # Explicit path logging for debugging
+    project_root = get_project_root()
+    local_cache = project_root / ".cache" / "huggingface" / "hub"
     print(f"  Cache directory: {cache_dir}")
     print(f"  Using local cache: {cache_dir == local_cache}")
     print(f"  Cache directory exists: {cache_dir.exists()}")
