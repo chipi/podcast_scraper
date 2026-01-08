@@ -91,10 +91,11 @@ class TestEnvironmentVariables(unittest.TestCase):
         self.assertEqual(cfg.summary_cache_dir, "/tmp/cache")  # nosec B108
 
     def test_cache_dir_alias(self):
-        """Test CACHE_DIR environment variable (alias for SUMMARY_CACHE_DIR)."""
+        """Test CACHE_DIR environment variable derives summary_cache_dir."""
         os.environ["CACHE_DIR"] = "/tmp/cache2"  # nosec B108
         cfg = config.Config(rss_url="https://test.com")
-        self.assertEqual(cfg.summary_cache_dir, "/tmp/cache2")  # nosec B108
+        # CACHE_DIR now derives summary_cache_dir as CACHE_DIR/huggingface/hub
+        self.assertEqual(cfg.summary_cache_dir, "/tmp/cache2/huggingface/hub")  # nosec B108
 
     def test_summary_cache_dir_precedence(self):
         """Test SUMMARY_CACHE_DIR takes precedence over CACHE_DIR."""

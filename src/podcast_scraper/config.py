@@ -575,23 +575,33 @@ class Config(BaseModel):
         # SUMMARY_CACHE_DIR / CACHE_DIR: Only set from env if not in config
         # Also check for local cache in project root
         if "summary_cache_dir" not in data or data.get("summary_cache_dir") is None:
-            env_cache_dir = os.getenv("SUMMARY_CACHE_DIR") or os.getenv("CACHE_DIR")
-            if env_cache_dir:
-                env_value = str(env_cache_dir).strip()
+            # Check SUMMARY_CACHE_DIR first (explicit override)
+            summary_cache = os.getenv("SUMMARY_CACHE_DIR")
+            if summary_cache:
+                env_value = str(summary_cache).strip()
                 if env_value:
                     data["summary_cache_dir"] = env_value
             else:
-                # Check for local cache in project root
-                try:
-                    from .cache_utils import get_project_root
+                # If CACHE_DIR is set, derive summary cache from it
+                cache_dir = os.getenv("CACHE_DIR")
+                if cache_dir:
+                    # Derive Transformers cache path from CACHE_DIR
+                    from pathlib import Path
 
-                    project_root = get_project_root()
-                    local_cache = project_root / ".cache" / "huggingface" / "hub"
-                    if local_cache.exists():
-                        data["summary_cache_dir"] = str(local_cache)
-                except Exception:
-                    # If cache_utils not available, continue without local cache
-                    pass
+                    derived_cache = str(Path(cache_dir) / "huggingface" / "hub")
+                    data["summary_cache_dir"] = derived_cache
+                else:
+                    # Check for local cache in project root
+                    try:
+                        from .cache_utils import get_project_root
+
+                        project_root = get_project_root()
+                        local_cache = project_root / ".cache" / "huggingface" / "hub"
+                        if local_cache.exists():
+                            data["summary_cache_dir"] = str(local_cache)
+                    except Exception:
+                        # If cache_utils not available, continue without local cache
+                        pass
 
         # WORKERS: Only set from env if not in config
         if "workers" not in data or data.get("workers") is None:

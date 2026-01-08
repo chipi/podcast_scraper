@@ -77,43 +77,94 @@ class TestGetWhisperCacheDir(unittest.TestCase):
 
         # Use temp directory to avoid filesystem I/O restrictions
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Mock project root to point to temp directory
-            with patch.object(cache_utils, "get_project_root") as mock_root:
-                mock_root.return_value = Path(temp_dir)
-                local_cache = Path(temp_dir) / ".cache" / "whisper"
-                local_cache.mkdir(parents=True, exist_ok=True)
+            # Clear env vars that might interfere
+            env_without_cache = {
+                k: v for k, v in os.environ.items() if k not in ("WHISPER_CACHE_DIR", "CACHE_DIR")
+            }
+            with patch.dict(os.environ, env_without_cache, clear=True):
+                # Mock project root to point to temp directory
+                with patch.object(cache_utils, "get_project_root") as mock_root:
+                    mock_root.return_value = Path(temp_dir)
+                    local_cache = Path(temp_dir) / ".cache" / "whisper"
+                    local_cache.mkdir(parents=True, exist_ok=True)
 
-                cache_dir = cache_utils.get_whisper_cache_dir()
-                self.assertEqual(cache_dir, local_cache)
+                    cache_dir = cache_utils.get_whisper_cache_dir()
+                    self.assertEqual(cache_dir, local_cache)
 
     def test_get_whisper_cache_dir_falls_back_to_home(self):
         """Test Whisper cache falls back to ~/.cache/whisper when local doesn't exist."""
         import tempfile
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Mock project root to point to temp directory (no .cache exists)
-            with patch.object(cache_utils, "get_project_root") as mock_root:
-                mock_root.return_value = Path(temp_dir)
-                # Mock home directory
-                with patch("pathlib.Path.home") as mock_home:
-                    mock_home.return_value = Path(temp_dir)
-                    expected = Path(temp_dir) / ".cache" / "whisper"
-                    cache_dir = cache_utils.get_whisper_cache_dir()
-                    self.assertEqual(cache_dir, expected)
+            # Clear env vars that might interfere
+            env_without_cache = {
+                k: v for k, v in os.environ.items() if k not in ("WHISPER_CACHE_DIR", "CACHE_DIR")
+            }
+            with patch.dict(os.environ, env_without_cache, clear=True):
+                # Mock project root to point to temp directory (no .cache exists)
+                with patch.object(cache_utils, "get_project_root") as mock_root:
+                    mock_root.return_value = Path(temp_dir)
+                    # Mock home directory
+                    with patch("pathlib.Path.home") as mock_home:
+                        mock_home.return_value = Path(temp_dir)
+                        expected = Path(temp_dir) / ".cache" / "whisper"
+                        cache_dir = cache_utils.get_whisper_cache_dir()
+                        self.assertEqual(cache_dir, expected)
 
     def test_get_whisper_cache_dir_home_fallback(self):
         """Test Whisper cache uses home directory for fallback."""
         import tempfile
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Mock project root and home
-            with patch.object(cache_utils, "get_project_root") as mock_root:
-                mock_root.return_value = Path(temp_dir)
-                with patch("pathlib.Path.home") as mock_home:
-                    mock_home.return_value = Path(temp_dir)
-                    cache_dir = cache_utils.get_whisper_cache_dir()
-                    expected = Path(temp_dir) / ".cache" / "whisper"
-                    self.assertEqual(cache_dir, expected)
+            # Clear env vars that might interfere
+            env_without_cache = {
+                k: v for k, v in os.environ.items() if k not in ("WHISPER_CACHE_DIR", "CACHE_DIR")
+            }
+            with patch.dict(os.environ, env_without_cache, clear=True):
+                # Mock project root and home
+                with patch.object(cache_utils, "get_project_root") as mock_root:
+                    mock_root.return_value = Path(temp_dir)
+                    with patch("pathlib.Path.home") as mock_home:
+                        mock_home.return_value = Path(temp_dir)
+                        cache_dir = cache_utils.get_whisper_cache_dir()
+                        expected = Path(temp_dir) / ".cache" / "whisper"
+                        self.assertEqual(cache_dir, expected)
+
+    def test_get_whisper_cache_dir_uses_whisper_cache_dir_env_var(self):
+        """Test Whisper cache uses WHISPER_CACHE_DIR env var (highest priority)."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            custom_cache = Path(temp_dir) / "custom_whisper_cache"
+            with patch.dict(os.environ, {"WHISPER_CACHE_DIR": str(custom_cache)}):
+                cache_dir = cache_utils.get_whisper_cache_dir()
+                self.assertEqual(cache_dir, custom_cache)
+
+    def test_get_whisper_cache_dir_uses_cache_dir_env_var(self):
+        """Test Whisper cache derives from CACHE_DIR env var."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_base = Path(temp_dir) / "cache_base"
+            with patch.dict(os.environ, {"CACHE_DIR": str(cache_base)}):
+                cache_dir = cache_utils.get_whisper_cache_dir()
+                # Should derive as CACHE_DIR/whisper
+                self.assertEqual(cache_dir, cache_base / "whisper")
+
+    def test_get_whisper_cache_dir_whisper_cache_dir_takes_priority(self):
+        """Test WHISPER_CACHE_DIR takes priority over CACHE_DIR."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            whisper_cache = Path(temp_dir) / "whisper_cache"
+            cache_base = Path(temp_dir) / "cache_base"
+            with patch.dict(
+                os.environ,
+                {"WHISPER_CACHE_DIR": str(whisper_cache), "CACHE_DIR": str(cache_base)},
+            ):
+                cache_dir = cache_utils.get_whisper_cache_dir()
+                # WHISPER_CACHE_DIR should take priority
+                self.assertEqual(cache_dir, whisper_cache)
 
 
 class TestGetTransformersCacheDir(unittest.TestCase):
@@ -138,10 +189,12 @@ class TestGetTransformersCacheDir(unittest.TestCase):
         import tempfile
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Clear HF_HUB_CACHE to test local cache preference
-            # (HF_HUB_CACHE takes priority when set, e.g., in CI)
-            env_without_hf = {k: v for k, v in os.environ.items() if k != "HF_HUB_CACHE"}
-            with patch.dict(os.environ, env_without_hf, clear=True):
+            # Clear HF_HUB_CACHE and CACHE_DIR to test local cache preference
+            # (HF_HUB_CACHE and CACHE_DIR take priority when set, e.g., in CI)
+            env_without_cache = {
+                k: v for k, v in os.environ.items() if k not in ("HF_HUB_CACHE", "CACHE_DIR")
+            }
+            with patch.dict(os.environ, env_without_cache, clear=True):
                 # Mock project root
                 with patch.object(cache_utils, "get_project_root") as mock_root:
                     mock_root.return_value = Path(temp_dir)
@@ -187,6 +240,62 @@ class TestGetTransformersCacheDir(unittest.TestCase):
                     # Env var takes priority (CI explicitly sets this)
                     self.assertEqual(cache_dir, custom_cache)
 
+    def test_get_transformers_cache_dir_uses_cache_dir_env_var(self):
+        """Test Transformers cache derives from CACHE_DIR env var."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_base = Path(temp_dir) / "cache_base"
+            env_without_hf = {k: v for k, v in os.environ.items() if k != "HF_HUB_CACHE"}
+            with patch.dict(
+                os.environ, {**env_without_hf, "CACHE_DIR": str(cache_base)}, clear=True
+            ):
+                with patch.object(cache_utils, "get_project_root") as mock_root:
+                    mock_root.return_value = Path(temp_dir)
+                    cache_dir = cache_utils.get_transformers_cache_dir()
+                    # Should derive as CACHE_DIR/huggingface/hub
+                    self.assertEqual(cache_dir, cache_base / "huggingface" / "hub")
+
+    def test_get_transformers_cache_dir_hf_hub_cache_takes_priority_over_cache_dir(self):
+        """Test HF_HUB_CACHE takes priority over CACHE_DIR."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            hf_cache = Path(temp_dir) / "hf_cache"
+            cache_base = Path(temp_dir) / "cache_base"
+            with patch.dict(
+                os.environ,
+                {"HF_HUB_CACHE": str(hf_cache), "CACHE_DIR": str(cache_base)},
+            ):
+                cache_dir = cache_utils.get_transformers_cache_dir()
+                # HF_HUB_CACHE should take priority
+                self.assertEqual(cache_dir, hf_cache)
+
+    def test_get_transformers_cache_dir_handles_none_hf_hub_cache(self):
+        """Test Transformers cache handles None HF_HUB_CACHE from constants."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            env_without_cache = {
+                k: v for k, v in os.environ.items() if k not in ("HF_HUB_CACHE", "CACHE_DIR")
+            }
+            with patch.dict(os.environ, env_without_cache, clear=True):
+                with patch.object(cache_utils, "get_project_root") as mock_root:
+                    mock_root.return_value = Path(temp_dir)
+                    # Mock huggingface_hub import to raise ImportError (simulating not available)
+                    # This will make it fall through to transformers.file_utils
+                    original_import = __builtins__["__import__"]
+
+                    def mock_import(name, *args, **kwargs):
+                        if name == "huggingface_hub":
+                            raise ImportError("No module named huggingface_hub")
+                        return original_import(name, *args, **kwargs)
+
+                    with patch("builtins.__import__", side_effect=mock_import):
+                        # Should fall through to next check (transformers.file_utils)
+                        cache_dir = cache_utils.get_transformers_cache_dir()
+                        self.assertIsInstance(cache_dir, Path)
+
     def test_get_transformers_cache_dir_falls_back_to_default(self):
         """Test Transformers cache falls back to default when local doesn't exist.
 
@@ -225,9 +334,13 @@ class TestGetTransformersCacheDir(unittest.TestCase):
                 mock_root.return_value = Path(temp_dir)
                 with patch("pathlib.Path.home") as mock_home:
                     mock_home.return_value = Path(temp_dir)
-                    # Clear HF_HUB_CACHE to test the fallback path
-                    env_without_hf = {k: v for k, v in os.environ.items() if k != "HF_HUB_CACHE"}
-                    with patch.dict(os.environ, env_without_hf, clear=True):
+                    # Clear HF_HUB_CACHE and CACHE_DIR to test the fallback path
+                    env_without_cache = {
+                        k: v
+                        for k, v in os.environ.items()
+                        if k not in ("HF_HUB_CACHE", "CACHE_DIR")
+                    }
+                    with patch.dict(os.environ, env_without_cache, clear=True):
                         # Mock ImportError when importing transformers
                         with patch(
                             "builtins.__import__",
@@ -247,9 +360,13 @@ class TestGetTransformersCacheDir(unittest.TestCase):
                 mock_root.return_value = Path(temp_dir)
                 with patch("pathlib.Path.home") as mock_home:
                     mock_home.return_value = Path(temp_dir)
-                    # Clear HF_HUB_CACHE to test the fallback path
-                    env_without_hf = {k: v for k, v in os.environ.items() if k != "HF_HUB_CACHE"}
-                    with patch.dict(os.environ, env_without_hf, clear=True):
+                    # Clear HF_HUB_CACHE and CACHE_DIR to test the fallback path
+                    env_without_cache = {
+                        k: v
+                        for k, v in os.environ.items()
+                        if k not in ("HF_HUB_CACHE", "CACHE_DIR")
+                    }
+                    with patch.dict(os.environ, env_without_cache, clear=True):
                         # Mock ImportError
                         with patch(
                             "builtins.__import__",
