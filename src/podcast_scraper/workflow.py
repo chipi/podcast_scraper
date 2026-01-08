@@ -28,6 +28,12 @@ from .rss_parser import (
 
 # Export extract_episode_description for backward compatibility with tests
 extract_episode_description = rss_extract_episode_description
+# Import from workflow subdirectory (not from workflow.py itself to avoid circular import)
+# Use importlib to explicitly import from the package directory since workflow.py
+# and workflow/ have the same name, which causes Python to import workflow.py as a module
+# instead of the workflow/ package
+import importlib.util
+
 from .speaker_detectors.factory import (  # noqa: F401 - Exported for test patching
     create_speaker_detector,
 )
@@ -36,34 +42,93 @@ from .transcription.factory import (  # noqa: F401 - Exported for test patching
     create_transcription_provider,
 )
 
-# Import from workflow subdirectory (not from workflow.py itself to avoid circular import)
-# Import helpers directly from the helpers module file
-from .workflow.helpers import (
-    cleanup_pipeline,
-    generate_pipeline_summary,
-    update_metric_safely,
-)
+# Get paths to package modules
+_workflow_pkg_dir = Path(__file__).parent / "workflow"
 
-# Import stages from the stages package
-from .workflow.stages import (
-    metadata as metadata_stage,
-    processing,
-    scraping,
-    setup,
-    summarization_stage,
-    transcription,
+# Import helpers module
+_helpers_path = _workflow_pkg_dir / "helpers.py"
+_helpers_spec = importlib.util.spec_from_file_location(
+    "podcast_scraper.workflow.helpers", _helpers_path
 )
+_helpers_module = importlib.util.module_from_spec(_helpers_spec)
+_helpers_spec.loader.exec_module(_helpers_module)
+cleanup_pipeline = _helpers_module.cleanup_pipeline
+generate_pipeline_summary = _helpers_module.generate_pipeline_summary
+update_metric_safely = _helpers_module.update_metric_safely
+
+# Import stages package
+_stages_dir = _workflow_pkg_dir / "stages"
+_stages_init_path = _stages_dir / "__init__.py"
+_stages_spec = importlib.util.spec_from_file_location(
+    "podcast_scraper.workflow.stages", _stages_init_path
+)
+_stages_pkg = importlib.util.module_from_spec(_stages_spec)
+_stages_spec.loader.exec_module(_stages_pkg)
+
+# Import individual stage modules
+_metadata_module = importlib.util.module_from_spec(
+    importlib.util.spec_from_file_location(
+        "podcast_scraper.workflow.stages.metadata", _stages_dir / "metadata.py"
+    )
+)
+_metadata_module.__spec__.loader.exec_module(_metadata_module)
+metadata_stage = _metadata_module
+
+_processing_module = importlib.util.module_from_spec(
+    importlib.util.spec_from_file_location(
+        "podcast_scraper.workflow.stages.processing", _stages_dir / "processing.py"
+    )
+)
+_processing_module.__spec__.loader.exec_module(_processing_module)
+processing = _processing_module
+
+_scraping_module = importlib.util.module_from_spec(
+    importlib.util.spec_from_file_location(
+        "podcast_scraper.workflow.stages.scraping", _stages_dir / "scraping.py"
+    )
+)
+_scraping_module.__spec__.loader.exec_module(_scraping_module)
+scraping = _scraping_module
+
+_setup_module = importlib.util.module_from_spec(
+    importlib.util.spec_from_file_location(
+        "podcast_scraper.workflow.stages.setup", _stages_dir / "setup.py"
+    )
+)
+_setup_module.__spec__.loader.exec_module(_setup_module)
+setup = _setup_module
+
+_summarization_module = importlib.util.module_from_spec(
+    importlib.util.spec_from_file_location(
+        "podcast_scraper.workflow.stages.summarization_stage",
+        _stages_dir / "summarization_stage.py",
+    )
+)
+_summarization_module.__spec__.loader.exec_module(_summarization_module)
+summarization_stage = _summarization_module
+
+_transcription_module = importlib.util.module_from_spec(
+    importlib.util.spec_from_file_location(
+        "podcast_scraper.workflow.stages.transcription", _stages_dir / "transcription.py"
+    )
+)
+_transcription_module.__spec__.loader.exec_module(_transcription_module)
+transcription = _transcription_module
 
 # Re-export functions for backward compatibility with tests
 transcribe_media_to_text = transcription.transcribe_media_to_text
 process_episode_download = processing.process_episode_download
-from .workflow.types import (
-    FeedMetadata,
-    HostDetectionResult,
-    ProcessingJob,
-    ProcessingResources,
-    TranscriptionResources,
-)
+
+# Import types module
+_types_path = _workflow_pkg_dir / "types.py"
+_types_spec = importlib.util.spec_from_file_location("podcast_scraper.workflow.types", _types_path)
+_types_module = importlib.util.module_from_spec(_types_spec)
+_types_spec.loader.exec_module(_types_module)
+FeedMetadata = _types_module.FeedMetadata
+HostDetectionResult = _types_module.HostDetectionResult
+ProcessingJob = _types_module.ProcessingJob
+ProcessingResources = _types_module.ProcessingResources
+TranscriptionResources = _types_module.TranscriptionResources
 
 # Import stage modules for convenience (already imported above, just create aliases)
 # Note: setup, scraping, processing, transcription, summarization_stage are already imported
