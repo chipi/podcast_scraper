@@ -40,6 +40,7 @@ class TestHTTPErrorHandling:
                 rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should raise ValueError when RSS feed fails
@@ -59,6 +60,7 @@ class TestHTTPErrorHandling:
                 rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should raise ValueError after retries fail
@@ -79,6 +81,7 @@ class TestHTTPErrorHandling:
                 rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should handle 404 gracefully
@@ -101,6 +104,7 @@ class TestHTTPErrorHandling:
                 rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should handle 500 gracefully (with retries)
@@ -148,6 +152,7 @@ class TestHTTPErrorHandling:
                 rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=1,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run service - should handle error gracefully
@@ -177,6 +182,7 @@ class TestInvalidRSSFeed:
                 rss_url=invalid_url,
                 output_dir=tmpdir,
                 max_episodes=1,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should raise ValueError when RSS feed fails
@@ -193,6 +199,7 @@ class TestInvalidRSSFeed:
                 rss_url=invalid_url,
                 output_dir=tmpdir,
                 max_episodes=1,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should raise ValueError when RSS feed fails
@@ -213,6 +220,7 @@ class TestInvalidConfig:
                 rss_url="not-a-valid-url",
                 output_dir=tmpdir,
                 max_episodes=1,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should raise ValueError when URL is invalid
@@ -226,6 +234,7 @@ class TestInvalidConfig:
                 rss_url="not-a-valid-url",
                 output_dir=tmpdir,
                 max_episodes=1,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run service - should handle invalid config gracefully
@@ -251,6 +260,7 @@ class TestPartialFailureHandling:
                 rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=3,  # Process multiple episodes
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should handle partial failures
@@ -274,6 +284,7 @@ class TestPartialFailureHandling:
                 rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
                 output_dir=tmpdir,
                 max_episodes=3,  # Process multiple episodes
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should handle mixed scenarios

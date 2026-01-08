@@ -29,32 +29,24 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
             openai_api_key="sk-test123",
         )
 
-    @patch("podcast_scraper.transcription.openai_provider.OpenAI")
+    @patch("podcast_scraper.openai.openai_provider.OpenAI")
     def test_provider_initialization(self, mock_openai_class):
-        """Test that OpenAI transcription provider initializes correctly."""
-        from podcast_scraper.transcription.openai_provider import (
-            OpenAITranscriptionProvider,
-        )
-
-        provider = OpenAITranscriptionProvider(self.cfg)
+        """Test that OpenAI transcription provider initializes correctly via factory."""
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         mock_openai_class.assert_called_once_with(api_key="sk-test123")
-        self.assertTrue(provider._initialized)
+        self.assertTrue(provider._transcription_initialized)
 
-    @patch("podcast_scraper.transcription.openai_provider.OpenAI")
+    @patch("podcast_scraper.openai.openai_provider.OpenAI")
     def test_transcribe_success(self, mock_openai_class):
-        """Test successful transcription via OpenAI API."""
-        from podcast_scraper.transcription.openai_provider import (
-            OpenAITranscriptionProvider,
-        )
-
+        """Test successful transcription via OpenAI API via factory."""
         # Mock OpenAI client and response
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
         mock_client.audio.transcriptions.create.return_value = "Transcribed text"
 
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         # Create a temporary audio file for testing
@@ -102,14 +94,10 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
             auto_speakers=True,
         )
 
-    @patch("podcast_scraper.speaker_detectors.openai_detector.OpenAI")
+    @patch("podcast_scraper.openai.openai_provider.OpenAI")
     @patch("podcast_scraper.prompt_store.render_prompt")
     def test_detect_speakers_success(self, mock_render_prompt, mock_openai_class):
-        """Test successful speaker detection via OpenAI API."""
-        from podcast_scraper.speaker_detectors.openai_detector import (
-            OpenAISpeakerDetector,
-        )
-
+        """Test successful speaker detection via OpenAI API via factory."""
         # Mock OpenAI client and response
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -137,7 +125,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         ]
         mock_client.chat.completions.create.return_value = mock_response
 
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
         speakers, detected_hosts, success = detector.detect_speakers(
@@ -186,14 +174,10 @@ class TestOpenAISummarizationProvider(unittest.TestCase):
             generate_summaries=True,
         )
 
-    @patch("podcast_scraper.summarization.openai_provider.OpenAI")
+    @patch("podcast_scraper.openai.openai_provider.OpenAI")
     @patch("podcast_scraper.prompt_store.render_prompt")
     def test_summarize_success(self, mock_render_prompt, mock_openai_class):
-        """Test successful summarization via OpenAI API."""
-        from podcast_scraper.summarization.openai_provider import (
-            OpenAISummarizationProvider,
-        )
-
+        """Test successful summarization via OpenAI API via factory."""
         # Mock OpenAI client and response
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -211,7 +195,7 @@ class TestOpenAISummarizationProvider(unittest.TestCase):
         ]
         mock_client.chat.completions.create.return_value = mock_response
 
-        provider = OpenAISummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         provider.initialize()
 
         result = provider.summarize(
@@ -257,19 +241,15 @@ class TestOpenAIProviderErrorHandling(unittest.TestCase):
             openai_api_key="sk-test123",
         )
 
-    @patch("podcast_scraper.transcription.openai_provider.OpenAI")
+    @patch("podcast_scraper.openai.openai_provider.OpenAI")
     def test_transcribe_api_error(self, mock_openai_class):
-        """Test that API errors are handled gracefully."""
-        from podcast_scraper.transcription.openai_provider import (
-            OpenAITranscriptionProvider,
-        )
-
+        """Test that API errors are handled gracefully via factory."""
         # Mock OpenAI client to raise exception
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
         mock_client.audio.transcriptions.create.side_effect = Exception("API Error")
 
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         import tempfile

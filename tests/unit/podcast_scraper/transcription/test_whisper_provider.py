@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Unit tests for WhisperTranscriptionProvider class.
+"""Unit tests for MLProvider transcription (via factory).
 
-These tests verify the Whisper-based transcription provider implementation.
+These tests verify the Whisper-based transcription provider implementation
+using the unified MLProvider returned by the factory.
 """
 
 import os
@@ -35,15 +36,15 @@ spec.loader.exec_module(parent_conftest)
 create_test_config = parent_conftest.create_test_config
 
 from podcast_scraper import config  # noqa: E402
-from podcast_scraper.transcription.whisper_provider import (  # noqa: E402
+from podcast_scraper.ml.ml_provider import (  # noqa: E402
     _import_third_party_whisper,
     _intercept_whisper_progress,
-    WhisperTranscriptionProvider,
 )
+from podcast_scraper.transcription.factory import create_transcription_provider  # noqa: E402
 
 
 class TestWhisperTranscriptionProvider(unittest.TestCase):
-    """Tests for WhisperTranscriptionProvider class."""
+    """Tests for MLProvider transcription (via factory)."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -51,6 +52,7 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", ""),
             language="en",
+            transcription_provider="whisper",
         )
         # Save original whisper module if it exists
         self._original_whisper = sys.modules.get("whisper")
@@ -69,13 +71,13 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
 
     def test_init(self):
         """Test WhisperTranscriptionProvider initialization."""
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         self.assertEqual(provider.cfg, self.cfg)
-        self.assertIsNone(provider._model)
-        self.assertFalse(provider._initialized)
+        self.assertIsNone(provider._whisper_model)
+        self.assertFalse(provider._whisper_initialized)
         self.assertFalse(provider.is_initialized)
 
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_initialize_success(self, mock_import):
         """Test successful initialization."""
         mock_whisper = Mock()
@@ -87,11 +89,11 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
         mock_whisper.load_model.return_value = mock_model
         mock_import.return_value = mock_whisper
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        self.assertEqual(provider._model, mock_model)
-        self.assertTrue(provider._initialized)
+        self.assertEqual(provider._whisper_model, mock_model)
+        self.assertTrue(provider._whisper_initialized)
         self.assertTrue(provider.is_initialized)
         # Should prefer .en variant for English and use download_root for cache
         mock_whisper.load_model.assert_called_once()
@@ -99,18 +101,18 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
         self.assertEqual(call_args[0][0], config.TEST_DEFAULT_WHISPER_MODEL)
         self.assertIn("download_root", call_args[1])
 
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_initialize_transcribe_disabled(self, mock_import):
         """Test initialization when transcribe_missing is False."""
-        cfg = create_test_config(transcribe_missing=False)
-        provider = WhisperTranscriptionProvider(cfg)
+        cfg = create_test_config(transcribe_missing=False, transcription_provider="whisper")
+        provider = create_transcription_provider(cfg)
         provider.initialize()
 
-        self.assertIsNone(provider._model)
-        self.assertFalse(provider._initialized)
+        self.assertIsNone(provider._whisper_model)
+        self.assertFalse(provider._whisper_initialized)
         mock_import.assert_not_called()
 
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_initialize_already_initialized(self, mock_import):
         """Test initialization when already initialized."""
         mock_whisper = Mock()
@@ -122,7 +124,7 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
         mock_whisper.load_model.return_value = mock_model
         mock_import.return_value = mock_whisper
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
         mock_import.reset_mock()
 
@@ -132,19 +134,23 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
         # Should not import again
         mock_import.assert_not_called()
 
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_initialize_import_error(self, mock_import):
-        """Test initialization when whisper import fails."""
+        """Test initialization when whisper import fails - logs warning but doesn't raise."""
         mock_import.side_effect = ImportError("whisper not found")
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
+        # Initialize should not raise - it logs warning and continues
+        provider.initialize()
 
+        # Whisper should not be initialized
+        self.assertFalse(provider._whisper_initialized)
+        # But transcribe should raise when trying to use it
         with self.assertRaises(RuntimeError) as context:
-            provider.initialize()
+            provider.transcribe("/tmp/audio.mp3")
+        self.assertIn("not initialized", str(context.exception))
 
-        self.assertIn("openai-whisper", str(context.exception))
-
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_initialize_fallback_models(self, mock_import):
         """Test initialization with fallback to smaller models."""
         mock_whisper = Mock()
@@ -162,30 +168,35 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
         mock_import.return_value = mock_whisper
 
         cfg = create_test_config(transcribe_missing=True, whisper_model="large", language="en")
-        provider = WhisperTranscriptionProvider(cfg)
+        provider = create_transcription_provider(cfg)
         provider.initialize()
 
         # Should try large.en first, then fallback
         self.assertEqual(mock_whisper.load_model.call_count, 2)
 
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_initialize_all_models_fail(self, mock_import):
-        """Test initialization when all models fail."""
+        """Test initialization when all models fail - logs warning but doesn't raise."""
         mock_whisper = Mock()
         mock_whisper.load_model.side_effect = FileNotFoundError("Model not found")
         mock_import.return_value = mock_whisper
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
+        # Initialize should not raise - it logs warning and continues
+        provider.initialize()
 
+        # Whisper should not be initialized
+        self.assertFalse(provider._whisper_initialized)
+        # But transcribe should raise when trying to use it
         with self.assertRaises(RuntimeError) as context:
-            provider.initialize()
+            provider.transcribe("/tmp/audio.mp3")
 
-        self.assertIn("Failed to load any Whisper model", str(context.exception))
+        self.assertIn("not initialized", str(context.exception))
 
-    @patch("podcast_scraper.transcription.whisper_provider._intercept_whisper_progress")
-    @patch("podcast_scraper.transcription.whisper_provider.progress.progress_context")
-    @patch("podcast_scraper.transcription.whisper_provider.time.time")
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._intercept_whisper_progress")
+    @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
+    @patch("podcast_scraper.ml.ml_provider.time.time")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_success(self, mock_import, mock_time, mock_progress, mock_intercept):
         """Test successful transcription."""
         # Remove whisper from sys.modules to ensure clean state
@@ -220,7 +231,7 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
 
         mock_time.side_effect = time_side_effect
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         result = provider.transcribe("/tmp/audio.mp3")
@@ -230,20 +241,20 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
             "/tmp/audio.mp3", task="transcribe", language="en", verbose=False
         )
 
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_not_initialized(self, mock_import):
         """Test transcribe raises error when not initialized."""
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
 
         with self.assertRaises(RuntimeError) as context:
             provider.transcribe("/tmp/audio.mp3")
 
         self.assertIn("not initialized", str(context.exception))
 
-    @patch("podcast_scraper.transcription.whisper_provider._intercept_whisper_progress")
-    @patch("podcast_scraper.transcription.whisper_provider.progress.progress_context")
-    @patch("podcast_scraper.transcription.whisper_provider.time.time")
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._intercept_whisper_progress")
+    @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
+    @patch("podcast_scraper.ml.ml_provider.time.time")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_empty_text(self, mock_import, mock_time, mock_progress, mock_intercept):
         """Test transcribe raises error when text is empty."""
         # Remove whisper from sys.modules to ensure clean state
@@ -277,7 +288,7 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
 
         mock_time.side_effect = time_side_effect
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         with self.assertRaises(ValueError) as context:
@@ -285,11 +296,8 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
 
         self.assertIn("empty text", str(context.exception))
 
-    @patch(
-        "podcast_scraper.transcription.whisper_provider."
-        "WhisperTranscriptionProvider._transcribe_with_whisper"
-    )
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_with_segments(self, mock_import, mock_transcribe):
         """Test transcribe_with_segments method.
 
@@ -317,7 +325,7 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
         }
         mock_transcribe.return_value = (expected_result, 5.0)
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         result_dict, elapsed = provider.transcribe_with_segments("/tmp/audio.mp3")
@@ -330,17 +338,17 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
         # Verify _transcribe_with_whisper was called with correct arguments
         mock_transcribe.assert_called_once_with("/tmp/audio.mp3", "en")
 
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_with_segments_not_initialized(self, mock_import):
         """Test transcribe_with_segments raises error when not initialized."""
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
 
         with self.assertRaises(RuntimeError):
             provider.transcribe_with_segments("/tmp/audio.mp3")
 
     def test_format_screenplay_from_segments(self):
         """Test format_screenplay_from_segments method."""
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
 
         segments = [
             {"start": 0.0, "end": 5.0, "text": "Hello"},
@@ -359,13 +367,13 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
 
     def test_format_screenplay_from_segments_empty(self):
         """Test format_screenplay_from_segments with empty segments."""
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
 
         result = provider.format_screenplay_from_segments([], 2, [], 1.0)
 
         self.assertEqual(result, "")
 
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_cleanup(self, mock_import):
         """Test cleanup method."""
         mock_whisper = Mock()
@@ -377,35 +385,35 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
         mock_whisper.load_model.return_value = mock_model
         mock_import.return_value = mock_whisper
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         provider.cleanup()
 
-        self.assertIsNone(provider._model)
-        self.assertFalse(provider._initialized)
+        self.assertIsNone(provider._whisper_model)
+        self.assertFalse(provider._whisper_initialized)
         self.assertFalse(provider.is_initialized)
 
     def test_cleanup_not_initialized(self):
         """Test cleanup when not initialized."""
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.cleanup()  # Should not raise
 
     def test_model_property(self):
         """Test model property."""
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         self.assertIsNone(provider.model)
 
         mock_model = Mock()
-        provider._model = mock_model
+        provider._whisper_model = mock_model
         self.assertEqual(provider.model, mock_model)
 
     def test_is_initialized_property(self):
         """Test is_initialized property."""
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         self.assertFalse(provider.is_initialized)
 
-        provider._initialized = True
+        provider._whisper_initialized = True
         self.assertTrue(provider.is_initialized)
 
 
@@ -475,6 +483,7 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", ""),
             language="en",
+            transcription_provider="whisper",
         )
         # Save original whisper module if it exists
         self._original_whisper = sys.modules.get("whisper")
@@ -488,9 +497,9 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         if "whisper" in sys.modules:
             del sys.modules["whisper"]
 
-    @patch("podcast_scraper.transcription.whisper_provider._intercept_whisper_progress")
-    @patch("podcast_scraper.transcription.whisper_provider.progress.progress_context")
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._intercept_whisper_progress")
+    @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_file_not_found(self, mock_import, mock_progress, mock_intercept):
         """Test transcribe raises FileNotFoundError when audio file doesn't exist."""
         mock_whisper = Mock()
@@ -507,15 +516,15 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         mock_progress.return_value.__enter__.return_value = mock_reporter
         mock_progress.return_value.__exit__.return_value = None
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         with self.assertRaises(FileNotFoundError):
             provider.transcribe("/nonexistent/audio.mp3")
 
-    @patch("podcast_scraper.transcription.whisper_provider._intercept_whisper_progress")
-    @patch("podcast_scraper.transcription.whisper_provider.progress.progress_context")
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._intercept_whisper_progress")
+    @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_model_exception(self, mock_import, mock_progress, mock_intercept):
         """Test transcribe handles model.transcribe exception."""
         mock_whisper = Mock()
@@ -532,15 +541,15 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         mock_progress.return_value.__enter__.return_value = mock_reporter
         mock_progress.return_value.__exit__.return_value = None
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         with self.assertRaises(RuntimeError):
             provider.transcribe("/tmp/audio.mp3")
 
-    @patch("podcast_scraper.transcription.whisper_provider._intercept_whisper_progress")
-    @patch("podcast_scraper.transcription.whisper_provider.progress.progress_context")
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._intercept_whisper_progress")
+    @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_language_override(self, mock_import, mock_progress, mock_intercept):
         """Test transcribe with explicit language parameter."""
         mock_whisper = Mock()
@@ -566,7 +575,7 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         with patch(
             "podcast_scraper.transcription.whisper_provider.time.time", side_effect=time_side_effect
         ):
-            provider = WhisperTranscriptionProvider(self.cfg)
+            provider = create_transcription_provider(self.cfg)
             provider.initialize()
 
             result = provider.transcribe("/tmp/audio.mp3", language="fr")
@@ -576,9 +585,9 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
                 "/tmp/audio.mp3", task="transcribe", language="fr", verbose=False
             )
 
-    @patch("podcast_scraper.transcription.whisper_provider._intercept_whisper_progress")
-    @patch("podcast_scraper.transcription.whisper_provider.progress.progress_context")
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._intercept_whisper_progress")
+    @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_with_segments_file_not_found(
         self, mock_import, mock_progress, mock_intercept
     ):
@@ -597,15 +606,15 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         mock_progress.return_value.__enter__.return_value = mock_reporter
         mock_progress.return_value.__exit__.return_value = None
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         with self.assertRaises(FileNotFoundError):
             provider.transcribe_with_segments("/nonexistent/audio.mp3")
 
-    @patch("podcast_scraper.transcription.whisper_provider._intercept_whisper_progress")
-    @patch("podcast_scraper.transcription.whisper_provider.progress.progress_context")
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._intercept_whisper_progress")
+    @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_with_segments_model_exception(
         self, mock_import, mock_progress, mock_intercept
     ):
@@ -624,7 +633,7 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         mock_progress.return_value.__enter__.return_value = mock_reporter
         mock_progress.return_value.__exit__.return_value = None
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         with self.assertRaises(RuntimeError):
@@ -632,7 +641,7 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
 
     def test_format_screenplay_malformed_segments(self):
         """Test format_screenplay_from_segments with malformed segments."""
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
 
         # Segments missing start/end
         segments = [{"text": "Hello"}, {"text": "World"}]
@@ -647,7 +656,7 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
 
     def test_format_screenplay_with_gaps(self):
         """Test format_screenplay_from_segments with gaps triggering speaker rotation."""
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
 
         segments = [
             {"start": 0.0, "end": 5.0, "text": "First segment"},
@@ -666,7 +675,7 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
 
     def test_format_screenplay_no_speaker_names(self):
         """Test format_screenplay_from_segments without speaker names (uses indices)."""
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
 
         segments = [
             {"start": 0.0, "end": 5.0, "text": "First segment"},
@@ -681,21 +690,26 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         self.assertIn("First segment", result)
         self.assertIn("Second segment", result)
 
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_initialize_os_error_handling(self, mock_import):
-        """Test initialize handles OSError (different from RuntimeError)."""
+        """Test initialize handles OSError - logs warning but doesn't raise."""
         mock_whisper = Mock()
         mock_whisper.load_model.side_effect = OSError("Disk full")
         mock_import.return_value = mock_whisper
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
+        # Initialize should not raise - it logs warning and continues
+        provider.initialize()
 
+        # Whisper should not be initialized
+        self.assertFalse(provider._whisper_initialized)
+        # But transcribe should raise when trying to use it
         with self.assertRaises(RuntimeError) as context:
-            provider.initialize()
+            provider.transcribe("/tmp/audio.mp3")
 
-        self.assertIn("Failed to load any Whisper model", str(context.exception))
+        self.assertIn("not initialized", str(context.exception))
 
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_initialize_non_english_language(self, mock_import):
         """Test initialize with non-English language (removes .en suffix)."""
         cfg = create_test_config(
@@ -712,7 +726,7 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         mock_whisper.load_model.return_value = mock_model
         mock_import.return_value = mock_whisper
 
-        provider = WhisperTranscriptionProvider(cfg)
+        provider = create_transcription_provider(cfg)
         provider.initialize()
 
         # Should use model without .en suffix for non-English, with download_root
@@ -721,7 +735,7 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         self.assertEqual(call_args[0][0], config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", ""))
         self.assertIn("download_root", call_args[1])
 
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_initialize_model_missing_attributes(self, mock_import):
         """Test initialize handles model with missing optional attributes."""
         mock_whisper = Mock()
@@ -733,15 +747,15 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         mock_whisper.load_model.return_value = mock_model
         mock_import.return_value = mock_whisper
 
-        provider = WhisperTranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         # Should handle gracefully
         self.assertTrue(provider.is_initialized)
 
-    @patch("podcast_scraper.transcription.whisper_provider._intercept_whisper_progress")
-    @patch("podcast_scraper.transcription.whisper_provider.progress.progress_context")
-    @patch("podcast_scraper.transcription.whisper_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider._intercept_whisper_progress")
+    @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_with_segments_language_override(
         self, mock_import, mock_progress, mock_intercept
     ):
@@ -772,7 +786,7 @@ class TestWhisperProviderEdgeCases(unittest.TestCase):
         with patch(
             "podcast_scraper.transcription.whisper_provider.time.time", side_effect=time_side_effect
         ):
-            provider = WhisperTranscriptionProvider(self.cfg)
+            provider = create_transcription_provider(self.cfg)
             provider.initialize()
 
             result, elapsed = provider.transcribe_with_segments("/tmp/audio.mp3", language="fr")
