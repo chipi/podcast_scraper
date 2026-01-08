@@ -1083,8 +1083,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
 
         self.assertIsNotNone(result)
         self.assertEqual(result.short_summary, "This is a summary")
-        self.assertEqual(result.model_used, "test-model")
-        self.assertEqual(result.whisper_model_used, "base.en")
+        # Provider/model info is now in config_snapshot.ml_providers, not in summary section
         mock_provider.summarize.assert_called_once()
 
     @patch("podcast_scraper.metadata.time.time")
@@ -1190,9 +1189,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
 
         self.assertIsNotNone(result)
         self.assertEqual(result.short_summary, "This is a summary")
-        self.assertEqual(result.model_used, "facebook/bart-large-cnn")
-        self.assertEqual(result.reduce_model_used, "allenai/led-large-16384")
-        self.assertEqual(result.whisper_model_used, "base.en")
+        # Provider/model info is now in config_snapshot.ml_providers, not in summary section
 
 
 class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
@@ -1307,10 +1304,6 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         mock_summary = metadata.SummaryMetadata(
             short_summary="Test summary",
             generated_at=datetime.now(),
-            model_used="test-model",
-            reduce_model_used=None,  # Optional field
-            whisper_model_used=None,  # Optional field
-            provider="local",
             word_count=100,
         )
         mock_generate_summary.return_value = mock_summary
