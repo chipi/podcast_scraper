@@ -9,6 +9,7 @@ factory functions create providers as expected:
 - Backward compatibility with deprecated fields
 """
 
+import os
 import unittest
 
 import pytest
@@ -137,8 +138,15 @@ class TestProviderConfigFields(unittest.TestCase):
 
     def test_openai_api_key_optional(self):
         """Test that openai_api_key is optional and defaults to None."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-        self.assertIsNone(cfg.openai_api_key)
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            cfg = config.Config(rss_url="https://example.com/feed.xml")
+            self.assertIsNone(cfg.openai_api_key)
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_key
 
     def test_openai_api_key_can_be_set(self):
         """Test that openai_api_key can be set."""
