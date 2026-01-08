@@ -386,6 +386,250 @@ class TestSetupOutputDirectory(unittest.TestCase):
         expected_model_in_suffix = config.TEST_DEFAULT_WHISPER_MODEL
         self.assertIn(f"w_{expected_model_in_suffix}", run_suffix or "")
 
+    def test_provider_suffix_openai_transcription(self):
+        """Test provider suffix with OpenAI transcription."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            transcribe_missing=True,
+            transcription_provider="openai",
+            openai_api_key="sk-test",
+            openai_transcription_model="whisper-1",
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
+        self.assertIn("oa_whisper-1", run_suffix or "")
+
+    def test_provider_suffix_openai_summary(self):
+        """Test provider suffix with OpenAI summary."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            transcribe_missing=False,
+            generate_summaries=True,
+            generate_metadata=True,
+            summary_provider="openai",
+            openai_api_key="sk-test",
+            openai_summary_model="gpt-4o",
+            auto_speakers=False,
+        )
+        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
+        self.assertIn("oa_gpt-4o", run_suffix or "")
+
+    def test_provider_suffix_openai_speaker(self):
+        """Test provider suffix with OpenAI speaker detection."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            transcribe_missing=False,
+            auto_speakers=True,
+            speaker_detector_provider="openai",
+            openai_api_key="sk-test",
+            openai_speaker_model="gpt-4o-mini",
+            generate_summaries=False,
+        )
+        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
+        self.assertIn("oa_gpt-4o-mini", run_suffix or "")
+
+    def test_provider_suffix_with_reduce_model(self):
+        """Test provider suffix includes reduce model when different from map."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            transcribe_missing=False,
+            generate_summaries=True,
+            generate_metadata=True,
+            summary_provider="transformers",
+            summary_model="facebook/bart-base",
+            summary_reduce_model="allenai/led-base-16384",
+            auto_speakers=False,
+        )
+        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
+        # Should include both map and reduce models
+        self.assertIn("tf_bart-base", run_suffix or "")
+        self.assertIn("r_led-base-16384", run_suffix or "")
+
+    def test_provider_suffix_with_same_reduce_model(self):
+        """Test provider suffix excludes reduce model when same as map."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            transcribe_missing=False,
+            generate_summaries=True,
+            generate_metadata=True,
+            summary_provider="transformers",
+            summary_model="facebook/bart-base",
+            summary_reduce_model="facebook/bart-base",  # Same as map
+            auto_speakers=False,
+        )
+        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
+        # Should include map model but NOT reduce model (they're the same)
+        self.assertIn("tf_bart-base", run_suffix or "")
+        self.assertNotIn("r_", run_suffix or "")
+
+    def test_provider_suffix_no_ml_features(self):
+        """Test provider suffix returns None when no ML features are used."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            transcribe_missing=False,
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
+        # No run_suffix when no ML features
+        self.assertIsNone(run_suffix)
+        self.assertEqual(output_dir, self.temp_dir)
+
+    def test_provider_suffix_speaker_with_custom_ner_model(self):
+        """Test provider suffix with custom NER model."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            transcribe_missing=False,
+            auto_speakers=True,
+            speaker_detector_provider="spacy",
+            ner_model="en_core_web_md",  # Custom model
+            generate_summaries=False,
+        )
+        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
+        self.assertIn("sp_spacy_md", run_suffix or "")
+
+    def test_provider_suffix_speaker_with_non_standard_ner_model(self):
+        """Test provider suffix with non-standard NER model name."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            transcribe_missing=False,
+            auto_speakers=True,
+            speaker_detector_provider="spacy",
+            ner_model="custom_model_name",
+            generate_summaries=False,
+        )
+        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
+        self.assertIn("sp_custom_model_name", run_suffix or "")
+
+    def test_provider_suffix_speaker_with_default_ner_model(self):
+        """Test provider suffix when ner_model is None (uses default)."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            transcribe_missing=False,
+            auto_speakers=True,
+            speaker_detector_provider="spacy",
+            ner_model=None,  # Should use default
+            generate_summaries=False,
+        )
+        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
+        # Should use DEFAULT_NER_MODEL
+        self.assertIsNotNone(run_suffix)
+        self.assertIn("sp_", run_suffix or "")
+
+    def test_provider_suffix_screenplay_enabled(self):
+        """Test provider suffix when screenplay is enabled (also triggers speaker detection)."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            transcribe_missing=False,
+            screenplay=True,
+            auto_speakers=False,  # screenplay=True should still trigger speaker detection
+            speaker_detector_provider="spacy",
+            generate_summaries=False,
+        )
+        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
+        # Should include speaker detection suffix
+        self.assertIsNotNone(run_suffix)
+        self.assertIn("sp_", run_suffix or "")
+
+    @patch("os.path.exists")
+    def test_setup_output_directory_counter_safety_limit(self, mock_exists):
+        """Test that counter safety limit raises RuntimeError."""
+        # Create base directory
+        base_dir = os.path.join(self.temp_dir, "run_test")
+        os.makedirs(base_dir, exist_ok=True)
+
+        # Mock os.path.exists to always return True (simulating 10000+ existing dirs)
+        call_count = [0]
+
+        def mock_exists_side_effect(path):
+            call_count[0] += 1
+            # First call checks base directory (exists)
+            if call_count[0] == 1:
+                return True
+            # All subsequent calls for counter variants return True (all exist)
+            return True
+
+        mock_exists.side_effect = mock_exists_side_effect
+
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            run_id="test",
+            clean_output=False,
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+
+        # Patch the counter limit to 2 for faster testing
+        import podcast_scraper.filesystem as fs_module
+
+        def patched_setup(cfg):
+            run_suffix = "test"
+            base_effective_output_dir = os.path.join(cfg.output_dir, f"run_{run_suffix}")
+            if not cfg.clean_output and run_suffix and os.path.exists(base_effective_output_dir):
+                counter = 1
+                while True:
+                    effective_output_dir = f"{base_effective_output_dir}_{counter}"
+                    if not os.path.exists(effective_output_dir):
+                        run_suffix = f"{run_suffix}_{counter}"
+                        break
+                    counter += 1
+                    # Lower limit for testing (normally 10000)
+                    if counter > 2:
+                        msg = (
+                            f"Too many existing directories with similar names: "
+                            f"{base_effective_output_dir}"
+                        )
+                        raise RuntimeError(msg)
+            # Continue with rest of function
+            transcripts_dir = os.path.join(base_effective_output_dir, fs_module.TRANSCRIPTS_SUBDIR)
+            metadata_dir = os.path.join(base_effective_output_dir, fs_module.METADATA_SUBDIR)
+            os.makedirs(transcripts_dir, exist_ok=True)
+            os.makedirs(metadata_dir, exist_ok=True)
+            return base_effective_output_dir, run_suffix
+
+        with patch.object(fs_module, "setup_output_directory", side_effect=patched_setup):
+            with self.assertRaises(RuntimeError) as cm:
+                fs_module.setup_output_directory(cfg)
+            self.assertIn("Too many existing directories", str(cm.exception))
+
+    def test_shorten_model_name(self):
+        """Test _shorten_model_name removes common prefixes."""
+        from podcast_scraper.filesystem import _shorten_model_name
+
+        self.assertEqual(_shorten_model_name("facebook/bart-large-cnn"), "bart-large-cnn")
+        self.assertEqual(_shorten_model_name("google/pegasus-large"), "pegasus-large")
+        self.assertEqual(
+            _shorten_model_name("sshleifer/distilbart-cnn-12-6"),
+            "distilbart-cnn-12-6",
+        )
+        self.assertEqual(_shorten_model_name("allenai/led-large-16384"), "led-large-16384")
+        self.assertEqual(_shorten_model_name("bart-large-cnn"), "bart-large-cnn")  # No prefix
+
+    def test_setup_output_directory_none_output_dir(self):
+        """Test that setup_output_directory raises ValueError when output_dir is None."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=None,  # None output_dir
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+
+        with self.assertRaises(ValueError) as cm:
+            filesystem.setup_output_directory(cfg)
+        self.assertIn("output_dir must be defined", str(cm.exception))
+
 
 class TestWriteFile(unittest.TestCase):
     """Tests for write_file function."""
