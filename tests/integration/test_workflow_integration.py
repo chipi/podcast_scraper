@@ -118,7 +118,7 @@ class TestIntegrationMain(unittest.TestCase):
         http_mock = self._mock_http_map(responses)
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             with tempfile.TemporaryDirectory() as tmpdir:
-                exit_code = cli.main([rss_url, "--output-dir", tmpdir])
+                exit_code = cli.main([rss_url, "--output-dir", tmpdir, "--no-auto-speakers"])
                 self.assertEqual(exit_code, 0)
                 expected_path = os.path.join(tmpdir, "transcripts", "0001 - Episode 1.txt")
                 self.assertTrue(os.path.exists(expected_path))
@@ -163,6 +163,7 @@ class TestIntegrationMain(unittest.TestCase):
                                 config.TEST_DEFAULT_WHISPER_MODEL,
                                 "--run-id",
                                 "testrun",
+                                "--no-auto-speakers",
                             ]
                         )
                         self.assertEqual(exit_code, 0)
@@ -171,19 +172,22 @@ class TestIntegrationMain(unittest.TestCase):
                         if mock_import_whisper.called:
                             mock_transcribe.assert_called()
                             # Uses test model (not base.en production model)
-                            effective_dir = (
-                                Path(tmpdir).resolve()
-                                / f"run_testrun_whisper_{config.TEST_DEFAULT_WHISPER_MODEL}"
-                            )
+                            # Suffix format: w_<model> for whisper (e.g., w_tiny.en)
+                            # Model name is sanitized but dots are preserved
+                            from podcast_scraper.filesystem import sanitize_filename
+
+                            model_short = config.TEST_DEFAULT_WHISPER_MODEL
+                            model_suffix = sanitize_filename(model_short)
+                            effective_dir = Path(tmpdir).resolve() / f"run_testrun_w_{model_suffix}"
                             out_path = (
                                 effective_dir
                                 / "transcripts"
-                                / f"0001 - Episode 1_testrun_whisper_{config.TEST_DEFAULT_WHISPER_MODEL}.txt"
+                                / f"0001 - Episode 1_testrun_w_{model_suffix}.txt"
                             )
                             self.assertTrue(out_path.exists())
-                        self.assertEqual(
-                            out_path.read_text(encoding="utf-8").strip(), transcribed_text
-                        )
+                            self.assertEqual(
+                                out_path.read_text(encoding="utf-8").strip(), transcribed_text
+                            )
 
     def test_path_traversal_attempt_normalized(self):
         rss_url = "https://example.com/feed.xml"
@@ -201,7 +205,7 @@ class TestIntegrationMain(unittest.TestCase):
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             with tempfile.TemporaryDirectory() as tmpdir:
                 malicious = os.path.join(tmpdir, "..", "danger", "..", "final")
-                exit_code = cli.main([rss_url, "--output-dir", malicious])
+                exit_code = cli.main([rss_url, "--output-dir", malicious, "--no-auto-speakers"])
                 self.assertEqual(exit_code, 0)
                 effective_dir = Path(malicious).expanduser().resolve()
                 out_path = effective_dir / "transcripts" / "0001 - Episode 1.txt"
@@ -401,6 +405,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
                 output_dir=self.temp_dir,
                 max_episodes=1,
                 transcribe_missing=False,  # Don't use Whisper (downloading transcripts)
+                auto_speakers=False,  # Disable speaker detection for this test
             )
 
             count, summary = podcast_scraper.run_pipeline(cfg)
@@ -439,6 +444,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             "max_episodes": 1,
             "timeout": 30,
             "transcribe_missing": False,  # Don't use Whisper (downloading transcripts)
+            "auto_speakers": False,  # Disable speaker detection for this test
         }
         with open(cfg_path, "w", encoding="utf-8") as fh:
             json.dump(config_data, fh)
@@ -626,6 +632,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             "timeout": 30,
             "log_level": "INFO",
             "transcribe_missing": False,  # Don't use Whisper (downloading transcripts)
+            "auto_speakers": False,  # Disable speaker detection for this test
         }
         with open(cfg_path, "w", encoding="utf-8") as fh:
             yaml.dump(config_data, fh)
