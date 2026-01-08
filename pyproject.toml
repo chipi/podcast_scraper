@@ -73,6 +73,8 @@ packages = [
     "podcast_scraper.speaker_detectors",
     "podcast_scraper.summarization",
     "podcast_scraper.transcription",
+    "podcast_scraper.workflow",
+    "podcast_scraper.workflow.stages",
 ]
 package-dir = {"" = "src"}
 
