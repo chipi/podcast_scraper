@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Unit tests for TransformersSummarizationProvider class.
+"""Unit tests for MLProvider summarization (via factory).
 
-These tests verify the local transformers-based summarization provider implementation.
+These tests verify the transformers-based summarization provider implementation
+using the unified MLProvider returned by the factory.
 """
 
 import os
@@ -34,32 +35,32 @@ spec.loader.exec_module(parent_conftest)
 
 create_test_config = parent_conftest.create_test_config
 
-from podcast_scraper.summarization.local_provider import (  # noqa: E402
-    TransformersSummarizationProvider,
-)
+from podcast_scraper.summarization.factory import create_summarization_provider  # noqa: E402
 
 
 class TestTransformersSummarizationProvider(unittest.TestCase):
-    """Tests for TransformersSummarizationProvider class."""
+    """Tests for MLProvider summarization (via factory)."""
 
     def setUp(self):
         """Set up test fixtures."""
         self.cfg = create_test_config(
-            generate_summaries=True, summary_model="facebook/bart-large-cnn"
+            generate_summaries=True,
+            summary_model="facebook/bart-large-cnn",
+            summary_provider="transformers",
         )
 
     def test_init(self):
-        """Test TransformersSummarizationProvider initialization."""
-        provider = TransformersSummarizationProvider(self.cfg)
+        """Test MLProvider summarization initialization."""
+        provider = create_summarization_provider(self.cfg)
         self.assertEqual(provider.cfg, self.cfg)
         self.assertIsNone(provider._map_model)
         self.assertIsNone(provider._reduce_model)
-        self.assertFalse(provider._initialized)
+        self.assertFalse(provider._transformers_initialized)
         self.assertTrue(provider._requires_separate_instances)
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_initialize_success(self, mock_select_model, mock_select_reduce, mock_summary_model):
         """Test successful initialization."""
         mock_select_model.return_value = "facebook/bart-large-cnn"
@@ -69,18 +70,18 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_map_model.device = "cpu"
         mock_summary_model.return_value = mock_map_model
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         provider.initialize()
 
-        self.assertTrue(provider._initialized)
+        self.assertTrue(provider._transformers_initialized)
         self.assertIsNotNone(provider._map_model)
         self.assertEqual(provider._reduce_model, provider._map_model)  # Same model
         mock_select_model.assert_called_once_with(self.cfg)
         mock_summary_model.assert_called_once()
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_initialize_with_different_reduce_model(
         self, mock_select_model, mock_select_reduce, mock_summary_model
     ):
@@ -95,29 +96,29 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_reduce_model.device = "cpu"
         mock_summary_model.side_effect = [mock_map_model, mock_reduce_model]
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         provider.initialize()
 
-        self.assertTrue(provider._initialized)
+        self.assertTrue(provider._transformers_initialized)
         self.assertIsNotNone(provider._map_model)
         self.assertIsNotNone(provider._reduce_model)
         self.assertNotEqual(provider._reduce_model, provider._map_model)
         self.assertEqual(mock_summary_model.call_count, 2)
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_initialize_summaries_disabled(self, mock_select_model):
         """Test initialization when generate_summaries is False."""
         cfg = create_test_config(generate_summaries=False)
-        provider = TransformersSummarizationProvider(cfg)
+        provider = create_summarization_provider(cfg)
         provider.initialize()
 
-        self.assertFalse(provider._initialized)
+        self.assertFalse(provider._transformers_initialized)
         self.assertIsNone(provider._map_model)
         mock_select_model.assert_not_called()
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_initialize_already_initialized(
         self, mock_select_model, mock_select_reduce, mock_summary_model
     ):
@@ -129,7 +130,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_map_model.device = "cpu"
         mock_summary_model.return_value = mock_map_model
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         provider.initialize()
         mock_select_model.reset_mock()
 
@@ -139,9 +140,9 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         # Should not call select_summary_model again
         mock_select_model.assert_not_called()
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_initialize_handles_exception(
         self, mock_select_model, mock_select_reduce, mock_summary_model
     ):
@@ -150,18 +151,18 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_select_reduce.return_value = "facebook/bart-large-cnn"
         mock_summary_model.side_effect = RuntimeError("Model loading failed")
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
 
         with self.assertRaises(RuntimeError) as context:
             provider.initialize()
 
         self.assertIn("Model loading failed", str(context.exception))
-        self.assertFalse(provider._initialized)
+        self.assertFalse(provider._transformers_initialized)
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_summarize_success(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):
@@ -174,7 +175,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_summary_model.return_value = mock_map_model
         mock_summarize.return_value = "This is a summary."
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         provider.initialize()
 
         result = provider.summarize("Long transcript text here...")
@@ -185,15 +186,15 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertEqual(result["metadata"]["model_used"], "facebook/bart-large-cnn")
         mock_summarize.assert_called_once()
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_summarize_not_initialized(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):
         """Test summarize raises error when not initialized."""
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
 
         with self.assertRaises(RuntimeError) as context:
             provider.summarize("Text")
@@ -201,10 +202,10 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertIn("not initialized", str(context.exception))
         mock_summarize.assert_not_called()
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_summarize_with_params(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):
@@ -217,7 +218,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_summary_model.return_value = mock_map_model
         mock_summarize.return_value = "Summary"
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         provider.initialize()
 
         params = {
@@ -234,10 +235,10 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertEqual(call_args.kwargs["max_length"], 200)
         self.assertEqual(call_args.kwargs["min_length"], 50)
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_summarize_handles_exception(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):
@@ -250,7 +251,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_summary_model.return_value = mock_map_model
         mock_summarize.side_effect = ValueError("Summarization failed")
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         provider.initialize()
 
         with self.assertRaises(ValueError) as context:
@@ -258,10 +259,10 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
 
         self.assertIn("Summarization failed", str(context.exception))
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.unload_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.unload_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_cleanup(self, mock_select_model, mock_select_reduce, mock_summary_model, mock_unload):
         """Test cleanup method."""
         mock_select_model.return_value = "facebook/bart-large-cnn"
@@ -271,20 +272,20 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_map_model.device = "cpu"
         mock_summary_model.return_value = mock_map_model
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         provider.initialize()
 
         provider.cleanup()
 
         self.assertIsNone(provider._map_model)
         self.assertIsNone(provider._reduce_model)
-        self.assertFalse(provider._initialized)
+        self.assertFalse(provider._transformers_initialized)
         mock_unload.assert_called_once()
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.unload_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.unload_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_cleanup_with_different_reduce_model(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_unload
     ):
@@ -299,7 +300,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_reduce_model.device = "cpu"
         mock_summary_model.side_effect = [mock_map_model, mock_reduce_model]
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         provider.initialize()
 
         provider.cleanup()
@@ -309,12 +310,12 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
 
     def test_cleanup_not_initialized(self):
         """Test cleanup when not initialized."""
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         provider.cleanup()  # Should not raise
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_map_model_property(self, mock_select_model, mock_select_reduce, mock_summary_model):
         """Test map_model property."""
         mock_select_model.return_value = "facebook/bart-large-cnn"
@@ -324,15 +325,15 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_map_model.device = "cpu"
         mock_summary_model.return_value = mock_map_model
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         self.assertIsNone(provider.map_model)
 
         provider.initialize()
         self.assertEqual(provider.map_model, mock_map_model)
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_reduce_model_property(self, mock_select_model, mock_select_reduce, mock_summary_model):
         """Test reduce_model property."""
         mock_select_model.return_value = "facebook/bart-large-cnn"
@@ -342,7 +343,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_map_model.device = "cpu"
         mock_summary_model.return_value = mock_map_model
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         self.assertIsNone(provider.reduce_model)
 
         provider.initialize()
@@ -350,16 +351,16 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
 
     def test_is_initialized_property(self):
         """Test is_initialized property."""
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         self.assertFalse(provider.is_initialized)
 
-        provider._initialized = True
+        provider._transformers_initialized = True
         self.assertTrue(provider.is_initialized)
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_summarize_auto_detects_word_chunking(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):
@@ -372,7 +373,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_summary_model.return_value = mock_map_model
         mock_summarize.return_value = "Summary"
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         provider.initialize()
 
         provider.summarize("Text")
@@ -381,10 +382,10 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         call_args = mock_summarize.call_args
         self.assertTrue(call_args.kwargs.get("use_word_chunking", False))
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
     def test_summarize_with_prompt(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):
@@ -397,7 +398,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_summary_model.return_value = mock_map_model
         mock_summarize.return_value = "Summary"
 
-        provider = TransformersSummarizationProvider(self.cfg)
+        provider = create_summarization_provider(self.cfg)
         provider.initialize()
 
         params = {"prompt": "Summarize this podcast episode"}
