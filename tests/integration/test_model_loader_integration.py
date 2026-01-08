@@ -189,6 +189,7 @@ class TestModelLoaderWorkflowIntegration(unittest.TestCase):
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
+    @pytest.mark.critical_path
     def test_workflow_imports_model_loader(self):
         """Test that workflow module can import model_loader functions."""
         from podcast_scraper import workflow
@@ -206,6 +207,7 @@ class TestModelLoaderWorkflowIntegration(unittest.TestCase):
         # This should return early (skips in test env), but imports model_loader
         workflow._ensure_ml_models_cached(cfg)
 
+    @pytest.mark.critical_path
     def test_model_loader_module_is_importable(self):
         """Test that model_loader module can be imported from package."""
         from podcast_scraper.model_loader import (
@@ -219,6 +221,7 @@ class TestModelLoaderWorkflowIntegration(unittest.TestCase):
         self.assertTrue(callable(preload_whisper_models))
         self.assertTrue(callable(preload_transformers_models))
 
+    @pytest.mark.critical_path
     def test_model_loader_uses_cache_utils(self):
         """Test that model_loader uses cache_utils functions."""
         # Verify cache directory functions are used
@@ -230,6 +233,7 @@ class TestModelLoaderWorkflowIntegration(unittest.TestCase):
         self.assertIsNotNone(whisper_cache)
         self.assertIsNotNone(transformers_cache)
 
+    @pytest.mark.critical_path
     def test_workflow_calls_ensure_ml_models_cached(self):
         """Test that workflow._ensure_ml_models_cached imports model_loader."""
         from podcast_scraper import workflow
@@ -244,6 +248,7 @@ class TestModelLoaderWorkflowIntegration(unittest.TestCase):
         # This exercises the import statement in workflow.py
         workflow._ensure_ml_models_cached(cfg)
 
+    @pytest.mark.critical_path
     def test_model_loader_environment_variable_parsing(self):
         """Test that model_loader can parse environment variables correctly."""
         # Test environment variable parsing logic by importing and checking function signatures
