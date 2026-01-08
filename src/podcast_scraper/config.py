@@ -718,6 +718,33 @@ class Config(BaseModel):
                 if env_value in ("cpu", "cuda", "mps"):
                     data["summary_device"] = env_value
 
+        # OPENAI_API_KEY: Only set from env if not in config
+        if "openai_api_key" not in data or data.get("openai_api_key") is None:
+            env_key = os.getenv("OPENAI_API_KEY")
+            if env_key:
+                env_value = str(env_key).strip()
+                if env_value:
+                    data["openai_api_key"] = env_value
+
+        # OPENAI_API_BASE: Only set from env if not in config
+        if "openai_api_base" not in data or data.get("openai_api_base") is None:
+            env_base = os.getenv("OPENAI_API_BASE")
+            if env_base:
+                env_value = str(env_base).strip()
+                if env_value:
+                    data["openai_api_base"] = env_value
+
+        # OPENAI_TEMPERATURE: Only set from env if not in config
+        if "openai_temperature" not in data or data.get("openai_temperature") is None:
+            env_temp = os.getenv("OPENAI_TEMPERATURE")
+            if env_temp:
+                try:
+                    temp_value = float(env_temp)
+                    if 0.0 <= temp_value <= 2.0:
+                        data["openai_temperature"] = temp_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
         return data
 
     @field_validator("log_level", mode="before")

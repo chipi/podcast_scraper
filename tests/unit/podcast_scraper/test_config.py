@@ -446,8 +446,15 @@ class TestConfigFieldValidators(unittest.TestCase):
 
     def test_openai_api_base_validator_handles_none(self):
         """Test that openai_api_base validator handles None."""
-        cfg = Config(rss_url="https://example.com/feed.xml", openai_api_base=None)
-        self.assertIsNone(cfg.openai_api_base)
+        # Unset environment variable to ensure it's not loaded
+        original_base = os.environ.pop("OPENAI_API_BASE", None)
+        try:
+            cfg = Config(rss_url="https://example.com/feed.xml", openai_api_base=None)
+            self.assertIsNone(cfg.openai_api_base)
+        finally:
+            # Restore original environment variable if it existed
+            if original_base is not None:
+                os.environ["OPENAI_API_BASE"] = original_base
 
     def test_speaker_detector_provider_validator_invalid(self):
         """Test that speaker_detector_provider validator rejects invalid values."""

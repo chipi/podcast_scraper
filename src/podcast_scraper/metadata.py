@@ -377,6 +377,10 @@ def _build_processing_metadata(cfg: config.Config, output_dir: str) -> Processin
         }
         if cfg.transcription_provider == "whisper" and cfg.transcribe_missing:
             ml_providers["transcription"]["whisper_model"] = cfg.whisper_model
+        elif cfg.transcription_provider == "openai":
+            # Include OpenAI transcription model
+            transcription_model = getattr(cfg, "openai_transcription_model", "whisper-1")
+            ml_providers["transcription"]["openai_model"] = transcription_model
 
     # Speaker detection provider
     if cfg.speaker_detector_provider:
@@ -385,6 +389,10 @@ def _build_processing_metadata(cfg: config.Config, output_dir: str) -> Processin
         }
         if cfg.speaker_detector_provider == "spacy" and cfg.ner_model:
             ml_providers["speaker_detection"]["ner_model"] = cfg.ner_model
+        elif cfg.speaker_detector_provider == "openai":
+            # Include OpenAI speaker detection model
+            speaker_model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
+            ml_providers["speaker_detection"]["openai_model"] = speaker_model
 
     # Summarization provider
     if cfg.summary_provider:
@@ -399,6 +407,10 @@ def _build_processing_metadata(cfg: config.Config, output_dir: str) -> Processin
                 ml_providers["summarization"]["reduce_model"] = cfg.summary_reduce_model
             if cfg.summary_device:
                 ml_providers["summarization"]["device"] = cfg.summary_device
+        elif cfg.summary_provider == "openai":
+            # Include OpenAI summarization model
+            summary_model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
+            ml_providers["summarization"]["openai_model"] = summary_model
 
     # Build config_snapshot with ml_providers first for prominence
     config_snapshot: Dict[str, Any] = {}
