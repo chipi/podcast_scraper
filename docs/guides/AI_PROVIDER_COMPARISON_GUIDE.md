@@ -9,7 +9,8 @@ choose the right provider based on capabilities, cost, quality, speed, and priva
 
 ## ⚠️ Implementation Status
 
-**Important:** This guide includes both **implemented** and **planned** providers. Check the status below before making decisions.
+**Important:** This guide includes both **implemented** and **planned** providers.
+Check the status below before making decisions.
 
 ### ✅ Implemented Providers (v2.4.0)
 
