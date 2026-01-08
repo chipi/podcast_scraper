@@ -117,9 +117,9 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
         if hasattr(detector, "is_initialized"):
             self.assertFalse(detector.is_initialized)
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
     def test_summarization_provider_initialize_cleanup_cycle(
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
@@ -129,13 +129,12 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
         mock_summary_model.return_value = Mock()
 
         # Use config with generate_summaries=True to ensure initialization
-        # Use test default (bart-base) for MAP model, not production default (bart-large)
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="transformers",
             generate_metadata=True,
             generate_summaries=True,
-            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (bart-base), not production default (bart-large)
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
         )
         provider = create_summarization_provider(cfg)
 

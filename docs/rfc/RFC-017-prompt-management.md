@@ -154,40 +154,6 @@ def _load_template(name: str) -> Template:
     Args:
         name: Logical name without .j2 extension
 
-```
-    Returns:
-        Jinja2 Template object
-
-```
-
-    Raises:
-        PromptNotFoundError: If template file doesn't exist
-    """
-
-```
-    # Normalize: allow both "summarization/long_v1" and "summarization/long_v1.j2"
-
-```
-
-    if name.endswith(".j2"):
-        rel_path = Path(name)
-    else:
-        rel_path = Path(name + ".j2")
-
-```
-```text
-
-    if not path.exists():
-        raise PromptNotFoundError(
-            f"Prompt template not found: {path}\n"
-            f"  Searched in: {_PROMPT_DIR}\n"
-            f"  Requested name: {name}"
-        )
-
-```
-    text = path.read_text(encoding="utf-8")
-    return Template(text)
-
 ```python
 
 def render_prompt(name: str, **params: Any) -> str:
@@ -198,25 +164,8 @@ def render_prompt(name: str, **params: Any) -> str:
     Render a prompt template with optional parameters.
 
 ```
-
-    Args:
-        name: Logical name, e.g. "summarization/long_v1"
-        **params: Template parameters passed to Jinja2 .render()
-
-```
-    Returns:
-        Rendered prompt string (stripped of leading/trailing whitespace).
-
-```
-
-    Example:
-        >>> render_prompt("summarization/long_v1", paragraphs_min=3, paragraphs_max=6)
-        "You are summarizing a podcast episode.\\n\\nWrite a detailed..."
-    """
-    tmpl = _load_template(name)
-    return tmpl.render(**params).strip()
-
 ```python
+
 def get_prompt_source(name: str) -> str:
 
 ```text
@@ -225,39 +174,12 @@ def get_prompt_source(name: str) -> str:
     Return the raw template source text (without rendering).
     Useful for hashing / metadata.
 
-```
-    Args:
-        name: Logical name, e.g. "summarization/long_v1"
-
-```
-
-    Returns:
-        Raw template source as string
-    """
-    tmpl = _load_template(name)
-
-```
-    # Jinja2 keeps original source text on template
-
-```
-
-    if hasattr(tmpl, "source") and tmpl.source is not None:
-        return str(tmpl.source)
-
 ```python
 
     # Fallback: reload from disk
 
-```
-
-    if name.endswith(".j2"):
-        rel_path = Path(name)
-    else:
-        rel_path = Path(name + ".j2")
-    path = _PROMPT_DIR / rel_path
-    return path.read_text(encoding="utf-8")
-
 ```python
+
 def hash_text(text: str) -> str:
 
 ```text
@@ -265,18 +187,8 @@ def hash_text(text: str) -> str:
     """
     Return a SHA256 hex digest for arbitrary text.
 
-```
-    Args:
-        text: Text to hash
-
-```
-
-    Returns:
-        SHA256 hash as hex string
-    """
-    return sha256(text.encode("utf-8")).hexdigest()
-
 ```python
+
 def get_prompt_metadata(
     name: str,
     params: Dict[str, Any] | None = None,
@@ -288,58 +200,17 @@ def get_prompt_metadata(
     Return metadata describing a prompt configuration.
 
 ```
-    Includes:
-
-        - logical name ("summarization/long_v1")
-        - filename (relative path)
-        - sha256 hash of template source
-        - params used for rendering (if any)
-
-```
-
-    Args:
-        name: Logical name, e.g. "summarization/long_v1"
-        params: Optional template parameters
-
-```
-    Returns:
-        Dictionary with prompt metadata
-    """
-    if name.endswith(".j2"):
-        rel_path = Path(name)
-    else:
-        rel_path = Path(name + ".j2")
-
-```
-
-    source = get_prompt_source(name)
-
-    metadata: Dict[str, Any] = {
-        "name": name,
-        "file": str(path.relative_to(_PROMPT_DIR)),
-        "sha256": hash_text(source),
-    }
-
-```text
-
-    if params:
-        metadata["params"] = params
-
-```
-
-    return metadata
 
 ```python
+
 def clear_cache() -> None:
 
 ```text
 
     """Clear the prompt template cache.
 
-```
-    _load_template.cache_clear()
-```text
 ```python
+
 """
 Experiment configuration models for LLM evaluation.
 
@@ -365,20 +236,8 @@ class PromptConfig(BaseModel):
     """
     Configuration for prompts used in an experiment.
 
-```
-    Example YAML:
-      prompts:
-        system: "summarization/system_v1"
-        user:   "summarization/long_v2_more_narrative"
-        params:
-          paragraphs_min: 3
-          paragraphs_max: 6
-    """
+```yaml
 
-```
-
-        default=None,
-        description="Logical name for system prompt template (or None).",
     )
     user: str = Field(
         description="Logical name for user prompt template.",
@@ -396,12 +255,8 @@ class HFBackendConfig(BaseModel):
 
     """Config for local Hugging Face models (your existing BART/LED setup)."""
 
-```
+```python
 
-    map_model: Optional[str] = Field(
-        default=None,
-        description="Model name for map stage (optional, summarization only).",
-    )
     reduce_model: Optional[str] = Field(
         default=None,
         description="Model name for reduce stage (optional, summarization only).",
@@ -435,15 +290,8 @@ class DataConfig(BaseModel):
     """
     Where to find input data for this experiment.
 
-```
-
-    Example YAML:
-      data:
-        episodes_glob: "data/episodes/ep*/transcript.txt"
-        id_from: "parent_dir"   # or "stem"
-    """
-
 ```python
+
     episodes_glob: str = Field(
         description="Glob pattern to discover episode input files.",
     )
@@ -466,46 +314,13 @@ class ExperimentParams(BaseModel):
     Task-specific parameters.
 
 ```
-    For summarization, you might use:
-      max_length, min_length, chunk_size, etc.
-
-```
-
-    For NER, maybe:
-      max_output_tokens, schema variant, etc.
-    """
-
-```
-    # Common parameters
-
-```
-
-    min_length: Optional[int] = None
-    chunk_size: Optional[int] = None
-    word_chunk_size: Optional[int] = None
-    word_overlap: Optional[int] = None
-    max_output_tokens: Optional[int] = None
-    temperature: Optional[float] = None
-
-```text
 
     # Allow arbitrary extra keys for specific experiments
-
-```
-
-    extra: Dict[str, object] = Field(default_factory=dict)
 
 ```python
 
     @validator("extra", pre=True, always=True)
     def collect_extra(cls, v, values):  # type: ignore[override]
-
-```
-
-        # Pydantic will fill known fields; any unknown fields can be collected here
-
-```
-        return v or {}
 
 ```python
 
@@ -515,45 +330,6 @@ class ExperimentConfig(BaseModel):
 
     """
     Full configuration for a single experiment run.
-
-```
-
-    Example YAML:
-
-```
-
-```text
-
-      backend:
-        type: "openai"
-        model: "gpt-4o-mini"
-
-```
-      prompts:
-        system: "summarization/system_v1"
-        user:   "summarization/long_v2_more_narrative"
-        params:
-          paragraphs_min: 3
-          paragraphs_max: 6
-
-```
-
-      data:
-        episodes_glob: "data/episodes/ep*/transcript.txt"
-        id_from: "parent_dir"
-
-```
-      params:
-        max_output_tokens: 900
-    """
-
-```
-
-    task: Literal["summarization", "ner_guest_host", "ner_generic", "transcription"] = "summarization"
-    backend: BackendConfig
-    prompts: PromptConfig
-    data: DataConfig
-    params: ExperimentParams = Field(default_factory=ExperimentParams)
 
 ```python
 
@@ -574,19 +350,6 @@ def load_experiment_config(path: str | Path) -> ExperimentConfig:
     """
     Load a YAML experiment config into a typed ExperimentConfig.
 
-```
-
-    Args:
-        path: Path to YAML config.
-
-```
-    Returns:
-        ExperimentConfig instance.
-    """
-    path = Path(path)
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return ExperimentConfig(**raw)
-
 ```python
 
 def discover_input_files(data_cfg: DataConfig, base_dir: Path | None = None) -> List[Path]:
@@ -595,21 +358,6 @@ def discover_input_files(data_cfg: DataConfig, base_dir: Path | None = None) -> 
 
     """
     Discover input files according to the experiment's data config.
-
-```
-
-    Args:
-        data_cfg: Data configuration
-        base_dir: Base directory for glob (default: current directory)
-
-```
-    Returns:
-        List of discovered file paths, sorted
-    """
-    if base_dir is None:
-        base_dir = Path(".")
-    paths = sorted(base_dir.glob(data_cfg.episodes_glob))
-    return [p for p in paths if p.is_file()]
 
 ```python
 
@@ -620,12 +368,6 @@ def episode_id_from_path(path: Path, data_cfg: DataConfig) -> str:
     """
     Convert a file path to an episode_id using the data config's id_from rule.
 
-```
-
-    Args:
-        path: File path
-        data_cfg: Data configuration
-
 ```python
 
     Returns:
@@ -633,24 +375,6 @@ def episode_id_from_path(path: Path, data_cfg: DataConfig) -> str:
     """
     if data_cfg.id_from == "stem":
         return path.stem
-
-```
-
-    # default: parent_dir
-
-```
-    return path.parent.name
-
-```
-
-**Key Principles:**
-
-1. **Provider-Agnostic Core**: The core system (workflow, factories) doesn't know about prompts
-2. **Provider-Specific Implementation**: Each provider that needs prompts handles them internally
-3. **Optional Usage**: Providers that don't need prompts (e.g., local transformers) aren't forced to use them
-4. **Protocol Compliance**: Prompt usage doesn't affect protocol compliance
-
-**Example: Using prompts in OpenAI summarization provider**
 
 ```python
 
@@ -686,22 +410,11 @@ class OpenAISummarizationProvider:
     ) -> Dict[str, Any]:
         """Summarize text using OpenAI API with prompts from prompt_store.
 
-```
-        Prompts are provider-specific implementation details.
-        """
-
 ```python
 
         # Load prompts from prompt_store (provider-specific)
 
 ```
-        if cfg.summary_system_prompt:
-            system_prompt = render_prompt(
-                cfg.summary_system_prompt,
-                **cfg.summary_prompt_params,
-            )
-
-        user_prompt = render_prompt(
             cfg.summary_user_prompt or "summarization/long_v1",
             transcript=text,
             title=cfg.episode_title or "",
@@ -767,24 +480,12 @@ class OpenAISpeakerDetector:
         """Detect speakers using OpenAI API with prompts from prompt_store.
 
 ```
-        Prompts are provider-specific implementation details.
-        """
-        user_prompt = render_prompt(
-            self.cfg.ner_user_prompt or "ner/guest_host_v1",
-            episode_title=episode_title,
-            episode_description=episode_description or "",
-            known_hosts=", ".join(known_hosts) if known_hosts else "",
             **self.cfg.ner_prompt_params,
         )
 
 ```text
 
         # Call OpenAI API (provider-specific implementation)
-
-```
-```
-
-        return (detected_speakers, detected_hosts, success)
 
 ```python
 
@@ -814,21 +515,6 @@ class TransformersSummarizationProvider:
 ```text
 
         # No prompts needed - local models work differently
-
-```
-        # Direct model inference
-
-```
-
-        summary = resource.generate(text, max_length=max_length, min_length=min_length)
-
-```
-        return {
-            "summary": summary,
-            "metadata": {
-                "model": cfg.summary_model,
-            }
-        }
 
 ```python
 
@@ -869,52 +555,13 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
     Run an experiment from a config file.
 
 ```
-        cfg_path: Path to experiment YAML config
-```
 
-    Returns:
-        Dictionary with experiment results and metadata
-    """
-    cfg = load_experiment_config(cfg_path)
-
-```
-```
-
-    system_prompt = None
-    if cfg.prompts.system:
-        system_prompt = render_prompt(
-            cfg.prompts.system,
-            **cfg.prompts.params,
-        )
-
-    user_prompt = render_prompt(
-        cfg.prompts.user,
         **cfg.prompts.params,
     )
 
 ```text
+
     # Get prompt metadata for tracking
-```
-
-    prompt_meta = {
-        "system": (
-            get_prompt_metadata(cfg.prompts.system, cfg.prompts.params)
-            if cfg.prompts.system
-            else None
-        ),
-        "user": get_prompt_metadata(cfg.prompts.user, cfg.prompts.params),
-    }
-
-```text
-    # Discover data files
-```
-
-    files = discover_input_files(cfg.data)
-
-```
-```
-
-    # Prompts are passed via config, not directly to provider
 
 ```
 ```python
@@ -931,31 +578,7 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
         raise ValueError(f"Unknown task: {cfg.task}")
 
 ```
-```
 
-    predictions = []
-    for file_path in files:
-
-```text
-        episode_id = episode_id_from_path(file_path, cfg.data)
-```
-
-        # Load episode data
-
-```
-```
-
-        # Generate prediction using provider protocol
-
-```
-```
-
-        if cfg.task == "summarization" and provider:
-            prediction_dict = provider.summarize(
-                text=episode_data["transcript"],
-                cfg=cfg,
-                resource=resource,
-                max_length=cfg.params.max_length,
                 min_length=cfg.params.min_length,
             )
             prediction = prediction_dict["summary"]
@@ -970,44 +593,8 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
             raise ValueError(f"Provider not available for task: {cfg.task}")
 
 ```
-            "episode_id": episode_id,
-            "prediction": prediction,
-        })
-
-```text
-
-    # Cleanup provider resources
-
-```
-        provider.cleanup(resource)
-```
-
-    # Evaluate predictions
-
-```
-```
-
-    # Include prompt metadata in results
-
-```
-        "experiment_id": cfg.id,
-        "task": cfg.task,
-        "backend": cfg.backend.dict(),
-        "prompts": prompt_meta,
-        "metrics": metrics,
-        "params": cfg.params.dict(),
-    }
-
-```text
 
     # Save results
-
-```
-```
-
-    return results
-
-```
 
 ```python
 

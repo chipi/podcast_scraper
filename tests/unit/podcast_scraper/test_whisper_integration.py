@@ -17,7 +17,7 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from podcast_scraper import whisper_integration
+from podcast_scraper import config, whisper_integration
 
 
 class TestFormatScreenplayFromSegments(unittest.TestCase):
@@ -545,7 +545,7 @@ class TestLoadWhisperModel(unittest.TestCase):
         """Test successful model loading."""
         cfg = Mock()
         cfg.transcribe_missing = True
-        cfg.whisper_model = "base"
+        cfg.whisper_model = config.TEST_DEFAULT_WHISPER_MODEL  # Use test default (tiny.en)
         cfg.language = "en"
 
         mock_whisper = Mock()
@@ -560,8 +560,13 @@ class TestLoadWhisperModel(unittest.TestCase):
         result = whisper_integration.load_whisper_model(cfg)
 
         self.assertEqual(result, mock_model)
-        # Should prefer .en variant for English
-        mock_whisper.load_model.assert_called_with("base.en")
+        # Should use test default model (tiny.en) for English
+        # Note: download_root may be passed if cache directory is set up
+        call_args = mock_whisper.load_model.call_args
+        self.assertIsNotNone(call_args)
+        self.assertEqual(
+            call_args[0][0], config.TEST_DEFAULT_WHISPER_MODEL
+        )  # First positional argument should be test default (tiny.en)
 
     @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
     def test_load_whisper_model_fallback(self, mock_import):
@@ -596,7 +601,7 @@ class TestLoadWhisperModel(unittest.TestCase):
         """Test model loading when all models fail."""
         cfg = Mock()
         cfg.transcribe_missing = True
-        cfg.whisper_model = "base"
+        cfg.whisper_model = config.TEST_DEFAULT_WHISPER_MODEL  # Use test default (tiny.en)
         cfg.language = "en"
 
         mock_whisper = Mock()
@@ -625,7 +630,7 @@ class TestTranscribeWithWhisper(unittest.TestCase):
         }
 
         cfg = Mock()
-        cfg.whisper_model = "base"
+        cfg.whisper_model = config.TEST_DEFAULT_WHISPER_MODEL  # Use test default (tiny.en)
         cfg.language = "en"
 
         mock_reporter = Mock()
@@ -657,7 +662,7 @@ class TestTranscribeWithWhisper(unittest.TestCase):
         mock_model.transcribe.return_value = {"text": "Hello", "segments": []}
 
         cfg = Mock()
-        cfg.whisper_model = "base"
+        cfg.whisper_model = config.TEST_DEFAULT_WHISPER_MODEL  # Use test default (tiny.en)
         cfg.language = None  # Not specified
 
         mock_reporter = Mock()

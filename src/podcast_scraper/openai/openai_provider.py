@@ -69,14 +69,22 @@ class OpenAIProvider:
         self.client = OpenAI(**client_kwargs)
 
         # Transcription settings
-        self.transcription_model = getattr(cfg, "openai_transcription_model", "whisper-1")
+        from ..config_constants import PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+
+        self.transcription_model = getattr(
+            cfg, "openai_transcription_model", PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+        )
 
         # Speaker detection settings
-        self.speaker_model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
+        from ..config_constants import PROD_DEFAULT_OPENAI_SPEAKER_MODEL
+
+        self.speaker_model = getattr(cfg, "openai_speaker_model", PROD_DEFAULT_OPENAI_SPEAKER_MODEL)
         self.speaker_temperature = getattr(cfg, "openai_temperature", 0.3)
 
         # Summarization settings
-        self.summary_model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
+        from ..config_constants import PROD_DEFAULT_OPENAI_SUMMARY_MODEL
+
+        self.summary_model = getattr(cfg, "openai_summary_model", PROD_DEFAULT_OPENAI_SUMMARY_MODEL)
         self.summary_temperature = getattr(cfg, "openai_temperature", 0.3)
         # GPT-4o-mini supports 128k context window - can handle full transcripts
         self.max_context_tokens = 128000  # Conservative estimate
@@ -370,14 +378,15 @@ class OpenAIProvider:
             ValueError: If detection fails or API key is invalid
             RuntimeError: If provider is not initialized
         """
+        # If auto_speakers is disabled, return defaults without requiring initialization
+        if not self.cfg.auto_speakers:
+            logger.debug("Auto-speakers disabled, detection failed")
+            return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+
         if not self._speaker_detection_initialized:
             raise RuntimeError(
                 "OpenAIProvider speaker detection not initialized. Call initialize() first."
             )
-
-        if not self.cfg.auto_speakers:
-            logger.debug("Auto-speakers disabled, detection failed")
-            return DEFAULT_SPEAKER_NAMES.copy(), set(), False
 
         logger.debug("Detecting speakers via OpenAI API for episode: %s", episode_title[:50])
 

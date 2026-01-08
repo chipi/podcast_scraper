@@ -49,20 +49,19 @@ flowchart TD
     DirectSummarize --> FinalSummary
 
 ```python
+
     FinalSummary --> ValidateSummary[Validate Summary]
     ValidateSummary --> StoreInMetadata[Store in Episode Metadata]
     StoreInMetadata --> Complete([Summarization Complete])
     Skip --> Complete
-```
+    style CleanTranscript fill:#fff3cd
+    style MapPhase fill:#ffd4a3
+    style MiniMapReduce fill:#d4a3ff
+    style Extractive fill:#ffa3d4
+    style SinglePass fill:#a3ffd4
+    style FinalSummary fill:#d4edda
+    style Complete fill:#d4edda
 
-```text
-style CleanTranscript fill:#fff3cd
-style MapPhase fill:#ffd4a3
-style MiniMapReduce fill:#d4a3ff
-style Extractive fill:#ffa3d4
-style SinglePass fill:#a3ffd4
-style FinalSummary fill:#d4edda
-style Complete fill:#d4edda
 ```
 
 ### 1. Transcript Cleaning
@@ -147,17 +146,61 @@ The REDUCE phase employs a three-tier decision tree based on combined summary si
 
 ## Model Selection Strategy
 
+**Important**: Model validation differs by provider:
+
+- **Transformers Provider** (local models): Only tested model aliases are supported. Direct model IDs are rejected.
+- **OpenAI Provider**: Any OpenAI model name is accepted. Validation is performed by OpenAI's API.
+
+### Transformers Provider: Supported Model Aliases
+
+**Note**: The strict validation below applies only to the `transformers` provider.
+For OpenAI provider, see [OpenAI Model Selection](#openai-provider-model-selection) below.
+
+- **`bart-large`**: `facebook/bart-large-cnn` (production MAP, best quality, ~2GB)
+- **`bart-small`**: `facebook/bart-base` (test MAP, smaller/faster, ~500MB)
+- **`long`**: `allenai/led-large-16384` (production REDUCE, long-context, ~2.5GB, handles 16k tokens)
+- **`long-fast`**: `allenai/led-base-16384` (test REDUCE, faster, ~1GB)
+
 ### MAP Model (Chunk Summarization)
 
-- **Default**: `facebook/bart-large-cnn` (best quality, ~2GB)
-- **Fast option**: `sshleifer/distilbart-cnn-12-6` (~300MB)
-- **Alternative**: `google/pegasus-large` (trained for summarization, ~2.5GB)
+- **Default**: `bart-large` (best quality, ~2GB)
+- **Test/Dev**: `bart-small` (smaller, faster, ~500MB)
+
+**Note**: Direct model IDs (e.g., `facebook/bart-large-cnn`) are not supported. Use aliases only.
+
+### OpenAI Provider: Model Selection
+
+The OpenAI provider accepts any valid OpenAI model name.
+No strict validation is performed locally - OpenAI's API validates the model name.
+
+**Common OpenAI Models:**
+
+- `gpt-4o` (production default, high quality)
+- `gpt-4o-mini` (test default, cost-effective)
+- `gpt-5`, `gpt-5-mini`, `gpt-5-nano` (newer models, if available)
+
+**Configuration:**
+
+- `openai_summary_model`: Any OpenAI model name (default: `gpt-4o`)
+- `openai_speaker_model`: Any OpenAI model name (default: `gpt-4o`)
+- `openai_transcription_model`: Must be `whisper-1` (only option)
+
+**Why No Strict Validation?**
+
+- OpenAI models are validated by OpenAI's API
+- Users may want to use newer models not yet in our constants
+- No local caching/preloading required
 
 ### REDUCE Model (Final Combination)
 
-- **Default**: `allenai/led-large-16384` (long-context, ~2.5GB, handles 16k tokens, production quality)
-- **Fast option**: `allenai/led-base-16384` (~1GB, faster but lower quality)
+**Note**: REDUCE models apply only to the `transformers` provider.
+OpenAI provider doesn't use REDUCE (handles full transcripts directly).
+
+- **Default**: `long` (production quality, long-context, ~2.5GB)
+- **Test/Dev**: `long-fast` (faster, ~1GB)
 - **Fallback**: Falls back to MAP model if not specified
+
+**Note**: Direct model IDs (e.g., `allenai/led-large-16384`) are not supported. Use aliases only.
 
 ### Device Selection
 
@@ -171,10 +214,10 @@ The REDUCE phase employs a three-tier decision tree based on combined summary si
 - **MAP-REDUCE**: ~3s per chunk (varies by model and device)
 - **Parallel Processing**: 3-4x speedup on CPU with 4 workers
 - **Memory Usage**:
-  - BART-large: ~2GB GPU memory
-  - DistilBART: ~300MB (recommended for memory-constrained systems)
-  - LED-large: ~2.5GB (reduce phase, production default)
-  - LED-base: ~1GB (reduce phase, fast option)
+  - `bart-large`: ~2GB GPU memory (production MAP)
+  - `bart-small`: ~500MB GPU memory (test MAP)
+  - `long`: ~2.5GB (reduce phase, production default)
+  - `long-fast`: ~1GB (reduce phase, test default)
 
 ## Error Handling
 
@@ -189,8 +232,11 @@ The REDUCE phase employs a three-tier decision tree based on combined summary si
 Summarization is configured via the `Config` model. Key options include:
 
 - `generate_summaries`: Enable/disable summarization
-- `summary_model`: MAP model selection (default: `facebook/bart-large-cnn`)
-- `summary_reduce_model`: REDUCE model selection (default: `allenai/led-large-16384`)
+- `summary_model`: MAP model alias (default: `bart-large`, options: `bart-large`, `bart-small`)
+- `summary_reduce_model`: REDUCE model alias (default: `long`, options: `long`, `long-fast`)
+
+**Important**: Only model aliases are supported. Direct model IDs will be rejected with an error.
+
 - `save_cleaned_transcript`: Save cleaned transcripts to `.cleaned.txt` files
 
 See [Configuration Documentation](../api/CONFIGURATION.md) for complete configuration options.
@@ -201,5 +247,6 @@ See [Configuration Documentation](../api/CONFIGURATION.md) for complete configur
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices
 - [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md) - Complete guide for implementing new
   providers (includes OpenAI example)
+
 - [PRD-005](../prd/PRD-005-episode-summarization.md) - Product requirements for summarization
 - [RFC-012](../rfc/RFC-012-episode-summarization.md) - Design decisions for summarization

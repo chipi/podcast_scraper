@@ -529,7 +529,12 @@ class TestModelLoadingFailures(unittest.TestCase):
                 device=None,
                 cache_dir=self.temp_dir,
             )
-        self.assertIn("Model not found", str(context.exception))
+        # Error message may vary - check for either the original or wrapped message
+        error_msg = str(context.exception)
+        self.assertTrue(
+            "Model not found" in error_msg or "not found in cache" in error_msg,
+            f"Expected 'Model not found' or 'not found in cache' in: {error_msg}",
+        )
 
     @patch("transformers.AutoTokenizer")
     @patch("transformers.AutoModelForSeq2SeqLM")

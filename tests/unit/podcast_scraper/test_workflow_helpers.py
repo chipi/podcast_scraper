@@ -1557,7 +1557,7 @@ class TestParallelEpisodeSummarization(unittest.TestCase):
         # Should return early
         mock_build_path.assert_called()
 
-    @patch("podcast_scraper.workflow._summarize_single_episode")
+    @patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode")
     @patch("podcast_scraper.workflow.filesystem.build_whisper_output_path")
     @patch("podcast_scraper.workflow.metadata._determine_metadata_path")
     @patch("os.path.exists")

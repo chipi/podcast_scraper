@@ -63,13 +63,59 @@ Modules importing ML dependencies at **module level** will fail unit tests in CI
 **Quick setup:**
 
 ```bash
-
 bash scripts/setup_venv.sh
 source .venv/bin/activate
+```go
 
+### Package Installation
+
+After creating your virtual environment, install the package in editable mode:
+
+```bash
+
+# Install with ML dependencies (Whisper, transformers, etc.)
+
+pip install -e ".[ml]"
+
+# Or install minimal (no ML, for testing core functionality)
+
+pip install -e .
+```go
+
+**Why `-e` (editable mode)?**
+
+- Changes to source code take effect immediately (no reinstall needed)
+- Allows running tests and CLI commands
+- Required for development workflow
+
+**What this installs:**
+
+- Core package (`podcast_scraper`)
+- CLI entry point (`podcast-scraper` command)
+- All dependencies from `pyproject.toml`
+- Development dependencies if using `make init`
+
+**Alternative (recommended for development):**
+
+```bash
+make init  # Creates venv + installs package + sets up pre-commit hooks
 ```
 
-### Environment Variables
+**Verify installation:**
+
+```bash
+
+# Should show version and help
+
+podcast-scraper --version
+podcast-scraper --help
+
+# Or use module syntax
+
+python -m podcast_scraper.cli --version
+```
+
+## Environment Variables
 
 1. **Copy example `.env` file:**
 
@@ -679,7 +725,7 @@ nav:
 
 ## CI/CD Integration
 
-> **See also:** [`CI_CD.md`](../CI_CD.md) for complete CI/CD pipeline documentation with visualizations.
+> **See also:** [CI/CD Overview](../ci/index.md) for complete CI/CD pipeline documentation with visualizations.
 
 ### What Runs in CI
 
@@ -849,12 +895,17 @@ if cfg.workers < 1:
 # Graceful degradation for optional features
 
 try:
+
+```python
+
     import whisper
     WHISPER_AVAILABLE = True
+
 except ImportError:
     WHISPER_AVAILABLE = False
     logger.warning("Whisper not available, transcription disabled")
-```
+
+```python
 
 ## Log Level Guidelines
 
@@ -911,15 +962,8 @@ logger.info("Summary generated in %.1fs (length: %d chars)", elapsed, len(summar
 # Bad - INFO for technical details (should be DEBUG)
 
 logger.info("Loading summarization model: %s on %s", model_name, device)
+
 ```
-
-**Module-Specific Guidelines:**
-
-- **Workflow:** INFO for episode counts, major stages; DEBUG for cleanup
-- **Summarization:** INFO for generation start/completion; DEBUG for model loading
-- **Whisper:** INFO for "transcribing with Whisper"; DEBUG for model loading
-- **Episode Processing:** INFO for file saves; DEBUG for download details
-- **Speaker Detection:** INFO for results; DEBUG for model download
 
 ## Rationale
 
@@ -937,6 +981,7 @@ When in doubt, prefer DEBUG over INFO - it's easier to promote a log level than 
 **Use the `progress.py` abstraction:**
 
 ```python
+
 from podcast_scraper import progress
 
 # Good - uses progress abstraction
@@ -954,6 +999,7 @@ with progress.make_progress(
 from tqdm import tqdm
 for episode in tqdm(episodes):
     process_episode(episode)
+
 ```
 
 ## Lazy Loading Pattern
@@ -979,6 +1025,7 @@ def load_whisper():
                 "Install with: pip install openai-whisper"
             )
     return _whisper
+
 ```
 
 ## Module Responsibilities

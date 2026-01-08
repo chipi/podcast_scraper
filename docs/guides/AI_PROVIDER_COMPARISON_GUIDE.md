@@ -7,18 +7,48 @@ choose the right provider based on capabilities, cost, quality, speed, and priva
 
 ---
 
+## ⚠️ Implementation Status
+
+**Important:** This guide includes both **implemented** and **planned** providers. Check the status below before making decisions.
+
+### ✅ Implemented Providers (v2.4.0)
+
+| Provider | Status | RFC | Notes |
+| ---------- | :------: | :---: | ------- |
+| **Local ML** | ✅ **Implemented** | - | Default provider (Whisper + spaCy + Transformers) |
+| **OpenAI** | ✅ **Implemented** | RFC-013 | Full-stack: Whisper API + GPT API |
+
+### 📋 Planned Providers (RFCs in Draft Status)
+
+The following providers are **designed but not yet implemented**.
+They are documented here for planning purposes and future reference.
+
+| Provider | Status | RFC | Implementation Status |
+| ---------- | :------: | :---: | :---------------------: |
+| **Anthropic** | 📋 **Planned** | RFC-032 (Draft) | Design complete, not implemented |
+| **Mistral** | 📋 **Planned** | RFC-033 (Draft) | Design complete, not implemented |
+| **DeepSeek** | 📋 **Planned** | RFC-034 (Draft) | Design complete, not implemented |
+| **Gemini** | 📋 **Planned** | RFC-035 (Draft) | Design complete, not implemented |
+| **Groq** | 📋 **Planned** | RFC-036 (Draft) | Design complete, not implemented |
+| **Ollama** | 📋 **Planned** | RFC-037 (Draft) | Design complete, not implemented |
+
+**Note:** All planned providers have RFCs documenting their design,
+but implementation work has not yet begun.
+The comparison data below is based on design specifications and may change during implementation.
+
+---
+
 ## 📊 Key Statistics at a Glance
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        PROVIDER LANDSCAPE OVERVIEW                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  8 Providers Available    │  4 Full-Stack Providers  │  4 Text-Only         │
+│  2 Providers Implemented │  6 Providers Planned    │  2 Full-Stack Ready  │
 │  ════════════════════     │  ═══════════════════════ │  ═══════════════     │
-│  Local ML, OpenAI,        │  Local ML, OpenAI,       │  Anthropic, DeepSeek │
-│  Anthropic, Mistral,      │  Mistral, Gemini         │  Groq, Ollama        │
-│  DeepSeek, Gemini,        │                          │                      │
-│  Groq, Ollama             │                          │                      │
+│  ✅ Local ML              │  📋 Anthropic, Mistral  │  ✅ Local ML          │
+│  ✅ OpenAI                │  📋 DeepSeek, Gemini     │  ✅ OpenAI            │
+│                            │  📋 Groq, Ollama         │                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                           COST SPECTRUM (per 100 episodes)                  │
 │                                                                             │
@@ -31,22 +61,24 @@ choose the right provider based on capabilities, cost, quality, speed, and priva
 │  DeepSeek ─── Groq ─── Anthropic ─── Gemini ─── OpenAI ─── Mistral        │
 │   ($0.02)    ($0.03)    ($0.40)      ($0.95)    ($36)      ($69)           │
 └─────────────────────────────────────────────────────────────────────────────┘
-```
+```yaml
 
 ---
 
 ## 🎯 Quick Decision Matrix
 
-| If you need... | Choose | Why |
-| :------------- | :----: | :-- |
-| 🔒 **Complete Privacy** | Local ML / Ollama | Data never leaves your device |
-| 💰 **Lowest Cost** | DeepSeek | 95% cheaper than OpenAI |
-| ⚡ **Fastest Speed** | Groq | 10x faster inference |
-| 🏆 **Highest Quality** | OpenAI GPT-5 | Industry leader |
-| 🇪🇺 **EU Data Residency** | Mistral | European servers |
-| 📚 **Huge Context** | Gemini | 2 million token window |
-| 🆓 **Free Development** | Gemini / Groq | Generous free tiers |
-| 🌐 **Full Capabilities** | OpenAI / Mistral | All 3 capabilities |
+| If you need... | Choose | Status | Why |
+| :------------- | :----: | :----: | :-- |
+| 🔒 **Complete Privacy** | Local ML | ✅ Implemented | Data never leaves your device |
+| 💰 **Lowest Cost** | Local ML | ✅ Implemented | $0 (just electricity) |
+| 🏆 **Highest Quality** | OpenAI | ✅ Implemented | Industry leader |
+| 🌐 **Full Capabilities** | OpenAI / Local ML | ✅ Implemented | All 3 capabilities |
+| ⚡ **Fastest Speed** | Groq | 📋 Planned | 10x faster inference (RFC-036) |
+| 💰 **Lowest Cloud Cost** | DeepSeek | 📋 Planned | 95% cheaper than OpenAI (RFC-034) |
+| 🇪🇺 **EU Data Residency** | Mistral | 📋 Planned | European servers (RFC-033) |
+| 📚 **Huge Context** | Gemini | 📋 Planned | 2 million token window (RFC-035) |
+| 🆓 **Free Development** | Gemini / Groq | 📋 Planned | Generous free tiers (RFC-035, RFC-036) |
+| 🏠 **Self-Hosted** | Ollama | 📋 Planned | Offline/air-gapped (RFC-037) |
 
 ---
 
@@ -100,7 +132,7 @@ A Gartner-style analysis plotting all 8 providers across two strategic dimension
              │                    │
              └────────────────────┴────────────────────────────────────
                     Limited                              Comprehensive
-```
+```yaml
 
 ### Quadrant Analysis
 
@@ -154,7 +186,7 @@ A Gartner-style analysis plotting all 8 providers across two strategic dimension
                                     │                    Completeness of Vision
 
     Legend:  ● Current position    ═══▶ Predicted movement
-```
+```yaml
 
 ### Strategic Recommendations by Quadrant
 
@@ -273,7 +305,7 @@ DeepSeek    🔒🔒       │████████████████�
                       └────────────────────────────────────────────────────
 
 🔒 For maximum privacy, use Local ML or Ollama - data never leaves your device!
-```
+```yaml
 
 ---
 
@@ -283,22 +315,22 @@ DeepSeek    🔒🔒       │████████████████�
                     ┌─────────────────────────────────────────────────┐
                     │           CAPABILITY SUPPORT MATRIX              │
                     ├─────────────────────────────────────────────────┤
-                    │  Provider      │ 🎙️ Trans │ 👤 Speaker │ 📝 Summary │
-                    ├────────────────┼──────────┼────────────┼────────────┤
-                    │  Local ML      │    ✅    │     ✅     │     ✅     │
-                    │  OpenAI        │    ✅    │     ✅     │     ✅     │
-                    │  Mistral       │    ✅    │     ✅     │     ✅     │
-                    │  Gemini        │    ✅    │     ✅     │     ✅     │
-                    ├────────────────┼──────────┼────────────┼────────────┤
-                    │  Anthropic     │    ❌    │     ✅     │     ✅     │
-                    │  DeepSeek      │    ❌    │     ✅     │     ✅     │
-                    │  Groq          │    ❌    │     ✅     │     ✅     │
-                    │  Ollama        │    ❌    │     ✅     │     ✅     │
-                    └─────────────────────────────────────────────────┘
+                    │  Provider      │ Status   │ 🎙️ Trans │ 👤 Speaker │ 📝 Summary │
+                    ├────────────────┼──────────┼──────────┼────────────┼────────────┤
+                    │  Local ML      │ ✅ Impl  │    ✅    │     ✅     │     ✅     │
+                    │  OpenAI        │ ✅ Impl  │    ✅    │     ✅     │     ✅     │
+                    ├────────────────┼──────────┼──────────┼────────────┼────────────┤
+                    │  Mistral       │ 📋 Plan  │    ✅    │     ✅     │     ✅     │
+                    │  Gemini        │ 📋 Plan  │    ✅    │     ✅     │     ✅     │
+                    │  Anthropic     │ 📋 Plan  │    ❌    │     ✅     │     ✅     │
+                    │  DeepSeek      │ 📋 Plan  │    ❌    │     ✅     │     ✅     │
+                    │  Groq          │ 📋 Plan  │    ❌    │     ✅     │     ✅     │
+                    │  Ollama        │ 📋 Plan  │    ❌    │     ✅     │     ✅     │
+                    └─────────────────────────────────────────────────────────────────┘
 
-    Full Stack (4): Local ML, OpenAI, Mistral, Gemini
-    Text Only (4):  Anthropic, DeepSeek, Groq, Ollama
-```
+    ✅ Implemented (2): Local ML, OpenAI
+    📋 Planned (6): Mistral, Gemini, Anthropic, DeepSeek, Groq, Ollama
+```yaml
 
 ---
 
@@ -357,13 +389,15 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 
 ⚠️  At 10,000 episodes/month, OpenAI full stack costs $3,740!
     Using local transcription + DeepSeek: $1.60 (99.96% savings)
-```
+```yaml
 
 ---
 
 ## 🔬 Provider Deep Dives
 
-### 1. 🏠 Local ML Providers (Default)
+> **Note:** Only **Local ML** and **OpenAI** are currently implemented. Other providers are documented based on design specifications (RFCs 032-037) and may change during implementation.
+
+### 1. 🏠 Local ML Providers (Default) ✅ **Implemented**
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -382,7 +416,7 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │                                                                 │
 │  Best For: Privacy, offline use, zero ongoing cost              │
 └─────────────────────────────────────────────────────────────────┘
-```
+```yaml
 
 **Hardware Requirements:**
 
@@ -394,7 +428,7 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 
 ---
 
-### 2. 🤖 OpenAI
+### 2. 🤖 OpenAI ✅ **Implemented**
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -414,11 +448,11 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │                                                                 │
 │  Best For: Quality-critical production, reliable workflows      │
 └─────────────────────────────────────────────────────────────────┘
-```
+```yaml
 
 ---
 
-### 3. 🧠 Anthropic (Claude)
+### 3. 🧠 Anthropic (Claude) 📋 **Planned** (RFC-032)
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -438,11 +472,11 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │                                                                 │
 │  Best For: Quality text, nuanced content, safety alignment      │
 └─────────────────────────────────────────────────────────────────┘
-```
+```yaml
 
 ---
 
-### 4. 🇪🇺 Mistral
+### 4. 🇪🇺 Mistral 📋 **Planned** (RFC-033)
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -462,11 +496,11 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │                                                                 │
 │  Best For: EU compliance, full OpenAI alternative               │
 └─────────────────────────────────────────────────────────────────┘
-```
+```yaml
 
 ---
 
-### 5. 💎 DeepSeek
+### 5. 💎 DeepSeek 📋 **Planned** (RFC-034)
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -488,11 +522,11 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │                                                                 │
 │  Best For: Budget optimization, bulk processing, startups       │
 └─────────────────────────────────────────────────────────────────┘
-```
+```yaml
 
 ---
 
-### 6. 🌈 Google Gemini
+### 6. 🌈 Google Gemini 📋 **Planned** (RFC-035)
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -516,11 +550,11 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │                                                                 │
 │  Best For: Long content, free development, multimodal           │
 └─────────────────────────────────────────────────────────────────┘
-```
+```yaml
 
 ---
 
-### 7. ⚡ Groq
+### 7. ⚡ Groq 📋 **Planned** (RFC-036)
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -544,11 +578,11 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │                                                                 │
 │  Best For: Real-time processing, batch operations, speed        │
 └─────────────────────────────────────────────────────────────────┘
-```
+```yaml
 
 ---
 
-### 8. 🏠 Ollama (Local LLMs)
+### 8. 🏠 Ollama (Local LLMs) 📋 **Planned** (RFC-037)
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -576,7 +610,7 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │                                                                 │
 │  Best For: Privacy, offline, unlimited processing, enterprises  │
 └─────────────────────────────────────────────────────────────────┘
-```
+```yaml
 
 ---
 
@@ -625,7 +659,7 @@ Mistral (full)      $69.00              $690.00             $6,900.00
    │  10x    │         │   2M    │         │  Full   │
    │ faster  │         │ tokens  │         │  Stack  │
    └─────────┘         └─────────┘         └─────────┘
-```
+```yaml
 
 ---
 
@@ -634,89 +668,105 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 ### Configuration 1: 💰 Ultra-Budget ($0.016/100 episodes)
 
 ```yaml
+
 # 97% cheaper than OpenAI
+
 transcription_provider: whisper       # Free (local)
 speaker_detector_provider: deepseek   # $0.004/100
 summary_provider: deepseek            # $0.012/100
 
 # Model settings
+
 deepseek_api_key: ${DEEPSEEK_API_KEY}
-```
+```bash
 
 **Savings:** $37.38 per 100 episodes vs OpenAI
 
 ---
 
-### Configuration 2: 🏆 Quality-First (~$42/100 episodes)
+## Configuration 2: 🏆 Quality-First (~$42/100 episodes)
 
 ```yaml
+
 # Maximum quality
+
 transcription_provider: openai
 speaker_detector_provider: openai
 summary_provider: openai
 
 # Model settings
+
 openai_speaker_model: gpt-5
 openai_summary_model: gpt-5
 openai_api_key: ${OPENAI_API_KEY}
-```
+```yaml
 
 ---
 
-### Configuration 3: 🔒 Privacy-First ($0)
+## Configuration 3: 🔒 Privacy-First ($0)
 
 ```yaml
+
 # Data never leaves your device
+
 transcription_provider: whisper       # Local
 speaker_detector_provider: ner        # Local spaCy
 summary_provider: transformers        # Local BART/LED
-```
+```yaml
 
 ---
 
-### Configuration 4: ⚡ Speed-First (~$0.25/100 episodes)
+## Configuration 4: ⚡ Speed-First (~$0.25/100 episodes)
 
 ```yaml
+
 # 10x faster processing
+
 transcription_provider: whisper       # Local
 speaker_detector_provider: groq
 summary_provider: groq
 
 # Model settings
+
 groq_speaker_model: llama-3.3-70b-versatile
 groq_summary_model: llama-3.3-70b-versatile
 groq_api_key: ${GROQ_API_KEY}
-```
+```yaml
 
 ---
 
-### Configuration 5: 🇪🇺 EU Compliant (~$65/100 episodes)
+## Configuration 5: 🇪🇺 EU Compliant (~$65/100 episodes)
 
 ```yaml
+
 # European data residency
+
 transcription_provider: mistral
 speaker_detector_provider: mistral
 summary_provider: mistral
 
 # Model settings
+
 mistral_speaker_model: mistral-large-latest
 mistral_summary_model: mistral-large-latest
 mistral_api_key: ${MISTRAL_API_KEY}
-```
+```yaml
 
 ---
 
-### Configuration 6: 🆓 Free Development (~$0)
+## Configuration 6: 🆓 Free Development (~$0)
 
 ```yaml
+
 # Maximize free tiers
+
 transcription_provider: whisper       # Local
 speaker_detector_provider: gemini     # Free tier
 summary_provider: groq                # Free tier
 
 gemini_speaker_model: gemini-2.0-flash
 groq_summary_model: llama-3.1-8b-instant
-```
+```yaml
 
 ---
 
@@ -750,7 +800,7 @@ groq_summary_model: llama-3.1-8b-instant
 │     → All cloud providers process data on their servers                    │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
-```
+```yaml
 
 ---
 

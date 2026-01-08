@@ -3,11 +3,15 @@
 # Generates comprehensive metrics, reports, and trend tracking
 # See RFC-025: Test Metrics and Health Tracking (Layer 3)
 #
+# Note: Linter warnings about "Unable to resolve action" for actions/checkout@v4
+# and actions/cache@v4 are false positives - these are standard GitHub Actions
+# that exist in the marketplace but the linter cannot resolve them offline.
+#
 # Structure mirrors python-app.yml with separate jobs for isolation:
 # Dependency flow:
 # 1. lint, build, preload-ml-models-nightly run in parallel (no deps)
 # 2. security-quality and test-unit run in parallel (both gate: lint, build)
-# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models-nightly only)
+# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models-nightly + test-unit)
 # 4. nightly-only-tests gates: test-unit, test-integration, test-e2e
 # 5. nightly-metrics gates: security-quality, nightly-only-tests
 # 6. nightly-docs gates nightly-metrics (very last step, final validation)
@@ -31,6 +35,9 @@ on:
     # Run nightly at 2 AM UTC
     - cron: '0 2 * * *'
   workflow_dispatch:  # Allow manual triggering
+  push:
+    branches:
+      - 'release/**'  # Run on all release branches
 
 permissions:
   contents: write  # For publishing metrics to gh-pages branch
@@ -236,6 +243,56 @@ jobs:
         make quality
 
   # ===========================================================================
+  # Dependency analysis - module coupling visualization and circular import detection
+  # Runs in parallel with security-quality, generates dependency graphs for tracking
+  # ===========================================================================
+  nightly-deps-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [nightly-lint, nightly-build]  # Wait for lint, build to pass
+    continue-on-error: true  # Don't fail nightly if dependency analysis has issues
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+        cache-dependency-path: pyproject.toml
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev]
+
+    - name: Generate dependency graph
+      run: |
+        echo "Generating module dependency graphs..."
+        make deps-graph
+        make deps-graph-full
+
+    - name: Check for circular imports
+      run: |
+        echo "Checking for circular imports..."
+        make deps-check-cycles
+
+    - name: Run dependency analysis
+      run: |
+        echo "Running dependency analysis..."
+        python scripts/analyze_dependencies.py --report
+
+    - name: Upload dependency artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: nightly-deps-analysis
+        path: |
+          reports/deps*.svg
+          reports/deps*.json
+        retention-days: 90
+
+  # ===========================================================================
   # Documentation build - validates docs can be built correctly
   # Runs as very last step after all tests and metrics pass (final validation)
   # Docs deployment happens in docs.yml workflow (separate, already gated properly)
@@ -290,6 +347,7 @@ jobs:
       with:
         python-version: "3.11"
         cache: "pip"
+        cache-dependency-path: pyproject.toml
 
     - name: Install build tools
       run: |
@@ -380,7 +438,7 @@ jobs:
   nightly-test-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [preload-ml-models-nightly]  # Wait for model preload only (can run in parallel with unit tests)
+    needs: [preload-ml-models-nightly, nightly-test-unit]  # Wait for model preload and unit tests to pass
     env:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
@@ -465,7 +523,7 @@ jobs:
   nightly-test-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [preload-ml-models-nightly]  # Wait for model preload only (can run in parallel with unit tests)
+    needs: [preload-ml-models-nightly, nightly-test-unit]  # Wait for model preload and unit tests to pass
     env:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
@@ -628,7 +686,7 @@ jobs:
   nightly-metrics:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [nightly-security-quality, nightly-only-tests]  # Wait for security/quality and nightly-only tests
+    needs: [nightly-lint, nightly-security-quality, nightly-docs, nightly-build, nightly-test-unit, nightly-test-integration, nightly-test-e2e, nightly-only-tests]  # Wait for all jobs to complete before generating summary
     if: always()
     steps:
     - uses: actions/checkout@v4
@@ -642,10 +700,12 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Install dependencies
+    - name: Install minimal dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        # Only need coverage for combining reports - no other deps needed
+        # Scripts (generate_metrics.py, generate_dashboard.py) use only stdlib
+        pip install coverage[toml]
 
     - name: Create directories
       run: |
@@ -665,6 +725,95 @@ jobs:
         find downloaded-reports -name "*.json" -exec cp {} reports/ \;
         find downloaded-reports -name "*.xml" -exec cp {} reports/ \;
         ls -la reports/
+
+        # Merge pytest JSON reports if multiple exist
+        if ls reports/pytest-*.json 1>/dev/null 2>&1; then
+          echo "Merging pytest JSON reports..."
+          python3 << 'EOF'
+        import json
+        from pathlib import Path
+
+        json_files = list(Path('reports').glob('pytest-*.json'))
+        if not json_files:
+            print("No pytest JSON files found")
+            exit(0)
+
+        merged_summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
+        merged_tests = []
+        total_duration = 0.0
+
+        for json_file in json_files:
+            try:
+                with open(json_file) as f:
+                    data = json.load(f)
+                summary = data.get("summary", {})
+                merged_summary["total"] += summary.get("total", 0)
+                merged_summary["passed"] += summary.get("passed", 0)
+                merged_summary["failed"] += summary.get("failed", 0)
+                merged_summary["skipped"] += summary.get("skipped", 0)
+                total_duration += data.get("duration", 0)
+                merged_tests.extend(data.get("tests", []))
+                print(f"  ✅ {json_file}")
+            except Exception as e:
+                print(f"  ⚠️ {json_file}: {e}")
+
+        merged_data = {
+            "summary": merged_summary,
+            "duration": total_duration,
+            "tests": merged_tests
+        }
+
+        with open('reports/pytest.json', 'w') as f:
+            json.dump(merged_data, f, indent=2)
+        print(f"✅ Merged pytest JSON: {merged_summary['total']} tests, {total_duration:.1f}s")
+        EOF
+        fi
+
+        # Merge JUnit XML reports if multiple exist
+        if ls reports/junit-*.xml 1>/dev/null 2>&1; then
+          echo "Merging JUnit XML reports..."
+          python3 << 'EOF'
+        import xml.etree.ElementTree as ET
+        from pathlib import Path
+
+        xml_files = list(Path('reports').glob('junit-*.xml'))
+        if not xml_files:
+            print("No JUnit XML files found")
+            exit(0)
+
+        # Create base testsuites element
+        root = ET.Element('testsuites')
+        root.set('tests', '0')
+        root.set('failures', '0')
+        root.set('time', '0')
+
+        total_tests = 0
+        total_failures = 0
+        total_time = 0.0
+
+        for xml_file in xml_files:
+            try:
+                tree = ET.parse(xml_file)
+                file_root = tree.getroot()
+                # Handle both testsuites and testsuite elements
+                for testsuite in file_root.findall('.//testsuite'):
+                    root.append(testsuite)
+                    total_tests += int(testsuite.get('tests', 0))
+                    total_failures += int(testsuite.get('failures', 0))
+                    total_time += float(testsuite.get('time', 0))
+                print(f"  ✅ {xml_file}")
+            except Exception as e:
+                print(f"  ⚠️ {xml_file}: {e}")
+
+        root.set('tests', str(total_tests))
+        root.set('failures', str(total_failures))
+        root.set('time', str(total_time))
+
+        tree = ET.ElementTree(root)
+        tree.write('reports/junit.xml', encoding='utf-8', xml_declaration=True)
+        print(f"✅ Merged JUnit XML: {total_tests} tests, {total_failures} failures, {total_time:.1f}s")
+        EOF
+        fi
 
         # Properly merge coverage reports from all test jobs
         if ls reports/coverage-*.xml 1>/dev/null 2>&1; then
@@ -734,11 +883,37 @@ jobs:
     - name: Load metrics history
       run: |
         git fetch origin gh-pages:gh-pages 2>/dev/null || true
-        if git show gh-pages:metrics/history.jsonl > metrics/history.jsonl 2>/dev/null; then
-          echo "✅ Loaded existing history"
+        if git show gh-pages:metrics/history-nightly.jsonl > metrics/history-nightly.jsonl 2>/dev/null; then
+          echo "✅ Loaded existing nightly history"
         else
-          echo "📝 Creating new history file"
-          touch metrics/history.jsonl
+          echo "📝 Creating new nightly history file"
+          touch metrics/history-nightly.jsonl
+        fi
+
+    - name: Generate code quality metrics
+      run: |
+        mkdir -p reports
+        # Generate complexity metrics for dashboard
+        radon cc src/podcast_scraper/ -a -s --total-average --json > reports/complexity.json 2>/dev/null || echo '{"total_average": 0}' > reports/complexity.json
+        radon mi src/podcast_scraper/ -s --json > reports/maintainability.json 2>/dev/null || echo '[]' > reports/maintainability.json
+        interrogate src/podcast_scraper/ --quiet --output-format json > reports/docstrings.json 2>/dev/null || echo '{"coverage_percent": 0}' > reports/docstrings.json
+        # Vulture dead code detection
+        vulture src/podcast_scraper/ --min-confidence 60 --sort-by-size --json > reports/vulture.json 2>/dev/null || echo '[]' > reports/vulture.json
+        # Codespell spelling check
+        codespell --quiet --skip="*.pyc,*.pyo,*.pyd,*.so,*.egg,*.whl,.git,.venv,__pycache__,.pytest_cache" --write-changes=reports/codespell.txt 2>/dev/null || touch reports/codespell.txt
+
+    - name: Create JUnit XML fallback
+      run: |
+        if [ ! -f reports/junit.xml ]; then
+          echo "⚠️ No JUnit XML found, creating minimal fallback"
+          python3 -c "import xml.etree.ElementTree as ET; root = ET.Element('testsuites'); root.set('tests', '0'); root.set('failures', '0'); root.set('time', '0'); tree = ET.ElementTree(root); tree.write('reports/junit.xml', encoding='utf-8', xml_declaration=True)"
+        fi
+
+    - name: Create pytest JSON fallback
+      run: |
+        if [ ! -f reports/pytest.json ]; then
+          echo "⚠️ No pytest JSON found, creating minimal fallback"
+          echo '{"summary": {"total": 0, "passed": 0, "failed": 0, "skipped": 0}, "duration": 0, "tests": []}' > reports/pytest.json
         fi
 
     - name: Collect pipeline metrics
@@ -752,23 +927,51 @@ jobs:
       run: |
         python scripts/generate_metrics.py \
           --reports-dir reports \
-          --output metrics/latest.json \
-          --history metrics/history.jsonl \
+          --output metrics/latest-nightly.json \
+          --history metrics/history-nightly.jsonl \
           --pipeline-metrics reports/pipeline_metrics.json \
           --coverage-threshold 80
 
+    - name: Validate metrics JSON
+      run: |
+        if [ ! -f metrics/latest-nightly.json ]; then
+          echo "❌ Error: metrics/latest-nightly.json not found"
+          exit 1
+        fi
+        python3 -c "import json, sys; json.load(open('metrics/latest-nightly.json'))" || exit 1
+        echo "✅ Metrics JSON is valid"
+
+    - name: Debug metrics files
+      if: failure()
+      run: |
+        echo "=== Metrics Files ==="
+        ls -la metrics/ || echo "No metrics directory"
+        echo ""
+        echo "=== Latest JSON (first 30 lines) ==="
+        head -30 metrics/latest-nightly.json || echo "No latest-nightly.json"
+        echo ""
+        echo "=== History file (line count) ==="
+        wc -l metrics/history-nightly.jsonl || echo "No history-nightly.jsonl"
+        echo ""
+        echo "=== Reports directory ==="
+        ls -la reports/ | head -20
+
     - name: Update metrics history
       run: |
-        if [ -f metrics/latest.json ]; then
-          echo "$(cat metrics/latest.json)" >> metrics/history.jsonl
-          echo "✅ Appended to history (total lines: $(wc -l < metrics/history.jsonl))"
+        if [ -f metrics/latest-nightly.json ]; then
+          echo "$(cat metrics/latest-nightly.json)" >> metrics/history-nightly.jsonl
+          echo "✅ Appended to nightly history (total lines: $(wc -l < metrics/history-nightly.jsonl))"
         fi
 
-    - name: Generate HTML dashboard
+    - name: Generate unified HTML dashboard
+      # Only generate dashboard HTML when NOT triggered by push to release branches
+      # Release branches only update metrics data (JSON/JSONL)
+      # Schedule/manual runs generate full dashboard
+      # The unified dashboard has a dropdown to select which build to view
+      if: github.event_name != 'push' || github.ref == 'refs/heads/main'
       run: |
         python scripts/generate_dashboard.py \
-          --metrics metrics/latest.json \
-          --history metrics/history.jsonl \
+          --unified \
           --output metrics/index.html
 
     - name: Generate job summary
@@ -888,6 +1091,9 @@ jobs:
       if: always()
       run: rm -rf .pytest_cache .mypy_cache .build dist downloaded-reports
 
-  # NOTE: Metrics are no longer deployed separately to GitHub Pages.
-  # The docs.yml workflow deploys the main documentation site.
-  # Nightly metrics are available as workflow artifacts for download.
+  # NOTE: Metrics deployment strategy:
+  # - Schedule/manual runs: Generate metrics data + unified dashboard HTML
+  # - Release branch pushes: Only generate metrics data (JSON/JSONL), no dashboard HTML
+  # - The docs.yml workflow deploys everything to GitHub Pages
+  # - Nightly metrics are available as workflow artifacts for download
+  # - The unified dashboard uses a dropdown to select CI vs Nightly builds

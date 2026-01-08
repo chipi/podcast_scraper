@@ -9,7 +9,7 @@ All releases of the Podcast Scraper project.
 ## All Releases
 
 | Version | Highlights |
-|---------|------------|
+| --------- | ------------ |
 | [v2.3.2](RELEASE_v2.3.2.md) | Security tests, thread-safety fixes |
 | [v2.3.1](RELEASE_v2.3.1.md) | Security fixes, code quality improvements |
 | [v2.3.0](RELEASE_v2.3.0.md) | Episode summarization, public API, cleaned transcripts |
@@ -26,4 +26,3 @@ This project follows [Semantic Versioning](https://semver.org/):
 - **Major** (X.0.0) — Breaking changes
 - **Minor** (0.X.0) — New features, backwards compatible
 - **Patch** (0.0.X) — Bug fixes, backwards compatible
-

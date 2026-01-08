@@ -64,7 +64,6 @@ git status --porcelain
 
 **Expected output for clean state:**
 
-```
 ```python
 
 **If you see any output, handle it first!**
@@ -102,6 +101,7 @@ Switched to a new branch 'issue-117-output-organization'
 $ git status
 On branch issue-117-output-organization
 nothing to commit, working tree clean  ✅
+
 ```python
 
 ## If You Already Made the Mistake

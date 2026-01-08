@@ -1,0 +1,237 @@
+# Module Boundaries - Architecture Constraints
+
+**For complete architecture:** `docs/ARCHITECTURE.md`
+
+## 🚨 CRITICAL: Respect Module Boundaries
+
+**NEVER mix concerns across module boundaries.**
+
+## Module Responsibility Matrix
+
+| Module | Responsibility | ✅ CAN Do | ❌ CANNOT Do |
+|--------|----------------|----------|--------------|
+| `cli.py` | CLI interface | Parse args, display output | Business logic, HTTP, file I/O |
+| `service.py` | Service API | Return structured results | CLI interaction, user prompts |
+| `workflow.py` | Orchestration | Call modules, coordinate flow | HTTP details, parsing, direct I/O |
+| `config.py` | Configuration | Model validation | Business logic, side effects |
+| `downloader.py` | HTTP operations | Retry logic, requests | Parsing, business logic |
+| `rss_parser.py` | RSS parsing | Parse XML, create Episodes | HTTP calls, file I/O |
+| `episode_processor.py` | Episode processing | Process single episode | CLI interaction, orchestration |
+| `filesystem.py` | File utilities | Read/write files, paths | HTTP, parsing, business logic |
+| `whisper_integration.py` | Whisper interface | Transcription | HTTP, RSS parsing |
+| `speaker_detection.py` | NER extraction | Detect speakers | HTTP, file I/O |
+| `summarizer.py` | Summarization | Generate summaries | Episode processing, HTTP |
+| `metadata.py` | Metadata generation | Create JSON/YAML | HTTP, RSS parsing |
+| `progress.py` | Progress reporting | Abstract progress bar | Business logic |
+
+## Common Violations to Avoid
+
+### ❌ BAD: Adding HTTP to cli.py
+
+```python
+# cli.py - WRONG!
+import requests
+
+def main():
+    response = requests.get(url)  # ❌ NO! Use downloader.py
+```
+
+### ✅ GOOD: CLI calls downloader
+
+```python
+# cli.py - CORRECT
+from podcast_scraper import downloader
+
+def main():
+    content = downloader.fetch_url(url)  # ✅ Use proper module
+```
+
+### ❌ BAD: Business logic in config.py
+
+```python
+# config.py - WRONG!
+class Config(BaseModel):
+    def process_episodes(self):  # ❌ NO! This is business logic
+        pass
+```
+
+### ✅ GOOD: Config only validates
+
+```python
+# config.py - CORRECT
+class Config(BaseModel):
+    rss_url: str
+    max_episodes: Optional[int]
+
+    @validator("max_episodes")
+    def validate_positive(cls, v):  # ✅ Validation only
+        if v is not None and v < 1:
+            raise ValueError("Must be positive")
+        return v
+```
+
+### ❌ BAD: CLI interaction in service.py
+
+```python
+# service.py - WRONG!
+def run(cfg):
+    print("Processing...")  # ❌ NO! Service is non-interactive
+    answer = input("Continue? ")  # ❌ NO! No user prompts
+```
+
+### ✅ GOOD: Service returns structured results
+
+```python
+# service.py - CORRECT
+def run(cfg: Config) -> ServiceResult:
+    # Process silently
+    return ServiceResult(  # ✅ Structured result
+        episodes_processed=5,
+        summary="Processed 5 episodes",
+        success=True
+    )
+```
+
+## Import Organization (isort-compatible)
+
+```python
+# Group 1: stdlib (alphabetical)
+import os
+from pathlib import Path
+from typing import Optional, List, Dict
+
+# Group 2: third-party (alphabetical)
+import requests
+from pydantic import BaseModel
+
+# Group 3: local (alphabetical)
+from podcast_scraper import config
+from podcast_scraper.models import Episode
+```
+
+## Lazy Loading Pattern
+
+### __init__.py Uses Lazy Loading
+
+**Why:** Prevents circular imports
+
+```python
+# __init__.py uses __getattr__ for lazy loading
+from podcast_scraper import cli, service  # ✅ Works (lazy loaded)
+import podcast_scraper.cli as cli         # ✅ Also works
+```
+
+**When adding new lazy-loaded modules:**
+
+1. Add to `__getattr__` in `__init__.py`
+2. Add to `_import_cache` for caching
+3. Update `__all__` if needed
+
+## Configuration Pattern
+
+### All Runtime Options in Config
+
+```python
+# ✅ GOOD - Centralized configuration
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    transcribe_missing=True,
+    workers=8
+)
+run_pipeline(cfg)
+
+# ❌ BAD - Scattered parameters
+fetch_rss(url, timeout=30)
+download(episodes, workers=8)
+transcribe(jobs, model="base")
+```
+
+### Benefits
+
+- Single source of truth
+- Validation in one place (Pydantic)
+- Easy to pass through call chain
+- Testable (mock Config object)
+
+## Data Flow
+
+```text
+RSS Feed → rss_parser.py (parse)
+         → episode_processor.py (process each episode)
+         → downloader.py (HTTP operations)
+         → whisper_integration.py (transcription)
+         → speaker_detection.py (NER)
+         → summarizer.py (summarization)
+         → metadata.py (generate metadata)
+         → filesystem.py (write files)
+```
+
+**Key principle:** Each module does ONE thing and does it well.
+
+## When Refactoring
+
+### Ask These Questions
+
+1. **Does this module already exist?** → Use it, don't duplicate
+2. **Am I mixing concerns?** → Split into appropriate modules
+3. **Is this business logic in CLI?** → Move to service/workflow
+4. **Am I doing HTTP in config?** → Move to downloader
+5. **Am I parsing in downloader?** → Move to appropriate parser
+
+### Creating New Modules
+
+**Create new module when:**
+- Implementing new major feature (>500 lines)
+- Feature has distinct responsibility (SRP)
+- Feature can be tested independently
+
+**Modify existing when:**
+- Fixing bugs in existing functionality
+- Enhancing existing features (<200 lines added)
+- Refactoring within same module
+
+**Don't create:**
+- Helper modules with only 1-2 functions (add to appropriate existing module)
+- Duplicate functionality (search codebase first)
+- Temporary files (use proper temporary directories)
+
+## Testing Boundaries
+
+### Each Module Tested Independently
+
+```python
+# test_downloader.py - Tests ONLY downloader
+@patch("podcast_scraper.downloader.requests.Session")
+def test_fetch_url(mock_session):
+    # No imports from rss_parser, workflow, etc.
+    pass
+
+# test_rss_parser.py - Tests ONLY parser
+def test_parse_feed():
+    # No HTTP calls, no file I/O
+    pass
+```
+
+## Quick Checklist Before Commit
+
+- [ ] Did I add HTTP calls to non-downloader modules? → ❌ Move to downloader
+- [ ] Did I add business logic to config.py? → ❌ Move to workflow/service
+- [ ] Did I add CLI prompts to service.py? → ❌ Service is non-interactive
+- [ ] Did I add parsing to downloader.py? → ❌ Move to appropriate parser
+- [ ] Are imports organized (stdlib → third-party → local)? → ✅ Use isort
+- [ ] Am I using lazy loading correctly? → ✅ Check __init__.py pattern
+
+## Remember
+
+1. **One module, one responsibility** - SRP (Single Responsibility Principle)
+2. **CLI is interface only** - No business logic
+3. **Service is non-interactive** - No user prompts
+4. **Workflow orchestrates** - Doesn't do the work itself
+5. **Config validates** - No side effects
+6. **Use existing modules** - Don't duplicate functionality
+
+---
+
+**Version:** 1.0
+**Created:** 2026-01-07
+**Source:** Distilled from `docs/ARCHITECTURE.md` and `.ai-coding-guidelines.md`

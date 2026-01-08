@@ -8,7 +8,7 @@
   - `docs/rfc/RFC-030-python-test-coverage-improvements.md` (coverage improvements)
 - **Related Documents**:
   - `docs/guides/DEVELOPMENT_GUIDE.md` - Development workflow
-  - `docs/CI_CD.md` - CI/CD pipeline documentation
+  - `docs/ci/index.md` - CI/CD pipeline documentation
   - `.github/workflows/python-app.yml` - Main CI workflow
 
 ## Abstract
@@ -31,7 +31,7 @@ maintain code quality standards through automated tooling.
 The project already has a solid foundation of static analysis:
 
 | Tool | Purpose | Status |
-|------|---------|--------|
+| ------ | --------- | -------- |
 | **black** | Code formatting | ✅ In CI |
 | **isort** | Import sorting | ✅ In CI |
 | **flake8** | Linting + basic complexity | ✅ In CI |
@@ -45,7 +45,9 @@ The project already has a solid foundation of static analysis:
 The project has McCabe complexity checking via flake8:
 
 ```ini
+
 # .flake8
+
 max-complexity = 25
 per-file-ignores =
     config.py:C901
@@ -53,7 +55,7 @@ per-file-ignores =
     workflow.py:C901
     speaker_detection.py:C901
     whisper_integration.py:C901
-```
+```python
 
 **Issues:**
 
@@ -62,10 +64,10 @@ per-file-ignores =
 - No detailed metrics beyond pass/fail
 - No maintainability index or other insights
 
-### Codebase Size
+## Codebase Size
 
 | Module | Lines | Notes |
-|--------|-------|-------|
+| -------- | ------- | ------- |
 | `workflow.py` | 2,580 | Largest, orchestration |
 | `summarizer.py` | 2,401 | ML summarization |
 | `speaker_detection.py` | 1,076 | NER extraction |
@@ -136,20 +138,24 @@ pip install radon
 **Usage:**
 
 ```bash
+
 # Cyclomatic complexity (functions with CC >= 10)
+
 radon cc src/podcast_scraper/ -a -s -nc
 
 # Maintainability index (lower is worse)
+
 radon mi src/podcast_scraper/ -s
 
 # Raw metrics
+
 radon raw src/podcast_scraper/ -s
-```
+```yaml
 
 **Recommended Thresholds:**
 
 | Grade | CC Range | Interpretation |
-|-------|----------|----------------|
+| ------- | ---------- | ---------------- |
 | A | 1-5 | Low risk, simple |
 | B | 6-10 | Moderate complexity |
 | C | 11-20 | Complex, higher risk |
@@ -162,6 +168,7 @@ radon raw src/podcast_scraper/ -s
 ```yaml
 - name: Check code complexity
   run: |
+
     pip install radon
     echo "## Code Complexity" >> $GITHUB_STEP_SUMMARY
     echo '```' >> $GITHUB_STEP_SUMMARY
@@ -172,11 +179,13 @@ radon raw src/podcast_scraper/ -s
 **Recommendation:** Start with informational output, then add thresholds:
 
 ```bash
+
 # Fail if any function has CC > 15
+
 radon cc src/podcast_scraper/ -a -s --max-cc 15
 ```
 
-### 2. vulture - Dead Code Detection
+## 2. vulture - Dead Code Detection
 
 **Purpose:** Find unused code (functions, variables, classes, imports).
 
@@ -189,10 +198,13 @@ pip install vulture
 **Usage:**
 
 ```bash
+
 # Find unused code (60% confidence threshold)
+
 vulture src/podcast_scraper/ --min-confidence 60
 
 # Generate whitelist for false positives
+
 vulture src/podcast_scraper/ --make-whitelist > .vulture_whitelist.py
 ```
 
@@ -201,17 +213,21 @@ vulture src/podcast_scraper/ --make-whitelist > .vulture_whitelist.py
 Create `.vulture_whitelist.py` for known false positives (hidden file in project root):
 
 ```python
+
 # .vulture_whitelist.py
 # These are used dynamically or externally
 
 # Pydantic validators are called by framework
+
 _.model_validator  # unused method
 _.field_validator  # unused method
 
 # Click decorators
+
 _.callback  # unused method
 
 # Test fixtures
+
 _.fixture  # unused function
 ```
 
@@ -227,12 +243,13 @@ _.fixture  # unused function
 ```yaml
 - name: Check for dead code
   run: |
+
     pip install vulture
     vulture src/podcast_scraper/ --min-confidence 80 || true
   continue-on-error: true  # Informational only initially
 ```
 
-### 3. interrogate - Docstring Coverage
+## 3. interrogate - Docstring Coverage
 
 **Purpose:** Check for missing docstrings in public APIs.
 
@@ -245,13 +262,17 @@ pip install interrogate
 **Usage:**
 
 ```bash
+
 # Check docstring coverage
+
 interrogate src/podcast_scraper/ -v
 
 # With badge generation
+
 interrogate src/podcast_scraper/ -v --generate-badge docs/badges/
 
 # Fail if coverage below threshold
+
 interrogate src/podcast_scraper/ --fail-under 80
 ```
 
@@ -270,12 +291,12 @@ ignore-nested-functions = true
 fail-under = 80
 exclude = ["tests", "scripts"]
 verbose = 1
-```
+```yaml
 
 **Recommended Thresholds:**
 
 | Level | Coverage | Action |
-|-------|----------|--------|
+| ------- | ---------- | -------- |
 | 🟢 Good | ≥ 80% | Target |
 | 🟡 Warning | 60-80% | Improve gradually |
 | 🔴 Fail | < 60% | Needs attention |
@@ -285,11 +306,12 @@ verbose = 1
 ```yaml
 - name: Check docstring coverage
   run: |
+
     pip install interrogate
     interrogate src/podcast_scraper/ -v --fail-under 60
 ```
 
-### 4. codespell - Spell Checking
+## 4. codespell - Spell Checking
 
 **Purpose:** Catch typos in code, comments, and documentation.
 
@@ -302,13 +324,17 @@ pip install codespell
 **Usage:**
 
 ```bash
+
 # Check for typos
+
 codespell src/ docs/ --skip="*.pyc,*.pyo,*.egg-info,*.git"
 
 # Auto-fix typos
+
 codespell src/ docs/ -w
 
 # With custom dictionary
+
 codespell src/ docs/ -I .codespell-ignore
 ```
 
@@ -317,7 +343,9 @@ codespell src/ docs/ -I .codespell-ignore
 Create `.codespell-ignore` for false positives:
 
 ```text
+
 # Known technical terms that look like typos
+
 ba  # Used in audio contexts
 fo  # Used in some variable names
 ```
@@ -327,6 +355,7 @@ fo  # Used in some variable names
 ```yaml
 - name: Check spelling
   run: |
+
     pip install codespell
     codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock"
 ```
@@ -350,7 +379,9 @@ dev = [
 ### Phase 2: Add Makefile Targets (30 min)
 
 ```makefile
+
 # Code complexity analysis
+
 complexity:
 	radon cc src/podcast_scraper/ -a -s --total-average
 	@echo ""
@@ -358,22 +389,26 @@ complexity:
 	radon mi src/podcast_scraper/ -s
 
 # Dead code detection
+
 deadcode:
 	vulture src/podcast_scraper/ --min-confidence 80
 
 # Docstring coverage
+
 docstrings:
 	interrogate src/podcast_scraper/ -v
 
 # Spell checking
+
 spelling:
 	codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3"
 
 # All code quality checks
+
 quality: complexity deadcode docstrings spelling
 ```
 
-### Phase 3: Configure Tools (1 hour)
+## Phase 3: Configure Tools (1 hour)
 
 Add to `pyproject.toml`:
 
@@ -400,17 +435,20 @@ exclude = ["tests/", "scripts/"]
 Create `.codespell-ignore`:
 
 ```text
+
 # Project-specific terms that look like typos
 # Add words here as needed
+
 ```
 
-### Phase 4: CI Integration - Informational (1 hour)
+## Phase 4: CI Integration - Informational (1 hour)
 
 Add to `.github/workflows/python-app.yml` lint job:
 
 ```yaml
 - name: Code quality analysis
   run: |
+
     pip install radon vulture interrogate codespell
 
     echo "## 📊 Code Quality Report" >> $GITHUB_STEP_SUMMARY
@@ -434,6 +472,7 @@ After baseline is established and issues addressed:
 ```yaml
 - name: Enforce code quality
   run: |
+
     # Fail if complexity too high
     radon cc src/podcast_scraper/ -a --max-cc 15
 
@@ -475,7 +514,7 @@ After baseline is established and issues addressed:
 ### Immediate Actions (Quick Wins)
 
 | Action | Tool | Effort | Impact |
-|--------|------|--------|--------|
+| -------- | ------ | -------- | -------- |
 | Add codespell to CI | codespell | 15 min | Catch typos |
 | Add complexity report | radon | 30 min | Visibility |
 | Add docstring check | interrogate | 30 min | Documentation |
@@ -483,7 +522,7 @@ After baseline is established and issues addressed:
 ### Short-term (1-2 Weeks)
 
 | Action | Tool | Effort | Impact |
-|--------|------|--------|--------|
+| -------- | ------ | -------- | -------- |
 | Configure interrogate thresholds | interrogate | 1 hour | Enforce docs |
 | Create vulture whitelist | vulture | 1 hour | Dead code visibility |
 | Add quality Makefile target | All | 30 min | Local workflow |
@@ -491,7 +530,7 @@ After baseline is established and issues addressed:
 ### Medium-term (1 Month)
 
 | Action | Tool | Effort | Impact |
-|--------|------|--------|--------|
+| -------- | ------ | -------- | -------- |
 | Address complexity hotspots | radon | 4-8 hours | Code quality |
 | Improve docstring coverage | interrogate | 4-8 hours | Documentation |
 | Clean up dead code | vulture | 2-4 hours | Cleaner codebase |
@@ -501,7 +540,7 @@ After baseline is established and issues addressed:
 The current `.flake8` exempts these files from C901 (complexity):
 
 | File | Lines | Why Exempt |
-|------|-------|------------|
+| ------ | ------- | ------------ |
 | `config.py` | ~500 | Pydantic validators |
 | `episode_processor.py` | ~600 | Processing logic |
 | `workflow.py` | 2,580 | Orchestration |
@@ -573,4 +612,3 @@ The current `.flake8` exempts these files from C901 (complexity):
 - Start informational, enable enforcement after tuning
 - Complexity exemptions in `.flake8` should be reviewed
 - Large modules (workflow.py, summarizer.py) are prime candidates for refactoring
-

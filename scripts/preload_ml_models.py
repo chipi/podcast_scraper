@@ -265,12 +265,21 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
     print(f"  Home: {Path.home()}")
 
     for model_name in model_names:
-        print(f"  - {model_name}...")
-        print(f"    Source: Hugging Face (https://huggingface.co/{model_name})")
+        # Resolve alias to actual model ID if needed
+        # Import here to avoid circular imports
+        from podcast_scraper.summarizer import DEFAULT_SUMMARY_MODELS
+
+        resolved_model_name = model_name
+        if model_name in DEFAULT_SUMMARY_MODELS:
+            resolved_model_name = DEFAULT_SUMMARY_MODELS[model_name]
+            print(f"  - {model_name} (alias for {resolved_model_name})...")
+        else:
+            print(f"  - {model_name}...")
+        print(f"    Source: Hugging Face (https://huggingface.co/{resolved_model_name})")
         print(f"    Cache location: {cache_dir}")
 
-        # Check if already cached
-        model_cache_name = model_name.replace("/", "--")
+        # Check if already cached (use resolved model name for cache path)
+        model_cache_name = resolved_model_name.replace("/", "--")
         model_cache_path = cache_dir / f"models--{model_cache_name}"
         if model_cache_path.exists():
             # Calculate existing size
@@ -288,11 +297,16 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             # Use cache_dir to ensure models are cached to local cache directory
             # Force download of all files by not using local_files_only
             # This ensures all required files (including optional ones) are cached
+            # Use resolved_model_name (actual HuggingFace model ID)
             tokenizer = AutoTokenizer.from_pretrained(
-                model_name, cache_dir=str(cache_dir), local_files_only=False  # nosec B615
+                resolved_model_name,
+                cache_dir=str(cache_dir),
+                local_files_only=False,  # nosec B615
             )
             model = AutoModelForSeq2SeqLM.from_pretrained(
-                model_name, cache_dir=str(cache_dir), local_files_only=False  # nosec B615
+                resolved_model_name,
+                cache_dir=str(cache_dir),
+                local_files_only=False,  # nosec B615
             )
 
             # Calculate final size after download
@@ -314,7 +328,7 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                 for filename in optional_files:
                     try:
                         hf_hub_download(  # nosec B615
-                            repo_id=model_name,
+                            repo_id=resolved_model_name,
                             filename=filename,
                             cache_dir=str(cache_dir),
                             local_files_only=False,
@@ -329,16 +343,16 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             # Verify model loads
             assert (
                 model is not None and tokenizer is not None
-            ), f"Model {model_name} loaded but is None"
+            ), f"Model {resolved_model_name} loaded but is None"
 
             # Verify tokenizer works
             tokens = tokenizer.encode("Test text", return_tensors="pt")
-            assert tokens is not None, f"Tokenizer {model_name} doesn't encode text"
+            assert tokens is not None, f"Tokenizer {resolved_model_name} doesn't encode text"
 
             # Verify model structure
             assert (
                 hasattr(model, "config") and model.config is not None
-            ), f"Model {model_name} missing config"
+            ), f"Model {resolved_model_name} missing config"
 
             # Clean up memory
             del model, tokenizer
@@ -352,11 +366,11 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             transformers_cache_base = cache_dir
             cache_dir_str = str(transformers_cache_base)
 
-            # Explicit path logging for debugging
-            model_cache_name = model_name.replace("/", "--")
-            model_cache_path = transformers_cache_base / f"models--{model_cache_name}"
-            print(f"    Model cache path: {model_cache_path}")
-            print(f"    Model cache exists: {model_cache_path.exists()}")
+            # Explicit path logging for debugging (use resolved model name for cache path)
+            verify_model_cache_name = resolved_model_name.replace("/", "--")
+            verify_model_cache_path = transformers_cache_base / f"models--{verify_model_cache_name}"
+            print(f"    Model cache path: {verify_model_cache_path}")
+            print(f"    Model cache exists: {verify_model_cache_path.exists()}")
 
             # Primary verification: Try to actually load the model from disk
             # with local_files_only=True. This is the most reliable check since it
@@ -364,45 +378,58 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             try:
                 # Try loading tokenizer with local_files_only=True
                 # This verifies the model is truly cached and loadable from disk
-                # nosec B615 - local_files_only=True prevents network access, model_name from config
+                # nosec B615 - local_files_only=True prevents network access
+                # Use resolved_model_name (actual HuggingFace model ID)
                 verified_tokenizer = AutoTokenizer.from_pretrained(
-                    model_name,
+                    resolved_model_name,
                     cache_dir=cache_dir_str,
                     local_files_only=True,
                 )  # nosec B615
                 # Try loading model with local_files_only=True
-                # nosec B615 - local_files_only=True prevents network access, model_name from config
+                # nosec B615 - local_files_only=True prevents network access
                 verified_model = AutoModelForSeq2SeqLM.from_pretrained(
-                    model_name,
+                    resolved_model_name,
                     cache_dir=cache_dir_str,
                     local_files_only=True,
                 )  # nosec B615
                 # Clean up verification models
                 del verified_model, verified_tokenizer
                 gc.collect()
-                print(f"  ✓ {model_name} cached and verified (loadable from disk)")
-                print(f"    Location: {model_cache_path}")
+                display_name = (
+                    f"{model_name} ({resolved_model_name})"
+                    if model_name != resolved_model_name
+                    else model_name
+                )
+                print(f"  ✓ {display_name} cached and verified (loadable from disk)")
+                print(f"    Location: {verify_model_cache_path}")
             except Exception as e:
                 # Model can't be loaded from disk - this is a problem
                 # Check if files exist for better error message
-                cache_path = transformers_cache_base / f"models--{model_name.replace('/', '--')}"
+                cache_path = (
+                    transformers_cache_base / f"models--{resolved_model_name.replace('/', '--')}"
+                )
                 snapshots = cache_path / "snapshots"
+                display_name = (
+                    f"{model_name} ({resolved_model_name})"
+                    if model_name != resolved_model_name
+                    else model_name
+                )
                 if snapshots.exists():
                     # Files exist but can't be loaded - incomplete cache or corruption
                     raise RuntimeError(
-                        f"Model {model_name} files exist in cache but cannot be loaded "
+                        f"Model {display_name} files exist in cache but cannot be loaded "
                         f"with local_files_only=True. Cache may be incomplete or corrupted.\n"
                         f"  Cache directory: {cache_dir_str}\n"
-                        f"  Model cache path: {model_cache_path}\n"
+                        f"  Model cache path: {verify_model_cache_path}\n"
                         f"  Snapshots path: {snapshots}\n"
                         f"  Error: {e}"
                     )
                 else:
                     # Files don't exist - model wasn't cached to disk
                     raise RuntimeError(
-                        f"Model {model_name} was loaded but not cached to disk.\n"
+                        f"Model {display_name} was loaded but not cached to disk.\n"
                         f"  Cache directory: {cache_dir_str}\n"
-                        f"  Model cache path: {model_cache_path}\n"
+                        f"  Model cache path: {verify_model_cache_path}\n"
                         f"  User: {os.environ.get('USER', 'unknown')}\n"
                         f"  Home: {Path.home()}\n"
                         f"  Error: {e}"

@@ -72,13 +72,6 @@ The unified provider architecture addresses these issues by:
 ### Unified Provider Structure
 
 ```
-│
-└── OpenAI Provider (openai/openai_provider.py)
-    ├── TranscriptionProvider (Whisper API)
-    ├── SpeakerDetector (GPT API)
-    └── SummarizationProvider (GPT API)
-```
-
 ### Factory Pattern
 
 All providers are created via factories:
@@ -99,6 +92,7 @@ detector = create_speaker_detector(cfg)  # Returns MLProvider or OpenAIProvider
 
 from podcast_scraper.summarization.factory import create_summarization_provider
 provider = create_summarization_provider(cfg)  # Returns MLProvider or OpenAIProvider
+
 ```yaml
 
 ## Provider Mapping
@@ -191,8 +185,8 @@ provider = create_transcription_provider(cfg)
 
 assert hasattr(provider, 'transcribe')
 assert hasattr(provider, 'initialize')
-```
 
+```
 ## Documentation Updates (Medium Priority)
 
 **Factory Documentation:**
@@ -260,14 +254,15 @@ assert hasattr(provider, 'initialize')
 The test strategy follows a three-tier pyramid:
 
 ```yaml
+
        /E2E\          ← Few, realistic end-to-end tests
       /------\
      /Integration\    ← Moderate, focused integration tests
     /------------\
    /    Unit      \   ← Many, fast unit tests
   /----------------\
-```
 
+```
 ### Unit Tests: Standalone Provider Tests
 
 **Location**: `tests/unit/podcast_scraper/ml/` and `tests/unit/podcast_scraper/openai/`
@@ -341,18 +336,15 @@ The test strategy follows a three-tier pyramid:
 # BAD: Checking class names
 
 self.assertEqual(provider.__class__.__name__, "WhisperTranscriptionProvider")
+
 ```
-
-**✅ New Pattern (Protocol Compliance):**
-
-```python
-
 # GOOD: Checking protocol compliance
 
 self.assertEqual(provider.__class__.__name__, "MLProvider")  # Unified provider
 self.assertTrue(hasattr(provider, "transcribe"))  # Protocol method
 self.assertTrue(hasattr(provider, "initialize"))  # Protocol method
 self.assertTrue(hasattr(provider, "cleanup"))  # Protocol method
+
 ```
 
 ## Test Coverage Expansion
@@ -497,24 +489,8 @@ The naming is inconsistent:
 ### Test File Organization
 
 ```
-│       │   └── test_ml_provider_lifecycle.py    # Lifecycle & edge cases
-│       ├── openai/
-│       │   ├── test_openai_provider.py          # Core functionality
-│       │   └── test_openai_provider_lifecycle.py # Lifecycle & edge cases
-│       ├── transcription/
-│       │   └── test_transcription_provider.py   # Factory tests
-│       ├── speaker_detectors/
-│       │   └── test_speaker_detector_provider.py # Factory tests
-│       └── summarization/
-│           └── test_summarization_provider.py   # Factory tests
-├── integration/
-│   ├── test_provider_integration.py             # Provider integration
-│   ├── test_provider_factory_error_handling.py  # Factory errors
-│   └── test_provider_mixed_configurations.py    # Mixed configs
-└── e2e/
-    ├── test_basic_e2e.py                        # Basic E2E with providers
-    ├── test_full_pipeline_e2e.py               # Full pipeline E2E
     └── test_ml_models_e2e.py                    # ML models E2E
+
 ```
 
 ## Rollout Plan
@@ -640,6 +616,7 @@ Provider names are the same for tests and production, but model names differ to 
 The `tests/conftest.py` file provides `create_test_config()` which creates a `Config` object with test-friendly defaults:
 
 ```python
+
 def create_test_config(**overrides):
     defaults = {
         "rss_url": TEST_FEED_URL,
@@ -649,6 +626,7 @@ def create_test_config(**overrides):
     }
     defaults.update(overrides)
     return config.Config(**defaults)
+
 ```yaml
 
 **Key Point**: `create_test_config()` does NOT override provider names. Tests use the same provider defaults as production (`"spacy"`, `"transformers"`).
@@ -747,6 +725,7 @@ Strengthen the modular architecture with clear separation of concerns, well-defi
 **Good Test Pattern**:
 
 ```python
+
 from unittest.mock import Mock
 from podcast_scraper.transcription.base import TranscriptionProvider
 
@@ -759,6 +738,7 @@ def test_workflow_uses_provider():
     # Use in workflow
     result = workflow_function(mock_provider)
     assert result == "transcribed text"
+
 ```python
 
 #### Phase 5: Factory Pattern Strengthening
@@ -832,10 +812,9 @@ make test
 make test-unit
 make test-integration
 make test-e2e
+
 ```
 
-**Expected Issues**:
-- Some tests might still reference old names in comments/docstrings
 - Some tests might need updates for new defaults
 - Backward compatibility tests should verify deprecated names work
 
@@ -873,10 +852,9 @@ grep -r "from.*whisper_provider import" tests/
 grep -r "from.*ner_detector import" tests/
 grep -r "from.*local_provider import" tests/
 grep -r "WhisperTranscriptionProvider\|NERSpeakerDetector\|TransformersSummarizationProvider" tests/
+
 ```
 
-**Fix Strategy**:
-- Replace direct imports with factory calls
 - Update assertions to check protocol compliance
 - Use `hasattr()` or protocol checks instead of `isinstance()`
 

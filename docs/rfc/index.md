@@ -34,6 +34,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-037](RFC-037-ollama-provider-implementation.md) | Ollama Provider Implementation | PRD-014 | Technical design for Ollama (local/offline) |
 | [RFC-038](RFC-038-continuous-review-tooling.md) | Continuous Review Tooling | #45 | Dependabot, pydeps, pre-release checklist |
 | [RFC-039](RFC-039-development-workflow-worktrees-ci.md) | Development Workflow | - | Git worktrees, Cursor integration, CI evolution |
+| [RFC-040](RFC-040-automated-metrics-alerts.md) | Automated Metrics Alerts | - | PR comments and webhook alerts for metric deviations |
 
 ## Completed RFCs
 
@@ -63,7 +64,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-030](RFC-030-python-test-coverage-improvements.md) | Python Test Coverage Improvements | - | - | Coverage collection in CI, threshold enforcement |
 | [RFC-021](RFC-021-modularization-refactoring-plan.md) | Modularization Refactoring Plan | PRD-006 | - | Detailed plan for modular provider architecture |
 | [RFC-022](RFC-022-environment-variable-candidates-analysis.md) | Environment Variable Candidates Analysis | - | - | Environment variable support for deployment flexibility |
-| [RFC-026](RFC-026-metrics-consumption-and-dashboards.md) | Metrics Consumption and Dashboards | - | - | GitHub Pages metrics JSON API and job summaries |
+| [RFC-026](RFC-026-metrics-consumption-and-dashboards.md) | Metrics Consumption and Dashboards | - | v2.5 | GitHub Pages metrics JSON API, job summaries, unified dashboard (Phases 0-3) |
 | [RFC-031](RFC-031-code-complexity-analysis-tooling.md) | Code Complexity Analysis Tooling | - | - | Code complexity, dead code, docstrings, spell checking |
 
 ## Quick Links

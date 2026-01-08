@@ -1,7 +1,9 @@
-"""Summarization providers.
+"""Summarization utilities.
 
-This package contains implementations of summarization providers
-following the SummarizationProvider protocol.
+This package contains modules for text chunking, prompts, and map-reduce
+summarization workflows extracted from summarizer.py.
 """
 
-# Stage 0: Empty package - implementations will be added in later stages
+from . import chunking, map_reduce, prompts
+
+__all__ = ["chunking", "map_reduce", "prompts"]

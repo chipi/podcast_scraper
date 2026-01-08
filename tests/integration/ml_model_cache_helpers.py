@@ -413,17 +413,24 @@ def require_transformers_model_cached(model_name: str, cache_dir: Optional[str] 
     fast with a clear error rather than attempting a network download.
 
     Args:
-        model_name: Hugging Face model identifier
+        model_name: Hugging Face model identifier or alias (e.g., 'bart-small')
         cache_dir: Cache directory path
 
     Raises:
         pytest.skip: If model is not cached (for better test reporting)
     """
+    # Resolve alias to actual model ID if needed
+    from podcast_scraper.summarizer import DEFAULT_SUMMARY_MODELS
+
+    resolved_model_name = model_name
+    if model_name in DEFAULT_SUMMARY_MODELS:
+        resolved_model_name = DEFAULT_SUMMARY_MODELS[model_name]
+
     # Trust CI validation - skip redundant checks in multi-worker environment
     if _is_ci_cache_validated():
         return
 
-    if not _is_transformers_model_cached(model_name, cache_dir):
+    if not _is_transformers_model_cached(resolved_model_name, cache_dir):
         import pytest
 
         # Get cache path for debugging - use same logic as _is_transformers_model_cached
@@ -433,7 +440,8 @@ def require_transformers_model_cached(model_name: str, cache_dir: Optional[str] 
             # Use cache_utils to get cache directory (respects HF_HUB_CACHE env var)
             cache_path = get_transformers_cache_dir()
 
-        model_cache_name = model_name.replace("/", "--")
+        # Use resolved model name for cache path lookup
+        model_cache_name = resolved_model_name.replace("/", "--")
         model_cache_path = cache_path / f"models--{model_cache_name}"
 
         # List all cached models for debugging
@@ -457,8 +465,14 @@ def require_transformers_model_cached(model_name: str, cache_dir: Optional[str] 
             else False
         )
 
+        # Show both alias and resolved name if different
+        display_name = (
+            f"'{model_name}' (alias for {resolved_model_name})"
+            if model_name != resolved_model_name
+            else f"'{model_name}'"
+        )
         skip_message = (
-            f"Transformers model '{model_name}' is not cached.\n"
+            f"Transformers model {display_name} is not cached.\n"
             f"  Expected cache location: {model_cache_path}\n"
             f"  Cache directory: {cache_path}\n"
             f"  Cache directory exists: {cache_path.exists()}\n"

@@ -1,0 +1,826 @@
+"""Processing stage for episode download and preparation.
+
+This module handles episode processing, download argument preparation,
+and host detection.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import threading
+import time
+from concurrent.futures import as_completed, ThreadPoolExecutor
+from typing import Any, cast, Dict, List, Literal, Optional, Tuple
+
+from ... import config, metrics, models
+from ...episode_processor import process_episode_download as factory_process_episode_download
+
+
+# Use wrapper function if available (for testability)
+def process_episode_download(*args, **kwargs):
+    import sys
+
+    workflow_pkg = sys.modules.get("podcast_scraper.workflow")
+    if workflow_pkg and hasattr(workflow_pkg, "process_episode_download"):
+        func = getattr(workflow_pkg, "process_episode_download")
+        from unittest.mock import Mock
+
+        if isinstance(func, Mock):
+            return func(*args, **kwargs)
+    return factory_process_episode_download(*args, **kwargs)
+
+
+from ...rss_parser import extract_episode_description as rss_extract_episode_description
+
+
+# Use wrapper function if available (for testability)
+def extract_episode_description(item):
+    import sys
+
+    workflow_pkg = sys.modules.get("podcast_scraper.workflow")
+    if workflow_pkg and hasattr(workflow_pkg, "extract_episode_description"):
+        func = getattr(workflow_pkg, "extract_episode_description")
+        from unittest.mock import Mock
+
+        if isinstance(func, Mock):
+            return func(item)
+    return rss_extract_episode_description(item)
+
+
+from ...speaker_detectors.factory import create_speaker_detector
+from ..helpers import update_metric_safely
+from ..types import (
+    FeedMetadata,
+    HostDetectionResult,
+    ProcessingJob,
+    ProcessingResources,
+    TranscriptionResources,
+)
+
+# Import metadata stage for processing jobs
+from . import metadata as metadata_stage
+
+logger = logging.getLogger(__name__)
+
+
+def detect_feed_hosts_and_patterns(
+    cfg: config.Config, feed: models.RssFeed, episodes: List[models.Episode]
+) -> HostDetectionResult:
+    """Detect hosts from feed metadata and analyze episode patterns.
+
+    Args:
+        cfg: Configuration object
+        feed: Parsed RssFeed object
+        episodes: List of Episode objects
+
+    Returns:
+        HostDetectionResult with cached_hosts and heuristics
+    """
+    cached_hosts: set[str] = set()
+    heuristics: Optional[Dict[str, Any]] = None
+
+    if not cfg.auto_speakers or not cfg.cache_detected_hosts:
+        return HostDetectionResult(cached_hosts, heuristics, None)
+
+    # Stage 3: Use provider pattern for speaker detection
+    try:
+        # Use wrapper function if available (for testability)
+        import sys
+
+        workflow_pkg = sys.modules.get("podcast_scraper.workflow")
+        if workflow_pkg and hasattr(workflow_pkg, "create_speaker_detector"):
+            func = getattr(workflow_pkg, "create_speaker_detector")
+            from unittest.mock import Mock
+
+            if isinstance(func, Mock):
+                speaker_detector = func(cfg)
+            else:
+                speaker_detector = create_speaker_detector(cfg)
+        else:
+            from ...speaker_detectors.factory import (
+                create_speaker_detector as factory_create_speaker_detector,
+            )
+
+            speaker_detector = factory_create_speaker_detector(cfg)
+        # Initialize provider (loads spaCy model)
+        speaker_detector.initialize()
+
+        # Detect hosts: prefer RSS author tags, fall back to NER
+        feed_hosts = speaker_detector.detect_hosts(
+            feed_title=feed.title,
+            feed_description=None,  # TODO: Extract from feed XML if needed
+            feed_authors=feed.authors if feed.authors else None,
+        )
+
+        # Validate hosts with first episode: hosts should appear in first episode too
+        # Skip validation if hosts came from author tags (they're already reliable)
+        if feed_hosts and episodes and not feed.authors:
+            # Only validate if we used NER (not author tags)
+            first_episode = episodes[0]
+            first_episode_description = extract_episode_description(first_episode.item)
+            # Validate hosts by checking if they appear in first episode
+            # Use provider's detect_speakers to extract persons from first episode
+            first_episode_speakers, _, _ = speaker_detector.detect_speakers(
+                episode_title=first_episode.title,
+                episode_description=first_episode_description,
+                known_hosts=set(),
+            )
+            first_episode_persons = set(first_episode_speakers)
+            # Only keep hosts that also appear in first episode (validation)
+            validated_hosts = feed_hosts & first_episode_persons
+            if validated_hosts != feed_hosts:
+                logger.debug(
+                    "Host validation: %d hosts from feed, %d validated with first episode",
+                    len(feed_hosts),
+                    len(validated_hosts),
+                )
+                if validated_hosts:
+                    logger.debug(
+                        "Validated hosts (appear in feed and first episode): %s",
+                        list(validated_hosts),
+                    )
+                if feed_hosts - validated_hosts:
+                    logger.debug(
+                        "Hosts from feed not found in first episode (discarded): %s",
+                        list(feed_hosts - validated_hosts),
+                    )
+            cached_hosts = validated_hosts if validated_hosts else feed_hosts
+        else:
+            # If hosts came from author tags, use them directly (no validation needed)
+            cached_hosts = feed_hosts
+
+        if cached_hosts:
+            source = "RSS author tags" if feed.authors else "feed metadata (NER)"
+            logger.info("=" * 60)
+            logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
+            logger.info("=" * 60)
+        elif cfg.auto_speakers:
+            logger.debug("No hosts detected from feed metadata")
+
+        # Analyze patterns from first few episodes to extract heuristics
+        if cfg.auto_speakers and episodes:
+            heuristics_dict = speaker_detector.analyze_patterns(
+                episodes=episodes, known_hosts=cached_hosts
+            )
+            if heuristics_dict:
+                heuristics = heuristics_dict
+                if heuristics.get("title_position_preference"):
+                    logger.debug(
+                        "Pattern analysis: guest names typically appear at %s of title",
+                        heuristics["title_position_preference"],
+                    )
+
+        # Return result with provider instance
+        return HostDetectionResult(cached_hosts, heuristics, speaker_detector)
+    except Exception as exc:
+        logger.error("Failed to initialize speaker detector provider: %s", exc)
+        # Fail fast - provider initialization should succeed
+        # Return empty result without provider
+        return HostDetectionResult(set(), None, None)
+
+
+def setup_processing_resources(cfg: config.Config) -> ProcessingResources:
+    """Set up resources for processing stage (metadata/summarization).
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        ProcessingResources with processing queue and locks
+    """
+    processing_jobs: List[ProcessingJob] = []
+    processing_jobs_lock = (
+        threading.Lock()
+        if (cfg.workers > 1 or cfg.transcription_parallelism > 1 or cfg.processing_parallelism > 1)
+        else None
+    )
+    processing_complete_event = threading.Event()
+
+    return ProcessingResources(
+        processing_jobs,
+        processing_jobs_lock,
+        processing_complete_event,
+    )
+
+
+def prepare_episode_download_args(
+    episodes: List[models.Episode],
+    cfg: config.Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    transcription_resources: TranscriptionResources,
+    host_detection_result: HostDetectionResult,
+    pipeline_metrics: metrics.Metrics,
+) -> List[Tuple]:
+    """Prepare download arguments for each episode with speaker detection.
+
+    Performs speaker detection (if enabled) for each episode and packages all
+    necessary information into tuples for parallel processing. Speaker detection
+    includes host detection from feed metadata and guest detection from episode
+    titles and descriptions using NER.
+
+    Args:
+        episodes: List of Episode objects to process
+        cfg: Configuration object with auto_speakers, cache_detected_hosts settings
+        effective_output_dir: Full path to output directory
+        run_suffix: Optional run ID suffix for file naming
+        transcription_resources: Transcription resources (Whisper model, temp dir, job queue)
+        host_detection_result: Previously detected hosts and heuristics from feed metadata
+        pipeline_metrics: Metrics collector for tracking speaker extraction timing
+
+    Returns:
+        List[Tuple]: List of argument tuples, each containing:
+            (episode, cfg, temp_dir, effective_output_dir, run_suffix,
+             transcription_jobs, transcription_jobs_lock, detected_speaker_names)
+    """
+    download_args = []
+    for episode in episodes:
+        detected_speaker_names = None
+        # Detect guests for all episodes when auto_speakers is enabled
+        # (not just when transcribing, so we can log guests even for transcript downloads)
+        # Note: Guest detection works in dry-run mode (no media download/transcription needed)
+        if cfg.auto_speakers:
+            # Always log episode info
+            logger.info("Episode %d: %s", episode.idx, episode.title)
+
+            # Extract episode description for NER (limited to first 20 chars)
+            episode_description = extract_episode_description(episode.item)
+            # Detect speaker names from episode title and first 20 chars of description
+            # Guests are detected from episode title and description snippet
+            extract_names_start = time.time()
+
+            # Stage 3: Use provider for speaker detection
+            # Use wrapper function if available (for testability)
+            speaker_detector = host_detection_result.speaker_detector
+            if not speaker_detector:
+                import sys
+
+                workflow_pkg = sys.modules.get("podcast_scraper.workflow")
+                if workflow_pkg and hasattr(workflow_pkg, "create_speaker_detector"):
+                    func = getattr(workflow_pkg, "create_speaker_detector")
+                    from unittest.mock import Mock
+
+                    if isinstance(func, Mock):
+                        speaker_detector = func(cfg)
+            if speaker_detector:
+                cached_hosts_for_detection = (
+                    host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
+                )
+                detected_speakers, detected_hosts_set, detection_succeeded = (
+                    speaker_detector.detect_speakers(
+                        episode_title=episode.title,
+                        episode_description=episode_description,
+                        known_hosts=cached_hosts_for_detection,
+                    )
+                )
+            else:
+                # Fallback: No provider available (should not happen in normal flow)
+                logger.warning("Speaker detector not available, skipping speaker detection")
+                detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
+            extract_names_elapsed = time.time() - extract_names_start
+            # Record speaker detection time if metrics available
+            if pipeline_metrics is not None:
+                pipeline_metrics.record_extract_names_time(extract_names_elapsed)
+
+            # Use manual guest name as fallback ONLY if detection failed
+            # Manual names: first item = host, second item = guest
+            if (
+                not detection_succeeded
+                and cfg.screenplay_speaker_names
+                and len(cfg.screenplay_speaker_names) >= 2
+            ):
+                # Keep detected hosts, only use manual guest fallback
+                manual_host = cfg.screenplay_speaker_names[0]
+                manual_guest = cfg.screenplay_speaker_names[1]
+
+                # Use detected hosts if available, otherwise use manual host
+                if detected_hosts_set:
+                    fallback_names = list(detected_hosts_set) + [manual_guest]
+                    logger.debug(
+                        "  → Guest detection failed, using manual guest fallback: %s (hosts: %s)",
+                        manual_guest,
+                        ", ".join(detected_hosts_set),
+                    )
+                else:
+                    # No hosts detected either, use both manual names
+                    fallback_names = [manual_host, manual_guest]
+                    logger.debug(
+                        "  → Detection failed, using manual fallback: %s, %s",
+                        manual_host,
+                        manual_guest,
+                    )
+                detected_speaker_names = fallback_names
+            elif detection_succeeded:
+                detected_speaker_names = detected_speakers
+            # Note: Guest logging happens inside detect_speaker_names()
+            # Note: We don't update cached_hosts here because hosts are only
+            # detected from feed metadata, not from episodes
+        elif cfg.screenplay_speaker_names:
+            # If auto_speakers is disabled, use manual names directly
+            detected_speaker_names = cfg.screenplay_speaker_names
+
+        download_args.append(
+            (
+                episode,
+                cfg,
+                transcription_resources.temp_dir,
+                effective_output_dir,
+                run_suffix,
+                transcription_resources.transcription_jobs,
+                transcription_resources.transcription_jobs_lock,
+                detected_speaker_names,
+            )
+        )
+
+    return download_args
+
+
+def process_episodes(
+    download_args: List[Tuple],
+    episodes: List[models.Episode],
+    feed: models.RssFeed,
+    cfg: config.Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    feed_metadata: FeedMetadata,
+    host_detection_result: HostDetectionResult,
+    transcription_resources: TranscriptionResources,
+    processing_resources: ProcessingResources,
+    pipeline_metrics: metrics.Metrics,
+    summary_provider=None,  # SummarizationProvider instance (required)
+) -> int:
+    """Process episodes: download transcripts or queue transcription jobs.
+
+    Args:
+        download_args: List of download argument tuples
+        episodes: List of Episode objects
+        feed: Parsed RssFeed object
+        cfg: Configuration object
+        effective_output_dir: Output directory path
+        run_suffix: Optional run suffix
+        feed_metadata: Feed metadata tuple
+        host_detection_result: Host detection result
+        transcription_resources: Transcription resources
+        processing_resources: Processing resources
+        pipeline_metrics: Metrics collector
+        summary_provider: SummarizationProvider instance
+
+    Returns:
+        Number of transcripts saved
+    """
+    from ..helpers import update_metric_safely
+
+    if not download_args:
+        return 0
+
+    saved = 0
+    if cfg.workers <= 1 or len(download_args) == 1:
+        # Sequential processing
+        for args in download_args:
+            (
+                episode,
+                cfg_arg,
+                temp_dir_arg,
+                output_dir_arg,
+                run_suffix_arg,
+                jobs_arg,
+                lock_arg,
+                detected_names,
+            ) = args
+            try:
+                success, transcript_path, transcript_source, bytes_downloaded = (
+                    process_episode_download(
+                        episode,
+                        cfg_arg,
+                        temp_dir_arg,
+                        output_dir_arg,
+                        run_suffix_arg,
+                        jobs_arg,
+                        lock_arg,
+                        detected_names,
+                        pipeline_metrics=pipeline_metrics,
+                    )
+                )
+                if bytes_downloaded:
+                    update_metric_safely(
+                        pipeline_metrics, "bytes_downloaded_total", bytes_downloaded
+                    )
+                if success:
+                    saved += 1
+                    # Track transcript source
+                    if transcript_source == "direct_download":
+                        update_metric_safely(pipeline_metrics, "transcripts_downloaded", 1)
+                    logger.debug("Episode %s yielded transcript (saved=%s)", episode.idx, saved)
+
+                    # Queue processing job if metadata generation enabled and transcript available
+                    # Skip if transcript_source is None (Whisper pending) - queued after
+                    if cfg.generate_metadata and transcript_source is not None:
+                        transcript_source_typed = cast(
+                            Literal["direct_download", "whisper_transcription"],
+                            transcript_source,
+                        )
+                        processing_job = ProcessingJob(
+                            episode=episode,
+                            transcript_path=transcript_path or "",
+                            transcript_source=transcript_source_typed,
+                            detected_names=detected_names,
+                            whisper_model=None,  # Direct downloads don't use Whisper
+                        )
+                        # Queue processing job (processing thread will pick it up)
+                        if processing_resources.processing_jobs_lock:
+                            with processing_resources.processing_jobs_lock:
+                                processing_resources.processing_jobs.append(processing_job)
+                        else:
+                            processing_resources.processing_jobs.append(processing_job)
+                        logger.debug(
+                            "Queued processing job for episode %s (transcript_source=%s)",
+                            episode.idx,
+                            transcript_source_typed,
+                        )
+                elif transcript_path is None and transcript_source is None:
+                    # Episode was skipped (skip_existing)
+                    update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
+            except Exception as exc:  # pragma: no cover
+                update_metric_safely(pipeline_metrics, "errors_total", 1)
+                logger.error(
+                    f"[{episode.idx}] episode processing raised an unexpected error: {exc}"
+                )
+    else:
+        # Concurrent processing
+        saved_counter_lock = transcription_resources.saved_counter_lock
+        # Note: processing_resources is accessed via closure
+        with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
+            future_map = {
+                executor.submit(
+                    process_episode_download,
+                    args[0],
+                    args[1],
+                    args[2],
+                    args[3],
+                    args[4],
+                    args[5],
+                    args[6],
+                    args[7],
+                ): args[0].idx
+                for args in download_args
+            }
+            for future in as_completed(future_map):
+                idx = future_map[future]
+                try:
+                    success, transcript_path, transcript_source, bytes_downloaded = future.result()
+                    if bytes_downloaded:
+                        update_metric_safely(
+                            pipeline_metrics,
+                            "bytes_downloaded_total",
+                            bytes_downloaded,
+                            saved_counter_lock,
+                        )
+                    if success:
+                        if saved_counter_lock:
+                            with saved_counter_lock:
+                                saved += 1
+                        else:
+                            saved += 1
+                        if transcript_source == "direct_download":
+                            update_metric_safely(
+                                pipeline_metrics, "transcripts_downloaded", 1, saved_counter_lock
+                            )
+                        logger.debug("Episode %s yielded transcript (saved=%s)", idx, saved)
+                    elif transcript_path is None and transcript_source is None:
+                        # Episode was skipped (skip_existing)
+                        update_metric_safely(
+                            pipeline_metrics, "episodes_skipped_total", 1, saved_counter_lock
+                        )
+
+                    # Queue processing job if metadata generation enabled and transcript available
+                    # Skip if transcript_source is None (Whisper pending) - queued after
+                    if cfg.generate_metadata and transcript_source is not None:
+                        episode_obj = next((ep for ep in episodes if ep.idx == idx), None)
+                        if episode_obj:
+                            # Find detected names for this episode
+                            detected_names_for_ep = None
+                            for args in download_args:
+                                if args[0].idx == idx:
+                                    detected_names_for_ep = args[7]
+                                    break
+                            transcript_source_typed = cast(
+                                Literal["direct_download", "whisper_transcription"],
+                                transcript_source,
+                            )
+                            processing_job = ProcessingJob(
+                                episode=episode_obj,
+                                transcript_path=transcript_path or "",
+                                transcript_source=transcript_source_typed,
+                                detected_names=detected_names_for_ep,
+                                whisper_model=None,  # Direct downloads don't use Whisper
+                            )
+                            # Queue processing job (processing thread will pick it up)
+                            if processing_resources.processing_jobs_lock:
+                                with processing_resources.processing_jobs_lock:
+                                    processing_resources.processing_jobs.append(processing_job)
+                            else:
+                                processing_resources.processing_jobs.append(processing_job)
+                            logger.debug(
+                                "Queued processing job for episode %s (transcript_source=%s)",
+                                episode_obj.idx,
+                                transcript_source_typed,
+                            )
+                except Exception as exc:  # pragma: no cover
+                    update_metric_safely(pipeline_metrics, "errors_total", 1, saved_counter_lock)
+                    logger.error(f"[{idx}] episode processing raised an unexpected error: {exc}")
+
+    return saved
+
+
+# TODO: Reduce complexity - extract more helper functions for parallel processing logic
+def process_processing_jobs_concurrent(  # noqa: C901
+    processing_resources: ProcessingResources,
+    feed: models.RssFeed,
+    cfg: config.Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    feed_metadata: FeedMetadata,
+    host_detection_result: HostDetectionResult,
+    pipeline_metrics: metrics.Metrics,
+    summary_provider=None,  # SummarizationProvider instance (required)
+    transcription_complete_event: Optional[threading.Event] = None,
+) -> None:
+    """Process metadata/summarization jobs concurrently as they become available.
+
+    This function runs in a separate thread and processes jobs from the processing
+    queue as transcripts become available from downloads or transcription.
+
+    Args:
+        processing_resources: Processing resources with queue and locks
+        feed: Parsed RssFeed object
+        cfg: Configuration object (uses processing_parallelism)
+        effective_output_dir: Output directory path
+        run_suffix: Optional run suffix
+        feed_metadata: Feed metadata tuple
+        host_detection_result: Host detection result
+        pipeline_metrics: Metrics collector
+        summary_provider: SummarizationProvider instance (required)
+        transcription_complete_event: Event to signal when transcription is complete
+    """
+    max_workers = cfg.processing_parallelism
+    logger.debug("Concurrent processing processor started (max_workers=%d)", max_workers)
+
+    jobs_processed = 0
+    processed_job_indices = set()  # Track which jobs we've processed
+    processed_job_indices_lock = threading.Lock()  # Lock for thread-safe access
+
+    def _find_next_unprocessed_job() -> Optional[ProcessingJob]:
+        """Find the next unprocessed job from the queue.
+
+        Returns:
+            ProcessingJob if found, None otherwise
+        """
+        if processing_resources.processing_jobs_lock:
+            with processing_resources.processing_jobs_lock:
+                with processed_job_indices_lock:
+                    for job in processing_resources.processing_jobs:
+                        if job.episode.idx not in processed_job_indices:
+                            processed_job_indices.add(job.episode.idx)
+                            return job
+        else:
+            with processed_job_indices_lock:
+                for job in processing_resources.processing_jobs:
+                    if job.episode.idx not in processed_job_indices:
+                        processed_job_indices.add(job.episode.idx)
+                        return job
+        return None
+
+    def _check_queue_empty() -> bool:
+        """Check if processing queue is empty.
+
+        Returns:
+            True if queue is empty, False otherwise
+        """
+        with processed_job_indices_lock:
+            if processing_resources.processing_jobs_lock:
+                with processing_resources.processing_jobs_lock:
+                    total_jobs = len(processing_resources.processing_jobs)
+            else:
+                total_jobs = len(processing_resources.processing_jobs)
+            return total_jobs == len(processed_job_indices)
+
+    def _run_parallel_processing_loop(
+        processing_resources: ProcessingResources,
+        processed_job_indices: set,
+        processed_job_indices_lock: threading.Lock,
+        process_job_func: Any,
+        transcription_complete_event: Optional[threading.Event],
+        max_workers: int,
+    ) -> int:
+        """Run parallel processing loop with ThreadPoolExecutor.
+
+        Returns:
+            Number of jobs processed
+        """
+        jobs_processed = [0]  # Use list for nonlocal access
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {}
+
+            def _submit_new_jobs() -> None:
+                """Submit new jobs as they become available."""
+                if processing_resources.processing_jobs_lock:
+                    with processing_resources.processing_jobs_lock:
+                        with processed_job_indices_lock:
+                            for job in processing_resources.processing_jobs:
+                                if (
+                                    job.episode.idx not in processed_job_indices
+                                    and job.episode.idx not in futures
+                                ):
+                                    processed_job_indices.add(job.episode.idx)
+                                    future = executor.submit(process_job_func, job)
+                                    futures[future] = job.episode.idx
+                else:
+                    with processed_job_indices_lock:
+                        for job in processing_resources.processing_jobs:
+                            if (
+                                job.episode.idx not in processed_job_indices
+                                and job.episode.idx not in futures
+                            ):
+                                processed_job_indices.add(job.episode.idx)
+                                future = executor.submit(process_job_func, job)
+                                futures[future] = job.episode.idx
+
+            def _process_completed_futures() -> None:
+                """Process completed futures."""
+                try:
+                    for future in as_completed(list(futures.keys()), timeout=1.0):
+                        episode_idx = futures.pop(future)
+                        try:
+                            future.result()
+                            jobs_processed[0] += 1
+                            logger.debug(
+                                "Processed processing job idx=%s (processed=%s)",
+                                episode_idx,
+                                jobs_processed[0],
+                            )
+                        except Exception as exc:  # pragma: no cover
+                            logger.error(f"[{episode_idx}] processing future raised error: {exc}")
+                except TimeoutError:
+                    # Some futures are still pending - continue loop to check again
+                    pass
+
+            def _should_continue_processing() -> bool:
+                """Check if processing should continue."""
+                if transcription_complete_event and transcription_complete_event.is_set():
+                    all_submitted = _check_queue_empty()
+                    return not (all_submitted and len(futures) == 0)
+                return True
+
+            while True:
+                _submit_new_jobs()
+                _process_completed_futures()
+
+                if not _should_continue_processing():
+                    break
+
+                # Wait a bit before checking again
+                if not (transcription_complete_event and transcription_complete_event.is_set()):
+                    time.sleep(0.1)
+                else:
+                    time.sleep(0.05)
+
+        return jobs_processed[0]
+
+    def _wait_for_transcript_file(
+        transcript_path: str, episode_idx: int, max_wait: float = 5.0
+    ) -> bool:
+        """Wait for transcript file to exist before processing.
+
+        This prevents race conditions where metadata generation starts before
+        the transcript file is fully written to disk.
+
+        Args:
+            transcript_path: Path to transcript file (relative or absolute)
+            episode_idx: Episode index for logging
+            max_wait: Maximum time to wait in seconds (default: 5.0)
+
+        Returns:
+            True if file exists, False if timeout exceeded
+        """
+        if not transcript_path:
+            return False
+
+        # Build full path if relative
+        if not os.path.isabs(transcript_path):
+            full_path = os.path.join(effective_output_dir, transcript_path)
+        else:
+            full_path = transcript_path
+
+        # Check if file already exists
+        if os.path.exists(full_path):
+            return True
+
+        # Wait for file to appear (with timeout)
+        wait_interval = 0.1  # Check every 100ms
+        waited = 0.0
+        while waited < max_wait:
+            if os.path.exists(full_path):
+                logger.debug(
+                    "[%s] Transcript file appeared after %.2fs: %s",
+                    episode_idx,
+                    waited,
+                    full_path,
+                )
+                return True
+            time.sleep(wait_interval)
+            waited += wait_interval
+
+        # Timeout exceeded
+        logger.warning(
+            "[%s] Transcript file not found after %.2fs: %s",
+            episode_idx,
+            max_wait,
+            full_path,
+        )
+        return False
+
+    def _process_single_processing_job(job: ProcessingJob) -> None:
+        """Process a single processing job (metadata/summarization)."""
+        try:
+            # Wait for transcript file to exist if transcript_path is provided
+            # This is a defensive measure to prevent potential race conditions where
+            # metadata generation starts before the transcript file is fully written to disk.
+            # Note: Testing (30 runs) suggests the race condition may have been fixed during
+            # refactoring (filesystem.write_file uses context manager ensuring file is written
+            # before returning), but we keep this check as a safety measure for edge cases
+            # or different filesystem behaviors.
+            if job.transcript_path and job.transcript_source == "whisper_transcription":
+                if not _wait_for_transcript_file(job.transcript_path, job.episode.idx):
+                    logger.warning(
+                        "[%s] Skipping metadata generation: transcript file not found: %s",
+                        job.episode.idx,
+                        job.transcript_path,
+                    )
+                    return
+
+            metadata_stage.call_generate_metadata(
+                episode=job.episode,
+                feed=feed,
+                cfg=cfg,
+                effective_output_dir=effective_output_dir,
+                run_suffix=run_suffix,
+                transcript_path=job.transcript_path,
+                transcript_source=job.transcript_source,
+                whisper_model=None,  # No longer needed (use provider instead)
+                feed_metadata=feed_metadata,
+                host_detection_result=host_detection_result,
+                detected_names=job.detected_names,
+                summary_provider=summary_provider,
+                pipeline_metrics=pipeline_metrics,
+            )
+        except Exception as exc:  # pragma: no cover
+            update_metric_safely(pipeline_metrics, "errors_total", 1)
+            logger.error(f"[{job.episode.idx}] processing raised an unexpected error: {exc}")
+
+    # Process jobs as they become available
+    if max_workers <= 1:
+        # Sequential processing
+        while True:
+            current_job = _find_next_unprocessed_job()
+            if current_job:
+                _process_single_processing_job(current_job)
+                jobs_processed += 1
+                logger.debug(
+                    "Processed processing job idx=%s (processed=%s)",
+                    current_job.episode.idx,
+                    jobs_processed,
+                )
+                continue
+
+            # No job found - check if we should continue waiting
+            if transcription_complete_event and transcription_complete_event.is_set():
+                if _check_queue_empty():
+                    # All jobs processed, exit
+                    break
+
+            # Wait a bit before checking again
+            if not (transcription_complete_event and transcription_complete_event.is_set()):
+                time.sleep(0.1)
+            else:
+                time.sleep(0.05)
+    else:
+        # Parallel processing
+        parallel_jobs_processed = _run_parallel_processing_loop(
+            processing_resources,
+            processed_job_indices,
+            processed_job_indices_lock,
+            _process_single_processing_job,
+            transcription_complete_event,
+            max_workers,
+        )
+        jobs_processed = parallel_jobs_processed
+
+    total_jobs = (
+        len(processing_resources.processing_jobs) if processing_resources.processing_jobs else 0
+    )
+    logger.info(
+        f"Concurrent processing completed: {jobs_processed}/{total_jobs} "
+        f"jobs processed (parallelism={max_workers})"
+    )

@@ -201,7 +201,7 @@ The decision questions above provide a quick way to determine test type. For cri
   - Model loading and initialization on different devices
   - **Model integration tests** (marked as `@pytest.mark.slow` and `@pytest.mark.integration`):
     - Verify all models in `DEFAULT_SUMMARY_MODELS` can be loaded when configured
-    - Test each model individually: `default`, `fast`, `small`, `pegasus`, `pegasus-xsum`, `long`, `long-fast`
+    - Test each model individually: `bart-large`, `bart-small`, `long`, `long-fast`
     - Catch dependency issues (e.g., missing protobuf for PEGASUS models)
     - Verify model and tokenizer are properly initialized
     - Test model unloading after loading
@@ -229,24 +229,27 @@ The decision questions above provide a quick way to determine test type. For cri
 - **Test Cases**:
   - **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, all dependencies
     mocked, test provider creation, initialization, protocol method implementation, error handling,
+
     cleanup, configuration validation
+
   - **Unit Tests (Factory)**: Test factories create correct unified providers
     (MLProvider/OpenAIProvider), verify protocol compliance, test factory error handling
+
   - **Integration Tests**: Test unified providers working with other components, use real providers
     with mocked external services, test provider factory, protocol compliance, component
+
     interactions, provider switching, error handling in workflow context
+
   - **E2E Tests**: Test unified providers in full pipeline, providers work with real HTTP client
     (E2E server mock endpoints for API providers), real ML models (for local providers), multiple
-    providers work together, error scenarios (API failures, rate limits)
-  - **E2E Server Tests**: Mock endpoint returns correct format, mock endpoint handles different
-    request types, mock endpoint error handling, URL helper methods work correctly
-  - **Provider-specific tests**:
 
-- **MLProvider**: Unified provider for Whisper (transcription), spaCy (speaker detection),
-  Transformers (summarization) - test all three capabilities together
-- **OpenAIProvider**: Unified provider for OpenAI API (transcription, speaker detection,
-  summarization) - test all three capabilities together
-- **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
+```text
+    providers work together, error scenarios (API failures, rate limits). Includes E2E Server Tests
+    (mock endpoint returns correct format, handles different request types, error handling, URL
+    helper methods) and Provider-specific tests (MLProvider for Whisper/spaCy/Transformers,
+    OpenAIProvider for OpenAI API). See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test
+    organization and separation
+```python
 
 #### Service API (`service.py`)
 
@@ -397,26 +400,37 @@ E2E tests are organized into three tiers to balance fast CI feedback with compre
 - **Unit Tests**: Mock all external dependencies (HTTP, ML models, file system, API clients)
 - **Integration Tests**: Mock external services (HTTP APIs, external APIs) and ML models (Whisper,
   spaCy, Transformers), use real internal implementations (real providers, real Config, real
+
   workflow logic)
+
 - **E2E Tests**: Use real implementations (HTTP client, ML models, file system) with local test
   server. For API providers, use E2E server mock endpoints instead of direct API calls. ML models
+
   (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
 
 **Provider Testing Strategy:**
 
 - **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, mock all
   dependencies (API clients, ML models). Test provider creation, initialization, protocol methods,
+
   error handling, cleanup
+
 - **Unit Tests (Factory)**: Test factories create correct unified providers, verify protocol
   compliance, test factory error handling
+
 - **Integration Tests**: Use real unified provider implementations (MLProvider/OpenAIProvider) with
   mocked external services and mocked ML models. Test provider factory, protocol compliance,
+
   component interactions, providers working together. ML models are mocked for speed.
+
 - **E2E Tests**: Use real unified providers with E2E server mock endpoints (for API providers like
   OpenAI) or real implementations (for local providers like MLProvider). Test complete workflows
+
   with providers. ML models (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
+
 - **Key Principle**: Always verify protocol compliance, not class names. Unified providers
   (MLProvider, OpenAIProvider) replace old separate provider classes
+
 - **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
 
 ### Test Organization
@@ -436,6 +450,7 @@ The test suite is organized into three main categories:
 - `@pytest.mark.serial` - Tests that must run sequentially (resource conflicts)
 - `@pytest.mark.ml_models` - Requires ML dependencies (whisper, spacy, transformers) or uses real
   ML models
+
 - `@pytest.mark.slow` - Slow-running tests
 - `@pytest.mark.network` - Tests that hit external network
 - `@pytest.mark.multi_episode` - Multi-episode tests (nightly)
@@ -479,6 +494,7 @@ parallel with `-n auto`. All tests use network isolation via
 - **PRs**: Fast feedback + full validation run in parallel (both exclude slow/ml_models tests)
 - **Main branch**: Separate test jobs for maximum parallelization (includes all tests, slow jobs
   run only on push to main)
+
 - **Unit tests**: Run on every PR and push (fast feedback, parallel execution)
 - **Fast integration tests**: Run on PRs and main (excludes slow/ml_models, parallel execution, with re-runs)
 - **Slow integration tests**: Run only on push to main (includes slow/ml_models, parallel execution, with re-runs)
@@ -488,6 +504,7 @@ parallel with `-n auto`. All tests use network isolation via
 - **Flaky test reruns**: Enabled for integration and E2E tests (`--reruns 2 --reruns-delay 1`)
 - **Nightly workflow**: Comprehensive test suite with full metrics collection, trend tracking,
   and dashboard generation (RFC-025 Layer 3). **Note:** LLM/OpenAI tests are excluded
+
   (`-m "not llm"`) to avoid API costs (see issue #183)
 
 **For detailed test execution commands, parallel execution, flaky test reruns, and coverage, see [Testing Guide](guides/TESTING_GUIDE.md).**

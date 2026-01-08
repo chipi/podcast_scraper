@@ -61,12 +61,13 @@ from ml_model_cache_helpers import (  # noqa: E402
 
 # Try to import summarizer, skip tests if dependencies not available
 try:
-    from podcast_scraper import summarizer
+    from podcast_scraper import config, summarizer
 
     SUMMARIZER_AVAILABLE = True
 except ImportError:
     SUMMARIZER_AVAILABLE = False
     summarizer = types.ModuleType("summarizer")  # type: ignore[assignment]
+    config = types.ModuleType("config")  # type: ignore[assignment]
 
 
 @pytest.mark.slow
@@ -94,10 +95,12 @@ class TestModelIntegration(unittest.TestCase):
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_bart_small_model_loads(self):
-        """Test that 'bart-small' model (BART-base) can be loaded."""
-        cfg = create_test_config(summary_model="bart-small")
+        """Test that test default MAP model can be loaded."""
+        cfg = create_test_config(summary_model=config.TEST_DEFAULT_SUMMARY_MODEL)
         model_name = summarizer.select_summary_model(cfg)
-        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["bart-small"])
+        self.assertEqual(
+            model_name, summarizer.DEFAULT_SUMMARY_MODELS[config.TEST_DEFAULT_SUMMARY_MODEL]
+        )
 
         # Require model to be cached (fail fast if not)
         require_transformers_model_cached(model_name, cfg.summary_cache_dir)
@@ -112,13 +115,19 @@ class TestModelIntegration(unittest.TestCase):
             self.assertIsNotNone(model.tokenizer)
             summarizer.unload_model(model)
         except Exception as e:
-            self.fail(f"Failed to load 'bart-small' model ({model_name}): {e}")
+            self.fail(
+                f"Failed to load '{config.TEST_DEFAULT_SUMMARY_MODEL}' model "
+                f"({model_name}): {e}"
+            )
 
     def test_long_fast_model_loads(self):
-        """Test that 'long-fast' model (LED-base) can be loaded."""
-        cfg = create_test_config(summary_model="long-fast")
+        """Test that test default REDUCE model can be loaded."""
+        cfg = create_test_config(summary_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL)
         model_name = summarizer.select_summary_model(cfg)
-        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["long-fast"])
+        self.assertEqual(
+            model_name,
+            summarizer.DEFAULT_SUMMARY_MODELS[config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL],
+        )
 
         # Require model to be cached (fail fast if not)
         require_transformers_model_cached(model_name, cfg.summary_cache_dir)
