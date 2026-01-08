@@ -2,19 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Personal Use Only](https://img.shields.io/badge/Use-Personal%20Only-orange)](docs/LEGAL.md)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://chipi.github.io/podcast_scraper/)
-
-[![CI](https://github.com/chipi/podcast_scraper/actions/workflows/python-app.yml/badge.svg)](https://github.com/chipi/podcast_scraper/actions/workflows/python-app.yml)
-[![Nightly](https://github.com/chipi/podcast_scraper/actions/workflows/nightly.yml/badge.svg)](https://github.com/chipi/podcast_scraper/actions/workflows/nightly.yml)
 [![codecov](https://codecov.io/gh/chipi/podcast_scraper/branch/main/graph/badge.svg)](https://codecov.io/gh/chipi/podcast_scraper)
-
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat)](https://pycqa.github.io/isort/)
-[![Type checked: mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](https://mypy-lang.org/)
-
 [![Snyk Security](https://snyk.io/test/github/chipi/podcast_scraper/badge.svg)](https://snyk.io/test/github/chipi/podcast_scraper)
-[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-025E8C?logo=dependabot)](https://github.com/chipi/podcast_scraper/network/updates)
 
 Download, transcribe, and summarize podcast episodes. Fetches transcripts from RSS feeds
 (Podcasting 2.0), generates them when missing, detects speakers, and creates summaries.
@@ -58,7 +47,7 @@ git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 git checkout <latest-release-tag>   # e.g. v2.3.0
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[ml]"
+pip install -e ".[ml]"  # Install package in editable mode (required for CLI commands)
 ```
 
 #### Development (main)
@@ -70,65 +59,55 @@ unreleased changes.
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[ml]"
+pip install -e ".[ml]"  # Install package in editable mode (required for CLI commands)
 ```
 
-**Alternative (for contributors):**
+**Note:** The `pip install -e ".[ml]"` step is **required** before running CLI commands. Without it,
+you'll get `ModuleNotFoundError: No module named 'podcast_scraper'` when trying to run
+`python3 -m podcast_scraper.cli`. The `-e` flag installs the package in editable mode, so code
+changes are immediately available.
 
-Replace `https://example.com/feed.xml` with your podcast's RSS feed URL.
+### Configure Environment Variables (Optional but Recommended)
 
-Replace `https://example.com/feed.xml` with your podcast's RSS feed URL.
-
-```bash
-make init  # Creates venv, installs package, sets up pre-commit hooks
-```
-
-### Configure (Optional but Recommended)
-
-If using OpenAI providers or customizing paths/performance:
+If you plan to use OpenAI providers (transcription, speaker detection, or summarization), or want to
+customize logging, paths, or performance settings, set up a `.env` file:
 
 ```bash
-
-# Copy the environment template
-
+# Copy the template
 cp examples/.env.example .env
 
-# Edit .env and add your settings (especially OPENAI_API_KEY if using OpenAI providers)
-
-nano .env  # or use your preferred editor
+# Edit .env and add your OpenAI API key (required for OpenAI providers)
+# OPENAI_API_KEY=sk-your-actual-api-key-here
 ```
 
-**Key settings in `.env`:**
+**Important variables:**
 
-- `OPENAI_API_KEY` - Required for OpenAI transcription/summarization
-- `LOG_LEVEL` - Set to DEBUG for verbose output
-- `OUTPUT_DIR` - Custom location for transcripts/metadata
-- `CACHE_DIR` - Cache location for ML models
-- Performance tuning (workers, parallelism, device)
+- `OPENAI_API_KEY` - **Required** if using OpenAI providers (transcription, speaker detection, or summarization)
+- `LOG_LEVEL` - Controls logging verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `OUTPUT_DIR` - Custom output directory (default: `./output/`)
+- `CACHE_DIR` - ML model cache location
+- Performance tuning variables (WORKERS, TIMEOUT, etc.)
 
-See [`examples/.env.example`](examples/.env.example) for all available options.
+See `examples/.env.example` for all available options and detailed documentation.
 
-## Run
+### Run
+
+**Prerequisite:** Make sure you've completed the installation steps above and activated your virtual environment.
 
 Replace `https://example.com/feed.xml` with your podcast's RSS feed URL.
 
 ```bash
-
-# Download existing transcripts
-
+# Download transcripts (automatically generates missing ones with Whisper)
 python3 -m podcast_scraper.cli https://example.com/feed.xml
 
-# Generate transcripts with Whisper when missing
-
-python3 -m podcast_scraper.cli https://example.com/feed.xml --transcribe-missing
+# Only download existing transcripts (skip transcription)
+python3 -m podcast_scraper.cli https://example.com/feed.xml --no-transcribe-missing
 
 # Full processing: transcripts + metadata + summaries
-
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
-  --transcribe-missing \
   --generate-metadata \
   --generate-summaries
-```yaml
+```
 
 Output is organized into `output/` with subdirectories: `transcripts/` for transcript files
 and `metadata/` for JSON/YAML metadata. Use `--output-dir` to customize the location (default: `./output/`).

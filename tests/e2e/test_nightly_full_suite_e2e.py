@@ -2,8 +2,8 @@
 
 This test suite runs comprehensive tests with:
 - All 5 podcasts (p01-p05) with all 3 episodes each (15 total episodes)
-- Production ML models: PROD_DEFAULT_WHISPER_MODEL,
-  PROD_DEFAULT_SUMMARY_MODEL, PROD_DEFAULT_SUMMARY_REDUCE_MODEL
+- Production ML models: PROD_DEFAULT_WHISPER_MODEL, PROD_DEFAULT_SUMMARY_MODEL,
+  PROD_DEFAULT_SUMMARY_REDUCE_MODEL
 - Full pipeline validation (transcription → NER → summarization → metadata)
 
 These tests are marked with @pytest.mark.nightly (NOT @pytest.mark.e2e) to

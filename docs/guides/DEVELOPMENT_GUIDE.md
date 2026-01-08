@@ -63,59 +63,39 @@ Modules importing ML dependencies at **module level** will fail unit tests in CI
 **Quick setup:**
 
 ```bash
+
 bash scripts/setup_venv.sh
 source .venv/bin/activate
-```go
 
-### Package Installation
+```
 
-After creating your virtual environment, install the package in editable mode:
+**Note:** The `setup_venv.sh` script automatically installs the package in editable mode
+(`pip install -e .`), which is required for:
+
+- Running CLI commands: `python3 -m podcast_scraper.cli`
+- Importing the package in Python: `from podcast_scraper import ...`
+- Running tests that import the package
+
+**Manual setup (if not using setup_venv.sh):**
+
+If you create a virtual environment manually, you **must** install the package:
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev,ml]  # Install package in editable mode with dev and ML dependencies
+```
 
-# Install with ML dependencies (Whisper, transformers, etc.)
+**Why editable mode (`-e`)?**
 
-pip install -e ".[ml]"
-
-# Or install minimal (no ML, for testing core functionality)
-
-pip install -e .
-```go
-
-**Why `-e` (editable mode)?**
-
-- Changes to source code take effect immediately (no reinstall needed)
-- Allows running tests and CLI commands
+- Changes to source code are immediately available without reinstalling
 - Required for development workflow
+- Allows `python3 -m podcast_scraper.cli` to work
 
-**What this installs:**
+### Environment Variables
 
-- Core package (`podcast_scraper`)
-- CLI entry point (`podcast-scraper` command)
-- All dependencies from `pyproject.toml`
-- Development dependencies if using `make init`
-
-**Alternative (recommended for development):**
-
-```bash
-make init  # Creates venv + installs package + sets up pre-commit hooks
-```
-
-**Verify installation:**
-
-```bash
-
-# Should show version and help
-
-podcast-scraper --version
-podcast-scraper --help
-
-# Or use module syntax
-
-python -m podcast_scraper.cli --version
-```
-
-## Environment Variables
+**Note:** Setting up a `.env` file is **optional** but **recommended**, especially if you plan to
+use OpenAI providers or want to customize logging, paths, or performance settings.
 
 1. **Copy example `.env` file:**
 
@@ -123,7 +103,7 @@ python -m podcast_scraper.cli --version
    cp examples/.env.example .env
    ```
 
-1. **Edit `.env` and add your settings:**
+2. **Edit `.env` and add your settings:**
 
    ```bash
 
@@ -152,7 +132,7 @@ python -m podcast_scraper.cli --version
    SUMMARY_DEVICE=cpu
    ```
 
-1. **The `.env` file is automatically loaded** via `python-dotenv` when `podcast_scraper.config` module is imported.
+3. **The `.env` file is automatically loaded** via `python-dotenv` when `podcast_scraper.config` module is imported.
 
 **Security notes:**
 
@@ -161,18 +141,109 @@ python -m podcast_scraper.cli --version
 - ✅ API keys are never logged or exposed
 - ✅ Environment variables take precedence over `.env` file
 
-**Priority order:**
+**Priority order** (for each configuration field):
 
-- Config file field (highest priority)
-- Environment variable
-- Default value
-- Exception: `LOG_LEVEL` (env var takes precedence)
+1. **Config file field** (highest priority) - if the field is set in the config file and not `null`/empty, it takes precedence
+2. **Environment variable** - only used if the config file field is `null`, not set, or empty
+3. **Default value** - used if neither config file nor environment variable is set
+
+**Exception**: `LOG_LEVEL` environment variable takes precedence over config file (allows easy runtime log level control).
+
+**Note**: You can define the same field in both the config file and as an environment variable.
+The config file value will be used if it's set.
+This allows config files for project defaults and environment variables for deployment-specific overrides.
 
 **See also:**
 
 - `docs/api/CONFIGURATION.md` - Configuration API reference (includes environment variables)
 - `docs/rfc/RFC-013-openai-provider-implementation.md` - API key management details
 - `docs/prd/PRD-006-openai-provider-integration.md` - OpenAI provider requirements
+
+### ML Model Cache Management
+
+The project uses a local `.cache/` directory for ML models (Whisper, HuggingFace Transformers,
+spaCy). This cache can grow large (several GB) with both dev/test and production models.
+
+#### Preloading Models
+
+To download and cache all required ML models:
+
+```bash
+# Preload test models (small, fast models for local dev/testing)
+make preload-ml-models
+
+# Preload production models (large, quality models)
+make preload-ml-models-production
+```
+
+**Cache locations:**
+
+- Whisper: `.cache/whisper/` (e.g., `tiny.en.pt`, `base.en.pt`)
+- HuggingFace: `.cache/huggingface/hub/` (e.g., `facebook/bart-base`, `allenai/led-base-16384`)
+- spaCy: `.cache/spacy/` (if using local cache)
+
+**See also:** `.cache/README.md` for detailed cache structure and usage.
+
+#### Backup and Restore
+
+The cache directory can be backed up and restored for easy management:
+
+**Backup:**
+
+```bash
+# Create backup (saves to ~/podcast_scraper_cache_backups/)
+make backup-cache
+
+# Dry run to preview
+make backup-cache-dry-run
+
+# List existing backups
+make backup-cache-list
+
+# Clean up old backups (keep 5 most recent)
+make backup-cache-cleanup
+```
+
+**Restore:**
+
+```bash
+# Interactive restore (lists backups, prompts for selection)
+make restore-cache
+
+# Restore specific backup
+python scripts/restore_cache.py --backup cache_backup_20250108-120000.tar.gz
+
+# Force overwrite existing .cache
+python scripts/restore_cache.py --backup 20250108 --force
+```
+
+**What gets backed up:**
+
+- All model files (Whisper, HuggingFace, spaCy)
+- Cache directory structure
+- Excludes: `.lock` files, `.incomplete` downloads, temporary files
+
+**See also:**
+
+- `scripts/backup_cache.py` - Backup script documentation
+- `scripts/restore_cache.py` - Restore script documentation
+- `.cache/README.md` - Cache directory documentation
+
+#### Cleaning Cache
+
+To remove cached models (useful for testing or freeing disk space):
+
+```bash
+# Clean all ML model caches (user cache locations)
+make clean-cache
+
+# Clean build artifacts and caches
+make clean-all
+```
+
+**Note:** `make clean-cache` removes models from `~/.cache/` locations, not the project-local
+`.cache/` directory. To remove the project-local cache, manually delete `.cache/` or use the
+restore script to replace it.
 
 ## Markdown Linting
 
@@ -725,7 +796,7 @@ nav:
 
 ## CI/CD Integration
 
-> **See also:** [CI/CD Overview](../ci/index.md) for complete CI/CD pipeline documentation with visualizations.
+> **See also:** [`CI_CD.md`](../CI_CD.md) for complete CI/CD pipeline documentation with visualizations.
 
 ### What Runs in CI
 
@@ -895,17 +966,12 @@ if cfg.workers < 1:
 # Graceful degradation for optional features
 
 try:
-
-```python
-
     import whisper
     WHISPER_AVAILABLE = True
-
 except ImportError:
     WHISPER_AVAILABLE = False
     logger.warning("Whisper not available, transcription disabled")
-
-```python
+```
 
 ## Log Level Guidelines
 
@@ -962,8 +1028,15 @@ logger.info("Summary generated in %.1fs (length: %d chars)", elapsed, len(summar
 # Bad - INFO for technical details (should be DEBUG)
 
 logger.info("Loading summarization model: %s on %s", model_name, device)
-
 ```
+
+**Module-Specific Guidelines:**
+
+- **Workflow:** INFO for episode counts, major stages; DEBUG for cleanup
+- **Summarization:** INFO for generation start/completion; DEBUG for model loading
+- **Whisper:** INFO for "transcribing with Whisper"; DEBUG for model loading
+- **Episode Processing:** INFO for file saves; DEBUG for download details
+- **Speaker Detection:** INFO for results; DEBUG for model download
 
 ## Rationale
 
@@ -981,7 +1054,6 @@ When in doubt, prefer DEBUG over INFO - it's easier to promote a log level than 
 **Use the `progress.py` abstraction:**
 
 ```python
-
 from podcast_scraper import progress
 
 # Good - uses progress abstraction
@@ -999,7 +1071,6 @@ with progress.make_progress(
 from tqdm import tqdm
 for episode in tqdm(episodes):
     process_episode(episode)
-
 ```
 
 ## Lazy Loading Pattern
@@ -1025,7 +1096,6 @@ def load_whisper():
                 "Install with: pip install openai-whisper"
             )
     return _whisper
-
 ```
 
 ## Module Responsibilities

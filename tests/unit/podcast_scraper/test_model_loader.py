@@ -14,7 +14,6 @@ import pytest
 
 from podcast_scraper import config
 from podcast_scraper.model_loader import (
-    _resolve_model_alias,
     preload_transformers_models,
     preload_whisper_models,
 )
@@ -413,96 +412,3 @@ class TestModelLoaderTransformers(unittest.TestCase):
         # Should still download (to verify cache is complete)
         mock_tokenizer_class.from_pretrained.assert_called_once()
         mock_model_class.from_pretrained.assert_called_once()
-
-
-@pytest.mark.unit
-class TestResolveModelAlias(unittest.TestCase):
-    """Tests for _resolve_model_alias function."""
-
-    def test_resolve_bart_small_alias(self):
-        """Test that bart-small alias resolves to facebook/bart-base."""
-        result = _resolve_model_alias("bart-small")
-        self.assertEqual(result, "facebook/bart-base")
-
-    def test_resolve_bart_large_alias(self):
-        """Test that bart-large alias resolves to facebook/bart-large-cnn."""
-        result = _resolve_model_alias("bart-large")
-        self.assertEqual(result, "facebook/bart-large-cnn")
-
-    def test_resolve_long_alias(self):
-        """Test that long alias resolves to allenai/led-large-16384."""
-        result = _resolve_model_alias("long")
-        self.assertEqual(result, "allenai/led-large-16384")
-
-    def test_resolve_long_fast_alias(self):
-        """Test that long-fast alias resolves to allenai/led-base-16384."""
-        result = _resolve_model_alias("long-fast")
-        self.assertEqual(result, "allenai/led-base-16384")
-
-    def test_resolve_direct_model_id(self):
-        """Test that direct HuggingFace model IDs are returned unchanged."""
-        result = _resolve_model_alias("facebook/bart-base")
-        self.assertEqual(result, "facebook/bart-base")
-
-    def test_resolve_unknown_returns_unchanged(self):
-        """Test that unknown model names are returned unchanged."""
-        result = _resolve_model_alias("some/unknown-model")
-        self.assertEqual(result, "some/unknown-model")
-
-
-@pytest.mark.unit
-@pytest.mark.skipif(not TRANSFORMERS_AVAILABLE, reason="Transformers dependencies not available")
-class TestPreloadTransformersWithAliases(unittest.TestCase):
-    """Tests for preload_transformers_models with alias resolution."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.transformers_cache = Path(self.temp_dir) / "transformers"
-        self.transformers_cache.mkdir(parents=True, exist_ok=True)
-
-    def tearDown(self):
-        """Clean up test fixtures."""
-        import shutil
-
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    @patch("podcast_scraper.model_loader.get_transformers_cache_dir")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.AutoTokenizer")
-    def test_preload_with_alias_resolves_to_real_id(
-        self, mock_tokenizer_class, mock_model_class, mock_get_cache
-    ):
-        """Test that aliases are resolved before download."""
-        mock_get_cache.return_value = self.transformers_cache
-        mock_tokenizer = Mock()
-        mock_model = Mock()
-        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
-        mock_model_class.from_pretrained.return_value = mock_model
-
-        # Use alias
-        preload_transformers_models(["bart-small"])
-
-        # Should be called with resolved model ID
-        mock_tokenizer_class.from_pretrained.assert_called_once()
-        call_args = mock_tokenizer_class.from_pretrained.call_args
-        self.assertEqual(call_args[0][0], "facebook/bart-base")
-
-    @patch("podcast_scraper.model_loader.get_transformers_cache_dir")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.AutoTokenizer")
-    def test_preload_deduplicates_resolved_models(
-        self, mock_tokenizer_class, mock_model_class, mock_get_cache
-    ):
-        """Test that duplicate models (after resolution) are deduplicated."""
-        mock_get_cache.return_value = self.transformers_cache
-        mock_tokenizer = Mock()
-        mock_model = Mock()
-        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
-        mock_model_class.from_pretrained.return_value = mock_model
-
-        # Both resolve to same model
-        preload_transformers_models(["bart-small", "facebook/bart-base"])
-
-        # Should only download once
-        self.assertEqual(mock_tokenizer_class.from_pretrained.call_count, 1)

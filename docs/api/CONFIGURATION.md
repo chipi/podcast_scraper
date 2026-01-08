@@ -33,21 +33,51 @@ cfg = Config(
 
 Many configuration options can be set via environment variables for flexible deployment. Environment variables can be set:
 
-1. **System environment variables** (highest priority)
-2. **`.env` file** (loaded automatically from project root or current directory)
-3. **Config file fields** (lowest priority, used as fallback)
+1. **System environment variables** (highest priority among env vars)
+2. **`.env` file** (loaded automatically from project root or current directory, lower priority than system env)
 
 Environment variables are automatically loaded when the `podcast_scraper.config` module is imported using `python-dotenv`.
 
 ### Priority Order
 
-**General Rule**:
+**General Rule** (for each configuration field):
 
-1. Config file field (highest priority)
-2. Environment variable
-3. Default value
+1. **Config file field** (highest priority) - if the field is set in the config file and not `null`/empty, it takes precedence
+2. **Environment variable** - only used if the config file field is `null`, not set, or empty
+3. **Default value** - used if neither config file nor environment variable is set
 
-**Exception**: `LOG_LEVEL` environment variable takes precedence over config file (allows easy runtime log level control).
+**Important**: You can define the same field in both the config file and as an environment variable. The config file value will be used if it's set (even if an environment variable is also set). This allows you to:
+- Use config files for project-specific defaults (committed to repo)
+- Use environment variables for deployment-specific overrides (secrets, per-environment settings)
+- Override config file values by removing them from the config file (set to `null` or omit the field)
+
+**Exception**: `LOG_LEVEL` environment variable takes precedence over config file (allows easy runtime log level control without modifying config files).
+
+**Example**:
+
+```yaml
+# config.yaml
+workers: 8
+```
+
+```bash
+# .env
+WORKERS=4
+```
+
+**Result**: `workers = 8` (config file wins)
+
+```yaml
+# config.yaml
+# workers: (not set or null)
+```
+
+```bash
+# .env
+WORKERS=4
+```
+
+**Result**: `workers = 4` (env var used because config file is not set)
 
 ### Supported Environment Variables
 

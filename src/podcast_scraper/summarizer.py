@@ -613,13 +613,14 @@ class SummaryModel:
                 # Load tokenizer
                 # Security: Revision pinning provides reproducibility and prevents
                 # supply chain attacks. If revision is None, latest version is used
-                # (less secure but more convenient). Use local_files_only=True to
-                # prevent network access when models are cached
-                # This is critical for tests where network is blocked (pytest-socket)
-                logger.debug("Loading tokenizer (will use cache if available)...")
+                # (less secure but more convenient).
+                # ALWAYS use local_files_only=True - we never allow libraries to download.
+                # All downloads must go through our centralized preload script logic.
+                logger.debug("Loading tokenizer from cache...")
                 tokenizer_kwargs = {
                     "cache_dir": self.cache_dir,
-                    "local_files_only": True,  # Prevent network access - use cache only
+                    # Always use cache only - downloads via preload script
+                    "local_files_only": True,
                 }
                 if self.revision:
                     tokenizer_kwargs["revision"] = self.revision
@@ -654,13 +655,13 @@ class SummaryModel:
                 # Load model
                 # Security: Revision pinning provides reproducibility and prevents
                 # supply chain attacks. If revision is None, latest version is used
-                # (less secure but more convenient). Use local_files_only=True to
-                # prevent network access when models are cached
-                # This is critical for tests where network is blocked (pytest-socket)
-                logger.debug("Loading model (will use cache if available)...")
+                # (less secure but more convenient).
+                # ALWAYS use local_files_only=True - we never allow libraries to download.
+                # All downloads must go through our centralized preload script logic.
+                logger.debug("Loading model from cache...")
                 model_kwargs = {
                     "cache_dir": self.cache_dir,
-                    # Prevent network access - use cache only
+                    # Always use cache only - downloads via preload script
                     "local_files_only": True,
                 }
                 if self.revision:

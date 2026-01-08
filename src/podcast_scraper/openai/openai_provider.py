@@ -21,11 +21,6 @@ from typing import Any, Dict, Optional, Set, Tuple
 from openai import OpenAI
 
 from .. import config, models
-from ..exceptions import (
-    ProviderConfigError,
-    ProviderNotInitializedError,
-    ProviderRuntimeError,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +31,6 @@ logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
 DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
-
-# OpenAI Whisper API file size limit (25 MB)
-MAX_AUDIO_FILE_SIZE_MB = 25
 
 
 class OpenAIProvider:
@@ -60,14 +52,12 @@ class OpenAIProvider:
             cfg: Configuration object with settings for all three capabilities
 
         Raises:
-            ProviderConfigError: If OpenAI API key is not provided
+            ValueError: If OpenAI API key is not provided
         """
         if not cfg.openai_api_key:
-            raise ProviderConfigError(
-                message="API key not provided",
-                provider="OpenAI",
-                config_key="openai_api_key",
-                suggestion="Set OPENAI_API_KEY environment variable or openai_api_key in config",
+            raise ValueError(
+                "OpenAI API key required for OpenAI provider. "
+                "Set OPENAI_API_KEY environment variable or openai_api_key in config."
             )
 
         self.cfg = cfg
@@ -79,20 +69,14 @@ class OpenAIProvider:
         self.client = OpenAI(**client_kwargs)
 
         # Transcription settings
-        self.transcription_model = getattr(
-            cfg, "openai_transcription_model", config.PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
-        )
+        self.transcription_model = getattr(cfg, "openai_transcription_model", "whisper-1")
 
         # Speaker detection settings
-        self.speaker_model = getattr(
-            cfg, "openai_speaker_model", config.PROD_DEFAULT_OPENAI_SPEAKER_MODEL
-        )
+        self.speaker_model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
         self.speaker_temperature = getattr(cfg, "openai_temperature", 0.3)
 
         # Summarization settings
-        self.summary_model = getattr(
-            cfg, "openai_summary_model", config.PROD_DEFAULT_OPENAI_SUMMARY_MODEL
-        )
+        self.summary_model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
         self.summary_temperature = getattr(cfg, "openai_temperature", 0.3)
         # GPT-4o-mini supports 128k context window - can handle full transcripts
         self.max_context_tokens = 128000  # Conservative estimate
@@ -105,36 +89,6 @@ class OpenAIProvider:
         # Mark provider as thread-safe (API clients can be shared across threads)
         # API providers handle rate limiting internally, so parallelism isn't needed
         self._requires_separate_instances = False
-
-    def _validate_audio_file(self, audio_path: str) -> tuple[bool, str | None]:
-        """Validate audio file against OpenAI API constraints.
-
-        Checks if the audio file size exceeds OpenAI Whisper API's 25 MB limit.
-
-        Args:
-            audio_path: Path to audio file to validate
-
-        Returns:
-            Tuple of (is_valid, error_message)
-            - is_valid: True if file is valid, False if it exceeds limits
-            - error_message: None if valid, descriptive error message if invalid
-        """
-        if not os.path.exists(audio_path):
-            return (False, f"Audio file not found: {audio_path}")
-
-        file_size_bytes = os.path.getsize(audio_path)
-        file_size_mb = file_size_bytes / (1024 * 1024)
-
-        if file_size_mb > MAX_AUDIO_FILE_SIZE_MB:
-            error_msg = (
-                f"Audio file size ({file_size_mb:.1f} MB) exceeds OpenAI API limit "
-                f"({MAX_AUDIO_FILE_SIZE_MB} MB). "
-                "Consider using local ML provider (transformers) for transcription instead. "
-                "See: docs/guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md"
-            )
-            return (False, error_msg)
-
-        return (True, None)
 
     def initialize(self) -> None:
         """Initialize all OpenAI capabilities.
@@ -194,21 +148,15 @@ class OpenAIProvider:
         Raises:
             FileNotFoundError: If audio file doesn't exist
             ValueError: If transcription fails or API key is invalid
-            ProviderNotInitializedError: If provider is not initialized
+            RuntimeError: If provider is not initialized
         """
         if not self._transcription_initialized:
-            raise ProviderNotInitializedError(
-                provider="OpenAI/Transcription",
-                capability="transcription",
+            raise RuntimeError(
+                "OpenAIProvider transcription not initialized. Call initialize() first."
             )
 
-        # Validate file before making API call
-        is_valid, error_msg = self._validate_audio_file(audio_path)
-        if not is_valid:
-            raise ProviderRuntimeError(
-                message=error_msg or "Audio file validation failed",
-                provider="OpenAI/Transcription",
-            )
+        if not os.path.exists(audio_path):
+            raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
         # Use provided language or fall back to config
         effective_language = language if language is not None else (self.cfg.language or None)
@@ -249,11 +197,7 @@ class OpenAIProvider:
 
         except Exception as exc:
             logger.error("OpenAI Whisper API error: %s", exc)
-            raise ProviderRuntimeError(
-                message=f"Transcription failed: {exc}",
-                provider="OpenAI/Transcription",
-                suggestion="Check audio file format and API connectivity",
-            ) from exc
+            raise ValueError(f"OpenAI transcription failed: {exc}") from exc
 
     def transcribe_with_segments(
         self, audio_path: str, language: str | None = None
@@ -275,18 +219,12 @@ class OpenAIProvider:
             - Other OpenAI API metadata
         """
         if not self._transcription_initialized:
-            raise ProviderNotInitializedError(
-                provider="OpenAI/Transcription",
-                capability="transcription",
+            raise RuntimeError(
+                "OpenAIProvider transcription not initialized. Call initialize() first."
             )
 
-        # Validate file before making API call
-        is_valid, error_msg = self._validate_audio_file(audio_path)
-        if not is_valid:
-            raise ProviderRuntimeError(
-                message=error_msg or "Audio file validation failed",
-                provider="OpenAI/Transcription",
-            )
+        if not os.path.exists(audio_path):
+            raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
         # Use provided language or fall back to config
         effective_language = language if language is not None else (self.cfg.language or None)
@@ -361,11 +299,7 @@ class OpenAIProvider:
         except Exception as exc:
             elapsed = time.time() - start_time
             logger.error("OpenAI Whisper API error: %s", exc)
-            raise ProviderRuntimeError(
-                message=f"Transcription failed: {exc}",
-                provider="OpenAI/Transcription",
-                suggestion="Check audio file format and API connectivity",
-            ) from exc
+            raise ValueError(f"OpenAI transcription failed: {exc}") from exc
 
     # ============================================================================
     # SpeakerDetector Protocol Implementation
@@ -388,9 +322,8 @@ class OpenAIProvider:
             Set of detected host names
         """
         if not self._speaker_detection_initialized:
-            raise ProviderNotInitializedError(
-                provider="OpenAI/SpeakerDetection",
-                capability="speaker detection",
+            raise RuntimeError(
+                "OpenAIProvider speaker detection not initialized. Call initialize() first."
             )
 
         # Prefer RSS author tags if available
@@ -443,9 +376,8 @@ class OpenAIProvider:
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False
 
         if not self._speaker_detection_initialized:
-            raise ProviderNotInitializedError(
-                provider="OpenAI/SpeakerDetection",
-                capability="speaker detection",
+            raise RuntimeError(
+                "OpenAIProvider speaker detection not initialized. Call initialize() first."
             )
 
         logger.debug("Detecting speakers via OpenAI API for episode: %s", episode_title[:50])
@@ -501,11 +433,7 @@ class OpenAIProvider:
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False
         except Exception as exc:
             logger.error("OpenAI API error in speaker detection: %s", exc)
-            raise ProviderRuntimeError(
-                message=f"Speaker detection failed: {exc}",
-                provider="OpenAI/SpeakerDetection",
-                suggestion="Check API connectivity and transcript format",
-            ) from exc
+            raise ValueError(f"OpenAI speaker detection failed: {exc}") from exc
 
     def analyze_patterns(
         self,
@@ -587,63 +515,19 @@ class OpenAIProvider:
             # Filter hosts to only include those in known_hosts
             detected_hosts = {host for host in detected_hosts_list if host in known_hosts}
 
-            # Safety check: Remove any hosts from guests list (prevent duplicates)
-            # This handles cases where the model incorrectly includes hosts in guests
-            guests_list = [guest for guest in guests_list if guest not in detected_hosts]
-            # Also filter out guests that are in known_hosts (even if not detected as hosts)
-            if known_hosts:
-                guests_list = [guest for guest in guests_list if guest not in known_hosts]
-
-            # Filter out obvious non-guest entities:
-            # 1. Generic labels like "Host", "Guest", "Speaker"
-            # 2. Organization acronyms (like "NPR" which is the host, not a guest)
-            # 3. Titles with political/executive roles that are typically topics
-            #    (e.g., "President X" in news)
-            # Note: We're conservative - only filter clear cases to avoid removing legitimate guests
-            filtered_guests = []
-            generic_labels = {"host", "guest", "speaker", "hosts", "guests", "speakers"}
-            for guest in guests_list:
-                guest_lower = guest.lower().strip()
-                # Filter out generic labels
-                if guest_lower in generic_labels:
-                    continue
-                # Filter out organization acronyms (all caps, short)
-                is_organization = guest.upper() == guest and len(guest) <= 5 and guest.isalpha()
-                # Filter out political/executive titles that are typically topics in news podcasts
-                # These are usually mentioned as subjects, not actual guests
-                political_titles = ["president ", "prime minister ", "governor ", "mayor "]
-                is_political_topic = any(
-                    guest_lower.startswith(title) for title in political_titles
-                )
-                if not is_organization and not is_political_topic:
-                    filtered_guests.append(guest)
-            guests_list = filtered_guests
-
             # Build speaker names list: hosts first, then guests
-            # Note: We keep guests_list separate so it can be empty (for host-only episodes)
-            # speaker_names is used for screenplay formatting and may need defaults
-            # but guests_list should remain empty if no actual guests were detected
             speaker_names = list(detected_hosts) + guests_list
 
-            # Ensure we have at least MIN_SPEAKERS_REQUIRED speakers for screenplay formatting
-            # But only add defaults if we have at least one real speaker (host or guest)
+            # Ensure we have at least MIN_SPEAKERS_REQUIRED speakers
             min_speakers = getattr(self.cfg, "screenplay_num_speakers", 2)
-            if len(speaker_names) < min_speakers and (detected_hosts or guests_list):
-                # Add default speakers if needed (for screenplay formatting)
-                # But don't add defaults if we have no real speakers at all
+            if len(speaker_names) < min_speakers:
+                # Add default speakers if needed
                 defaults_needed = min_speakers - len(speaker_names)
                 speaker_names.extend(DEFAULT_SPEAKER_NAMES[:defaults_needed])
-            elif len(speaker_names) < min_speakers:
-                # No real speakers detected - use defaults
-                speaker_names = DEFAULT_SPEAKER_NAMES.copy()
 
             # Detection succeeded if we have real names (not just defaults)
             detection_succeeded = bool(detected_hosts or guests_list or (len(all_speakers) > 0))
 
-            # Return speaker_names (may include defaults for formatting) and detected_hosts
-            # The workflow will extract guests from speaker_names by filtering out hosts
-            # IMPORTANT: guests_list is already filtered and may be empty
-            # (which is correct for host-only episodes)
             return speaker_names[:min_speakers], detected_hosts, detection_succeeded
 
         except (json.JSONDecodeError, KeyError, AttributeError) as exc:
@@ -749,12 +633,11 @@ class OpenAIProvider:
 
         Raises:
             ValueError: If summarization fails
-            ProviderNotInitializedError: If provider is not initialized
+            RuntimeError: If provider is not initialized
         """
         if not self._summarization_initialized:
-            raise ProviderNotInitializedError(
-                provider="OpenAI/Summarization",
-                capability="summarization",
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
             )
 
         # Extract parameters with defaults from config
@@ -831,11 +714,7 @@ class OpenAIProvider:
 
         except Exception as exc:
             logger.error("OpenAI API error in summarization: %s", exc)
-            raise ProviderRuntimeError(
-                message=f"Summarization failed: {exc}",
-                provider="OpenAI/Summarization",
-                suggestion="Check API connectivity and input transcript",
-            ) from exc
+            raise ValueError(f"OpenAI summarization failed: {exc}") from exc
 
     def _build_summarization_prompts(
         self,

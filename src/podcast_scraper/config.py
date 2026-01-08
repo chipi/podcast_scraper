@@ -10,50 +10,6 @@ import yaml
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-# Import all constants from config_constants module
-# Note: Some constants are re-exported here for backward compatibility
-# even though they're not used directly in this file
-# Re-exported for backward compatibility
-from .config_constants import DEFAULT_MAX_DETECTED_NAMES  # noqa: F401
-from .config_constants import DEFAULT_NER_MODEL  # noqa: F401
-from .config_constants import DEFAULT_SUMMARY_CHUNK_SIZE  # noqa: F401
-from .config_constants import DEFAULT_SUMMARY_MAX_WORKERS_CPU  # noqa: F401
-from .config_constants import DEFAULT_SUMMARY_MAX_WORKERS_CPU_TEST  # noqa: F401
-from .config_constants import DEFAULT_SUMMARY_MAX_WORKERS_GPU  # noqa: F401
-from .config_constants import DEFAULT_SUMMARY_MAX_WORKERS_GPU_TEST  # noqa: F401
-from .config_constants import PROD_DEFAULT_OPENAI_SPEAKER_MODEL  # noqa: F401
-from .config_constants import PROD_DEFAULT_OPENAI_SUMMARY_MODEL  # noqa: F401
-from .config_constants import PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL  # noqa: F401
-from .config_constants import PROD_DEFAULT_SUMMARY_MODEL  # noqa: F401
-from .config_constants import PROD_DEFAULT_SUMMARY_REDUCE_MODEL  # noqa: F401
-from .config_constants import TEST_DEFAULT_OPENAI_SPEAKER_MODEL  # noqa: F401
-from .config_constants import TEST_DEFAULT_OPENAI_SUMMARY_MODEL  # noqa: F401
-from .config_constants import TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL  # noqa: F401
-from .config_constants import TEST_DEFAULT_SUMMARY_MODEL  # noqa: F401
-from .config_constants import TEST_DEFAULT_SUMMARY_REDUCE_MODEL  # noqa: F401
-from .config_constants import TEST_DEFAULT_WHISPER_MODEL  # noqa: F401
-from .config_constants import (  # noqa: F401
-    DEFAULT_LANGUAGE,
-    DEFAULT_LOG_LEVEL,
-    DEFAULT_NUM_SPEAKERS,
-    DEFAULT_SCREENPLAY_GAP_SECONDS,
-    DEFAULT_SUMMARY_BATCH_SIZE,
-    DEFAULT_SUMMARY_MAX_LENGTH,
-    DEFAULT_SUMMARY_MIN_LENGTH,
-    DEFAULT_SUMMARY_WORD_CHUNK_SIZE,
-    DEFAULT_SUMMARY_WORD_OVERLAP,
-    DEFAULT_TIMEOUT_SECONDS,
-    DEFAULT_USER_AGENT,
-    DEFAULT_WORKERS,
-    MAX_METADATA_SUBDIRECTORY_LENGTH,
-    MAX_RUN_ID_LENGTH,
-    MIN_NUM_SPEAKERS,
-    MIN_TIMEOUT_SECONDS,
-    PROD_DEFAULT_WHISPER_MODEL,
-    VALID_LOG_LEVELS,
-    VALID_WHISPER_MODELS,
-)
-
 # Load .env file if it exists (RFC-013: OpenAI API key management)
 # Check for .env in project root
 # Note: config.py is now in src/podcast_scraper/, so we use parent.parent.parent
@@ -64,6 +20,18 @@ if env_path.exists():
 else:
     # Also check current working directory (for flexibility)
     load_dotenv(override=False)
+
+DEFAULT_LOG_LEVEL = "INFO"
+DEFAULT_NUM_SPEAKERS = 2
+DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
+DEFAULT_TIMEOUT_SECONDS = 20
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/119.0 Safari/537.36"
+)
+DEFAULT_WORKERS = max(1, min(8, os.cpu_count() or 4))
+DEFAULT_LANGUAGE = "en"
 
 
 def _is_test_environment() -> bool:
@@ -86,43 +54,90 @@ def _is_test_environment() -> bool:
     return False
 
 
-def _get_default_openai_transcription_model() -> str:
-    """Get default OpenAI transcription model based on environment.
+DEFAULT_NER_MODEL = "en_core_web_sm"
+DEFAULT_MAX_DETECTED_NAMES = 4
+MIN_NUM_SPEAKERS = 1
+MIN_TIMEOUT_SECONDS = 1
 
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
-    return PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
-
-
-def _get_default_openai_speaker_model() -> str:
-    """Get default OpenAI speaker detection model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return TEST_DEFAULT_OPENAI_SPEAKER_MODEL
-    return PROD_DEFAULT_OPENAI_SPEAKER_MODEL
-
-
-def _get_default_openai_summary_model() -> str:
-    """Get default OpenAI summarization model based on environment.
-
-    Returns:
-        Test default if in test environment, production default otherwise.
-    """
-    if _is_test_environment():
-        return TEST_DEFAULT_OPENAI_SUMMARY_MODEL
-    return PROD_DEFAULT_OPENAI_SUMMARY_MODEL
-
-
-# All constants are now imported from .config_constants
-# Re-exported here for backward compatibility
+# Test defaults (smaller, faster models for CI/local dev)
+# These are used in tests for speed, while production uses quality models
+# See docs/guides/TESTING_GUIDE.md for details
+TEST_DEFAULT_WHISPER_MODEL = "tiny.en"  # Smallest, fastest English-only model
+TEST_DEFAULT_SUMMARY_MODEL = (
+    "facebook/bart-base"  # Small, ~500MB, fast (vs production: bart-large-cnn)
+)
+TEST_DEFAULT_SUMMARY_REDUCE_MODEL = (
+    "allenai/led-base-16384"  # Test only (fast); production uses led-large-16384
+)
 # Note: TEST_DEFAULT_NER_MODEL uses DEFAULT_NER_MODEL ("en_core_web_sm")
 # - same for tests and production
+
+# Production defaults (quality models for production use)
+# These are used in production deployments and nightly-only tests
+PROD_DEFAULT_WHISPER_MODEL = "base.en"  # Better quality than tiny.en, English-only
+PROD_DEFAULT_SUMMARY_MODEL = "facebook/bart-large-cnn"  # Large, ~2GB, best quality for production
+PROD_DEFAULT_SUMMARY_REDUCE_MODEL = (
+    "allenai/led-large-16384"  # Large, ~2.5GB, production quality for long-context
+)
+
+# OpenAI model defaults (Issue #191)
+# Test defaults: cheapest models for dev/testing (minimize API costs)
+# Production defaults: best quality/cost balance
+#
+# Pricing (Jan 2026, per million tokens):
+#   gpt-5-nano:  $0.05 input / $0.40 output (cheapest)
+#   gpt-5-mini:  $0.25 input / $2.00 output (balanced)
+#   gpt-5:       $1.25 input / $10.00 output (highest quality)
+#   gpt-4o-mini: $0.15 input / $0.60 output (legacy budget)
+#   gpt-4o:      $5.00 input / $15.00 output (legacy quality)
+#
+# See: https://openai.com/pricing
+TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
+TEST_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
+TEST_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
+PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
+PROD_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o"  # Higher quality for production
+PROD_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o"  # Higher quality for production
+VALID_WHISPER_MODELS = (
+    "tiny",
+    "base",
+    "small",
+    "medium",
+    "large",
+    "large-v2",
+    "large-v3",
+    "tiny.en",
+    "base.en",
+    "small.en",
+    "medium.en",
+    "large.en",
+)
+
+VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+MAX_RUN_ID_LENGTH = 100
+MAX_METADATA_SUBDIRECTORY_LENGTH = 255
+DEFAULT_SUMMARY_MAX_LENGTH = 160  # Per SUMMARY_REVIEW.md: chunk summaries should be ~160 tokens
+DEFAULT_SUMMARY_MIN_LENGTH = (
+    60  # Per SUMMARY_REVIEW.md: chunk summaries should be at least 60 tokens
+)
+DEFAULT_SUMMARY_BATCH_SIZE = 1
+# Maximum parallel workers for episode summarization (memory-bound)
+# Lower values reduce memory usage but may slow down processing
+# Production: Higher values for better throughput
+# Tests/Dev: Lower values to reduce memory footprint
+DEFAULT_SUMMARY_MAX_WORKERS_CPU = 4  # Production default for CPU
+DEFAULT_SUMMARY_MAX_WORKERS_CPU_TEST = (
+    1  # Test/dev default for CPU (reduces memory - sequential processing)
+)
+DEFAULT_SUMMARY_MAX_WORKERS_GPU = 2  # Production default for GPU
+DEFAULT_SUMMARY_MAX_WORKERS_GPU_TEST = 1  # Test/dev default for GPU (reduces memory)
+DEFAULT_SUMMARY_CHUNK_SIZE = (
+    2048  # Default token chunk size (BART models support up to 1024, but larger chunks work safely)
+)
+DEFAULT_SUMMARY_WORD_CHUNK_SIZE = (
+    900  # Per SUMMARY_REVIEW.md: 800-1200 words recommended for encoder-decoder models
+)
+DEFAULT_SUMMARY_WORD_OVERLAP = 150  # Per SUMMARY_REVIEW.md: 100-200 words recommended
 
 
 class Config(BaseModel):
@@ -155,9 +170,9 @@ class Config(BaseModel):
         timeout: Request timeout in seconds (minimum: 1).
         delay_ms: Delay between requests in milliseconds.
         prefer_types: Preferred transcript types or extensions (e.g., ["text/vtt", ".srt"]).
-        transcribe_missing: Enable Whisper transcription for episodes without transcripts.
+        transcribe_missing: Enable Whisper transcription for episodes without transcripts
+            (default: True). Set to False to only download existing transcripts.
         whisper_model: Whisper model name (e.g., "base", "small", "medium").
-        whisper_device: Device for Whisper execution ("cpu", "cuda", "mps", or None for auto).
         screenplay: Format transcripts as screenplay with speaker labels.
         screenplay_gap_s: Minimum gap in seconds between speaker segments.
         screenplay_num_speakers: Number of speakers for Whisper diarization.
@@ -250,9 +265,8 @@ class Config(BaseModel):
     timeout: int = Field(default=DEFAULT_TIMEOUT_SECONDS, alias="timeout")
     delay_ms: int = Field(default=0, alias="delay_ms")
     prefer_types: List[str] = Field(default_factory=list, alias="prefer_type")
-    transcribe_missing: bool = Field(default=False, alias="transcribe_missing")
-    whisper_model: str = Field(default=PROD_DEFAULT_WHISPER_MODEL, alias="whisper_model")
-    whisper_device: Optional[str] = Field(default=None, alias="whisper_device")
+    transcribe_missing: bool = Field(default=True, alias="transcribe_missing")
+    whisper_model: str = Field(default="base.en", alias="whisper_model")
     screenplay: bool = Field(default=False, alias="screenplay")
     screenplay_gap_s: float = Field(default=DEFAULT_SCREENPLAY_GAP_SECONDS, alias="screenplay_gap")
     screenplay_num_speakers: int = Field(default=DEFAULT_NUM_SPEAKERS, alias="num_speakers")
@@ -332,22 +346,19 @@ class Config(BaseModel):
         "Used for E2E testing with mock servers.",
     )
     openai_transcription_model: str = Field(
-        default_factory=_get_default_openai_transcription_model,
+        default="whisper-1",
         alias="openai_transcription_model",
-        description="OpenAI Whisper API model version (default: environment-based)",
+        description="OpenAI Whisper API model version (default: 'whisper-1')",
     )
     openai_speaker_model: str = Field(
-        default_factory=_get_default_openai_speaker_model,
+        default="gpt-4o-mini",
         alias="openai_speaker_model",
-        description="OpenAI model for speaker detection (default: environment-based)",
+        description="OpenAI model for speaker detection (default: 'gpt-4o-mini')",
     )
     openai_summary_model: str = Field(
-        default_factory=_get_default_openai_summary_model,
+        default="gpt-4o-mini",
         alias="openai_summary_model",
-        description=(
-            "OpenAI model for summarization (default: environment-based, "
-            "gpt-4o-mini in test, gpt-4o in prod)"
-        ),
+        description="OpenAI model for summarization (default: 'gpt-4o-mini')",
     )
     openai_temperature: float = Field(
         default=0.3,
@@ -605,39 +616,11 @@ class Config(BaseModel):
         # SUMMARY_CACHE_DIR / CACHE_DIR: Only set from env if not in config
         # Also check for local cache in project root
         if "summary_cache_dir" not in data or data.get("summary_cache_dir") is None:
-            env_summary_cache = os.getenv("SUMMARY_CACHE_DIR")
-            env_cache_dir = os.getenv("CACHE_DIR")
-
-            if env_summary_cache:
-                # SUMMARY_CACHE_DIR is explicit - use as-is but resolve to absolute
-                env_value = str(env_summary_cache).strip()
-                if env_value:
-                    cache_path = Path(env_value)
-                    if not cache_path.is_absolute():
-                        # Resolve relative to project root
-                        try:
-                            from .cache_utils import get_project_root
-
-                            cache_path = get_project_root() / cache_path
-                        except Exception:
-                            cache_path = Path.cwd() / cache_path
-                    data["summary_cache_dir"] = str(cache_path)
-            elif env_cache_dir:
-                # CACHE_DIR is base cache - derive transformers cache path
+            env_cache_dir = os.getenv("SUMMARY_CACHE_DIR") or os.getenv("CACHE_DIR")
+            if env_cache_dir:
                 env_value = str(env_cache_dir).strip()
                 if env_value:
-                    cache_path = Path(env_value)
-                    if not cache_path.is_absolute():
-                        # Resolve relative to project root
-                        try:
-                            from .cache_utils import get_project_root
-
-                            cache_path = get_project_root() / cache_path
-                        except Exception:
-                            cache_path = Path.cwd() / cache_path
-                    # Derive transformers cache subdirectory
-                    transformers_cache = cache_path / "huggingface" / "hub"
-                    data["summary_cache_dir"] = str(transformers_cache)
+                    data["summary_cache_dir"] = env_value
             else:
                 # Check for local cache in project root
                 try:
@@ -724,41 +707,6 @@ class Config(BaseModel):
                 env_value = str(env_device).strip().lower()
                 if env_value in ("cpu", "cuda", "mps"):
                     data["summary_device"] = env_value
-
-        # WHISPER_DEVICE: Only set from env if not in config
-        if "whisper_device" not in data or data.get("whisper_device") is None:
-            env_device = os.getenv("WHISPER_DEVICE")
-            if env_device:
-                env_value = str(env_device).strip().lower()
-                if env_value in ("cpu", "cuda", "mps"):
-                    data["whisper_device"] = env_value
-
-        # OPENAI_API_KEY: Only set from env if not in config
-        if "openai_api_key" not in data or data.get("openai_api_key") is None:
-            env_key = os.getenv("OPENAI_API_KEY")
-            if env_key:
-                env_value = str(env_key).strip()
-                if env_value:
-                    data["openai_api_key"] = env_value
-
-        # OPENAI_API_BASE: Only set from env if not in config
-        if "openai_api_base" not in data or data.get("openai_api_base") is None:
-            env_base = os.getenv("OPENAI_API_BASE")
-            if env_base:
-                env_value = str(env_base).strip()
-                if env_value:
-                    data["openai_api_base"] = env_value
-
-        # OPENAI_TEMPERATURE: Only set from env if not in config
-        if "openai_temperature" not in data or data.get("openai_temperature") is None:
-            env_temp = os.getenv("OPENAI_TEMPERATURE")
-            if env_temp:
-                try:
-                    temp_value = float(env_temp)
-                    if 0.0 <= temp_value <= 2.0:
-                        data["openai_temperature"] = temp_value
-                except (ValueError, TypeError):
-                    pass  # Invalid value, skip
 
         return data
 
@@ -1150,19 +1098,6 @@ class Config(BaseModel):
             return None
         if value_str not in ("cuda", "mps", "cpu"):
             raise ValueError("summary_device must be 'cuda', 'mps', 'cpu', or 'auto'")
-        return value_str
-
-    @field_validator("whisper_device", mode="before")
-    @classmethod
-    def _coerce_whisper_device(cls, value: Any) -> Optional[str]:
-        """Coerce whisper device to string or None."""
-        if value is None or value == "":
-            return None
-        value_str = str(value).strip().lower()
-        if value_str == "auto":
-            return None
-        if value_str not in ("cuda", "mps", "cpu"):
-            raise ValueError("whisper_device must be 'cuda', 'mps', 'cpu', or 'auto'")
         return value_str
 
     @field_validator("transcription_parallelism", mode="before")
