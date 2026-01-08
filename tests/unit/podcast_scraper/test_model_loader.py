@@ -18,8 +18,24 @@ from podcast_scraper.model_loader import (
     preload_whisper_models,
 )
 
+# Check if ML dependencies are available
+try:
+    import whisper  # noqa: F401
+
+    WHISPER_AVAILABLE = True
+except ImportError:
+    WHISPER_AVAILABLE = False
+
+try:
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer  # noqa: F401
+
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+
 
 @pytest.mark.unit
+@pytest.mark.skipif(not WHISPER_AVAILABLE, reason="Whisper dependencies not available")
 class TestModelLoaderWhisper(unittest.TestCase):
     """Tests for preload_whisper_models function."""
 
@@ -119,6 +135,7 @@ class TestModelLoaderWhisper(unittest.TestCase):
 
 
 @pytest.mark.unit
+@pytest.mark.skipif(not TRANSFORMERS_AVAILABLE, reason="Transformers dependencies not available")
 class TestModelLoaderTransformers(unittest.TestCase):
     """Tests for preload_transformers_models function."""
 
