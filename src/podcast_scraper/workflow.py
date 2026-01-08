@@ -151,6 +151,119 @@ def _should_preload_ml_models(cfg: config.Config) -> bool:
     return needs_whisper or needs_transformers or needs_spacy
 
 
+def _ensure_ml_models_cached(cfg: config.Config) -> None:
+    """Ensure required ML models are cached, downloading them if needed.
+
+    This function checks if required models are cached, and if not, downloads them
+    using the centralized preload script logic. This is the ONLY place where models
+    can be downloaded - libraries are never allowed to download on their own.
+
+    Args:
+        cfg: Configuration object
+
+    Note:
+        This only downloads models if they're not already cached. It uses the same
+        preload logic as the preload script, ensuring all downloads go through our
+        centralized mechanism. Models are then loaded with local_files_only=True
+        to prevent libraries from attempting their own downloads.
+    """
+    # Skip if preloading is disabled or in dry run
+    if not cfg.preload_models or cfg.dry_run:
+        return
+
+    # Skip if no ML models are needed
+    if not _should_preload_ml_models(cfg):
+        return
+
+    # Skip in test environments (tests should use pre-cached models)
+    if config._is_test_environment():
+        return
+
+    try:
+        from .cache_utils import (
+            get_transformers_cache_dir,
+            get_whisper_cache_dir,
+        )
+
+        models_to_download = []
+
+        # Check Whisper models
+        if cfg.transcribe_missing and cfg.transcription_provider == "whisper":
+            whisper_cache = get_whisper_cache_dir()
+            model_file = whisper_cache / f"{cfg.whisper_model}.pt"
+            if not model_file.exists():
+                models_to_download.append(("whisper", cfg.whisper_model))
+                logger.info(
+                    f"Whisper model {cfg.whisper_model} not cached, will download on first use"
+                )
+
+        # Check Transformers models
+        if cfg.generate_summaries and cfg.summary_provider == "transformers":
+            from . import summarizer
+
+            transformers_cache = get_transformers_cache_dir()
+            # Get MAP model
+            map_model = summarizer.select_summary_model(cfg)
+            model_cache_name = map_model.replace("/", "--")
+            model_cache_path = transformers_cache / f"models--{model_cache_name}"
+            if not model_cache_path.exists():
+                models_to_download.append(("transformers", map_model))
+                logger.info(
+                    f"Transformers model {map_model} not cached, will download on first use"
+                )
+
+            # Get REDUCE model (might be different)
+            reduce_model = summarizer.select_reduce_model(cfg, map_model)
+            if reduce_model != map_model:
+                reduce_cache_name = reduce_model.replace("/", "--")
+                reduce_cache_path = transformers_cache / f"models--{reduce_cache_name}"
+                if not reduce_cache_path.exists():
+                    models_to_download.append(("transformers", reduce_model))
+                    logger.info(
+                        f"Transformers model {reduce_model} not cached, will download on first use"
+                    )
+
+        # Download missing models using centralized preload functions (internal package code)
+        if models_to_download:
+            logger.info("Downloading missing ML models (this may take a few minutes)...")
+            try:
+                # Import preload functions from internal package module
+                # This is the ONLY place where models can be downloaded
+                from .model_loader import (
+                    preload_transformers_models,
+                    preload_whisper_models,
+                )
+
+                # Group models by type
+                whisper_models = [m[1] for m in models_to_download if m[0] == "whisper"]
+                transformers_models = [m[1] for m in models_to_download if m[0] == "transformers"]
+
+                if whisper_models:
+                    preload_whisper_models(whisper_models)
+                if transformers_models:
+                    preload_transformers_models(transformers_models)
+
+                logger.info("Missing models downloaded and cached successfully")
+            except ImportError:
+                logger.warning(
+                    "Model loader module not available. "
+                    "You may need to run 'make preload-ml-models' manually."
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Could not automatically download models: {e}. "
+                    "You may need to run 'make preload-ml-models' manually."
+                )
+                # Don't fail - let the normal loading process handle the error
+
+    except ImportError:
+        # Preload script not available - that's okay, we'll try to load anyway
+        pass
+    except Exception as e:
+        # Don't fail on cache check errors - let normal loading handle it
+        logger.debug(f"Error checking model cache: {e}")
+
+
 def _preload_ml_models_if_needed(cfg: config.Config) -> None:
     """Preload ML models early in the pipeline if configured to use them.
 
@@ -173,6 +286,9 @@ def _preload_ml_models_if_needed(cfg: config.Config) -> None:
     # Skip if no ML models are needed
     if not _should_preload_ml_models(cfg):
         return
+
+    # Ensure models are cached (download if needed, but only in production)
+    _ensure_ml_models_cached(cfg)
 
     # Create MLProvider instance and preload models
     try:

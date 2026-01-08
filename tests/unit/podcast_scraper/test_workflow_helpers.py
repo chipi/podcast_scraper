@@ -12,6 +12,8 @@ import threading
 import unittest
 from unittest.mock import Mock, patch
 
+import pytest
+
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
@@ -2489,3 +2491,189 @@ class TestRunPipeline(unittest.TestCase):
         # _cleanup_pipeline is called after the try-finally, so it won't be called
         # if exception occurs. This is expected behavior - the function raises
         # before reaching that line
+
+
+@pytest.mark.unit
+class TestEnsureMLModelsCached(unittest.TestCase):
+    """Tests for _ensure_ml_models_cached function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=True,
+        )
+
+    @patch("podcast_scraper.workflow.config._is_test_environment")
+    def test_ensure_ml_models_cached_skips_in_test(self, mock_is_test):
+        """Test that _ensure_ml_models_cached skips in test environment."""
+        mock_is_test.return_value = True
+
+        # Function should return early in test environment
+        workflow._ensure_ml_models_cached(self.cfg)
+        # The important thing is it doesn't crash
+
+    @patch("podcast_scraper.workflow.config._is_test_environment")
+    def test_ensure_ml_models_cached_skips_when_disabled(self, mock_is_test):
+        """Test that _ensure_ml_models_cached skips when preload_models=False."""
+        mock_is_test.return_value = False
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=False,
+        )
+
+        with patch("podcast_scraper.cache_utils.get_whisper_cache_dir") as mock_whisper_cache:
+            workflow._ensure_ml_models_cached(cfg)
+            # Should return early without checking cache
+            mock_whisper_cache.assert_not_called()
+
+    @patch("podcast_scraper.workflow.config._is_test_environment")
+    def test_ensure_ml_models_cached_skips_when_dry_run(self, mock_is_test):
+        """Test that _ensure_ml_models_cached skips when dry_run=True."""
+        mock_is_test.return_value = False
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=True,
+            dry_run=True,
+        )
+
+        with patch("podcast_scraper.cache_utils.get_whisper_cache_dir") as mock_whisper_cache:
+            workflow._ensure_ml_models_cached(cfg)
+            # Should return early without checking cache
+            mock_whisper_cache.assert_not_called()
+
+    @patch("podcast_scraper.workflow.config._is_test_environment")
+    @patch("podcast_scraper.cache_utils.get_whisper_cache_dir")
+    def test_ensure_ml_models_cached_whisper_model_cached(self, mock_get_cache, mock_is_test):
+        """Test that _ensure_ml_models_cached skips download when model is cached."""
+        mock_is_test.return_value = False
+        import tempfile
+        from pathlib import Path
+
+        temp_dir = tempfile.mkdtemp()
+        whisper_cache = Path(temp_dir) / "whisper"
+        whisper_cache.mkdir(parents=True, exist_ok=True)
+        model_file = whisper_cache / f"{config.TEST_DEFAULT_WHISPER_MODEL}.pt"
+        model_file.touch()  # Create fake model file
+
+        mock_get_cache.return_value = whisper_cache
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=True,
+            transcribe_missing=True,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+        )
+
+        with patch("podcast_scraper.model_loader.preload_whisper_models") as mock_preload:
+            workflow._ensure_ml_models_cached(cfg)
+            # Should not call preload since model is cached
+            mock_preload.assert_not_called()
+
+        import shutil
+
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    @patch("podcast_scraper.workflow.config._is_test_environment")
+    @patch("podcast_scraper.cache_utils.get_whisper_cache_dir")
+    def test_ensure_ml_models_cached_whisper_model_missing(self, mock_get_cache, mock_is_test):
+        """Test that _ensure_ml_models_cached downloads when model is missing."""
+        mock_is_test.return_value = False
+        import tempfile
+        from pathlib import Path
+
+        temp_dir = tempfile.mkdtemp()
+        whisper_cache = Path(temp_dir) / "whisper"
+        whisper_cache.mkdir(parents=True, exist_ok=True)
+        # Don't create model file - it's missing
+
+        mock_get_cache.return_value = whisper_cache
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=True,
+            transcribe_missing=True,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+        )
+
+        with patch("podcast_scraper.model_loader.preload_whisper_models") as mock_preload:
+            workflow._ensure_ml_models_cached(cfg)
+            # Should call preload since model is missing
+            mock_preload.assert_called_once_with([config.TEST_DEFAULT_WHISPER_MODEL])
+
+        import shutil
+
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    @patch("podcast_scraper.workflow.config._is_test_environment")
+    @patch("podcast_scraper.cache_utils.get_transformers_cache_dir")
+    def test_ensure_ml_models_cached_transformers_model_missing(self, mock_get_cache, mock_is_test):
+        """Test that _ensure_ml_models_cached downloads when Transformers model is missing."""
+        mock_is_test.return_value = False
+        import tempfile
+        from pathlib import Path
+
+        temp_dir = tempfile.mkdtemp()
+        transformers_cache = Path(temp_dir) / "huggingface" / "hub"
+        transformers_cache.mkdir(parents=True, exist_ok=True)
+        # Don't create model cache - it's missing
+
+        mock_get_cache.return_value = transformers_cache
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=True,
+            generate_summaries=True,
+            summary_provider="transformers",
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+        )
+
+        with patch("podcast_scraper.summarizer.select_summary_model") as mock_select_map:
+            with patch("podcast_scraper.summarizer.select_reduce_model") as mock_select_reduce:
+                mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+                mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+
+                with patch(
+                    "podcast_scraper.model_loader.preload_transformers_models"
+                ) as mock_preload:
+                    workflow._ensure_ml_models_cached(cfg)
+                    # Should call preload since model is missing
+                    mock_preload.assert_called_once_with([config.TEST_DEFAULT_SUMMARY_MODEL])
+
+        import shutil
+
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    @patch("podcast_scraper.workflow.config._is_test_environment")
+    @patch("podcast_scraper.model_loader.preload_whisper_models")
+    def test_ensure_ml_models_cached_handles_import_error(self, mock_preload, mock_is_test):
+        """Test that _ensure_ml_models_cached handles ImportError gracefully."""
+        mock_is_test.return_value = False
+        mock_preload.side_effect = ImportError("Model loader not available")
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=True,
+            transcribe_missing=True,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+        )
+
+        # Should not raise - just logs warning
+        with patch("podcast_scraper.cache_utils.get_whisper_cache_dir") as mock_get_cache:
+            import tempfile
+            from pathlib import Path
+
+            temp_dir = tempfile.mkdtemp()
+            whisper_cache = Path(temp_dir) / "whisper"
+            whisper_cache.mkdir(parents=True, exist_ok=True)
+            mock_get_cache.return_value = whisper_cache
+
+            # Should not raise
+            workflow._ensure_ml_models_cached(cfg)
+
+            import shutil
+
+            shutil.rmtree(temp_dir, ignore_errors=True)
