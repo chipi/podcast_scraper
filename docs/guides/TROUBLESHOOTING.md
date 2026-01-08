@@ -40,6 +40,18 @@ python -c "import spacy; spacy.load('en_core_web_sm')"
 **Note:** Models are cached in the project-local `.cache/` directory, not `~/.cache/`.
 See `.cache/README.md` for cache structure details.
 
+**Backup/Restore:** If you need to backup or restore your cache (e.g., when switching machines or after cleanup):
+
+```bash
+# Backup cache
+make backup-cache
+
+# Restore cache (interactive)
+make restore-cache
+```
+
+See `.cache/README.md` for detailed backup/restore instructions.
+
 ### Whisper Model Download Fails
 
 **Symptom:** Network errors when loading Whisper models.

@@ -79,6 +79,24 @@ jobs:
       - name: Build MkDocs site
         run: |
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+          # Generate deployment metadata
+          DEPLOY_TIME=$(date -u +"%Y-%m-%d %H:%M UTC")
+          DEPLOY_BRANCH="${{ github.ref_name }}"
+          DEPLOY_SHA="${{ github.sha }}"
+          DEPLOY_SHA_SHORT="${DEPLOY_SHA:0:7}"
+          DEPLOY_URL="https://github.com/${{ github.repository }}/commit/${DEPLOY_SHA}"
+
+          # Create deploy-info.json
+          mkdir -p .build/site
+          cat > .build/site/deploy-info.json << EOF
+          {
+            "timestamp": "${DEPLOY_TIME}",
+            "branch": "${DEPLOY_BRANCH}",
+            "commit": "${DEPLOY_SHA_SHORT}",
+            "commitUrl": "${DEPLOY_URL}"
+          }
+          EOF
+
           mkdocs build --strict
 
       - name: Download latest metrics from CI workflow

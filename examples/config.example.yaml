@@ -1,16 +1,18 @@
 # Example podcast scraper configuration
-
+#
 # Values specified here are used as defaults unless overridden on the CLI
-
-# Many settings can also be configured via environment variables (see docs/ENVIRONMENT_VARIABLES.md)
-
+#
+# Many settings can also be configured via environment variables (see examples/.env.example)
 # Priority: CLI args > Config file > Environment variables > Defaults
+#
+# Note: Some settings (like OPENAI_API_KEY, WORKERS, TIMEOUT) are better set via .env file
+# See examples/.env.example for environment variable options
 
 rss: <https://example.com/feed.xml>
 output_dir: output_podcast_example  # Can also be set via OUTPUT_DIR env var
 max_episodes: 10
 transcribe_missing: true  # Default: true (automatically transcribe missing transcripts)
-whisper_model: base
+whisper_model: base.en  # Default: base.en (matches actual model used for English)
 delay_ms: 250
 language: en
 auto_speakers: true
@@ -18,11 +20,10 @@ cache_detected_hosts: true
 screenplay: true
 
 # Optional: manual speaker names fallback (used only if auto-detection fails)
-
 speaker_names:
+  - Host
+  - Guest
 
-- Host
-- Guest
 run_id: experiment
 log_file: null  # Optional: path to log file (logs written to both console and file). Can also be set via LOG_FILE env var
 skip_existing: false  # Skip episodes with existing output (transcripts/metadata)
@@ -33,25 +34,32 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 metadata_subdirectory: null  # Optional subdirectory for metadata files (null = same as transcripts)
 
 # Parallelism settings
+# These can also be set via environment variables (see examples/.env.example):
+# - WORKERS (number of parallel download workers)
+# - TRANSCRIPTION_PARALLELISM (episodes to transcribe in parallel)
+# - PROCESSING_PARALLELISM (episodes to process in parallel)
+# - SUMMARY_BATCH_SIZE (episodes to summarize in parallel)
+# - SUMMARY_CHUNK_PARALLELISM (chunks to process in parallel within episode)
+# - TIMEOUT (request timeout in seconds)
+# - SUMMARY_DEVICE (device for model execution: cpu, cuda, mps, or null for auto)
 
-# All can be set via environment variables: WORKERS, TRANSCRIPTION_PARALLELISM, PROCESSING_PARALLELISM
-
-workers: 4  # Number of parallel download workers (default: 4-8 based on CPU count). Can also be set via WORKERS env var
-transcription_parallelism: 1  # Number of episodes to transcribe in parallel (default: 1. Whisper ignores >1, OpenAI uses for parallel API calls). Can also be set via TRANSCRIPTION_PARALLELISM env var
-processing_parallelism: 2  # Number of episodes to process (metadata/summarization) in parallel (default: 2). Can also be set via PROCESSING_PARALLELISM env var
+workers: 4  # Can also be set via WORKERS env var
+transcription_parallelism: 1  # Can also be set via TRANSCRIPTION_PARALLELISM env var
+processing_parallelism: 2  # Can also be set via PROCESSING_PARALLELISM env var
+timeout: 45  # Can also be set via TIMEOUT env var
 
 # Provider selection (can use different providers for different capabilities)
-
 transcription_provider: whisper  # whisper (local) or openai
 speaker_detector_provider: spacy  # spacy (local spaCy) or openai (deprecated: ner)
 summary_provider: transformers  # transformers (local HuggingFace) or openai (deprecated: local)
 
-# OpenAI configuration (required if using any OpenAI providers)
+# OpenAI configuration
+# IMPORTANT: Prefer setting OPENAI_API_KEY via .env file (see examples/.env.example)
+# API keys should never be committed to version control
 openai_api_key: null  # Optional: OpenAI API key (prefer OPENAI_API_KEY env var or .env file)
-openai_api_base: null  # Optional: Custom OpenAI API base URL (e.g., "http://localhost:8000/v1" for E2E testing)
+openai_api_base: null  # Optional: Custom OpenAI API base URL (e.g., "http://localhost:8000/v1" for E2E testing). Can also be set via OPENAI_API_BASE env var
 
 # Summarization settings (requires torch and transformers dependencies)
-
 generate_summaries: true  # Generate summaries for episodes
 summary_model: null  # Optional: MAP model key (e.g., "bart-large", "bart-small", "fast") or direct model ID (e.g., "facebook/bart-large-cnn"). Defaults to "bart-large" for fast chunk summarization
 summary_reduce_model: null  # Optional: REDUCE model key (e.g., "long-fast", "long") or direct model ID (e.g., "allenai/led-base-16384"). Defaults to "long-fast" (LED) for accurate final combine

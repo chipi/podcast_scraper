@@ -428,3 +428,27 @@ preload-ml-models-production:
 	@echo "Models: Whisper base, BART-large-cnn, LED-large-16384, en_core_web_sm"
 	@$(PYTHON) scripts/preload_ml_models.py --production
 
+backup-cache:
+	@echo "Backing up .cache directory (ML models)..."
+	@$(PYTHON) scripts/backup_cache.py
+
+backup-cache-dry-run:
+	@echo "Dry run: Checking what would be backed up..."
+	@$(PYTHON) scripts/backup_cache.py --dry-run --verbose
+
+backup-cache-list:
+	@echo "Listing existing cache backups..."
+	@$(PYTHON) scripts/backup_cache.py --list
+
+backup-cache-cleanup:
+	@echo "Cleaning up old cache backups (keeping 5 most recent)..."
+	@$(PYTHON) scripts/backup_cache.py --cleanup 5
+
+restore-cache:
+	@echo "Restoring .cache directory from backup..."
+	@$(PYTHON) scripts/restore_cache.py
+
+restore-cache-dry-run:
+	@echo "Dry run: Checking what would be restored..."
+	@$(PYTHON) scripts/restore_cache.py --dry-run --verbose
+

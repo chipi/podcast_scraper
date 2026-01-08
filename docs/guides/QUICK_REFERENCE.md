@@ -17,6 +17,12 @@ make init                    # Install all dependencies
 # ML model preloading (for tests)
 
 make preload-ml-models       # Download Whisper, spaCy, transformers models
+
+# Cache management
+
+make backup-cache            # Backup .cache directory (saves to ~/podcast_scraper_cache_backups/)
+make restore-cache           # Restore cache from backup (interactive)
+make backup-cache-list       # List available backups
 ```
 
 ---

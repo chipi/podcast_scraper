@@ -72,6 +72,14 @@ TEST_DEFAULT_SUMMARY_REDUCE_MODEL = (
 # Note: TEST_DEFAULT_NER_MODEL uses DEFAULT_NER_MODEL ("en_core_web_sm")
 # - same for tests and production
 
+# Production defaults (quality models for production use)
+# These are used in production deployments and nightly-only tests
+PROD_DEFAULT_WHISPER_MODEL = "base.en"  # Better quality than tiny.en, English-only
+PROD_DEFAULT_SUMMARY_MODEL = "facebook/bart-large-cnn"  # Large, ~2GB, best quality for production
+PROD_DEFAULT_SUMMARY_REDUCE_MODEL = (
+    "allenai/led-large-16384"  # Large, ~2.5GB, production quality for long-context
+)
+
 # OpenAI model defaults (Issue #191)
 # Test defaults: cheapest models for dev/testing (minimize API costs)
 # Production defaults: best quality/cost balance

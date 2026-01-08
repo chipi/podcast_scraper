@@ -47,7 +47,7 @@ git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 git checkout <latest-release-tag>   # e.g. v2.3.0
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[ml]"
+pip install -e ".[ml]"  # Install package in editable mode (required for CLI commands)
 ```
 
 #### Development (main)
@@ -59,10 +59,40 @@ unreleased changes.
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[ml]"
+pip install -e ".[ml]"  # Install package in editable mode (required for CLI commands)
 ```
 
+**Note:** The `pip install -e ".[ml]"` step is **required** before running CLI commands. Without it,
+you'll get `ModuleNotFoundError: No module named 'podcast_scraper'` when trying to run
+`python3 -m podcast_scraper.cli`. The `-e` flag installs the package in editable mode, so code
+changes are immediately available.
+
+### Configure Environment Variables (Optional but Recommended)
+
+If you plan to use OpenAI providers (transcription, speaker detection, or summarization), or want to
+customize logging, paths, or performance settings, set up a `.env` file:
+
+```bash
+# Copy the template
+cp examples/.env.example .env
+
+# Edit .env and add your OpenAI API key (required for OpenAI providers)
+# OPENAI_API_KEY=sk-your-actual-api-key-here
+```
+
+**Important variables:**
+
+- `OPENAI_API_KEY` - **Required** if using OpenAI providers (transcription, speaker detection, or summarization)
+- `LOG_LEVEL` - Controls logging verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `OUTPUT_DIR` - Custom output directory (default: `./output/`)
+- `CACHE_DIR` - ML model cache location
+- Performance tuning variables (WORKERS, TIMEOUT, etc.)
+
+See `examples/.env.example` for all available options and detailed documentation.
+
 ### Run
+
+**Prerequisite:** Make sure you've completed the installation steps above and activated your virtual environment.
 
 Replace `https://example.com/feed.xml` with your podcast's RSS feed URL.
 
