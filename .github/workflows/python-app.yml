@@ -228,7 +228,7 @@ jobs:
         fi
     - name: Upload coverage artifacts
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: coverage-unit
         path: reports/coverage.xml
@@ -236,7 +236,7 @@ jobs:
         if-no-files-found: ignore
     - name: Upload pytest JSON report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: pytest-unit
         path: reports/pytest-unit.json
@@ -372,7 +372,7 @@ jobs:
         fi
     - name: Upload coverage artifacts
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: coverage-integration
         path: reports/coverage-integration.xml
@@ -380,7 +380,7 @@ jobs:
         if-no-files-found: ignore
     - name: Upload pytest JSON report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: pytest-integration
         path: reports/pytest-integration.json
@@ -473,7 +473,7 @@ jobs:
         fi
     - name: Upload coverage artifacts
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: coverage-integration-fast
         path: reports/coverage-integration.xml
@@ -571,7 +571,7 @@ jobs:
         fi
     - name: Upload coverage artifacts
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: coverage-e2e-fast
         path: reports/coverage-e2e.xml
@@ -667,7 +667,7 @@ jobs:
         fi
     - name: Upload coverage artifacts
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: coverage-e2e
         path: reports/coverage-e2e.xml
@@ -675,7 +675,7 @@ jobs:
         if-no-files-found: ignore
     - name: Upload pytest JSON reports
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: pytest-e2e
         path: |
@@ -991,7 +991,7 @@ jobs:
           --output metrics/index.html || echo "⚠️ Dashboard generation failed (non-blocking)"
     - name: Upload unified coverage report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: coverage-unified
         path: reports/coverage-unified.xml
@@ -1008,7 +1008,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
     - name: Upload metrics as artifact
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: metrics
         path: metrics/
