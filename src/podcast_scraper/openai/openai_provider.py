@@ -370,14 +370,15 @@ class OpenAIProvider:
             ValueError: If detection fails or API key is invalid
             RuntimeError: If provider is not initialized
         """
+        # If auto_speakers is disabled, return defaults without requiring initialization
+        if not self.cfg.auto_speakers:
+            logger.debug("Auto-speakers disabled, detection failed")
+            return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+
         if not self._speaker_detection_initialized:
             raise RuntimeError(
                 "OpenAIProvider speaker detection not initialized. Call initialize() first."
             )
-
-        if not self.cfg.auto_speakers:
-            logger.debug("Auto-speakers disabled, detection failed")
-            return DEFAULT_SPEAKER_NAMES.copy(), set(), False
 
         logger.debug("Detecting speakers via OpenAI API for episode: %s", episode_title[:50])
 

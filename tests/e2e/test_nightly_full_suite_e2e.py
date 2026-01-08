@@ -2,7 +2,8 @@
 
 This test suite runs comprehensive tests with:
 - All 5 podcasts (p01-p05) with all 3 episodes each (15 total episodes)
-- Production ML models: Whisper base, BART-large-cnn, LED-large-16384
+- Production ML models: PROD_DEFAULT_WHISPER_MODEL, PROD_DEFAULT_SUMMARY_MODEL,
+  PROD_DEFAULT_SUMMARY_REDUCE_MODEL
 - Full pipeline validation (transcription → NER → summarization → metadata)
 
 These tests are marked with @pytest.mark.nightly (NOT @pytest.mark.e2e) to
@@ -17,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from podcast_scraper import config
 from tests.conftest import create_test_config
 
 
@@ -24,10 +26,10 @@ def create_nightly_config(output_dir: str, rss_url: str):
     """Create config for nightly tests with production models.
 
     Uses production ML models:
-    - Whisper: base (production quality)
-    - Summary MAP: facebook/bart-large-cnn (production quality)
-    - Summary REDUCE: allenai/led-large-16384 (production quality, from issue #175)
-    - NER: en_core_web_sm (same for tests and production)
+    - Whisper: PROD_DEFAULT_WHISPER_MODEL (production quality)
+    - Summary MAP: PROD_DEFAULT_SUMMARY_MODEL (production quality)
+    - Summary REDUCE: PROD_DEFAULT_SUMMARY_REDUCE_MODEL (production quality)
+    - NER: DEFAULT_NER_MODEL (same for tests and production)
 
     Args:
         output_dir: Output directory for test results
@@ -40,11 +42,11 @@ def create_nightly_config(output_dir: str, rss_url: str):
         rss_url=rss_url,
         output_dir=output_dir,
         transcribe_missing=True,
-        whisper_model="base",  # Production Whisper model
+        whisper_model=config.PROD_DEFAULT_WHISPER_MODEL,  # Production Whisper model
         generate_metadata=True,
         generate_summaries=True,
-        summary_model="facebook/bart-large-cnn",  # Production MAP model
-        summary_reduce_model="allenai/led-large-16384",  # Production REDUCE model
+        summary_model=config.PROD_DEFAULT_SUMMARY_MODEL,  # Production MAP model
+        summary_reduce_model=config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL,  # Production REDUCE model
         auto_speakers=True,
         speaker_detector_provider="spacy",
         summary_provider="transformers",
