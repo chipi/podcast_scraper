@@ -9,6 +9,7 @@ Network Guard (NON-NEGOTIABLE):
 - Blocks all external network calls (except localhost/127.0.0.1)
 - Ensures all RSS and audio are served from local E2E HTTP server
 - Fails hard if a real URL is hit
+- SKIPPED when USE_REAL_OPENAI_API=1 (allows real API calls)
 
 OpenAI Mocking:
 - Configures OpenAI providers to use E2E server mock endpoints via OPENAI_API_BASE
@@ -17,6 +18,7 @@ OpenAI Mocking:
   Network → Mock Server chain
 - Prevents costs, rate limits, and flakiness while testing real HTTP client
   behavior
+- SKIPPED when USE_REAL_OPENAI_API=1 (uses real OpenAI API)
 """
 
 from __future__ import annotations
@@ -25,10 +27,15 @@ import os
 
 import pytest
 
+# Check if we should use real OpenAI API (for manual testing only)
+# Set USE_REAL_OPENAI_API=1 to test with real API endpoints
+USE_REAL_OPENAI_API = os.getenv("USE_REAL_OPENAI_API", "0") == "1"
+
 # Set dummy OpenAI API key for all E2E tests (will use mocked provider)
 # This is needed because config validation requires the key to be present
 # even though we mock the OpenAI client
-if "OPENAI_API_KEY" not in os.environ:
+# SKIP if using real API (will use key from .env file)
+if not USE_REAL_OPENAI_API and "OPENAI_API_KEY" not in os.environ:
     os.environ["OPENAI_API_KEY"] = "sk-test-dummy-key-for-e2e-tests"
 
 # Network guard: Block all external network calls (except localhost)
@@ -68,7 +75,15 @@ def block_external_network(socket_enabled, monkeypatch):
         pytest --disable-socket --allow-hosts=127.0.0.1,localhost
 
         Or add to pyproject.toml pytest.ini_options.addopts for e2e tests.
+
+    Real API Mode:
+        When USE_REAL_OPENAI_API=1, this fixture is skipped to allow real API calls.
+        This is for manual testing only and should NOT be used in CI.
     """
+    # Skip network blocking if using real OpenAI API
+    if USE_REAL_OPENAI_API:
+        return
+
     # pytest-socket automatically blocks sockets when --disable-socket is used
     # and allows only specified hosts with --allow-hosts
     # The socket_enabled parameter is provided by pytest-socket
@@ -173,7 +188,7 @@ def block_external_network(socket_enabled, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def configure_openai_mock_server(e2e_server, monkeypatch):
+def configure_openai_mock_server(request, monkeypatch):
     """Configure OpenAI providers to use E2E server mock endpoints.
 
     This fixture automatically configures all OpenAI providers to use the E2E server's
@@ -188,7 +203,26 @@ def configure_openai_mock_server(e2e_server, monkeypatch):
     Note:
         This fixture is autouse=True, so it's automatically applied to all
         E2E tests. No need to explicitly use it in test functions.
+
+    Real API Mode:
+        When USE_REAL_OPENAI_API=1, this fixture is skipped to allow real API calls.
+        This is for manual testing only and should NOT be used in CI.
     """
+    # Skip E2E server configuration if using real OpenAI API
+    # Also explicitly unset OPENAI_API_BASE to ensure real API is used
+    if USE_REAL_OPENAI_API:
+        # Explicitly unset OPENAI_API_BASE to ensure we use real OpenAI API
+        # (not a mock server that might have been set in a previous test)
+        monkeypatch.delenv("OPENAI_API_BASE", raising=False)
+        return
+
+    # Get e2e_server fixture (may be skipped if USE_REAL_OPENAI_API=1)
+    try:
+        e2e_server = request.getfixturevalue("e2e_server")
+    except pytest.FixtureLookupError:
+        # E2E server not available (shouldn't happen in normal E2E mode)
+        return
+
     # Set OPENAI_API_BASE environment variable to point to E2E server
     # This will be picked up by the Config model's field validator
     openai_api_base = e2e_server.urls.openai_api_base()
@@ -198,7 +232,16 @@ def configure_openai_mock_server(e2e_server, monkeypatch):
 # Fixture to ensure OpenAI API key is set for all E2E tests
 @pytest.fixture(autouse=True)
 def ensure_openai_api_key(monkeypatch):
-    """Ensure OpenAI API key is set for all E2E tests (will use mocked provider)."""
+    """Ensure OpenAI API key is set for all E2E tests (will use mocked provider).
+
+    Real API Mode:
+        When USE_REAL_OPENAI_API=1, this fixture does NOT override the API key,
+        allowing the real key from .env file to be used.
+    """
+    # Skip if using real API (will use key from .env file)
+    if USE_REAL_OPENAI_API:
+        return
+
     # Set dummy OpenAI API key (required for config validation)
     # The actual OpenAI client is mocked, so this key is never used
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy-key-for-e2e-tests")
@@ -248,7 +291,7 @@ except ImportError:
 
 
 @pytest.fixture(autouse=True)
-def configure_e2e_feed_limiting(request, e2e_server):
+def configure_e2e_feed_limiting(request):
     """Configure E2E server to limit RSS feeds based on test run mode.
 
     Test run mode is determined by E2E_TEST_MODE environment variable:
@@ -262,9 +305,26 @@ def configure_e2e_feed_limiting(request, e2e_server):
     rather than hardcoding feed selection per test.
 
     This fixture is automatically applied to all E2E tests (autouse=True).
+
+    Real API Mode:
+        When USE_REAL_OPENAI_API=1, this fixture is skipped (not needed for real API tests).
     """
+    # Skip if using real OpenAI API
+    if USE_REAL_OPENAI_API:
+        yield
+        return
+
     # Skip if E2EHTTPRequestHandler is not available (import failed)
     if E2EHTTPRequestHandler is None:
+        yield
+        return
+
+    # Get e2e_server fixture (may be skipped if USE_REAL_OPENAI_API=1)
+    try:
+        request.getfixturevalue("e2e_server")
+    except pytest.FixtureLookupError:
+        # E2E server not available (shouldn't happen in normal E2E mode)
+        yield
         return
 
     # Get test run mode from environment variable (set by Makefile)

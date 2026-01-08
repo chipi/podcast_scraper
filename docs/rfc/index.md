@@ -34,6 +34,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-037](RFC-037-ollama-provider-implementation.md) | Ollama Provider Implementation | PRD-014 | Technical design for Ollama (local/offline) |
 | [RFC-038](RFC-038-continuous-review-tooling.md) | Continuous Review Tooling | #45 | Dependabot, pydeps, pre-release checklist |
 | [RFC-039](RFC-039-development-workflow-worktrees-ci.md) | Development Workflow | - | Git worktrees, Cursor integration, CI evolution |
+| [RFC-040](RFC-040-audio-preprocessing-pipeline.md) | Audio Preprocessing Pipeline | - | Optional audio preprocessing (VAD, normalization) before transcription |
 
 ## Completed RFCs
 
