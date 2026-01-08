@@ -33,6 +33,7 @@ extract_episode_description = rss_extract_episode_description
 # and workflow/ have the same name, which causes Python to import workflow.py as a module
 # instead of the workflow/ package
 import importlib.util
+import sys
 
 from .speaker_detectors.factory import (  # noqa: F401 - Exported for test patching
     create_speaker_detector,
@@ -45,32 +46,35 @@ from .transcription.factory import (  # noqa: F401 - Exported for test patching
 # Get paths to package modules
 _workflow_pkg_dir = Path(__file__).parent / "workflow"
 
-# Import helpers module
+# Import helpers module and register in sys.modules for test patching
 _helpers_path = _workflow_pkg_dir / "helpers.py"
 _helpers_spec = importlib.util.spec_from_file_location(
     "podcast_scraper.workflow.helpers", _helpers_path
 )
 _helpers_module = importlib.util.module_from_spec(_helpers_spec)
+sys.modules["podcast_scraper.workflow.helpers"] = _helpers_module
 _helpers_spec.loader.exec_module(_helpers_module)
 cleanup_pipeline = _helpers_module.cleanup_pipeline
 generate_pipeline_summary = _helpers_module.generate_pipeline_summary
 update_metric_safely = _helpers_module.update_metric_safely
 
-# Import stages package
+# Import stages package and register in sys.modules
 _stages_dir = _workflow_pkg_dir / "stages"
 _stages_init_path = _stages_dir / "__init__.py"
 _stages_spec = importlib.util.spec_from_file_location(
     "podcast_scraper.workflow.stages", _stages_init_path
 )
 _stages_pkg = importlib.util.module_from_spec(_stages_spec)
+sys.modules["podcast_scraper.workflow.stages"] = _stages_pkg
 _stages_spec.loader.exec_module(_stages_pkg)
 
-# Import individual stage modules
+# Import individual stage modules and register in sys.modules for test patching
 _metadata_module = importlib.util.module_from_spec(
     importlib.util.spec_from_file_location(
         "podcast_scraper.workflow.stages.metadata", _stages_dir / "metadata.py"
     )
 )
+sys.modules["podcast_scraper.workflow.stages.metadata"] = _metadata_module
 _metadata_module.__spec__.loader.exec_module(_metadata_module)
 metadata_stage = _metadata_module
 
@@ -79,6 +83,7 @@ _processing_module = importlib.util.module_from_spec(
         "podcast_scraper.workflow.stages.processing", _stages_dir / "processing.py"
     )
 )
+sys.modules["podcast_scraper.workflow.stages.processing"] = _processing_module
 _processing_module.__spec__.loader.exec_module(_processing_module)
 processing = _processing_module
 
@@ -87,6 +92,7 @@ _scraping_module = importlib.util.module_from_spec(
         "podcast_scraper.workflow.stages.scraping", _stages_dir / "scraping.py"
     )
 )
+sys.modules["podcast_scraper.workflow.stages.scraping"] = _scraping_module
 _scraping_module.__spec__.loader.exec_module(_scraping_module)
 scraping = _scraping_module
 
@@ -95,6 +101,7 @@ _setup_module = importlib.util.module_from_spec(
         "podcast_scraper.workflow.stages.setup", _stages_dir / "setup.py"
     )
 )
+sys.modules["podcast_scraper.workflow.stages.setup"] = _setup_module
 _setup_module.__spec__.loader.exec_module(_setup_module)
 setup = _setup_module
 
@@ -104,6 +111,7 @@ _summarization_module = importlib.util.module_from_spec(
         _stages_dir / "summarization_stage.py",
     )
 )
+sys.modules["podcast_scraper.workflow.stages.summarization_stage"] = _summarization_module
 _summarization_module.__spec__.loader.exec_module(_summarization_module)
 summarization_stage = _summarization_module
 
@@ -112,6 +120,7 @@ _transcription_module = importlib.util.module_from_spec(
         "podcast_scraper.workflow.stages.transcription", _stages_dir / "transcription.py"
     )
 )
+sys.modules["podcast_scraper.workflow.stages.transcription"] = _transcription_module
 _transcription_module.__spec__.loader.exec_module(_transcription_module)
 transcription = _transcription_module
 
@@ -119,10 +128,11 @@ transcription = _transcription_module
 transcribe_media_to_text = transcription.transcribe_media_to_text
 process_episode_download = processing.process_episode_download
 
-# Import types module
+# Import types module and register in sys.modules
 _types_path = _workflow_pkg_dir / "types.py"
 _types_spec = importlib.util.spec_from_file_location("podcast_scraper.workflow.types", _types_path)
 _types_module = importlib.util.module_from_spec(_types_spec)
+sys.modules["podcast_scraper.workflow.types"] = _types_module
 _types_spec.loader.exec_module(_types_module)
 FeedMetadata = _types_module.FeedMetadata
 HostDetectionResult = _types_module.HostDetectionResult
