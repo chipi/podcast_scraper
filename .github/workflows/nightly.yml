@@ -283,7 +283,7 @@ jobs:
         python scripts/analyze_dependencies.py --report
 
     - name: Upload dependency artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       if: always()
       with:
         name: nightly-deps-analysis
@@ -426,7 +426,7 @@ jobs:
 
     - name: Upload unit test reports
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: nightly-unit-reports
         path: reports/
@@ -511,7 +511,7 @@ jobs:
 
     - name: Upload integration test reports
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: nightly-integration-reports
         path: reports/
@@ -602,7 +602,7 @@ jobs:
 
     - name: Upload E2E test reports
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: nightly-e2e-reports
         path: reports/
@@ -674,7 +674,7 @@ jobs:
 
     - name: Upload nightly-only test reports
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: nightly-only-reports
         path: reports/
@@ -1073,7 +1073,7 @@ jobs:
         fi
 
     - name: Upload combined test reports (extended retention for trend tracking)
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: nightly-test-reports
         path: |
@@ -1081,7 +1081,7 @@ jobs:
         retention-days: 90
 
     - name: Upload metrics artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: nightly-metrics
         path: metrics/
