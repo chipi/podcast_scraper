@@ -1024,7 +1024,7 @@ class TestParseArgs(unittest.TestCase):
                 "60",
                 "--transcribe-missing",
                 "--whisper-model",
-                "base",
+                config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en)
             ]
         )
         self.assertEqual(args.rss, "https://example.com/feed.xml")
@@ -1032,7 +1032,7 @@ class TestParseArgs(unittest.TestCase):
         self.assertEqual(args.timeout, 60)
         self.assertTrue(args.transcribe_missing)
         # CLI should preserve the value passed by user, not override with test default
-        self.assertEqual(args.whisper_model, "base")
+        self.assertEqual(args.whisper_model, config.TEST_DEFAULT_WHISPER_MODEL)
 
     def test_parse_args_with_transcription_provider(self):
         """Test parsing --transcription-provider argument."""

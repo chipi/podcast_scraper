@@ -87,9 +87,11 @@ mistral_max_tokens: Optional[int] = Field(
 )
 ```yaml
 
-## Mistral Model Pricing (January 2026)
+## Mistral Model Pricing
 
-### Current Model Pricing (per million tokens)
+> **⚠️ Pricing Information:** The pricing table below is provided for reference only and may be outdated. **Always check [Mistral Pricing](https://mistral.ai/pricing/) for current rates** before making cost decisions.
+
+### Model Pricing (per million tokens)
 
 | Model | Input | Output | Context | Notes |
 | ------- | ------- | -------- | --------- | ------- |
@@ -100,8 +102,6 @@ mistral_max_tokens: Optional[int] = Field(
 | **Codestral 2501** | $0.20 | $0.60 | 32k | Code generation |
 | **Pixtral Large** | $0.15 | $0.15 | 128k | Vision/multimodal |
 | **Voxtral Mini** | ~$0.01/min | - | - | Audio transcription |
-
-**Note:** Prices subject to change. Check [Mistral Pricing](https://mistral.ai/pricing/) for current rates.
 
 ### Mistral vs OpenAI vs Anthropic Comparison
 

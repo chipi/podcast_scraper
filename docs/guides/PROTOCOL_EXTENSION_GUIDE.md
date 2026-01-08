@@ -54,7 +54,6 @@ class TranscriptionProvider(Protocol):
         ...
 
 ```
-
 ## Example: WhisperTranscriptionProvider
 
 ```python
@@ -170,9 +169,6 @@ class TranscriptionProvider(Protocol):
             Tuple of (result_dict, elapsed_time)
         """
 
-```
-        # Default implementation
-
 ```python
 
         import time
@@ -182,6 +178,7 @@ class TranscriptionProvider(Protocol):
         return {"text": text, "segments": []}, elapsed
 
 ```
+
 ## WhisperTranscriptionProvider
 
 ```python

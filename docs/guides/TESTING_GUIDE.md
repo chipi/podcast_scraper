@@ -59,20 +59,25 @@ make test-e2e-fast          # Critical path E2E tests
 For debugging test failures, run tests sequentially using pytest directly:
 
 ```bash
+
 # Run all tests sequentially
+
 pytest tests/ -n 0
 
 # Run unit tests sequentially
+
 pytest tests/unit/ -n 0
 
 # Run integration tests sequentially
+
 pytest tests/integration/ -n 0
 
 # Run E2E tests sequentially
+
 pytest tests/e2e/ -n 0
 ```
 
-### Specific Tests
+## Specific Tests
 
 ```bash
 
@@ -134,10 +139,13 @@ Tests run in parallel by default using `pytest-xdist`:
 progress bars competing for terminal access.
 
 ```bash
+
 # DON'T DO THIS (hangs)
+
 pytest tests/e2e/ -s -n auto
 
 # DO THIS INSTEAD
+
 pytest tests/e2e/ -v -n auto     # Use -v for verbose output
 pytest tests/e2e/ -s -n 0        # Or disable parallelism
 make test-e2e-sequential         # Or use sequential target
@@ -151,7 +159,7 @@ Integration and E2E tests use reruns:
 
 ```bash
 pytest --reruns 3 --reruns-delay 1
-```
+```yaml
 
 ## Flaky Test Markers
 
@@ -230,7 +238,7 @@ tests/
 │   ├── fixtures/            # E2E server, HTTP server
 │   └── test_*.py            # Complete workflow tests
 └── conftest.py              # Shared fixtures, ML cleanup
-```
+```yaml
 
 ## Coverage Thresholds
 
@@ -279,5 +287,5 @@ For detailed implementation patterns:
 
 - [Testing Strategy](../TESTING_STRATEGY.md) - Overall testing philosophy
 - [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md) - Prioritization
-- [CI/CD Documentation](../CI_CD.md) - GitHub Actions workflows
+- [CI/CD Documentation](../ci/index.md) - GitHub Actions workflows
 - [Architecture](../ARCHITECTURE.md) - Testing Notes section

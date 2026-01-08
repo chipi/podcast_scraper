@@ -1,19 +1,28 @@
 # AI Coding Guidelines for podcast_scraper
 
-## ⚠️ PRIMARY REFERENCE FILE ⚠️
+## ⚠️ PRIMARY REFERENCE FILES ⚠️
 
-**This file points to the main guidelines. For complete guidelines, see:**
-**`.ai-coding-guidelines.md`** - This is the PRIMARY source of truth.
+**For Cursor AI (automatic enforcement):**
+**`.cursorrules`** - Critical rules enforced automatically by Cursor
+
+**For all AI assistants (comprehensive guidelines):**
+**`.ai-coding-guidelines.md`** - Complete AI coding guidelines (PRIMARY source of truth)
 
 ## Quick Reference
 
 **CRITICAL RULES:**
 
+- ❌ NEVER push any branch without explicit user approval (commits OK after diff approval, pushes NEVER by default)
 - ❌ NEVER commit without showing changes and getting user approval
-- ❌ NEVER push to PR without running `make ci` first
+- ❌ NEVER push to main branch (always use feature branches)
 - ✅ Always show `git status` and `git diff` before committing
 - ✅ Always wait for explicit user approval before committing
-- ✅ Always run `make ci` before pushing to PR (new or updated)
+- ✅ Always run `make ci-fast` before committing
+- ✅ ALWAYS use Makefile commands (never direct pytest/python/black commands)
+- ✅ NEVER use `cd` to project root (already in workspace directory)
+- ✅ ALWAYS use correct GitHub username (check with `mcp_github_get_me`, not Mac username)
+- ✅ ALWAYS show terminal output for make/test commands (`is_background: false`)
+- ✅ Run `make fix-md` immediately after ANY markdown edit (zero lint violations before review)
 
 ## 📚 COMPLETE GUIDE FILE SET (LOAD ALL WHEN REQUESTED)
 

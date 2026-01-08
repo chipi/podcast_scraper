@@ -189,35 +189,6 @@ def summarize_transcript_bart_map_reduce(text: str) -> str:
     # 1) Chunk
 
 ```
-    chunks = chunk_text_words(text, chunk_size=900, overlap=150)
-
-```
-
-    # 2) Map: summarize each chunk
-
-```
-    partial_summaries = [summarize_chunk(c) for c in chunks]
-
-```
-
-    # 3) Reduce: summarize the summaries
-
-```
-    joined = "\n\n".join(partial_summaries)
-
-```
-
-    # Optional: re-chunk joined if it gets too long
-
-```
-        max_length=260,
-        min_length=100,
-        do_sample=False,
-        truncation=True,
-    )
-    return final[0]["summary_text"].strip()
-```text
-
 ## 5. Example: Using a Local LLM via CLI (Ollama-style Pseudocode)
 
 If you install something like ollama and run `llama3:8b`, you can do:
@@ -225,6 +196,7 @@ If you install something like ollama and run `llama3:8b`, you can do:
 Python pseudo-API pattern (you'd use whatever client/lib exists):
 
 ```python
+
 def summarize_chunk_llm(chunk: str) -> str:
     prompt = f"""
     You are an assistant that summarizes podcast segments.
@@ -244,6 +216,7 @@ def summarize_chunk_llm(chunk: str) -> str:
         max_tokens=256,
     )
     return response.strip()
+
 ```text
 
 - `chunk_text_words(...)`

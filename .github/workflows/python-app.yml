@@ -2,7 +2,7 @@
 # Dependency flow:
 # 1. lint, build, preload-ml-models run in parallel (no deps)
 # 2. security-quality and test-unit run in parallel (both gate: lint, build)
-# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models only)
+# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models + test-unit)
 # 4. coverage-unified gates: security-quality + all test jobs (including test-unit)
 # 5. docs gates coverage-unified (very last step, final validation)
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
@@ -297,7 +297,7 @@ jobs:
   test-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30  # Conservative timeout for integration tests with ML models
-    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
+    needs: [preload-ml-models, test-unit]  # Wait for model preload and unit tests to pass
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -397,7 +397,7 @@ jobs:
   test-integration-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Conservative timeout for fast integration tests
-    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
+    needs: [preload-ml-models, test-unit]  # Wait for model preload and unit tests to pass
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -489,7 +489,7 @@ jobs:
   test-e2e-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 25  # Conservative timeout for fast E2E tests
-    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
+    needs: [preload-ml-models, test-unit]  # Wait for model preload and unit tests to pass
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -586,7 +586,7 @@ jobs:
   test-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 45  # Conservative timeout for E2E tests with ML models
-    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
+    needs: [preload-ml-models, test-unit]  # Wait for model preload and unit tests to pass
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -727,10 +727,10 @@ jobs:
         python-version: "3.11"
         cache: "pip"
         cache-dependency-path: pyproject.toml
-    - name: Install dev dependencies
+    - name: Install coverage tools only
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        pip install coverage[toml]  # Only coverage tool needed for combining reports
     - name: Download coverage artifacts
       uses: actions/download-artifact@v4
       with:
@@ -955,10 +955,11 @@ jobs:
 
         # Generate metrics JSON (includes complexity and pipeline metrics)
         # Coverage threshold (80%) is for combined coverage only
+        # Save with CI prefix for unified dashboard
         python scripts/generate_metrics.py \
           --reports-dir reports \
-          --output metrics/latest.json \
-          --history metrics/history.jsonl \
+          --output metrics/latest-ci.json \
+          --history metrics/history-ci.jsonl \
           --pipeline-metrics reports/pipeline_metrics.json \
           --coverage-threshold 80 || echo "⚠️ Metrics generation failed (non-blocking)"
     - name: Update metrics history
@@ -967,24 +968,26 @@ jobs:
         # Load existing history from gh-pages if available
         mkdir -p metrics
         git fetch origin gh-pages:gh-pages 2>/dev/null || true
-        if git show gh-pages:metrics/history.jsonl > metrics/history.jsonl 2>/dev/null; then
-          echo "✅ Loaded existing history"
+        if git show gh-pages:metrics/history-ci.jsonl > metrics/history-ci.jsonl 2>/dev/null; then
+          echo "✅ Loaded existing CI history"
         else
-          echo "📝 Creating new history file"
-          touch metrics/history.jsonl
+          echo "📝 Creating new CI history file"
+          touch metrics/history-ci.jsonl
         fi
 
         # Append latest metrics to history
-        if [ -f metrics/latest.json ]; then
-          echo "$(cat metrics/latest.json)" >> metrics/history.jsonl
-          echo "✅ Appended to history"
+        if [ -f metrics/latest-ci.json ]; then
+          echo "$(cat metrics/latest-ci.json)" >> metrics/history-ci.jsonl
+          echo "✅ Appended to CI history"
         fi
-    - name: Generate HTML dashboard
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+    - name: Generate unified HTML dashboard
+      # Only generate dashboard HTML on main branch
+      # Release branches only update metrics data (JSON/JSONL)
+      # The unified dashboard has a dropdown to select which build to view
+      if: always() && github.ref == 'refs/heads/main'
       run: |
         python scripts/generate_dashboard.py \
-          --metrics metrics/latest.json \
-          --history metrics/history.jsonl \
+          --unified \
           --output metrics/index.html || echo "⚠️ Dashboard generation failed (non-blocking)"
     - name: Upload unified coverage report
       if: always()
@@ -1011,10 +1014,12 @@ jobs:
         path: metrics/
         retention-days: 30
 
-  # NOTE: Metrics are no longer deployed separately to GitHub Pages.
-  # The docs.yml workflow deploys the main documentation site.
-  # Metrics are available as workflow artifacts for download.
-  # TODO: Integrate metrics into docs site at /metrics/ subdirectory
+  # NOTE: Metrics deployment strategy:
+  # - Main branch: Generates metrics data + unified dashboard HTML
+  # - Release branches: Only generate metrics data (JSON/JSONL), no dashboard HTML
+  # - The docs.yml workflow deploys everything to GitHub Pages
+  # - Metrics are available as workflow artifacts for download
+  # - The unified dashboard uses a dropdown to select CI vs Nightly builds
 
   # Build package - validates package can be built correctly
   # Builds source distribution (sdist) and wheel distribution
@@ -1029,6 +1034,7 @@ jobs:
       with:
         python-version: "3.11"
         cache: "pip"
+        cache-dependency-path: pyproject.toml
     - name: Install build tools
       run: |
         python -m pip install --upgrade pip

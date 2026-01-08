@@ -203,32 +203,63 @@ def extract_complexity_metrics(reports_dir: Path) -> dict:
     return metrics
 
 
-def extract_slowest_tests(junit_xml_path: Path, top_n: int = 20) -> list:
-    """Extract slowest tests from JUnit XML report."""
-    if not junit_xml_path.exists():
-        return []
+def extract_slowest_tests(
+    junit_xml_path: Path, pytest_json_path: Path = None, top_n: int = 20
+) -> list:
+    """Extract slowest tests from JUnit XML report, with pytest JSON fallback.
 
-    tree = ET.parse(junit_xml_path)  # nosec B314
-    root = tree.getroot()
+    Args:
+        junit_xml_path: Path to JUnit XML report
+        pytest_json_path: Optional path to pytest JSON report (used as fallback)
+        top_n: Number of slowest tests to return (default: 20)
 
+    Returns:
+        List of dicts with 'name' and 'duration' keys, sorted by duration descending
+    """
     tests = []
-    for testcase in root.findall(".//testcase"):
-        name = testcase.get("name", "unknown")
-        classname = testcase.get("classname", "")
-        time = float(testcase.get("time", 0))
 
-        # Construct full test name
-        if classname:
-            full_name = f"{classname}::{name}"
-        else:
-            full_name = name
+    # Try JUnit XML first
+    if junit_xml_path.exists():
+        try:
+            tree = ET.parse(junit_xml_path)  # nosec B314
+            root = tree.getroot()
 
-        tests.append(
-            {
-                "name": full_name,
-                "duration": time,
-            }
-        )
+            for testcase in root.findall(".//testcase"):
+                name = testcase.get("name", "unknown")
+                classname = testcase.get("classname", "")
+                time = float(testcase.get("time", 0))
+
+                # Construct full test name
+                if classname:
+                    full_name = f"{classname}::{name}"
+                else:
+                    full_name = name
+
+                tests.append(
+                    {
+                        "name": full_name,
+                        "duration": time,
+                    }
+                )
+        except Exception as e:
+            logger.warning(f"Could not parse JUnit XML from {junit_xml_path}: {e}")
+
+    # Fallback to pytest JSON if JUnit XML is empty or missing
+    if not tests and pytest_json_path and pytest_json_path.exists():
+        try:
+            with open(pytest_json_path) as f:
+                pytest_data = json.load(f)
+            for test in pytest_data.get("tests", []):
+                duration = test.get("duration", 0)
+                if duration > 0:  # Only include tests with duration data
+                    tests.append(
+                        {
+                            "name": test.get("nodeid", "unknown"),
+                            "duration": duration,
+                        }
+                    )
+        except Exception as e:
+            logger.warning(f"Could not parse pytest JSON from {pytest_json_path}: {e}")
 
     # Sort by duration (descending) and return top N
     tests.sort(key=lambda x: x["duration"], reverse=True)
@@ -478,6 +509,22 @@ def generate_metrics(
         else:
             workflow_run_url = ""
 
+    # Calculate build duration if workflow start time is available
+    build_duration = None
+    workflow_start_time = os.environ.get("GITHUB_WORKFLOW_START_TIME")
+    if workflow_start_time:
+        try:
+            start_dt = datetime.fromisoformat(workflow_start_time.replace("Z", "+00:00"))
+            end_dt = datetime.utcnow()
+            build_duration = (end_dt - start_dt).total_seconds()
+        except (ValueError, AttributeError):
+            pass
+
+    # If not available, use test runtime as proxy (tests are the main part of the build)
+    if build_duration is None:
+        runtime_metrics = extract_runtime_metrics(pytest_json_path)
+        build_duration = runtime_metrics.get("total", 0) if runtime_metrics else 0
+
     metrics = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "commit": commit,
@@ -487,8 +534,13 @@ def generate_metrics(
             "runtime": extract_runtime_metrics(pytest_json_path),
             "test_health": extract_test_metrics(pytest_json_path),
             "coverage": extract_coverage_metrics(coverage_xml_path, threshold=coverage_threshold),
-            "slowest_tests": extract_slowest_tests(junit_xml_path),
+            "slowest_tests": extract_slowest_tests(junit_xml_path, pytest_json_path),
             "complexity": extract_complexity_metrics(reports_dir),
+            "build": {
+                "total_duration_seconds": build_duration,
+                "workflow_name": os.environ.get("GITHUB_WORKFLOW", "unknown"),
+                "run_id": os.environ.get("GITHUB_RUN_ID", ""),
+            },
         },
     }
 

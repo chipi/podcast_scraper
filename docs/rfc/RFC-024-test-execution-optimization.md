@@ -406,6 +406,6 @@ Beyond the original RFC requirements, the following enhancements were implemente
 
 - Test execution optimization based on empirical measurements
 - See `RFC-025-test-metrics-and-health-tracking.md` for metrics collection and health tracking strategy
-- See `docs/CI_CD.md` for complete CI/CD pipeline documentation
+- See `docs/ci/index.md` for complete CI/CD pipeline documentation
 
 ````

@@ -27,9 +27,7 @@ import sys
 
 from podcast_scraper import Config, config, run_pipeline
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-from podcast_scraper.speaker_detectors.ner_detector import NERSpeakerDetector
 from podcast_scraper.summarization.factory import create_summarization_provider
-from podcast_scraper.summarization.local_provider import TransformersSummarizationProvider
 
 integration_dir = Path(__file__).parent.parent / "integration"
 if str(integration_dir) not in sys.path:
@@ -304,7 +302,7 @@ class TestAllMLModelsTogether:
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
                 summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
             )
-            provider = TransformersSummarizationProvider(cfg_summary)
+            provider = create_summarization_provider(cfg_summary)
             provider.initialize()
             result = provider.summarize(text=transcript_text, episode_title="Test")
             assert "summary" in result
@@ -316,7 +314,7 @@ class TestAllMLModelsTogether:
                 ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
                 auto_speakers=True,
             )
-            detector = NERSpeakerDetector(cfg_speaker)
+            detector = create_speaker_detector(cfg_speaker)
             detector.initialize()
             speakers, hosts, success = detector.detect_speakers(
                 episode_title="Test Episode",

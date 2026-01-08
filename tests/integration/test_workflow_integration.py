@@ -168,16 +168,16 @@ class TestIntegrationMain(unittest.TestCase):
                         # Check if transcription was called (only if episode wasn't skipped)
                         if mock_import_whisper.called:
                             mock_transcribe.assert_called()
-                            effective_dir = Path(tmpdir).resolve() / "run_testrun_whisper_base"
+                            effective_dir = Path(tmpdir).resolve() / "run_testrun_whisper_base.en"
                             out_path = (
                                 effective_dir
                                 / "transcripts"
-                                / "0001 - Episode 1_testrun_whisper_base.txt"
+                                / "0001 - Episode 1_testrun_whisper_base.en.txt"
                             )
                             self.assertTrue(out_path.exists())
-                        self.assertEqual(
-                            out_path.read_text(encoding="utf-8").strip(), transcribed_text
-                        )
+                            self.assertEqual(
+                                out_path.read_text(encoding="utf-8").strip(), transcribed_text
+                            )
 
     def test_path_traversal_attempt_normalized(self):
         rss_url = "https://example.com/feed.xml"
@@ -392,6 +392,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
                 rss_url=rss_url,
                 output_dir=self.temp_dir,
                 max_episodes=1,
+                transcribe_missing=False,  # Explicitly disable to avoid run_suffix
             )
 
             count, summary = podcast_scraper.run_pipeline(cfg)
@@ -429,6 +430,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             "output_dir": self.temp_dir,
             "max_episodes": 1,
             "timeout": 30,
+            "transcribe_missing": False,  # Explicitly disable to avoid run_suffix
         }
         with open(cfg_path, "w", encoding="utf-8") as fh:
             json.dump(config_data, fh)
@@ -614,6 +616,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             "max_episodes": 1,
             "timeout": 30,
             "log_level": "INFO",
+            "transcribe_missing": False,  # Explicitly disable to avoid run_suffix
         }
         with open(cfg_path, "w", encoding="utf-8") as fh:
             yaml.dump(config_data, fh)

@@ -52,8 +52,10 @@ save_cleaned_transcript: true               # Save cleaned transcript to .cleane
 ```yaml
 
 - `--generate-summaries`: Enable summarization (requires `--generate-metadata`)
-- `--summary-model`: Specify MAP model (default: `bart-large` for fast chunk summarization)
-- `--summary-reduce-model`: Specify REDUCE model (default: `long-fast`/LED for accurate final combine)
+- `--summary-model`: Specify MAP model alias (default: `bart-large`, options: `bart-large`, `bart-small`)
+- `--summary-reduce-model`: Specify REDUCE model alias (default: `long`, options: `long`, `long-fast`)
+
+**Note**: Only model aliases are supported. Direct model IDs (e.g., `facebook/bart-large-cnn`) will be rejected.
 - `--summary-max-length`: Maximum summary length (default: 160 tokens)
 - `--summary-min-length`: Minimum summary length (default: 60 tokens)
 - `--summary-chunk-size`: Token chunk size (default: 2048)

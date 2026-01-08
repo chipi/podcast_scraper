@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, Mock, patch
 # Mock ML dependencies before importing modules that require them
 # Unit tests run without ML dependencies installed
 with patch.dict("sys.modules", {"spacy": MagicMock()}):
-    from podcast_scraper import metadata, rss_parser
+    from podcast_scraper import config, metadata, rss_parser
 
 # Import from parent conftest explicitly to avoid conflicts
 import importlib.util
@@ -751,7 +751,7 @@ class TestBuildProcessingMetadata(unittest.TestCase):
         """Test building processing metadata."""
         cfg = create_test_config(
             language="en",
-            whisper_model="base",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en)
             transcribe_missing=True,
             auto_speakers=True,
             screenplay=True,
@@ -762,7 +762,7 @@ class TestBuildProcessingMetadata(unittest.TestCase):
 
         self.assertEqual(result.output_directory, "/output")
         self.assertEqual(result.config_snapshot["language"], "en")
-        self.assertEqual(result.config_snapshot["whisper_model"], "base")
+        self.assertEqual(result.config_snapshot["whisper_model"], config.TEST_DEFAULT_WHISPER_MODEL)
         self.assertEqual(result.config_snapshot["auto_speakers"], True)
         self.assertEqual(result.config_snapshot["screenplay"], True)
         self.assertEqual(result.config_snapshot["max_episodes"], 10)

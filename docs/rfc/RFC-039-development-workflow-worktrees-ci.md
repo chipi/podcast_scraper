@@ -1,6 +1,6 @@
 # RFC-039: Development Workflow with Git Worktrees and CI Evolution
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: chipi
 - **Stakeholders**: Developers, CI/CD maintainers
 - **Related PRDs**: None
@@ -8,7 +8,7 @@
   - RFC-038: Continuous Review Tooling (CI quality checks)
 - **Related Documents**:
   - `.ai-coding-guidelines.md` (AI workflow rules)
-  - `docs/CI_CD.md` (CI pipeline documentation)
+  - `docs/ci/index.md` (CI pipeline documentation)
   - `docs/guides/DEVELOPMENT_GUIDE.md` (Developer setup)
   - `CONTRIBUTING.md` (Contributor guidelines)
 
@@ -57,7 +57,7 @@ explicit terms so operational decisions are always clear.
 ### Definitions
 
 | Term | Meaning | Example |
-|------|---------|---------|
+| ------ | --------- | --------- |
 | **PROD** | Latest version users are running and may need patches | 2.3 |
 | **NEXT** | Version being stabilized and prepared for the next release | 2.4 |
 | **FUTURE** | Long-term development beyond NEXT | 2.5+ |
@@ -65,7 +65,7 @@ explicit terms so operational decisions are always clear.
 ### Branch Mapping
 
 | Semantic Role | Git Branch |
-|--------------|------------|
+| -------------- | ------------ |
 | **PROD** | `release/2.3` |
 | **NEXT** | `release/2.4` |
 | **FUTURE** | `main` |
@@ -194,7 +194,7 @@ This section distinguishes **required** rules from **recommended** practices.
 These rules are mandatory for the workflow to function correctly:
 
 | Rule | Rationale |
-|------|-----------|
+| ------ | ----------- |
 | **Never commit directly to `main`** | All changes via PR; branch protection enforces this |
 | **One branch per worktree** | Don't switch branches inside worktrees; create new worktree instead |
 | **Use `--force-with-lease` after rebase** | Never use `--force`; prevents overwriting unexpected changes |
@@ -206,7 +206,7 @@ These rules are mandatory for the workflow to function correctly:
 These practices are strongly recommended but not strictly required:
 
 | Practice | Rationale |
-|----------|-----------|
+| ---------- | ----------- |
 | **Rebase before requesting review** | Clean diff for reviewers; reduces merge conflicts |
 | **Include issue number in branch name** | Traceability; auto-linking in GitHub |
 | **Use isolated venv per worktree** | Complete isolation; prevents dependency conflicts |
@@ -218,7 +218,7 @@ These practices are strongly recommended but not strictly required:
 These are acceptable variations based on preference:
 
 | Option | When to Use |
-|--------|-------------|
+| -------- | ------------- |
 | **Skip issue number for exploratory work** | No tracking needed for experiments |
 | **Share venv across worktrees** | Disk constrained; accept pollution risk |
 | **Keep main worktree for reference** | Quick lookups without switching context |
@@ -251,12 +251,12 @@ main (protected)
 ├── feat/106-anthropic        → ../podcast_scraper-106-anthropic
 ├── fix/185-memory-leak       → ../podcast_scraper-185-memory
 └── rel/2.5                   → ../podcast_scraper-2.5
-```
+```yaml
 
 **Branch Naming Convention:**
 
 | Pattern | Example | Use Case |
-|---------|---------|----------|
+| --------- | --------- | ---------- |
 | `feat/{issue}-{name}` | `feat/169-dependabot` | Feature linked to issue |
 | `fix/{issue}-{name}` | `fix/185-memory-leak` | Bug fix linked to issue |
 | `rel/{version}` | `rel/2.5` | Release preparation |
@@ -275,7 +275,7 @@ In addition to issue-linked worktrees, this project commonly needs **version-ori
 worktrees during stabilization. A typical setup:
 
 | Folder | Branch | Semantic Role | When Active |
-|--------|--------|---------------|------------|
+| -------- | -------- | --------------- | ------------ |
 | `podcast_scraper` | `main` | FUTURE (2.5+) | Daily (future work) |
 | `podcast_scraper-next-2.4` | `release/2.4` | NEXT | Daily (stabilization) |
 | `podcast_scraper-prod-2.3` | `release/2.3` | PROD | Only when hotfixing |
@@ -305,36 +305,46 @@ This ensures:
 #### 2.1 Full Setup (New Worktree + Isolated Venv)
 
 ```bash
+
 # 1. Fetch latest from origin
+
 git fetch origin
 
 # 2. Create worktree with issue-linked branch
+
 git worktree add ../podcast_scraper-169-dependabot -b feat/169-dependabot origin/main
 
 # 3. Navigate to worktree
+
 cd ../podcast_scraper-169-dependabot
 
 # 4. Create isolated virtual environment
+
 python3 -m venv .venv
 
 # 5. Activate virtual environment
+
 source .venv/bin/activate  # macOS/Linux
+
 # .venv\Scripts\activate   # Windows
 
 # 6. Install project in development mode
+
 pip install -e ".[dev]"
 
 # 7. Verify installation
+
 make check-deps  # or: pip list | grep podcast
 
 # 8. Open in Cursor
-cursor .
-```
 
-#### 2.2 Why Isolated Virtual Environments?
+cursor .
+```yaml
+
+## 2.2 Why Isolated Virtual Environments?
 
 | Aspect | Shared venv | Isolated venv (Recommended) |
-|--------|-------------|----------------------------|
+| -------- | ------------- | ---------------------------- |
 | Disk usage | Lower (~50MB saved) | Higher (full deps per worktree) |
 | Dependency conflicts | Possible | Impossible |
 | Branch-specific deps | Not possible | Full support |
@@ -355,7 +365,7 @@ cursor .
 When using isolated venvs, ensure your tooling doesn't assume a single venv path:
 
 | Item | Requirement | Status |
-|------|-------------|--------|
+| ------ | ------------- | -------- |
 | `.venv/` in `.gitignore` | Must be ignored | ✅ Already configured |
 | Cursor Python path | Use `${workspaceFolder}/.venv/bin/python` | ✅ Documented below |
 | `pre-commit` hooks | Runs in current venv (works correctly) | ✅ No changes needed |
@@ -366,12 +376,12 @@ When using isolated venvs, ensure your tooling doesn't assume a single venv path
 **Key principle:** Configuration files (tracked in git) are shared. Runtime artifacts
 (`.venv/`, `__pycache__/`, `.pytest_cache/`) are per-worktree and gitignored.
 
-#### 2.3 Disk Space Estimation
+### 2.3 Disk Space Estimation
 
 Per worktree:
 
 | Component | Size |
-|-----------|------|
+| ----------- | ------ |
 | Working files | ~50MB |
 | Virtual environment | ~150MB |
 | Shared Git objects | 0 (reused) |
@@ -390,14 +400,18 @@ If you're currently using a single checkout folder, follow these steps to migrat
 **Step 1: Prepare your current folder as the FUTURE (`main`) base reference**
 
 ```bash
+
 # Navigate to your current clone
+
 cd ~/Projects/podcast_scraper
 
 # Ensure you're on main and up-to-date
+
 git switch main
 git pull --ff-only
 
 # Verify clean state
+
 git status  # Should show "nothing to commit, working tree clean"
 ```
 
@@ -406,33 +420,42 @@ git status  # Should show "nothing to commit, working tree clean"
 **Step 2: Create your first worktree for active work**
 
 ```bash
+
 # Still in your current folder
+
 git fetch origin
 
 # Create worktree for your current task (example: issue #169)
+
 git worktree add ../podcast_scraper-169-dependabot -b feat/169-dependabot origin/main
 ```
 
 **Step 3: Set up the worktree environment**
 
 ```bash
+
 # Navigate to the new worktree
+
 cd ../podcast_scraper-169-dependabot
 
 # Create isolated virtual environment
+
 python3 -m venv .venv
 source .venv/bin/activate
 
 # Install dependencies
+
 pip install -e ".[dev]"
 ```
 
 **Step 4: Open the worktree in Cursor**
 
 ```bash
+
 # Open worktree folder (NOT the original folder)
+
 cursor .
-```
+```python
 
 **Step 5: Configure Cursor Python interpreter (one-time)**
 
@@ -448,14 +471,14 @@ Or add to `.vscode/settings.json` (gitignored):
 {
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python"
 }
-```
+```yaml
 
 **Step 6: Treat base folder as read-only**
 
 Your original folder (`~/Projects/podcast_scraper`) is now your "base":
 
 | Folder | Purpose | Open in Cursor? |
-|--------|---------|-----------------|
+| -------- | --------- | ----------------- |
 | `podcast_scraper/` (base) | Reference, git log, viewing | ❌ No (read-only) |
 | `podcast_scraper-169-*/` | Active development | ✅ Yes |
 
@@ -467,18 +490,18 @@ Your original folder (`~/Projects/podcast_scraper`) is now your "base":
 
 ---
 
-#### 3.2 Files That Propagate Automatically
+## 3.2 Files That Propagate Automatically
 
 These files are tracked in Git and automatically available in each worktree:
 
 | File | Purpose | Behavior |
-|------|---------|----------|
+| ------ | --------- | ---------- |
 | `.ai-coding-guidelines.md` | AI behavior rules | Same across worktrees |
 | `.cursorignore` | Files to ignore | Same across worktrees |
 | `.cursorrules` | Project rules | Same across worktrees |
 | `pyproject.toml` | Python config | Same across worktrees |
 
-#### 3.3 Cursor Settings (Per-User, Not Per-Worktree)
+### 3.3 Cursor Settings (Per-User, Not Per-Worktree)
 
 These are stored in Cursor's application data, not in the repo:
 
@@ -505,13 +528,16 @@ Each worktree can have its own `.vscode/settings.json`:
 #### 3.5 Opening Worktrees in Cursor
 
 ```bash
+
 # From main repository
+
 cursor ../podcast_scraper-169-dependabot
 
 # Or from within the worktree
+
 cd ../podcast_scraper-169-dependabot
 cursor .
-```
+```yaml
 
 **Tip:** Each Cursor window maintains its own:
 
@@ -522,9 +548,9 @@ cursor .
 
 ---
 
-### 4. Rebase Strategy and Decision Tree
+## 4. Rebase Strategy and Decision Tree
 
-#### 4.1 Why Rebase?
+### 4.1 Why Rebase?
 
 With squash merges to `main`, your feature branch's commits become orphaned after
 another PR merges. Rebasing re-parents your commits onto the new `main`.
@@ -573,39 +599,46 @@ Should I rebase my branch?
 #### 4.3 Rebase Commands
 
 ```bash
+
 # Standard rebase workflow
+
 git fetch origin
 git rebase origin/main
 
 # If conflicts occur
+
 git status                    # See conflicting files
+
 # ... resolve conflicts ...
+
 git add <resolved-files>
 git rebase --continue
 
 # If rebase goes wrong
+
 git rebase --abort            # Return to pre-rebase state
 
 # Push rebased branch
-git push --force-with-lease   # NEVER use --force
-```
 
-#### 4.4 Rebase Best Practices
+git push --force-with-lease   # NEVER use --force
+```yaml
+
+## 4.4 Rebase Best Practices
 
 | Practice | Reason |
-|----------|--------|
+| ---------- | -------- |
 | Use `--force-with-lease` | Fails if remote has unexpected changes |
 | Rebase before PR review | Clean diff for reviewers |
 | Don't rebase during active coding | Creates unnecessary churn |
 | Resolve conflicts immediately | Don't leave rebase in progress |
 | Test after rebase | Ensure nothing broke |
 
-#### 4.5 Fix Propagation Rules (PROD → NEXT → FUTURE)
+### 4.5 Fix Propagation Rules (PROD → NEXT → FUTURE)
 
 Fixes should generally flow **forward**, not backward, to avoid regressions across versions.
 
 | Fix Origin | Must Propagate To | Typical Method |
-|-----------|--------------------|----------------|
+| ----------- | -------------------- | ---------------- |
 | **PROD** (`release/2.3`) | `release/2.4`, `main` | `git cherry-pick` + PR |
 | **NEXT** (`release/2.4`) | `main` | `git cherry-pick` + PR |
 | **FUTURE** (`main`) | Backport only if critical | `git cherry-pick` + PR (exception) |
@@ -632,18 +665,21 @@ Fixes should generally flow **forward**, not backward, to avoid regressions acro
 on:
   push:
     branches-ignore:
+
       - main
   pull_request:
+
     branches:
+
       - main
-```
+```yaml
 
 #### 5.2 Job Stratification
 
 The key insight: **fast checks run on both push AND PR**, while **full checks only run on PR**.
 
 | Event | Fast Checks | Full Checks | Total Time |
-|-------|-------------|-------------|------------|
+| ------- | ------------- | ------------- | ------------ |
 | Push to feature branch | ✅ Runs | ❌ Skipped | ~2 min |
 | Open/update PR to main | ✅ Runs | ✅ Runs | ~10 min |
 | Push directly to main | ❌ Blocked | ❌ Blocked | N/A |
@@ -658,13 +694,17 @@ fast-checks:
   runs-on: ubuntu-latest
   # No 'if' - runs on all triggers (push and pull_request)
   steps:
+
     - uses: actions/checkout@v4
     - name: Lint
       run: make lint
+
     - name: Format check
       run: make format-check
+
     - name: Unit tests
       run: make test-unit
+
 ```
 
 **Full Checks (on PR only):**
@@ -674,19 +714,23 @@ full-checks:
   runs-on: ubuntu-latest
   if: github.event_name == 'pull_request'  # ONLY on PRs
   steps:
+
     - uses: actions/checkout@v4
     - name: Integration tests
       run: make test-integration
+
     - name: E2E tests
       run: make test-e2e
+
     - name: Coverage report
       run: make coverage
-```
+
+```yaml
 
 **Why this works:**
 
 | Scenario | What Runs | Why |
-|----------|-----------|-----|
+| ---------- | ----------- | ----- |
 | Active coding (push) | Fast only | Quick feedback, don't slow iteration |
 | Ready for review (PR) | Fast + Full | Thorough validation before merge |
 | Merged to main | Nothing | Protected, no direct pushes |
@@ -702,7 +746,7 @@ full-checks:
 For `main` branch:
 
 | Rule | Setting |
-|------|---------|
+| ------ | --------- |
 | Require PR | ✅ Enabled |
 | Require CI checks | ✅ `fast-checks`, `full-checks` |
 | Require approval | ✅ 1 reviewer (or self-approve for solo) |
@@ -721,13 +765,16 @@ Add these targets to `Makefile` for common worktree operations.
 of your Makefile to ensure compatibility (especially on macOS):
 
 ```makefile
+
 # Force bash for read -p compatibility (macOS sh doesn't support -p)
+
 SHELL := /bin/bash
 ```
 
-#### 6.2 Worktree Targets
+## 6.2 Worktree Targets
 
 ```makefile
+
 # =============================================================================
 # Worktree Management
 # =============================================================================
@@ -736,11 +783,13 @@ SHELL := /bin/bash
 
 # Helper function to sanitize folder names (replace / and spaces with -)
 # Usage: $(call sanitize,string)
+
 define sanitize
 $(shell echo "$(1)" | tr '/ ' '--' | tr -cd '[:alnum:]-_')
 endef
 
 ## Create new worktree (interactive)
+
 wt-new:
 	@echo "=== Create New Worktree ==="
 	@read -p "Issue number (or press Enter to skip): " issue; \
@@ -772,6 +821,7 @@ wt-new:
 	echo "  cursor ."
 
 ## Create worktree with full setup (interactive)
+
 wt-setup:
 	@echo "=== Create Worktree with Full Setup ==="
 	@read -p "Issue number (or press Enter to skip): " issue; \
@@ -804,6 +854,7 @@ wt-setup:
 	echo "   Run: cd $$folder && source .venv/bin/activate && cursor ."
 
 ## List all worktrees with status
+
 wt-list:
 	@echo "=== Active Worktrees ==="
 	@git worktree list
@@ -816,6 +867,7 @@ wt-list:
 	done
 
 ## Remove a worktree (interactive)
+
 wt-remove:
 	@echo "=== Remove Worktree ==="
 	@git worktree list
@@ -830,19 +882,20 @@ wt-remove:
 	echo "✅ Removed: $$path"
 
 ## Prune stale worktree references
+
 wt-prune:
 	@echo "=== Pruning Worktrees ==="
 	git worktree prune -v
 	git fetch --prune
 	@echo "✅ Cleanup complete"
-```
+```yaml
 
-#### 6.3 Input Sanitization
+### 6.3 Input Sanitization
 
 The targets above sanitize user input to prevent path issues:
 
 | Input | Sanitized | Reason |
-|-------|-----------|--------|
+| ------- | ----------- | -------- |
 | `my feature` | `my-feature` | Spaces → dashes |
 | `api/v2` | `api-v2` | Slashes → dashes |
 | `fix@bug!` | `fixbug` | Special chars removed |
@@ -859,10 +912,13 @@ If the sanitized name differs from input, a warning is shown before proceeding.
 **Worktree is corrupted or stuck:**
 
 ```bash
+
 # Force remove (when normal remove fails)
+
 git worktree remove --force ../podcast_scraper-broken
 
 # If that fails, manually clean up
+
 rm -rf ../podcast_scraper-broken
 git worktree prune
 ```
@@ -870,20 +926,26 @@ git worktree prune
 **Branch was deleted but worktree still exists:**
 
 ```bash
+
 # Prune orphaned worktree references
+
 git worktree prune
 
 # Then remove the folder
+
 rm -rf ../podcast_scraper-orphaned
 ```
 
 **Rebase went wrong:**
 
 ```bash
+
 # Abort rebase and return to pre-rebase state
+
 git rebase --abort
 
 # If already completed but wrong, reset to remote
+
 git fetch origin
 git reset --hard origin/feat/169-dependabot
 ```
@@ -891,12 +953,15 @@ git reset --hard origin/feat/169-dependabot
 **Accidentally committed to main worktree:**
 
 ```bash
+
 # From main worktree
+
 git log --oneline -5        # Find the bad commits
 git reset --soft HEAD~N     # Uncommit N commits (keeps changes)
 git stash                   # Stash the changes
 
 # Go to correct worktree
+
 cd ../podcast_scraper-169-dependabot
 git stash pop               # Apply changes here
 git commit -m "feat: correct commit"
@@ -905,42 +970,50 @@ git commit -m "feat: correct commit"
 **Venv is broken:**
 
 ```bash
+
 # Remove and recreate
+
 rm -rf .venv
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-#### 7.2 Recovery Cheat Sheet
+## 7.2 Recovery Cheat Sheet
 
 ```bash
+
 # === DIAGNOSTICS ===
+
 git worktree list                    # See all worktrees
 git status                           # Check current state
 git log --oneline -10                # Recent commits
 
 # === CLEANUP ===
+
 git worktree prune                   # Remove stale refs
 git fetch --prune                    # Clean remote refs
 rm -rf ../podcast_scraper-broken     # Nuclear option
 
 # === RESET ===
+
 git rebase --abort                   # Cancel rebase
 git merge --abort                    # Cancel merge
 git reset --hard origin/BRANCH       # Reset to remote
 
 # === RECREATE ===
+
 rm -rf .venv && python3 -m venv .venv && pip install -e ".[dev]"
-```
+```yaml
 
 ---
 
-### 8. Weekly Maintenance Checklist
+## 8. Weekly Maintenance Checklist
 
 Add to your weekly routine:
 
 ```markdown
+
 ## Worktree Maintenance (Weekly)
 
 - [ ] Run `make wt-list` - check for forgotten worktrees
@@ -948,7 +1021,7 @@ Add to your weekly routine:
 - [ ] Run `make wt-prune` - clean stale references
 - [ ] Check disk usage: `du -sh ../podcast_scraper-*`
 - [ ] Update main: `cd podcast_scraper && git pull`
-```
+```yaml
 
 ---
 
@@ -961,6 +1034,7 @@ This RFC requires updates to these documents:
 Add section:
 
 ```markdown
+
 ## Worktree Workflow
 
 - Each task gets its own worktree and Cursor instance
@@ -975,6 +1049,7 @@ Add section:
 Add section:
 
 ```markdown
+
 ## Worktree-Based Development
 
 See RFC-039 for complete workflow documentation.
@@ -992,6 +1067,7 @@ Quick start:
 Add section:
 
 ```markdown
+
 ## Development Setup
 
 We use git worktrees for parallel development:
@@ -1000,7 +1076,7 @@ We use git worktrees for parallel development:
 2. Create a worktree for your work: `make wt-setup`
 3. Each worktree has its own virtual environment
 4. See DEVELOPMENT_GUIDE.md for details
-```
+```yaml
 
 ---
 
@@ -1103,7 +1179,7 @@ git push origin release/2.5
 
 ```bash
 git worktree add ../podcast_scraper-next-2.5 release/2.5
-```
+```yaml
 
 5. Conceptually, `main` immediately becomes FUTURE for **2.6+** (no history rewrite; only roles change).
 
@@ -1112,7 +1188,7 @@ git worktree add ../podcast_scraper-next-2.5 release/2.5
 ## Risks and Mitigations
 
 | Risk | Mitigation |
-|------|------------|
+| ------ | ------------ |
 | Force-push mistakes | Use `--force-with-lease` exclusively |
 | Disk clutter | Remove worktrees after PR merge; weekly audit |
 | Learning curve | This RFC + Makefile helpers + cheat sheet |
@@ -1176,18 +1252,24 @@ git worktree add ../podcast_scraper-next-2.5 release/2.5
 ### Commands
 
 ```bash
+
 # === NEW WORKTREE (FULL SETUP) ===
+
 make wt-setup
+
 # Follow prompts, then:
+
 cd ../podcast_scraper-ISSUE-NAME
 source .venv/bin/activate
 cursor .
 
 # === DAILY WORK ===
+
 git add -A && git commit -m "feat(#169): change description"
 git push origin HEAD
 
 # === SYNC WITH MAIN ===
+
 git fetch origin
 git rebase origin/main
 git push --force-with-lease
@@ -1199,25 +1281,29 @@ git push --force-with-lease
 #   Resolves #169
 
 # === CLEANUP AFTER PR MERGE ===
+
 make wt-remove
+
 # Follow prompts
 
 # === MAINTENANCE ===
+
 make wt-list                         # See all worktrees
 make wt-prune                        # Clean up stale refs
 
 # === EMERGENCY ===
+
 git rebase --abort                   # Cancel bad rebase
 git worktree remove --force PATH     # Force remove
 rm -rf .venv && python3 -m venv .venv && pip install -e ".[dev]"
-```
+```yaml
 
-### GitHub Issue Auto-Close Keywords
+## GitHub Issue Auto-Close Keywords
 
 Use these in PR title or description to automatically close issues when PR merges:
 
 | Keyword | Example | Effect |
-|---------|---------|--------|
+| --------- | --------- | -------- |
 | `Fixes` | `Fixes #169` | Closes issue #169 |
 | `Closes` | `Closes #169` | Closes issue #169 |
 | `Resolves` | `Resolves #169` | Closes issue #169 |

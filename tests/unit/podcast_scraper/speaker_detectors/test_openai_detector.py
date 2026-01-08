@@ -38,7 +38,7 @@ create_test_config = parent_conftest.create_test_config
 create_test_episode = parent_conftest.create_test_episode
 
 from podcast_scraper import config  # noqa: E402
-from podcast_scraper.speaker_detectors.openai_detector import OpenAISpeakerDetector  # noqa: E402
+from podcast_scraper.speaker_detectors.factory import create_speaker_detector  # noqa: E402
 
 
 class TestOpenAISpeakerDetector(unittest.TestCase):
@@ -54,23 +54,24 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
     def test_init_success(self):
         """Test successful initialization."""
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         self.assertEqual(detector.cfg, self.cfg)
         self.assertIsNotNone(detector.client)
-        self.assertEqual(detector.model, config.TEST_DEFAULT_OPENAI_SPEAKER_MODEL)
-        self.assertEqual(detector.temperature, 0.3)
-        self.assertFalse(detector._initialized)
+        self.assertEqual(detector.speaker_model, config.PROD_DEFAULT_OPENAI_SPEAKER_MODEL)
+        self.assertEqual(detector.speaker_temperature, 0.3)
+        self.assertFalse(detector._speaker_detection_initialized)
 
     def test_init_missing_api_key(self):
         """Test initialization raises error when API key is missing."""
         from unittest.mock import MagicMock
 
         mock_cfg = MagicMock()
+        mock_cfg.speaker_detector_provider = "openai"
         mock_cfg.openai_api_key = None
         mock_cfg.openai_api_base = None
 
         with self.assertRaises(ValueError) as context:
-            OpenAISpeakerDetector(mock_cfg)
+            create_speaker_detector(mock_cfg)
 
         self.assertIn("OpenAI API key required", str(context.exception))
 
@@ -81,7 +82,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
             openai_api_key="sk-test123",
             openai_api_base="https://api.example.com/v1",
         )
-        detector = OpenAISpeakerDetector(cfg)
+        detector = create_speaker_detector(cfg)
         self.assertIsNotNone(detector.client)
 
     def test_init_with_custom_model(self):
@@ -89,30 +90,31 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         from unittest.mock import MagicMock
 
         mock_cfg = MagicMock()
+        mock_cfg.speaker_detector_provider = "openai"
         mock_cfg.openai_api_key = "sk-test123"
         mock_cfg.openai_api_base = None
         type(mock_cfg).openai_speaker_model = property(lambda self: "gpt-4")
         type(mock_cfg).openai_temperature = property(lambda self: 0.5)
 
-        detector = OpenAISpeakerDetector(mock_cfg)
-        self.assertEqual(detector.model, "gpt-4")
-        self.assertEqual(detector.temperature, 0.5)
+        detector = create_speaker_detector(mock_cfg)
+        self.assertEqual(detector.speaker_model, "gpt-4")
+        self.assertEqual(detector.speaker_temperature, 0.5)
 
     def test_initialize_success(self):
         """Test successful initialization."""
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
-        self.assertTrue(detector._initialized)
+        self.assertTrue(detector._speaker_detection_initialized)
 
     def test_initialize_already_initialized(self):
         """Test initialization when already initialized."""
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.initialize()
         # Call again
         detector.initialize()
 
-        self.assertTrue(detector._initialized)
+        self.assertTrue(detector._speaker_detection_initialized)
 
     @patch("podcast_scraper.prompt_store.render_prompt")
     def test_detect_speakers_success(self, mock_render_prompt):
@@ -132,7 +134,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.chat.completions.create.return_value = mock_response
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.client = mock_client
         detector.initialize()
 
@@ -158,7 +160,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
             openai_api_key="sk-test123",
             auto_speakers=False,
         )
-        detector = OpenAISpeakerDetector(cfg)
+        detector = create_speaker_detector(cfg)
         detector.initialize()
 
         speakers, detected_hosts, success = detector.detect_speakers(
@@ -174,7 +176,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
     def test_detect_speakers_not_initialized(self):
         """Test detect_speakers raises error when not initialized."""
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
 
         with self.assertRaises(RuntimeError) as context:
             detector.detect_speakers("Title", "Description", set())
@@ -192,7 +194,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.chat.completions.create.return_value = mock_response
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.client = mock_client
         detector.initialize()
 
@@ -216,7 +218,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.chat.completions.create.return_value = mock_response
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.client = mock_client
         detector.initialize()
 
@@ -237,7 +239,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.chat.completions.create.side_effect = Exception("API error")
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.client = mock_client
         detector.initialize()
 
@@ -263,7 +265,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.chat.completions.create.return_value = mock_response
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.client = mock_client
         detector.initialize()
 
@@ -279,7 +281,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
     def test_detect_hosts_from_feed_authors(self):
         """Test detect_hosts prefers feed_authors."""
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
         hosts = detector.detect_hosts(
@@ -290,14 +292,12 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         self.assertEqual(hosts, {"Alice", "Bob"})
 
-    @patch(
-        "podcast_scraper.speaker_detectors.openai_detector.OpenAISpeakerDetector.detect_speakers"
-    )
+    @patch("podcast_scraper.openai.openai_provider.OpenAIProvider.detect_speakers")
     def test_detect_hosts_without_authors(self, mock_detect_speakers):
         """Test detect_hosts uses API when no feed_authors."""
         mock_detect_speakers.return_value = (["Alice", "Bob"], {"Alice"}, True)
 
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
         hosts = detector.detect_hosts(
@@ -311,7 +311,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
     def test_detect_hosts_no_title(self):
         """Test detect_hosts returns empty set when no title."""
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
         hosts = detector.detect_hosts(
@@ -322,14 +322,12 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         self.assertEqual(hosts, set())
 
-    @patch(
-        "podcast_scraper.speaker_detectors.openai_detector.OpenAISpeakerDetector.detect_speakers"
-    )
+    @patch("podcast_scraper.openai.openai_provider.OpenAIProvider.detect_speakers")
     def test_detect_hosts_handles_exception(self, mock_detect_speakers):
         """Test detect_hosts handles exceptions gracefully."""
         mock_detect_speakers.side_effect = Exception("API error")
 
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
         hosts = detector.detect_hosts(
@@ -343,7 +341,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
     def test_detect_hosts_not_initialized(self):
         """Test detect_hosts raises error when not initialized."""
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
 
         with self.assertRaises(RuntimeError) as context:
             detector.detect_hosts("Title", "Description", None)
@@ -352,7 +350,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
     def test_analyze_patterns(self):
         """Test analyze_patterns returns None (not implemented)."""
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
         episodes = [create_test_episode(idx=1, title="Episode 1")]
@@ -361,18 +359,19 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_cleanup(self):
-        """Test cleanup method (no-op for API provider)."""
-        detector = OpenAISpeakerDetector(self.cfg)
+        """Test cleanup method resets initialization state."""
+        detector = create_speaker_detector(self.cfg)
         detector.initialize()
+        self.assertTrue(detector._speaker_detection_initialized)
 
         # Should not raise
         detector.cleanup()
-        # Should still be initialized (cleanup is no-op)
-        self.assertTrue(detector._initialized)
+        # Cleanup resets initialization state
+        self.assertFalse(detector._speaker_detection_initialized)
 
     def test_clear_cache(self):
         """Test clear_cache method (no-op for API provider)."""
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
         # Should not raise
@@ -397,7 +396,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.chat.completions.create.return_value = mock_response
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.client = mock_client
         detector.initialize()
 
@@ -426,7 +425,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.chat.completions.create.return_value = mock_response
-        detector = OpenAISpeakerDetector(self.cfg)
+        detector = create_speaker_detector(self.cfg)
         detector.client = mock_client
         detector.initialize()
 

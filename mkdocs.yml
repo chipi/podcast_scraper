@@ -11,6 +11,7 @@ nav:
       - guides/index.md
       - Quick Reference: guides/QUICK_REFERENCE.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
+      - Git Worktree Guide: guides/GIT_WORKTREE_GUIDE.md
       - Testing Guide: guides/TESTING_GUIDE.md
       - Unit Testing Guide: guides/UNIT_TESTING_GUIDE.md
       - Integration Testing Guide: guides/INTEGRATION_TESTING_GUIDE.md
@@ -29,7 +30,12 @@ nav:
       - Glossary: guides/GLOSSARY.md
   - Architecture: ARCHITECTURE.md
   - Testing Strategy: TESTING_STRATEGY.md
-  - CI/CD Pipeline: CI_CD.md
+  - CI/CD:
+      - ci/index.md
+      - Overview: ci/OVERVIEW.md
+      - Workflows: ci/WORKFLOWS.md
+      - Local Development: ci/LOCAL_DEVELOPMENT.md
+      - Metrics Dashboard: ci/METRICS.md
   - Product Requirements:
       - prd/index.md
       - PRD-001 Transcript Acquisition Pipeline: prd/PRD-001-transcript-pipeline.md
@@ -87,6 +93,7 @@ nav:
       - RFC-037 Ollama Provider Implementation: rfc/RFC-037-ollama-provider-implementation.md
       - RFC-038 Continuous Review Tooling: rfc/RFC-038-continuous-review-tooling.md
       - RFC-039 Development Workflow: rfc/RFC-039-development-workflow-worktrees-ci.md
+      - RFC-040 Automated Metrics Alerts: rfc/RFC-040-automated-metrics-alerts.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
@@ -109,7 +116,6 @@ nav:
       - v2.0.1 - Bug Fixes: releases/RELEASE_v2.0.1.md
       - v2.0.0 - Modular Architecture: releases/RELEASE_v2.0.0.md
       - v1.0.0 - Initial Release: releases/RELEASE_v1.0.0.md
-  - CI & Code Quality Metrics: CI_QUALITY_METRICS.md
   - Legal Notice: LEGAL.md
 theme:
   name: material

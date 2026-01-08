@@ -580,98 +580,36 @@ jobs:
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/unit/ -n auto --cov=podcast_scraper --cov-report=term-missing
 
-```
-
-```text
-
-          # Plugin automatically detects network calls and filesystem I/O
-
-```
-  # Integration tests - run on main branch and PRs
-
-  test-integration:
-    runs-on: ubuntu-latest
-    steps:
-
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-
-```text
+```yaml
 
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
 
-```
-
-          python -m pip install --upgrade pip
-          pip install -e .[dev,ml]
-
-      - name: Run integration tests
-        run: |
-
-```text
+```bash
 
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/integration/ -m integration -n auto --reruns 2 --reruns-delay 1
 
-```
-  test-e2e:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-
-```text
+```yaml
 
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
 
-```
-
-          python -m pip install --upgrade pip
-          pip install -e .[dev,ml]
-
-      - name: Run workflow E2E tests
-        run: |
-
-```text
+```bash
 
           export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           pytest tests/e2e/ -m e2e --reruns 2 --reruns-delay 1
 
-```
-  test:
-    runs-on: ubuntu-latest
-    steps:
-
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-
-```text
+```yaml
 
         with:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: pyproject.toml
-
-```
-
-          python -m pip install --upgrade pip
-          pip install -e .[dev,ml]
-
-```text
-
-      - name: Run all tests (except network)
-        run: |
 
 ```bash
 
@@ -679,18 +617,6 @@ jobs:
           pytest tests/ -m "not network" -n auto --cov=podcast_scraper --cov-report=term-missing --reruns 2 --reruns-delay 1
 
 ```
-
-paths:
-
-  - '**.py'
-  - 'tests/**'  # Already covers all test subdirectories
-  - 'pyproject.toml'
-  - 'Makefile'
-
-```text
-
-**Note:** The existing `tests/**` pattern already covers all subdirectories, so no changes needed to path triggers.
-
 ## Alternatives Considered
 
 1. **Keep flat structure**: Rejected - doesn't solve navigation or execution control

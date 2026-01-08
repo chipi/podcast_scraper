@@ -1,0 +1,282 @@
+# Git Worktree - Quick Reference
+
+**For complete guide:** `docs/guides/GIT_WORKTREE_GUIDE.md` (478 lines)
+
+## 🚀 Quick Start
+
+### Create New Worktree (Full Setup)
+
+```bash
+# One command to set up everything
+make wt-setup
+
+# Follow prompts:
+# - Issue number (optional): 169
+# - Branch type: feat
+# - Short name: dependabot
+
+# Then navigate and open
+cd ../podcast_scraper-169-dependabot
+source .venv/bin/activate
+cursor .
+```
+
+### Daily Workflow
+
+```bash
+# Make changes and commit
+git add -A
+git commit -m "feat(#169): add Dependabot configuration"
+
+# Push to feature branch
+git push origin HEAD
+
+# Sync with main when needed
+git fetch origin
+git rebase origin/main
+git push --force-with-lease  # NEVER use --force
+```
+
+### Cleanup After PR Merge
+
+```bash
+# Remove worktree
+make wt-remove
+
+# Follow prompts to remove worktree and optionally delete branch
+```
+
+## 📋 Branch Naming Convention
+
+Include GitHub issue numbers for traceability:
+
+| Pattern | Example | Use Case |
+|---------|---------|----------|
+| `feat/{issue}-{name}` | `feat/169-dependabot` | Feature linked to issue |
+| `fix/{issue}-{name}` | `fix/185-memory-leak` | Bug fix linked to issue |
+| `rel/{version}` | `rel/2.5` | Release preparation |
+| `feat/{name}` | `feat/experimental` | No issue (exploratory) |
+
+**Benefits:**
+- `git worktree list` shows which issue each worktree addresses
+- GitHub auto-links commits/PRs to issues
+- Easy to find related issue from any git log
+
+## 🔧 Makefile Commands
+
+```bash
+make wt-setup     # Interactive setup (creates worktree + venv)
+make wt-list      # List all worktrees with status
+make wt-remove    # Interactive removal
+make wt-prune     # Prune stale worktree references
+```
+
+## ⚙️ Manual Setup (If Needed)
+
+```bash
+# 1. Fetch latest
+git fetch origin
+
+# 2. Create worktree with issue-linked branch
+git worktree add ../podcast_scraper-169-dependabot \
+  -b feat/169-dependabot origin/main
+
+# 3. Navigate to worktree
+cd ../podcast_scraper-169-dependabot
+
+# 4. Create isolated virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+
+# 5. Install project
+pip install -e ".[dev]"
+
+# 6. Open in Cursor
+cursor .
+```
+
+## 🎯 Key Benefits
+
+### One Branch = One Worktree = One Cursor Window
+
+Each branch gets:
+- Its own folder (e.g., `../podcast_scraper-169-dependabot`)
+- Its own virtual environment (isolated dependencies)
+- Its own terminal session
+- Its own Cursor instance
+
+This ensures:
+- Clean Git state per context
+- Correct AI context for each task
+- Zero accidental cross-contamination
+- Independent Python environments
+
+## 🔄 Rebase Strategy
+
+### When to Rebase
+
+✅ Rebase when:
+- PR is ready for review (clean diff)
+- CI failing due to main changes (get latest fixes)
+- Merge conflicts expected (smaller conflicts)
+- Main has breaking changes you need
+
+❌ Don't rebase when:
+- Just want latest changes for curiosity
+- Actively coding with no blockers
+
+### Rebase Commands
+
+```bash
+# Standard rebase
+git fetch origin
+git rebase origin/main
+
+# If conflicts occur
+git status  # See conflicting files
+# ... resolve conflicts ...
+git add <resolved-files>
+git rebase --continue
+
+# If rebase goes wrong
+git rebase --abort  # Return to pre-rebase state
+
+# Push rebased branch
+git push --force-with-lease  # NEVER use --force
+```
+
+## 🚨 Workflow Rules
+
+### MUST (Required)
+
+- ✅ **Never commit directly to main** - All changes via PR
+- ✅ **One branch per worktree** - Don't switch branches inside worktrees
+- ✅ **Use `--force-with-lease` after rebase** - Never use `--force`
+- ✅ **Remove worktree after PR merge** - Prevents clutter
+- ✅ **All PRs use squash merge** - Maintains linear history
+
+### SHOULD (Recommended)
+
+- ✅ **Rebase before requesting review** - Clean diff for reviewers
+- ✅ **Include issue number in branch name** - Traceability
+- ✅ **Use isolated venv per worktree** - Complete isolation
+- ✅ **Run `make wt-list` weekly** - Audit for forgotten worktrees
+- ✅ **Open separate Cursor window per worktree** - Clean AI context
+
+## 🆘 Emergency Recovery
+
+### Corrupted Worktree
+
+```bash
+# Force remove (when normal remove fails)
+git worktree remove --force ../podcast_scraper-broken
+
+# If that fails, manually clean up
+rm -rf ../podcast_scraper-broken
+git worktree prune
+```
+
+### Broken Venv
+
+```bash
+# Remove and recreate
+rm -rf .venv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+### Bad Rebase
+
+```bash
+# Abort rebase
+git rebase --abort
+
+# Or reset to remote
+git fetch origin
+git reset --hard origin/feat/169-dependabot
+```
+
+### Accidentally Committed to Main
+
+```bash
+# From main worktree
+git log --oneline -5        # Find the bad commits
+git reset --soft HEAD~N     # Uncommit N commits (keeps changes)
+git stash                   # Stash the changes
+
+# Go to correct worktree
+cd ../podcast_scraper-169-dependabot
+git stash pop               # Apply changes here
+git commit -m "feat: correct commit"
+```
+
+## 📊 Disk Space
+
+Per worktree:
+- Working files: ~50MB
+- Virtual environment: ~150MB
+- Shared Git objects: 0 (reused)
+- **Total: ~200MB per worktree**
+
+With 5 active worktrees: ~1GB total
+
+## ✅ Weekly Maintenance Checklist
+
+```bash
+# Check for forgotten worktrees
+make wt-list
+
+# Remove worktrees for merged PRs
+make wt-remove
+
+# Clean stale references
+make wt-prune
+
+# Check disk usage
+du -sh ../podcast_scraper-*
+
+# Update main
+cd podcast_scraper && git pull
+```
+
+## 🔗 GitHub Issue Auto-Close
+
+Use these keywords in PR title or description to auto-close issues:
+
+| Keyword | Example | Effect |
+|---------|---------|--------|
+| `Fixes` | `Fixes #169` | Closes issue #169 |
+| `Closes` | `Closes #169` | Closes issue #169 |
+| `Resolves` | `Resolves #169` | Closes issue #169 |
+
+**Tip:** Include in PR title for visibility: `feat: Add Dependabot (Fixes #169)`
+
+## 📖 Visual Workflow
+
+```text
+Create Worktree → Develop + Test → Push Branch → Fast CI
+                                                     ↓
+                                              Open PR to main
+                                                     ↓
+                                              Full CI (~10 min)
+                                                     ↓
+                                              Merge (squash)
+                                                     ↓
+                                              Remove Worktree
+```
+
+## Remember
+
+1. **One worktree per feature** - Parallel development
+2. **Isolated venvs** - No dependency conflicts
+3. **Include issue numbers** - Traceability
+4. **Rebase before review** - Clean diffs
+5. **Remove after merge** - Keep workspace clean
+6. **Weekly audit** - `make wt-list` to check for forgotten worktrees
+
+---
+
+**Version:** 1.0
+**Created:** 2026-01-07
+**Source:** Distilled from `docs/guides/GIT_WORKTREE_GUIDE.md` (478 lines)

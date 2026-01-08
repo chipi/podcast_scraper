@@ -61,9 +61,12 @@ class TestModelSelection(unittest.TestCase):
         """Test that explicit model selection works."""
         from podcast_scraper import config
 
+        # Use test default alias (defined in config_constants.py)
         cfg = create_test_config(summary_model=config.TEST_DEFAULT_SUMMARY_MODEL)
         model_name = summarizer.select_summary_model(cfg)
-        self.assertEqual(model_name, config.TEST_DEFAULT_SUMMARY_MODEL)
+        self.assertEqual(
+            model_name, summarizer.DEFAULT_SUMMARY_MODELS[config.TEST_DEFAULT_SUMMARY_MODEL]
+        )
 
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_select_model_auto_mps(self, mock_torch):
@@ -100,7 +103,11 @@ class TestModelSelection(unittest.TestCase):
 
     def test_select_reduce_model_defaults_to_led(self):
         """Test that reduce model defaults to LED-large when not configured."""
-        cfg = create_test_config(summary_reduce_model=None)
+        from podcast_scraper import config
+
+        cfg = create_test_config(
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL, summary_reduce_model=None
+        )
         map_model_name = summarizer.select_summary_model(cfg)
         reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
         # Should default to LED-large for reduce phase (production quality),
@@ -109,17 +116,29 @@ class TestModelSelection(unittest.TestCase):
 
     def test_select_reduce_model_with_explicit_model(self):
         """Test that explicit reduce model selection works."""
-        cfg = create_test_config(summary_reduce_model="long")
+        from podcast_scraper import config
+
+        cfg = create_test_config(
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL, summary_reduce_model="long"
+        )
         map_model_name = summarizer.select_summary_model(cfg)
         reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
         self.assertEqual(reduce_model_name, summarizer.DEFAULT_SUMMARY_MODELS["long"])
 
     def test_select_reduce_model_with_direct_model_id(self):
-        """Test that direct model ID works for reduce model."""
-        cfg = create_test_config(summary_reduce_model="allenai/led-base-16384")
+        """Test that alias works for reduce model."""
+        from podcast_scraper import config
+
+        cfg = create_test_config(
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+            summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
+        )
         map_model_name = summarizer.select_summary_model(cfg)
         reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
-        self.assertEqual(reduce_model_name, "allenai/led-base-16384")
+        self.assertEqual(
+            reduce_model_name,
+            summarizer.DEFAULT_SUMMARY_MODELS[config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL],
+        )
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")

@@ -10,6 +10,50 @@ import yaml
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+# Import all constants from config_constants module
+# Note: Some constants are re-exported here for backward compatibility
+# even though they're not used directly in this file
+# Re-exported for backward compatibility
+from .config_constants import DEFAULT_MAX_DETECTED_NAMES  # noqa: F401
+from .config_constants import DEFAULT_NER_MODEL  # noqa: F401
+from .config_constants import DEFAULT_SUMMARY_CHUNK_SIZE  # noqa: F401
+from .config_constants import DEFAULT_SUMMARY_MAX_WORKERS_CPU  # noqa: F401
+from .config_constants import DEFAULT_SUMMARY_MAX_WORKERS_CPU_TEST  # noqa: F401
+from .config_constants import DEFAULT_SUMMARY_MAX_WORKERS_GPU  # noqa: F401
+from .config_constants import DEFAULT_SUMMARY_MAX_WORKERS_GPU_TEST  # noqa: F401
+from .config_constants import PROD_DEFAULT_OPENAI_SPEAKER_MODEL  # noqa: F401
+from .config_constants import PROD_DEFAULT_OPENAI_SUMMARY_MODEL  # noqa: F401
+from .config_constants import PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL  # noqa: F401
+from .config_constants import PROD_DEFAULT_SUMMARY_MODEL  # noqa: F401
+from .config_constants import PROD_DEFAULT_SUMMARY_REDUCE_MODEL  # noqa: F401
+from .config_constants import TEST_DEFAULT_OPENAI_SPEAKER_MODEL  # noqa: F401
+from .config_constants import TEST_DEFAULT_OPENAI_SUMMARY_MODEL  # noqa: F401
+from .config_constants import TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL  # noqa: F401
+from .config_constants import TEST_DEFAULT_SUMMARY_MODEL  # noqa: F401
+from .config_constants import TEST_DEFAULT_SUMMARY_REDUCE_MODEL  # noqa: F401
+from .config_constants import TEST_DEFAULT_WHISPER_MODEL  # noqa: F401
+from .config_constants import (  # noqa: F401
+    DEFAULT_LANGUAGE,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_NUM_SPEAKERS,
+    DEFAULT_SCREENPLAY_GAP_SECONDS,
+    DEFAULT_SUMMARY_BATCH_SIZE,
+    DEFAULT_SUMMARY_MAX_LENGTH,
+    DEFAULT_SUMMARY_MIN_LENGTH,
+    DEFAULT_SUMMARY_WORD_CHUNK_SIZE,
+    DEFAULT_SUMMARY_WORD_OVERLAP,
+    DEFAULT_TIMEOUT_SECONDS,
+    DEFAULT_USER_AGENT,
+    DEFAULT_WORKERS,
+    MAX_METADATA_SUBDIRECTORY_LENGTH,
+    MAX_RUN_ID_LENGTH,
+    MIN_NUM_SPEAKERS,
+    MIN_TIMEOUT_SECONDS,
+    PROD_DEFAULT_WHISPER_MODEL,
+    VALID_LOG_LEVELS,
+    VALID_WHISPER_MODELS,
+)
+
 # Load .env file if it exists (RFC-013: OpenAI API key management)
 # Check for .env in project root
 # Note: config.py is now in src/podcast_scraper/, so we use parent.parent.parent
@@ -20,18 +64,6 @@ if env_path.exists():
 else:
     # Also check current working directory (for flexibility)
     load_dotenv(override=False)
-
-DEFAULT_LOG_LEVEL = "INFO"
-DEFAULT_NUM_SPEAKERS = 2
-DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
-DEFAULT_TIMEOUT_SECONDS = 20
-DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/119.0 Safari/537.36"
-)
-DEFAULT_WORKERS = max(1, min(8, os.cpu_count() or 4))
-DEFAULT_LANGUAGE = "en"
 
 
 def _is_test_environment() -> bool:
@@ -54,90 +86,10 @@ def _is_test_environment() -> bool:
     return False
 
 
-DEFAULT_NER_MODEL = "en_core_web_sm"
-DEFAULT_MAX_DETECTED_NAMES = 4
-MIN_NUM_SPEAKERS = 1
-MIN_TIMEOUT_SECONDS = 1
-
-# Test defaults (smaller, faster models for CI/local dev)
-# These are used in tests for speed, while production uses quality models
-# See docs/guides/TESTING_GUIDE.md for details
-TEST_DEFAULT_WHISPER_MODEL = "tiny.en"  # Smallest, fastest English-only model
-TEST_DEFAULT_SUMMARY_MODEL = (
-    "facebook/bart-base"  # Small, ~500MB, fast (vs production: bart-large-cnn)
-)
-TEST_DEFAULT_SUMMARY_REDUCE_MODEL = (
-    "allenai/led-base-16384"  # Test only (fast); production uses led-large-16384
-)
+# All constants are now imported from .config_constants
+# Re-exported here for backward compatibility
 # Note: TEST_DEFAULT_NER_MODEL uses DEFAULT_NER_MODEL ("en_core_web_sm")
 # - same for tests and production
-
-# Production defaults (quality models for production use)
-# These are used in production deployments and nightly-only tests
-PROD_DEFAULT_WHISPER_MODEL = "base.en"  # Better quality than tiny.en, English-only
-PROD_DEFAULT_SUMMARY_MODEL = "facebook/bart-large-cnn"  # Large, ~2GB, best quality for production
-PROD_DEFAULT_SUMMARY_REDUCE_MODEL = (
-    "allenai/led-large-16384"  # Large, ~2.5GB, production quality for long-context
-)
-
-# OpenAI model defaults (Issue #191)
-# Test defaults: cheapest models for dev/testing (minimize API costs)
-# Production defaults: best quality/cost balance
-#
-# Pricing (Jan 2026, per million tokens):
-#   gpt-5-nano:  $0.05 input / $0.40 output (cheapest)
-#   gpt-5-mini:  $0.25 input / $2.00 output (balanced)
-#   gpt-5:       $1.25 input / $10.00 output (highest quality)
-#   gpt-4o-mini: $0.15 input / $0.60 output (legacy budget)
-#   gpt-4o:      $5.00 input / $15.00 output (legacy quality)
-#
-# See: https://openai.com/pricing
-TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
-TEST_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
-TEST_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
-PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
-PROD_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o"  # Higher quality for production
-PROD_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o"  # Higher quality for production
-VALID_WHISPER_MODELS = (
-    "tiny",
-    "base",
-    "small",
-    "medium",
-    "large",
-    "large-v2",
-    "large-v3",
-    "tiny.en",
-    "base.en",
-    "small.en",
-    "medium.en",
-    "large.en",
-)
-
-VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
-MAX_RUN_ID_LENGTH = 100
-MAX_METADATA_SUBDIRECTORY_LENGTH = 255
-DEFAULT_SUMMARY_MAX_LENGTH = 160  # Per SUMMARY_REVIEW.md: chunk summaries should be ~160 tokens
-DEFAULT_SUMMARY_MIN_LENGTH = (
-    60  # Per SUMMARY_REVIEW.md: chunk summaries should be at least 60 tokens
-)
-DEFAULT_SUMMARY_BATCH_SIZE = 1
-# Maximum parallel workers for episode summarization (memory-bound)
-# Lower values reduce memory usage but may slow down processing
-# Production: Higher values for better throughput
-# Tests/Dev: Lower values to reduce memory footprint
-DEFAULT_SUMMARY_MAX_WORKERS_CPU = 4  # Production default for CPU
-DEFAULT_SUMMARY_MAX_WORKERS_CPU_TEST = (
-    1  # Test/dev default for CPU (reduces memory - sequential processing)
-)
-DEFAULT_SUMMARY_MAX_WORKERS_GPU = 2  # Production default for GPU
-DEFAULT_SUMMARY_MAX_WORKERS_GPU_TEST = 1  # Test/dev default for GPU (reduces memory)
-DEFAULT_SUMMARY_CHUNK_SIZE = (
-    2048  # Default token chunk size (BART models support up to 1024, but larger chunks work safely)
-)
-DEFAULT_SUMMARY_WORD_CHUNK_SIZE = (
-    900  # Per SUMMARY_REVIEW.md: 800-1200 words recommended for encoder-decoder models
-)
-DEFAULT_SUMMARY_WORD_OVERLAP = 150  # Per SUMMARY_REVIEW.md: 100-200 words recommended
 
 
 class Config(BaseModel):
@@ -265,7 +217,7 @@ class Config(BaseModel):
     delay_ms: int = Field(default=0, alias="delay_ms")
     prefer_types: List[str] = Field(default_factory=list, alias="prefer_type")
     transcribe_missing: bool = Field(default=False, alias="transcribe_missing")
-    whisper_model: str = Field(default="base", alias="whisper_model")
+    whisper_model: str = Field(default=PROD_DEFAULT_WHISPER_MODEL, alias="whisper_model")
     screenplay: bool = Field(default=False, alias="screenplay")
     screenplay_gap_s: float = Field(default=DEFAULT_SCREENPLAY_GAP_SECONDS, alias="screenplay_gap")
     screenplay_num_speakers: int = Field(default=DEFAULT_NUM_SPEAKERS, alias="num_speakers")
@@ -345,19 +297,27 @@ class Config(BaseModel):
         "Used for E2E testing with mock servers.",
     )
     openai_transcription_model: str = Field(
-        default="whisper-1",
+        default=PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL,
         alias="openai_transcription_model",
-        description="OpenAI Whisper API model version (default: 'whisper-1')",
+        description=(
+            f"OpenAI Whisper API model version "
+            f"(default: '{PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL}')"
+        ),
     )
     openai_speaker_model: str = Field(
-        default="gpt-4o-mini",
+        default=PROD_DEFAULT_OPENAI_SPEAKER_MODEL,
         alias="openai_speaker_model",
-        description="OpenAI model for speaker detection (default: 'gpt-4o-mini')",
+        description=(
+            f"OpenAI model for speaker detection "
+            f"(default: '{PROD_DEFAULT_OPENAI_SPEAKER_MODEL}')"
+        ),
     )
     openai_summary_model: str = Field(
-        default="gpt-4o-mini",
+        default=PROD_DEFAULT_OPENAI_SUMMARY_MODEL,
         alias="openai_summary_model",
-        description="OpenAI model for summarization (default: 'gpt-4o-mini')",
+        description=(
+            f"OpenAI model for summarization " f"(default: '{PROD_DEFAULT_OPENAI_SUMMARY_MODEL}')"
+        ),
     )
     openai_temperature: float = Field(
         default=0.3,

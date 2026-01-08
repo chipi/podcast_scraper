@@ -1,0 +1,196 @@
+# Testing Strategy - Quick Reference
+
+**For complete details:** `docs/guides/TESTING_GUIDE.md`, `docs/TESTING_STRATEGY.md`
+
+## 🚨 MANDATORY: Testing Before Commit
+
+### Default Strategy: Start with Fast Tests
+
+```bash
+# Step 1: ALWAYS run fast tests first
+make test-ci-fast  # ~6-10 min (unit + fast integration + fast e2e)
+```
+
+### Step 2: Run Slow Tests If Needed
+
+**Run slow tests ONLY if you changed:**
+
+| Area Changed | Command | Duration |
+|--------------|---------|----------|
+| Whisper integration (`whisper_integration.py`) | `make test-integration-slow` | ~5-10 min |
+| Summarization with ML (`summarizer.py`) | `make test-integration-slow` | ~5-10 min |
+| Speaker detection (`speaker_detection.py`) | `make test-integration-slow` | ~5-10 min |
+| Full workflow with ML (`workflow.py`) | `make test-all-slow` | ~20-30 min |
+| E2E tests with ML models | `make test-e2e-slow` | ~15-20 min |
+
+**When NOT to run slow tests:**
+- ❌ Only unit test changes
+- ❌ Only documentation changes
+- ❌ Only configuration changes (that don't affect ML)
+- ❌ Code changes that don't touch ML model paths
+
+## Pytest Markers
+
+### Use These Markers
+
+```python
+@pytest.mark.slow              # Tests that take >5s
+@pytest.mark.integration       # Tests that use multiple modules
+@pytest.mark.e2e              # End-to-end tests with full workflow
+@pytest.mark.ml_models        # Tests that load ML models
+@pytest.mark.critical_path    # Fast tests that run on PRs
+```
+
+### Marker Combinations
+
+```python
+# Slow integration test with ML models
+@pytest.mark.slow
+@pytest.mark.integration
+@pytest.mark.ml_models
+def test_whisper_transcription():
+    pass
+
+# Fast critical path E2E test
+@pytest.mark.e2e
+@pytest.mark.critical_path
+def test_workflow_download_only():
+    pass
+```
+
+## Test Structure
+
+### Test Naming Convention
+
+```python
+# Good - descriptive scenario
+def test_fetch_url_retries_on_connection_error():
+    pass
+
+def test_sanitize_filename_replaces_invalid_chars():
+    pass
+
+# Bad - not descriptive
+def test_fetch_url():
+    pass
+
+def test_sanitize():
+    pass
+```
+
+### Test Organization
+
+```
+tests/
+├── unit/              # Pure unit tests (no external deps)
+│   ├── test_config.py
+│   ├── test_downloader.py
+│   └── test_filesystem.py
+├── integration/       # Multi-module integration tests
+│   ├── test_whisper_integration.py
+│   ├── test_summarizer.py
+│   └── test_speaker_detection.py
+└── e2e/              # End-to-end workflow tests
+    ├── test_workflow_basic.py
+    └── test_workflow_full.py
+```
+
+## Mocking Requirements
+
+### Always Mock External Dependencies
+
+```python
+from unittest.mock import Mock, patch
+
+# Mock HTTP calls
+@patch("podcast_scraper.downloader.requests.Session")
+def test_download(mock_session):
+    mock_session.get.return_value = Mock(status_code=200, content=b"data")
+    # test code
+
+# Mock Whisper
+@patch("podcast_scraper.whisper_integration.whisper")
+def test_transcribe(mock_whisper):
+    mock_whisper.load_model.return_value = Mock()
+    # test code
+
+# Mock file I/O (use tempfile)
+import tempfile
+def test_save_file():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # test code
+```
+
+### What to Mock
+
+- ✅ HTTP requests (`requests.Session`, `requests.get`)
+- ✅ Whisper models (`whisper.load_model`, `whisper.transcribe`)
+- ✅ File I/O (use `tempfile.TemporaryDirectory`)
+- ✅ spaCy models (mock NER extraction)
+- ✅ Time operations (`time.sleep`, `time.time`)
+- ✅ OpenAI API calls (when implemented)
+
+## Coverage Requirements
+
+- **Target:** >80% line coverage
+- **Focus:** Core business logic (not mocks/fixtures)
+- **Check:** `make coverage` generates HTML report in `htmlcov/`
+
+## Running Tests
+
+### Common Commands
+
+```bash
+# Fast tests (default for development)
+make test-ci-fast          # No coverage, fastest (~6-10 min)
+
+# Individual test suites
+make test-unit            # Unit tests only (~2-5 min)
+make test-integration     # All integration tests (~10-15 min)
+make test-e2e            # All E2E tests (~20-30 min)
+
+# Slow tests (when needed)
+make test-integration-slow  # Slow integration (~5-10 min)
+make test-e2e-slow         # Slow E2E (~15-20 min)
+make test-all-slow         # All slow tests (~20-30 min)
+
+# Full CI validation
+make ci                   # All checks + tests + coverage (~10-15 min)
+
+# Debug specific test
+pytest tests/unit/test_config.py::test_config_validation -v -s
+pytest -k "test_whisper" -v  # Run tests matching pattern
+```
+
+### Parallel Execution
+
+- Tests run in parallel by default (`-n auto`)
+- Disable for debugging: `pytest -n 0 -v -s`
+
+## Quick Decision Tree
+
+```
+Changed code?
+├─ Docs only? → No tests needed
+├─ Unit tests only? → make test-ci-fast
+├─ ML code changed?
+│  ├─ Integration ML? → make test-ci-fast + make test-integration-slow
+│  ├─ E2E ML? → make test-ci-fast + make test-e2e-slow
+│  └─ Both? → make test-ci-fast + make test-all-slow
+└─ No ML? → make test-ci-fast
+```
+
+## Remember
+
+1. **Start with fast tests** - Catches most issues quickly
+2. **Run slow tests conditionally** - Only when touching ML code
+3. **Mock external dependencies** - Tests must be isolated
+4. **Use descriptive test names** - `test_<function>_<scenario>`
+5. **Target >80% coverage** - Focus on business logic
+6. **Pre-commit hook runs fast tests** - Automatic validation
+
+---
+
+**Version:** 1.0
+**Created:** 2026-01-07
+**Source:** Distilled from `docs/guides/TESTING_GUIDE.md` and `docs/TESTING_STRATEGY.md`

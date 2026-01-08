@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from .. import config, models, progress, speaker_detection, summarizer
 from ..cache_utils import get_whisper_cache_dir
+from ..whisper_utils import normalize_whisper_model_name
 
 logger = logging.getLogger(__name__)
 
@@ -238,7 +239,9 @@ class MLProvider:
                 ) from e
 
         if needs_spacy:
-            model_name = self.cfg.ner_model or "en_core_web_sm"
+            from ..config_constants import DEFAULT_NER_MODEL
+
+            model_name = self.cfg.ner_model or DEFAULT_NER_MODEL
             logger.info("Preloading spaCy model: %s", model_name)
             try:
                 if not self._spacy_initialized:
@@ -325,54 +328,11 @@ class MLProvider:
                 "Make sure 'openai-whisper' is installed: pip install openai-whisper"
             )
 
-        # Language-aware model selection: prefer .en variants for English
-        requested_model = self.cfg.whisper_model
-        model_name = requested_model
-        if self.cfg.language in ("en", "english"):
-            # If user specified a base model without .en, prefer the .en variant
-            if model_name in ("tiny", "base", "small", "medium"):
-                model_name = f"{model_name}.en"
-                logger.debug(
-                    "Language is English, preferring %s over %s", model_name, requested_model
-                )
-        else:
-            # For non-English, ensure we use multilingual models (no .en suffix)
-            if model_name.endswith(".en"):
-                logger.debug(
-                    "Language is %s, using multilingual model instead of %s",
-                    self.cfg.language,
-                    model_name,
-                )
-                model_name = model_name[:-3]  # Remove .en suffix
-
-        # Build fallback chain: try requested model, then progressively smaller models
-        fallback_models = [model_name]
-        if self.cfg.language in ("en", "english"):
-            # For English, try .en variants in order: base.en, tiny.en
-            if model_name not in ("tiny.en", "base.en"):
-                if model_name.startswith("base"):
-                    fallback_models.append("tiny.en")
-                elif model_name.startswith("small"):
-                    fallback_models.extend(["base.en", "tiny.en"])
-                elif model_name.startswith("medium"):
-                    fallback_models.extend(["small.en", "base.en", "tiny.en"])
-                elif model_name.startswith("large"):
-                    fallback_models.extend(["medium.en", "small.en", "base.en", "tiny.en"])
-        else:
-            # For multilingual, try: base, tiny
-            if model_name not in ("tiny", "base"):
-                if model_name.startswith("base"):
-                    fallback_models.append("tiny")
-                elif model_name.startswith("small"):
-                    fallback_models.extend(["base", "tiny"])
-                elif model_name.startswith("medium"):
-                    fallback_models.extend(["small", "base", "tiny"])
-                elif model_name.startswith("large"):
-                    fallback_models.extend(["medium", "small", "base", "tiny"])
-
+        # Use centralized fallback logic (config-driven, no hardcoded values)
+        model_name, fallback_models = normalize_whisper_model_name(
+            self.cfg.whisper_model, self.cfg.language
+        )
         logger.debug("Loading Whisper model: %s", model_name)
-        if len(fallback_models) > 1:
-            logger.debug("Fallback chain: %s", fallback_models)
 
         # Check cache directory for pre-cached models
         # Prefer local cache in project root, fallback to ~/.cache/whisper/

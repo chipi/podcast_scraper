@@ -183,18 +183,7 @@ If you have human/reference summaries, you can compute:
 
         # scores is a dict with precision/recall/fmeasure
 
-```
-        return scores
-
-```
-
-    # example
-
-```
-        "data/eval/ep01/reference_summary.txt"
-    )
-    print(scores["rougeL"].fmeasure)
-    ```
+```yaml
 
 Use this to:
 
@@ -269,23 +258,6 @@ You can create a simple regression test workflow:
     Or use a config file:
 
 ```
-        --config config.yaml \
-        --output results/config_run.json
-    ```
-
-1. `scripts/eval_summaries.py` does:
-
-   - Loops over `data/eval/*` episode directories
-   - Loads `transcript.txt` and `reference_summary.txt` (if available)
-   - Cleans transcript using `summarizer.clean_transcript()` (same as pipeline)
-   - Generates summary using `summarizer.summarize_long_text()` with configured model
-   - Computes ROUGE scores (if reference summary exists)
-   - Performs reference-free checks (compression ratio, repetition, keyword coverage)
-   - Outputs comprehensive JSON report with per-episode and aggregate metrics
-
-1. Keep baseline numbers in version control, e.g.:
-
-    ```json
 ```text
 
     {
@@ -340,6 +312,7 @@ Here's a practical plan:
        --model bart-large \
        --reduce-model long-fast \
        --output results/baseline_bart_led.json
+
 ````
 
 1. **Compare models**: When you change models or settings, re-run on same episodes:

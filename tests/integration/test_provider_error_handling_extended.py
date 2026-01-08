@@ -192,9 +192,9 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 provider.initialize()
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
     def test_summarize_before_initialization(
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
@@ -214,9 +214,9 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             provider.summarize("test text")
 
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.summarization.local_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
     def test_summarize_failure_after_initialization(
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
@@ -228,7 +228,8 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             summary_provider="transformers",
-            generate_summaries=False,
+            generate_metadata=True,  # Required for generate_summaries
+            generate_summaries=True,  # Enable summaries for initialization
         )
         provider = create_summarization_provider(cfg)
         provider.initialize()

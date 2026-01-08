@@ -65,7 +65,7 @@ Environment variables are automatically loaded when the `podcast_scraper.config`
 OpenAI providers support configurable model selection for dev/test vs production environments.
 
 | Field | CLI Flag | Default | Description |
-|-------|----------|---------|-------------|
+| ------- | ---------- | --------- | ------------- |
 | `openai_transcription_model` | `--openai-transcription-model` | `whisper-1` | OpenAI model for transcription |
 | `openai_speaker_model` | `--openai-speaker-model` | `gpt-4o-mini` | OpenAI model for speaker detection |
 | `openai_summary_model` | `--openai-summary-model` | `gpt-4o-mini` | OpenAI model for summarization |
@@ -74,7 +74,7 @@ OpenAI providers support configurable model selection for dev/test vs production
 **Recommended Models by Environment**:
 
 | Purpose | Test/Dev | Production | Notes |
-|---------|----------|------------|-------|
+| --------- | ---------- | ------------ | ------- |
 | Transcription | `whisper-1` | `whisper-1` | Only OpenAI option |
 | Speaker Detection | `gpt-4o-mini` | `gpt-4o` | Mini is fast/cheap; 4o is more accurate |
 | Summarization | `gpt-4o-mini` | `gpt-4o` | Mini is fast/cheap; 4o produces better summaries |

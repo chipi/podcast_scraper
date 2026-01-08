@@ -119,7 +119,7 @@ ner_model: en_core_web_sm  # spaCy model name
 # Summarization settings (for local provider)
 
 generate_summaries: true
-summary_model: facebook/bart-large-cnn  # Transformers model
+summary_model: bart-large  # Transformers model alias (options: bart-large, bart-small)
 summary_device: cpu  # or "cuda", "mps"
 ```
 

@@ -104,52 +104,11 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
         )
         return None
 
-    # Language-aware model selection: prefer .en variants for English
-    requested_model = cfg.whisper_model
-    model_name = requested_model
-    if cfg.language in ("en", "english"):
-        # If user specified a base model without .en, prefer the .en variant
-        if model_name in ("tiny", "base", "small", "medium"):
-            model_name = f"{model_name}.en"
-            logger.debug("Language is English, preferring %s over %s", model_name, requested_model)
-    else:
-        # For non-English, ensure we use multilingual models (no .en suffix)
-        if model_name.endswith(".en"):
-            logger.debug(
-                "Language is %s, using multilingual model instead of %s",
-                cfg.language,
-                model_name,
-            )
-            model_name = model_name[:-3]  # Remove .en suffix
+    # Use centralized fallback logic (config-driven, no hardcoded values)
+    from .whisper_utils import normalize_whisper_model_name
 
-    # Build fallback chain: try requested model, then progressively smaller models
-    fallback_models = [model_name]
-    if cfg.language in ("en", "english"):
-        # For English, try .en variants in order: base.en, tiny.en
-        if model_name not in ("tiny.en", "base.en"):
-            if model_name.startswith("base"):
-                fallback_models.append("tiny.en")
-            elif model_name.startswith("small"):
-                fallback_models.extend(["base.en", "tiny.en"])
-            elif model_name.startswith("medium"):
-                fallback_models.extend(["small.en", "base.en", "tiny.en"])
-            elif model_name.startswith("large"):
-                fallback_models.extend(["medium.en", "small.en", "base.en", "tiny.en"])
-    else:
-        # For multilingual, try: base, tiny
-        if model_name not in ("tiny", "base"):
-            if model_name.startswith("base"):
-                fallback_models.append("tiny")
-            elif model_name.startswith("small"):
-                fallback_models.extend(["base", "tiny"])
-            elif model_name.startswith("medium"):
-                fallback_models.extend(["small", "base", "tiny"])
-            elif model_name.startswith("large"):
-                fallback_models.extend(["medium", "small", "base", "tiny"])
-
+    model_name, fallback_models = normalize_whisper_model_name(cfg.whisper_model, cfg.language)
     logger.debug("Loading Whisper model: %s", model_name)
-    if len(fallback_models) > 1:
-        logger.debug("Fallback chain: %s", fallback_models)
 
     last_error: Optional[Union[FileNotFoundError, RuntimeError, OSError]] = None
     for attempt_model in fallback_models:

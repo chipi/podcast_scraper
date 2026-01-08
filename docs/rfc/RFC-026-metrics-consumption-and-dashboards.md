@@ -1,13 +1,15 @@
 # RFC-026: Metrics Consumption and Dashboards
 
-- **Status**: ✅ Completed (Phase 0 - Core Goals)
+- **Status**: ✅ **Completed** (Phases 0-3 complete, Phase 4 extracted to RFC-040)
 - **Authors**:
 - **Stakeholders**: Maintainers, developers, CI/CD pipeline maintainers
+- **Completed**: 2026-01-07
 - **Related PRDs**:
   - `docs/prd/PRD-001-transcript-pipeline.md` (core pipeline)
 - **Related RFCs**:
   - `docs/rfc/RFC-025-test-metrics-and-health-tracking.md` (metrics collection - prerequisite)
   - `docs/rfc/RFC-024-test-execution-optimization.md` (test execution optimization)
+  - **`docs/rfc/RFC-040-automated-metrics-alerts.md`** (Phase 4 - extracted for independent evolution)
 - **Related Documents**:
 
 **🚨 DEPENDENCY NOTE:**
@@ -109,19 +111,27 @@ These principles are shared across RFC-024, RFC-025, and RFC-026:
 - ✅ Automatic alerts for regressions
 - ✅ Historical data available for analysis
 
-## Solution: GitHub Pages Metrics Dashboard
+## Solution: GitHub Pages Unified Metrics Dashboard
 
-**Approach:** Publish metrics to GitHub Pages as both human-readable dashboard and machine-readable JSON.
+**Approach:** Publish metrics to GitHub Pages as both human-readable unified dashboard and machine-readable JSON.
 
 **Benefits:**
 
 - ✅ **Always accessible**: Public URL (e.g., `https://chipi.github.io/podcast_scraper/metrics/`)
 - ✅ **No authentication**: Anyone can view metrics
-- ✅ **Auto-updated**: Metrics published after each CI run
+- ✅ **Auto-updated**: Metrics published after each CI run and nightly schedule
+- ✅ **Unified interface**: Single dashboard with data source selector (CI or Nightly)
 - ✅ **Quick consumption**: View dashboard in browser (< 10 seconds)
-- ✅ **Machine-readable**: JSON API for automation
-- ✅ **Historical trends**: Visual charts showing deviations
+- ✅ **Machine-readable**: JSON API for automation (separate files for CI and Nightly)
+- ✅ **Historical trends**: Visual charts showing deviations (last 30 runs per source)
 - ✅ **Zero infrastructure**: Uses GitHub Pages (free, no setup)
+
+**Dashboard Features:**
+
+- **Data Source Selector**: Dropdown to switch between CI Metrics and Nightly Metrics
+- **Auto-detection**: Automatically loads available data source on page load
+- **Dynamic Loading**: JavaScript fetches appropriate JSON files based on selection
+- **Same Features**: All dashboard features work for both data sources (charts, alerts, slowest tests, etc.)
 
 ## Implementation Strategy
 
@@ -147,7 +157,7 @@ These principles are shared across RFC-024, RFC-025, and RFC-026:
 **Success Criteria:**
 
 - ✅ Job summaries show key metrics (runtime, coverage, pass rate) in every PR
-- ✅ `metrics/latest.json` is accessible via public URL
+- ✅ `metrics/latest-ci.json` and `metrics/latest-nightly.json` are accessible via public URL
 - ✅ Metrics can be consumed via `curl` + `jq` in < 5 seconds
 - ✅ No visual dashboard required
 
@@ -155,7 +165,11 @@ These principles are shared across RFC-024, RFC-025, and RFC-026:
 
 ### 1. Metrics JSON API (Machine-Readable)
 
-**Location:** `https://chipi.github.io/podcast_scraper/metrics/latest.json`
+**Locations:**
+- CI Metrics: `https://chipi.github.io/podcast_scraper/metrics/latest-ci.json`
+- Nightly Metrics: `https://chipi.github.io/podcast_scraper/metrics/latest-nightly.json`
+- CI History: `https://chipi.github.io/podcast_scraper/metrics/history-ci.jsonl`
+- Nightly History: `https://chipi.github.io/podcast_scraper/metrics/history-nightly.jsonl`
 
 **Format:**
 
@@ -210,13 +224,24 @@ These principles are shared across RFC-024, RFC-025, and RFC-026:
     }
   ]
 }
-```text
 ```bash
-curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.metrics.runtime.total'
 
-# Check for regressions
+# Fetch CI metrics
 
-curl -s <https://chipi.github.io/podcast_scraper/metrics/latest.json> | jq '.alerts[]'
+curl -s https://chipi.github.io/podcast_scraper/metrics/latest-ci.json | jq '.metrics.runtime.total'
+
+# Fetch nightly metrics
+
+curl -s https://chipi.github.io/podcast_scraper/metrics/latest-nightly.json | jq '.metrics.runtime.total'
+
+# Check for regressions (CI)
+
+curl -s https://chipi.github.io/podcast_scraper/metrics/latest-ci.json | jq '.alerts[]'
+
+# Check for regressions (Nightly)
+
+curl -s https://chipi.github.io/podcast_scraper/metrics/latest-nightly.json | jq '.alerts[]'
+
 ```text
 
 - **Current metrics** (latest run)
@@ -236,6 +261,7 @@ curl -s <https://chipi.github.io/podcast_scraper/metrics/latest.json> | jq '.ale
 **Example Dashboard:**
 
 ```html
+
 <!-- Simplified example -->
 <div class="metrics-dashboard">
   <h1>Test Metrics Dashboard</h1>
@@ -266,12 +292,14 @@ curl -s <https://chipi.github.io/podcast_scraper/metrics/latest.json> | jq '.ale
     </div>
   </div>
 </div>
+
 ```json
 
 {"timestamp":"2024-12-28T19:00:00Z","commit":"abc123","runtime":35.2,"coverage":65.1,"passed":248}
 {"timestamp":"2024-12-28T20:00:00Z","commit":"def456","runtime":35.7,"coverage":65.3,"passed":248}
 
 ```text
+
 - Can append without rewriting entire file
 
 ## 4. GitHub Actions Integration
@@ -300,7 +328,9 @@ curl -s <https://chipi.github.io/podcast_scraper/metrics/latest.json> | jq '.ale
       --output metrics/index.html
 
 ```text
+
     # Publish to gh-pages branch
+
 ```bash
 
     git checkout gh-pages || git checkout --orphan gh-pages
@@ -309,6 +339,7 @@ curl -s <https://chipi.github.io/podcast_scraper/metrics/latest.json> | jq '.ale
     git push origin gh-pages
 
 ```text
+
 3. Check trend charts for spikes
 
 ### Method 2: JSON API (5 seconds)
@@ -324,6 +355,7 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.alert
 curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.trends'
 
 ```text
+
 - No external access needed
 
 ## Method 4: Automated Alerts (0 seconds)
@@ -389,7 +421,9 @@ def detect_deviations(current, history):
         })
 
 ```text
+
     return alerts
+
 ```python
 
 - Simple deviation detection
@@ -398,7 +432,7 @@ def detect_deviations(current, history):
 
 - `scripts/generate_metrics.py` - Extract metrics from JUnit/coverage
 - GitHub Actions step to publish to gh-pages
-- `metrics/latest.json` accessible via GitHub Pages
+- `metrics/latest-ci.json` and `metrics/latest-nightly.json` accessible via GitHub Pages
 
 ### Phase 2: HTML Dashboard (2-3 days)
 
@@ -424,17 +458,27 @@ def detect_deviations(current, history):
 - Dashboard loads and displays historical data
 - Trend charts show last 30 runs
 
-### Phase 4: Automated Alerts (1-2 days)
+### Phase 4: Automated Alerts (MOVED TO RFC-040)
 
+**Status:** ⏭️ **Extracted to RFC-040** for independent evolution
+
+Phase 4 (automated alerts) has been extracted to a separate RFC to enable:
+- Independent evolution of alerting strategy
+- Clear completion milestone for RFC-026 (Phases 0-3)
+- Focused implementation tracking in v2.7 milestone
+
+**See:** [RFC-040: Automated Metrics Alerts](RFC-040-automated-metrics-alerts.md)
+
+**Original scope (now in RFC-040):**
 - PR comments on metric changes
 - Webhook notifications (optional)
 - Email alerts (optional)
 
-**Deliverables:**
-
-- GitHub Actions step to comment on PRs
-- Alert generation logic
-- Optional webhook integration
+**Rationale for extraction:**
+- Phases 0-3 are complete and production-ready
+- Phase 4 is substantial work (~1 day) not yet started
+- Separating allows RFC-026 to be marked as complete
+- Issue #216 now tracks RFC-040 implementation
 
 ## Access Patterns
 
@@ -444,13 +488,13 @@ def detect_deviations(current, history):
 | -------- | ---------- | ---------- | ------------- |
 | **Job Summary** | PR authors | "Did I break something?" | 0s (view in PR checks) |
 | **JSON API** | Automation | Gates, scripts, CI integration | 5s (`curl` + `jq`) |
-| **Dashboard** | Maintainers | Trend spotting, historical analysis | 10s (browser) |
+| **Unified Dashboard** | Maintainers | Trend spotting, historical analysis, compare CI vs Nightly | 10s (browser) |
 
 **Rationale:**
 
 - **Job Summary** - Immediate feedback for PR authors checking if their changes broke tests
-- **JSON API** - Machine-readable for automation, gates, and scripts
-- **Dashboard** - Visual tool for maintainers to spot trends and analyze historical data
+- **JSON API** - Machine-readable for automation, gates, and scripts (separate endpoints for CI and Nightly)
+- **Unified Dashboard** - Visual tool for maintainers to spot trends, analyze historical data, and compare CI vs Nightly metrics using the data source selector
 
 ### For Quick Checks (< 60 seconds)
 

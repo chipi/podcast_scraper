@@ -134,6 +134,8 @@ class TestOpenAIProviderStandalone(unittest.TestCase):
             openai_api_base=self.cfg.openai_api_base,
             speaker_detector_provider="openai",
             auto_speakers=True,
+            transcribe_missing=False,  # Explicitly disable to avoid initializing transcription
+            generate_summaries=False,  # Explicitly disable to avoid initializing summarization
         )
         provider = OpenAIProvider(cfg)
 
@@ -154,6 +156,7 @@ class TestOpenAIProviderStandalone(unittest.TestCase):
             generate_summaries=True,
             generate_metadata=True,  # Required when generate_summaries is True
             auto_speakers=False,  # Disable to avoid initializing speaker detection
+            transcribe_missing=False,  # Explicitly disable to avoid initializing transcription
         )
         provider = OpenAIProvider(cfg)
 

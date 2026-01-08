@@ -1,23 +1,26 @@
 # GitHub Copilot Instructions for podcast_scraper
 
-## ⚠️ PRIMARY REFERENCE FILE ⚠️
+## ⚠️ PRIMARY REFERENCE FILES ⚠️
 
-**This file points to the main guidelines. For complete guidelines, see:**
-**`.ai-coding-guidelines.md`** - This is the PRIMARY source of truth.
+**For Cursor AI (automatic enforcement):**
+**`.cursorrules`** - Critical rules enforced automatically by Cursor
+
+**For all AI assistants (comprehensive guidelines):**
+**`.ai-coding-guidelines.md`** - Complete AI coding guidelines (PRIMARY source of truth)
 
 ## 🚨 START-OF-SESSION CHECKLIST (MANDATORY - DO THIS FIRST)
 
 **Before taking ANY action in this project, you MUST:**
 
-1. ✅ **Read `.ai-coding-guidelines.md`** (at minimum, read the CRITICAL RULES section)
+1. ✅ **Read `.cursorrules`** (for Cursor AI) or **`.ai-coding-guidelines.md`** (for other AI)
 2. ✅ **Acknowledge you've read it** - Say "I've read the AI guidelines" or similar
 3. ✅ **Confirm you understand** - The user may ask "Did you read the guidelines?" - Answer honestly
-4. ✅ **Reference `.ai-coding-guidelines.md`** for all decisions about commits, pushes, and workflows
+4. ✅ **Reference the guidelines** for all decisions about commits, pushes, and workflows
 
 **If the user asks "Did you read the guidelines?" or "Check the guidelines first":**
 
 - ✅ **STOP what you're doing**
-- ✅ **Read `.ai-coding-guidelines.md` immediately**
+- ✅ **Read `.cursorrules` or `.ai-coding-guidelines.md` immediately**
 - ✅ **Acknowledge what you read**
 - ✅ **Then proceed with the task**
 
@@ -25,11 +28,17 @@
 
 **CRITICAL RULES:**
 
+- ❌ NEVER push any branch without explicit user approval (commits OK after diff approval, pushes NEVER by default)
 - ❌ NEVER commit without showing changes and getting user approval
-- ❌ NEVER push to PR without running `make ci` first
+- ❌ NEVER push to main branch (always use feature branches)
 - ✅ Always show `git status` and `git diff` before committing
 - ✅ Always wait for explicit user approval before committing
-- ✅ Always run `make ci` before pushing to PR (new or updated)
+- ✅ Always run `make ci-fast` before committing
+- ✅ ALWAYS use Makefile commands (never direct pytest/python/black commands)
+- ✅ NEVER use `cd` to project root (already in workspace directory)
+- ✅ ALWAYS use correct GitHub username (check dynamically, not Mac username)
+- ✅ ALWAYS show terminal output for make/test commands (`is_background: false`)
+- ✅ Run `make fix-md` immediately after ANY markdown edit (zero lint violations before review)
 
 ## 📚 COMPLETE GUIDE FILE SET (LOAD ALL WHEN REQUESTED)
 

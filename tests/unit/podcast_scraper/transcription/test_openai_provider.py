@@ -36,7 +36,7 @@ spec.loader.exec_module(parent_conftest)
 create_test_config = parent_conftest.create_test_config
 
 from podcast_scraper import config  # noqa: E402
-from podcast_scraper.transcription.openai_provider import OpenAITranscriptionProvider  # noqa: E402
+from podcast_scraper.transcription.factory import create_transcription_provider  # noqa: E402
 
 
 class TestOpenAITranscriptionProvider(unittest.TestCase):
@@ -52,11 +52,11 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
     def test_init_success(self):
         """Test successful initialization."""
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         self.assertEqual(provider.cfg, self.cfg)
         self.assertIsNotNone(provider.client)
         self.assertEqual(provider.model, config.TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL)
-        self.assertFalse(provider._initialized)
+        self.assertFalse(provider._transcription_initialized)
 
     def test_init_missing_api_key(self):
         """Test initialization raises error when API key is missing."""
@@ -64,6 +64,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         from unittest.mock import MagicMock
 
         mock_cfg = MagicMock()
+        mock_cfg.transcription_provider = "openai"
         mock_cfg.openai_api_key = None
         mock_cfg.openai_api_base = None
         # getattr should return None for openai_transcription_model
@@ -72,7 +73,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         )
 
         with self.assertRaises(ValueError) as context:
-            OpenAITranscriptionProvider(mock_cfg)
+            create_transcription_provider(mock_cfg)
 
         self.assertIn("OpenAI API key required", str(context.exception))
 
@@ -83,7 +84,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
             openai_api_key="sk-test123",
             openai_api_base="https://api.example.com/v1",
         )
-        provider = OpenAITranscriptionProvider(cfg)
+        provider = create_transcription_provider(cfg)
         # Verify client was created with custom base_url
         self.assertIsNotNone(provider.client)
 
@@ -92,29 +93,30 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         from unittest.mock import MagicMock
 
         mock_cfg = MagicMock()
+        mock_cfg.transcription_provider = "openai"
         mock_cfg.openai_api_key = "sk-test123"
         mock_cfg.openai_api_base = None
         # Use getattr to simulate openai_transcription_model attribute
         type(mock_cfg).openai_transcription_model = property(lambda self: "whisper-2")
 
-        provider = OpenAITranscriptionProvider(mock_cfg)
+        provider = create_transcription_provider(mock_cfg)
         self.assertEqual(provider.model, "whisper-2")
 
     def test_initialize_success(self):
         """Test successful initialization."""
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        self.assertTrue(provider._initialized)
+        self.assertTrue(provider._transcription_initialized)
 
     def test_initialize_already_initialized(self):
         """Test initialization when already initialized."""
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
         # Call again
         provider.initialize()
 
-        self.assertTrue(provider._initialized)
+        self.assertTrue(provider._transcription_initialized)
 
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
@@ -128,7 +130,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.audio.transcriptions.create.return_value = "Hello world"
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.client = mock_client
         provider.initialize()
 
@@ -148,7 +150,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.audio.transcriptions.create.return_value = "Bonjour"
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.client = mock_client
         provider.initialize()
 
@@ -167,6 +169,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
             transcription_provider="openai",
             openai_api_key="sk-test123",
             language="es",
+            transcribe_missing=True,
         )
         mock_exists.return_value = True
         mock_file = Mock()
@@ -175,7 +178,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.audio.transcriptions.create.return_value = "Hola"
-        provider = OpenAITranscriptionProvider(cfg)
+        provider = create_transcription_provider(cfg)
         provider.client = mock_client
         provider.initialize()
 
@@ -193,6 +196,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         from unittest.mock import MagicMock
 
         mock_cfg = MagicMock()
+        mock_cfg.transcription_provider = "openai"
         mock_cfg.openai_api_key = "sk-test123"
         mock_cfg.openai_api_base = None
         mock_cfg.language = None  # No default language
@@ -207,7 +211,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.audio.transcriptions.create.return_value = "Hello"
-        provider = OpenAITranscriptionProvider(mock_cfg)
+        provider = create_transcription_provider(mock_cfg)
         provider.client = mock_client
         provider.initialize()
 
@@ -219,7 +223,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
     def test_transcribe_not_initialized(self):
         """Test transcribe raises error when not initialized."""
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
 
         with self.assertRaises(RuntimeError) as context:
             provider.transcribe("/tmp/audio.mp3")
@@ -231,7 +235,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         """Test transcribe raises error when file doesn't exist."""
         mock_exists.return_value = False
 
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         with self.assertRaises(FileNotFoundError) as context:
@@ -250,7 +254,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.audio.transcriptions.create.side_effect = Exception("API error")
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.client = mock_client
         provider.initialize()
 
@@ -285,7 +289,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.audio.transcriptions.create.return_value = mock_response
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.client = mock_client
         provider.initialize()
 
@@ -318,7 +322,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.audio.transcriptions.create.return_value = mock_response
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.client = mock_client
         provider.initialize()
 
@@ -343,7 +347,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.audio.transcriptions.create.return_value = mock_response
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.client = mock_client
         provider.initialize()
 
@@ -363,7 +367,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
         mock_client = Mock()
         mock_client.audio.transcriptions.create.side_effect = Exception("API error")
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.client = mock_client
         provider.initialize()
 
@@ -374,7 +378,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
     def test_transcribe_with_segments_not_initialized(self):
         """Test transcribe_with_segments raises error when not initialized."""
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
 
         with self.assertRaises(RuntimeError) as context:
             provider.transcribe_with_segments("/tmp/audio.mp3")
@@ -386,7 +390,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         """Test transcribe_with_segments raises error when file doesn't exist."""
         mock_exists.return_value = False
 
-        provider = OpenAITranscriptionProvider(self.cfg)
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
         with self.assertRaises(FileNotFoundError) as context:
@@ -395,14 +399,15 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertIn("not found", str(context.exception))
 
     def test_cleanup(self):
-        """Test cleanup method (no-op for API provider)."""
-        provider = OpenAITranscriptionProvider(self.cfg)
+        """Test cleanup method resets initialization state."""
+        provider = create_transcription_provider(self.cfg)
         provider.initialize()
+        self.assertTrue(provider._transcription_initialized)
 
         # Should not raise
         provider.cleanup()
-        # Should still be initialized (cleanup is no-op)
-        self.assertTrue(provider._initialized)
+        # Cleanup resets initialization state
+        self.assertFalse(provider._transcription_initialized)
 
 
 if __name__ == "__main__":

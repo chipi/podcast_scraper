@@ -1,10 +1,19 @@
+# CI/CD Workflows
+
+This document provides detailed documentation for all GitHub Actions workflows.
+
+For architecture and optimization strategies, see [Overview](OVERVIEW.md).
+For local development setup, see [Local Development](LOCAL_DEVELOPMENT.md).
+
+---
+
 # CI/CD Pipeline
 
 ## Overview
 
 The Podcast Scraper project uses GitHub Actions for continuous integration and deployment. The CI/CD
-pipeline consists of **six main workflows** that automate testing, code quality checks, security
-scanning, Docker validation, documentation deployment, and metrics collection.
+pipeline consists of **seven workflows** that automate testing, code quality checks, security
+scanning, Docker validation, documentation deployment, dependency updates, and metrics collection.
 
 ### Workflows Summary
 
@@ -15,7 +24,8 @@ scanning, Docker validation, documentation deployment, and metrics collection.
 | **CodeQL Security**       | `codeql.yml`     | Security vulnerability scanning                       | Push/PR to `main` (only when code/workflow files change), scheduled weekly  |
 | **Docker Build & Test**   | `docker.yml`     | Build and test Docker images                          | Push to `main` (all), PRs (Dockerfile/.dockerignore only)                   |
 | **Snyk Security Scan**    | `snyk.yml`       | Dependency and Docker image vulnerability scanning    | Push/PR to `main`, scheduled weekly (Mondays), manual                       |
-| **Nightly Comprehensive** | `nightly.yml`    | Full test suite with comprehensive metrics collection | Scheduled daily (2 AM UTC), manual                                          |
+| **Nightly Comprehensive** | `nightly.yml`    | Full test suite with comprehensive metrics collection | Scheduled daily (2 AM UTC), push to release branches, manual                |
+| **Dependabot**            | `dependabot.yml` | Automated dependency update PRs                       | Scheduled weekly (Mondays), monthly for Docker                              |
 
 ---
 
@@ -57,28 +67,19 @@ graph TB
     end
 
 ```python
+
     T1 --> P1 & P2 & P3 & P4
     T2 --> P1 & P2 & P3 & P4
     T1 --> D1 --> D2
     T1 --> C1
     T1 --> DOCK1 --> DOCK2
     T1 --> SNYK1 & SNYK2
-```
+
+```python
+<!-- Empty text block for markdown separation -->
 
 ```text
-style P1 fill:#e1f5e1
-style D1 fill:#e1e5ff
-style C1 fill:#ffe1e1
-style DOCK1 fill:#fff4e1
-style SNYK1 fill:#ffe1f5
-```
 
-**File:** `.github/workflows/python-app.yml`
-**Triggers:** Push and Pull Requests to `main` branch (only when relevant files change)
-
-**Path Filters:**
-
-- `**.py` - All Python source files
 - `tests/**` - Test files
 - `pyproject.toml` - Project configuration
 - `Makefile` - Build configuration
@@ -87,7 +88,7 @@ style SNYK1 fill:#ffe1f5
 
 **Skips when:** Only documentation, markdown, or non-code files change
 
-### Workflow Trigger Conditions
+## Workflow Trigger Conditions
 
 Each workflow only runs when specific files are modified:
 
@@ -121,81 +122,11 @@ Each workflow only runs when specific files are modified:
 
 - **Note:** Docs workflow does NOT trigger on PRs (only on push to main)
 
+## Job Details
+
 This is the main CI pipeline that ensures code quality, runs tests, builds documentation, and validates the package.
 
-### Two-Tier Testing Strategy
-
-The workflow uses a **two-tier testing strategy** optimized for speed and coverage:
-
-1. **Pull Requests:** Fast critical path tests only (quick feedback, ~10-15 min)
-2. **Push to Main:** Full test suite only (complete validation, no redundant fast tests)
-
-### Pull Request Execution Flow
-
-On pull requests, jobs run in parallel for fast feedback:
-
-```mermaid
-graph LR
-    A[PR Opened/Updated] --> B[Lint Job]
-    A --> C[test-unit Job]
-    A --> D[test-integration-fast Job<br/>Critical Path]
-    A --> E[test-e2e-fast Job<br/>Critical Path]
-    A --> F[Docs Job]
-    A --> G[Build Job]
-
-    B --> H[✓ All Complete]
-    C --> H
-    D --> H
-    E --> H
-    F --> H
-    G --> H
-
-    style B fill:#90EE90
-    style C fill:#90EE90
-    style D fill:#FFE4B5
-    style E fill:#FFE4B5
-    style F fill:#90EE90
-    style G fill:#90EE90
-```
-
-- **Parallel execution:** All jobs run simultaneously for maximum speed
-- **Critical path focus:** Fast jobs run only critical path tests
-- **Fast feedback:** Critical path tests provide early pass/fail signal
-- **No coverage job on PRs:** Coverage is handled by individual test jobs
-
-### Push to Main Execution Flow
-
-On push to main branch, separate test jobs run in parallel:
-
-```mermaid
-graph LR
-    A[Push to Main] --> B[Lint Job]
-    A --> C[test-unit Job]
-    A --> D[test-integration Job]
-    A --> E[test-e2e Job]
-    A --> F[Docs Job]
-    A --> G[Build Job]
-
-    B --> H[All Complete]
-    C --> H
-    D --> H
-    E --> H
-    F --> H
-    G --> H
-
-    style B fill:#90EE90
-    style C fill:#90EE90
-    style D fill:#90EE90
-    style E fill:#FFE4B5
-    style F fill:#90EE90
-    style G fill:#90EE90
-```
-
-- **Separate jobs:** Maximum parallelization for fastest overall completion
-- **All tests run:** Includes slow integration and slow E2E tests
-- **Complete validation:** Full test coverage before code is merged
-
-### Job Details
+### Always-Running Jobs
 
 #### 1. Lint Job (Always Runs)
 
@@ -230,88 +161,7 @@ graph LR
 
 ---
 
-#### 2. test-integration-fast Job (Runs on PRs only, with exceptions)
-
-**Purpose:** Run critical path integration tests for fast PR feedback
-
-**When:** Pull requests only (not on push to main, with exceptions for docs-only PRs)
-
-**Conditional Execution:**
-
-```yaml
-if: |
-  github.event_name == 'pull_request' &&
-  github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
-  !contains(github.event.pull_request.head.ref, 'docs/')
-```
-
-- Push to main (full integration tests run instead)
-- PR branch is `fix/ai-guidelines-linting`
-- PR branch name contains `docs/`
-
-**Duration:** ~5-8 minutes
-
-**What it runs:** `pytest tests/integration/ -m "integration and critical_path" --durations=20`
-
-- **Critical path integration tests only:** Uses `critical_path` marker
-- **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
-- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
-- **Parallel execution:** Uses `-n auto` for speed
-- **Duration monitoring:** `--durations=20` shows the 20 slowest tests
-
-**Key Features:**
-
-- **Fast feedback:** Critical path tests only (not all integration tests)
-- **Includes slow critical path tests:** Critical path tests must run to validate core functionality
-- **Slow test monitoring:** Use `--durations=20` output to identify and optimize slow tests
-- **Network isolation:** Enforced via pytest-socket
-- **Re-runs:** Handles flaky tests automatically
-- **ML dependencies:** Installs ML dependencies (required for real Whisper in integration tests)
-
----
-
-#### 3. test-e2e-fast Job (Runs on PRs only, with exceptions)
-
-**Purpose:** Run critical path E2E tests for fast PR feedback
-
-**When:** Pull requests only (not on push to main, with exceptions for docs-only PRs)
-
-**Conditional Execution:**
-
-```yaml
-if: |
-  github.event_name == 'pull_request' &&
-  github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
-  !contains(github.event.pull_request.head.ref, 'docs/')
-```
-
-- Push to main (full E2E tests run instead)
-- PR branch is `fix/ai-guidelines-linting`
-- PR branch name contains `docs/`
-
-**Duration:** ~8-12 minutes
-
-**What it runs:** `pytest tests/e2e/ -m "e2e and critical_path" --durations=20`
-
-- **Critical path E2E tests only:** Uses `critical_path` marker
-- **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
-- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
-- **Parallel execution:** Uses `-n auto` for speed
-- **Duration monitoring:** `--durations=20` shows the 20 slowest tests
-
-**Key Features:**
-
-- **Fast feedback:** Critical path tests only (not all E2E tests)
-- **Includes slow critical path tests:** Critical path tests must run to validate core functionality
-- **Slow test monitoring:** Use `--durations=20` output to identify and optimize slow tests
-- **Network isolation:** Enforced via pytest-socket
-- **Re-runs:** Handles flaky tests automatically
-- **ML dependencies:** Installs ML dependencies (required for real Whisper in E2E tests)
-- **Real ML models:** Uses real Whisper, spaCy, and Transformers models (no mocks)
-
----
-
-#### 4. test-unit Job (Always Runs)
+#### 2. test-unit Job (Always Runs)
 
 **Purpose:** Run unit tests separately for maximum parallelization
 
@@ -334,6 +184,81 @@ if: |
 
 ---
 
+### PR-Only Jobs (Fast Feedback)
+
+#### 3. test-integration-fast Job (Runs on PRs only, with exceptions)
+
+**Purpose:** Run critical path integration tests for fast PR feedback
+
+**When:** Pull requests only (not on push to main, with exceptions for docs-only PRs)
+
+**Conditional Execution:**
+
+```yaml
+
+if: |
+  github.event_name == 'pull_request' &&
+  github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
+  !contains(github.event.pull_request.head.ref, 'docs/')
+
+```
+
+- **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
+- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
+- **Parallel execution:** Uses `-n auto` for speed
+- **Duration monitoring:** `--durations=20` shows the 20 slowest tests
+
+**Key Features:**
+
+- **Fast feedback:** Critical path tests only (not all integration tests)
+- **Includes slow critical path tests:** Critical path tests must run to validate core functionality
+- **Slow test monitoring:** Use `--durations=20` output to identify and optimize slow tests
+- **Network isolation:** Enforced via pytest-socket
+- **Re-runs:** Handles flaky tests automatically
+- **ML dependencies:** Installs ML dependencies (required for real Whisper in integration tests)
+
+---
+
+<!-- markdownlint-disable MD001 -->
+
+#### 4. test-e2e-fast Job (Runs on PRs only, with exceptions)
+
+<!-- markdownlint-enable MD001 -->
+
+**Purpose:** Run critical path E2E tests for fast PR feedback
+
+**When:** Pull requests only (not on push to main, with exceptions for docs-only PRs)
+
+**Conditional Execution:**
+
+```yaml
+
+if: |
+  github.event_name == 'pull_request' &&
+  github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
+  !contains(github.event.pull_request.head.ref, 'docs/')
+
+```
+
+- **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
+- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
+- **Parallel execution:** Uses `-n auto` for speed
+- **Duration monitoring:** `--durations=20` shows the 20 slowest tests
+
+**Key Features:**
+
+- **Fast feedback:** Critical path tests only (not all E2E tests)
+- **Includes slow critical path tests:** Critical path tests must run to validate core functionality
+- **Slow test monitoring:** Use `--durations=20` output to identify and optimize slow tests
+- **Network isolation:** Enforced via pytest-socket
+- **Re-runs:** Handles flaky tests automatically
+- **ML dependencies:** Installs ML dependencies (required for real Whisper in E2E tests)
+- **Real ML models:** Uses real Whisper, spaCy, and Transformers models (no mocks)
+
+---
+
+### Main Branch Only Jobs
+
 #### 5. preload-ml-models Job (Main Branch Only)
 
 **Purpose:** Preload ML models to ensure they are cached for integration and E2E tests
@@ -343,17 +268,10 @@ if: |
 **Conditional Execution:**
 
 ```yaml
+
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
 ```
-
-**Steps:**
-
-1. Checkout code
-2. Free disk space
-3. Set up Python 3.11
-4. Cache ML models (for faster execution)
-5. Install full dependencies (including ML)
-6. Preload ML models (if cache miss): `make preload-ml-models`
 
 **Variants:**
 
@@ -377,18 +295,12 @@ if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 **Conditional Execution:**
 
 ```yaml
+
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 needs: [preload-ml-models]
-```
 
-**Duration:** ~10-15 minutes
+```yaml
 
-**What it runs:** `pytest tests/integration/ -m "integration and (slow or ml_models)"`
-
-- **Slow integration tests only:** Includes tests marked with `slow` or `ml_models`
-- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
-- **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
-- **Parallel execution:** Uses `-n auto` for speed
 - **ML dependencies:** Required (includes ML packages)
 
 **Key Features:**
@@ -409,19 +321,11 @@ needs: [preload-ml-models]
 **Conditional Execution:**
 
 ```yaml
+
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 needs: [preload-ml-models]
-```
 
-**Duration:** ~20-30 minutes
-
-**What it runs:** `pytest tests/e2e/ -m e2e`
-
-- **All E2E tests:** Full suite (no marker filtering)
-- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
-- **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
-- **Parallel execution:** Uses `-n auto` for speed
-- **ML dependencies:** Required (includes ML packages)
+```yaml
 
 **Key Features:**
 
@@ -519,9 +423,9 @@ needs: [preload-ml-models]
 
 ---
 
-### Additional Jobs (Conditional)
+## Additional Jobs (Conditional)
 
-#### 11. docker-build Job (Runs if Docker files changed)
+### 11. docker-build Job (Runs if Docker files changed)
 
 **Purpose:** Build and test Docker image
 
@@ -595,17 +499,10 @@ needs: [preload-ml-models]
 **Conditional Execution:**
 
 ```yaml
+
 if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+
 ```
-
-**Steps:**
-
-1. Checkout code
-2. Set up Python 3.11
-3. Install dependencies (including ML)
-4. Run Snyk monitor
-
-**Note:** `continue-on-error: true` (doesn't fail PR)
 
 #### 13. analyze Job (Runs if Python/workflow files changed)
 
@@ -704,6 +601,7 @@ This ensures:
 **Timeline: PR Creation → Merge → Slow Jobs**
 
 ```text
+
 │ ❌ Full suite jobs DO NOT run:                               │
 │   - preload-ml-models                                        │
 │   - test-integration                                         │
@@ -726,16 +624,8 @@ This ensures:
 │                                                              │
 │ Purpose: Full test suite validation after merge              │
 └─────────────────────────────────────────────────────────────┘
+
 ```
-
-1. **Fast PR feedback:** Developers get quick results during review (5-15 min)
-2. **Full validation after merge:** Slow tests (with ML models) run after code is merged
-3. **Resource efficiency:** ML model tests are expensive, so they run only on main branch
-4. **Safety net:** If slow tests fail after merge, you can fix immediately or revert
-
-**What If Full Suite Tests Fail After Merge?**
-
-If `test-integration` or `test-e2e` fail after merging:
 
 - The main branch will show a failed status
 - You'll get a notification
@@ -772,6 +662,7 @@ If `test-integration` or `test-e2e` fail after merging:
 **Typical PR Flow (All Jobs Run):**
 
 ```text
+
 │  ├─ build (1-2 min)
 │  ├─ docker-build (5-8 min) [if Docker files changed]
 │  ├─ snyk-dependencies (3-5 min) [if code changed]
@@ -784,18 +675,9 @@ Time ~8-12 min - All critical path jobs complete
 
 Time ~15-20 min - All jobs complete (if no failures)
 └─ PR status updated
+
 ```
 
-If only documentation or non-code files are changed:
-
-- Only `lint`, `docs`, and `build` jobs run
-- Total time: ~5-8 minutes
-
-**Slowest PR Flow (All Jobs + CodeQL):**
-
-If Python code, Docker files, and workflow files are changed:
-
-- All jobs run including CodeQL analysis
 - Total time: ~20-25 minutes (CodeQL is the bottleneck)
 
 ### PR Status Checks
@@ -858,6 +740,7 @@ Some test jobs include automatic re-runs to handle flaky tests:
 ### Dependency Management
 
 ```mermaid
+
 graph TD
     A[pyproject.toml] --> B{Job Type}
 
@@ -923,15 +806,6 @@ graph TD
     F --> F1[python -m build]
 
 ```
-
-**File:** `.github/workflows/docs.yml`
-**Triggers:**
-
-- Push to `main` branch (when docs or related files change)
-- Pull Requests modifying docs or related files
-- Manual dispatch (`workflow_dispatch`)
-
-**Path Filters:**
 
 - `docs/**` - Documentation files
 - `mkdocs.yml` - MkDocs configuration
@@ -1293,6 +1167,141 @@ schedule:
 
 ---
 
+## Dependabot Automated Dependency Updates
+
+**File:** `.github/dependabot.yml`
+**Purpose:** Automatically create pull requests to update dependencies, keeping the project secure and current.
+
+### Overview
+
+Dependabot automatically monitors dependencies and creates PRs for updates. Unlike Snyk and pip-audit which *alert* about vulnerabilities, Dependabot *creates PRs* to update dependencies automatically.
+
+### Key Difference
+
+| Tool | Function |
+| ------ | ---------- |
+| **Snyk/pip-audit** | *Alerts* about vulnerable dependencies |
+| **Dependabot** | *Creates PRs* to update dependencies automatically |
+
+### Configuration
+
+Dependabot is configured to monitor three package ecosystems:
+
+1. **Python dependencies (pip)** - Weekly updates on Mondays
+2. **GitHub Actions** - Weekly updates on Mondays
+3. **Docker** - Monthly updates
+
+### Python Dependencies Configuration
+
+**Schedule:**
+- **Interval:** Weekly
+- **Day:** Monday
+- **PR Limit:** 5 open PRs maximum
+
+**Grouping Strategy:**
+- **dev-dependencies group:** Development tools (pytest, black, isort, flake8, mypy, bandit, radon, vulture, interrogate, codespell)
+  - Updates: Minor and patch versions
+  - Rationale: Dev tools can be updated together safely
+- **ml-dependencies group:** ML libraries (torch, transformers, openai-whisper, spacy)
+  - Updates: Patch versions only
+  - Rationale: ML libraries have frequent breaking changes, so only patches are automated
+
+**Labels:**
+- `dependencies`
+- `automated`
+
+**Commit Message:**
+- Prefix: `deps`
+
+### GitHub Actions Configuration
+
+**Schedule:**
+- **Interval:** Weekly
+- **Day:** Monday
+- **PR Limit:** 3 open PRs maximum
+
+**Labels:**
+- `dependencies`
+- `ci/cd`
+- `automated`
+
+**Commit Message:**
+- Prefix: `ci`
+
+### Docker Configuration
+
+**Schedule:**
+- **Interval:** Monthly
+- **PR Limit:** No limit (monthly schedule naturally limits PRs)
+
+**Labels:**
+- `dependencies`
+- `docker`
+- `automated`
+
+### Configuration Decisions
+
+| Decision | Rationale |
+| ---------- | ----------- |
+| **Weekly schedule (Monday)** | Aligns with Snyk schedule, gives week to review |
+| **5 PR limit for pip** | Avoids PR flood, prioritizes important updates |
+| **Grouped updates** | Reduces noise (dev tools together, ML libs together) |
+| **Patch-only for ML** | ML libraries have frequent breaking changes |
+| **GitHub Actions updates** | Keeps CI actions current and secure |
+
+### How It Works
+
+1. **Dependabot checks for updates** according to the schedule
+2. **Creates PRs** for available updates (respecting PR limits)
+3. **Groups related dependencies** to reduce PR noise
+4. **Labels PRs** with `dependencies` and `automated` for easy filtering
+5. **Assigns reviewer** (chipi) for review
+
+### Reviewing Dependabot PRs
+
+**What to check:**
+- ✅ CI passes (all tests, linting, security scans)
+- ✅ No breaking changes (check changelog/release notes)
+- ✅ Compatibility with current codebase
+- ✅ For ML dependencies: Test with actual models if patch update
+
+**When to merge:**
+- ✅ CI passes
+- ✅ No obvious breaking changes
+- ✅ PR description looks safe
+
+**When to close:**
+- ❌ Breaking changes that require code updates
+- ❌ Known compatibility issues
+- ❌ Update conflicts with other work
+
+### Integration with Security Tools
+
+Dependabot works alongside existing security tools:
+
+- **Snyk:** Alerts about vulnerabilities → Dependabot creates PRs to fix them
+- **pip-audit:** Identifies vulnerable packages → Dependabot can update them
+- **CodeQL:** Security scanning → Dependabot keeps dependencies current
+
+**Workflow:**
+1. Snyk/pip-audit identifies vulnerable dependency
+2. Dependabot creates PR to update to secure version
+3. CI validates the update
+4. Merge PR to resolve vulnerability
+
+### Accessing Dependabot
+
+- **PRs:** View all Dependabot PRs via [Dependabot updates](https://github.com/chipi/podcast_scraper/network/updates)
+- **Alerts:** Security alerts appear in Security tab
+- **Configuration:** `.github/dependabot.yml`
+
+### Related Documentation
+
+- [RFC-038: Continuous Review Tooling](../rfc/RFC-038-continuous-review-tooling.md) - Dependabot implementation details
+- [Issue #169](https://github.com/chipi/podcast_scraper/issues/169) - Dependabot setup
+
+---
+
 ## Parallel Execution Summary
 
 ### Workflow Independence
@@ -1581,260 +1590,39 @@ The system now passes the "minimal docs CI/CD" requirement:
 
 ---
 
-## Local Development
-
-### Automatic Pre-commit Checks
-
-**Prevent linting failures before they reach CI!**
-
-Install the git pre-commit hook to automatically check your code before every commit:
-
-```bash
-
-# One-time setup
-
-make install-hooks
-
-```python
-
-- ✅ **Black** formatting check
-- ✅ **isort** import sorting check
-- ✅ **flake8** linting
-- ✅ **markdownlint** (if installed)
-- ✅ **mypy** type checking
-
-**If any check fails, the commit is blocked** until you fix the issues.
-
-## Skip Hook (Not Recommended)
-
-```bash
-
-# Skip pre-commit checks for a specific commit
-
-git commit --no-verify -m "your message"
-
-```bash
-
-make format
-
-# Then try committing again
-
-git commit -m "your message"
-
-```text
-
-# Run full CI suite (matches GitHub Actions PR validation)
-
-# - Runs unit + critical path integration + critical path e2e tests
-
-# - Full validation before commits/PRs
-
-# - Note: No cleanup step (faster), use ci-full for complete validation
-
-make ci
-
-# Fast CI checks (quick feedback during development)
-
-# - Skips cleanup step (faster)
-
-# - Runs unit + critical path integration + critical path e2e (no coverage)
-
-# - Use for quick validation during development
-
-make ci-fast
-
-# Complete CI suite (all tests including slow/ml_models)
-
-# - Cleans cache first (clean-all)
-
-# - Runs all tests: unit + integration + e2e (all slow/fast variants)
-
-# - Use for complete validation before releases
-
-make ci-full
-
-# Individual checks (same as CI)
-
-make format-check  # Black & isort
-make lint          # flake8
-make lint-markdown # markdownlint
-make type          # mypy
-make security      # bandit & pip-audit
-make complexity    # radon cyclomatic complexity
-make deadcode      # vulture dead code detection
-make docstrings    # interrogate docstring coverage
-make spelling      # codespell spell checking
-make quality       # all quality checks (complexity, deadcode, docstrings, spelling)
-make test-unit     # pytest with coverage (parallel, unit tests only)
-make test-integration      # All integration tests (parallel, with re-runs)
-make test-e2e             # All E2E tests (parallel, with re-runs, network guard)
-make docs          # mkdocs build
-make build         # package build
-
-# For debugging: use pytest directly with -n 0 for sequential execution
-
-```yaml
-
-- **`make ci`**: Full validation before commits/PRs (unit + fast integration + fast e2e tests), matches GitHub Actions PR validation exactly
-- **`make ci-fast`**: Quick feedback during development (unit + fast integration + fast e2e, no coverage), faster iteration
-- **`make ci-full`**: Complete validation with all tests including slow/ml_models tests (unit + integration + e2e, all variants), use before releases
-
-## Local CI Validation Flow
-
-```mermaid
-
-graph TD
-    A[Local Development] --> B{git commit}
-
-    B --> C[Pre-commit Hook]
-    C --> C1[format-check]
-    C --> C2[lint]
-    C --> C3[lint-markdown]
-    C --> C4[type]
-
-    C1 & C2 & C3 & C4 --> D{Hook Pass?}
-    D -->|No| E[Commit Blocked]
-    E --> F[make format to fix]
-    F --> A
-
-    D -->|Yes| G[Commit Created]
-    G --> H[git push]
-
-    H --> I{make ci}
-    I --> J[All CI Checks]
-    J --> K{CI Pass?}
-    K -->|Yes| L[PR Ready]
-    K -->|No| M[Fix Issues]
-    M --> A
-
-    style L fill:#90EE90
-    style E fill:#FFB6C6
-    style M fill:#FFB6C6
-    style G fill:#87CEEB
-
-```text
-
-### ✅ Prevention
-
-- **Pre-commit hooks:** Catch issues before they're committed
-- **Local CI validation:** `make ci` runs full suite before push
-- **Auto-fix formatting:** `make format` fixes issues automatically
-
-### ✅ Speed
-
-- **Parallel execution:** All independent jobs run simultaneously
-- **Caching:** Pip cache for faster dependency installation
-- **Early feedback:** Fast lint job without ML dependencies
-
-### ✅ Reliability
-
-- **Reproducible:** Same checks run locally via `make ci`
-- **Isolated:** Jobs don't depend on each other (except docs deploy)
-- **Clean environment:** Each job starts fresh, post-cleanup prevents cache pollution
-
-### ✅ Security
-
-- **Multi-layered:** CodeQL + bandit + safety
-- **Continuous:** Weekly scheduled scans
-- **Early detection:** Security checks on every PR
-
-### ✅ Documentation
-
-- **Validated:** Docs build checked on every PR
-- **Automated:** Deployment on merge to main
-- **Complete:** Code + architecture + API reference
-
-### ✅ Developer Experience
-
-- **Fast feedback:** Lint results in 2-3 minutes
-- **Local parity:** `make ci` runs same checks as GitHub
-- **Quick iteration:** `make ci-fast` for rapid development feedback
-- **Clear errors:** Strict mode for docs and type checking
-
----
-
-## Monitoring & Debugging
-
-### Viewing Workflow Results
-
-1. **GitHub Actions Tab:** [View all runs](https://github.com/chipi/podcast_scraper/actions)
-2. **PR Checks:** Status checks appear on pull requests
-3. **Branch Protection:** Can require specific jobs to pass before merge
-
-### Common Issues & Solutions
-
-| Issue | Cause | Solution |
-| ----- | ----- | -------- |
-| Test timeout | Large ML models download | Already handled by disk space management |
-| Lint failures | Formatting issues | Run `make format` locally before push |
-| Docs build failure | Broken links or invalid syntax | Run `make docs` locally, check `mkdocs build` output |
-| CodeQL alerts | Security vulnerabilities | Review in Security tab, address findings |
-| Out of disk space | ML model caches | Cleanup is automatic, check disk usage logs |
-
-### Debugging Failed Runs
-
-```bash
-
-# Reproduce lint failures locally
-
-make format-check lint lint-markdown type security
-
-# Reproduce test failures locally
-
-make test
-
-# Reproduce E2E test failures locally
-
-make test-e2e  # All E2E tests
-make test-e2e-fast      # Critical path E2E tests only
-make test-e2e-slow      # Slow E2E tests only (requires ML dependencies)
-
-# Reproduce docs failures locally
-
-make docs
-
-# Run everything (matches full CI)
-
-make ci
-
-```bash
-
-# Run all E2E tests (with network guard)
-
-make test-e2e
-
-# Run critical path E2E tests only (faster feedback)
-
-make test-e2e-fast
-
-# Run slow E2E tests only (includes slow/ml_models, requires ML dependencies)
-
-make test-e2e-slow
-
-```python
-
-- All RSS and audio must be served from local E2E HTTP server
-- Tests fail hard if a real URL is hit
-
-**Test Markers:**
-
-- `e2e`: All E2E tests
-- `slow`: Slow tests (Whisper, ML models)
-- `ml_models`: Tests requiring ML dependencies
-
-See [E2E Testing Guide](guides/E2E_TESTING_GUIDE.md) for detailed E2E test documentation.
-
----
-
 ## Nightly Comprehensive Tests Workflow
 
 **File:** `.github/workflows/nightly.yml`
+
 **Triggers:**
 
-- Scheduled: Daily at 2 AM UTC
-- Manual dispatch (`workflow_dispatch`)
+- **Scheduled:** Daily at 2 AM UTC (cron: `0 2 * * *`)
+- **Push to release branches:** `release/**` (e.g., `release/2.4`)
+- **Manual dispatch:** `workflow_dispatch`
 
 **Purpose:** Run comprehensive test suite with full metrics collection, trend tracking, and reporting.
+
+### Release Branch Testing
+
+As of issue #248, the nightly workflow also runs on **push to release branches** (e.g., `release/2.4`).
+
+**Why Release Branch Testing?**
+
+- ✅ **Early detection:** Catch issues in release branches before they affect releases
+- ✅ **Metrics collection:** Track test health and coverage for release branches
+- ✅ **Release confidence:** Ensure stable branches maintain quality
+- ✅ **Immediate feedback:** No need to wait for scheduled run
+
+**When It Runs:**
+
+- **Scheduled:** Daily at 2 AM UTC on default branch (main)
+- **On Push:** When commits are pushed to any `release/**` branch
+- **Manual:** Via workflow_dispatch for any branch
+
+**Artifacts:**
+
+- Test results, coverage reports, and metrics are uploaded for both scheduled and release branch runs
+- 90-day retention for all artifacts
 
 ### Overview
 
@@ -1941,6 +1729,8 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 
 **Metrics Dashboard:**
 - **URL**: `https://[username].github.io/podcast_scraper/metrics/index.html`
+- **Type**: Unified dashboard with data source selector (CI or Nightly)
+- **Features**: Interactive charts, alerts, slowest tests, trend analysis
 - **Features**:
   - Current metrics display (tests, coverage, runtime, flaky tests)
   - Interactive trend charts (runtime, coverage, test count, flaky tests)
@@ -1960,7 +1750,7 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 **Reference timing from January 2026 (with cache hits):**
 
 | Job | Duration | Notes |
-|-----|----------|-------|
+| ----- | ---------- | ------- |
 | `preload-ml-models-nightly` | 3:30 | Fast with cache hit |
 | `nightly-lint` | 3:00 | Runs in parallel |
 | `nightly-docs` | 2:40 | Runs in parallel |
@@ -1973,9 +1763,11 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 **Critical Path:**
 
 ```text
+
 preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
                                                     ≈ 80 min total
-```
+
+```python
 
 **Key Observations:**
 
@@ -1989,6 +1781,64 @@ preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
 - Unit tests have no ML dependencies → run immediately without waiting for preload
 - Production models are much larger than test models → explains long `nightly-only` runtime
 - Further optimization would require splitting `nightly-only-tests` or using faster hardware
+
+#### nightly-deps-analysis Job
+
+**Purpose:** Analyze module dependencies and detect architectural issues
+
+**Duration:** ~3-5 minutes
+
+**Runs:** In parallel after lint and build jobs pass
+
+**Steps:**
+
+1. Checkout code
+2. Set up Python 3.11
+3. Install dependencies (including pydeps)
+4. Generate dependency graphs:
+   - `make deps-graph` - Simplified graph (clustered, max-bacon=2)
+   - `make deps-graph-full` - Full dependency graph
+5. Check for circular imports via `make deps-check-cycles`
+6. Run dependency analysis script:
+   - `python scripts/analyze_dependencies.py --report`
+   - Analyzes import patterns
+   - Checks thresholds (max 15 imports per module)
+   - Generates JSON report
+7. Upload dependency artifacts (90-day retention):
+   - `reports/deps*.svg` - Dependency graphs (visual)
+   - `reports/deps*.json` - Analysis report (structured)
+
+**Configuration:**
+
+- `continue-on-error: true` - Don't fail nightly if dependency analysis has issues
+- Artifacts retained for 90 days for tracking architecture changes over time
+
+**Output Files:**
+
+- `reports/deps-simple.svg` - Simplified dependency graph (easy to understand)
+- `reports/deps-full.svg` - Complete dependency graph (detailed)
+- `reports/deps-analysis.json` - Structured analysis with issues and metrics
+
+**Key Metrics Tracked:**
+
+| Metric | Description | Threshold |
+| -------- | ------------- | ----------- |
+| **Circular imports** | Cycles in import graph | 0 |
+| **Fan-out** | Modules a file imports | <15 |
+| **Module count** | Total modules analyzed | Monitor |
+
+**Related Documentation:**
+
+- [Module Dependency Analysis](../ARCHITECTURE.md#module-dependency-analysis) - Architecture documentation
+- [Issue #170](https://github.com/chipi/podcast_scraper/issues/170) - Module coupling analysis setup
+- [RFC-038: Continuous Review Tooling](../rfc/RFC-038-continuous-review-tooling.md) - Implementation details
+
+**Benefits:**
+
+- 📊 **Visualize dependencies:** SVG graphs show module relationships
+- 🔍 **Detect cycles:** Catch circular imports automatically
+- 📈 **Track architecture:** Monitor coupling and dependencies over time
+- 🚨 **Early warnings:** Identify modules exceeding import thresholds
 
 ---
 
@@ -2018,11 +1868,18 @@ preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
 
 ### Accessing Metrics
 
-**Via GitHub Pages:**
+**Via GitHub Pages Dashboard:**
 
-- Latest metrics: `https://[username].github.io/podcast_scraper/metrics/latest.json`
-- History: `https://[username].github.io/podcast_scraper/metrics/history.jsonl`
-- Dashboard: `https://[username].github.io/podcast_scraper/metrics/index.html` (if generated)
+- **Unified Dashboard**: `https://[username].github.io/podcast_scraper/metrics/index.html`
+  - Use the dropdown selector to switch between CI and Nightly data sources
+  - Interactive charts, alerts, and comprehensive metrics visualization
+
+**Via JSON API (Machine-Readable):**
+
+- CI metrics: `https://[username].github.io/podcast_scraper/metrics/latest-ci.json`
+- CI history: `https://[username].github.io/podcast_scraper/metrics/history-ci.jsonl`
+- Nightly metrics: `https://[username].github.io/podcast_scraper/metrics/latest-nightly.json`
+- Nightly history: `https://[username].github.io/podcast_scraper/metrics/history-nightly.jsonl`
 
 **Via GitHub Actions:**
 
@@ -2033,115 +1890,26 @@ preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
 
 ```bash
 
-# Fetch latest metrics
+# Fetch latest CI metrics
 
-curl https://[username].github.io/podcast_scraper/metrics/latest.json | jq
+curl https://[username].github.io/podcast_scraper/metrics/latest-ci.json | jq
 
-# Check history
+# Fetch latest nightly metrics
 
-curl https://[username].github.io/podcast_scraper/metrics/history.jsonl | tail -1 | jq
+curl https://[username].github.io/podcast_scraper/metrics/latest-nightly.json | jq
+
+# Check CI history (last entry)
+
+curl https://[username].github.io/podcast_scraper/metrics/history-ci.jsonl | tail -1 | jq
+
+# Check nightly history (last entry)
+
+curl https://[username].github.io/podcast_scraper/metrics/history-nightly.jsonl | tail -1 | jq
 
 ```yaml
 
-- [RFC-025: Test Metrics and Health Tracking](rfc/RFC-025-test-metrics-and-health-tracking.md) - Metrics collection strategy
-- [RFC-026: Metrics Consumption and Dashboards](rfc/RFC-026-metrics-consumption-and-dashboards.md) - Metrics consumption methods
-
----
-
-## Future Enhancements
-
-### Planned Enhancements
-
-1. **AI Experiment Pipeline CI/CD** (See PRD-007, RFC-015)
-   - Layer A: Fast smoke tests on every push/PR
-   - Layer B: Full evaluation pipeline (nightly/on-demand)
-   - Integration with experiment runner
-   - Automated regression detection
-
-2. **Environment Variable Management**
-   - `.env` file support via `python-dotenv`
-   - Environment-specific configurations
-   - Secure API key management
-
-### Potential Improvements
-
-1. **Test Sharding**
-   - Split test suite across multiple jobs for faster execution
-   - Parallel test execution could reduce test time (if needed, but sequential is simpler)
-
-2. **Artifact Caching**
-   - Cache built wheels for dependencies
-   - Cache ML models between runs
-
-3. **Container-based Testing**
-   - Run tests in Docker for better reproducibility
-   - Pre-built images with ML dependencies
-
-4. **Performance Benchmarking**
-   - Track execution time trends
-   - Automated performance regression detection
-
-5. **Release Automation**
-   - Automated version bumping
-   - Automated changelog generation
-   - PyPI publishing on tag creation
-
----
-
-## Testing Path Filtering
-
-After merging the path filtering optimization, validate it works correctly:
-
-### Test 1: Documentation-Only Change
-
-```bash
-
-# Edit a docs file
-
-echo "Test update" >> docs/CI_CD.md
-git add docs/CI_CD.md
-git commit -m "docs: test path filtering"
-git push
-
-```bash
-
-# Edit a Python file
-
-echo "# Test comment" >> downloader.py
-git add downloader.py
-git commit -m "feat: test python path filtering"
-git push
-
-```text
-```bash
-
-# Edit Dockerfile
-
-echo "# Test comment" >> Dockerfile
-git add Dockerfile
-git commit -m "chore: test docker path filtering"
-git push
-
-```text
-```bash
-
-# Edit README
-
-echo "Test update" >> README.md
-git add README.md
-git commit -m "docs: test readme path filtering"
-git push
-
-```text
-```text
-
-## Related Documentation
-
-- **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** - Development workflow
-- **[Architecture](ARCHITECTURE.md)** - System design and module boundaries
-- **[Testing Strategy](TESTING_STRATEGY.md)** - Test coverage and quality standards
-- **[Testing Guide](guides/TESTING_GUIDE.md)** - Test execution commands
-- **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** - Implementation instructions
+- [RFC-025: Test Metrics and Health Tracking](../rfc/RFC-025-test-metrics-and-health-tracking.md) - Metrics collection strategy
+- [RFC-026: Metrics Consumption and Dashboards](../rfc/RFC-026-metrics-consumption-and-dashboards.md) - Metrics consumption methods
 
 ---
 

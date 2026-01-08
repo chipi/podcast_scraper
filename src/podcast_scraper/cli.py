@@ -285,17 +285,26 @@ def _add_openai_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--openai-transcription-model",
         default=None,
-        help="OpenAI model for transcription (default: whisper-1)",
+        help=(
+            f"OpenAI model for transcription "
+            f"(default: {config.PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL})"
+        ),
     )
     parser.add_argument(
         "--openai-speaker-model",
         default=None,
-        help="OpenAI model for speaker detection (default: gpt-4o-mini)",
+        help=(
+            f"OpenAI model for speaker detection "
+            f"(default: {config.PROD_DEFAULT_OPENAI_SPEAKER_MODEL})"
+        ),
     )
     parser.add_argument(
         "--openai-summary-model",
         default=None,
-        help="OpenAI model for summarization (default: gpt-4o-mini)",
+        help=(
+            f"OpenAI model for summarization "
+            f"(default: {config.PROD_DEFAULT_OPENAI_SUMMARY_MODEL})"
+        ),
     )
     parser.add_argument(
         "--openai-temperature",
@@ -322,7 +331,11 @@ def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
         default="whisper",
         help="Transcription provider to use (default: whisper)",
     )
-    parser.add_argument("--whisper-model", default="base", help="Whisper model to use")
+    parser.add_argument(
+        "--whisper-model",
+        default=config.PROD_DEFAULT_WHISPER_MODEL,
+        help=f"Whisper model to use (default: {config.PROD_DEFAULT_WHISPER_MODEL})",
+    )
     parser.add_argument(
         "--screenplay", action="store_true", help="Format Whisper transcript as screenplay"
     )

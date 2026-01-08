@@ -9,17 +9,53 @@
 
 > Auto optimizes for speed & cost, not deep reasoning.
 
-### Model Roles (Quick Guide)
+## 🎯 Quick Reference: @Rules System
+
+**Two separate rule systems:**
+
+| System | How Loaded | When to Use |
+| -------- | ----------- | ------------- |
+| `.cursorrules` | **Automatic** (always active) | Core rules for every interaction |
+| `.cursor/rules/*.mdc` | **Manual** via `@Rules filename` | Specialized context when needed |
+
+**Load @Rules for specific tasks:**
+
+```text
+@Rules ai-guidelines        # Detailed commit/push checklists
+@Rules markdown-style       # Markdown formatting guide
+@Rules testing-strategy     # Testing patterns and pytest markers
+@Rules git-worktree         # Worktree workflow commands
+@Rules module-boundaries    # Architecture constraints
+```
+
+**Example:**
+
+```text
+
+# Starting to write tests
+
+@Rules testing-strategy
+Write unit tests for the new provider
+
+# Creating worktree
+
+@Rules git-worktree
+Set up worktree for issue #200
+```
+
+## Model Roles (Quick Guide)
 
 **Fast / Mechanical Tasks** (small, obvious changes):
 
 - Rename functions, generate boilerplate/tests, minor refactors, formatting & docstrings
 - **Models:** GPT-5.1 Codex Mini, Sonnet 3.5, Gemini 3 Flash
+- **@Rules:** Usually none needed (.cursorrules handles it)
 
 **Main Coding & Reviews** (daily driver):
 
 - Multi-file changes, writing tests, medium refactors, code reviews
 - **Models:** GPT-5.1 Codex Max (default), Sonnet 4.5
+- **@Rules:** Load as needed for context (`@Rules testing-strategy`, etc.)
 
 **Deep Reasoning / Hard Problems** (correctness matters):
 
@@ -27,11 +63,13 @@
   concurrency/async, edge cases, "Why is this happening?"
 
 - **Models:** GPT-5.2, Opus 4.5
+- **@Rules:** Always load relevant context (`@Rules module-boundaries`, etc.)
 
 **High-Risk / Strict Correctness** (use sparingly):
 
 - Security-sensitive code, release prep, complex refactors
 - **Models:** GPT-5.1 Codex Max High
+- **@Rules:** `@Rules ai-guidelines` for critical workflows
 
 ### How to Influence Cursor Auto
 
@@ -54,17 +92,14 @@
 5. **Use Composer for Big Tasks:**
    - Composer sessions bias Auto toward stronger models and longer reasoning.
 
-### Recommended Workflow (Python Project)
-
-1. **GPT-5.2** → decide approach & edge cases
-2. **Codex Max** → implement + tests
-3. **Sonnet 4.5** → review diff
-4. **Codex Max / High** → apply fixes
-5. **Composer** → PR description & checklist
+6. **Load @Rules for Context:**
+   - `@Rules testing-strategy` for test-related tasks
+   - `@Rules module-boundaries` for architecture work
+   - `@Rules git-worktree` for worktree management
 
 ### One-Line Mental Model
 
-> **Auto for hands, manual for brain.**
+> **Auto for hands, manual for brain. Load @Rules for specialized context.**
 
 ---
 
@@ -74,23 +109,34 @@
 >
 > - [Development Guide](DEVELOPMENT_GUIDE.md) - Implementation instructions
 > - [Testing Guide](TESTING_GUIDE.md) - Test execution commands
-> - [CI/CD](../CI_CD.md) - CI/CD pipeline details
+> - [CI/CD](../ci/index.md) - CI/CD pipeline details
+> - [Git Worktree Guide](GIT_WORKTREE_GUIDE.md) - Worktree workflow
+> - [Markdown Linting Guide](MARKDOWN_LINTING_GUIDE.md) - Markdown standards
 
 This document captures best practices for using Cursor effectively in the **podcast_scraper**
 project, which is a Python-heavy codebase with:
 
+- **AI Rules System**: `.cursorrules` (always active) + `.cursor/rules/*.mdc` (on-demand via `@Rules`)
 - **CI/CD**: GitHub Actions workflows, Docker builds, Snyk security scans
-- **Testing**: Unit, integration, workflow E2E, and acceptance tests with parallel execution
+- **Testing**: Unit, integration, E2E tests with two-tier strategy (fast/slow)
 - **Documentation**: RFCs, PRDs, MkDocs site, markdown linting
-- **Complex workflows**: AI experiment pipeline, prompt management, multi-threaded processing
-- **Strict guidelines**: `.ai-coding-guidelines.md` with mandatory commit/PR workflows
+- **Git Workflow**: Worktree-based parallel development, never push to main
+- **Strict guidelines**: Mandatory commit approval, `make ci-fast` before commit
 
-**Problem**: Without proper model selection and workflow patterns, Cursor can:
+**Problem**: Without proper model selection and @Rules usage, Cursor can:
 
 - Choose suboptimal models for complex tasks (CI debugging, architecture decisions)
-- Miss project-specific patterns (mandatory commit approval, `make ci` before PR push)
-- Generate code that doesn't follow project standards (module boundaries, testing requirements)
+- Miss project-specific patterns (mandatory commit approval, module boundaries)
+- Generate code that doesn't follow project standards (testing requirements, code style)
 - Waste time on mechanical tasks that could be faster
+- Lack specialized context for complex workflows (testing, worktrees, architecture)
+
+**Solution**: Layered context system:
+
+1. **`.cursorrules`** (287 lines) - Always active, enforces core rules
+2. **`.cursor/rules/*.mdc`** (200-400 lines each) - Load with `@Rules` for specialized tasks
+3. **Model selection** - Choose appropriate model for task complexity
+4. **Prompt templates** - `.cursor/prompts/` for structured prompts
 
 ## Mental Model
 
@@ -98,8 +144,186 @@ Cursor is best thought of as:
 
 - **Auto** → speed-first, cost-aware assistant (good for mechanical work)
 - **Manual model selection** → correctness, reasoning, and design (required for complex tasks)
+- **@Rules system** → contextual knowledge loader (activate specialized guides when needed)
 
-> **Key Principle**: Auto optimizes for fast iteration. You must explicitly ask for depth.
+> **Key Principle**: Auto optimizes for fast iteration. You must explicitly ask for depth
+> and load specialized context with @Rules.
+
+## Recommended Workflows with @Rules
+
+### Workflow 1: Implementing New Feature (RFC-Based)
+
+**Scenario:** Implementing RFC-025 metrics collection
+
+```text
+Step 1: Design phase
+Chat: "@Rules ai-guidelines
+       Read RFC-025 and analyze implementation approach"
+
+Step 2: Architecture check
+Chat: "@Rules module-boundaries
+       Review proposed changes for module boundary violations"
+
+Step 3: Implementation
+Composer: [Paste design-rfc.md template]
+          "Implement Phase 1: Basic Metrics Collection"
+
+Step 4: Testing
+Inline Chat: "@Rules testing-strategy
+             Write unit and integration tests for metrics"
+
+Step 5: Documentation
+Inline Chat: "@Rules markdown-style
+             Update DEVELOPMENT_GUIDE.md with metrics usage"
+```
+
+### Workflow 2: Debugging CI Failure
+
+**Scenario:** `make ci` failure
+
+```text
+Step 1: Root cause analysis
+Chat: [Paste CI logs + git diff]
+      "@Rules testing-strategy
+       Analyze root cause of this CI failure"
+
+Step 2: Fix implementation
+Inline Chat: [Select failing test]
+            "Fix based on analysis, following project patterns"
+
+Step 3: Verify commit
+Terminal: make ci-fast
+
+Step 4: Commit
+Chat: "@Rules ai-guidelines
+       Show git status and git diff, wait for approval"
+```
+
+### Workflow 3: Creating New Worktree
+
+**Scenario:** Start work on issue #200
+
+```text
+Step 1: Setup worktree
+Chat: "@Rules git-worktree
+       Set up worktree for issue #200 (add Dependabot)"
+
+Step 2: Verify setup
+Terminal: cd ../podcast_scraper-200-dependabot
+          source .venv/bin/activate
+          cursor .
+
+Step 3: Daily work
+[Work in isolated worktree with clean AI context]
+
+Step 4: Cleanup after merge
+Chat: "@Rules git-worktree
+       Remove worktree and cleanup references"
+```
+
+### Workflow 4: Refactoring Module
+
+**Scenario:** Refactoring workflow pipeline
+
+```text
+Step 1: Architecture review
+Chat: "@Rules module-boundaries
+       Analyze current workflow.py for boundary violations"
+
+Step 2: Design refactor
+Chat: [Paste design-rfc.md template]
+      "Propose refactoring plan maintaining module boundaries"
+
+Step 3: Implement
+Composer: "@Rules module-boundaries
+          Implement refactoring following the plan"
+
+Step 4: Test coverage
+Inline Chat: "@Rules testing-strategy
+             Ensure test coverage for refactored code"
+```
+
+### Workflow 5: Writing Documentation
+
+**Scenario:** Update README and guides
+
+```text
+Step 1: Content changes
+Inline Chat: [Select markdown file]
+            "Update with new feature information"
+
+Step 2: Formatting
+Chat: "@Rules markdown-style
+       Review markdown for style issues"
+
+Step 3: Validation
+Terminal: make fix-md
+          make lint-markdown
+          make docs
+
+Step 4: Commit
+Chat: "@Rules ai-guidelines
+       Show changes and wait for approval"
+```
+
+### Pro Tips for @Rules Usage
+
+**1. Multiple @Rules at once**
+
+```text
+You can load multiple rules in one prompt:
+
+@Rules testing-strategy @Rules module-boundaries
+Write tests for the new module following architecture constraints
+```
+
+**2. Rules persist in conversation**
+
+```text
+Once loaded, @Rules stay active in that conversation:
+
+First message:
+@Rules testing-strategy
+Help me write tests
+
+Later messages:
+Add more test cases
+[testing-strategy.mdc still loaded]
+```
+
+**3. New chat = reset**
+
+```text
+Start new chat → Must load @Rules again
+Previous @Rules don't carry over
+```
+
+**4. Start without @Rules**
+
+```text
+For simple tasks, .cursorrules is usually enough:
+
+You: "Fix this typo in config.py"
+[.cursorrules handles this fine]
+
+You: "@Rules testing-strategy
+     Write comprehensive test suite"
+[Now you need the detailed testing guide]
+```
+
+### Recommended Workflow (Python Project)
+
+1. **GPT-5.2** → decide approach & edge cases
+2. **Codex Max** → implement + tests
+3. **Sonnet 4.5** → review diff
+4. **Codex Max / High** → apply fixes
+5. **Composer** → PR description & checklist
+
+### Summary: One-Line Mental Model
+
+> **Auto for hands, manual for brain.**
+
+---
 
 ## Model Selection Strategy
 
@@ -321,32 +545,237 @@ Cursor is best thought of as:
 - Multi-file refactors (pipeline refactoring)
 - Documentation updates (DEVELOPMENT_GUIDE.md expansion)
 
+## Understanding Cursor's Rule Systems
+
+### Two Separate Rule Systems
+
+Cursor has **two different systems** for loading context:
+
+#### 1. `.cursorrules` (Root File) - AUTOMATIC ✅
+
+**Location:** `/.cursorrules` (project root)
+
+**How it works:**
+
+- ✅ **Loaded automatically** at session start
+- ✅ **Always active** for every AI interaction
+- ✅ **You do nothing** - Cursor reads it automatically
+- ✅ **Priority:** Highest - always in context
+
+**What it contains (287 lines):**
+
+- Core git workflow rules (never push to main)
+- Testing strategy (`make ci-fast` before commit)
+- Code quality standards (imports, type hints, docstrings)
+- Module boundaries (architecture constraints)
+- Documentation requirements
+
+**Think of it as:** Your project's "constitution" - always in effect.
+
+#### 2. `.cursor/rules/*.mdc` Files - MANUAL ON-DEMAND 📋
+
+**Location:** `/.cursor/rules/` folder
+
+**How it works:**
+
+- ❌ **NOT loaded automatically** - Cursor ignores them by default
+- ✅ **Loaded manually** when you mention them with `@Rules`
+- ✅ **You control when** - Load specific context when needed
+- ✅ **Scope:** Current conversation only
+
+**How to load:**
+
+In Cursor Chat, type `@Rules` followed by filename (without `.mdc`):
+
+```text
+@Rules ai-guidelines        # Loads detailed commit/push checklists
+@Rules markdown-style       # Loads markdown formatting guide
+@Rules testing-strategy     # Loads testing guide with examples
+@Rules git-worktree         # Loads worktree workflow
+@Rules module-boundaries    # Loads architecture constraints
+```
+
+**What happens:**
+
+```text
+You type: @Rules testing-strategy
+         ↓
+Cursor loads: .cursor/rules/testing-strategy.mdc
+         ↓
+AI now has: .cursorrules (always) + testing-strategy.mdc (just added)
+```
+
+**Available `.mdc` files:**
+
+- `ai-guidelines.mdc` (289 lines) - Detailed commit/push checklists
+- `markdown-style.mdc` (128 lines) - Markdown formatting with examples
+- `testing-strategy.mdc` (254 lines) - Testing guide with pytest markers
+- `git-worktree.mdc` (309 lines) - Worktree workflow and commands
+- `module-boundaries.mdc` (238 lines) - Architecture constraints
+
+**Think of these as:** "Power-ups" you activate for specific tasks.
+
+### When to Use Each
+
+#### Use `.cursorrules` (Always Active)
+
+✅ Rules that apply to **every** interaction
+✅ Critical workflows (git, commits, pushes)
+✅ Code standards that never change
+✅ Architecture rules that must always be enforced
+
+#### Use `@Rules *.mdc` (On-Demand)
+
+✅ **Specific workflows** you're about to perform
+✅ **Detailed guides** for complex tasks
+✅ **Context that's only sometimes relevant**
+
+**Examples:**
+
+```text
+
+# About to write tests
+
+@Rules testing-strategy
+Write unit tests for the new provider
+
+# About to create worktree
+
+@Rules git-worktree
+Set up worktree for issue #200
+
+# About to edit documentation
+
+@Rules markdown-style
+Update the README with new features
+
+# About to refactor modules
+
+@Rules module-boundaries
+Refactor the workflow pipeline
+```yaml
+
+## Comparison Table
+
+| Feature | `.cursorrules` | `.cursor/rules/*.mdc` |
+| --------- | ---------------- | ---------------------- |
+| **Who loads it?** | Cursor (automatic) | You (manual via `@Rules`) |
+| **When?** | Every session start | Only when you mention it |
+| **Scope** | All interactions | Current conversation only |
+| **Control** | Always on | You decide when to use |
+| **Size** | 287 lines (optimized) | 200-400 lines each (detailed) |
+| **Purpose** | Core project rules | Specialized workflows |
+
+### Real Examples
+
+#### Example 1: Normal Coding (No @Rules)
+
+```text
+You: "Add a new function to downloader.py"
+
+AI has access to:
+✅ .cursorrules (automatic)
+❌ testing-strategy.mdc (not loaded)
+❌ git-worktree.mdc (not loaded)
+
+AI uses .cursorrules to:
+- Follow module boundaries
+- Use correct import order
+- Add type hints
+```
+
+#### Example 2: Writing Tests (With @Rules)
+
+```text
+You: "@Rules testing-strategy
+     Help me write tests for the new downloader function"
+
+AI has access to:
+✅ .cursorrules (automatic)
+✅ testing-strategy.mdc (you just loaded it)
+
+AI uses BOTH to:
+- Follow .cursorrules (always)
+- Use testing-strategy.mdc for pytest markers, mock patterns, etc.
+```
+
+#### Example 3: Creating Worktree (With @Rules)
+
+```text
+You: "@Rules git-worktree
+     I need to create a new worktree for issue #200"
+
+AI has access to:
+✅ .cursorrules (automatic)
+✅ git-worktree.mdc (you just loaded it)
+
+AI provides:
+- Specific worktree commands
+- Branch naming with issue number
+- Complete setup workflow
+```
+
+### Why Have Both Systems?
+
+**Problem if everything was in `.cursorrules`:**
+
+- File would be 2,000+ lines
+- Loads into EVERY conversation
+- Wastes context on irrelevant info
+- Slower session starts
+
+**Solution with layered approach:**
+
+- Core rules always active (287 lines)
+- Specialized rules on-demand (load when needed)
+- Efficient context usage
+
+### Current Project Structure
+
+```text
+.cursorrules                    # Always loaded (287 lines)
+.cursor/
+├── rules/                      # Load manually with @Rules
+│   ├── ai-guidelines.mdc       # Commit/push checklists (289 lines)
+│   ├── markdown-style.mdc      # Markdown guide (128 lines)
+│   ├── testing-strategy.mdc    # Testing guide (254 lines)
+│   ├── git-worktree.mdc        # Worktree workflow (309 lines)
+│   └── module-boundaries.mdc   # Architecture (238 lines)
+└── prompts/                    # Copy/paste templates
+    ├── debug-ci.txt
+    ├── design-rfc.md
+    ├── code-review.txt
+    └── implementation-plan.txt
+```python
+
 ## Prompt Files in `.cursor/prompts/`
 
-### Current Structure
+### Manual Templates (Copy/Paste)
 
-The project has `.cursor/rules/ai-guidelines.mdc` which references `.ai-coding-guidelines.md`, and
-**prompt files are manual templates** stored in `.cursor/prompts/`.
+**Prompt files are different from rules files:**
+
+- Rules (`.cursorrules` and `.mdc`) = Context that Cursor loads
+- Prompts (`.txt` and `.md`) = Templates you copy/paste
 
 **Current structure:**
 
-````text
-.cursor/
-├── rules/
-│   ├── ai-guidelines.mdc (auto-loaded by Cursor)
-│   └── markdown-style.mdc (auto-loaded by Cursor)
-└── prompts/ (manual templates - copy/paste)
-    ├── debug-ci.txt          ✅ Created (Issue #95)
-    ├── design-rfc.md          ✅ Created (Issue #95)
-    ├── code-review.txt       ✅ Created (Issue #95)
-    └── implementation-plan.txt ✅ Created (Issue #95)
 ```text
+.cursor/prompts/
+├── debug-ci.txt          ✅ Created (Issue #95)
+├── design-rfc.md          ✅ Created (Issue #95)
+├── code-review.txt       ✅ Created (Issue #95)
+└── implementation-plan.txt ✅ Created (Issue #95)
+```
 
-- Cursor does **not** automatically read prompt files
-- They are **manual prompt templates**, not configuration
-- You copy & paste them into Chat / Composer / Inline Chat
-- Think of them as: **Your personal prompt library**
-- All prompt files are tracked in git and available to all contributors
+**How to use:**
+
+1. Open the prompt file in `.cursor/prompts/`
+2. Copy the entire content
+3. Paste into Cursor Chat, Composer, or Inline Chat
+4. Add your specific context (CI logs, code diff, etc.)
+5. Send the prompt
+
+**These are NOT loaded by Cursor** - you manually copy/paste them.
 
 ### Available Prompt Templates
 
@@ -357,6 +786,7 @@ The following prompt templates are available in `.cursor/prompts/`:
 **Purpose:** Step-by-step analysis of CI failures with root cause identification.
 
 **Content:** Analyzes CI failures systematically:
+
 - Summarizes what failed (job, step, error)
 - Lists 2-3 plausible root causes, ranked by likelihood
 - Explains how to confirm or rule out each cause
@@ -373,6 +803,7 @@ The following prompt templates are available in `.cursor/prompts/`:
 **Purpose:** Structured approach to designing RFCs, features, and refactors.
 
 **Content:** Guides through design process:
+
 - Restates problem in own words
 - Defines explicit goals and non-goals
 - Proposes 2-3 viable designs with tradeoffs (complexity, risk, testability)
@@ -391,6 +822,7 @@ The following prompt templates are available in `.cursor/prompts/`:
 **Purpose:** Systematic code review focusing on correctness, tests, and maintainability.
 
 **Content:** Reviews code or diffs with focus on:
+
 - Correctness and edge cases
 - Missing or weak tests
 - API and behavior consistency
@@ -408,6 +840,7 @@ The following prompt templates are available in `.cursor/prompts/`:
 **Purpose:** Create structured implementation plans before writing code.
 
 **Content:** Checklist-style planning:
+
 - Lists files/modules that will change
 - Describes changes per file
 - Identifies edge cases and failure modes
@@ -442,162 +875,194 @@ The following prompt templates are available in `.cursor/prompts/`:
 5. **Composer**
    - "Generate PR description with checklist based on RFC-025 Phase 1"
 
-### Workflow 2: Debugging CI Failure
-
-**Example: `make ci` failure**
-
-1. **GPT-5.2 (Chat)**
-   - Paste CI logs + `git diff`
-   - "Analyze root cause of this CI failure. Consider: test execution, parallel vs sequential, project guidelines"
-
-2. **Codex Max (Inline Chat)**
-   - Select failing test file
-   - "Fix this test based on the analysis. Ensure it follows project patterns."
-
-3. **Sonnet 4.5 (Chat)**
-   - "Review the fix. Does it address root cause? Any edge cases?"
-
-4. **Codex Max (Inline Chat)**
-   - "Apply review feedback"
-
-5. **Run `make ci` locally** (mandatory before PR push)
-
-### Workflow 3: Creating New Test Category
-
-**Example: Adding acceptance tests (RFC-023)**
-
-1. **GPT-5.2 (Chat)**
-   - "Analyze RFC-023 and propose test structure. Consider: existing test categories, fixtures, CI integration"
-
-2. **Codex Max (Composer)**
-   - "Implement acceptance test structure following project patterns"
-
-3. **Sonnet 4.5 (Inline Chat)**
-   - Select test files
-   - "Review test structure and ensure it follows TESTING_STRATEGY.md"
-
-4. **Codex Max (Inline Chat)**
-   - "Add missing tests and ensure all pass"
-
-### Workflow 4: Refactoring Module
-
-**Example: Refactoring workflow pipeline**
-
-1. **GPT-5.2 (Chat)**
-   - "Analyze current workflow.py and propose refactoring plan. Consider: module boundaries, protocol design, backward compatibility"
-
-2. **Codex Max (Composer)**
-   - "Implement refactoring following the plan. Maintain backward compatibility."
-
-3. **Sonnet 4.5 (Chat)**
-   - "Review refactoring. Check: module boundaries, protocol compliance, test coverage"
-
-4. **Codex Max (Inline Chat)**
-   - "Apply review feedback and update tests"
-
 ## Project-Specific Recommendations
 
-### 1. Always Reference Project Guidelines
+### 1. Always Use @Rules for Specialized Tasks
 
-**Before starting any task:**
+**Load appropriate context when needed:**
 
-- Read `.ai-coding-guidelines.md` (or acknowledge you've read it)
-- Reference `docs/guides/DEVELOPMENT_GUIDE.md` for technical patterns
-- Check `docs/TESTING_STRATEGY.md` for test requirements
-- Review related RFCs/PRDs for feature context
+| Task | @Rules to Load | Why |
+| ------ | ---------------- | ----- |
+| Writing tests | `@Rules testing-strategy` | Pytest markers, mock patterns, coverage |
+| Creating worktree | `@Rules git-worktree` | Setup commands, branch naming, cleanup |
+| Refactoring modules | `@Rules module-boundaries` | Architecture constraints, SRP |
+| Editing markdown | `@Rules markdown-style` | Formatting rules, auto-fix commands |
+| Committing changes | `@Rules ai-guidelines` | Detailed commit/push checklists |
 
-**Example prompt:**
+**Example:**
 
-> "Implement RFC-025 Phase 1. Reference .ai-coding-guidelines.md for commit workflow and docs/guides/DEVELOPMENT_GUIDE.md for code patterns."
+```text
 
-### 2. Mandatory Workflow Steps
+❌ Bad: "Write tests for downloader.py"
+✅ Good: "@Rules testing-strategy
+        Write tests for downloader.py with appropriate pytest markers"
+
+❌ Bad: "Update README.md"
+✅ Good: "@Rules markdown-style
+        Update README.md following project markdown standards"
+
+```
+
+### 2. Core Rules Are Always Active
+
+**You don't need to mention these** - `.cursorrules` handles them:
+
+✅ Git workflow (never push to main)
+✅ Basic code standards (imports, type hints)
+✅ Testing requirement (`make ci-fast` before commit)
+✅ Module boundaries (high-level)
+✅ Documentation requirements
+
+**Example:**
+
+```text
+
+You: "Add a new function to config.py"
+
+AI automatically:
+- Follows module boundaries (.cursorrules)
+- Adds type hints (.cursorrules)
+- Uses correct import order (.cursorrules)
+[No @Rules needed for basic standards]
+
+```python
+
+### 3. Mandatory Workflow Steps (Enforced by .cursorrules)
 
 **Before committing:**
 
-1. Show `git status` (mandatory)
-2. Show `git diff` (mandatory)
-3. Wait for explicit approval (mandatory)
-4. Get commit message from user (mandatory)
+1. Run `make ci-fast` (pre-commit hook will also run this)
+2. Show `git status` (mandatory)
+3. Show `git diff` (mandatory)
+4. Wait for explicit approval (mandatory)
+5. Get commit message from user (mandatory)
 
 **Before pushing to PR:**
 
-1. Run `make ci` locally (mandatory)
-2. Ensure all checks pass (mandatory)
-3. Fix any failures before pushing
+1. Pre-commit hook passed during commit
+2. Show `git status` (mandatory)
+3. Show `git diff` or summary (mandatory)
+4. Conditionally run `make docker-test` (if Docker-related changes)
+5. Wait for explicit approval (mandatory)
 
-**Example prompt for Cursor:**
+**Example prompt:**
 
-> "Before committing, show git status and git diff. Wait for my approval. Do not commit automatically."
+```text
 
-### 3. Test Execution Strategy
+@Rules ai-guidelines
+Commit these changes following the mandatory workflow
+
+```
+
+### 4. Test Execution Strategy (Use @Rules testing-strategy)
 
 **For this project:**
 
-- **Unit tests**: Sequential (faster for fast tests)
-- **Integration tests**: Parallel (3.4x faster)
-- **E2E tests**: Parallel (faster for slow tests)
-- **CI**: Parallel by default
+```bash
 
-**When debugging tests:**
+# Default: Fast tests first
 
-- Use `pytest tests/unit/ -n 0` for sequential execution (cleaner output)
-- Use `make test-unit` for fast feedback
-- Use `make test-integration` for integration-specific issues
+make ci-fast  # ~6-10 min (unit + fast integration + fast e2e)
 
-**Example prompt:**
+# If ML code changed: Add slow tests
 
-> "Debug this test failure. Use `pytest -n 0` for sequential execution if parallel issues suspected."
+make test-integration-slow  # Whisper, summarization, speaker detection
+make test-e2e-slow         # Full E2E with ML models
 
-### 4. Documentation Updates
+# Before final PR: Full validation
+
+make ci  # ~10-15 min (includes coverage)
+
+```text
+I changed whisper_integration.py. What tests should I run?
+
+AI response:
+
+1. make ci-fast (always)
+2. make test-integration-slow (because ML code changed)
+3. Verify specific test: pytest tests/integration/test_whisper_integration.py -v
+```
+
+## 5. Documentation Updates (Use @Rules markdown-style)
 
 **When implementing features:**
 
-- Update relevant RFCs (status: Draft → Accepted → Completed)
-- Update `docs/guides/DEVELOPMENT_GUIDE.md` if adding new patterns
-- Update `docs/TESTING_STRATEGY.md` if adding new test categories
+- Update relevant RFCs (Draft → Accepted → Completed)
+- Update guides if adding new patterns
 - Update `mkdocs.yml` if adding new docs
+- Run `make fix-md` before committing
 
-**Example prompt:**
+**Example with @Rules:**
 
-> "Implement this feature and update documentation: mark RFC-025 Phase 1 as Completed, add notes to DEVELOPMENT_GUIDE.md"
+```text
 
-### 5. CI/CD Integration
+@Rules markdown-style
+Update README.md with new provider feature and run markdown validation
 
-**For CI-related tasks:**
+```
 
-- Always test locally with `make ci` before pushing
-- Consider path-based optimization (`.github/workflows/python-app.yml`)
-- Check Docker builds if Dockerfile changed
-- Verify Snyk scans if dependencies changed
+### 6. Git Worktree Workflow (Use @Rules git-worktree)
 
-**Example prompt:**
+**For parallel development:**
 
-> "Fix this CI failure. Test locally with make ci. Consider: path filters, Docker build, test execution time"
+```text
 
-### 6. Model Selection for Common Tasks
+@Rules git-worktree
+Create worktree for issue #200 with proper branch naming
 
-**RFC/PRD creation:**
+AI provides:
+- make wt-setup command
+- Branch naming: feat/200-description
+- Isolated venv setup
+- Cursor instance management
 
-- Use **GPT-5.2** or **Opus 4.5** (deep reasoning required)
-- Use **Composer** for structured output
+```
 
-**Test implementation:**
+- One branch = One worktree = One Cursor window
+- Clean AI context per task
+- No branch switching
+- Parallel development
 
-- Use **Codex Max** (daily driver)
-- Use **Sonnet 4.5** for review
+### 7. Model Selection for Common Tasks
 
-**CI debugging:**
+**With @Rules integration:**
 
-- Use **GPT-5.2** (root cause analysis)
-- Use **Codex Max** for fixes
+| Task | Model | @Rules |
+| ------ | ------- | -------- |
+| RFC/PRD creation | GPT-5.2, Opus 4.5 | `@Rules module-boundaries` |
+| Test implementation | Codex Max | `@Rules testing-strategy` |
+| CI debugging | GPT-5.2 | `@Rules testing-strategy` |
+| Module refactoring | GPT-5.2 | `@Rules module-boundaries` |
+| Documentation | Codex Max | `@Rules markdown-style` |
+| Worktree setup | Auto or Codex Max | `@Rules git-worktree` |
+| Commit/push | Auto | `@Rules ai-guidelines` |
 
-**Simple refactors:**
+### 8. Always Reference Project Guidelines
 
-- Use **Auto** or **Codex Mini** (mechanical work)
+**Core documentation to mention:**
 
-**Security-related:**
+```text
 
-- Use **Codex Max High** (strict correctness)
+# For architecture decisions
+
+@Rules module-boundaries
+Consider ARCHITECTURE.md for this refactoring
+
+# For testing
+
+@Rules testing-strategy
+Follow TESTING_GUIDE.md patterns
+
+# For CI/CD
+
+Check docs/ci/index.md for CI pipeline details
+
+# For markdown
+
+@Rules markdown-style
+Follow MARKDOWN_LINTING_GUIDE.md standards
+
+```
 
 ## Making This Fast (Recommended)
 
@@ -637,18 +1102,40 @@ This removes copy/paste entirely.
 - Plan first, code second
 - Use multiple models intentionally, not randomly
 
+### @Rules System Principles
+
+- **`.cursorrules` is always active** - Core project rules loaded automatically
+- **`.mdc` files are on-demand** - Load with `@Rules filename` when needed
+- **Start without @Rules** - .cursorrules handles most cases
+- **Add @Rules for specialized tasks** - Testing, worktrees, markdown, architecture
+- **Multiple @Rules allowed** - `@Rules testing-strategy @Rules module-boundaries`
+- **New chat = reset** - Must reload @Rules in new conversations
+
 ### Project-Specific Principles
 
-- **Always reference `.ai-coding-guidelines.md`** before major tasks
-- **Never commit without showing changes and getting approval**
-- **Never push to PR without running `make ci` first**
-- **Use appropriate test execution mode** (sequential vs parallel)
+- **Always reference `.cursorrules`** - Automatically enforces critical rules
+- **Use @Rules for specialized context** - Load detailed guides when needed
+- **Never commit without showing changes and getting approval** - Enforced by .cursorrules
+- **Always run `make ci-fast` before committing** - Pre-commit hook also runs this
+- **Use appropriate test execution mode** - Fast tests → slow tests (if ML changed) → full CI
 - **Update documentation** when implementing features
 - **Follow RFC/PRD process** for new features
+- **Use worktrees for parallel development** - `@Rules git-worktree` for setup
+
+### @Rules Quick Reference
+
+| When You're... | Load This | Why |
+| ---------------- | ----------- | ----- |
+| Writing tests | `@Rules testing-strategy` | Pytest markers, mock patterns |
+| Creating worktree | `@Rules git-worktree` | Setup commands, branch naming |
+| Refactoring modules | `@Rules module-boundaries` | Architecture constraints |
+| Editing markdown | `@Rules markdown-style` | Formatting, auto-fix commands |
+| Committing changes | `@Rules ai-guidelines` | Detailed commit checklist |
+| Regular coding | (none needed) | .cursorrules handles it |
 
 ### One-Line Rule
 
-> **Auto for hands, manual for brain. For this project: Always check guidelines first.**
+> **Auto for hands, manual for brain. For this project: .cursorrules always on, @Rules when specialized.**
 
 ## Next Steps
 
@@ -672,4 +1159,3 @@ This removes copy/paste entirely.
    - Multi-file changes (use `implementation-plan.txt`)
 
 4. **Review and update** this guide based on experience
-````

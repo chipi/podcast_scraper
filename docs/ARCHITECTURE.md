@@ -15,7 +15,7 @@ This architecture document is the central hub for understanding the system. For 
   - [Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md) — Integration test guidelines
   - [E2E Testing Guide](guides/E2E_TESTING_GUIDE.md) — E2E server, real ML models
   - [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md) — What to test, prioritization
-- **[CI/CD](CI_CD.md)** — Continuous integration and deployment pipeline
+- **[CI/CD](ci/index.md)** — Continuous integration and deployment pipeline
 
 ### API Documentation
 
@@ -99,13 +99,14 @@ flowchart TD
 - `downloader.py`: HTTP session pooling with retry-enabled adapters, streaming downloads, and shared progress hooks.
 - `episode_processor.py`: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
 - `filesystem.py`: Filename sanitization, output directory derivation, run suffix logic, and helper utilities for Whisper output paths.
-- **Provider System** (RFC-013): Protocol-based provider architecture for transcription, speaker detection, and summarization. Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
-  - **Transcription Providers**: `transcription/whisper_provider.py` (local Whisper), `transcription/openai_provider.py` (OpenAI Whisper API)
-  - **Speaker Detection Providers**: `speaker_detectors/ner_detector.py` (spaCy NER), `speaker_detectors/openai_detector.py` (OpenAI GPT)
-  - **Summarization Providers**: `summarization/local_provider.py` (local transformers), `summarization/openai_provider.py` (OpenAI GPT)
-- `whisper_integration.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names. Now accessed via `WhisperTranscriptionProvider` (provider pattern).
-- `speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Now accessed via `NERSpeakerDetector` (provider pattern).
-- `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Now accessed via `TransformersSummarizationProvider` (provider pattern). See [Summarization Guide](guides/SUMMARIZATION_GUIDE.md) for details.
+- **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization. Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
+  - **Unified Providers** (RFC-029): Two unified provider classes implement all three protocols:
+    - `ml/ml_provider.py` - `MLProvider`: Implements all three protocols using local ML models (Whisper for transcription, spaCy for speaker detection, Transformers for summarization)
+    - `openai/openai_provider.py` - `OpenAIProvider`: Implements all three protocols using OpenAI APIs (Whisper API for transcription, GPT API for speaker detection and summarization)
+  - **Factories**: Factory functions in `transcription/factory.py`, `speaker_detectors/factory.py`, and `summarization/factory.py` create the appropriate unified provider based on configuration.
+- `whisper_integration.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names. Now accessed via `MLProvider` (unified provider pattern).
+- `speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Now accessed via `MLProvider` (unified provider pattern).
+- `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Now accessed via `MLProvider` (unified provider pattern). See [Summarization Guide](guides/SUMMARIZATION_GUIDE.md) for details.
 - `progress.py`: Minimal global progress publishing API so callers can swap in alternative UIs.
 - `models.py`: Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob`) shared across modules. May be extended to include detected speaker metadata.
 - `metadata.py` (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, processing metadata, and optional summaries in structured JSON/YAML format. Opt-in feature for backwards compatibility.
@@ -136,12 +137,8 @@ graph TB
         TranscriptionFactory[transcription/factory.py]
         SpeakerFactory[speaker_detectors/factory.py]
         SummaryFactory[summarization/factory.py]
-        WhisperProvider[transcription/whisper_provider.py]
-        OpenAITranscription[transcription/openai_provider.py]
-        NERProvider[speaker_detectors/ner_detector.py]
-        OpenAISpeaker[speaker_detectors/openai_detector.py]
-        LocalSummary[summarization/local_provider.py]
-        OpenAISummary[summarization/openai_provider.py]
+        MLProvider[ml/ml_provider.py]
+        OpenAIProvider[openai/openai_provider.py]
     end
 
     subgraph "Optional Features"
@@ -186,12 +183,7 @@ graph TB
     Summarizer --> Models
     SpeakerDetect --> Models
 
-```
-    style Workflow fill:#d1ecf1
-    style Whisper fill:#f8d7da
-    style SpeakerDetect fill:#d4edda
-```yaml
-
+```python
 - **Typed, immutable configuration**: `Config` is a frozen Pydantic model, ensuring every module receives canonicalized values (e.g., normalized URLs, integer coercions, validated Whisper models). This centralizes validation and guards downstream logic.
 - **Resilient HTTP interactions**: A per-thread `requests.Session` with exponential backoff retry (`LoggingRetry`) handles transient network issues while logging retries for observability.
 - **Concurrent transcript pulls**: Transcript downloads are parallelized via `ThreadPoolExecutor`, guarded with locks when mutating shared counters/job queues. Whisper remains sequential to avoid GPU/CPU thrashing and to keep the UX predictable.
@@ -218,6 +210,52 @@ The project uses a layered dependency approach: **core dependencies** (always re
 
 For detailed dependency information including rationale, alternatives considered, version requirements, and dependency management philosophy, see [Dependencies Guide](guides/DEPENDENCIES_GUIDE.md).
 
+## Module Dependency Analysis
+
+The project uses **pydeps** for visualizing module dependencies, detecting circular imports, and tracking architectural health over time. This tooling helps maintain clean module boundaries and identify coupling issues early.
+
+### Tools and Commands
+
+**Makefile Targets:**
+- `make deps-graph` - Generate simplified module dependency graph (SVG)
+- `make deps-graph-full` - Generate full module dependency graph with all dependencies
+- `make deps-check-cycles` - Check for circular imports
+- `make deps-analyze` - Run full dependency analysis (cycles + graph)
+
+**Analysis Script:**
+- `python scripts/analyze_dependencies.py` - Analyze dependencies and detect issues
+  - `--check` - Exit with error if issues found
+  - `--report` - Generate detailed JSON report
+
+### Key Metrics
+
+| Metric | Description | Threshold |
+| -------- | ------------- | ----------- |
+| **Max depth** | Longest dependency chain | <5 levels |
+| **Circular imports** | Cycles in import graph | 0 |
+| **Fan-out** | Modules a file imports | <15 |
+| **Fan-in** | Modules importing a file | Monitor only |
+
+### CI Integration
+
+Dependency analysis runs automatically in the **nightly workflow**:
+- Generates dependency graphs (SVG) for visualization
+- Checks for circular imports
+- Runs full dependency analysis with JSON report
+- Artifacts are uploaded for download (90-day retention)
+
+### Output Files
+
+- `reports/deps-simple.svg` - Simplified dependency graph (clustered, max-bacon=2)
+- `reports/deps-full.svg` - Full dependency graph with all dependencies
+- `reports/deps-analysis.json` - Detailed analysis report (when using `--report`)
+
+### Related Documentation
+
+- [RFC-038: Continuous Review Tooling](rfc/RFC-038-continuous-review-tooling.md) - Module coupling analysis implementation
+- [Issue #170](https://github.com/chipi/podcast_scraper/issues/170) - Module coupling analysis tooling
+- [CI/CD Documentation](ci/WORKFLOWS.md) - Nightly workflow details
+
 ## Constraints and Assumptions
 
 - Python 3.10+ with third-party packages: `requests`, `tqdm`, `defusedxml`, `platformdirs`, `pydantic`, `PyYAML`, `spacy` (required for speaker detection), and optionally `openai-whisper` + `ffmpeg` when transcription is required, and optionally `torch` + `transformers` when summarization is required.
@@ -229,6 +267,7 @@ For detailed dependency information including rationale, alternatives considered
 ### Configuration Flow
 
 ```mermaid
+
 flowchart TD
     Input[CLI Args + Config Files] --> Merge[Merge Sources]
     Merge --> Validate[Pydantic Validation]
@@ -246,6 +285,7 @@ flowchart TD
     style Input fill:#e1f5ff
     style Config fill:#fff3cd
     style Validate fill:#f8d7da
+
 ```python
 
 - `models.Episode` encapsulates the RSS item, chosen transcript URLs, and media enclosure metadata, keeping parsing concerns separate from processing. May be extended to include detected speaker names (RFC-010).
@@ -257,6 +297,7 @@ flowchart TD
 ### Filesystem Layout
 
 ```mermaid
+
 graph TD
     Root[output/rss_hostname_hash/] --> RunDir{Run ID<br/>Specified?}
     RunDir -->|Yes| RunSubdir[run_id/]
@@ -277,6 +318,7 @@ graph TD
     style Episodes fill:#fff3cd
     style TempDir fill:#f8d7da
     style Metadata fill:#d1ecf1
+
 ```text
 
 - RSS and HTTP failures raise `ValueError` early with descriptive messages; CLI wraps these in exit codes for scripting.

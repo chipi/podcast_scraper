@@ -85,7 +85,7 @@ jobs:
           DEPLOY_SHA="${{ github.sha }}"
           DEPLOY_SHA_SHORT="${DEPLOY_SHA:0:7}"
           DEPLOY_URL="https://github.com/${{ github.repository }}/commit/${DEPLOY_SHA}"
-          
+
           # Create deploy-info.json
           mkdir -p .build/site
           cat > .build/site/deploy-info.json << EOF
@@ -96,10 +96,10 @@ jobs:
             "commitUrl": "${DEPLOY_URL}"
           }
           EOF
-          
+
           mkdocs build --strict
 
-      - name: Download latest metrics from CI workflow
+      - name: Download CI metrics artifact
         if: github.event_name == 'push'
         uses: dawidd6/action-download-artifact@v6
         with:
@@ -110,27 +110,41 @@ jobs:
           search_artifacts: true
         continue-on-error: true
 
-      - name: Download latest metrics from nightly workflow
+      - name: Download nightly metrics artifact
         if: github.event_name == 'push'
         uses: dawidd6/action-download-artifact@v6
         with:
           workflow: nightly.yml
           name: nightly-metrics
-          path: .build/site/metrics/nightly
+          path: .build/site/metrics
           if_no_artifact_found: warn
           search_artifacts: true
         continue-on-error: true
 
-      - name: Create metrics landing page if metrics exist
+      - name: Consolidate metrics files
+        if: github.event_name == 'push'
+        run: |
+          # Move any files from subdirectories to main metrics directory
+          find .build/site/metrics -name "*.json" -o -name "*.jsonl" -o -name "*.html" | while read file; do
+            if [ "$(dirname "$file")" != ".build/site/metrics" ]; then
+              mv "$file" .build/site/metrics/
+            fi
+          done
+
+          # List what we have
+          echo "=== Metrics files ==="
+          ls -la .build/site/metrics/ || echo "No metrics directory"
+
+      - name: Merge metrics artifacts for unified dashboard
         if: github.event_name == 'push'
         run: |
           mkdir -p .build/site/metrics
 
-          # Check if CI metrics were downloaded
+          # Check if unified dashboard exists (from either CI or nightly)
           if [ -f ".build/site/metrics/index.html" ]; then
-            echo "✅ CI metrics dashboard available at /metrics/"
+            echo "✅ Unified dashboard found"
           else
-            echo "⚠️ No CI metrics found, creating placeholder"
+            echo "⚠️ No dashboard found, creating placeholder"
             cat > .build/site/metrics/index.html << 'EOF'
           <!DOCTYPE html>
           <html>
@@ -141,50 +155,32 @@ jobs:
               h1 { color: #333; }
               p { color: #666; line-height: 1.6; }
               a { color: #0066cc; }
-              .links { margin-top: 20px; }
-              .links a { display: block; margin: 10px 0; }
             </style>
           </head>
           <body>
             <h1>📊 Metrics Dashboard</h1>
-            <p>No CI metrics data available yet.</p>
-            <p>Metrics are generated after CI runs on the main branch.</p>
-            <div class="links">
-              <a href="nightly/">📅 Nightly Metrics</a>
-              <a href="/">← Back to Documentation</a>
-            </div>
+            <p>No metrics data available yet.</p>
+            <p>Metrics are generated after CI runs on the main branch or scheduled nightly runs.</p>
+            <p><a href="/">← Back to Documentation</a></p>
           </body>
           </html>
           EOF
           fi
 
-          # Check if nightly metrics were downloaded
-          if [ -d ".build/site/metrics/nightly" ] && [ -f ".build/site/metrics/nightly/index.html" ]; then
-            echo "✅ Nightly metrics available at /metrics/nightly/"
-          else
-            echo "⚠️ No nightly metrics found, creating placeholder"
-            mkdir -p .build/site/metrics/nightly
-            cat > .build/site/metrics/nightly/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Nightly Metrics</title>
-            <style>
-              body { font-family: system-ui, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
-              h1 { color: #333; }
-              p { color: #666; }
-              a { color: #0066cc; }
-            </style>
-          </head>
-          <body>
-            <h1>📅 Nightly Metrics</h1>
-            <p>No nightly metrics data available yet.</p>
-            <p>Nightly metrics are generated from scheduled nightly test runs.</p>
-            <p><a href="../">← Back to Metrics</a> | <a href="/">← Back to Documentation</a></p>
-          </body>
-          </html>
-          EOF
+          # Ensure both CI and nightly data files are in the same directory
+          # CI files should be: latest-ci.json, history-ci.jsonl
+          # Nightly files should be: latest-nightly.json, history-nightly.jsonl
+          # The unified dashboard will look for these files in the same directory
+
+          if [ -f ".build/site/metrics/latest-ci.json" ]; then
+            echo "✅ CI metrics data available"
           fi
+
+          if [ -f ".build/site/metrics/latest-nightly.json" ]; then
+            echo "✅ Nightly metrics data available"
+          fi
+
+          echo "📊 Unified dashboard will display data from available sources"
 
       - name: Upload artifact
         if: github.event_name == 'push'
