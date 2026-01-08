@@ -5,14 +5,12 @@ These tests verify OpenAI provider implementations with mocked API calls.
 """
 
 import json
-import os
 import unittest
 from unittest.mock import Mock, patch
 
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.exceptions import ProviderRuntimeError
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
@@ -29,7 +27,6 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             transcription_provider="openai",
             openai_api_key="sk-test123",
-            transcribe_missing=True,  # Required for transcription initialization
         )
 
     @patch("podcast_scraper.openai.openai_provider.OpenAI")
@@ -38,16 +35,12 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        # base_url is only included if openai_api_base is set
-        expected_kwargs = {"api_key": "sk-test123"}
-        if self.cfg.openai_api_base:
-            expected_kwargs["base_url"] = self.cfg.openai_api_base
-        mock_openai_class.assert_called_once_with(**expected_kwargs)
+        mock_openai_class.assert_called_once_with(api_key="sk-test123")
         self.assertTrue(provider._transcription_initialized)
 
     @patch("podcast_scraper.openai.openai_provider.OpenAI")
     def test_transcribe_success(self, mock_openai_class):
-        """Test successful transcription via OpenAI API."""
+        """Test successful transcription via OpenAI API via factory."""
         # Mock OpenAI client and response
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -76,18 +69,9 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         """Test that missing API key raises ValidationError (caught by config validator)."""
         from pydantic import ValidationError
 
-        # Unset environment variable to ensure it's not loaded
-        original_key = os.environ.pop("OPENAI_API_KEY", None)
-        try:
-            with self.assertRaises(ValidationError) as cm:
-                config.Config(
-                    rss_url="https://example.com/feed.xml", transcription_provider="openai"
-                )
-            self.assertIn("OpenAI API key required", str(cm.exception))
-        finally:
-            # Restore original environment variable if it existed
-            if original_key is not None:
-                os.environ["OPENAI_API_KEY"] = original_key
+        with self.assertRaises(ValidationError) as cm:
+            config.Config(rss_url="https://example.com/feed.xml", transcription_provider="openai")
+        self.assertIn("OpenAI API key required", str(cm.exception))
 
     def test_factory_creates_openai_provider(self):
         """Test that factory creates OpenAI transcription provider."""
@@ -113,9 +97,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
     @patch("podcast_scraper.openai.openai_provider.OpenAI")
     @patch("podcast_scraper.prompt_store.render_prompt")
     def test_detect_speakers_success(self, mock_render_prompt, mock_openai_class):
-        """Test successful speaker detection via OpenAI API."""
-        detector = create_speaker_detector(self.cfg)
-
+        """Test successful speaker detection via OpenAI API via factory."""
         # Mock OpenAI client and response
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -162,20 +144,13 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         """Test that missing API key raises ValidationError (caught by config validator)."""
         from pydantic import ValidationError
 
-        # Unset environment variable to ensure it's not loaded
-        original_key = os.environ.pop("OPENAI_API_KEY", None)
-        try:
-            with self.assertRaises(ValidationError) as cm:
-                config.Config(
-                    rss_url="https://example.com/feed.xml",
-                    speaker_detector_provider="openai",
-                    auto_speakers=True,
-                )
-            self.assertIn("OpenAI API key required", str(cm.exception))
-        finally:
-            # Restore original environment variable if it existed
-            if original_key is not None:
-                os.environ["OPENAI_API_KEY"] = original_key
+        with self.assertRaises(ValidationError) as cm:
+            config.Config(
+                rss_url="https://example.com/feed.xml",
+                speaker_detector_provider="openai",
+                auto_speakers=True,
+            )
+        self.assertIn("OpenAI API key required", str(cm.exception))
 
     def test_factory_creates_openai_detector(self):
         """Test that factory creates OpenAI speaker detector."""
@@ -202,8 +177,7 @@ class TestOpenAISummarizationProvider(unittest.TestCase):
     @patch("podcast_scraper.openai.openai_provider.OpenAI")
     @patch("podcast_scraper.prompt_store.render_prompt")
     def test_summarize_success(self, mock_render_prompt, mock_openai_class):
-        """Test successful summarization via OpenAI API."""
-
+        """Test successful summarization via OpenAI API via factory."""
         # Mock OpenAI client and response
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -238,21 +212,14 @@ class TestOpenAISummarizationProvider(unittest.TestCase):
         """Test that missing API key raises ValidationError (caught by config validator)."""
         from pydantic import ValidationError
 
-        # Unset environment variable to ensure it's not loaded
-        original_key = os.environ.pop("OPENAI_API_KEY", None)
-        try:
-            with self.assertRaises(ValidationError) as cm:
-                config.Config(
-                    rss_url="https://example.com/feed.xml",
-                    summary_provider="openai",
-                    generate_metadata=True,
-                    generate_summaries=True,
-                )
-            self.assertIn("OpenAI API key required", str(cm.exception))
-        finally:
-            # Restore original environment variable if it existed
-            if original_key is not None:
-                os.environ["OPENAI_API_KEY"] = original_key
+        with self.assertRaises(ValidationError) as cm:
+            config.Config(
+                rss_url="https://example.com/feed.xml",
+                summary_provider="openai",
+                generate_metadata=True,
+                generate_summaries=True,
+            )
+        self.assertIn("OpenAI API key required", str(cm.exception))
 
     def test_factory_creates_openai_provider(self):
         """Test that factory creates OpenAI summarization provider."""
@@ -272,13 +239,11 @@ class TestOpenAIProviderErrorHandling(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             transcription_provider="openai",
             openai_api_key="sk-test123",
-            transcribe_missing=True,  # Required for transcription initialization
         )
 
     @patch("podcast_scraper.openai.openai_provider.OpenAI")
     def test_transcribe_api_error(self, mock_openai_class):
-        """Test that API errors are handled gracefully."""
-
+        """Test that API errors are handled gracefully via factory."""
         # Mock OpenAI client to raise exception
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -294,9 +259,9 @@ class TestOpenAIProviderErrorHandling(unittest.TestCase):
             audio_path = f.name
 
         try:
-            with self.assertRaises(ProviderRuntimeError) as cm:
+            with self.assertRaises(ValueError) as cm:
                 provider.transcribe(audio_path)
-            self.assertIn("Transcription failed", str(cm.exception))
+            self.assertIn("OpenAI transcription failed", str(cm.exception))
         finally:
             import os
 

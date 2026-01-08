@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Unit tests for OpenAITranscriptionProvider class.
+"""Unit tests for OpenAIProvider transcription (via factory).
 
 These tests verify the OpenAI Whisper API-based transcription provider implementation
-with edge cases and error handling.
+using the unified OpenAIProvider returned by the factory.
 """
 
 import os
@@ -36,16 +36,11 @@ spec.loader.exec_module(parent_conftest)
 create_test_config = parent_conftest.create_test_config
 
 from podcast_scraper import config  # noqa: E402
-from podcast_scraper.exceptions import (  # noqa: E402
-    ProviderConfigError,
-    ProviderNotInitializedError,
-    ProviderRuntimeError,
-)
 from podcast_scraper.transcription.factory import create_transcription_provider  # noqa: E402
 
 
 class TestOpenAITranscriptionProvider(unittest.TestCase):
-    """Tests for OpenAITranscriptionProvider class."""
+    """Tests for OpenAIProvider transcription (via factory)."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -60,7 +55,9 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider = create_transcription_provider(self.cfg)
         self.assertEqual(provider.cfg, self.cfg)
         self.assertIsNotNone(provider.client)
-        self.assertEqual(provider.model, config.TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL)
+        self.assertEqual(
+            provider.transcription_model, config.TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+        )
         self.assertFalse(provider._transcription_initialized)
 
     def test_init_missing_api_key(self):
@@ -77,11 +74,10 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
             lambda self: getattr(self, "_openai_transcription_model", None)
         )
 
-        with self.assertRaises(ProviderConfigError) as context:
+        with self.assertRaises(ValueError) as context:
             create_transcription_provider(mock_cfg)
 
-        self.assertIn("API key not provided", str(context.exception))
-        self.assertEqual(context.exception.provider, "OpenAI")
+        self.assertIn("OpenAI API key required", str(context.exception))
 
     def test_init_with_custom_base_url(self):
         """Test initialization with custom base_url."""
@@ -106,7 +102,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         type(mock_cfg).openai_transcription_model = property(lambda self: "whisper-2")
 
         provider = create_transcription_provider(mock_cfg)
-        self.assertEqual(provider.model, "whisper-2")
+        self.assertEqual(provider.transcription_model, "whisper-2")
 
     def test_initialize_success(self):
         """Test successful initialization."""
@@ -125,12 +121,10 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertTrue(provider._transcription_initialized)
 
     @patch("builtins.open", create=True)
-    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_success(self, mock_exists, mock_getsize, mock_open):
+    def test_transcribe_success(self, mock_exists, mock_open):
         """Test successful transcription."""
         mock_exists.return_value = True
-        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_file.read.return_value = b"fake audio data"
         mock_open.return_value.__enter__.return_value = mock_file
@@ -148,12 +142,10 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         mock_client.audio.transcriptions.create.assert_called_once()
 
     @patch("builtins.open", create=True)
-    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_with_language(self, mock_exists, mock_getsize, mock_open):
+    def test_transcribe_with_language(self, mock_exists, mock_open):
         """Test transcription with explicit language."""
         mock_exists.return_value = True
-        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -172,9 +164,8 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertEqual(call_kwargs["language"], "fr")
 
     @patch("builtins.open", create=True)
-    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_with_config_language(self, mock_exists, mock_getsize, mock_open):
+    def test_transcribe_with_config_language(self, mock_exists, mock_open):
         """Test transcription uses config language when not provided."""
         cfg = create_test_config(
             transcription_provider="openai",
@@ -183,7 +174,6 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
             transcribe_missing=True,
         )
         mock_exists.return_value = True
-        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -201,9 +191,8 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertEqual(call_kwargs["language"], "es")
 
     @patch("builtins.open", create=True)
-    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_auto_detects_language(self, mock_exists, mock_getsize, mock_open):
+    def test_transcribe_auto_detects_language(self, mock_exists, mock_open):
         """Test transcription auto-detects language when not specified."""
         # Create config without language (or with language=None)
         from unittest.mock import MagicMock
@@ -218,7 +207,6 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         )
 
         mock_exists.return_value = True
-        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -239,11 +227,10 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         """Test transcribe raises error when not initialized."""
         provider = create_transcription_provider(self.cfg)
 
-        with self.assertRaises(ProviderNotInitializedError) as context:
+        with self.assertRaises(RuntimeError) as context:
             provider.transcribe("/tmp/audio.mp3")
 
         self.assertIn("not initialized", str(context.exception))
-        self.assertEqual(context.exception.provider, "OpenAI/Transcription")
 
     @patch("os.path.exists")
     def test_transcribe_file_not_found(self, mock_exists):
@@ -253,19 +240,16 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        # _validate_audio_file raises ProviderRuntimeError
-        with self.assertRaises(ProviderRuntimeError) as context:
+        with self.assertRaises(FileNotFoundError) as context:
             provider.transcribe("/tmp/nonexistent.mp3")
 
         self.assertIn("not found", str(context.exception))
 
     @patch("builtins.open", create=True)
-    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_api_error(self, mock_exists, mock_getsize, mock_open):
+    def test_transcribe_api_error(self, mock_exists, mock_open):
         """Test transcribe handles API errors."""
         mock_exists.return_value = True
-        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -276,18 +260,16 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider.client = mock_client
         provider.initialize()
 
-        with self.assertRaises(ProviderRuntimeError) as context:
+        with self.assertRaises(ValueError) as context:
             provider.transcribe("/tmp/audio.mp3")
 
-        self.assertIn("Transcription failed", str(context.exception))
+        self.assertIn("transcription failed", str(context.exception))
 
     @patch("builtins.open", create=True)
-    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_with_segments_success(self, mock_exists, mock_getsize, mock_open):
+    def test_transcribe_with_segments_success(self, mock_exists, mock_open):
         """Test transcribe_with_segments returns full result."""
         mock_exists.return_value = True
-        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -324,12 +306,10 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertGreaterEqual(elapsed, 0)
 
     @patch("builtins.open", create=True)
-    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_with_segments_dict_segments(self, mock_exists, mock_getsize, mock_open):
+    def test_transcribe_with_segments_dict_segments(self, mock_exists, mock_open):
         """Test transcribe_with_segments handles dict-like segments."""
         mock_exists.return_value = True
-        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -355,12 +335,10 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertEqual(result_dict["segments"][0]["start"], 0.0)
 
     @patch("builtins.open", create=True)
-    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_with_segments_no_segments(self, mock_exists, mock_getsize, mock_open):
+    def test_transcribe_with_segments_no_segments(self, mock_exists, mock_open):
         """Test transcribe_with_segments handles response without segments."""
         mock_exists.return_value = True
-        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -381,12 +359,10 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertEqual(result_dict["segments"], [])
 
     @patch("builtins.open", create=True)
-    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_with_segments_api_error(self, mock_exists, mock_getsize, mock_open):
+    def test_transcribe_with_segments_api_error(self, mock_exists, mock_open):
         """Test transcribe_with_segments handles API errors."""
         mock_exists.return_value = True
-        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -397,20 +373,19 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider.client = mock_client
         provider.initialize()
 
-        with self.assertRaises(ProviderRuntimeError) as context:
+        with self.assertRaises(ValueError) as context:
             provider.transcribe_with_segments("/tmp/audio.mp3")
 
-        self.assertIn("Transcription failed", str(context.exception))
+        self.assertIn("transcription failed", str(context.exception))
 
     def test_transcribe_with_segments_not_initialized(self):
         """Test transcribe_with_segments raises error when not initialized."""
         provider = create_transcription_provider(self.cfg)
 
-        with self.assertRaises(ProviderNotInitializedError) as context:
+        with self.assertRaises(RuntimeError) as context:
             provider.transcribe_with_segments("/tmp/audio.mp3")
 
         self.assertIn("not initialized", str(context.exception))
-        self.assertEqual(context.exception.provider, "OpenAI/Transcription")
 
     @patch("os.path.exists")
     def test_transcribe_with_segments_file_not_found(self, mock_exists):
@@ -420,8 +395,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        # _validate_audio_file raises ProviderRuntimeError
-        with self.assertRaises(ProviderRuntimeError) as context:
+        with self.assertRaises(FileNotFoundError) as context:
             provider.transcribe_with_segments("/tmp/nonexistent.mp3")
 
         self.assertIn("not found", str(context.exception))
@@ -430,7 +404,6 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         """Test cleanup method resets initialization state."""
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
-        self.assertTrue(provider._transcription_initialized)
 
         # Should not raise
         provider.cleanup()

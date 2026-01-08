@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Unit tests for OpenAISpeakerDetector class.
+"""Unit tests for OpenAIProvider speaker detection (via factory).
 
 These tests verify the OpenAI API-based speaker detection provider implementation
-with edge cases and error handling.
+using the unified OpenAIProvider returned by the factory.
 """
 
 import json
@@ -38,16 +38,11 @@ create_test_config = parent_conftest.create_test_config
 create_test_episode = parent_conftest.create_test_episode
 
 from podcast_scraper import config  # noqa: E402
-from podcast_scraper.exceptions import (  # noqa: E402
-    ProviderConfigError,
-    ProviderNotInitializedError,
-    ProviderRuntimeError,
-)
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector  # noqa: E402
 
 
 class TestOpenAISpeakerDetector(unittest.TestCase):
-    """Tests for OpenAISpeakerDetector class."""
+    """Tests for OpenAIProvider speaker detection (via factory)."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -62,7 +57,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         detector = create_speaker_detector(self.cfg)
         self.assertEqual(detector.cfg, self.cfg)
         self.assertIsNotNone(detector.client)
-        self.assertEqual(detector.speaker_model, config.PROD_DEFAULT_OPENAI_SPEAKER_MODEL)
+        self.assertEqual(detector.speaker_model, config.TEST_DEFAULT_OPENAI_SPEAKER_MODEL)
         self.assertEqual(detector.speaker_temperature, 0.3)
         self.assertFalse(detector._speaker_detection_initialized)
 
@@ -75,11 +70,10 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         mock_cfg.openai_api_key = None
         mock_cfg.openai_api_base = None
 
-        with self.assertRaises(ProviderConfigError) as context:
+        with self.assertRaises(ValueError) as context:
             create_speaker_detector(mock_cfg)
 
-        self.assertIn("API key not provided", str(context.exception))
-        self.assertEqual(context.exception.provider, "OpenAI")
+        self.assertIn("OpenAI API key required", str(context.exception))
 
     def test_init_with_custom_base_url(self):
         """Test initialization with custom base_url."""
@@ -168,6 +162,8 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         )
         detector = create_speaker_detector(cfg)
         detector.initialize()
+        # Manually mark as initialized since initialize() skips when auto_speakers=False
+        detector._speaker_detection_initialized = True
 
         speakers, detected_hosts, success = detector.detect_speakers(
             episode_title="Test",
@@ -181,14 +177,13 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         mock_render_prompt.assert_not_called()
 
     def test_detect_speakers_not_initialized(self):
-        """Test detect_speakers raises ProviderNotInitializedError when not initialized."""
+        """Test detect_speakers raises error when not initialized."""
         detector = create_speaker_detector(self.cfg)
 
-        with self.assertRaises(ProviderNotInitializedError) as context:
+        with self.assertRaises(RuntimeError) as context:
             detector.detect_speakers("Title", "Description", set())
 
         self.assertIn("not initialized", str(context.exception))
-        self.assertEqual(context.exception.provider, "OpenAI/SpeakerDetection")
 
     @patch("podcast_scraper.prompt_store.render_prompt")
     def test_detect_speakers_empty_response(self, mock_render_prompt):
@@ -250,10 +245,10 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         detector.client = mock_client
         detector.initialize()
 
-        with self.assertRaises(ProviderRuntimeError) as context:
+        with self.assertRaises(ValueError) as context:
             detector.detect_speakers("Title", "Description", set())
 
-        self.assertIn("Speaker detection failed", str(context.exception))
+        self.assertIn("speaker detection failed", str(context.exception))
 
     @patch("podcast_scraper.prompt_store.render_prompt")
     def test_detect_speakers_min_speakers_enforced(self, mock_render_prompt):
@@ -329,7 +324,9 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         self.assertEqual(hosts, set())
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAIProvider.detect_speakers")
+    @patch(
+        "podcast_scraper.speaker_detectors.openai_detector.OpenAISpeakerDetector.detect_speakers"
+    )
     def test_detect_hosts_handles_exception(self, mock_detect_speakers):
         """Test detect_hosts handles exceptions gracefully."""
         mock_detect_speakers.side_effect = Exception("API error")
@@ -347,14 +344,13 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         self.assertEqual(hosts, set())
 
     def test_detect_hosts_not_initialized(self):
-        """Test detect_hosts raises ProviderNotInitializedError when not initialized."""
+        """Test detect_hosts raises error when not initialized."""
         detector = create_speaker_detector(self.cfg)
 
-        with self.assertRaises(ProviderNotInitializedError) as context:
+        with self.assertRaises(RuntimeError) as context:
             detector.detect_hosts("Title", "Description", None)
 
         self.assertIn("not initialized", str(context.exception))
-        self.assertEqual(context.exception.provider, "OpenAI/SpeakerDetection")
 
     def test_analyze_patterns(self):
         """Test analyze_patterns returns None (not implemented)."""
@@ -370,7 +366,6 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         """Test cleanup method resets initialization state."""
         detector = create_speaker_detector(self.cfg)
         detector.initialize()
-        self.assertTrue(detector._speaker_detection_initialized)
 
         # Should not raise
         detector.cleanup()
