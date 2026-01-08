@@ -174,6 +174,40 @@ class TestModelSelection(unittest.TestCase):
             summarizer.DEFAULT_SUMMARY_MODELS.clear()
             summarizer.DEFAULT_SUMMARY_MODELS.update(original_models)
 
+    def test_select_summary_model_raises_when_default_missing(self):
+        """Test that select_summary_model raises RuntimeError when default model missing."""
+        cfg = create_test_config(summary_model=None)
+        # Temporarily remove the default model from DEFAULT_SUMMARY_MODELS
+        original_models = summarizer.DEFAULT_SUMMARY_MODELS.copy()
+        try:
+            # Remove bart-large to trigger the error
+            if "bart-large" in summarizer.DEFAULT_SUMMARY_MODELS:
+                del summarizer.DEFAULT_SUMMARY_MODELS["bart-large"]
+            with self.assertRaises(ValueError) as context:
+                summarizer.select_summary_model(cfg)
+            self.assertIn("DEFAULT_SUMMARY_MODELS['bart-large']", str(context.exception))
+        finally:
+            # Restore original models
+            summarizer.DEFAULT_SUMMARY_MODELS.clear()
+            summarizer.DEFAULT_SUMMARY_MODELS.update(original_models)
+
+    def test_select_reduce_model_raises_when_default_missing(self):
+        """Test that select_reduce_model raises ValueError when default model missing."""
+        cfg = create_test_config(summary_reduce_model=None)
+        # Temporarily remove the default model from DEFAULT_SUMMARY_MODELS
+        original_models = summarizer.DEFAULT_SUMMARY_MODELS.copy()
+        try:
+            # Remove long to trigger the error
+            if "long" in summarizer.DEFAULT_SUMMARY_MODELS:
+                del summarizer.DEFAULT_SUMMARY_MODELS["long"]
+            with self.assertRaises(ValueError) as context:
+                summarizer.select_reduce_model(cfg, "test-model")
+            self.assertIn("DEFAULT_SUMMARY_MODELS['long']", str(context.exception))
+        finally:
+            # Restore original models
+            summarizer.DEFAULT_SUMMARY_MODELS.clear()
+            summarizer.DEFAULT_SUMMARY_MODELS.update(original_models)
+
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestSummaryModel(unittest.TestCase):

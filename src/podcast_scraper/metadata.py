@@ -188,14 +188,14 @@ class ContentMetadata(BaseModel):
 
 
 class SummaryMetadata(BaseModel):
-    """Summary metadata.
-
-    Note: Provider/model information is available in processing.config_snapshot.ml_providers
-    to avoid duplication and keep all ML configuration in one place.
-    """
+    """Summary metadata."""
 
     short_summary: str
     generated_at: datetime
+    model_used: Optional[str] = None  # MAP model (primary summarization model)
+    reduce_model_used: Optional[str] = None  # REDUCE model (if different from MAP model)
+    whisper_model_used: Optional[str] = None  # Whisper model used for transcription
+    provider: str  # "transformers", "openai", etc.
     word_count: Optional[int] = None
 
     @field_serializer("generated_at")
@@ -366,8 +366,14 @@ def _build_processing_metadata(cfg: config.Config, output_dir: str) -> Processin
     Returns:
         ProcessingMetadata object
     """
+    config_snapshot: Dict[str, Any] = {
+        "language": cfg.language,
+        "max_episodes": cfg.max_episodes,
+        "auto_speakers": cfg.auto_speakers,
+        "screenplay": cfg.screenplay,
+    }
+
     # ML/Provider information - include all models whether implicit or explicit
-    # Place at top of config_snapshot for prominence
     ml_providers: Dict[str, Any] = {}
 
     # Transcription provider
@@ -377,12 +383,6 @@ def _build_processing_metadata(cfg: config.Config, output_dir: str) -> Processin
         }
         if cfg.transcription_provider == "whisper" and cfg.transcribe_missing:
             ml_providers["transcription"]["whisper_model"] = cfg.whisper_model
-        elif cfg.transcription_provider == "openai":
-            # Include OpenAI transcription model
-            transcription_model = getattr(
-                cfg, "openai_transcription_model", config.PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
-            )
-            ml_providers["transcription"]["openai_model"] = transcription_model
 
     # Speaker detection provider
     if cfg.speaker_detector_provider:
@@ -391,12 +391,6 @@ def _build_processing_metadata(cfg: config.Config, output_dir: str) -> Processin
         }
         if cfg.speaker_detector_provider == "spacy" and cfg.ner_model:
             ml_providers["speaker_detection"]["ner_model"] = cfg.ner_model
-        elif cfg.speaker_detector_provider == "openai":
-            # Include OpenAI speaker detection model
-            speaker_model = getattr(
-                cfg, "openai_speaker_model", config.PROD_DEFAULT_OPENAI_SPEAKER_MODEL
-            )
-            ml_providers["speaker_detection"]["openai_model"] = speaker_model
 
     # Summarization provider
     if cfg.summary_provider:
@@ -411,27 +405,9 @@ def _build_processing_metadata(cfg: config.Config, output_dir: str) -> Processin
                 ml_providers["summarization"]["reduce_model"] = cfg.summary_reduce_model
             if cfg.summary_device:
                 ml_providers["summarization"]["device"] = cfg.summary_device
-        elif cfg.summary_provider == "openai":
-            # Include OpenAI summarization model
-            summary_model = getattr(
-                cfg, "openai_summary_model", config.PROD_DEFAULT_OPENAI_SUMMARY_MODEL
-            )
-            ml_providers["summarization"]["openai_model"] = summary_model
 
-    # Build config_snapshot with ml_providers first for prominence
-    config_snapshot: Dict[str, Any] = {}
     if ml_providers:
         config_snapshot["ml_providers"] = ml_providers
-
-    # Add other config fields
-    config_snapshot.update(
-        {
-            "language": cfg.language,
-            "max_episodes": cfg.max_episodes,
-            "auto_speakers": cfg.auto_speakers,
-            "screenplay": cfg.screenplay,
-        }
-    )
 
     return ProcessingMetadata(
         processing_timestamp=datetime.now(),
@@ -575,6 +551,30 @@ def _generate_episode_summary(  # noqa: C901
 
             summary_elapsed = time.time() - summary_start
             short_summary = result.get("summary")
+            metadata_dict = result.get("metadata", {})
+            model_used = metadata_dict.get("model_used", cfg.summary_provider)
+
+            # Extract reduce model info from metadata (preferred) or provider
+            reduce_model_used = metadata_dict.get("reduce_model_used")
+            if reduce_model_used is None and summary_provider is not None:
+                # Fallback: Try to get reduce model from provider directly
+                reduce_model_obj = getattr(summary_provider, "reduce_model", None)
+                map_model_obj = getattr(summary_provider, "map_model", None)
+                if reduce_model_obj is not None and map_model_obj is not None:
+                    # Check if reduce model is different from map model
+                    # Only extract if both objects have model_name attribute and it's a string
+                    try:
+                        reduce_name = getattr(reduce_model_obj, "model_name", None)
+                        map_name = getattr(map_model_obj, "model_name", None)
+                        if (
+                            isinstance(reduce_name, str)
+                            and isinstance(map_name, str)
+                            and reduce_name != map_name
+                        ):
+                            reduce_model_used = reduce_name
+                    except (AttributeError, TypeError):
+                        # If attributes don't exist or aren't strings, skip
+                        pass
 
             logger.info(
                 "[%s] Summary generated in %.1fs (length: %d chars)",
@@ -592,6 +592,10 @@ def _generate_episode_summary(  # noqa: C901
             return SummaryMetadata(
                 short_summary=short_summary,
                 generated_at=datetime.now(),
+                model_used=model_used,
+                reduce_model_used=reduce_model_used,
+                whisper_model_used=whisper_model,
+                provider=cfg.summary_provider,
                 word_count=word_count,
             )
         except Exception as e:
@@ -675,9 +679,19 @@ def _generate_episode_summary(  # noqa: C901
 
                 word_count = len(transcript_text.split())
 
+                # Extract reduce model info
+                reduce_model_used = None
+                if reduce_model is not None and reduce_model != summary_model:
+                    if hasattr(reduce_model, "model_name"):
+                        reduce_model_used = reduce_model.model_name
+
                 return SummaryMetadata(
                     short_summary=short_summary,
                     generated_at=datetime.now(),
+                    model_used=summary_model.model_name,
+                    reduce_model_used=reduce_model_used,
+                    whisper_model_used=whisper_model,
+                    provider=cfg.summary_provider,
                     word_count=word_count,
                 )
 
