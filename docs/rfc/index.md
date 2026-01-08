@@ -22,8 +22,8 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 | RFC | Title | Related PRD | Description |
 | --- | ----- | ----------- | ----------- |
-| [RFC-015](RFC-015-ai-experiment-pipeline.md) | AI Experiment Pipeline | PRD-007 | Config-driven experiment pipeline (🔴 Not started - waiting for RFC-016 Phase 2) |
-| [RFC-016](RFC-016-modularization-for-ai-experiments.md) | Modularization for AI Experiments | PRD-007 | Provider system architecture (🟡 80% complete - see issue #303) |
+| [RFC-015](RFC-015-ai-experiment-pipeline.md) | AI Experiment Pipeline | PRD-007 | Technical design for configuration-driven experiment pipeline |
+| [RFC-016](RFC-016-modularization-for-ai-experiments.md) | Modularization for AI Experiments | PRD-007 | Provider system architecture to support AI experiment pipeline |
 | [RFC-023](RFC-023-readme-acceptance-tests.md) | README Acceptance Tests | - | Acceptance tests validating README documentation accuracy |
 | [RFC-027](RFC-027-pipeline-metrics-improvements.md) | Pipeline Metrics Improvements | - | Improvements to pipeline metrics collection and reporting |
 | [RFC-032](RFC-032-anthropic-provider-implementation.md) | Anthropic Provider Implementation | PRD-009 | Technical design for Anthropic Claude API providers |
@@ -34,8 +34,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-037](RFC-037-ollama-provider-implementation.md) | Ollama Provider Implementation | PRD-014 | Technical design for Ollama (local/offline) |
 | [RFC-038](RFC-038-continuous-review-tooling.md) | Continuous Review Tooling | #45 | Dependabot, pydeps, pre-release checklist |
 | [RFC-039](RFC-039-development-workflow-worktrees-ci.md) | Development Workflow | - | Git worktrees, Cursor integration, CI evolution |
-| [RFC-040](RFC-040-automated-metrics-alerts.md) | Automated Metrics Alerts | - | PR comments and webhook alerts for metric deviations |
-| [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | - | Repeatable, objective ML benchmarking system |
+| [RFC-040](RFC-040-audio-preprocessing-pipeline.md) | Audio Preprocessing Pipeline | - | Optional audio preprocessing (VAD, normalization) before transcription |
 
 ## Completed RFCs
 
@@ -65,7 +64,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-030](RFC-030-python-test-coverage-improvements.md) | Python Test Coverage Improvements | - | - | Coverage collection in CI, threshold enforcement |
 | [RFC-021](RFC-021-modularization-refactoring-plan.md) | Modularization Refactoring Plan | PRD-006 | - | Detailed plan for modular provider architecture |
 | [RFC-022](RFC-022-environment-variable-candidates-analysis.md) | Environment Variable Candidates Analysis | - | - | Environment variable support for deployment flexibility |
-| [RFC-026](RFC-026-metrics-consumption-and-dashboards.md) | Metrics Consumption and Dashboards | - | v2.5 | GitHub Pages metrics JSON API, job summaries, unified dashboard (Phases 0-3) |
+| [RFC-026](RFC-026-metrics-consumption-and-dashboards.md) | Metrics Consumption and Dashboards | - | - | GitHub Pages metrics JSON API and job summaries |
 | [RFC-031](RFC-031-code-complexity-analysis-tooling.md) | Code Complexity Analysis Tooling | - | - | Code complexity, dead code, docstrings, spell checking |
 
 ## Quick Links

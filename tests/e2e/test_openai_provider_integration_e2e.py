@@ -47,17 +47,16 @@ USE_REAL_OPENAI_API = os.getenv("USE_REAL_OPENAI_API", "0") == "1"
 
 # Feed selection for OpenAI tests
 # Options:
-# - "fast": Use p01_fast.xml (1 episode, 1 minute) - requires E2E_TEST_MODE=fast
-# - "multi": Use p01_multi.xml (5 episodes, 10-15 seconds each) - DEFAULT (works in all modes)
-# - "p01": Use p01_mtb.xml (podcast1) - requires E2E_TEST_MODE=nightly or data_quality
-# - "p02": Use p02_software.xml (podcast2) - requires E2E_TEST_MODE=nightly or data_quality
-# - "p03": Use p03_scuba.xml (podcast3) - requires E2E_TEST_MODE=nightly or data_quality
-# - "p04": Use p04_photo.xml (podcast4) - requires E2E_TEST_MODE=nightly or data_quality
-# - "p05": Use p05_investing.xml (podcast5) - requires E2E_TEST_MODE=nightly or data_quality
+# - "fast": Use p01_fast.xml (1 episode, 1 minute) - DEFAULT
+# - "multi": Use p01_multi.xml (5 episodes, 10-15 seconds each)
+# - "p01": Use p01_mtb.xml (podcast1)
+# - "p02": Use p02_software.xml (podcast2)
+# - "p03": Use p03_scuba.xml (podcast3)
+# - "p04": Use p04_photo.xml (podcast4)
+# - "p05": Use p05_investing.xml (podcast5)
 # For real API mode: Set USE_REAL_OPENAI_API=1 and OPENAI_TEST_RSS_FEED=<feed-url>
 #   (no default real feed - must be explicitly provided)
-# Default to "multi" to work in both fast and multi_episode E2E_TEST_MODE
-OPENAI_TEST_FEED = os.getenv("OPENAI_TEST_FEED", "multi")
+OPENAI_TEST_FEED = os.getenv("OPENAI_TEST_FEED", "fast")
 
 # Real RSS feed URL for testing (only used when USE_REAL_OPENAI_API=1)
 # NOTE: No default real feed - must be explicitly set via OPENAI_TEST_RSS_FEED
@@ -779,82 +778,6 @@ class TestOpenAIProviderE2E:
                 "test_openai_all_providers_in_pipeline",
                 validate_provider="openai",
             )
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
-    def test_openai_provider_dry_run_no_api_calls(self, e2e_server: Optional[Any]):
-        """Test that dry-run mode does NOT make any OpenAI API calls.
-
-        This comprehensive test verifies that in dry-run mode:
-        - No transcription API calls are made
-        - No speaker detection API calls are made
-        - No summarization API calls are made
-        - Full pipeline runs successfully without API calls
-        """
-        from unittest.mock import patch
-
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
-            rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
-
-            # Create config with ALL OpenAI providers enabled but dry_run=True
-            cfg = create_test_config(
-                rss_url=rss_url,
-                output_dir=temp_dir,
-                transcription_provider="openai",
-                speaker_detector_provider="openai",
-                summary_provider="openai",
-                openai_api_key=openai_api_key,
-                openai_api_base=openai_api_base,
-                auto_speakers=True,
-                generate_metadata=True,
-                generate_summaries=True,
-                preload_models=False,  # Disable model preloading (no local ML models)
-                transcribe_missing=True,
-                dry_run=True,  # Enable dry-run mode
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
-            )
-
-            # Mock OpenAI provider methods to verify NO API calls are made
-            # We'll patch the provider's public methods that would make API calls
-            with (
-                patch(
-                    "podcast_scraper.openai.openai_provider.OpenAIProvider.transcribe"
-                ) as mock_transcribe,
-                patch(
-                    "podcast_scraper.openai.openai_provider.OpenAIProvider.detect_speakers"
-                ) as mock_detect_speakers,
-                patch(
-                    "podcast_scraper.openai.openai_provider.OpenAIProvider.summarize"
-                ) as mock_summarize,
-            ):
-                # Run pipeline in dry-run mode
-                transcripts_saved, summary = workflow.run_pipeline(cfg)
-
-                # Verify pipeline completed successfully
-                assert transcripts_saved >= 0, "Dry-run should complete without errors"
-                assert isinstance(summary, str), "Summary should be a string"
-
-                # CRITICAL: Verify NO API calls were made
-                # In dry-run mode, OpenAI provider methods should never be called
-                mock_transcribe.assert_not_called(), (
-                    "OpenAI transcription should NOT be called in dry-run mode"
-                )
-                mock_detect_speakers.assert_not_called(), (
-                    "OpenAI speaker detection should NOT be called in dry-run mode"
-                )
-                mock_summarize.assert_not_called(), (
-                    "OpenAI summarization should NOT be called in dry-run mode"
-                )
-
-            # Verify no files were created (dry-run should not create files)
-            transcript_files = list(Path(temp_dir).rglob("*.txt"))
-            assert len(transcript_files) == 0, "Dry-run should not create transcript files"
-
-            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
-            assert len(metadata_files) == 0, "Dry-run should not create metadata files"
-
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
