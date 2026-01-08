@@ -240,6 +240,8 @@ class TestIntegrationMain(unittest.TestCase):
                             "10",
                             "--log-level",
                             "DEBUG",
+                            "--whisper-model",
+                            config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", ""),
                         ]
                     )
                     self.assertEqual(exit_code, 0)
@@ -547,6 +549,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             cfg = podcast_scraper.Config(
                 rss_url=rss_url,
                 output_dir=self.temp_dir,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Should handle empty feed gracefully
