@@ -110,22 +110,26 @@ class TestFilesystemOperations(unittest.TestCase):
 
     def test_output_directory_setup(self):
         """Test output directory setup and validation."""
-        # Basic output directory
+        # Basic output directory (no ML features)
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             output_dir=self.temp_dir,
             transcribe_missing=False,  # Explicitly disable to test basic case
+            auto_speakers=False,  # Disable to test basic case
+            generate_summaries=False,  # Disable to test basic case
         )
         effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
         self.assertEqual(effective_dir, self.temp_dir)
         self.assertIsNone(run_suffix)
 
-        # With run_id
+        # With run_id (no ML features)
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             output_dir=self.temp_dir,
             run_id="test_run",
             transcribe_missing=False,  # Explicitly disable to test run_id only
+            auto_speakers=False,  # Disable to test run_id only
+            generate_summaries=False,  # Disable to test run_id only
         )
         effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
         self.assertIn("test_run", effective_dir)
@@ -137,9 +141,12 @@ class TestFilesystemOperations(unittest.TestCase):
             output_dir=self.temp_dir,
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            auto_speakers=False,  # Disable to test whisper only
+            generate_summaries=False,  # Disable to test whisper only
         )
         effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        self.assertIn("whisper_tiny.en", run_suffix or "")
+        # Format: "w_<model>" for whisper provider
+        self.assertIn("w_tiny.en", run_suffix or "")
 
     def test_output_directory_validation(self):
         """Test output directory validation."""

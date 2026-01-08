@@ -876,7 +876,15 @@ class TestDetectFeedHostsAndPatterns(unittest.TestCase):
 
     @patch("podcast_scraper.workflow.create_speaker_detector")
     def test_detect_hosts_cache_disabled(self, mock_create):
-        """Test that host detection is skipped when cache_detected_hosts is disabled."""
+        """Test that speaker detector is created but host caching is skipped.
+
+        When cache_detected_hosts is disabled, the detector is still created
+        (needed for speaker detection) but host caching/analysis is skipped.
+        """
+        mock_detector = Mock()
+        mock_detector.detect_hosts.return_value = set()
+        mock_create.return_value = mock_detector
+
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             auto_speakers=True,
@@ -887,8 +895,15 @@ class TestDetectFeedHostsAndPatterns(unittest.TestCase):
 
         result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
 
+        # Speaker detector should be created (needed for speaker detection)
+        mock_create.assert_called_once_with(cfg)
+        mock_detector.initialize.assert_called_once()
+        # But host detection/caching should be skipped
+        mock_detector.detect_hosts.assert_not_called()
+        mock_detector.analyze_patterns.assert_not_called()
+        # Detector should still be returned for use in episode processing
+        self.assertIsNotNone(result.speaker_detector)
         self.assertEqual(len(result.cached_hosts), 0)
-        mock_create.assert_not_called()
 
     @patch("podcast_scraper.workflow.create_speaker_detector")
     @patch("podcast_scraper.workflow.extract_episode_description")
@@ -936,6 +951,208 @@ class TestDetectFeedHostsAndPatterns(unittest.TestCase):
         self.assertIsNone(result.heuristics)
         # Provider is None when initialization fails
         self.assertIsNone(result.speaker_detector)
+
+    @patch("podcast_scraper.workflow.create_speaker_detector")
+    @patch("podcast_scraper.workflow.extract_episode_description")
+    def test_detect_hosts_with_validation(self, mock_extract, mock_create):
+        """Test host detection with validation against first episode."""
+        mock_detector = Mock()
+        # First call returns hosts from feed, second call returns speakers from episode
+        mock_detector.detect_hosts.return_value = {"Host1", "Host2", "Host3"}
+        mock_detector.detect_speakers.return_value = (
+            ["Host1", "Host2", "Guest"],
+            {"Host1", "Host2"},
+            True,
+        )
+        mock_detector.analyze_patterns.return_value = {"title_position_preference": "start"}
+        mock_create.return_value = mock_detector
+        mock_extract.return_value = "Episode description"
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            auto_speakers=True,
+            cache_detected_hosts=True,
+        )
+        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
+        # Create a mock episode
+        episode_item = Mock()
+        episode = models.Episode(
+            item=episode_item, idx=1, title="Episode 1", title_safe="Episode_1", transcript_urls=[]
+        )
+        episodes = [episode]
+
+        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
+
+        # Host3 should be filtered out (not in first episode)
+        self.assertEqual(result.cached_hosts, {"Host1", "Host2"})
+        self.assertIsNotNone(result.heuristics)
+        mock_detector.detect_hosts.assert_called_once()
+        mock_detector.detect_speakers.assert_called_once()
+        mock_detector.analyze_patterns.assert_called_once()
+
+    @patch("podcast_scraper.workflow.create_speaker_detector")
+    @patch("podcast_scraper.workflow.extract_episode_description")
+    def test_detect_hosts_validation_all_match(self, mock_extract, mock_create):
+        """Test host validation when all hosts match first episode."""
+        mock_detector = Mock()
+        mock_detector.detect_hosts.return_value = {"Host1", "Host2"}
+        mock_detector.detect_speakers.return_value = (
+            ["Host1", "Host2", "Guest"],
+            {"Host1", "Host2"},
+            True,
+        )
+        mock_detector.analyze_patterns.return_value = {}
+        mock_create.return_value = mock_detector
+        mock_extract.return_value = "Episode description"
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            auto_speakers=True,
+            cache_detected_hosts=True,
+        )
+        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
+        episode_item = Mock()
+        episode = models.Episode(
+            item=episode_item, idx=1, title="Episode 1", title_safe="Episode_1", transcript_urls=[]
+        )
+        episodes = [episode]
+
+        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
+
+        # All hosts should be kept
+        self.assertEqual(result.cached_hosts, {"Host1", "Host2"})
+
+    @patch("podcast_scraper.workflow.create_speaker_detector")
+    def test_detect_hosts_no_episodes_for_validation(self, mock_create):
+        """Test host detection when no episodes available for validation."""
+        mock_detector = Mock()
+        mock_detector.detect_hosts.return_value = {"Host1", "Host2"}
+        mock_detector.analyze_patterns.return_value = {}
+        mock_create.return_value = mock_detector
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            auto_speakers=True,
+            cache_detected_hosts=True,
+        )
+        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
+        episodes = []  # No episodes
+
+        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
+
+        # Hosts should be used directly (no validation possible)
+        self.assertEqual(result.cached_hosts, {"Host1", "Host2"})
+        mock_detector.detect_hosts.assert_called_once()
+        # detect_speakers should not be called (no episodes to validate against)
+        mock_detector.detect_speakers.assert_not_called()
+
+    @patch("podcast_scraper.workflow.create_speaker_detector")
+    @patch("podcast_scraper.workflow.extract_episode_description")
+    def test_detect_hosts_validation_partial_match(self, mock_extract, mock_create):
+        """Test host validation when some hosts match, some don't."""
+        mock_detector = Mock()
+        mock_detector.detect_hosts.return_value = {"Host1", "Host2", "Host3"}
+        mock_detector.detect_speakers.return_value = (["Host1", "Guest"], {"Host1"}, True)
+        mock_detector.analyze_patterns.return_value = {}
+        mock_create.return_value = mock_detector
+        mock_extract.return_value = "Episode description"
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            auto_speakers=True,
+            cache_detected_hosts=True,
+        )
+        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
+        episode_item = Mock()
+        episode = models.Episode(
+            item=episode_item, idx=1, title="Episode 1", title_safe="Episode_1", transcript_urls=[]
+        )
+        episodes = [episode]
+
+        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
+
+        # Only Host1 should be kept (Host2 and Host3 filtered out)
+        self.assertEqual(result.cached_hosts, {"Host1"})
+
+    @patch("podcast_scraper.workflow.create_speaker_detector")
+    @patch("podcast_scraper.workflow.extract_episode_description")
+    def test_detect_hosts_validation_no_validated_hosts(self, mock_extract, mock_create):
+        """Test host validation when no hosts match first episode."""
+        mock_detector = Mock()
+        mock_detector.detect_hosts.return_value = {"Host1", "Host2"}
+        mock_detector.detect_speakers.return_value = (["Guest"], set(), True)
+        mock_detector.analyze_patterns.return_value = {}
+        mock_create.return_value = mock_detector
+        mock_extract.return_value = "Episode description"
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            auto_speakers=True,
+            cache_detected_hosts=True,
+        )
+        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
+        episode_item = Mock()
+        episode = models.Episode(
+            item=episode_item, idx=1, title="Episode 1", title_safe="Episode_1", transcript_urls=[]
+        )
+        episodes = [episode]
+
+        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
+
+        # When validated_hosts is empty, should use feed_hosts
+        self.assertEqual(result.cached_hosts, {"Host1", "Host2"})
+
+    @patch("podcast_scraper.workflow.create_speaker_detector")
+    def test_detect_hosts_no_hosts_detected(self, mock_create):
+        """Test host detection when no hosts are detected."""
+        mock_detector = Mock()
+        mock_detector.detect_hosts.return_value = set()  # No hosts
+        mock_detector.analyze_patterns.return_value = {}
+        mock_create.return_value = mock_detector
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            auto_speakers=True,
+            cache_detected_hosts=True,
+        )
+        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
+        episodes = []
+
+        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
+
+        self.assertEqual(len(result.cached_hosts), 0)
+
+    @patch("podcast_scraper.workflow.create_speaker_detector")
+    @patch("podcast_scraper.workflow.extract_episode_description")
+    def test_detect_hosts_with_pattern_analysis(self, mock_extract, mock_create):
+        """Test host detection with pattern analysis heuristics."""
+        mock_detector = Mock()
+        mock_detector.detect_hosts.return_value = {"Host1"}
+        mock_detector.analyze_patterns.return_value = {"title_position_preference": "end"}
+        mock_create.return_value = mock_detector
+        mock_extract.return_value = "Episode description"
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            auto_speakers=True,
+            cache_detected_hosts=True,
+        )
+        feed = models.RssFeed(
+            title="Feed",
+            authors=["Host1"],
+            items=[],
+            base_url="https://example.com",
+        )
+        episode_item = Mock()
+        episode = models.Episode(
+            item=episode_item, idx=1, title="Episode 1", title_safe="Episode_1", transcript_urls=[]
+        )
+        episodes = [episode]
+
+        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
+
+        self.assertIsNotNone(result.heuristics)
+        self.assertEqual(result.heuristics.get("title_position_preference"), "end")
 
 
 class TestSetupTranscriptionResources(unittest.TestCase):
