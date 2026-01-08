@@ -262,6 +262,8 @@ class TestSetupOutputDirectory(unittest.TestCase):
             run_id=TEST_RUN_ID,
             skip_existing=False,
             clean_output=False,
+            auto_speakers=False,  # Disable to test run_id only
+            generate_summaries=False,  # Disable to test run_id only
         )
         output_dir, run_suffix = filesystem.setup_output_directory(cfg)
         self.assertIn(f"run_{TEST_RUN_ID}", output_dir)
@@ -286,11 +288,14 @@ class TestSetupOutputDirectory(unittest.TestCase):
             run_id=None,
             skip_existing=False,
             clean_output=False,
+            auto_speakers=False,  # Disable to test whisper only
+            generate_summaries=False,  # Disable to test whisper only
         )
         output_dir, run_suffix = filesystem.setup_output_directory(cfg)
         # Test uses TEST_DEFAULT_WHISPER_MODEL (tiny.en), so run_suffix should reflect that
-        expected_model_in_suffix = config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", "")
-        self.assertIn(f"whisper_{expected_model_in_suffix}", run_suffix or "")
+        # Format: "w_<model>" for whisper provider
+        expected_model_in_suffix = config.TEST_DEFAULT_WHISPER_MODEL
+        self.assertIn(f"w_{expected_model_in_suffix}", run_suffix or "")
 
 
 class TestWriteFile(unittest.TestCase):

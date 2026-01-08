@@ -107,6 +107,96 @@ def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
     return f"output/rss_{safe_base}_{digest[:URL_HASH_LENGTH]}"
 
 
+def _shorten_model_name(model_name: str) -> str:
+    """Shorten model name for use in run suffix.
+
+    Removes common prefixes like "facebook/", "google/", etc. and keeps
+    only the essential model identifier.
+
+    Args:
+        model_name: Full model identifier (e.g., "facebook/bart-large-cnn")
+
+    Returns:
+        Shortened model name (e.g., "bart-large-cnn")
+    """
+    # Remove common prefixes
+    for prefix in ["facebook/", "google/", "sshleifer/", "allenai/"]:
+        if model_name.startswith(prefix):
+            return model_name[len(prefix) :]
+    return model_name
+
+
+def _build_provider_model_suffix(cfg: config.Config) -> Optional[str]:
+    """Build a compact run suffix that includes all providers and models.
+
+    Creates a short identifier that includes:
+    - Transcription provider + model (if transcription is used)
+    - Summary provider + models (if summaries are generated)
+    - Speaker detection provider + model (if speaker detection is used)
+
+    Format: <transcription>_<summary>_<speaker>
+    Example: "w_base.en_tf_bart-large-cnn_sp_en_core_web_sm"
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        Compact run suffix string or None if no ML features are used
+    """
+    parts = []
+
+    # Transcription provider + model
+    if cfg.transcribe_missing:
+        if cfg.transcription_provider == "whisper":
+            model_short = _shorten_model_name(cfg.whisper_model)
+            parts.append(f"w_{sanitize_filename(model_short)}")
+        elif cfg.transcription_provider == "openai":
+            model = getattr(cfg, "openai_transcription_model", "whisper-1")
+            parts.append(f"oa_{sanitize_filename(model)}")
+
+    # Summary provider + models
+    if cfg.generate_summaries:
+        if cfg.summary_provider in ("transformers", "local"):
+            # Import here to avoid circular dependency
+            from . import summarizer
+
+            map_model = summarizer.select_summary_model(cfg)
+            reduce_model = summarizer.select_reduce_model(cfg, map_model)
+
+            map_short = _shorten_model_name(map_model)
+            parts.append(f"tf_{sanitize_filename(map_short)}")
+
+            # Only include reduce model if different from map model
+            if reduce_model != map_model:
+                reduce_short = _shorten_model_name(reduce_model)
+                parts.append(f"r_{sanitize_filename(reduce_short)}")
+        elif cfg.summary_provider == "openai":
+            model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
+            parts.append(f"oa_{sanitize_filename(model)}")
+
+    # Speaker detection provider + model
+    if cfg.screenplay or cfg.auto_speakers:
+        if cfg.speaker_detector_provider in ("spacy", "ner"):
+            ner_model = cfg.ner_model
+            if not ner_model:
+                # Use default NER model when not specified
+                ner_model = config.DEFAULT_NER_MODEL
+            # Shorten common spaCy model names
+            if ner_model.startswith("en_core_web_"):
+                model_short = ner_model.replace("en_core_web_", "spacy_")
+            else:
+                model_short = ner_model
+            parts.append(f"sp_{sanitize_filename(model_short)}")
+        elif cfg.speaker_detector_provider == "openai":
+            model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
+            parts.append(f"oa_{sanitize_filename(model)}")
+
+    if not parts:
+        return None
+
+    return "_".join(parts)
+
+
 def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str]]:
     """Derive the effective output directory and run suffix for a configuration.
 
@@ -118,22 +208,30 @@ def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str]]:
     Or if no run_suffix:
     - output_dir/transcripts/
     - output_dir/metadata/
+
+    The run_suffix includes all providers and models used:
+    - Transcription: provider + model (e.g., "w_base.en" for whisper, "oa_whisper-1" for openai)
+    - Summarization: provider + models (e.g., "tf_bart-large-cnn" for transformers)
+    - Speaker detection: provider + model (e.g., "sp_en_core_web_sm" for spacy)
     """
     run_suffix: Optional[str] = None
+
+    # Start with run_id if provided
     if cfg.run_id:
         run_suffix = (
             time.strftime(TIMESTAMP_FORMAT)
             if cfg.run_id.lower() == "auto"
             else sanitize_filename(cfg.run_id)
         )
-        if cfg.transcribe_missing:
-            model_part = sanitize_filename(cfg.whisper_model)
-            run_suffix = (
-                f"{run_suffix}_whisper_{model_part}" if run_suffix else f"whisper_{model_part}"
-            )
-    elif cfg.transcribe_missing:
-        model_part = sanitize_filename(cfg.whisper_model)
-        run_suffix = f"whisper_{model_part}"
+
+    # Build provider/model suffix
+    provider_suffix = _build_provider_model_suffix(cfg)
+
+    if provider_suffix:
+        if run_suffix:
+            run_suffix = f"{run_suffix}_{provider_suffix}"
+        else:
+            run_suffix = provider_suffix
 
     output_dir = cfg.output_dir
     if output_dir is None:
