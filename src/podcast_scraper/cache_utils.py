@@ -38,16 +38,32 @@ def get_project_root() -> Path:
 def get_whisper_cache_dir() -> Path:
     """Get Whisper model cache directory.
 
-    Prefers local cache in project root (.cache/whisper/), falls back to ~/.cache/whisper/
+    Priority order:
+    1. WHISPER_CACHE_DIR environment variable (highest priority)
+    2. CACHE_DIR environment variable (if WHISPER_CACHE_DIR not set)
+    3. Local cache in project root (.cache/whisper/) if exists
+    4. Standard user cache (~/.cache/whisper/)
 
     Returns:
         Path to Whisper cache directory
     """
+    # 1. Check WHISPER_CACHE_DIR env var FIRST (highest priority)
+    whisper_cache = os.environ.get("WHISPER_CACHE_DIR")
+    if whisper_cache:
+        return Path(whisper_cache)
+
+    # 2. Check CACHE_DIR env var (general cache directory)
+    cache_dir = os.environ.get("CACHE_DIR")
+    if cache_dir:
+        return Path(cache_dir) / "whisper"
+
+    # 3. Check local cache (development convenience)
     project_root = get_project_root()
     local_cache = project_root / ".cache" / "whisper"
     if local_cache.exists():
         return local_cache
-    # Fallback to standard user cache
+
+    # 4. Standard user cache as final fallback
     return Path.home() / ".cache" / "whisper"
 
 
@@ -56,9 +72,10 @@ def get_transformers_cache_dir() -> Path:
 
     Priority order:
     1. HF_HUB_CACHE environment variable (CI sets this explicitly - highest priority)
-    2. Local cache in project root (.cache/huggingface/hub/) if exists
-    3. huggingface_hub.constants.HF_HUB_CACHE (respects HF_HOME env var)
-    4. Standard user cache (~/.cache/huggingface/hub/)
+    2. CACHE_DIR/huggingface/hub (if CACHE_DIR is set)
+    3. Local cache in project root (.cache/huggingface/hub/) if exists
+    4. huggingface_hub.constants.HF_HUB_CACHE (respects HF_HOME env var)
+    5. Standard user cache (~/.cache/huggingface/hub/)
 
     The env var takes priority because CI explicitly sets it to ensure consistent
     cache paths across all workers and steps. This is critical for supply chain
@@ -74,7 +91,12 @@ def get_transformers_cache_dir() -> Path:
     if hf_hub_cache:
         return Path(hf_hub_cache)
 
-    # 2. Check local cache (development convenience)
+    # 2. Check CACHE_DIR (base cache directory) and derive path from it
+    cache_dir = os.environ.get("CACHE_DIR")
+    if cache_dir:
+        return Path(cache_dir) / "huggingface" / "hub"
+
+    # 3. Check local cache (development convenience)
     project_root = get_project_root()
     local_cache = project_root / ".cache" / "huggingface" / "hub"
     if local_cache.exists():
@@ -85,15 +107,19 @@ def get_transformers_cache_dir() -> Path:
         # Try modern huggingface_hub API first (transformers 4.20+)
         from huggingface_hub import constants
 
-        return Path(constants.HF_HUB_CACHE)
-    except ImportError:
-        try:
-            # Fallback to transformers file_utils (older versions)
-            from transformers import file_utils
+        if constants.HF_HUB_CACHE:
+            return Path(constants.HF_HUB_CACHE)
+    except (ImportError, AttributeError, TypeError):
+        pass
 
+    try:
+        # Fallback to transformers file_utils (older versions)
+        from transformers import file_utils
+
+        if hasattr(file_utils, "default_cache_path") and file_utils.default_cache_path:
             return Path(file_utils.default_cache_path)
-        except (ImportError, AttributeError):
-            pass
+    except (ImportError, AttributeError, TypeError):
+        pass
 
     # 4. Standard user cache as final fallback
     return Path.home() / ".cache" / "huggingface" / "hub"

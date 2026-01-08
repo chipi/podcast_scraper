@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import (
@@ -589,6 +590,10 @@ def _parse_cache_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespac
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse CLI arguments, optionally merging configuration file defaults."""
+    # Default to sys.argv[1:] if argv is None (when called from command line)
+    if argv is None:
+        argv = sys.argv[1:]
+
     # Check if first argument is "cache" subcommand
     if argv and len(argv) > 0 and argv[0] == "cache":
         # Handle cache subcommand
