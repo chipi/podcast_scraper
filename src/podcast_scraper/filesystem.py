@@ -213,6 +213,9 @@ def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str]]:
     - Transcription: provider + model (e.g., "w_base.en" for whisper, "oa_whisper-1" for openai)
     - Summarization: provider + models (e.g., "tf_bart-large-cnn" for transformers)
     - Speaker detection: provider + model (e.g., "sp_en_core_web_sm" for spacy)
+
+    If a directory with the same name already exists and clean_output is False,
+    a counter is appended to make it unique (e.g., run_<suffix>_1, run_<suffix>_2).
     """
     run_suffix: Optional[str] = None
 
@@ -237,9 +240,31 @@ def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str]]:
     if output_dir is None:
         raise ValueError("Configuration output_dir must be defined before running the pipeline")
 
-    effective_output_dir = (
+    # Base effective output directory
+    base_effective_output_dir = (
         os.path.join(output_dir, f"run_{run_suffix}") if run_suffix else output_dir
     )
+
+    # If clean_output is False and directory exists, append counter to make it unique
+    effective_output_dir = base_effective_output_dir
+    if not cfg.clean_output and run_suffix and os.path.exists(base_effective_output_dir):
+        counter = 1
+        while True:
+            effective_output_dir = f"{base_effective_output_dir}_{counter}"
+            if not os.path.exists(effective_output_dir):
+                # Update run_suffix to include counter
+                run_suffix = f"{run_suffix}_{counter}"
+                logger.info(
+                    "Output directory already exists, using unique name: %s",
+                    effective_output_dir,
+                )
+                break
+            counter += 1
+            # Safety limit to prevent infinite loops
+            if counter > 10000:
+                raise RuntimeError(
+                    f"Too many existing directories with similar names: {base_effective_output_dir}"
+                )
 
     # Create transcripts/ and metadata/ subdirectories
     transcripts_dir = os.path.join(effective_output_dir, TRANSCRIPTS_SUBDIR)

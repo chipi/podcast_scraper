@@ -243,11 +243,22 @@ class TestDeriveTranscriptExtension(unittest.TestCase):
 class TestSetupOutputDirectory(unittest.TestCase):
     """Tests for setup_output_directory function."""
 
+    def setUp(self):
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        import shutil
+
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+
     def test_with_run_id(self):
         """Test setting up output directory with run ID."""
         cfg = podcast_scraper.Config(
             rss_url=TEST_FEED_URL,
-            output_dir=TEST_OUTPUT_DIR,
+            output_dir=self.temp_dir,
             max_episodes=None,
             user_agent="test",
             timeout=30,
@@ -269,11 +280,89 @@ class TestSetupOutputDirectory(unittest.TestCase):
         self.assertIn(f"run_{TEST_RUN_ID}", output_dir)
         self.assertEqual(run_suffix, TEST_RUN_ID)
 
+    def test_with_duplicate_directory_counter(self):
+        """Test that duplicate directories get a counter appended."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            max_episodes=None,
+            user_agent="test",
+            timeout=30,
+            delay_ms=0,
+            prefer_types=[],
+            transcribe_missing=False,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            screenplay=False,
+            screenplay_gap_s=2.0,
+            screenplay_num_speakers=2,
+            screenplay_speaker_names=[],
+            run_id=TEST_RUN_ID,
+            skip_existing=False,
+            clean_output=False,  # Important: don't clean, so we can test counter
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+        # First call - should create run_test_run
+        output_dir1, run_suffix1 = filesystem.setup_output_directory(cfg)
+        self.assertIn(f"run_{TEST_RUN_ID}", output_dir1)
+        self.assertEqual(run_suffix1, TEST_RUN_ID)
+        self.assertTrue(os.path.exists(output_dir1))
+
+        # Second call - should create run_test_run_1
+        output_dir2, run_suffix2 = filesystem.setup_output_directory(cfg)
+        self.assertIn(f"run_{TEST_RUN_ID}_1", output_dir2)
+        self.assertEqual(run_suffix2, f"{TEST_RUN_ID}_1")
+        self.assertTrue(os.path.exists(output_dir2))
+        self.assertNotEqual(output_dir1, output_dir2)
+
+        # Third call - should create run_test_run_2
+        output_dir3, run_suffix3 = filesystem.setup_output_directory(cfg)
+        self.assertIn(f"run_{TEST_RUN_ID}_2", output_dir3)
+        self.assertEqual(run_suffix3, f"{TEST_RUN_ID}_2")
+        self.assertTrue(os.path.exists(output_dir3))
+
+    def test_with_clean_output_no_counter(self):
+        """Test that clean_output=True removes existing directory instead of appending counter."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            max_episodes=None,
+            user_agent="test",
+            timeout=30,
+            delay_ms=0,
+            prefer_types=[],
+            transcribe_missing=False,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            screenplay=False,
+            screenplay_gap_s=2.0,
+            screenplay_num_speakers=2,
+            screenplay_speaker_names=[],
+            run_id=TEST_RUN_ID,
+            skip_existing=False,
+            clean_output=True,  # Should remove existing, not append counter
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+        # First call - should create run_test_run
+        output_dir1, run_suffix1 = filesystem.setup_output_directory(cfg)
+        self.assertIn(f"run_{TEST_RUN_ID}", output_dir1)
+        self.assertEqual(run_suffix1, TEST_RUN_ID)
+        self.assertTrue(os.path.exists(output_dir1))
+
+        # Second call with clean_output=True - should reuse same name (workflow will clean it)
+        # Note: setup_output_directory doesn't actually clean, workflow does
+        # But it should not append counter when clean_output=True
+        output_dir2, run_suffix2 = filesystem.setup_output_directory(cfg)
+        self.assertIn(f"run_{TEST_RUN_ID}", output_dir2)
+        self.assertEqual(run_suffix2, TEST_RUN_ID)
+        # Directory should exist (workflow will clean it later if needed)
+        self.assertTrue(os.path.exists(output_dir2))
+
     def test_with_whisper_auto_run_id(self):
         """Test setting up output directory with Whisper auto run ID."""
         cfg = podcast_scraper.Config(
             rss_url=TEST_FEED_URL,
-            output_dir=TEST_OUTPUT_DIR,
+            output_dir=self.temp_dir,
             max_episodes=None,
             user_agent="test",
             timeout=30,
