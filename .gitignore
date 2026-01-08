@@ -29,7 +29,7 @@ coverage.json
 .vscode/
 
 # Example/test files
-examples/config.lenny.yaml
+examples/config.my.*
 examples.txt
 
 # Evaluation dataset (contains personal transcripts and reference summaries)
