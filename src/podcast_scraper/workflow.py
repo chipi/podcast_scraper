@@ -965,81 +965,86 @@ def _detect_feed_hosts_and_patterns(
     cached_hosts: set[str] = set()
     heuristics: Optional[Dict[str, Any]] = None
 
-    if not cfg.auto_speakers or not cfg.cache_detected_hosts:
+    # If auto_speakers is disabled, return early without creating detector
+    if not cfg.auto_speakers:
         return _HostDetectionResult(cached_hosts, heuristics, None)
 
     # Stage 3: Use provider pattern for speaker detection
+    # Always create speaker detector if auto_speakers is enabled,
+    # regardless of cache_detected_hosts (caching only controls whether to cache hosts)
     try:
         speaker_detector = create_speaker_detector(cfg)
         # Initialize provider (loads spaCy model)
         speaker_detector.initialize()
 
-        # Detect hosts: prefer RSS author tags, fall back to NER
-        feed_hosts = speaker_detector.detect_hosts(
-            feed_title=feed.title,
-            feed_description=None,  # TODO: Extract from feed XML if needed
-            feed_authors=feed.authors if feed.authors else None,
-        )
-
-        # Validate hosts with first episode: hosts should appear in first episode too
-        # Skip validation if hosts came from author tags (they're already reliable)
-        if feed_hosts and episodes and not feed.authors:
-            # Only validate if we used NER (not author tags)
-            first_episode = episodes[0]
-            first_episode_description = extract_episode_description(first_episode.item)
-            # Validate hosts by checking if they appear in first episode
-            # Use provider's detect_speakers to extract persons from first episode
-            first_episode_speakers, _, _ = speaker_detector.detect_speakers(
-                episode_title=first_episode.title,
-                episode_description=first_episode_description,
-                known_hosts=set(),
+        # Only detect and cache hosts if cache_detected_hosts is enabled
+        if cfg.cache_detected_hosts:
+            # Detect hosts: prefer RSS author tags, fall back to NER
+            feed_hosts = speaker_detector.detect_hosts(
+                feed_title=feed.title,
+                feed_description=None,  # TODO: Extract from feed XML if needed
+                feed_authors=feed.authors if feed.authors else None,
             )
-            first_episode_persons = set(first_episode_speakers)
-            # Only keep hosts that also appear in first episode (validation)
-            validated_hosts = feed_hosts & first_episode_persons
-            if validated_hosts != feed_hosts:
-                logger.debug(
-                    "Host validation: %d hosts from feed, %d validated with first episode",
-                    len(feed_hosts),
-                    len(validated_hosts),
+
+            # Validate hosts with first episode: hosts should appear in first episode too
+            # Skip validation if hosts came from author tags (they're already reliable)
+            if feed_hosts and episodes and not feed.authors:
+                # Only validate if we used NER (not author tags)
+                first_episode = episodes[0]
+                first_episode_description = extract_episode_description(first_episode.item)
+                # Validate hosts by checking if they appear in first episode
+                # Use provider's detect_speakers to extract persons from first episode
+                first_episode_speakers, _, _ = speaker_detector.detect_speakers(
+                    episode_title=first_episode.title,
+                    episode_description=first_episode_description,
+                    known_hosts=set(),
                 )
-                if validated_hosts:
+                first_episode_persons = set(first_episode_speakers)
+                # Only keep hosts that also appear in first episode (validation)
+                validated_hosts = feed_hosts & first_episode_persons
+                if validated_hosts != feed_hosts:
                     logger.debug(
-                        "Validated hosts (appear in feed and first episode): %s",
-                        list(validated_hosts),
+                        "Host validation: %d hosts from feed, %d validated with first episode",
+                        len(feed_hosts),
+                        len(validated_hosts),
                     )
-                if feed_hosts - validated_hosts:
-                    logger.debug(
-                        "Hosts from feed not found in first episode (discarded): %s",
-                        list(feed_hosts - validated_hosts),
-                    )
-            cached_hosts = validated_hosts if validated_hosts else feed_hosts
-        else:
-            # If hosts came from author tags, use them directly (no validation needed)
-            cached_hosts = feed_hosts
+                    if validated_hosts:
+                        logger.debug(
+                            "Validated hosts (appear in feed and first episode): %s",
+                            list(validated_hosts),
+                        )
+                    if feed_hosts - validated_hosts:
+                        logger.debug(
+                            "Hosts from feed not found in first episode (discarded): %s",
+                            list(feed_hosts - validated_hosts),
+                        )
+                cached_hosts = validated_hosts if validated_hosts else feed_hosts
+            else:
+                # If hosts came from author tags, use them directly (no validation needed)
+                cached_hosts = feed_hosts
 
-        if cached_hosts:
-            source = "RSS author tags" if feed.authors else "feed metadata (NER)"
-            logger.info("=" * 60)
-            logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
-            logger.info("=" * 60)
-        elif cfg.auto_speakers:
-            logger.debug("No hosts detected from feed metadata")
+            if cached_hosts:
+                source = "RSS author tags" if feed.authors else "feed metadata (NER)"
+                logger.info("=" * 60)
+                logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
+                logger.info("=" * 60)
+            else:
+                logger.debug("No hosts detected from feed metadata")
 
-        # Analyze patterns from first few episodes to extract heuristics
-        if cfg.auto_speakers and episodes:
-            heuristics_dict = speaker_detector.analyze_patterns(
-                episodes=episodes, known_hosts=cached_hosts
-            )
-            if heuristics_dict:
-                heuristics = heuristics_dict
-                if heuristics.get("title_position_preference"):
-                    logger.debug(
-                        "Pattern analysis: guest names typically appear at %s of title",
-                        heuristics["title_position_preference"],
-                    )
+            # Analyze patterns from first few episodes to extract heuristics
+            if episodes:
+                heuristics_dict = speaker_detector.analyze_patterns(
+                    episodes=episodes, known_hosts=cached_hosts
+                )
+                if heuristics_dict:
+                    heuristics = heuristics_dict
+                    if heuristics.get("title_position_preference"):
+                        logger.debug(
+                            "Pattern analysis: guest names typically appear at %s of title",
+                            heuristics["title_position_preference"],
+                        )
 
-        # Return result with provider instance
+        # Return result with provider instance (always return detector if auto_speakers is enabled)
         return _HostDetectionResult(cached_hosts, heuristics, speaker_detector)
     except Exception as exc:
         logger.error("Failed to initialize speaker detector provider: %s", exc)
