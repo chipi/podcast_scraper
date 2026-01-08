@@ -876,7 +876,15 @@ class TestDetectFeedHostsAndPatterns(unittest.TestCase):
 
     @patch("podcast_scraper.workflow.create_speaker_detector")
     def test_detect_hosts_cache_disabled(self, mock_create):
-        """Test that host detection is skipped when cache_detected_hosts is disabled."""
+        """Test that speaker detector is created but host caching is skipped.
+
+        When cache_detected_hosts is disabled, the detector is still created
+        (needed for speaker detection) but host caching/analysis is skipped.
+        """
+        mock_detector = Mock()
+        mock_detector.detect_hosts.return_value = set()
+        mock_create.return_value = mock_detector
+
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             auto_speakers=True,
@@ -887,8 +895,15 @@ class TestDetectFeedHostsAndPatterns(unittest.TestCase):
 
         result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
 
+        # Speaker detector should be created (needed for speaker detection)
+        mock_create.assert_called_once_with(cfg)
+        mock_detector.initialize.assert_called_once()
+        # But host detection/caching should be skipped
+        mock_detector.detect_hosts.assert_not_called()
+        mock_detector.analyze_patterns.assert_not_called()
+        # Detector should still be returned for use in episode processing
+        self.assertIsNotNone(result.speaker_detector)
         self.assertEqual(len(result.cached_hosts), 0)
-        mock_create.assert_not_called()
 
     @patch("podcast_scraper.workflow.create_speaker_detector")
     @patch("podcast_scraper.workflow.extract_episode_description")
