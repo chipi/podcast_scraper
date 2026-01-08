@@ -73,6 +73,7 @@ class TestModelLoaderWhisperIntegration(unittest.TestCase):
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
+    @pytest.mark.critical_path
     def test_model_loader_imports_successfully(self):
         """Test that model_loader module can be imported."""
         from podcast_scraper.model_loader import preload_whisper_models
@@ -81,6 +82,7 @@ class TestModelLoaderWhisperIntegration(unittest.TestCase):
         self.assertIsNotNone(preload_whisper_models)
         self.assertTrue(callable(preload_whisper_models))
 
+    @pytest.mark.critical_path
     def test_model_loader_checks_cache_directory(self):
         """Test that model_loader uses correct cache directory."""
         # Verify it uses get_whisper_cache_dir()
@@ -89,6 +91,7 @@ class TestModelLoaderWhisperIntegration(unittest.TestCase):
         # Cache directory should exist or be creatable
         self.assertTrue(whisper_cache.parent.exists() or whisper_cache.parent.parent.exists())
 
+    @pytest.mark.critical_path
     def test_preload_whisper_models_with_cached_model(self):
         """Test that preload_whisper_models works with already-cached models."""
         from tests.integration.ml_model_cache_helpers import require_whisper_model_cached
@@ -132,6 +135,7 @@ class TestModelLoaderTransformersIntegration(unittest.TestCase):
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
+    @pytest.mark.critical_path
     def test_model_loader_imports_successfully(self):
         """Test that model_loader module can be imported."""
         from podcast_scraper.model_loader import preload_transformers_models
@@ -140,6 +144,7 @@ class TestModelLoaderTransformersIntegration(unittest.TestCase):
         self.assertIsNotNone(preload_transformers_models)
         self.assertTrue(callable(preload_transformers_models))
 
+    @pytest.mark.critical_path
     def test_model_loader_checks_cache_directory(self):
         """Test that model_loader uses correct cache directory."""
         # Verify it uses get_transformers_cache_dir()
@@ -150,6 +155,7 @@ class TestModelLoaderTransformersIntegration(unittest.TestCase):
             transformers_cache.parent.exists() or transformers_cache.parent.parent.exists()
         )
 
+    @pytest.mark.critical_path
     def test_preload_transformers_models_with_cached_model(self):
         """Test that preload_transformers_models works with already-cached models."""
         from tests.integration.ml_model_cache_helpers import require_transformers_model_cached
