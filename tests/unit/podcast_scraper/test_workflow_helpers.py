@@ -2677,3 +2677,140 @@ class TestEnsureMLModelsCached(unittest.TestCase):
             import shutil
 
             shutil.rmtree(temp_dir, ignore_errors=True)
+
+    @patch("podcast_scraper.workflow.config._is_test_environment")
+    @patch("podcast_scraper.cache_utils.get_transformers_cache_dir")
+    @patch("podcast_scraper.summarizer.select_summary_model")
+    @patch("podcast_scraper.summarizer.select_reduce_model")
+    def test_ensure_ml_models_cached_transformers_reduce_model_different(
+        self, mock_select_reduce, mock_select_map, mock_get_cache, mock_is_test
+    ):
+        """Test that _ensure_ml_models_cached handles different reduce model."""
+        mock_is_test.return_value = False
+        import tempfile
+        from pathlib import Path
+
+        temp_dir = tempfile.mkdtemp()
+        transformers_cache = Path(temp_dir) / "huggingface" / "hub"
+        transformers_cache.mkdir(parents=True, exist_ok=True)
+        mock_get_cache.return_value = transformers_cache
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=True,
+            generate_summaries=True,
+            summary_provider="transformers",
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+        )
+
+        # Set up mocks to return different models
+        mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
+        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
+
+        with patch("podcast_scraper.model_loader.preload_transformers_models") as mock_preload:
+            workflow._ensure_ml_models_cached(cfg)
+            # Should call preload with both models
+            mock_preload.assert_called_once()
+            called_models = mock_preload.call_args[0][0]
+            self.assertIn(config.TEST_DEFAULT_SUMMARY_MODEL, called_models)
+            self.assertIn(config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL, called_models)
+
+        import shutil
+
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    @patch("podcast_scraper.workflow.config._is_test_environment")
+    @patch("podcast_scraper.model_loader.preload_whisper_models")
+    @patch("podcast_scraper.workflow.logger")
+    def test_ensure_ml_models_cached_handles_general_exception(
+        self, mock_logger, mock_preload_whisper, mock_is_test
+    ):
+        """Test that _ensure_ml_models_cached handles general exceptions gracefully."""
+        mock_is_test.return_value = False
+        mock_preload_whisper.side_effect = Exception("Download failed")
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=True,
+            transcribe_missing=True,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+        )
+
+        with patch("podcast_scraper.cache_utils.get_whisper_cache_dir") as mock_get_cache:
+            import tempfile
+            from pathlib import Path
+
+            temp_dir = tempfile.mkdtemp()
+            whisper_cache = Path(temp_dir) / "whisper"
+            whisper_cache.mkdir(parents=True, exist_ok=True)
+            mock_get_cache.return_value = whisper_cache
+
+            # Should not raise - just logs warning
+            workflow._ensure_ml_models_cached(cfg)
+
+            # Verify warning was logged
+            warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
+            self.assertTrue(
+                any("Could not automatically download models" in msg for msg in warning_calls)
+            )
+
+            import shutil
+
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    @patch("podcast_scraper.workflow.config._is_test_environment")
+    def test_ensure_ml_models_cached_handles_outer_import_error(self, mock_is_test):
+        """Test that _ensure_ml_models_cached handles ImportError in outer try block."""
+        mock_is_test.return_value = False
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=True,
+            transcribe_missing=True,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+        )
+
+        # Mock ImportError when importing cache_utils (patch the import at module level)
+        # Since cache_utils is imported inside the function, we need to patch sys.modules
+        import sys
+
+        original_cache_utils = sys.modules.get("podcast_scraper.cache_utils")
+        try:
+            # Remove cache_utils from sys.modules to simulate ImportError
+            if "podcast_scraper.cache_utils" in sys.modules:
+                del sys.modules["podcast_scraper.cache_utils"]
+            # Should not raise - just passes silently (caught by outer except ImportError)
+            workflow._ensure_ml_models_cached(cfg)
+        finally:
+            # Restore original module
+            if original_cache_utils is not None:
+                sys.modules["podcast_scraper.cache_utils"] = original_cache_utils
+
+    @patch("podcast_scraper.workflow.config._is_test_environment")
+    @patch("podcast_scraper.workflow.logger")
+    def test_ensure_ml_models_cached_handles_outer_exception(self, mock_logger, mock_is_test):
+        """Test that _ensure_ml_models_cached handles general exceptions in outer try block."""
+        mock_is_test.return_value = False
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            preload_models=True,
+            transcribe_missing=True,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+        )
+
+        # Mock exception when getting cache dir (this is in the outer try block)
+        # Patch at the source module since it's imported inside the function
+        with patch(
+            "podcast_scraper.cache_utils.get_whisper_cache_dir",
+            side_effect=Exception("Cache error"),
+        ):
+            # Should not raise - just logs debug (caught by outer except Exception)
+            workflow._ensure_ml_models_cached(cfg)
+
+            # Verify debug was logged
+            debug_calls = [call[0][0] for call in mock_logger.debug.call_args_list]
+            self.assertTrue(any("Error checking model cache" in msg for msg in debug_calls))

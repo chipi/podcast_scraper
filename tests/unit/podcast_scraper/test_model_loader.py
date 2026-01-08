@@ -60,10 +60,36 @@ class TestModelLoaderWhisper(unittest.TestCase):
         mock_model.dims = Mock()
         mock_load_model.return_value = mock_model
 
+        # Create model file to test the exists() path
+        model_file = self.whisper_cache / "tiny.en.pt"
+        model_file.touch()
+
         # Test with explicit model name
         preload_whisper_models(["tiny.en"])
 
         mock_load_model.assert_called_once_with("tiny.en", download_root=str(self.whisper_cache))
+
+    @patch("podcast_scraper.model_loader.get_whisper_cache_dir")
+    @patch("whisper.load_model")
+    @patch("podcast_scraper.model_loader.logger")
+    def test_preload_whisper_models_model_file_not_exists(
+        self, mock_logger, mock_load_model, mock_get_cache
+    ):
+        """Test Whisper model preloading when model file doesn't exist after load."""
+        mock_get_cache.return_value = self.whisper_cache
+        mock_model = Mock()
+        mock_model.dims = Mock()
+        mock_load_model.return_value = mock_model
+
+        # Don't create model file - test the else branch
+        preload_whisper_models(["tiny.en"])
+
+        mock_load_model.assert_called_once_with("tiny.en", download_root=str(self.whisper_cache))
+        # Verify info message was logged (the else branch)
+        info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
+        self.assertTrue(
+            any("✓ Whisper tiny.en cached" in msg and "MB" not in msg for msg in info_calls)
+        )
 
     @patch("podcast_scraper.model_loader.get_whisper_cache_dir")
     @patch("whisper.load_model")
@@ -81,6 +107,51 @@ class TestModelLoaderWhisper(unittest.TestCase):
             preload_whisper_models()
             # Should be called twice (one for each model)
             self.assertEqual(mock_load_model.call_count, 2)
+        finally:
+            os.environ.pop("WHISPER_MODELS", None)
+
+    @patch("podcast_scraper.model_loader.get_whisper_cache_dir")
+    @patch("whisper.load_model")
+    def test_preload_whisper_models_from_env_with_whitespace(self, mock_load_model, mock_get_cache):
+        """Test Whisper model preloading from environment variable with whitespace."""
+        mock_get_cache.return_value = self.whisper_cache
+        mock_model = Mock()
+        mock_model.dims = Mock()
+        mock_load_model.return_value = mock_model
+
+        # Set environment variable with whitespace
+        os.environ["WHISPER_MODELS"] = " tiny.en , base.en "
+
+        try:
+            preload_whisper_models()
+            # Should be called twice (one for each model, whitespace stripped)
+            self.assertEqual(mock_load_model.call_count, 2)
+            # Verify models were stripped
+            calls = [call[0][0] for call in mock_load_model.call_args_list]
+            self.assertIn("tiny.en", calls)
+            self.assertIn("base.en", calls)
+        finally:
+            os.environ.pop("WHISPER_MODELS", None)
+
+    @patch("podcast_scraper.model_loader.get_whisper_cache_dir")
+    @patch("whisper.load_model")
+    @patch("podcast_scraper.model_loader.logger")
+    def test_preload_whisper_models_from_env_empty_after_strip(
+        self, mock_logger, mock_load_model, mock_get_cache
+    ):
+        """Test Whisper model preloading from environment variable that's empty after strip."""
+        mock_get_cache.return_value = self.whisper_cache
+
+        # Set environment variable to whitespace only (after split and strip, results in empty list)
+        os.environ["WHISPER_MODELS"] = "   ,  ,  "
+
+        try:
+            preload_whisper_models()
+            # After splitting and filtering, list is empty, so should return early
+            mock_load_model.assert_not_called()
+            # Verify debug message was logged
+            mock_logger.debug.assert_called_once()
+            self.assertIn("Skipping Whisper model preloading", mock_logger.debug.call_args[0][0])
         finally:
             os.environ.pop("WHISPER_MODELS", None)
 
@@ -105,21 +176,29 @@ class TestModelLoaderWhisper(unittest.TestCase):
 
     @patch("podcast_scraper.model_loader.get_whisper_cache_dir")
     @patch("whisper.load_model")
-    def test_preload_whisper_models_empty_list(self, mock_load_model, mock_get_cache):
+    @patch("podcast_scraper.model_loader.logger")
+    def test_preload_whisper_models_empty_list(self, mock_logger, mock_load_model, mock_get_cache):
         """Test that empty model list is skipped."""
         mock_get_cache.return_value = self.whisper_cache
 
         preload_whisper_models([])
         mock_load_model.assert_not_called()
+        # Verify debug message was logged
+        mock_logger.debug.assert_called_once()
+        self.assertIn("Skipping Whisper model preloading", mock_logger.debug.call_args[0][0])
 
     @patch("podcast_scraper.model_loader.get_whisper_cache_dir")
-    def test_preload_whisper_models_import_error(self, mock_get_cache):
+    @patch("podcast_scraper.model_loader.logger")
+    def test_preload_whisper_models_import_error(self, mock_logger, mock_get_cache):
         """Test that ImportError is raised when whisper is not installed."""
         mock_get_cache.return_value = self.whisper_cache
 
         with patch.dict("sys.modules", {"whisper": None}):
             with self.assertRaises(ImportError):
                 preload_whisper_models(["tiny.en"])
+            # Verify error was logged
+            mock_logger.error.assert_called_once()
+            self.assertIn("openai-whisper not installed", mock_logger.error.call_args[0][0])
 
     @patch("podcast_scraper.model_loader.get_whisper_cache_dir")
     @patch("whisper.load_model")
@@ -205,6 +284,50 @@ class TestModelLoaderTransformers(unittest.TestCase):
     @patch("podcast_scraper.model_loader.get_transformers_cache_dir")
     @patch("transformers.AutoModelForSeq2SeqLM")
     @patch("transformers.AutoTokenizer")
+    @patch("podcast_scraper.model_loader.logger")
+    def test_preload_transformers_models_not_cached_path(
+        self, mock_logger, mock_tokenizer_class, mock_model_class, mock_get_cache
+    ):
+        """Test Transformers model preloading when model is not cached (else branch)."""
+        mock_get_cache.return_value = self.transformers_cache
+        mock_tokenizer = Mock()
+        mock_model = Mock()
+        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
+        mock_model_class.from_pretrained.return_value = mock_model
+
+        # Don't create cache directory - test the "Not cached, downloading..." path
+        preload_transformers_models(["facebook/bart-base"])
+
+        # Verify "Not cached, downloading..." message was logged
+        info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
+        self.assertTrue(any("Not cached, downloading" in msg for msg in info_calls))
+
+    @patch("podcast_scraper.model_loader.get_transformers_cache_dir")
+    @patch("transformers.AutoModelForSeq2SeqLM")
+    @patch("transformers.AutoTokenizer")
+    @patch("podcast_scraper.model_loader.logger")
+    def test_preload_transformers_models_cache_not_exists_after_download(
+        self, mock_logger, mock_tokenizer_class, mock_model_class, mock_get_cache
+    ):
+        """Test Transformers model preloading when cache doesn't exist after download."""
+        mock_get_cache.return_value = self.transformers_cache
+        mock_tokenizer = Mock()
+        mock_model = Mock()
+        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
+        mock_model_class.from_pretrained.return_value = mock_model
+
+        # Don't create cache directory - test the else branch after download
+        preload_transformers_models(["facebook/bart-base"])
+
+        # Verify the else branch message was logged (model name without size)
+        info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
+        self.assertTrue(
+            any("✓ Downloaded and cached: facebook/bart-base" in msg for msg in info_calls)
+        )
+
+    @patch("podcast_scraper.model_loader.get_transformers_cache_dir")
+    @patch("transformers.AutoModelForSeq2SeqLM")
+    @patch("transformers.AutoTokenizer")
     def test_preload_transformers_models_default(
         self, mock_tokenizer_class, mock_model_class, mock_get_cache
     ):
@@ -226,21 +349,31 @@ class TestModelLoaderTransformers(unittest.TestCase):
 
     @patch("podcast_scraper.model_loader.get_transformers_cache_dir")
     @patch("transformers.AutoTokenizer")
-    def test_preload_transformers_models_empty_list(self, mock_tokenizer, mock_get_cache):
+    @patch("podcast_scraper.model_loader.logger")
+    def test_preload_transformers_models_empty_list(
+        self, mock_logger, mock_tokenizer, mock_get_cache
+    ):
         """Test that empty model list is skipped."""
         mock_get_cache.return_value = self.transformers_cache
 
         preload_transformers_models([])
         mock_tokenizer.from_pretrained.assert_not_called()
+        # Verify debug message was logged
+        mock_logger.debug.assert_called_once()
+        self.assertIn("Skipping Transformers model preloading", mock_logger.debug.call_args[0][0])
 
     @patch("podcast_scraper.model_loader.get_transformers_cache_dir")
-    def test_preload_transformers_models_import_error(self, mock_get_cache):
+    @patch("podcast_scraper.model_loader.logger")
+    def test_preload_transformers_models_import_error(self, mock_logger, mock_get_cache):
         """Test that ImportError is raised when transformers is not installed."""
         mock_get_cache.return_value = self.transformers_cache
 
         with patch.dict("sys.modules", {"transformers": None}):
             with self.assertRaises(ImportError):
                 preload_transformers_models(["facebook/bart-base"])
+            # Verify error was logged
+            mock_logger.error.assert_called_once()
+            self.assertIn("transformers not installed", mock_logger.error.call_args[0][0])
 
     @patch("podcast_scraper.model_loader.get_transformers_cache_dir")
     @patch("transformers.AutoModelForSeq2SeqLM")
