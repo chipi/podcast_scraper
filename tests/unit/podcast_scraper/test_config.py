@@ -462,5 +462,62 @@ class TestConfigFieldValidators(unittest.TestCase):
             Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="invalid")
 
 
+class TestOpenAIModelDefaults(unittest.TestCase):
+    """Tests for OpenAI model default functions."""
+
+    def test_get_default_openai_transcription_model_test_env(self):
+        """Test that test environment returns test default for transcription model."""
+        from podcast_scraper.config import (
+            _get_default_openai_transcription_model,
+            _is_test_environment,
+            TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL,
+        )
+
+        if _is_test_environment():
+            result = _get_default_openai_transcription_model()
+            self.assertEqual(result, TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL)
+
+    def test_get_default_openai_speaker_model_test_env(self):
+        """Test that test environment returns test default for speaker model."""
+        from podcast_scraper.config import (
+            _get_default_openai_speaker_model,
+            _is_test_environment,
+            TEST_DEFAULT_OPENAI_SPEAKER_MODEL,
+        )
+
+        if _is_test_environment():
+            result = _get_default_openai_speaker_model()
+            self.assertEqual(result, TEST_DEFAULT_OPENAI_SPEAKER_MODEL)
+
+    def test_get_default_openai_summary_model_test_env(self):
+        """Test that test environment returns test default for summary model."""
+        from podcast_scraper.config import (
+            _get_default_openai_summary_model,
+            _is_test_environment,
+            TEST_DEFAULT_OPENAI_SUMMARY_MODEL,
+        )
+
+        if _is_test_environment():
+            result = _get_default_openai_summary_model()
+            self.assertEqual(result, TEST_DEFAULT_OPENAI_SUMMARY_MODEL)
+
+    def test_config_uses_default_factory_for_openai_models(self):
+        """Test that Config uses default_factory for OpenAI model fields."""
+        from podcast_scraper.config import (
+            _get_default_openai_speaker_model,
+            _get_default_openai_summary_model,
+            _get_default_openai_transcription_model,
+            Config,
+        )
+
+        # Create config without specifying OpenAI models
+        cfg = Config(rss_url="https://example.com/feed.xml")
+
+        # Should use default factory values
+        self.assertEqual(cfg.openai_transcription_model, _get_default_openai_transcription_model())
+        self.assertEqual(cfg.openai_speaker_model, _get_default_openai_speaker_model())
+        self.assertEqual(cfg.openai_summary_model, _get_default_openai_summary_model())
+
+
 if __name__ == "__main__":
     unittest.main()

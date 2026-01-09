@@ -21,6 +21,11 @@ from typing import Any, Dict, Optional, Set, Tuple
 from openai import OpenAI
 
 from .. import config, models
+from ..exceptions import (
+    ProviderConfigError,
+    ProviderNotInitializedError,
+    ProviderRuntimeError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +60,14 @@ class OpenAIProvider:
             cfg: Configuration object with settings for all three capabilities
 
         Raises:
-            ValueError: If OpenAI API key is not provided
+            ProviderConfigError: If OpenAI API key is not provided
         """
         if not cfg.openai_api_key:
-            raise ValueError(
-                "OpenAI API key required for OpenAI provider. "
-                "Set OPENAI_API_KEY environment variable or openai_api_key in config."
+            raise ProviderConfigError(
+                message="API key not provided",
+                provider="OpenAI",
+                config_key="openai_api_key",
+                suggestion="Set OPENAI_API_KEY environment variable or openai_api_key in config",
             )
 
         self.cfg = cfg
@@ -187,17 +194,21 @@ class OpenAIProvider:
         Raises:
             FileNotFoundError: If audio file doesn't exist
             ValueError: If transcription fails or API key is invalid
-            RuntimeError: If provider is not initialized
+            ProviderNotInitializedError: If provider is not initialized
         """
         if not self._transcription_initialized:
-            raise RuntimeError(
-                "OpenAIProvider transcription not initialized. Call initialize() first."
+            raise ProviderNotInitializedError(
+                provider="OpenAI/Transcription",
+                capability="transcription",
             )
 
         # Validate file before making API call
         is_valid, error_msg = self._validate_audio_file(audio_path)
         if not is_valid:
-            raise ValueError(error_msg)
+            raise ProviderRuntimeError(
+                message=error_msg or "Audio file validation failed",
+                provider="OpenAI/Transcription",
+            )
 
         # Use provided language or fall back to config
         effective_language = language if language is not None else (self.cfg.language or None)
@@ -238,7 +249,11 @@ class OpenAIProvider:
 
         except Exception as exc:
             logger.error("OpenAI Whisper API error: %s", exc)
-            raise ValueError(f"OpenAI transcription failed: {exc}") from exc
+            raise ProviderRuntimeError(
+                message=f"Transcription failed: {exc}",
+                provider="OpenAI/Transcription",
+                suggestion="Check audio file format and API connectivity",
+            ) from exc
 
     def transcribe_with_segments(
         self, audio_path: str, language: str | None = None
@@ -260,14 +275,18 @@ class OpenAIProvider:
             - Other OpenAI API metadata
         """
         if not self._transcription_initialized:
-            raise RuntimeError(
-                "OpenAIProvider transcription not initialized. Call initialize() first."
+            raise ProviderNotInitializedError(
+                provider="OpenAI/Transcription",
+                capability="transcription",
             )
 
         # Validate file before making API call
         is_valid, error_msg = self._validate_audio_file(audio_path)
         if not is_valid:
-            raise ValueError(error_msg)
+            raise ProviderRuntimeError(
+                message=error_msg or "Audio file validation failed",
+                provider="OpenAI/Transcription",
+            )
 
         # Use provided language or fall back to config
         effective_language = language if language is not None else (self.cfg.language or None)
@@ -342,7 +361,11 @@ class OpenAIProvider:
         except Exception as exc:
             elapsed = time.time() - start_time
             logger.error("OpenAI Whisper API error: %s", exc)
-            raise ValueError(f"OpenAI transcription failed: {exc}") from exc
+            raise ProviderRuntimeError(
+                message=f"Transcription failed: {exc}",
+                provider="OpenAI/Transcription",
+                suggestion="Check audio file format and API connectivity",
+            ) from exc
 
     # ============================================================================
     # SpeakerDetector Protocol Implementation
@@ -365,8 +388,9 @@ class OpenAIProvider:
             Set of detected host names
         """
         if not self._speaker_detection_initialized:
-            raise RuntimeError(
-                "OpenAIProvider speaker detection not initialized. Call initialize() first."
+            raise ProviderNotInitializedError(
+                provider="OpenAI/SpeakerDetection",
+                capability="speaker detection",
             )
 
         # Prefer RSS author tags if available
@@ -419,8 +443,9 @@ class OpenAIProvider:
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False
 
         if not self._speaker_detection_initialized:
-            raise RuntimeError(
-                "OpenAIProvider speaker detection not initialized. Call initialize() first."
+            raise ProviderNotInitializedError(
+                provider="OpenAI/SpeakerDetection",
+                capability="speaker detection",
             )
 
         logger.debug("Detecting speakers via OpenAI API for episode: %s", episode_title[:50])
@@ -476,7 +501,11 @@ class OpenAIProvider:
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False
         except Exception as exc:
             logger.error("OpenAI API error in speaker detection: %s", exc)
-            raise ValueError(f"OpenAI speaker detection failed: {exc}") from exc
+            raise ProviderRuntimeError(
+                message=f"Speaker detection failed: {exc}",
+                provider="OpenAI/SpeakerDetection",
+                suggestion="Check API connectivity and transcript format",
+            ) from exc
 
     def analyze_patterns(
         self,
@@ -720,11 +749,12 @@ class OpenAIProvider:
 
         Raises:
             ValueError: If summarization fails
-            RuntimeError: If provider is not initialized
+            ProviderNotInitializedError: If provider is not initialized
         """
         if not self._summarization_initialized:
-            raise RuntimeError(
-                "OpenAIProvider summarization not initialized. Call initialize() first."
+            raise ProviderNotInitializedError(
+                provider="OpenAI/Summarization",
+                capability="summarization",
             )
 
         # Extract parameters with defaults from config
@@ -801,7 +831,11 @@ class OpenAIProvider:
 
         except Exception as exc:
             logger.error("OpenAI API error in summarization: %s", exc)
-            raise ValueError(f"OpenAI summarization failed: {exc}") from exc
+            raise ProviderRuntimeError(
+                message=f"Summarization failed: {exc}",
+                provider="OpenAI/Summarization",
+                suggestion="Check API connectivity and input transcript",
+            ) from exc
 
     def _build_summarization_prompts(
         self,

@@ -38,6 +38,14 @@ Service Mode (for supervisor/systemd):
 from __future__ import annotations
 
 from .config import Config, load_config_file
+from .exceptions import (
+    ProviderAuthError,
+    ProviderConfigError,
+    ProviderDependencyError,
+    ProviderError,
+    ProviderNotInitializedError,
+    ProviderRuntimeError,
+)
 from .workflow import run_pipeline
 
 __all__ = [
@@ -47,6 +55,13 @@ __all__ = [
     "__version__",
     "__api_version__",
     "cache_manager",
+    # Exceptions
+    "ProviderError",
+    "ProviderConfigError",
+    "ProviderDependencyError",
+    "ProviderAuthError",
+    "ProviderRuntimeError",
+    "ProviderNotInitializedError",
 ]
 # Note: 'cli' and 'service' are available via __getattr__ for lazy loading
 # Use: from podcast_scraper import cli, service

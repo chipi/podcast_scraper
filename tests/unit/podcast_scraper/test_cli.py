@@ -10,7 +10,7 @@ import os
 import sys
 import unittest
 from argparse import Namespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -1362,6 +1362,131 @@ class TestLoadAndMergeConfig(unittest.TestCase):
 
         with self.assertRaises(FileNotFoundError):
             cli._load_and_merge_config(parser, "missing.yaml", None)
+
+
+class TestParseCacheArgs(unittest.TestCase):
+    """Test _parse_cache_args function for cache subcommand."""
+
+    def test_parse_cache_args_status(self):
+        """Test parsing --status flag."""
+        args = cli._parse_cache_args(["--status"])
+        self.assertTrue(args.status)
+        self.assertIsNone(args.clean)
+
+    def test_parse_cache_args_clean_all(self):
+        """Test parsing --clean without value defaults to 'all'."""
+        args = cli._parse_cache_args(["--clean"])
+        self.assertFalse(args.status)
+        self.assertEqual(args.clean, "all")
+
+    def test_parse_cache_args_clean_whisper(self):
+        """Test parsing --clean whisper."""
+        args = cli._parse_cache_args(["--clean", "whisper"])
+        self.assertEqual(args.clean, "whisper")
+
+    def test_parse_cache_args_clean_transformers(self):
+        """Test parsing --clean transformers."""
+        args = cli._parse_cache_args(["--clean", "transformers"])
+        self.assertEqual(args.clean, "transformers")
+
+    def test_parse_cache_args_clean_spacy(self):
+        """Test parsing --clean spacy."""
+        args = cli._parse_cache_args(["--clean", "spacy"])
+        self.assertEqual(args.clean, "spacy")
+
+    def test_parse_cache_args_clean_with_yes(self):
+        """Test parsing --clean with --yes flag."""
+        args = cli._parse_cache_args(["--clean", "all", "--yes"])
+        self.assertEqual(args.clean, "all")
+        self.assertTrue(args.yes)
+
+    def test_parse_cache_args_no_options_raises(self):
+        """Test that no options raises error."""
+        with self.assertRaises(SystemExit):
+            cli._parse_cache_args([])
+
+    def test_parse_cache_args_invalid_clean_type(self):
+        """Test that invalid clean type raises error."""
+        with self.assertRaises(SystemExit):
+            cli._parse_cache_args(["--clean", "invalid"])
+
+
+class TestCacheSubcommandMain(unittest.TestCase):
+    """Test cache subcommand handling in main()."""
+
+    @patch("podcast_scraper.cache_manager")
+    def test_cache_status_command(self, mock_cache_manager):
+        """Test 'cache --status' command."""
+        from pathlib import Path
+
+        mock_cache_manager.get_all_cache_info.return_value = {
+            "whisper": {"size": 100000, "count": 2, "dir": Path("/cache/whisper"), "models": []},
+            "transformers": {
+                "size": 200000,
+                "count": 1,
+                "dir": Mock(exists=lambda: True),
+                "models": [],
+            },
+            "spacy": {"size": 50000, "count": 1, "dir": None, "models": []},
+            "total_size": 350000,
+        }
+        mock_cache_manager.format_size.return_value = "350.0 KB"
+
+        result = cli.main(["cache", "--status"])
+        self.assertEqual(result, 0)
+        mock_cache_manager.get_all_cache_info.assert_called_once()
+
+    @patch("podcast_scraper.cache_manager")
+    def test_cache_clean_all_command(self, mock_cache_manager):
+        """Test 'cache --clean all --yes' command."""
+        mock_cache_manager.clean_all_caches.return_value = {
+            "whisper": (2, 100000),
+            "transformers": (1, 200000),
+            "spacy": (0, 0),
+        }
+        mock_cache_manager.format_size.return_value = "300.0 KB"
+
+        result = cli.main(["cache", "--clean", "all", "--yes"])
+        self.assertEqual(result, 0)
+        mock_cache_manager.clean_all_caches.assert_called_once_with(confirm=False)
+
+    @patch("podcast_scraper.cache_manager")
+    def test_cache_clean_whisper_command(self, mock_cache_manager):
+        """Test 'cache --clean whisper --yes' command."""
+        mock_cache_manager.clean_whisper_cache.return_value = (2, 100000)
+        mock_cache_manager.format_size.return_value = "100.0 KB"
+
+        result = cli.main(["cache", "--clean", "whisper", "--yes"])
+        self.assertEqual(result, 0)
+        mock_cache_manager.clean_whisper_cache.assert_called_once_with(confirm=False)
+
+    @patch("podcast_scraper.cache_manager")
+    def test_cache_clean_transformers_command(self, mock_cache_manager):
+        """Test 'cache --clean transformers --yes' command."""
+        mock_cache_manager.clean_transformers_cache.return_value = (1, 200000)
+        mock_cache_manager.format_size.return_value = "200.0 KB"
+
+        result = cli.main(["cache", "--clean", "transformers", "--yes"])
+        self.assertEqual(result, 0)
+        mock_cache_manager.clean_transformers_cache.assert_called_once_with(confirm=False)
+
+    @patch("podcast_scraper.cache_manager")
+    def test_cache_clean_spacy_command(self, mock_cache_manager):
+        """Test 'cache --clean spacy --yes' command."""
+        mock_cache_manager.clean_spacy_cache.return_value = (1, 50000)
+        mock_cache_manager.format_size.return_value = "50.0 KB"
+
+        result = cli.main(["cache", "--clean", "spacy", "--yes"])
+        self.assertEqual(result, 0)
+        mock_cache_manager.clean_spacy_cache.assert_called_once_with(confirm=False)
+
+    @patch("podcast_scraper.cache_manager")
+    def test_cache_command_exception(self, mock_cache_manager):
+        """Test that cache command handles exceptions."""
+        mock_cache_manager.get_all_cache_info.side_effect = Exception("Cache error")
+
+        result = cli.main(["cache", "--status"])
+        self.assertEqual(result, 1)
 
 
 if __name__ == "__main__":

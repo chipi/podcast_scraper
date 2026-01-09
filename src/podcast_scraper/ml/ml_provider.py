@@ -22,6 +22,12 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from .. import config, models, progress, speaker_detection, summarizer
 from ..cache_utils import get_whisper_cache_dir
+from ..exceptions import (
+    ProviderConfigError,
+    ProviderDependencyError,
+    ProviderNotInitializedError,
+    ProviderRuntimeError,
+)
 from ..whisper_utils import normalize_whisper_model_name
 
 logger = logging.getLogger(__name__)
@@ -233,9 +239,11 @@ class MLProvider:
             except Exception as e:
                 error_msg = f"Failed to preload Whisper model: {e}"
                 logger.error(error_msg)
-                raise RuntimeError(
-                    f"{error_msg}. "
-                    "Make sure 'openai-whisper' is installed: pip install openai-whisper"
+                raise ProviderDependencyError(
+                    message=error_msg,
+                    provider="MLProvider/Whisper",
+                    dependency="openai-whisper",
+                    suggestion="Install with: pip install openai-whisper",
                 ) from e
 
         if needs_spacy:
@@ -250,9 +258,11 @@ class MLProvider:
             except Exception as e:
                 error_msg = f"Failed to preload spaCy model: {e}"
                 logger.error(error_msg)
-                raise RuntimeError(
-                    f"{error_msg}. "
-                    f"Install spaCy model with: python -m spacy download {model_name}"
+                raise ProviderDependencyError(
+                    message=error_msg,
+                    provider="MLProvider/spaCy",
+                    dependency=model_name,
+                    suggestion=f"Install with: python -m spacy download {model_name}",
                 ) from e
 
         if needs_transformers:
@@ -264,9 +274,11 @@ class MLProvider:
             except Exception as e:
                 error_msg = f"Failed to preload Transformers models: {e}"
                 logger.error(error_msg)
-                raise RuntimeError(
-                    f"{error_msg}. "
-                    "Check model cache and network connectivity for model downloads."
+                raise ProviderDependencyError(
+                    message=error_msg,
+                    provider="MLProvider/Transformers",
+                    dependency="transformers",
+                    suggestion="Check model cache and network connectivity for model downloads",
                 ) from e
 
         # Log completion with timing
@@ -323,9 +335,11 @@ class MLProvider:
                 "openai-whisper library not installed. Cannot load Whisper models. "
                 "Install with: pip install openai-whisper && brew install ffmpeg"
             )
-            raise RuntimeError(
-                "Failed to load Whisper model. "
-                "Make sure 'openai-whisper' is installed: pip install openai-whisper"
+            raise ProviderDependencyError(
+                message="openai-whisper library not installed",
+                provider="MLProvider/Whisper",
+                dependency="openai-whisper",
+                suggestion="Install with: pip install openai-whisper && brew install ffmpeg",
             )
 
         # Use centralized fallback logic (config-driven, no hardcoded values)
@@ -423,17 +437,24 @@ class MLProvider:
             fallback_models,
             last_error,
         )
-        raise RuntimeError(
-            f"Failed to load any Whisper model. Tried: {fallback_models}. "
-            f"Last error: {last_error}"
+        raise ProviderDependencyError(
+            message=(
+                f"Failed to load any Whisper model. Tried: {fallback_models}. "
+                f"Last error: {last_error}"
+            ),
+            provider="MLProvider/Whisper",
+            dependency="whisper-model",
+            suggestion="Ensure models are cached with 'make preload-ml-models'",
         )
 
     def _initialize_spacy(self) -> None:
         """Initialize spaCy NER model for speaker detection."""
         if not self.cfg.auto_speakers:
-            raise RuntimeError(
-                "Cannot initialize spaCy: auto_speakers is False. "
-                "Set auto_speakers=True to enable speaker detection."
+            raise ProviderConfigError(
+                message="Cannot initialize spaCy: auto_speakers is False",
+                provider="MLProvider/spaCy",
+                config_key="auto_speakers",
+                suggestion="Set auto_speakers=True to enable speaker detection",
             )
         logger.debug("Initializing spaCy NER model (model: %s)", self.cfg.ner_model)
         self._spacy_nlp = speaker_detection.get_ner_model(self.cfg)
@@ -499,12 +520,15 @@ class MLProvider:
             Transcribed text as string
 
         Raises:
-            RuntimeError: If provider is not initialized
+            ProviderNotInitializedError: If provider is not initialized
             FileNotFoundError: If audio file doesn't exist
-            ValueError: If transcription fails
+            ProviderRuntimeError: If transcription fails
         """
         if not self._whisper_initialized or self._whisper_model is None:
-            raise RuntimeError("MLProvider Whisper not initialized. Call initialize() first.")
+            raise ProviderNotInitializedError(
+                provider="MLProvider/Whisper",
+                capability="transcription",
+            )
 
         # Use provided language or fall back to config
         effective_language = language if language is not None else (self.cfg.language or "en")
@@ -517,7 +541,11 @@ class MLProvider:
         # Extract text from result
         text = result_dict.get("text", "").strip()
         if not text:
-            raise ValueError("Transcription returned empty text")
+            raise ProviderRuntimeError(
+                message="Transcription returned empty text",
+                provider="MLProvider/Whisper",
+                suggestion="Check audio file content and format",
+            )
 
         logger.debug(
             "Transcription completed in %.2fs (text length: %d chars)",
@@ -547,7 +575,10 @@ class MLProvider:
             - Other Whisper metadata
         """
         if not self._whisper_initialized or self._whisper_model is None:
-            raise RuntimeError("MLProvider Whisper not initialized. Call initialize() first.")
+            raise ProviderNotInitializedError(
+                provider="MLProvider/Whisper",
+                capability="transcription",
+            )
 
         # Use provided language or fall back to config
         effective_language = language if language is not None else (self.cfg.language or "en")
@@ -594,7 +625,10 @@ class MLProvider:
             # Intercept Whisper's tqdm progress calls and forward to our progress reporter
             # This prevents multiple progress bar lines while showing real progress
             if self._whisper_model is None:
-                raise RuntimeError("Whisper model not initialized")
+                raise ProviderNotInitializedError(
+                    provider="MLProvider/Whisper",
+                    capability="transcription",
+                )
             with _intercept_whisper_progress(reporter):
                 result = self._whisper_model.transcribe(
                     audio_path, task="transcribe", language=language, verbose=False
@@ -684,9 +718,11 @@ class MLProvider:
         # Ensure model is loaded (only if auto_speakers is enabled)
         if self._spacy_nlp is None:
             if not self.cfg.auto_speakers:
-                raise RuntimeError(
-                    "Cannot detect speakers: auto_speakers is False. "
-                    "Set auto_speakers=True to enable speaker detection."
+                raise ProviderConfigError(
+                    message="Cannot detect speakers: auto_speakers is False",
+                    provider="MLProvider/spaCy",
+                    config_key="auto_speakers",
+                    suggestion="Set auto_speakers=True to enable speaker detection",
                 )
             self._initialize_spacy()
 
@@ -725,9 +761,11 @@ class MLProvider:
         # Ensure model is loaded (only if auto_speakers is enabled)
         if self._spacy_nlp is None:
             if not self.cfg.auto_speakers:
-                raise RuntimeError(
-                    "Cannot detect speakers: auto_speakers is False. "
-                    "Set auto_speakers=True to enable speaker detection."
+                raise ProviderConfigError(
+                    message="Cannot detect speakers: auto_speakers is False",
+                    provider="MLProvider/spaCy",
+                    config_key="auto_speakers",
+                    suggestion="Set auto_speakers=True to enable speaker detection",
                 )
             self._initialize_spacy()
 
@@ -755,9 +793,11 @@ class MLProvider:
         # Ensure model is loaded (only if auto_speakers is enabled)
         if self._spacy_nlp is None:
             if not self.cfg.auto_speakers:
-                raise RuntimeError(
-                    "Cannot detect speakers: auto_speakers is False. "
-                    "Set auto_speakers=True to enable speaker detection."
+                raise ProviderConfigError(
+                    message="Cannot detect speakers: auto_speakers is False",
+                    provider="MLProvider/spaCy",
+                    config_key="auto_speakers",
+                    suggestion="Set auto_speakers=True to enable speaker detection",
                 )
             self._initialize_spacy()
 
@@ -824,10 +864,13 @@ class MLProvider:
 
         Raises:
             ValueError: If summarization fails
-            RuntimeError: If provider not initialized
+            ProviderNotInitializedError: If provider not initialized
         """
         if not self._transformers_initialized or not self._map_model:
-            raise RuntimeError("MLProvider Transformers not initialized. Call initialize() first.")
+            raise ProviderNotInitializedError(
+                provider="MLProvider/Transformers",
+                capability="summarization",
+            )
 
         # Extract parameters with defaults from config
         max_length = (params.get("max_length") if params else None) or self.cfg.summary_max_length
@@ -895,7 +938,11 @@ class MLProvider:
             }
         except Exception as e:
             logger.error("Summarization failed: %s", e)
-            raise ValueError(f"Summarization failed: {e}") from e
+            raise ProviderRuntimeError(
+                message=f"Summarization failed: {e}",
+                provider="MLProvider/Transformers",
+                suggestion="Check model cache and input text format",
+            ) from e
 
     # ============================================================================
     # Cleanup Methods
