@@ -271,6 +271,79 @@ class TestFullPipelineE2E:
     @pytest.mark.ml_models
     @pytest.mark.critical_path
     @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
+    def test_pipeline_solo_speaker_host_only(self):
+        """Test full pipeline with solo speaker podcast (host only, no guests).
+
+        This test validates that:
+        - Solo speaker podcasts are handled correctly
+        - Only hosts are detected (no guests)
+        - Recent fixes for optional guest handling work correctly
+        """
+        feed_url = self.e2e_server.urls.feed("podcast9_solo")
+
+        cfg = create_test_config(
+            rss_url=feed_url,
+            output_dir=self.output_dir,
+            max_episodes=1,
+            generate_metadata=True,
+            metadata_format="json",
+            generate_summaries=False,  # Disable to avoid loading summarization model
+            auto_speakers=True,
+            ner_model=config.DEFAULT_NER_MODEL,  # Default: en_core_web_sm
+            transcribe_missing=False,  # No transcription needed, use existing transcripts
+        )
+
+        # Run pipeline
+        count, summary = workflow.run_pipeline(cfg)
+
+        # Verify results
+        assert count > 0, "Should process at least one episode"
+
+        # Verify metadata file was created
+        metadata_files = list(Path(self.output_dir).rglob("*.metadata.json"))
+        assert len(metadata_files) > 0, "Should create at least one metadata file"
+
+        # Verify speaker detection results in metadata
+        if metadata_files:
+            import json
+
+            with open(metadata_files[0], "r", encoding="utf-8") as f:
+                metadata = json.load(f)
+
+            assert "content" in metadata, "Metadata should have content section"
+            content = metadata["content"]
+
+            # For solo speaker podcasts, we should detect hosts but NO guests
+            if "detected_hosts" in content:
+                detected_hosts = content["detected_hosts"]
+                assert isinstance(detected_hosts, list), "detected_hosts should be a list"
+                assert len(detected_hosts) > 0, "Should detect at least one host for solo speaker"
+                # Verify host name is present (Alex Morgan from feed)
+                assert any(
+                    "alex" in host.lower() or "morgan" in host.lower() for host in detected_hosts
+                ), f"Should detect 'Alex Morgan' as host, got: {detected_hosts}"
+
+            # Verify NO guests are detected (this is the key validation)
+            if "detected_guests" in content:
+                detected_guests = content["detected_guests"]
+                assert isinstance(detected_guests, list), "detected_guests should be a list"
+                assert (
+                    len(detected_guests) == 0
+                ), f"Solo speaker podcast should have NO guests, but got: {detected_guests}"
+            else:
+                # If detected_guests key doesn't exist, that's also acceptable (empty list)
+                pass
+
+            # Verify config_snapshot reflects correct speaker detection
+            if "config_snapshot" in metadata:
+                config_snap = metadata["config_snapshot"]
+                assert (
+                    "auto_speakers" in config_snap and config_snap["auto_speakers"] is True
+                ), "auto_speakers should be enabled in config snapshot"
+
+    @pytest.mark.ml_models
+    @pytest.mark.critical_path
+    @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
     def test_pipeline_with_summarization(self):
         """Test full pipeline with summarization.
 

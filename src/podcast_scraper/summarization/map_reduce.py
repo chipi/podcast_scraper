@@ -65,6 +65,24 @@ MINI_MAP_REDUCE_TRIGGER_RATIO = (
 )
 MAX_HIERARCHICAL_PASSES = 4  # Maximum number of hierarchical chunk→summarize passes
 SUMMARY_VALIDATION_THRESHOLD = 0.6  # Flag summary if length > 60% of input (likely failed)
+
+# Model-specific thresholds (Issue #283: LED models need different thresholds)
+# LED models preserve more detail by design, so they need:
+# - Higher ceiling before extractive fallback (6k vs 4k)
+# - More lenient validation threshold (75% vs 60%)
+LED_MINI_MAP_REDUCE_MAX_TOKENS = 6000  # Increased for LED models (validated)
+BART_MINI_MAP_REDUCE_MAX_TOKENS = 4000  # Keep current for BART/PEGASUS
+
+# Transition zone boundaries (for smooth transition, not hard cutoff)
+# Prevents "backwards" behavior where shorter episodes get worse results
+LED_TRANSITION_START = 5500  # Start considering extractive for LED
+LED_TRANSITION_END = 6500  # Full extractive for LED above this
+BART_TRANSITION_START = 3500  # Start considering extractive for BART
+BART_TRANSITION_END = 4500  # Full extractive for BART above this
+
+# Model-specific validation thresholds (LED preserves more detail, so more lenient)
+LED_VALIDATION_THRESHOLD = 0.75  # More lenient for LED (validated)
+# SUMMARY_VALIDATION_THRESHOLD = 0.6  # Keep for BART/PEGASUS (defined above)
 REPETITIVE_SUMMARY_THRESHOLD = 0.8  # Flag summary if length > 80% of selected summaries
 MAX_LENGTH_MULTIPLIER = 2  # Multiplier for safe max length calculation
 FINAL_MAX_LENGTH_MULTIPLIER = 1.8  # Multiplier for final max length calculation
@@ -482,49 +500,75 @@ def combine_summaries_reduce(
         combined_tokens = combined_chars // CHARS_PER_TOKEN_ESTIMATE
 
     # Get model max length for decision making
-    model_max = (
-        getattr(model.model.config, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS)
-        if model.model and hasattr(model.model, "config")
-        else BART_MAX_POSITION_EMBEDDINGS
-    )
+    # LED models use max_encoder_position_embeddings (16384) for input context
+    # BART/PEGASUS use max_position_embeddings (1024)
+    # We need to check for LED's encoder position embeddings first
+    if model.model and hasattr(model.model, "config"):
+        config_obj = model.model.config
+        # LED models have max_encoder_position_embeddings for input context
+        if hasattr(config_obj, "max_encoder_position_embeddings"):
+            model_max = config_obj.max_encoder_position_embeddings
+        else:
+            model_max = getattr(config_obj, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS)
+    else:
+        model_max = BART_MAX_POSITION_EMBEDDINGS
 
     usable_context = max(model_max - MODEL_MAX_BUFFER, MINI_MAP_REDUCE_THRESHOLD)
 
-    # Short-context models (BART/PEGASUS) can still benefit from hierarchical reduce
-    # on combined summaries that are much longer than their context window, because
-    # we re-chunk in the mini map-reduce layer. For these models, use a fixed
-    # ceiling (e.g. 4k tokens). Long-context models (LED) can use their full window.
+    # Determine model type and set model-specific thresholds (Issue #283)
+    # LED models (model_max >= 4096) need different thresholds than BART/PEGASUS
     if model_max >= LONG_CONTEXT_THRESHOLD:
-        # Long-context model (e.g. LED): allow up to usable_context tokens
-        mini_map_reduce_ceiling = usable_context
+        # LED models: use model-specific ceiling (6k tokens, validated)
+        # This gives LED more room before extractive fallback
+        mini_map_reduce_ceiling = min(usable_context, LED_MINI_MAP_REDUCE_MAX_TOKENS)
+        validation_threshold = LED_VALIDATION_THRESHOLD
+        transition_start = LED_TRANSITION_START
+        transition_end = LED_TRANSITION_END
     else:
-        # Short-context model (e.g. BART/PEGASUS): allow hierarchical reduce
-        # up to MINI_MAP_REDUCE_MAX_TOKENS (e.g. ~4k tokens) before extractive fallback
-        mini_map_reduce_ceiling = MINI_MAP_REDUCE_MAX_TOKENS
+        # BART/PEGASUS: keep current threshold (4k tokens)
+        mini_map_reduce_ceiling = BART_MINI_MAP_REDUCE_MAX_TOKENS
+        validation_threshold = SUMMARY_VALIDATION_THRESHOLD
+        transition_start = BART_TRANSITION_START
+        transition_end = BART_TRANSITION_END
+
     single_pass_limit = min(
         mini_map_reduce_ceiling,
         max(MINI_MAP_REDUCE_THRESHOLD, int(usable_context * MINI_MAP_REDUCE_TRIGGER_RATIO)),
     )
 
-    # Decision logic with detailed logging
+    # Decision logic with transition zone (not hard cutoff) - Issue #283
+    # This prevents "backwards" behavior where shorter episodes get worse results
+    # Note: transition_start may be less than single_pass_limit, so we check single_pass_limit first
     if combined_tokens <= single_pass_limit:
         approach = "abstractive (single-pass)"
         reason = (
             f"combined_tokens ({combined_tokens}) <= single_pass_limit ({single_pass_limit}) "
             f"within usable_context ({usable_context})"
         )
-    elif combined_tokens <= mini_map_reduce_ceiling:
+    elif combined_tokens <= max(transition_start, single_pass_limit):
+        # Between single_pass_limit and transition_start
+        # (or above if transition_start < single_pass_limit)
+        # Use hierarchical reduce for best quality
         approach = "hierarchical reduce"
         reason = (
             f"combined_tokens ({combined_tokens}) > single_pass_limit ({single_pass_limit}); "
             f"attempting hierarchical reduce up to {MAX_HIERARCHICAL_PASSES} passes "
-            f"(mini_map_reduce_ceiling={mini_map_reduce_ceiling})"
+            f"(below transition zone, transition_start={transition_start})"
         )
-    else:
+    elif combined_tokens <= transition_end:
+        # Transition zone: use extractive to avoid poor compression
+        # TODO: Could add compression estimation here for smarter decision
         approach = "extractive"
         reason = (
-            f"combined_tokens ({combined_tokens}) > mini_map_reduce_ceiling "
-            f"({mini_map_reduce_ceiling}); "
+            f"combined_tokens ({combined_tokens}) in transition zone "
+            f"({max(transition_start, single_pass_limit)}-{transition_end}); "
+            "using extractive for better compression"
+        )
+    else:
+        # Above transition zone: definitely use extractive
+        approach = "extractive"
+        reason = (
+            f"combined_tokens ({combined_tokens}) > transition_end ({transition_end}); "
             "using extractive fallback (representative chunks only)"
         )
 
@@ -535,6 +579,8 @@ def combine_summaries_reduce(
         f"model_max={model_max}, usable_context={usable_context}, "
         f"single_pass_limit={single_pass_limit}, "
         f"mini_map_reduce_ceiling={mini_map_reduce_ceiling}, "
+        f"transition_zone=({transition_start}-{transition_end}), "
+        f"validation_threshold={validation_threshold}, "
         f"approach={approach}"
     )
     logger.debug(f"[MAP-REDUCE VALIDATION] Reduce phase decision reason: {reason}")
@@ -548,11 +594,12 @@ def combine_summaries_reduce(
     )
     reduce_prompt = REDUCE_PROMPT_SHORT if prompt is None else prompt
 
-    # Decision tree:
-    # 1. If <= threshold → single abstractive reduce (most efficient)
-    # 2. If within ceiling → hierarchical reduce
-    # 3. If > ceiling → extractive approach
-    if combined_tokens > mini_map_reduce_ceiling:
+    # Decision tree with transition zone (Issue #283):
+    # 1. If <= single_pass_limit → single abstractive reduce (most efficient)
+    # 2. If <= max(transition_start, single_pass_limit) → hierarchical reduce
+    # 3. If in transition zone → extractive (better compression)
+    # 4. If > transition_end → extractive approach
+    if combined_tokens > max(transition_start, single_pass_limit):
         selected = select_key_summaries(chunk_summaries)
         logger.debug(
             "[MAP-REDUCE CONFIG] Extractive fallback: "
@@ -578,6 +625,7 @@ def combine_summaries_reduce(
             reduce_prompt,
             combined_tokens,
             single_pass_limit,
+            validation_threshold=validation_threshold,
         )
 
     # Single-pass abstractive reduce - use ALL summaries, no selection
@@ -596,6 +644,7 @@ def combine_summaries_reduce(
             reduce_prompt,
             model_max,
             combined_tokens,
+            validation_threshold=validation_threshold,
         )
     except RuntimeError as e:
         error_msg = str(e).lower()
@@ -687,6 +736,7 @@ def combine_summaries_mini_map_reduce(
     combined_tokens: int,
     target_tokens: int,
     max_passes: int = MAX_HIERARCHICAL_PASSES,
+    validation_threshold: float = SUMMARY_VALIDATION_THRESHOLD,
 ) -> str:
     """Combine summaries using iterative mini map-reduce approach (fully abstractive).
 
@@ -714,11 +764,16 @@ def combine_summaries_mini_map_reduce(
     mini_map_start = time.time()
 
     # Get model's max position embeddings to calculate safe chunk size
-    model_max = (
-        getattr(model.model.config, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS)
-        if model.model and hasattr(model.model, "config")
-        else BART_MAX_POSITION_EMBEDDINGS
-    )
+    # LED models use max_encoder_position_embeddings (16384) for input context
+    # BART/PEGASUS use max_position_embeddings (1024)
+    if model.model and hasattr(model.model, "config"):
+        config_obj = model.model.config
+        if hasattr(config_obj, "max_encoder_position_embeddings"):
+            model_max = config_obj.max_encoder_position_embeddings
+        else:
+            model_max = getattr(config_obj, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS)
+    else:
+        model_max = BART_MAX_POSITION_EMBEDDINGS
 
     # Calculate safe chunk size: use 80% of model max to leave room for special tokens
     mini_chunk_size_tokens = max(
@@ -896,6 +951,7 @@ def combine_summaries_mini_map_reduce(
         prompt,
         model_max,
         current_tokens,
+        validation_threshold=validation_threshold,
     )
 
     total_mini_time = time.time() - mini_map_start
@@ -918,6 +974,7 @@ def combine_summaries_abstractive(
     prompt: Optional[str],
     model_max: int,
     combined_tokens: int,
+    validation_threshold: float = SUMMARY_VALIDATION_THRESHOLD,
 ) -> str:
     """Combine summaries using abstractive approach (final summarization pass).
 
@@ -930,6 +987,7 @@ def combine_summaries_abstractive(
         prompt: Optional prompt
         model_max: Model's max position embeddings
         combined_tokens: Token count in combined text
+        validation_threshold: Threshold for validation warning (model-specific, default 0.6)
 
     Returns:
         Final summary
@@ -957,11 +1015,12 @@ def combine_summaries_abstractive(
             prompt=prompt,
         )
 
-        # Validate summary quality
-        if len(final_summary) > len(combined_text) * SUMMARY_VALIDATION_THRESHOLD:
+        # Validate summary quality using model-specific threshold (Issue #283)
+        if len(final_summary) > len(combined_text) * validation_threshold:
             logger.warning(
                 f"Final summary length ({len(final_summary)} chars) is suspiciously close to "
-                f"input length ({len(combined_text)} chars). Model may have failed to summarize. "
+                f"input length ({len(combined_text)} chars, threshold={validation_threshold}). "
+                "Model may have failed to summarize. "
                 "Returning summary as-is (abstractive path uses ALL summaries, no selection)."
             )
             # Don't select chunks - return what we got (even if suspicious)
@@ -1071,11 +1130,19 @@ def summarize_long_text(
         f"batch_size={batch_size if batch_size else 'N/A'}"
     )
 
-    model_max_tokens = (
-        getattr(model.model.config, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS)
-        if model.model and hasattr(model.model, "config")
-        else BART_MAX_POSITION_EMBEDDINGS
-    )
+    # Get model's max position embeddings
+    # LED models use max_encoder_position_embeddings (16384) for input context
+    # BART/PEGASUS use max_position_embeddings (1024)
+    if model.model and hasattr(model.model, "config"):
+        config_obj = model.model.config
+        if hasattr(config_obj, "max_encoder_position_embeddings"):
+            model_max_tokens = config_obj.max_encoder_position_embeddings
+        else:
+            model_max_tokens = getattr(
+                config_obj, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS
+            )
+    else:
+        model_max_tokens = BART_MAX_POSITION_EMBEDDINGS
     requested_chunk_size = chunk_size
     chunk_size = max(1, min(chunk_size, model_max_tokens - MODEL_MAX_BUFFER))
     encoder_decoder_override = False

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:ns1="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>The Long View</title>
+    <link>http://localhost/</link>
+    <description>Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.</description>
+    <language>en-us</language>
+
+    <itunes:author>Alex Morgan</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p07_cover.jpg"/>
+
+    <item>
+      <title>What Sustainability Really Means (And Why Everyone Is Talking About It) (with Dr. Elena Fischer)</title>
+      <guid isPermaLink="false">p07_e01</guid>
+      <pubDate>Mon, 06 Oct 2025 07:00:00 +0000</pubDate>
+      <description>A deep, long-form exploration of sustainability as a systems concept: origins, meanings, trade-offs, and why it dominates modern discourse.</description>
+      <enclosure url="/audio/p07_e01.mp3" length="0" type="audio/mpeg"/>
+      <ns1:transcript url="/transcripts/p07_e01.txt" type="text/plain" />
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>01:30:00</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

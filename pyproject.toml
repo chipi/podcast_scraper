@@ -152,6 +152,7 @@ filterwarnings = [
 # Parallel execution: use -n auto to enable, or -n 0 to disable
 # Reruns: use --reruns 2 --reruns-delay 1 for flaky tests
 markers = [
+    "analysis: diagnostic/analysis tools (not run in regular test suites)",
     "unit: marks tests as unit tests (deselect with '-m \"not unit\"')",
     "multi_episode: multi-episode tests with multiple short episodes (10-15 seconds each) for testing multi-episode processing logic",
     "data_quality: data quality validation tests with multiple episodes (nightly only)",

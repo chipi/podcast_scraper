@@ -603,33 +603,51 @@ class Config(BaseModel):
         # SUMMARY_CACHE_DIR / CACHE_DIR: Only set from env if not in config
         # Also check for local cache in project root
         if "summary_cache_dir" not in data or data.get("summary_cache_dir") is None:
-            # Check SUMMARY_CACHE_DIR first (explicit override)
-            summary_cache = os.getenv("SUMMARY_CACHE_DIR")
-            if summary_cache:
-                env_value = str(summary_cache).strip()
+            env_summary_cache = os.getenv("SUMMARY_CACHE_DIR")
+            env_cache_dir = os.getenv("CACHE_DIR")
+
+            if env_summary_cache:
+                # SUMMARY_CACHE_DIR is explicit - use as-is but resolve to absolute
+                env_value = str(env_summary_cache).strip()
                 if env_value:
-                    data["summary_cache_dir"] = env_value
+                    cache_path = Path(env_value)
+                    if not cache_path.is_absolute():
+                        # Resolve relative to project root
+                        try:
+                            from .cache_utils import get_project_root
+
+                            cache_path = get_project_root() / cache_path
+                        except Exception:
+                            cache_path = Path.cwd() / cache_path
+                    data["summary_cache_dir"] = str(cache_path)
+            elif env_cache_dir:
+                # CACHE_DIR is base cache - derive transformers cache path
+                env_value = str(env_cache_dir).strip()
+                if env_value:
+                    cache_path = Path(env_value)
+                    if not cache_path.is_absolute():
+                        # Resolve relative to project root
+                        try:
+                            from .cache_utils import get_project_root
+
+                            cache_path = get_project_root() / cache_path
+                        except Exception:
+                            cache_path = Path.cwd() / cache_path
+                    # Derive transformers cache subdirectory
+                    transformers_cache = cache_path / "huggingface" / "hub"
+                    data["summary_cache_dir"] = str(transformers_cache)
             else:
-                # If CACHE_DIR is set, derive summary cache from it
-                cache_dir = os.getenv("CACHE_DIR")
-                if cache_dir:
-                    # Derive Transformers cache path from CACHE_DIR
-                    from pathlib import Path
+                # Check for local cache in project root
+                try:
+                    from .cache_utils import get_project_root
 
-                    derived_cache = str(Path(cache_dir) / "huggingface" / "hub")
-                    data["summary_cache_dir"] = derived_cache
-                else:
-                    # Check for local cache in project root
-                    try:
-                        from .cache_utils import get_project_root
-
-                        project_root = get_project_root()
-                        local_cache = project_root / ".cache" / "huggingface" / "hub"
-                        if local_cache.exists():
-                            data["summary_cache_dir"] = str(local_cache)
-                    except Exception:
-                        # If cache_utils not available, continue without local cache
-                        pass
+                    project_root = get_project_root()
+                    local_cache = project_root / ".cache" / "huggingface" / "hub"
+                    if local_cache.exists():
+                        data["summary_cache_dir"] = str(local_cache)
+                except Exception:
+                    # If cache_utils not available, continue without local cache
+                    pass
 
         # WORKERS: Only set from env if not in config
         if "workers" not in data or data.get("workers") is None:

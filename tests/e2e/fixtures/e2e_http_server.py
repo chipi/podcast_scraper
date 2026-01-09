@@ -109,6 +109,11 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         "edgecases": "p06_edge_cases.xml",
         # Multi-episode test feed with 5 short episodes (10-15 seconds each)
         "podcast1_multi_episode": "p01_multi.xml",
+        # Solo speaker podcast (host only, no guests)
+        "podcast9_solo": "p09_biohacking.xml",
+        # Long-form episodes for summarization threshold testing (Issue #283)
+        "podcast7_sustainability": "p07_sustainability.xml",  # ~15k words, ~3.6k-4k tokens
+        "podcast8_solar": "p08_solar.xml",  # ~20k words, ~4.8k-5k tokens
     }
 
     # Fast mode RSS mapping (uses shorter episodes for faster tests)
@@ -119,6 +124,12 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         "podcast1_with_transcript": "p01_fast_with_transcript.xml",
         # Multi-episode test feed (also available in fast mode)
         "podcast1_multi_episode": "p01_multi.xml",
+        # Solo speaker podcast (host only, no guests) - available in fast mode
+        "podcast9_solo": "p09_biohacking.xml",
+        # Long-form episodes for summarization threshold testing (Issue #283)
+        # Note: These are long episodes, but needed for threshold validation
+        "podcast7_sustainability": "p07_sustainability.xml",  # ~15k words, ~3.6k-4k tokens
+        "podcast8_solar": "p08_solar.xml",  # ~20k words, ~4.8k-5k tokens
     }
 
     # Allowed podcasts (shared across all handler instances)

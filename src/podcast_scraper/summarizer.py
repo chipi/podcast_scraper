@@ -633,8 +633,19 @@ class SummaryModel:
                     # Model not cached - provide helpful error message
                     # Note: Only supported models reach this point (unsupported models
                     # are rejected in select_summary_model/select_reduce_model)
+                    # Include cache_dir in error for debugging
+                    from pathlib import Path
+
+                    cache_path = Path(self.cache_dir)
+                    model_cache_name = self.model_name.replace("/", "--")
+                    model_cache_path = cache_path / f"models--{model_cache_name}"
                     error_msg = (
                         f"Model {self.model_name} not found in cache. "
+                        f"Cache dir: {self.cache_dir}, "
+                        f"Model cache path: {model_cache_path}, "
+                        f"Exists: {model_cache_path.exists()}, "
+                        f"HF_HUB_CACHE env: {os.environ.get('HF_HUB_CACHE', 'NOT SET')}. "
+                        f"Original error: {e}. "
                         f"Pre-cache it using: "
                         f"python -m transformers-cli download {self.model_name}"
                     )

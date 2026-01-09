@@ -91,17 +91,26 @@ class TestEnvironmentVariables(unittest.TestCase):
         self.assertEqual(cfg.summary_cache_dir, "/tmp/cache")  # nosec B108
 
     def test_cache_dir_alias(self):
-        """Test CACHE_DIR environment variable derives summary_cache_dir."""
+        """Test CACHE_DIR environment variable (alias for SUMMARY_CACHE_DIR).
+
+        Note: CACHE_DIR is resolved to absolute path and appended with /huggingface/hub
+        for Transformers model caching.
+        """
         os.environ["CACHE_DIR"] = "/tmp/cache2"  # nosec B108
         cfg = config.Config(rss_url="https://test.com")
-        # CACHE_DIR now derives summary_cache_dir as CACHE_DIR/huggingface/hub
+        # CACHE_DIR is resolved and appended with /huggingface/hub
         self.assertEqual(cfg.summary_cache_dir, "/tmp/cache2/huggingface/hub")  # nosec B108
 
     def test_summary_cache_dir_precedence(self):
-        """Test SUMMARY_CACHE_DIR takes precedence over CACHE_DIR."""
+        """Test SUMMARY_CACHE_DIR takes precedence over CACHE_DIR.
+
+        Note: SUMMARY_CACHE_DIR is used as-is (explicit path to transformers cache),
+        while CACHE_DIR is a base cache directory that gets /huggingface/hub appended.
+        """
         os.environ["SUMMARY_CACHE_DIR"] = "/tmp/cache1"  # nosec B108
         os.environ["CACHE_DIR"] = "/tmp/cache2"  # nosec B108
         cfg = config.Config(rss_url="https://test.com")
+        # SUMMARY_CACHE_DIR is explicit - used as-is without appending /huggingface/hub
         self.assertEqual(cfg.summary_cache_dir, "/tmp/cache1")  # nosec B108
 
     def test_workers_from_env(self):

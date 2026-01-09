@@ -445,8 +445,8 @@ class TestConfigFieldValidators(unittest.TestCase):
                 os.environ["OPENAI_API_KEY"] = original_key
 
     def test_openai_api_base_validator_handles_none(self):
-        """Test that openai_api_base validator handles None."""
-        # Unset environment variable to ensure it's not loaded
+        """Test that openai_api_base validator handles None when env var is not set."""
+        # Clear environment variable to test None handling
         original_base = os.environ.pop("OPENAI_API_BASE", None)
         try:
             cfg = Config(rss_url="https://example.com/feed.xml", openai_api_base=None)
