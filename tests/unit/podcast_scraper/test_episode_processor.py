@@ -933,6 +933,62 @@ class TestTranscribeMediaToText(unittest.TestCase):
         self.assertTrue(success)
         self.assertEqual(bytes_downloaded, 0)
 
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.getsize")
+    @patch("podcast_scraper.episode_processor._cleanup_temp_media")
+    def test_transcribe_media_to_text_oversized_file_skipped(
+        self, mock_cleanup, mock_getsize, mock_exists, mock_build_path
+    ):
+        """Test that oversized audio files are skipped gracefully with warning."""
+        import tempfile
+
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_1"
+        job.detected_speaker_names = None
+
+        # Create a temporary audio file larger than 25 MB
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+            # Write 26 MB of data
+            f.write(b"0" * (26 * 1024 * 1024))
+            temp_media = f.name
+            job.temp_media = temp_media
+
+        try:
+            cfg = create_test_config(
+                transcribe_missing=True, transcription_provider="openai", openai_api_key="sk-test"
+            )
+            mock_build_path.return_value = "/output/0001 - Episode_1.txt"
+            mock_exists.return_value = True
+            mock_getsize.return_value = 26 * 1024 * 1024  # 26 MB
+
+            # Create OpenAI provider that will validate file size
+            from podcast_scraper.openai.openai_provider import OpenAIProvider
+
+            provider = OpenAIProvider(cfg)
+            provider.initialize()
+
+            # transcribe_media_to_text should catch ValueError and return False (skipped)
+            success, transcript_path, bytes_downloaded = episode_processor.transcribe_media_to_text(
+                job=job,
+                cfg=cfg,
+                whisper_model=None,
+                run_suffix=None,
+                effective_output_dir="/output",
+                transcription_provider=provider,
+            )
+
+            # Should return False (episode skipped, not failed)
+            self.assertFalse(success)
+            self.assertIsNone(transcript_path)
+            # Should still report bytes downloaded (file was downloaded before validation)
+            self.assertGreater(bytes_downloaded, 0)
+            mock_cleanup.assert_called_once()
+        finally:
+            if os.path.exists(temp_media):
+                os.unlink(temp_media)
+
 
 class TestDownloadMediaForTranscription(unittest.TestCase):
     """Tests for download_media_for_transcription function."""

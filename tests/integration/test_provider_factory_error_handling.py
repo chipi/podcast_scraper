@@ -5,6 +5,7 @@ These tests verify that factories handle errors gracefully and that
 the workflow can recover from provider initialization failures.
 """
 
+import os
 import unittest
 from unittest.mock import Mock, patch
 
@@ -53,29 +54,36 @@ class TestFactoryErrorHandling(unittest.TestCase):
         """Test that OpenAI factories require API key."""
         from pydantic import ValidationError
 
-        # Transcription - ValidationError is raised by config validator before factory
-        with self.assertRaises(ValidationError) as context:
-            config.Config(
-                rss_url="https://example.com/feed.xml",
-                transcription_provider="openai",
-            )
-        self.assertIn("OpenAI API key required", str(context.exception))
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            # Transcription - ValidationError is raised by config validator before factory
+            with self.assertRaises(ValidationError) as context:
+                config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    transcription_provider="openai",
+                )
+            self.assertIn("OpenAI API key required", str(context.exception))
 
-        # Speaker detector - ValidationError is raised by config validator before factory
-        with self.assertRaises(ValidationError) as context:
-            config.Config(
-                rss_url="https://example.com/feed.xml",
-                speaker_detector_provider="openai",
-            )
-        self.assertIn("OpenAI API key required", str(context.exception))
+            # Speaker detector - ValidationError is raised by config validator before factory
+            with self.assertRaises(ValidationError) as context:
+                config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    speaker_detector_provider="openai",
+                )
+            self.assertIn("OpenAI API key required", str(context.exception))
 
-        # Summarization - ValidationError is raised by config validator before factory
-        with self.assertRaises(ValidationError) as context:
-            config.Config(
-                rss_url="https://example.com/feed.xml",
-                summary_provider="openai",
-            )
-        self.assertIn("OpenAI API key required", str(context.exception))
+            # Summarization - ValidationError is raised by config validator before factory
+            with self.assertRaises(ValidationError) as context:
+                config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    summary_provider="openai",
+                )
+            self.assertIn("OpenAI API key required", str(context.exception))
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_key
 
 
 @pytest.mark.integration

@@ -121,10 +121,12 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertTrue(provider._transcription_initialized)
 
     @patch("builtins.open", create=True)
+    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_success(self, mock_exists, mock_open):
+    def test_transcribe_success(self, mock_exists, mock_getsize, mock_open):
         """Test successful transcription."""
         mock_exists.return_value = True
+        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_file.read.return_value = b"fake audio data"
         mock_open.return_value.__enter__.return_value = mock_file
@@ -142,10 +144,12 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         mock_client.audio.transcriptions.create.assert_called_once()
 
     @patch("builtins.open", create=True)
+    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_with_language(self, mock_exists, mock_open):
+    def test_transcribe_with_language(self, mock_exists, mock_getsize, mock_open):
         """Test transcription with explicit language."""
         mock_exists.return_value = True
+        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -164,8 +168,9 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertEqual(call_kwargs["language"], "fr")
 
     @patch("builtins.open", create=True)
+    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_with_config_language(self, mock_exists, mock_open):
+    def test_transcribe_with_config_language(self, mock_exists, mock_getsize, mock_open):
         """Test transcription uses config language when not provided."""
         cfg = create_test_config(
             transcription_provider="openai",
@@ -174,6 +179,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
             transcribe_missing=True,
         )
         mock_exists.return_value = True
+        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -191,8 +197,9 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertEqual(call_kwargs["language"], "es")
 
     @patch("builtins.open", create=True)
+    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_auto_detects_language(self, mock_exists, mock_open):
+    def test_transcribe_auto_detects_language(self, mock_exists, mock_getsize, mock_open):
         """Test transcription auto-detects language when not specified."""
         # Create config without language (or with language=None)
         from unittest.mock import MagicMock
@@ -207,6 +214,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         )
 
         mock_exists.return_value = True
+        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -240,16 +248,19 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        with self.assertRaises(FileNotFoundError) as context:
+        # _validate_audio_file raises ValueError, not FileNotFoundError
+        with self.assertRaises(ValueError) as context:
             provider.transcribe("/tmp/nonexistent.mp3")
 
         self.assertIn("not found", str(context.exception))
 
     @patch("builtins.open", create=True)
+    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_api_error(self, mock_exists, mock_open):
+    def test_transcribe_api_error(self, mock_exists, mock_getsize, mock_open):
         """Test transcribe handles API errors."""
         mock_exists.return_value = True
+        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -266,10 +277,12 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertIn("transcription failed", str(context.exception))
 
     @patch("builtins.open", create=True)
+    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_with_segments_success(self, mock_exists, mock_open):
+    def test_transcribe_with_segments_success(self, mock_exists, mock_getsize, mock_open):
         """Test transcribe_with_segments returns full result."""
         mock_exists.return_value = True
+        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -306,10 +319,12 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertGreaterEqual(elapsed, 0)
 
     @patch("builtins.open", create=True)
+    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_with_segments_dict_segments(self, mock_exists, mock_open):
+    def test_transcribe_with_segments_dict_segments(self, mock_exists, mock_getsize, mock_open):
         """Test transcribe_with_segments handles dict-like segments."""
         mock_exists.return_value = True
+        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -335,10 +350,12 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertEqual(result_dict["segments"][0]["start"], 0.0)
 
     @patch("builtins.open", create=True)
+    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_with_segments_no_segments(self, mock_exists, mock_open):
+    def test_transcribe_with_segments_no_segments(self, mock_exists, mock_getsize, mock_open):
         """Test transcribe_with_segments handles response without segments."""
         mock_exists.return_value = True
+        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -359,10 +376,12 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         self.assertEqual(result_dict["segments"], [])
 
     @patch("builtins.open", create=True)
+    @patch("os.path.getsize")
     @patch("os.path.exists")
-    def test_transcribe_with_segments_api_error(self, mock_exists, mock_open):
+    def test_transcribe_with_segments_api_error(self, mock_exists, mock_getsize, mock_open):
         """Test transcribe_with_segments handles API errors."""
         mock_exists.return_value = True
+        mock_getsize.return_value = 1024 * 1024  # 1 MB (within limit)
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
         mock_open.return_value.__exit__.return_value = None
@@ -395,7 +414,8 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        with self.assertRaises(FileNotFoundError) as context:
+        # _validate_audio_file raises ValueError, not FileNotFoundError
+        with self.assertRaises(ValueError) as context:
             provider.transcribe_with_segments("/tmp/nonexistent.mp3")
 
         self.assertIn("not found", str(context.exception))

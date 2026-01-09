@@ -782,6 +782,82 @@ class TestOpenAIProviderE2E:
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
+    def test_openai_provider_dry_run_no_api_calls(self, e2e_server: Optional[Any]):
+        """Test that dry-run mode does NOT make any OpenAI API calls.
+
+        This comprehensive test verifies that in dry-run mode:
+        - No transcription API calls are made
+        - No speaker detection API calls are made
+        - No summarization API calls are made
+        - Full pipeline runs successfully without API calls
+        """
+        from unittest.mock import patch
+
+        temp_dir = tempfile.mkdtemp()
+        try:
+            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
+
+            # Create config with ALL OpenAI providers enabled but dry_run=True
+            cfg = create_test_config(
+                rss_url=rss_url,
+                output_dir=temp_dir,
+                transcription_provider="openai",
+                speaker_detector_provider="openai",
+                summary_provider="openai",
+                openai_api_key=openai_api_key,
+                openai_api_base=openai_api_base,
+                auto_speakers=True,
+                generate_metadata=True,
+                generate_summaries=True,
+                preload_models=False,  # Disable model preloading (no local ML models)
+                transcribe_missing=True,
+                dry_run=True,  # Enable dry-run mode
+                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
+            )
+
+            # Mock OpenAI provider methods to verify NO API calls are made
+            # We'll patch the provider's public methods that would make API calls
+            with (
+                patch(
+                    "podcast_scraper.openai.openai_provider.OpenAIProvider.transcribe"
+                ) as mock_transcribe,
+                patch(
+                    "podcast_scraper.openai.openai_provider.OpenAIProvider.detect_speakers"
+                ) as mock_detect_speakers,
+                patch(
+                    "podcast_scraper.openai.openai_provider.OpenAIProvider.summarize"
+                ) as mock_summarize,
+            ):
+                # Run pipeline in dry-run mode
+                transcripts_saved, summary = workflow.run_pipeline(cfg)
+
+                # Verify pipeline completed successfully
+                assert transcripts_saved >= 0, "Dry-run should complete without errors"
+                assert isinstance(summary, str), "Summary should be a string"
+
+                # CRITICAL: Verify NO API calls were made
+                # In dry-run mode, OpenAI provider methods should never be called
+                mock_transcribe.assert_not_called(), (
+                    "OpenAI transcription should NOT be called in dry-run mode"
+                )
+                mock_detect_speakers.assert_not_called(), (
+                    "OpenAI speaker detection should NOT be called in dry-run mode"
+                )
+                mock_summarize.assert_not_called(), (
+                    "OpenAI summarization should NOT be called in dry-run mode"
+                )
+
+            # Verify no files were created (dry-run should not create files)
+            transcript_files = list(Path(temp_dir).rglob("*.txt"))
+            assert len(transcript_files) == 0, "Dry-run should not create transcript files"
+
+            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
+            assert len(metadata_files) == 0, "Dry-run should not create metadata files"
+
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
     def test_openai_transcription_api_error_handling(self, e2e_server: Optional[Any]):
         """Test that OpenAI transcription API errors are handled gracefully.
 

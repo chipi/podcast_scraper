@@ -494,6 +494,25 @@ class TestSpeakerDetectionHelpers(unittest.TestCase):
         self.assertFalse(succeeded)
         self.assertEqual(names, ["Host", "Guest"])
 
+        # Test: Hosts only, no guests - should NOT add defaults
+        # This is the new behavior: if we have hosts but no guests, use actual host names
+        names, succeeded = speaker_detection._build_speaker_names_list({"Alice", "Bob"}, [], 5)
+        self.assertTrue(succeeded)
+        self.assertEqual(len(names), 2)
+        self.assertIn("Alice", names)
+        self.assertIn("Bob", names)
+        # Should NOT include "Guest" default
+        self.assertNotIn("Guest", names)
+
+        # Test: Multiple hosts, no guests, max_names limits
+        names, succeeded = speaker_detection._build_speaker_names_list(
+            {"Alice", "Bob", "Charlie"}, [], 2
+        )
+        self.assertTrue(succeeded)
+        self.assertEqual(len(names), 2)  # Limited by max_names
+        # Should be sorted deterministically
+        self.assertEqual(names, sorted(["Alice", "Bob", "Charlie"])[:2])
+
 
 class TestSanitizePersonName(unittest.TestCase):
     """Tests for _sanitize_person_name function."""

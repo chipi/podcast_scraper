@@ -14,6 +14,7 @@ on:
     branches: [ "main", "release/2.4" ]
     paths:
       - '**.py'
+      - '**.j2'
       - 'tests/**'
       - 'pyproject.toml'
       - 'Makefile'
@@ -23,6 +24,7 @@ on:
     branches: [ "main", "release/2.4" ]
     paths:
       - '**.py'
+      - '**.j2'
       - 'tests/**'
       - 'pyproject.toml'
       - 'Makefile'

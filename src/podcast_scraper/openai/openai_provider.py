@@ -32,6 +32,9 @@ logger = logging.getLogger(__name__)
 # Default speaker names when detection fails
 DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
 
+# OpenAI Whisper API file size limit (25 MB)
+MAX_AUDIO_FILE_SIZE_MB = 25
+
 
 class OpenAIProvider:
     """Unified OpenAI provider implementing TranscriptionProvider, SpeakerDetector, and SummarizationProvider.
@@ -69,14 +72,20 @@ class OpenAIProvider:
         self.client = OpenAI(**client_kwargs)
 
         # Transcription settings
-        self.transcription_model = getattr(cfg, "openai_transcription_model", "whisper-1")
+        self.transcription_model = getattr(
+            cfg, "openai_transcription_model", config.PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+        )
 
         # Speaker detection settings
-        self.speaker_model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
+        self.speaker_model = getattr(
+            cfg, "openai_speaker_model", config.PROD_DEFAULT_OPENAI_SPEAKER_MODEL
+        )
         self.speaker_temperature = getattr(cfg, "openai_temperature", 0.3)
 
         # Summarization settings
-        self.summary_model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
+        self.summary_model = getattr(
+            cfg, "openai_summary_model", config.PROD_DEFAULT_OPENAI_SUMMARY_MODEL
+        )
         self.summary_temperature = getattr(cfg, "openai_temperature", 0.3)
         # GPT-4o-mini supports 128k context window - can handle full transcripts
         self.max_context_tokens = 128000  # Conservative estimate
@@ -89,6 +98,36 @@ class OpenAIProvider:
         # Mark provider as thread-safe (API clients can be shared across threads)
         # API providers handle rate limiting internally, so parallelism isn't needed
         self._requires_separate_instances = False
+
+    def _validate_audio_file(self, audio_path: str) -> tuple[bool, str | None]:
+        """Validate audio file against OpenAI API constraints.
+
+        Checks if the audio file size exceeds OpenAI Whisper API's 25 MB limit.
+
+        Args:
+            audio_path: Path to audio file to validate
+
+        Returns:
+            Tuple of (is_valid, error_message)
+            - is_valid: True if file is valid, False if it exceeds limits
+            - error_message: None if valid, descriptive error message if invalid
+        """
+        if not os.path.exists(audio_path):
+            return (False, f"Audio file not found: {audio_path}")
+
+        file_size_bytes = os.path.getsize(audio_path)
+        file_size_mb = file_size_bytes / (1024 * 1024)
+
+        if file_size_mb > MAX_AUDIO_FILE_SIZE_MB:
+            error_msg = (
+                f"Audio file size ({file_size_mb:.1f} MB) exceeds OpenAI API limit "
+                f"({MAX_AUDIO_FILE_SIZE_MB} MB). "
+                "Consider using local ML provider (transformers) for transcription instead. "
+                "See: docs/guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md"
+            )
+            return (False, error_msg)
+
+        return (True, None)
 
     def initialize(self) -> None:
         """Initialize all OpenAI capabilities.
@@ -155,8 +194,10 @@ class OpenAIProvider:
                 "OpenAIProvider transcription not initialized. Call initialize() first."
             )
 
-        if not os.path.exists(audio_path):
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+        # Validate file before making API call
+        is_valid, error_msg = self._validate_audio_file(audio_path)
+        if not is_valid:
+            raise ValueError(error_msg)
 
         # Use provided language or fall back to config
         effective_language = language if language is not None else (self.cfg.language or None)
@@ -223,8 +264,10 @@ class OpenAIProvider:
                 "OpenAIProvider transcription not initialized. Call initialize() first."
             )
 
-        if not os.path.exists(audio_path):
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+        # Validate file before making API call
+        is_valid, error_msg = self._validate_audio_file(audio_path)
+        if not is_valid:
+            raise ValueError(error_msg)
 
         # Use provided language or fall back to config
         effective_language = language if language is not None else (self.cfg.language or None)
@@ -515,19 +558,63 @@ class OpenAIProvider:
             # Filter hosts to only include those in known_hosts
             detected_hosts = {host for host in detected_hosts_list if host in known_hosts}
 
+            # Safety check: Remove any hosts from guests list (prevent duplicates)
+            # This handles cases where the model incorrectly includes hosts in guests
+            guests_list = [guest for guest in guests_list if guest not in detected_hosts]
+            # Also filter out guests that are in known_hosts (even if not detected as hosts)
+            if known_hosts:
+                guests_list = [guest for guest in guests_list if guest not in known_hosts]
+
+            # Filter out obvious non-guest entities:
+            # 1. Generic labels like "Host", "Guest", "Speaker"
+            # 2. Organization acronyms (like "NPR" which is the host, not a guest)
+            # 3. Titles with political/executive roles that are typically topics
+            #    (e.g., "President X" in news)
+            # Note: We're conservative - only filter clear cases to avoid removing legitimate guests
+            filtered_guests = []
+            generic_labels = {"host", "guest", "speaker", "hosts", "guests", "speakers"}
+            for guest in guests_list:
+                guest_lower = guest.lower().strip()
+                # Filter out generic labels
+                if guest_lower in generic_labels:
+                    continue
+                # Filter out organization acronyms (all caps, short)
+                is_organization = guest.upper() == guest and len(guest) <= 5 and guest.isalpha()
+                # Filter out political/executive titles that are typically topics in news podcasts
+                # These are usually mentioned as subjects, not actual guests
+                political_titles = ["president ", "prime minister ", "governor ", "mayor "]
+                is_political_topic = any(
+                    guest_lower.startswith(title) for title in political_titles
+                )
+                if not is_organization and not is_political_topic:
+                    filtered_guests.append(guest)
+            guests_list = filtered_guests
+
             # Build speaker names list: hosts first, then guests
+            # Note: We keep guests_list separate so it can be empty (for host-only episodes)
+            # speaker_names is used for screenplay formatting and may need defaults
+            # but guests_list should remain empty if no actual guests were detected
             speaker_names = list(detected_hosts) + guests_list
 
-            # Ensure we have at least MIN_SPEAKERS_REQUIRED speakers
+            # Ensure we have at least MIN_SPEAKERS_REQUIRED speakers for screenplay formatting
+            # But only add defaults if we have at least one real speaker (host or guest)
             min_speakers = getattr(self.cfg, "screenplay_num_speakers", 2)
-            if len(speaker_names) < min_speakers:
-                # Add default speakers if needed
+            if len(speaker_names) < min_speakers and (detected_hosts or guests_list):
+                # Add default speakers if needed (for screenplay formatting)
+                # But don't add defaults if we have no real speakers at all
                 defaults_needed = min_speakers - len(speaker_names)
                 speaker_names.extend(DEFAULT_SPEAKER_NAMES[:defaults_needed])
+            elif len(speaker_names) < min_speakers:
+                # No real speakers detected - use defaults
+                speaker_names = DEFAULT_SPEAKER_NAMES.copy()
 
             # Detection succeeded if we have real names (not just defaults)
             detection_succeeded = bool(detected_hosts or guests_list or (len(all_speakers) > 0))
 
+            # Return speaker_names (may include defaults for formatting) and detected_hosts
+            # The workflow will extract guests from speaker_names by filtering out hosts
+            # IMPORTANT: guests_list is already filtered and may be empty
+            # (which is correct for host-only episodes)
             return speaker_names[:min_speakers], detected_hosts, detection_succeeded
 
         except (json.JSONDecodeError, KeyError, AttributeError) as exc:

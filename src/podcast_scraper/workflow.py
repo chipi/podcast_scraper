@@ -969,12 +969,19 @@ def _detect_feed_hosts_and_patterns(
     if not cfg.auto_speakers:
         return _HostDetectionResult(cached_hosts, heuristics, None)
 
+    # Skip initialization in dry-run mode (no ML models or API calls)
+    # In dry-run, we simulate the flow without actually loading models or making API calls
+    if cfg.dry_run:
+        logger.info("(dry-run) would initialize speaker detector for host/guest detection")
+        # Return empty result without detector (simulates what would happen)
+        return _HostDetectionResult(cached_hosts, heuristics, None)
+
     # Stage 3: Use provider pattern for speaker detection
     # Always create speaker detector if auto_speakers is enabled,
     # regardless of cache_detected_hosts (caching only controls whether to cache hosts)
     try:
         speaker_detector = create_speaker_detector(cfg)
-        # Initialize provider (loads spaCy model)
+        # Initialize provider (loads spaCy model for ML, or sets up API client for OpenAI)
         speaker_detector.initialize()
 
         # Only detect and cache hosts if cache_detected_hosts is enabled
@@ -1162,38 +1169,50 @@ def _prepare_episode_download_args(
         detected_speaker_names = None
         # Detect guests for all episodes when auto_speakers is enabled
         # (not just when transcribing, so we can log guests even for transcript downloads)
-        # Note: Guest detection works in dry-run mode (no media download/transcription needed)
         if cfg.auto_speakers:
             # Always log episode info
             logger.info("Episode %d: %s", episode.idx, episode.title)
 
             # Extract episode description for NER (limited to first 20 chars)
             episode_description = extract_episode_description(episode.item)
-            # Detect speaker names from episode title and first 20 chars of description
-            # Guests are detected from episode title and description snippet
-            extract_names_start = time.time()
 
-            # Stage 3: Use provider for speaker detection
-            speaker_detector = host_detection_result.speaker_detector
-            if speaker_detector:
-                cached_hosts_for_detection = (
-                    host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
+            # Skip speaker detection in dry-run mode (no ML models or API calls)
+            # In dry-run, we simulate the flow without actually calling detection
+            if cfg.dry_run:
+                logger.info(
+                    "[%s] (dry-run) would detect speakers from: title='%s', description='%s'",
+                    episode.idx,
+                    episode.title[:50],
+                    episode_description[:50] if episode_description else "",
                 )
-                detected_speakers, detected_hosts_set, detection_succeeded = (
-                    speaker_detector.detect_speakers(
-                        episode_title=episode.title,
-                        episode_description=episode_description,
-                        known_hosts=cached_hosts_for_detection,
-                    )
-                )
-            else:
-                # Fallback: No provider available (should not happen in normal flow)
-                logger.warning("Speaker detector not available, skipping speaker detection")
+                # Simulate empty detection result (no actual detection performed)
                 detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
-            extract_names_elapsed = time.time() - extract_names_start
-            # Record speaker detection time if metrics available
-            if pipeline_metrics is not None:
-                pipeline_metrics.record_extract_names_time(extract_names_elapsed)
+            else:
+                # Detect speaker names from episode title and first 20 chars of description
+                # Guests are detected from episode title and description snippet
+                extract_names_start = time.time()
+
+                # Stage 3: Use provider for speaker detection
+                speaker_detector = host_detection_result.speaker_detector
+                if speaker_detector:
+                    cached_hosts_for_detection = (
+                        host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
+                    )
+                    detected_speakers, detected_hosts_set, detection_succeeded = (
+                        speaker_detector.detect_speakers(
+                            episode_title=episode.title,
+                            episode_description=episode_description,
+                            known_hosts=cached_hosts_for_detection,
+                        )
+                    )
+                else:
+                    # Fallback: No provider available (should not happen in normal flow)
+                    logger.warning("Speaker detector not available, skipping speaker detection")
+                    detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
+                extract_names_elapsed = time.time() - extract_names_start
+                # Record speaker detection time if metrics available
+                if pipeline_metrics is not None:
+                    pipeline_metrics.record_extract_names_time(extract_names_elapsed)
 
             # Use manual guest name as fallback ONLY if detection failed
             # Manual names: first item = host, second item = guest
@@ -1214,6 +1233,18 @@ def _prepare_episode_download_args(
                         manual_guest,
                         ", ".join(detected_hosts_set),
                     )
+                    # Filter out hosts from fallback_names to get only guests
+                    detected_speaker_names = [
+                        name for name in fallback_names if name not in detected_hosts_set
+                    ]
+                    # Filter out generic labels (shouldn't happen with manual names,
+                    # but safety check)
+                    generic_labels = {"host", "guest", "speaker", "hosts", "guests", "speakers"}
+                    detected_speaker_names = [
+                        name
+                        for name in detected_speaker_names
+                        if name.lower().strip() not in generic_labels
+                    ]
                 else:
                     # No hosts detected either, use both manual names
                     fallback_names = [manual_host, manual_guest]
@@ -1222,15 +1253,53 @@ def _prepare_episode_download_args(
                         manual_host,
                         manual_guest,
                     )
-                detected_speaker_names = fallback_names
+                    # Filter out the manual host to get only the guest
+                    detected_speaker_names = [manual_guest]
             elif detection_succeeded:
                 detected_speaker_names = detected_speakers
+                # Filter out hosts from detected_speaker_names to get only guests
+                # detected_speakers includes hosts first, then guests
+                # (may also include defaults like "Host", "Guest")
+                # We need to separate them for metadata storage
+                if detected_hosts_set:
+                    # Remove hosts from the list to get only guests
+                    detected_speaker_names = [
+                        name for name in detected_speaker_names if name not in detected_hosts_set
+                    ]
+                    # Also filter out generic labels that might have been added as defaults
+                    # (e.g., "Host", "Guest" added for screenplay formatting when min_speakers=2)
+                    generic_labels = {"host", "guest", "speaker", "hosts", "guests", "speakers"}
+                    detected_speaker_names = [
+                        name
+                        for name in detected_speaker_names
+                        if name.lower().strip() not in generic_labels
+                    ]
+                else:
+                    # No hosts detected - filter out generic labels anyway (safety check)
+                    generic_labels = {"host", "guest", "speaker", "hosts", "guests", "speakers"}
+                    detected_speaker_names = [
+                        name
+                        for name in detected_speaker_names
+                        if name.lower().strip() not in generic_labels
+                    ]
             # Note: Guest logging happens inside detect_speaker_names()
             # Note: We don't update cached_hosts here because hosts are only
             # detected from feed metadata, not from episodes
         elif cfg.screenplay_speaker_names:
             # If auto_speakers is disabled, use manual names directly
-            detected_speaker_names = cfg.screenplay_speaker_names
+            # Manual names: first item = host, second item = guest
+            # Filter to get only guests (skip the first item which is the host)
+            if len(cfg.screenplay_speaker_names) >= 2:
+                detected_speaker_names = cfg.screenplay_speaker_names[1:]  # Skip host, keep guests
+            else:
+                detected_speaker_names = cfg.screenplay_speaker_names
+            # Filter out generic labels (shouldn't happen with manual names, but safety check)
+            generic_labels = {"host", "guest", "speaker", "hosts", "guests", "speakers"}
+            detected_speaker_names = [
+                name
+                for name in detected_speaker_names
+                if name.lower().strip() not in generic_labels
+            ]
 
         download_args.append(
             (
