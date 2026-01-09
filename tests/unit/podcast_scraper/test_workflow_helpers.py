@@ -1851,7 +1851,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
     def test_prepare_args_auto_speakers_disabled(self, mock_extract):
         """Test preparing args when auto_speakers is disabled."""
         self.cfg = create_test_config(
-            auto_speakers=False, screenplay_speaker_names=["Host", "Guest"]
+            auto_speakers=False, screenplay_speaker_names=["John", "Jane"]
         )
 
         result = workflow._prepare_episode_download_args(
@@ -1869,7 +1869,8 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         self.assertEqual(args[0], self.episodes[0])  # episode
         self.assertEqual(args[1], self.cfg)  # cfg
         self.assertEqual(args[4], None)  # run_suffix
-        self.assertEqual(args[7], ["Host", "Guest"])  # detected_speaker_names
+        # detected_speaker_names only contains guests (hosts are filtered out)
+        self.assertEqual(args[7], ["Jane"])  # detected_speaker_names
 
     @patch("podcast_scraper.workflow.extract_episode_description")
     @patch("podcast_scraper.workflow.time.time")
@@ -1880,9 +1881,9 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         mock_extract.return_value = "Episode description"
 
         mock_detector = Mock()
-        mock_detector.detect_speakers.return_value = (["Host", "Guest"], {"Host"}, True)
+        mock_detector.detect_speakers.return_value = (["John", "Jane"], {"John"}, True)
         self.host_detection_result = workflow._HostDetectionResult(
-            cached_hosts={"Host"},
+            cached_hosts={"John"},
             heuristics=None,
             speaker_detector=mock_detector,
         )
@@ -1899,7 +1900,8 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
 
         self.assertEqual(len(result), 1)
         args = result[0]
-        self.assertEqual(args[7], ["Host", "Guest"])  # detected_speaker_names
+        # detected_speaker_names only contains guests (hosts are filtered out)
+        self.assertEqual(args[7], ["Jane"])  # detected_speaker_names
         mock_detector.detect_speakers.assert_called_once()
 
     @patch("podcast_scraper.workflow.extract_episode_description")
@@ -1936,8 +1938,8 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
 
         self.assertEqual(len(result), 1)
         args = result[0]
-        # Should use manual fallback
-        self.assertEqual(args[7], ["ManualHost", "ManualGuest"])
+        # Should use manual fallback (only guests, hosts are filtered out)
+        self.assertEqual(args[7], ["ManualGuest"])
 
     @patch("podcast_scraper.workflow.extract_episode_description")
     @patch("podcast_scraper.workflow.time.time")
@@ -1977,8 +1979,8 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
 
         self.assertEqual(len(result), 1)
         args = result[0]
-        # Should use detected hosts + manual guest
-        self.assertEqual(args[7], ["DetectedHost", "ManualGuest"])
+        # Should use manual guest (hosts are filtered out from detected_speaker_names)
+        self.assertEqual(args[7], ["ManualGuest"])
 
     @patch("podcast_scraper.workflow.extract_episode_description")
     def test_prepare_args_no_detector_available(self, mock_extract):
