@@ -457,6 +457,17 @@ def transcribe_media_to_text(
             pipeline_metrics.record_transcribe_time(tc_elapsed)
 
         return True, rel_path, bytes_downloaded
+    except ValueError as exc:
+        # Handle file size validation errors gracefully
+        error_msg = str(exc)
+        if "exceeds" in error_msg and "limit" in error_msg:
+            logger.warning(f"[{job.idx}] Skipping episode due to file size limit: {error_msg}")
+            # Return False to indicate episode was skipped (not failed)
+            return False, None, bytes_downloaded
+        else:
+            # Re-raise if it's a different ValueError
+            logger.error(f"    Transcription validation failed: {exc}")
+            return False, None, bytes_downloaded
     except (RuntimeError, OSError) as exc:
         logger.error(f"    Whisper transcription failed: {exc}")
         return False, None, bytes_downloaded

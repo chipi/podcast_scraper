@@ -32,6 +32,9 @@ logger = logging.getLogger(__name__)
 # Default speaker names when detection fails
 DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
 
+# OpenAI Whisper API file size limit (25 MB)
+MAX_AUDIO_FILE_SIZE_MB = 25
+
 
 class OpenAIProvider:
     """Unified OpenAI provider implementing TranscriptionProvider, SpeakerDetector, and SummarizationProvider.
@@ -95,6 +98,36 @@ class OpenAIProvider:
         # Mark provider as thread-safe (API clients can be shared across threads)
         # API providers handle rate limiting internally, so parallelism isn't needed
         self._requires_separate_instances = False
+
+    def _validate_audio_file(self, audio_path: str) -> tuple[bool, str | None]:
+        """Validate audio file against OpenAI API constraints.
+
+        Checks if the audio file size exceeds OpenAI Whisper API's 25 MB limit.
+
+        Args:
+            audio_path: Path to audio file to validate
+
+        Returns:
+            Tuple of (is_valid, error_message)
+            - is_valid: True if file is valid, False if it exceeds limits
+            - error_message: None if valid, descriptive error message if invalid
+        """
+        if not os.path.exists(audio_path):
+            return (False, f"Audio file not found: {audio_path}")
+
+        file_size_bytes = os.path.getsize(audio_path)
+        file_size_mb = file_size_bytes / (1024 * 1024)
+
+        if file_size_mb > MAX_AUDIO_FILE_SIZE_MB:
+            error_msg = (
+                f"Audio file size ({file_size_mb:.1f} MB) exceeds OpenAI API limit "
+                f"({MAX_AUDIO_FILE_SIZE_MB} MB). "
+                "Consider using local ML provider (transformers) for transcription instead. "
+                "See: docs/guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md"
+            )
+            return (False, error_msg)
+
+        return (True, None)
 
     def initialize(self) -> None:
         """Initialize all OpenAI capabilities.
@@ -161,8 +194,10 @@ class OpenAIProvider:
                 "OpenAIProvider transcription not initialized. Call initialize() first."
             )
 
-        if not os.path.exists(audio_path):
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+        # Validate file before making API call
+        is_valid, error_msg = self._validate_audio_file(audio_path)
+        if not is_valid:
+            raise ValueError(error_msg)
 
         # Use provided language or fall back to config
         effective_language = language if language is not None else (self.cfg.language or None)
@@ -229,8 +264,10 @@ class OpenAIProvider:
                 "OpenAIProvider transcription not initialized. Call initialize() first."
             )
 
-        if not os.path.exists(audio_path):
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+        # Validate file before making API call
+        is_valid, error_msg = self._validate_audio_file(audio_path)
+        if not is_valid:
+            raise ValueError(error_msg)
 
         # Use provided language or fall back to config
         effective_language = language if language is not None else (self.cfg.language or None)

@@ -297,13 +297,11 @@ class TestIntegrationMain(unittest.TestCase):
     @pytest.mark.slow
     @pytest.mark.ml_models
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy dependencies not available")
-    def test_dry_run_performs_speaker_detection(self):
-        """Test that dry-run mode still performs host/guest detection.
+    def test_dry_run_skips_speaker_detection(self):
+        """Test that dry-run mode skips host/guest detection (no ML models or API calls).
 
-        This test requires multiple episodes to verify speaker detection works
-        across episodes, so it's marked as slow to run in full test mode.
-        Requires ML models (spaCy) for speaker detection.
-        Note: spaCy model (en_core_web_sm) is installed as a dependency.
+        In dry-run mode, we should simulate the flow without actually loading models
+        or making API calls. This test verifies that speaker detection is skipped.
         """
         rss_url = "https://example.com/feed.xml"
         rss_xml = build_rss_xml_with_speakers(
@@ -341,14 +339,18 @@ class TestIntegrationMain(unittest.TestCase):
                     )
                 self.assertEqual(exit_code, 0)
                 log_text = "\n".join(log_ctx.output)
-                # Verify host detection happened
-                self.assertIn("DETECTED HOSTS", log_text)
-                self.assertIn("John Host", log_text)
-                # Verify guest detection happened for each episode
+                # Verify dry-run mode skipped speaker detection initialization
+                self.assertIn("(dry-run) would initialize speaker detector", log_text)
+                # Verify episodes are logged (simulation of what would happen)
                 self.assertIn("Episode 1: Interview with Alice Guest", log_text)
                 self.assertIn("Episode 2: Chat with Bob Guest", log_text)
-                # Verify guest detection logging (changed to singular "Guest:" format)
-                self.assertIn("Guest:", log_text)
+                # Verify dry-run would detect speakers (simulation)
+                self.assertIn("(dry-run) would detect speakers from:", log_text)
+                # Verify NO actual detection happened (no ML models or API calls)
+                self.assertNotIn("DETECTED HOSTS", log_text)
+                self.assertNotIn("John Host", log_text)
+                # Verify NO guest detection logging (detection is skipped in dry-run)
+                self.assertNotIn("Guest:", log_text)
 
 
 @pytest.mark.integration
