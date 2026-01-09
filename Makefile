@@ -205,7 +205,7 @@ test-unit:
 	# Unit tests: parallel execution for faster feedback
 	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
-	$(PYTEST) tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
+	$(PYTEST) tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e and not analysis' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration:
 	# Integration tests: parallel execution (3.4x faster, significant benefit)
@@ -214,7 +214,7 @@ test-integration:
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	# Coverage: measured independently (not appended) to match CI per-job measurement
-	$(PYTEST) tests/integration/ -m integration -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --disable-socket --allow-hosts=127.0.0.1,localhost
+	$(PYTEST) tests/integration/ -m 'integration and not analysis' -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration-fast:
 	# Fast integration tests: critical path tests only (includes ML tests if models are cached)
@@ -223,14 +223,14 @@ test-integration-fast:
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Coverage: measured independently to match CI
-	$(PYTEST) tests/integration/ -m "integration and critical_path" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
+	$(PYTEST) tests/integration/ -m "integration and critical_path and not analysis" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
 
 test-ci:
 	# CI test suite: serial tests first (sequentially), then parallel execution for the rest
 	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
 	# Note: Non-critical path tests run on main branch only
-	$(PYTEST) -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov-report=term-missing || true
-	$(PYTEST) -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov-report=term-missing --cov-append
+	$(PYTEST) -m 'serial and not analysis and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov-report=term-missing || true
+	$(PYTEST) -m 'not serial and not analysis and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov-report=term-missing --cov-append
 
 test-ci-fast:
 	# Fast CI test suite: serial tests first (sequentially), then parallel execution for the rest
@@ -239,21 +239,21 @@ test-ci-fast:
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Includes reruns for flaky tests (matches CI behavior) - increased to 3 retries for very flaky tests
-	$(PYTEST) tests/unit/ tests/integration/ tests/e2e/ -m 'serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2 || true
-	$(PYTEST) tests/unit/ tests/integration/ tests/e2e/ -m 'not serial and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2
+	$(PYTEST) tests/unit/ tests/integration/ tests/e2e/ -m 'serial and not analysis and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2 || true
+	$(PYTEST) tests/unit/ tests/integration/ tests/e2e/ -m 'not serial and not analysis and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2
 
 test-e2e:
 	# E2E tests: serial tests first (sequentially), then parallel execution for the rest
 	# Includes reruns for flaky tests (matches CI behavior) - 3 retries for ML model variability
 	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
 	# Coverage: measured independently (serial first, then parallel appends) to match CI
-	@E2E_TEST_MODE=multi_episode $(PYTEST) tests/e2e/ -m "e2e and serial" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 || true
-	@E2E_TEST_MODE=multi_episode $(PYTEST) tests/e2e/ -m "e2e and not serial" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --cov-append --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	@E2E_TEST_MODE=multi_episode $(PYTEST) tests/e2e/ -m "e2e and serial and not analysis" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 || true
+	@E2E_TEST_MODE=multi_episode $(PYTEST) tests/e2e/ -m "e2e and not serial and not analysis" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --cov-append --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 test-e2e-sequential:
 	# E2E tests: sequential execution (slower but clearer output, useful for debugging)
 	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
-	E2E_TEST_MODE=multi_episode $(PYTEST) tests/e2e/ -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+	E2E_TEST_MODE=multi_episode $(PYTEST) tests/e2e/ -m "e2e and not analysis" --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-e2e-fast:
 	# Fast E2E tests: serial tests first (sequentially), then parallel execution for the rest
@@ -263,15 +263,15 @@ test-e2e-fast:
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Coverage: measured independently (serial first, then parallel appends) to match CI
-	@E2E_TEST_MODE=fast $(PYTEST) tests/e2e/ -m "e2e and critical_path and serial" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20 || true
-	@E2E_TEST_MODE=fast $(PYTEST) tests/e2e/ -m "e2e and critical_path and not serial" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --cov-append --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
+	@E2E_TEST_MODE=fast $(PYTEST) tests/e2e/ -m "e2e and critical_path and serial and not analysis" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20 || true
+	@E2E_TEST_MODE=fast $(PYTEST) tests/e2e/ -m "e2e and critical_path and not serial and not analysis" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --cov-append --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
 
 test-e2e-data-quality:
 	# Data quality E2E tests: full pipeline validation with multiple episodes
 	# Uses all original mock data (not fast fixtures)
 	# Runs with 3-5 episodes per test to validate data quality and consistency
 	# For nightly builds only - not part of regular CI/CD code quality checks
-	@E2E_TEST_MODE=data_quality $(PYTEST) tests/e2e/ -m "e2e and data_quality" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	@E2E_TEST_MODE=data_quality $(PYTEST) tests/e2e/ -m "e2e and data_quality and not analysis" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 test-nightly:
 	# Nightly-only tests: comprehensive tests with production ML models (p01-p05 full suite)
@@ -291,8 +291,8 @@ test:
 	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
 	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
 	# Excludes nightly tests (run separately via make test-nightly)
-	@E2E_TEST_MODE=multi_episode $(PYTEST) tests/ -m "serial and not nightly" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost || true
-	@E2E_TEST_MODE=multi_episode $(PYTEST) tests/ -m "not serial and not nightly" --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
+	@E2E_TEST_MODE=multi_episode $(PYTEST) tests/ -m "serial and not nightly and not analysis" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost || true
+	@E2E_TEST_MODE=multi_episode $(PYTEST) tests/ -m "not serial and not nightly and not analysis" --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-sequential:
 	# All tests: sequential execution (slower but clearer output, useful for debugging)
@@ -307,12 +307,12 @@ test-fast:
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Excludes nightly tests (comprehensive tests run only in nightly builds)
 	# Use --durations=20 to monitor slow tests and optimize them separately
-	@E2E_TEST_MODE=fast $(PYTEST) -m 'serial and not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 || true
-	@E2E_TEST_MODE=fast $(PYTEST) -m 'not serial and not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+	@E2E_TEST_MODE=fast $(PYTEST) -m 'serial and not nightly and not analysis and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 || true
+	@E2E_TEST_MODE=fast $(PYTEST) -m 'not serial and not nightly and not analysis and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' --cov=$(PACKAGE) --cov-report=term-missing --cov-append -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
 
 test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
-	$(PYTEST) --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
+	$(PYTEST) --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e and not analysis' --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-openai:
 	# Test OpenAI providers (uses E2E server by default, or real API if USE_REAL_OPENAI_API=1)
@@ -539,23 +539,23 @@ coverage-check: coverage-check-unit coverage-check-integration coverage-check-e2
 coverage-check-unit:
 	# Check unit test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_UNIT)%)
 	@echo "Checking unit test coverage (minimum $(COVERAGE_THRESHOLD_UNIT)%)..."
-	@$(PYTEST) tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_UNIT) -m 'not integration and not e2e' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@$(PYTEST) tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_UNIT) -m 'not integration and not e2e and not analysis' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost -q
 
 coverage-check-integration:
 	# Check integration test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_INTEGRATION)%)
 	@echo "Checking integration test coverage (minimum $(COVERAGE_THRESHOLD_INTEGRATION)%)..."
-	@$(PYTEST) tests/integration/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_INTEGRATION) -m 'integration' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
+	@$(PYTEST) tests/integration/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_INTEGRATION) -m 'integration and not analysis' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
 
 coverage-check-e2e:
 	# Check E2E test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_E2E)%)
 	@echo "Checking E2E test coverage (minimum $(COVERAGE_THRESHOLD_E2E)%)..."
-	@E2E_TEST_MODE=multi_episode $(PYTEST) tests/e2e/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
+	@E2E_TEST_MODE=multi_episode $(PYTEST) tests/e2e/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly and not analysis' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
 
 coverage-check-combined:
 	# Check combined coverage meets threshold ($(COVERAGE_THRESHOLD_COMBINED)%)
 	# This runs all tests and enforces the combined threshold
 	@echo "Checking combined coverage (minimum $(COVERAGE_THRESHOLD_COMBINED)%)..."
-	@E2E_TEST_MODE=multi_episode $(PYTEST) tests/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_COMBINED) -m 'not nightly' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	@E2E_TEST_MODE=multi_episode $(PYTEST) tests/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_COMBINED) -m 'not nightly and not analysis' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 coverage-report:
 	# Generate coverage report without running tests (uses existing .coverage file)

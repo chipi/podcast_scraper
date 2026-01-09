@@ -31,6 +31,10 @@ PODCAST_HOSTS: dict[str, str] = {
     "p03": "Rina",
     "p04": "Leo",
     "p05": "Nora",
+    "p06": "TBD",  # Edge cases podcast
+    "p07": "Alex",  # The Long View - Sustainability
+    "p08": "Alex",  # The Long View - Solar Energy
+    "p09": "Alex",  # The Long View - Biohacking
 }
 
 TS_RE = re.compile(r"^\[\s*\d{1,2}:\d{2}(:\d{2})?\s*\]$")
@@ -144,9 +148,10 @@ def host_for_file(stem: str) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument(
-        "transcripts_dir",
+        "transcripts",
         type=Path,
-        help="Folder containing .txt transcripts (searched recursively)",
+        nargs="+",
+        help="Transcript files (.txt) or folder containing transcripts (searched recursively)",
     )
     ap.add_argument(
         "--host-voice", default="Samantha", help="macOS 'say' voice for host (default: Samantha)"
@@ -159,9 +164,17 @@ def main() -> int:
     ap.add_argument("--overwrite", action="store_true", help="Overwrite existing mp3 files")
     args = ap.parse_args()
 
-    if not args.transcripts_dir.is_dir():
-        print(f"Not a directory: {args.transcripts_dir}", file=sys.stderr)
-        return 2
+    # Collect all transcript files
+    txt_files: list[Path] = []
+    for path in args.transcripts:
+        if path.is_file() and path.suffix == ".txt":
+            # Single transcript file
+            txt_files.append(path)
+        elif path.is_dir():
+            # Directory - search recursively
+            txt_files.extend(sorted(path.rglob("*.txt")))
+        else:
+            print(f"Skipping (not a .txt file or directory): {path}", file=sys.stderr)
 
     if not shutil.which("say"):
         print("say not found (macOS required)", file=sys.stderr)
@@ -174,9 +187,8 @@ def main() -> int:
     audio_dir = scripts_dir.parent / "audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
 
-    txt_files = sorted(args.transcripts_dir.rglob("*.txt"))
     if not txt_files:
-        print(f"No .txt transcripts found under: {args.transcripts_dir}", file=sys.stderr)
+        print("No .txt transcripts found", file=sys.stderr)
         return 1
 
     for txt in txt_files:

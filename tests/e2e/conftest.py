@@ -38,6 +38,15 @@ USE_REAL_OPENAI_API = os.getenv("USE_REAL_OPENAI_API", "0") == "1"
 if not USE_REAL_OPENAI_API and "OPENAI_API_KEY" not in os.environ:
     os.environ["OPENAI_API_KEY"] = "sk-test-dummy-key-for-e2e-tests"
 
+# Set HF_HUB_CACHE to local cache if it exists (ensures consistent cache resolution)
+# This must be set BEFORE any transformers imports happen
+from pathlib import Path
+
+_project_root = Path(__file__).parent.parent.parent
+_local_cache = _project_root / ".cache" / "huggingface" / "hub"
+if _local_cache.exists() and "HF_HUB_CACHE" not in os.environ:
+    os.environ["HF_HUB_CACHE"] = str(_local_cache)
+
 # Network guard: Block all external network calls (except localhost)
 # This ensures E2E tests only use the local E2E HTTP server
 # Note: pytest-socket is loaded via plugin system, not via pytest_plugins
@@ -349,18 +358,34 @@ def configure_e2e_feed_limiting(request):
         E2EHTTPRequestHandler.set_use_fast_fixtures(False)  # Use full fixtures
     elif test_mode == "fast":
         # Fast mode: Allow podcast1 (Path 2: Transcription),
-        # podcast1_with_transcript (Path 1: Download), and podcast1_multi_episode
-        # (multi-episode testing)
+        # podcast1_with_transcript (Path 1: Download), podcast1_multi_episode
+        # (multi-episode testing), podcast9_solo (solo speaker testing),
+        # podcast7_sustainability and podcast8_solar (Issue #283 threshold testing)
         # Uses fast fixtures (p01_fast.xml) with 1-minute episodes, or multi-episode
         # feed for multi-episode tests
         E2EHTTPRequestHandler.set_allowed_podcasts(
-            {"podcast1", "podcast1_with_transcript", "podcast1_multi_episode"}
+            {
+                "podcast1",
+                "podcast1_with_transcript",
+                "podcast1_multi_episode",
+                "podcast9_solo",
+                "podcast7_sustainability",  # Issue #283: threshold testing
+                "podcast8_solar",  # Issue #283: threshold testing
+            }
         )
         E2EHTTPRequestHandler.set_use_fast_fixtures(True)  # Use fast fixtures
     else:
         # Default/Multi-episode mode: Use multi-episode feed (5 short episodes for
-        # multi-episode testing) and edgecases feed (for edge case tests)
-        E2EHTTPRequestHandler.set_allowed_podcasts({"podcast1_multi_episode", "edgecases"})
+        # multi-episode testing), edgecases feed (for edge case tests), and
+        # podcast7_sustainability/podcast8_solar (Issue #283 threshold testing)
+        E2EHTTPRequestHandler.set_allowed_podcasts(
+            {
+                "podcast1_multi_episode",
+                "edgecases",
+                "podcast7_sustainability",  # Issue #283: threshold testing
+                "podcast8_solar",  # Issue #283: threshold testing
+            }
+        )
         E2EHTTPRequestHandler.set_use_fast_fixtures(True)  # Use fast fixtures
 
     # Reset on test teardown to ensure clean state

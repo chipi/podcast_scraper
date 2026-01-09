@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:ns1="http://podcast-scraper.test/transcript">
+  <channel>
+    <title>The Long View: Biohacking</title>
+    <link>http://localhost/</link>
+    <description>Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.</description>
+    <language>en-us</language>
+
+    <itunes:author>Alex Morgan</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p09_cover.jpg"/>
+
+    <item>
+      <title>Episode 1: Biohacking in 2025: From Fringe to Framework</title>
+      <guid isPermaLink="false">p09_e01</guid>
+      <pubDate>Mon, 20 Oct 2025 07:00:00 +0000</pubDate>
+      <description>A grounded overview of biohacking in 2025: why it moved from fringe experimentation toward measurement, fundamentals, and systems thinking—and where it still goes wrong.</description>
+      <enclosure url="/audio/p09_e01.mp3" length="0" type="audio/mpeg"/>
+      <ns1:transcript url="/transcripts/p09_e01.txt" type="text/plain" />
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:32:00</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Episode 2: Sleep, Metabolism, and Measurement: What Actually Works</title>
+      <guid isPermaLink="false">p09_e02</guid>
+      <pubDate>Mon, 27 Oct 2025 07:00:00 +0000</pubDate>
+      <description>A practical framework for 2025: how sleep and metabolism interact, what wearables and glucose data can (and cannot) tell you, and how to integrate measurement without obsession.</description>
+      <enclosure url="/audio/p09_e02.mp3" length="0" type="audio/mpeg"/>
+      <ns1:transcript url="/transcripts/p09_e02.txt" type="text/plain" />
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:34:00</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Episode 3: Ethics, Limits, and the Next Decade of Human Optimization</title>
+      <guid isPermaLink="false">p09_e03</guid>
+      <pubDate>Mon, 03 Nov 2025 07:00:00 +0000</pubDate>
+      <description>A sober look at what biohacking cannot solve: biological constraints, ethical trade-offs, inequality risks, and how the next decade may normalize—rather than sensationalize—human optimization.</description>
+      <enclosure url="/audio/p09_e03.mp3" length="0" type="audio/mpeg"/>
+      <ns1:transcript url="/transcripts/p09_e03.txt" type="text/plain" />
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:31:00</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

@@ -618,8 +618,11 @@ class TestCombineSummariesReduce(unittest.TestCase):
         mock_model = Mock()
         mock_model.tokenizer = mock_tokenizer
         mock_model.model = Mock()
-        mock_model.model.config = Mock()
-        mock_model.model.config.max_position_embeddings = 1024
+        # Use spec to properly simulate BART model config (no max_encoder_position_embeddings)
+        mock_model.model.config = Mock(
+            spec=["max_position_embeddings"],
+            max_position_embeddings=1024,
+        )
         mock_model.summarize.return_value = "Final summary"
 
         chunk_summaries = ["Summary 1", "Summary 2"]
@@ -649,8 +652,11 @@ class TestCombineSummariesReduce(unittest.TestCase):
         mock_model = Mock()
         mock_model.tokenizer = mock_tokenizer
         mock_model.model = Mock()
-        mock_model.model.config = Mock()
-        mock_model.model.config.max_position_embeddings = 1024
+        # Use spec to properly simulate BART model config (no max_encoder_position_embeddings)
+        mock_model.model.config = Mock(
+            spec=["max_position_embeddings"],
+            max_position_embeddings=1024,
+        )
         mock_model.summarize.return_value = "Extracted summary"
 
         chunk_summaries = [f"Summary {i}" for i in range(20)]  # Many summaries

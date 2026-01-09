@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:ns1="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>The Long View</title>
+    <link>http://localhost/</link>
+    <description>Extended conversations on energy, technology, and long-term transitions shaping the near future.</description>
+    <language>en-us</language>
+
+    <itunes:author>Alex Morgan</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p08_cover.jpg"/>
+
+    <item>
+      <title>The Role of Solar Energy in the Near Future (with Dr. Rafael Mendes)</title>
+      <guid isPermaLink="false">p08_e01</guid>
+      <pubDate>Mon, 13 Oct 2025 07:00:00 +0000</pubDate>
+      <description>An in-depth discussion on how solar energy will shape grids, markets, geopolitics, and daily life over the next two decades.</description>
+      <enclosure url="/audio/p08_e01.mp3" length="0" type="audio/mpeg"/>
+      <ns1:transcript url="/transcripts/p08_e01.txt" type="text/plain" />
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>02:00:00</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

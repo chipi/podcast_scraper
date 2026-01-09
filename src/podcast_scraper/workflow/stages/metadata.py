@@ -75,7 +75,16 @@ def call_generate_metadata(
                     if host_detection_result.cached_hosts
                     else None
                 ),
-                detected_guests=detected_names if detected_names else None,
+                detected_guests=(
+                    [
+                        name
+                        for name in detected_names
+                        if not host_detection_result.cached_hosts
+                        or name not in host_detection_result.cached_hosts
+                    ]
+                    if detected_names
+                    else None
+                ),
                 feed_description=feed_metadata.description,
                 feed_image_url=feed_metadata.image_url,
                 feed_last_updated=feed_metadata.last_updated,
@@ -96,7 +105,16 @@ def call_generate_metadata(
         detected_hosts=(
             list(host_detection_result.cached_hosts) if host_detection_result.cached_hosts else None
         ),
-        detected_guests=detected_names if detected_names else None,
+        detected_guests=(
+            [
+                name
+                for name in detected_names
+                if not host_detection_result.cached_hosts
+                or name not in host_detection_result.cached_hosts
+            ]
+            if detected_names
+            else None
+        ),
         feed_description=feed_metadata.description,
         feed_image_url=feed_metadata.image_url,
         feed_last_updated=feed_metadata.last_updated,
