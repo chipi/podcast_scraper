@@ -84,6 +84,28 @@ def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
             raise
 
 
+def _resolve_model_alias(model_name: str) -> str:
+    """Resolve model alias to actual HuggingFace model ID.
+
+    Args:
+        model_name: Model name or alias (e.g., "bart-small", "long-fast")
+
+    Returns:
+        Actual HuggingFace model ID (e.g., "facebook/bart-base")
+    """
+    # Import alias mapping from summarizer
+    from . import summarizer
+
+    # Check if it's an alias in DEFAULT_SUMMARY_MODELS
+    if model_name in summarizer.DEFAULT_SUMMARY_MODELS:
+        resolved = summarizer.DEFAULT_SUMMARY_MODELS[model_name]
+        logger.debug(f"Resolved alias '{model_name}' to '{resolved}'")
+        return resolved
+
+    # Not an alias, return as-is (might be a direct HuggingFace model ID)
+    return model_name
+
+
 def preload_transformers_models(model_names: Optional[List[str]] = None) -> None:
     """Preload Transformers models (centralized download function).
 
@@ -91,7 +113,8 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
     All other code must use local_files_only=True when loading.
 
     Args:
-        model_names: List of Transformers model names to preload.
+        model_names: List of Transformers model names or aliases to preload.
+                    Aliases (e.g., "bart-small") are resolved to HuggingFace IDs.
                     If None, uses TRANSFORMERS_MODELS env var or defaults to common models.
     """
     try:
@@ -111,6 +134,12 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                 config.TEST_DEFAULT_SUMMARY_MODEL,
                 config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
             ]
+
+    # Resolve aliases to actual HuggingFace model IDs
+    resolved_models = [_resolve_model_alias(name) for name in model_names]
+    # Remove duplicates while preserving order
+    seen = set()
+    model_names = [m for m in resolved_models if not (m in seen or seen.add(m))]
 
     if not model_names:
         logger.debug("Skipping Transformers model preloading (no models specified)")
