@@ -344,7 +344,6 @@ class AnthropicSpeakerDetector:
         """Detect speakers for an episode using Anthropic API.
 
 ```
-                system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
             )
 
@@ -383,7 +382,6 @@ class AnthropicSpeakerDetector:
         from ..prompt_store import render_prompt
 
 ```
-
 ```python
 
     def _build_speaker_detection_prompts(
@@ -396,7 +394,6 @@ class AnthropicSpeakerDetector:
         from ..prompt_store import render_prompt
 
 ```
-
 ```python
 
     def _parse_hosts_from_response(self, response_text: str) -> Set[str]:
@@ -411,7 +408,6 @@ class AnthropicSpeakerDetector:
         except json.JSONDecodeError:
             pass
 
-```
 ```python
 
     def _parse_speakers_from_response(
@@ -431,7 +427,6 @@ class AnthropicSpeakerDetector:
             pass
 
 ```
-
 #### 5.3 Summarization Provider
 
 **File**: `podcast_scraper/summarization/anthropic_provider.py`
@@ -487,11 +482,10 @@ class AnthropicSummarizationProvider:
         """Summarize text using Anthropic Claude API.
 
 ```
-
             )
 
 ```
-                user_prompt_name,
+
                 paragraphs_min,
                 paragraphs_max,
             ) = self._build_summarization_prompts(
@@ -499,7 +493,6 @@ class AnthropicSummarizationProvider:
             )
 
 ```
-
             )
 
 ```python
@@ -508,7 +501,6 @@ class AnthropicSummarizationProvider:
             from ..prompt_store import get_prompt_metadata
 
 ```
-
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
 ```python
@@ -531,13 +523,12 @@ class AnthropicSummarizationProvider:
         from ..prompt_store import render_prompt
 
 ```
-
 ```text
 
         user_prompt = render_prompt(user_prompt_name, **template_params)
 
 ```
-            paragraphs_max,
+
         )
 
 ```python
@@ -547,6 +538,7 @@ class AnthropicSummarizationProvider:
         pass
 
 ```
+
 ### 6. Factory Updates
 
 #### 6.1 Speaker Detector Factory
@@ -578,6 +570,7 @@ def create_speaker_detector(cfg: config.Config) -> Optional[SpeakerDetector]:
         )
 
 ```
+
 #### 6.2 Summarization Factory
 
 **File**: `podcast_scraper/summarization/factory.py` (update)
@@ -607,6 +600,7 @@ def create_summarization_provider(cfg: config.Config) -> Optional[SummarizationP
         )
 
 ```
+
 ### 7. Anthropic-Specific Prompt Templates
 
 #### 7.1 Summarization System Prompt
@@ -626,6 +620,7 @@ Guidelines:
 - Structure the summary with logical flow
 
 ```
+
 #### 7.2 Summarization User Prompt
 
 **File**: `prompts/anthropic/summarization/long_v1.j2`
@@ -644,6 +639,7 @@ Transcript:
 Provide a comprehensive summary covering the main topics, key insights, and important takeaways.
 
 ```
+
 #### 7.3 NER System Prompt
 
 **File**: `prompts/anthropic/ner/system_ner_v1.j2`
@@ -659,6 +655,7 @@ Guidelines:
 - Respond in JSON format with "hosts" and "guests" arrays
 
 ```
+
 #### 7.4 NER User Prompt
 
 **File**: `prompts/anthropic/ner/guest_host_v1.j2`
@@ -684,6 +681,7 @@ Return a JSON object with format: {"speakers": [...], "hosts": [...], "guests": 
 {% endif %}
 
 ```
+
 ### 8. E2E Server Mock Endpoints
 
 Add Anthropic mock endpoints to `tests/e2e/fixtures/e2e_http_server.py`:
@@ -716,7 +714,6 @@ def _handle_anthropic_messages(self):
         system = request_data.get("system", "")
         model = request_data.get("model", "claude-3-5-haiku-latest")
 
-```
 ```json
 
         # Build Anthropic response format

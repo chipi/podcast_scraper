@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import (
@@ -204,6 +205,46 @@ def _add_cache_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Custom cache directory for transformer models (default: ~/.cache/huggingface/hub)",
     )
+
+
+def _parse_cache_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse cache subcommand arguments.
+
+    Args:
+        argv: Command-line arguments (without 'cache' prefix)
+
+    Returns:
+        Parsed arguments
+    """
+    parser = argparse.ArgumentParser(
+        prog="podcast-scraper cache",
+        description="Manage ML model caches (Whisper, Transformers, spaCy).",
+    )
+    parser.add_argument(
+        "--status",
+        action="store_true",
+        help="Show cache status and disk usage for all ML model caches",
+    )
+    parser.add_argument(
+        "--clean",
+        nargs="?",
+        const="all",
+        choices=["all", "whisper", "transformers", "spacy"],
+        help="Clean cache. Specify type or use 'all' (default)",
+    )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Skip confirmation prompt when cleaning cache",
+    )
+
+    args = parser.parse_args(argv)
+
+    # Require either --status or --clean
+    if not args.status and not args.clean:
+        parser.error("Either --status or --clean must be specified")
+
+    return args
 
 
 def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
@@ -555,6 +596,19 @@ def _load_and_merge_config(
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse CLI arguments, optionally merging configuration file defaults."""
+    # Default to sys.argv[1:] if argv is None (when called from command line)
+    if argv is None:
+        argv = sys.argv[1:]
+
+    # Check if first argument is "cache" subcommand
+    if argv and len(argv) > 0 and argv[0] == "cache":
+        # Handle cache subcommand
+        cache_argv = list(argv[1:]) if len(argv) > 1 else []
+        args = _parse_cache_args(cache_argv)
+        args.command = "cache"  # Mark as cache command
+        return args
+
+    # Normal parsing for main command
     parser = argparse.ArgumentParser(
         description="Download podcast episode transcripts from an RSS feed."
     )
@@ -738,7 +792,7 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
     logger.info("=" * 80)
 
 
-def main(
+def main(  # noqa: C901
     argv: Optional[Sequence[str]] = None,
     *,
     apply_log_level_fn: Optional[Callable[[str, Optional[str]], None]] = None,
@@ -762,8 +816,115 @@ def main(
         log.error(f"Error: {exc}")
         return 1
 
-    # Handle cache management commands
-    if args.cache_info or args.prune_cache:
+    # Handle cache subcommand (new unified cache management)
+    if hasattr(args, "command") and args.command == "cache":
+        try:
+            from . import cache_manager
+
+            if args.status:
+                cache_info = cache_manager.get_all_cache_info()
+                print("\nML Model Cache Status")
+                print("=" * 50)
+
+                # Whisper
+                whisper_info = cache_info["whisper"]
+                whisper_size = cache_manager.format_size(whisper_info["size"])
+                whisper_count = whisper_info["count"]
+                print(f"\nWhisper models: {whisper_size} ({whisper_count} models)")
+                print(f"  Cache directory: {whisper_info['dir']}")
+                if whisper_info["models"]:
+                    for model in whisper_info["models"]:
+                        model_size = cache_manager.format_size(model["size"])
+                        print(f"  - {model['name']:30s} {model_size}")
+
+                # Transformers
+                transformers_info = cache_info["transformers"]
+                transformers_size = cache_manager.format_size(transformers_info["size"])
+                transformers_count = transformers_info["count"]
+                print(f"\nTransformers: {transformers_size} ({transformers_count} models)")
+                print(f"  Cache directory: {transformers_info['dir']}")
+                if transformers_info["dir"].exists():
+                    print(
+                        "  ⚠️  Warning: This cache may be shared with other "
+                        "applications using Hugging Face models."
+                    )
+                if transformers_info["models"]:
+                    for model in transformers_info["models"]:
+                        model_size = cache_manager.format_size(model["size"])
+                        print(f"  - {model['name']:30s} {model_size}")
+
+                # spaCy
+                spacy_info = cache_info["spacy"]
+                if spacy_info["dir"]:
+                    spacy_size = cache_manager.format_size(spacy_info["size"])
+                    spacy_count = spacy_info["count"]
+                    print(f"\nspaCy: {spacy_size} ({spacy_count} models)")
+                    print(f"  Cache directory: {spacy_info['dir']}")
+                    print("  Note: spaCy models are typically installed as Python packages.")
+                    if spacy_info["models"]:
+                        for model in spacy_info["models"]:
+                            model_size = cache_manager.format_size(model["size"])
+                            print(f"  - {model['name']:30s} {model_size}")
+                else:
+                    print("\nspaCy: No cache directory found")
+                    print("  Note: spaCy models are typically installed as Python packages.")
+
+                print(f"\nTotal: {cache_manager.format_size(cache_info['total_size'])}")
+                print()
+                return 0
+
+            elif args.clean:
+                confirm = not args.yes
+                cache_type = args.clean
+
+                if cache_type == "all":
+                    results = cache_manager.clean_all_caches(confirm=confirm)
+                    total_deleted = sum(count for count, _ in results.values())
+                    total_freed = sum(bytes_freed for _, bytes_freed in results.values())
+                    freed_str = cache_manager.format_size(total_freed)
+                    print(
+                        f"\nCleaned all caches: {total_deleted} model(s) removed, "
+                        f"{freed_str} freed"
+                    )
+                    return 0
+                elif cache_type == "whisper":
+                    deleted, freed = cache_manager.clean_whisper_cache(confirm=confirm)
+                    freed_str = cache_manager.format_size(freed)
+                    print(
+                        f"\nCleaned Whisper cache: {deleted} model(s) removed, "
+                        f"{freed_str} freed"
+                    )
+                    return 0
+                elif cache_type == "transformers":
+                    deleted, freed = cache_manager.clean_transformers_cache(confirm=confirm)
+                    freed_str = cache_manager.format_size(freed)
+                    print(
+                        f"\nCleaned Transformers cache: {deleted} model(s) removed, "
+                        f"{freed_str} freed"
+                    )
+                    return 0
+                elif cache_type == "spacy":
+                    deleted, freed = cache_manager.clean_spacy_cache(confirm=confirm)
+                    freed_str = cache_manager.format_size(freed)
+                    print(
+                        f"\nCleaned spaCy cache: {deleted} model(s) removed, " f"{freed_str} freed"
+                    )
+                    return 0
+
+        except ImportError as exc:
+            log.error(f"Cache management requires cache_manager module: {exc}")
+            return 1
+        except Exception as exc:
+            log.error(f"Cache operation failed: {exc}")
+            return 1
+
+    # Handle legacy cache management commands (--cache-info, --prune-cache)
+    if (
+        hasattr(args, "cache_info")
+        and args.cache_info
+        or hasattr(args, "prune_cache")
+        and args.prune_cache
+    ):
         try:
             from . import summarizer
 

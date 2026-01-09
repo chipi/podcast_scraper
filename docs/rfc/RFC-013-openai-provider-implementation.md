@@ -406,7 +406,6 @@ class OpenAISpeakerDetector:
             )
 
 ```
-
 ```python
 
     def analyze_patterns(
@@ -511,7 +510,6 @@ class OpenAITranscriptionProvider:
         import time
 
 ```
-                    language=getattr(cfg, 'whisper_language', None),  # Optional language hint
                     response_format="verbose_json",  # Get segments
                 )
 

@@ -278,7 +278,6 @@ class GeminiTranscriptionProvider:
         """Transcribe audio file using Gemini's native audio understanding.
 
 ```
-                ".wav": "audio/wav",
                 ".m4a": "audio/mp4",
                 ".ogg": "audio/ogg",
                 ".flac": "audio/flac",
@@ -539,7 +538,6 @@ class GeminiSummarizationProvider:
             raise RuntimeError("Provider not initialized")
 
 ```
-```
 
             )
 
@@ -591,7 +589,6 @@ class GeminiSummarizationProvider:
         pass
 
 ```
-
 ### 5. Factory Updates
 
 Update all factories to include `"gemini"` option following the same pattern as other providers.
@@ -608,7 +605,6 @@ gemini = [
 ]
 
 ```
-
 ## Testing Strategy
 
 Same pattern as other providers: unit tests, integration tests, E2E tests with mock endpoints.

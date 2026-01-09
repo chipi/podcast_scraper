@@ -195,6 +195,23 @@ def _preload_ml_models_if_needed(cfg: config.Config) -> None:
     setup.preload_ml_models_if_needed(cfg)
 
 
+def _ensure_ml_models_cached(cfg: config.Config) -> None:
+    """Ensure required ML models are cached, downloading them if needed.
+
+    This is a wrapper function that delegates to setup.ensure_ml_models_cached.
+    """
+    import sys
+
+    workflow_pkg = sys.modules.get("podcast_scraper.workflow")
+    if workflow_pkg and hasattr(workflow_pkg, "_ensure_ml_models_cached"):
+        func = getattr(workflow_pkg, "_ensure_ml_models_cached")
+        from unittest.mock import Mock
+
+        if isinstance(func, Mock):
+            return func(cfg)
+    setup.ensure_ml_models_cached(cfg)
+
+
 def _initialize_ml_environment() -> None:
     import sys
 

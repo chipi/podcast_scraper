@@ -522,6 +522,7 @@ count, summary = run_pipeline(config)
 print(f"Downloaded {count} transcripts")
 
 ```
+
 ## Transcription Options
 
 ```python
@@ -535,6 +536,7 @@ config = Config(
 count, summary = run_pipeline(config)
 
 ```
+
 ### Metadata and Summaries
 
 ```python
@@ -550,6 +552,7 @@ config = Config(
 count, summary = run_pipeline(config)
 
 ```
+
 ### Service API Usage
 
 ```python
@@ -566,6 +569,7 @@ else:
     sys.exit(1)
 
 ```
+
 ## Loading Configuration
 
 ```python
@@ -579,6 +583,7 @@ config = load_config_file("config.yaml")
 count, summary = run_pipeline(config)
 
 ```
+
 ## Error Handling
 
 ```python
@@ -595,6 +600,7 @@ except RuntimeError as e:
     sys.exit(1)
 
 ```
+
 ### Type Hints Example
 
 ```python
@@ -609,6 +615,7 @@ def process_podcast(rss_url: str) -> Tuple[int, str]:
     return run_pipeline(config)  # Returns Tuple[int, str]
 
 ```
+
 ## See Also
 
 - [Architecture](../ARCHITECTURE.md) - System architecture overview

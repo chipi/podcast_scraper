@@ -325,7 +325,6 @@ jobs:
           path: benchmarks/runs/
 
 ```
-  full-benchmark:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -345,7 +344,6 @@ jobs:
           path: benchmarks/runs/
 
 ```
-      - name: Post summary to dashboard
         run: python scripts/upload_benchmark_metrics.py
 
 ```python

@@ -311,7 +311,6 @@ class ExperimentParams(BaseModel):
     Task-specific parameters.
 
 ```
-
 ```python
 
     @validator("extra", pre=True, always=True)
@@ -410,7 +409,6 @@ class OpenAISummarizationProvider:
         # Load prompts from prompt_store (provider-specific)
 
 ```
-            transcript=text,
             title=cfg.episode_title or "",
             paragraphs_min=(min_length or cfg.summary_min_length) // 100,
             paragraphs_max=(max_length or cfg.summary_max_length) // 100,
@@ -474,7 +472,6 @@ class OpenAISpeakerDetector:
         """Detect speakers using OpenAI API with prompts from prompt_store.
 
 ```
-        )
 
 ```text
 
@@ -569,7 +566,6 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
         raise ValueError(f"Unknown task: {cfg.task}")
 
 ```
-                min_length=cfg.params.min_length,
             )
             prediction = prediction_dict["summary"]
         elif cfg.task.startswith("ner_") and provider:
@@ -583,7 +579,6 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
             raise ValueError(f"Provider not available for task: {cfg.task}")
 
 ```
-
 ```python
 
 class Config(BaseModel):

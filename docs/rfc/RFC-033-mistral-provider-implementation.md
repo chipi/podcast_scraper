@@ -322,7 +322,6 @@ class MistralTranscriptionProvider:
         """Transcribe audio file using Mistral Voxtral API.
 
 ```
-        if not self._initialized:
             raise RuntimeError(
                 "MistralTranscriptionProvider not initialized. Call initialize() first."
             )
@@ -345,7 +344,6 @@ class MistralTranscriptionProvider:
                     "timestamp_granularities": ["segment"],
                 }
 
-```
 ```python
 
         except Exception as exc:
@@ -359,7 +357,6 @@ class MistralTranscriptionProvider:
         pass
 
 ```
-
 #### 4.3 Speaker Detection Provider
 
 **File**: `podcast_scraper/speaker_detectors/mistral_detector.py`
@@ -486,7 +483,6 @@ class MistralSpeakerDetector:
         """Build prompts for host detection using prompt_store."""
         from ..prompt_store import render_prompt
 
-```
 ```python
 
     def _build_speaker_detection_prompts(
@@ -498,7 +494,6 @@ class MistralSpeakerDetector:
         """Build prompts for speaker detection using prompt_store."""
         from ..prompt_store import render_prompt
 
-```
 ```python
 
     def _parse_hosts_from_response(self, response_text: str) -> Set[str]:
@@ -530,6 +525,7 @@ class MistralSpeakerDetector:
             pass
 
 ```
+
 #### 4.4 Summarization Provider
 
 **File**: `podcast_scraper/summarization/mistral_provider.py`
@@ -567,7 +563,7 @@ class MistralSummarizationProvider:
         """Initialize Mistral summarization provider.
 
 ```
-        self.max_context_tokens = 256000
+
         self._initialized = False
         # API providers are thread-safe
         self._requires_separate_instances = False
@@ -591,11 +587,10 @@ class MistralSummarizationProvider:
         """Summarize text using Mistral chat API.
 
 ```
-
             )
 
 ```
-                user_prompt,
+
                 system_prompt_name,
                 user_prompt_name,
                 paragraphs_min,
@@ -629,11 +624,10 @@ class MistralSummarizationProvider:
             from ..prompt_store import get_prompt_metadata
 
 ```
-            }
+
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
 ```
-
             }
 
 ```python
@@ -662,7 +656,6 @@ class MistralSummarizationProvider:
         pass
 
 ```
-
 ### 5. Factory Updates
 
 #### 5.1 Transcription Factory
@@ -691,7 +684,6 @@ def create_transcription_provider(cfg: config.Config) -> Optional[TranscriptionP
         )
 
 ```
-
 #### 5.2 Speaker Detector Factory
 
 **File**: `podcast_scraper/speaker_detectors/factory.py` (update)
@@ -724,7 +716,6 @@ def create_speaker_detector(cfg: config.Config) -> Optional[SpeakerDetector]:
         )
 
 ```
-
 #### 5.3 Summarization Factory
 
 **File**: `podcast_scraper/summarization/factory.py` (update)
@@ -757,7 +748,6 @@ def create_summarization_provider(cfg: config.Config) -> Optional[SummarizationP
         )
 
 ```
-
 ### 6. Mistral-Specific Prompt Templates
 
 #### 6.1 Summarization System Prompt
@@ -777,7 +767,6 @@ Guidelines:
 - Structure the summary with logical flow
 
 ```
-
 #### 6.2 Summarization User Prompt
 
 **File**: `prompts/mistral/summarization/long_v1.j2`
@@ -796,7 +785,6 @@ Transcript:
 Provide a comprehensive summary covering the main topics, key insights, and important takeaways.
 
 ```
-
 #### 6.3 NER System Prompt
 
 **File**: `prompts/mistral/ner/system_ner_v1.j2`
@@ -812,7 +800,6 @@ Guidelines:
 - Respond in JSON format with "hosts" and "guests" arrays
 
 ```
-
 #### 6.4 NER User Prompt
 
 **File**: `prompts/mistral/ner/guest_host_v1.j2`
@@ -838,7 +825,6 @@ Return a JSON object with format: {"speakers": [...], "hosts": [...], "guests": 
 {% endif %}
 
 ```
-
 ### 7. E2E Server Mock Endpoints
 
 Add Mistral mock endpoints to `tests/e2e/fixtures/e2e_http_server.py`:
@@ -874,10 +860,8 @@ def _handle_mistral_chat_completions(self):
         request_data = json.loads(body.decode("utf-8"))
 
 ```
-        )
 
 ```
-
 ```json
 
         # Build Mistral response format
@@ -931,6 +915,7 @@ class E2EServerURLs:
         return f"http://{self.host}:{self.port}"
 
 ```
+
 ### 8. Dependencies
 
 Add to `pyproject.toml`:
@@ -952,6 +937,7 @@ ai = [
 ]
 
 ```
+
 # For Mistral support only
 
 pip install -e ".[mistral]"
@@ -987,7 +973,6 @@ tests/
     └── test_mistral_provider_integration_e2e.py
 
 ```
-
 ### Test Markers
 
 ```python

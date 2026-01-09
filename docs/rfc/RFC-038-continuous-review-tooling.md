@@ -81,14 +81,12 @@ updates:
         patterns:
 
 ```
-
 ```
 
       docs:
         patterns:
 
 ```
-      timezone: "Europe/Amsterdam"
     open-pull-requests-limit: 3
     labels:
 
@@ -511,7 +509,6 @@ def check_version_consistency(version: str | None) -> CheckResult:
         )
 
 ```
-                name="Version Consistency",
                 passed=False,
                 message=f"Version {version} not in pyproject.toml"
             )
@@ -527,7 +524,6 @@ def main():
     parser.add_argument("--quick", action="store_true", help="Skip slow checks")
     args = parser.parse_args()
 
-```
 ```python
 
 if __name__ == "__main__":
@@ -537,6 +533,7 @@ if __name__ == "__main__":
     main()
 
 ```
+
 ### 3.3 Makefile Target
 
 ```makefile
@@ -575,6 +572,7 @@ def process_large_transcript():
     pass
 
 ```
+
 ## 4.2 Performance Benchmarking
 
 For future implementation:

@@ -446,7 +446,6 @@ def generate_episode_summary(
     """Generate summary for episode transcript.
 
 ```
-        model_used=summary_model.model_name,
         provider="local",
         word_count=len(transcript.split()),
     )

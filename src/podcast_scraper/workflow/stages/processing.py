@@ -80,7 +80,7 @@ def detect_feed_hosts_and_patterns(
     cached_hosts: set[str] = set()
     heuristics: Optional[Dict[str, Any]] = None
 
-    if not cfg.auto_speakers or not cfg.cache_detected_hosts:
+    if not cfg.auto_speakers or not cfg.cache_detected_hosts or cfg.dry_run:
         return HostDetectionResult(cached_hosts, heuristics, None)
 
     # Stage 3: Use provider pattern for speaker detection
@@ -284,41 +284,43 @@ def prepare_episode_download_args(
                 pipeline_metrics.record_extract_names_time(extract_names_elapsed)
 
             # Use manual guest name as fallback ONLY if detection failed
-            # Manual names: first item = host, second item = guest
+            # Manual names: first item = host, rest = guests
             if (
                 not detection_succeeded
                 and cfg.screenplay_speaker_names
                 and len(cfg.screenplay_speaker_names) >= 2
             ):
-                # Keep detected hosts, only use manual guest fallback
-                manual_host = cfg.screenplay_speaker_names[0]
-                manual_guest = cfg.screenplay_speaker_names[1]
+                # Extract manual guests (all names except first, which is the host)
+                manual_guests = cfg.screenplay_speaker_names[1:]
 
-                # Use detected hosts if available, otherwise use manual host
+                # Log fallback info
                 if detected_hosts_set:
-                    fallback_names = list(detected_hosts_set) + [manual_guest]
                     logger.debug(
                         "  → Guest detection failed, using manual guest fallback: %s (hosts: %s)",
-                        manual_guest,
+                        ", ".join(manual_guests),
                         ", ".join(detected_hosts_set),
                     )
                 else:
-                    # No hosts detected either, use both manual names
-                    fallback_names = [manual_host, manual_guest]
                     logger.debug(
-                        "  → Detection failed, using manual fallback: %s, %s",
-                        manual_host,
-                        manual_guest,
+                        "  → Detection failed, using manual fallback guests: %s",
+                        ", ".join(manual_guests),
                     )
-                detected_speaker_names = fallback_names
+                # Return only guests (hosts are already filtered out by taking [1:])
+                detected_speaker_names = manual_guests
             elif detection_succeeded:
-                detected_speaker_names = detected_speakers
+                # Filter out hosts from detected speakers (keep only guests)
+                detected_speaker_names = [
+                    s for s in detected_speakers if s not in detected_hosts_set
+                ]
             # Note: Guest logging happens inside detect_speaker_names()
             # Note: We don't update cached_hosts here because hosts are only
             # detected from feed metadata, not from episodes
         elif cfg.screenplay_speaker_names:
-            # If auto_speakers is disabled, use manual names directly
-            detected_speaker_names = cfg.screenplay_speaker_names
+            # If auto_speakers is disabled, first name is host, rest are guests
+            # Only pass guest names to the episode processing
+            detected_speaker_names = (
+                cfg.screenplay_speaker_names[1:] if len(cfg.screenplay_speaker_names) > 1 else []
+            )
 
         download_args.append(
             (

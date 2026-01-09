@@ -295,7 +295,6 @@ def remove_sponsor_blocks(text: str) -> str:
 
     """Remove sponsor blocks (moved from summarizer.py)."""
 
-```
 ```python
 
 - `metadata.py` imports from `preprocessing` instead of `summarizer`
@@ -340,7 +339,7 @@ class OpenAISummarizationProvider:
         # Use prompts in API call...
 
 ```
-- ✅ Prompt management doesn't affect protocol compliance
+
 - ✅ Same `prompt_store` used in both application and experiments
 
 See RFC-017 for complete prompt management design.
@@ -387,12 +386,11 @@ class SummarizationBackend:
         # Convert experiment config to Config object
 
 ```
-
 ```
-
         self.provider = create_summarization_provider(cfg)
 
 ```python
+
     def summarize(
         self,
         transcript: str,
@@ -401,12 +399,12 @@ class SummarizationBackend:
         params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Summarize transcript using configured provider."""
-```
 
+```
         # Merge experiment params with method params
 
 ```
-        return self.provider.summarize(
+
             text=transcript,
             episode_title=episode_title,
             episode_description=episode_description,
@@ -419,7 +417,6 @@ class SummarizationBackend:
         """Convert experiment config to Config object."""
 
 ```
-
 ```python
 
 # scripts/eval_summaries.py (refactored)
@@ -470,7 +467,6 @@ def evaluate_summaries(
         }
     """
 
-```
 ```python
 
     ...
@@ -482,8 +478,6 @@ def main():
 ```text
 
     # Parse CLI args
-
-```
 
 ```
 ```
@@ -512,7 +506,6 @@ def load_predictions_from_metadata(metadata_dir: Path) -> List[Dict[str, Any]]:
 
     # Load from existing metadata.json files
 
-```
 ```python
 
 # podcast_scraper/workflow.py
@@ -577,7 +570,6 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
     # Map models
 
 ```
-        if model_config["type"] == "openai":
             config_dict["summary_provider"] = "openai"
             config_dict["openai_summarization_model"] = model_config["name"]
         elif model_config["type"] == "hf_local":
@@ -592,7 +584,6 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
                     config_dict["summary_reduce_model"] = reduce_config["name"]
 
 ```
-        params = experiment_config["params"]
         if "max_length" in params:
             config_dict["summary_max_length"] = params["max_length"]
         if "min_length" in params:
@@ -619,7 +610,6 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
         prompts = experiment_config["prompts"]
 
 ```
-```
 
             config_dict["summary_system_prompt"] = prompts["system"]
         if "user" in prompts:
@@ -628,7 +618,6 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
             config_dict["summary_prompt_params"] = prompts["params"]
 
 ```
-```go
 
 - Versioned prompt files (`.j2` templates)
 - Jinja2 parameterization
