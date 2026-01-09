@@ -118,7 +118,8 @@ class TestIntegrationMain(unittest.TestCase):
         http_mock = self._mock_http_map(responses)
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             with tempfile.TemporaryDirectory() as tmpdir:
-                exit_code = cli.main([rss_url, "--output-dir", tmpdir])
+                # Disable auto-speakers to avoid run_suffix prefix in output path
+                exit_code = cli.main([rss_url, "--output-dir", tmpdir, "--no-auto-speakers"])
                 self.assertEqual(exit_code, 0)
                 expected_path = os.path.join(tmpdir, "transcripts", "0001 - Episode 1.txt")
                 self.assertTrue(os.path.exists(expected_path))
@@ -161,6 +162,7 @@ class TestIntegrationMain(unittest.TestCase):
                                 "--transcribe-missing",
                                 "--run-id",
                                 "testrun",
+                                "--no-auto-speakers",
                             ]
                         )
                         self.assertEqual(exit_code, 0)
@@ -168,11 +170,12 @@ class TestIntegrationMain(unittest.TestCase):
                         # Check if transcription was called (only if episode wasn't skipped)
                         if mock_import_whisper.called:
                             mock_transcribe.assert_called()
-                            effective_dir = Path(tmpdir).resolve() / "run_testrun_whisper_base.en"
+                            # With --no-auto-speakers, suffix is just w_base.en from Whisper
+                            effective_dir = Path(tmpdir).resolve() / "run_testrun_w_base.en"
                             out_path = (
                                 effective_dir
                                 / "transcripts"
-                                / "0001 - Episode 1_testrun_whisper_base.en.txt"
+                                / "0001 - Episode 1_testrun_w_base.en.txt"
                             )
                             self.assertTrue(out_path.exists())
                             self.assertEqual(
@@ -195,7 +198,8 @@ class TestIntegrationMain(unittest.TestCase):
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             with tempfile.TemporaryDirectory() as tmpdir:
                 malicious = os.path.join(tmpdir, "..", "danger", "..", "final")
-                exit_code = cli.main([rss_url, "--output-dir", malicious])
+                # Disable auto-speakers to avoid run_suffix prefix in output path
+                exit_code = cli.main([rss_url, "--output-dir", malicious, "--no-auto-speakers"])
                 self.assertEqual(exit_code, 0)
                 effective_dir = Path(malicious).expanduser().resolve()
                 out_path = effective_dir / "transcripts" / "0001 - Episode 1.txt"
@@ -397,6 +401,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
                 output_dir=self.temp_dir,
                 max_episodes=1,
                 transcribe_missing=False,  # Explicitly disable to avoid run_suffix
+                auto_speakers=False,  # Disable to avoid speaker detection run_suffix
             )
 
             count, summary = podcast_scraper.run_pipeline(cfg)
@@ -435,6 +440,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             "max_episodes": 1,
             "timeout": 30,
             "transcribe_missing": False,  # Explicitly disable to avoid run_suffix
+            "auto_speakers": False,  # Disable to avoid speaker detection run_suffix
         }
         with open(cfg_path, "w", encoding="utf-8") as fh:
             json.dump(config_data, fh)
@@ -583,6 +589,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
                 output_dir=self.temp_dir,
                 max_episodes=1,
                 dry_run=True,
+                auto_speakers=False,  # Disable to simplify path checking
             )
 
             count, summary = podcast_scraper.run_pipeline(cfg)
@@ -593,9 +600,11 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertIsInstance(summary, str)
             self.assertIn("dry run", summary.lower())
 
-            # Verify no files were created in dry-run mode
-            expected_path = os.path.join(self.temp_dir, "0001 - Episode 1.txt")
-            self.assertFalse(os.path.exists(expected_path))
+            # Verify no transcript files were created in dry-run mode
+            transcript_dir = os.path.join(self.temp_dir, "transcripts")
+            if os.path.exists(transcript_dir):
+                transcript_files = list(Path(transcript_dir).glob("*.txt"))
+                self.assertEqual(len(transcript_files), 0)
 
     def test_e2e_library_with_yaml_config(self):
         """E2E: Load YAML config file and run pipeline."""
@@ -622,6 +631,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             "timeout": 30,
             "log_level": "INFO",
             "transcribe_missing": False,  # Explicitly disable to avoid run_suffix
+            "auto_speakers": False,  # Disable to avoid speaker detection run_suffix
         }
         with open(cfg_path, "w", encoding="utf-8") as fh:
             yaml.dump(config_data, fh)

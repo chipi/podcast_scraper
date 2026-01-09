@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from podcast_scraper import config
+from podcast_scraper.exceptions import ProviderNotInitializedError, ProviderRuntimeError
 from podcast_scraper.transcription.factory import create_transcription_provider
 
 
@@ -181,10 +182,11 @@ class TestMLProviderTranscription(unittest.TestCase):
         )
         provider = create_transcription_provider(cfg)
         # Don't call initialize()
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderNotInitializedError) as context:
             provider.transcribe("/path/to/audio.mp3")
 
         self.assertIn("not initialized", str(context.exception))
+        self.assertEqual(context.exception.provider, "MLProvider/Whisper")
 
     @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
@@ -209,7 +211,7 @@ class TestMLProviderTranscription(unittest.TestCase):
         provider = create_transcription_provider(cfg)
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.transcribe("/path/to/audio.mp3")
 
         self.assertIn("empty text", str(context.exception))

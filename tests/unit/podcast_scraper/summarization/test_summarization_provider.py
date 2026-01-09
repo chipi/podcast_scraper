@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, Mock, patch
 # Unit tests run without ML dependencies installed
 with patch.dict("sys.modules", {"torch": MagicMock(), "transformers": MagicMock()}):
     from podcast_scraper import config
+    from podcast_scraper.exceptions import ProviderNotInitializedError
     from podcast_scraper.summarization.factory import create_summarization_provider
 
 
@@ -224,10 +225,11 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         provider = create_summarization_provider(cfg)
         # Don't call initialize()
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderNotInitializedError) as context:
             provider.summarize("Test text")
 
         self.assertIn("not initialized", str(context.exception))
+        self.assertEqual(context.exception.provider, "MLProvider/Transformers")
 
     @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")

@@ -36,6 +36,10 @@ spec.loader.exec_module(parent_conftest)
 create_test_config = parent_conftest.create_test_config
 
 from podcast_scraper import config  # noqa: E402
+from podcast_scraper.exceptions import (  # noqa: E402
+    ProviderNotInitializedError,
+    ProviderRuntimeError,
+)
 from podcast_scraper.ml.ml_provider import (  # noqa: E402
     _import_third_party_whisper,
     _intercept_whisper_progress,
@@ -246,13 +250,14 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
 
     @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_not_initialized(self, mock_import):
-        """Test transcribe raises error when not initialized."""
+        """Test transcribe raises ProviderNotInitializedError when not initialized."""
         provider = create_transcription_provider(self.cfg)
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderNotInitializedError) as context:
             provider.transcribe("/tmp/audio.mp3")
 
         self.assertIn("not initialized", str(context.exception))
+        self.assertEqual(context.exception.provider, "MLProvider/Whisper")
 
     @patch("podcast_scraper.ml.ml_provider._intercept_whisper_progress")
     @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
@@ -294,7 +299,7 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.transcribe("/tmp/audio.mp3")
 
         self.assertIn("empty text", str(context.exception))
@@ -343,10 +348,10 @@ class TestWhisperTranscriptionProvider(unittest.TestCase):
 
     @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_with_segments_not_initialized(self, mock_import):
-        """Test transcribe_with_segments raises error when not initialized."""
+        """Test transcribe_with_segments raises ProviderNotInitializedError when not initialized."""
         provider = create_transcription_provider(self.cfg)
 
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ProviderNotInitializedError):
             provider.transcribe_with_segments("/tmp/audio.mp3")
 
     def test_format_screenplay_from_segments(self):

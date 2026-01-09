@@ -17,6 +17,10 @@ from unittest.mock import Mock, patch
 import pytest
 
 from podcast_scraper import config
+from podcast_scraper.exceptions import (
+    ProviderNotInitializedError,
+    ProviderRuntimeError,
+)
 from podcast_scraper.openai.openai_provider import OpenAIProvider
 
 
@@ -290,14 +294,15 @@ class TestOpenAIProviderTranscription(unittest.TestCase):
         self.assertEqual(call_kwargs["language"], "fr")
 
     def test_transcribe_not_initialized(self):
-        """Test transcribe raises RuntimeError if not initialized."""
+        """Test transcribe raises ProviderNotInitializedError if not initialized."""
         provider = OpenAIProvider(self.cfg)
         # Don't call initialize()
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderNotInitializedError) as context:
             provider.transcribe("/path/to/audio.mp3")
 
         self.assertIn("not initialized", str(context.exception))
+        self.assertEqual(context.exception.provider, "OpenAI/Transcription")
 
     @patch("os.path.exists")
     def test_transcribe_file_not_found(self, mock_exists):
@@ -307,7 +312,7 @@ class TestOpenAIProviderTranscription(unittest.TestCase):
         provider = OpenAIProvider(self.cfg)
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.transcribe("/path/to/nonexistent.mp3")
 
         self.assertIn("not found", str(context.exception))
@@ -329,7 +334,7 @@ class TestOpenAIProviderTranscription(unittest.TestCase):
             audio_path = f.name
 
         try:
-            with self.assertRaises(ValueError) as context:
+            with self.assertRaises(ProviderRuntimeError) as context:
                 provider.transcribe(audio_path)
 
             error_msg = str(context.exception)
@@ -384,7 +389,7 @@ class TestOpenAIProviderTranscription(unittest.TestCase):
             audio_path = f.name
 
         try:
-            with self.assertRaises(ValueError) as context:
+            with self.assertRaises(ProviderRuntimeError) as context:
                 provider.transcribe_with_segments(audio_path)
 
             error_msg = str(context.exception)
@@ -417,10 +422,10 @@ class TestOpenAIProviderTranscription(unittest.TestCase):
         provider.client = mock_client
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.transcribe("/path/to/audio.mp3")
 
-        self.assertIn("transcription failed", str(context.exception))
+        self.assertIn("Transcription failed", str(context.exception))
 
     @patch("builtins.open", create=True)
     @patch("os.path.getsize")
@@ -547,14 +552,15 @@ class TestOpenAIProviderSpeakerDetection(unittest.TestCase):
         self.assertTrue(success)
 
     def test_detect_speakers_not_initialized(self):
-        """Test detect_speakers raises RuntimeError if not initialized."""
+        """Test detect_speakers raises ProviderNotInitializedError if not initialized."""
         provider = OpenAIProvider(self.cfg)
         # Don't call initialize()
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderNotInitializedError) as context:
             provider.detect_speakers("Title", "Description", set())
 
         self.assertIn("not initialized", str(context.exception))
+        self.assertEqual(context.exception.provider, "OpenAI/SpeakerDetection")
 
     def test_parse_speakers_from_response_filtering(self):
         """Test _parse_speakers_from_response filtering logic for guests."""
@@ -812,14 +818,15 @@ class TestOpenAIProviderSummarization(unittest.TestCase):
         self.assertEqual(result["metadata"]["model"], provider.summary_model)
 
     def test_summarize_not_initialized(self):
-        """Test summarize raises RuntimeError if not initialized."""
+        """Test summarize raises ProviderNotInitializedError if not initialized."""
         provider = OpenAIProvider(self.cfg)
         # Don't call initialize()
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderNotInitializedError) as context:
             provider.summarize("Text")
 
         self.assertIn("not initialized", str(context.exception))
+        self.assertEqual(context.exception.provider, "OpenAI/Summarization")
 
     @patch("podcast_scraper.prompt_store.get_prompt_metadata")
     @patch("podcast_scraper.prompt_store.render_prompt")
@@ -886,7 +893,7 @@ class TestOpenAIProviderSummarization(unittest.TestCase):
         provider.client = mock_client
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.summarize("Text")
 
-        self.assertIn("summarization failed", str(context.exception).lower())
+        self.assertIn("Summarization failed", str(context.exception))

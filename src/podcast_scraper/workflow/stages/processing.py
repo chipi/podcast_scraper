@@ -80,7 +80,11 @@ def detect_feed_hosts_and_patterns(
     cached_hosts: set[str] = set()
     heuristics: Optional[Dict[str, Any]] = None
 
-    if not cfg.auto_speakers or not cfg.cache_detected_hosts or cfg.dry_run:
+    if not cfg.auto_speakers or not cfg.cache_detected_hosts:
+        return HostDetectionResult(cached_hosts, heuristics, None)
+
+    if cfg.dry_run:
+        logger.info("(dry-run) would initialize speaker detector")
         return HostDetectionResult(cached_hosts, heuristics, None)
 
     # Stage 3: Use provider pattern for speaker detection
@@ -244,44 +248,58 @@ def prepare_episode_download_args(
             # Always log episode info
             logger.info("Episode %d: %s", episode.idx, episode.title)
 
-            # Extract episode description for NER (limited to first 20 chars)
-            episode_description = extract_episode_description(episode.item)
-            # Detect speaker names from episode title and first 20 chars of description
-            # Guests are detected from episode title and description snippet
-            extract_names_start = time.time()
-
-            # Stage 3: Use provider for speaker detection
-            # Use wrapper function if available (for testability)
-            speaker_detector = host_detection_result.speaker_detector
-            if not speaker_detector:
-                import sys
-
-                workflow_pkg = sys.modules.get("podcast_scraper.workflow")
-                if workflow_pkg and hasattr(workflow_pkg, "create_speaker_detector"):
-                    func = getattr(workflow_pkg, "create_speaker_detector")
-                    from unittest.mock import Mock
-
-                    if isinstance(func, Mock):
-                        speaker_detector = func(cfg)
-            if speaker_detector:
-                cached_hosts_for_detection = (
-                    host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
+            # In dry-run mode, log what would be detected but skip actual detection
+            if cfg.dry_run:
+                episode_description = extract_episode_description(episode.item) or ""
+                if len(episode_description) > 50:
+                    desc_preview = episode_description[:50] + "..."
+                else:
+                    desc_preview = episode_description
+                logger.info(
+                    "(dry-run) would detect speakers from: %s | %s",
+                    episode.title,
+                    desc_preview,
                 )
-                detected_speakers, detected_hosts_set, detection_succeeded = (
-                    speaker_detector.detect_speakers(
-                        episode_title=episode.title,
-                        episode_description=episode_description,
-                        known_hosts=cached_hosts_for_detection,
-                    )
-                )
-            else:
-                # Fallback: No provider available (should not happen in normal flow)
-                logger.warning("Speaker detector not available, skipping speaker detection")
                 detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
-            extract_names_elapsed = time.time() - extract_names_start
-            # Record speaker detection time if metrics available
-            if pipeline_metrics is not None:
-                pipeline_metrics.record_extract_names_time(extract_names_elapsed)
+            else:
+                # Extract episode description for NER (limited to first 20 chars)
+                episode_description = extract_episode_description(episode.item)
+                # Detect speaker names from episode title and first 20 chars of description
+                # Guests are detected from episode title and description snippet
+                extract_names_start = time.time()
+
+                # Stage 3: Use provider for speaker detection
+                # Use wrapper function if available (for testability)
+                speaker_detector = host_detection_result.speaker_detector
+                if not speaker_detector:
+                    import sys
+
+                    workflow_pkg = sys.modules.get("podcast_scraper.workflow")
+                    if workflow_pkg and hasattr(workflow_pkg, "create_speaker_detector"):
+                        func = getattr(workflow_pkg, "create_speaker_detector")
+                        from unittest.mock import Mock
+
+                        if isinstance(func, Mock):
+                            speaker_detector = func(cfg)
+                if speaker_detector:
+                    cached_hosts_for_detection = (
+                        host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
+                    )
+                    detected_speakers, detected_hosts_set, detection_succeeded = (
+                        speaker_detector.detect_speakers(
+                            episode_title=episode.title,
+                            episode_description=episode_description,
+                            known_hosts=cached_hosts_for_detection,
+                        )
+                    )
+                else:
+                    # Fallback: No provider available (should not happen in normal flow)
+                    logger.warning("Speaker detector not available, skipping speaker detection")
+                    detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
+                extract_names_elapsed = time.time() - extract_names_start
+                # Record speaker detection time if metrics available
+                if pipeline_metrics is not None:
+                    pipeline_metrics.record_extract_names_time(extract_names_elapsed)
 
             # Use manual guest name as fallback ONLY if detection failed
             # Manual names: first item = host, rest = guests

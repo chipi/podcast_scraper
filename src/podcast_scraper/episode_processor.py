@@ -12,6 +12,7 @@ from typing import List, Optional
 from urllib.parse import urlparse
 
 from . import config, downloader, filesystem, models
+from .exceptions import ProviderError, ProviderRuntimeError
 from .rss_parser import choose_transcript_url
 
 logger = logging.getLogger(__name__)
@@ -457,7 +458,7 @@ def transcribe_media_to_text(
             pipeline_metrics.record_transcribe_time(tc_elapsed)
 
         return True, rel_path, bytes_downloaded
-    except ValueError as exc:
+    except (ValueError, ProviderRuntimeError) as exc:
         # Handle file size validation errors gracefully
         error_msg = str(exc)
         if "exceeds" in error_msg and "limit" in error_msg:
@@ -468,7 +469,7 @@ def transcribe_media_to_text(
             # Re-raise if it's a different ValueError
             logger.error(f"    Transcription validation failed: {exc}")
             return False, None, bytes_downloaded
-    except (RuntimeError, OSError) as exc:
+    except (RuntimeError, OSError, ProviderError) as exc:
         logger.error(f"    Whisper transcription failed: {exc}")
         return False, None, bytes_downloaded
     finally:

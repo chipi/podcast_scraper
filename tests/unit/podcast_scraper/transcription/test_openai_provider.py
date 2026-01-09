@@ -36,6 +36,11 @@ spec.loader.exec_module(parent_conftest)
 create_test_config = parent_conftest.create_test_config
 
 from podcast_scraper import config  # noqa: E402
+from podcast_scraper.exceptions import (  # noqa: E402
+    ProviderConfigError,
+    ProviderNotInitializedError,
+    ProviderRuntimeError,
+)
 from podcast_scraper.transcription.factory import create_transcription_provider  # noqa: E402
 
 
@@ -72,10 +77,11 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
             lambda self: getattr(self, "_openai_transcription_model", None)
         )
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderConfigError) as context:
             create_transcription_provider(mock_cfg)
 
-        self.assertIn("OpenAI API key required", str(context.exception))
+        self.assertIn("API key not provided", str(context.exception))
+        self.assertEqual(context.exception.provider, "OpenAI")
 
     def test_init_with_custom_base_url(self):
         """Test initialization with custom base_url."""
@@ -233,10 +239,11 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         """Test transcribe raises error when not initialized."""
         provider = create_transcription_provider(self.cfg)
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderNotInitializedError) as context:
             provider.transcribe("/tmp/audio.mp3")
 
         self.assertIn("not initialized", str(context.exception))
+        self.assertEqual(context.exception.provider, "OpenAI/Transcription")
 
     @patch("os.path.exists")
     def test_transcribe_file_not_found(self, mock_exists):
@@ -246,8 +253,8 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        # _validate_audio_file raises ValueError, not FileNotFoundError
-        with self.assertRaises(ValueError) as context:
+        # _validate_audio_file raises ProviderRuntimeError
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.transcribe("/tmp/nonexistent.mp3")
 
         self.assertIn("not found", str(context.exception))
@@ -269,10 +276,10 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider.client = mock_client
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.transcribe("/tmp/audio.mp3")
 
-        self.assertIn("transcription failed", str(context.exception))
+        self.assertIn("Transcription failed", str(context.exception))
 
     @patch("builtins.open", create=True)
     @patch("os.path.getsize")
@@ -390,19 +397,20 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider.client = mock_client
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.transcribe_with_segments("/tmp/audio.mp3")
 
-        self.assertIn("transcription failed", str(context.exception))
+        self.assertIn("Transcription failed", str(context.exception))
 
     def test_transcribe_with_segments_not_initialized(self):
         """Test transcribe_with_segments raises error when not initialized."""
         provider = create_transcription_provider(self.cfg)
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderNotInitializedError) as context:
             provider.transcribe_with_segments("/tmp/audio.mp3")
 
         self.assertIn("not initialized", str(context.exception))
+        self.assertEqual(context.exception.provider, "OpenAI/Transcription")
 
     @patch("os.path.exists")
     def test_transcribe_with_segments_file_not_found(self, mock_exists):
@@ -412,8 +420,8 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        # _validate_audio_file raises ValueError, not FileNotFoundError
-        with self.assertRaises(ValueError) as context:
+        # _validate_audio_file raises ProviderRuntimeError
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.transcribe_with_segments("/tmp/nonexistent.mp3")
 
         self.assertIn("not found", str(context.exception))

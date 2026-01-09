@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, Mock, patch
 # Unit tests run without ML dependencies installed
 with patch.dict("sys.modules", {"spacy": MagicMock()}):
     from podcast_scraper import config, models
+    from podcast_scraper.exceptions import ProviderConfigError
     from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 
 
@@ -226,10 +227,11 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
             )
         ]
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderConfigError) as context:
             detector.analyze_patterns(episodes=episodes, known_hosts=set())
 
         self.assertIn("auto_speakers is False", str(context.exception))
+        self.assertEqual(context.exception.provider, "MLProvider/spaCy")
 
 
 class TestSpeakerDetectorProtocol(unittest.TestCase):

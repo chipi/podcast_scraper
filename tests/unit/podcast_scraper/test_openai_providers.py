@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from podcast_scraper import config
+from podcast_scraper.exceptions import ProviderRuntimeError
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
@@ -293,9 +294,9 @@ class TestOpenAIProviderErrorHandling(unittest.TestCase):
             audio_path = f.name
 
         try:
-            with self.assertRaises(ValueError) as cm:
+            with self.assertRaises(ProviderRuntimeError) as cm:
                 provider.transcribe(audio_path)
-            self.assertIn("OpenAI transcription failed", str(cm.exception))
+            self.assertIn("Transcription failed", str(cm.exception))
         finally:
             import os
 
