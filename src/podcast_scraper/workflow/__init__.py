@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     _setup_pipeline_environment: Callable[..., Any]
     _should_preload_ml_models: Callable[..., Any]
     _preload_ml_models_if_needed: Callable[..., Any]
+    _ensure_ml_models_cached: Callable[..., Any]
     _fetch_and_parse_feed: Callable[..., Any]
     _extract_feed_metadata_for_generation: Callable[..., Any]
     _prepare_episodes_from_feed: Callable[..., Any]
@@ -89,6 +90,7 @@ def _re_export_workflow_functions(_workflow_module: Any) -> None:
         "_setup_pipeline_environment",
         "_should_preload_ml_models",
         "_preload_ml_models_if_needed",
+        "_ensure_ml_models_cached",
         "_fetch_and_parse_feed",
         "_extract_feed_metadata_for_generation",
         "_prepare_episodes_from_feed",

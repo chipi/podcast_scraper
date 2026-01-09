@@ -1057,12 +1057,21 @@ def _build_speaker_names_list(
         speaker_names = list(hosts)[:max_names] + guests[: max_names - len(hosts)]
         if len(speaker_names) < MIN_SPEAKERS_REQUIRED:
             # Ensure at least MIN_SPEAKERS_REQUIRED speakers for screenplay formatting
-            logger.debug(
-                "  → Only %d speaker(s) detected, extending with defaults to ensure %d+ speakers",
-                len(speaker_names),
-                MIN_SPEAKERS_REQUIRED,
-            )
-            speaker_names.extend(DEFAULT_SPEAKER_NAMES[len(speaker_names) :])
+            # Only add defaults if we have at least one real speaker (host or guest)
+            # This prevents adding defaults when we have hosts but no guests (host-only episodes)
+            if hosts or guests:
+                logger.debug(
+                    (
+                        "  → Only %d speaker(s) detected, extending with defaults "
+                        "to ensure %d+ speakers"
+                    ),
+                    len(speaker_names),
+                    MIN_SPEAKERS_REQUIRED,
+                )
+                speaker_names.extend(DEFAULT_SPEAKER_NAMES[len(speaker_names) :])
+            else:
+                # No real speakers - use defaults (this case should be rare)
+                speaker_names = DEFAULT_SPEAKER_NAMES.copy()
 
     return speaker_names[:max_names], detection_succeeded
 

@@ -257,8 +257,7 @@ You can create a simple regression test workflow:
 
     Or use a config file:
 
-```
-```text
+```json
 
     {
     "model": "bart_map_reduce",
@@ -268,6 +267,7 @@ You can create a simple regression test workflow:
     }
     ```
 ```
+
 1. When you change model, chunking strategy, or cleaning, re-run eval and compare:
 
    - Did mean ROUGE go up or down?

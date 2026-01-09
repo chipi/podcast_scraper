@@ -209,6 +209,7 @@ class TestSpacySpeakerDetection:
                 auto_speakers=True,
                 speaker_detector_provider="spacy",
                 ner_model=config.DEFAULT_NER_MODEL,  # Default: en_core_web_sm
+                transcribe_missing=False,  # Disable transcription - test only needs transcript
             )
 
             # Run pipeline
@@ -324,3 +325,85 @@ class TestAllMLModelsTogether:
             assert isinstance(speakers, list)
             assert isinstance(hosts, set)
             detector.cleanup()
+
+
+@pytest.mark.e2e
+@pytest.mark.ml_models
+@pytest.mark.critical_path
+@pytest.mark.skipif(
+    not TRANSFORMERS_AVAILABLE or not SPACY_AVAILABLE,
+    reason="ML dependencies not available",
+)
+class TestMLProviderDryRun:
+    """E2E tests for ML provider dry-run mode (no model loading)."""
+
+    def test_ml_provider_dry_run_no_models_loaded(self, e2e_server):
+        """Test that dry-run mode does NOT load any ML models.
+
+        This comprehensive test verifies that in dry-run mode:
+        - No Whisper models are loaded
+        - No spaCy models are loaded
+        - No Transformers models are loaded
+        - Full pipeline runs successfully without model loading
+        """
+        from unittest.mock import patch
+
+        rss_url = e2e_server.urls.feed("podcast1_with_transcript")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create config with ALL ML providers enabled but dry-run=True
+            cfg = Config(
+                rss_url=rss_url,
+                output_dir=tmpdir,
+                max_episodes=1,
+                dry_run=True,  # Enable dry-run mode
+                transcribe_missing=True,  # Would use Whisper
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+                generate_metadata=True,
+                metadata_format="json",
+                generate_summaries=True,  # Would use Transformers
+                summary_provider="transformers",
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
+                auto_speakers=True,  # Would use spaCy
+                speaker_detector_provider="spacy",
+                ner_model=config.DEFAULT_NER_MODEL,
+                preload_models=False,  # Disable preloading (dry-run should skip anyway)
+            )
+
+            # Mock all model loading functions to verify they're NOT called
+            with (
+                patch("whisper.load_model") as mock_whisper_load,
+                patch("spacy.load") as mock_spacy_load,
+                patch(
+                    "transformers.AutoModelForSeq2SeqLM.from_pretrained"
+                ) as mock_transformers_load,
+                patch("transformers.AutoTokenizer.from_pretrained") as mock_tokenizer_load,
+            ):
+                # Run pipeline in dry-run mode
+                count, summary = run_pipeline(cfg)
+
+                # Verify pipeline completed successfully
+                assert count >= 0, "Dry-run should complete without errors"
+                assert isinstance(summary, str), "Summary should be a string"
+
+                # CRITICAL: Verify NO models were loaded
+                mock_whisper_load.assert_not_called(), (
+                    "Whisper model should NOT be loaded in dry-run mode"
+                )
+                mock_spacy_load.assert_not_called(), (
+                    "spaCy model should NOT be loaded in dry-run mode"
+                )
+                mock_transformers_load.assert_not_called(), (
+                    "Transformers model should NOT be loaded in dry-run mode"
+                )
+                mock_tokenizer_load.assert_not_called(), (
+                    "Transformers tokenizer should NOT be loaded in dry-run mode"
+                )
+
+            # Verify no files were created (dry-run should not create files)
+            transcript_files = list(Path(tmpdir).rglob("*.txt"))
+            assert len(transcript_files) == 0, "Dry-run should not create transcript files"
+
+            metadata_files = list(Path(tmpdir).rglob("*.metadata.json"))
+            assert len(metadata_files) == 0, "Dry-run should not create metadata files"

@@ -540,6 +540,7 @@ count, summary = run_pipeline(config)
 ### Metadata and Summaries
 
 ```python
+
 config = Config(
     rss_url="https://example.com/feed.xml",
     generate_metadata=True,

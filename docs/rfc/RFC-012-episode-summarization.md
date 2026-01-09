@@ -195,7 +195,6 @@ class SummaryModel:
 
             # - "cpu" -> -1 (CPU)
 
-```
 ```python
 
     def summarize(
@@ -207,7 +206,6 @@ class SummaryModel:
     ) -> str:
         """Generate summary of input text.
 
-```
 ```python
 
     def generate_takeaways(
@@ -418,8 +416,6 @@ Key Takeaways:
 
         # Parse takeaways from result
 
-```
-
 ```python
 
 # In metadata.py or summarizer.py
@@ -450,8 +446,6 @@ def generate_episode_summary(
     """Generate summary for episode transcript.
 
 ```
-```
-        model_used=summary_model.model_name,
         provider="local",
         word_count=len(transcript.split()),
     )

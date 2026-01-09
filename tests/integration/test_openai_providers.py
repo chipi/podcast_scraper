@@ -4,6 +4,7 @@ These tests verify OpenAI provider implementations with mocked API calls.
 """
 
 import json
+import os
 import unittest
 from unittest.mock import Mock, patch
 
@@ -80,9 +81,18 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         """Test that missing API key raises ValidationError (caught by config validator)."""
         from pydantic import ValidationError
 
-        with self.assertRaises(ValidationError) as cm:
-            config.Config(rss_url="https://example.com/feed.xml", transcription_provider="openai")
-        self.assertIn("OpenAI API key required", str(cm.exception))
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            with self.assertRaises(ValidationError) as cm:
+                config.Config(
+                    rss_url="https://example.com/feed.xml", transcription_provider="openai"
+                )
+            self.assertIn("OpenAI API key required", str(cm.exception))
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_key
 
     def test_factory_creates_openai_provider(self):
         """Test that factory creates unified OpenAI provider."""
@@ -160,13 +170,20 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         """Test that missing API key raises ValidationError (caught by config validator)."""
         from pydantic import ValidationError
 
-        with self.assertRaises(ValidationError) as cm:
-            config.Config(
-                rss_url="https://example.com/feed.xml",
-                speaker_detector_provider="openai",
-                auto_speakers=True,
-            )
-        self.assertIn("OpenAI API key required", str(cm.exception))
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            with self.assertRaises(ValidationError) as cm:
+                config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    speaker_detector_provider="openai",
+                    auto_speakers=True,
+                )
+            self.assertIn("OpenAI API key required", str(cm.exception))
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_key
 
     def test_factory_creates_openai_detector(self):
         """Test that factory creates unified OpenAI provider."""
@@ -245,14 +262,21 @@ class TestOpenAISummarizationProvider(unittest.TestCase):
         """Test that missing API key raises ValidationError (caught by config validator)."""
         from pydantic import ValidationError
 
-        with self.assertRaises(ValidationError) as cm:
-            config.Config(
-                rss_url="https://example.com/feed.xml",
-                summary_provider="openai",
-                generate_metadata=True,
-                generate_summaries=True,
-            )
-        self.assertIn("OpenAI API key required", str(cm.exception))
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            with self.assertRaises(ValidationError) as cm:
+                config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    summary_provider="openai",
+                    generate_metadata=True,
+                    generate_summaries=True,
+                )
+            self.assertIn("OpenAI API key required", str(cm.exception))
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_key
 
     def test_factory_creates_openai_provider(self):
         """Test that factory creates unified OpenAI provider."""

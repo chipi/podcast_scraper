@@ -275,8 +275,6 @@ def create_mistral_client(cfg: config.Config) -> Mistral:
         cfg: Configuration object with mistral_api_key and optional mistral_api_base
 
 ```
-```
-
 #### 4.2 Transcription Provider
 
 **File**: `podcast_scraper/transcription/mistral_provider.py`
@@ -324,9 +322,6 @@ class MistralTranscriptionProvider:
         """Transcribe audio file using Mistral Voxtral API.
 
 ```
-
-        """
-        if not self._initialized:
             raise RuntimeError(
                 "MistralTranscriptionProvider not initialized. Call initialize() first."
             )
@@ -346,13 +341,8 @@ class MistralTranscriptionProvider:
 
 ```
 
-```
-
                     "timestamp_granularities": ["segment"],
                 }
-
-```
-                    })
 
 ```python
 
@@ -367,7 +357,6 @@ class MistralTranscriptionProvider:
         pass
 
 ```
-
 #### 4.3 Speaker Detection Provider
 
 **File**: `podcast_scraper/speaker_detectors/mistral_detector.py`
@@ -461,7 +450,6 @@ class MistralSpeakerDetector:
                 ],
             )
 
-```
 ```python
 
         except Exception as e:
@@ -495,9 +483,6 @@ class MistralSpeakerDetector:
         """Build prompts for host detection using prompt_store."""
         from ..prompt_store import render_prompt
 
-```
-        return system_prompt, user_prompt
-
 ```python
 
     def _build_speaker_detection_prompts(
@@ -508,9 +493,6 @@ class MistralSpeakerDetector:
     ) -> Tuple[str, str]:
         """Build prompts for speaker detection using prompt_store."""
         from ..prompt_store import render_prompt
-
-```
-        return system_prompt, user_prompt
 
 ```python
 
@@ -582,7 +564,6 @@ class MistralSummarizationProvider:
 
 ```
 
-        self.max_context_tokens = 256000
         self._initialized = False
         # API providers are thread-safe
         self._requires_separate_instances = False
@@ -606,13 +587,10 @@ class MistralSummarizationProvider:
         """Summarize text using Mistral chat API.
 
 ```
-            raise RuntimeError(
-                "MistralSummarizationProvider not initialized. Call initialize() first."
             )
 
 ```
 
-                user_prompt,
                 system_prompt_name,
                 user_prompt_name,
                 paragraphs_min,
@@ -647,12 +625,9 @@ class MistralSummarizationProvider:
 
 ```
 
-            }
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
 ```
-                    "prompts": prompt_metadata,
-                },
             }
 
 ```python
@@ -886,12 +861,7 @@ def _handle_mistral_chat_completions(self):
 
 ```
 
-        )
-
 ```
-                "The episode covers various topics discussed by the hosts and guests."
-            )
-
 ```json
 
         # Build Mistral response format

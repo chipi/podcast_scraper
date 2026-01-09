@@ -115,6 +115,7 @@ class TestFilesystemOperations(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             output_dir=self.temp_dir,
             transcribe_missing=False,  # Explicitly disable to avoid run_suffix
+            auto_speakers=False,  # Disable to avoid speaker detection suffix
         )
         effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
         self.assertEqual(effective_dir, self.temp_dir)
@@ -126,10 +127,12 @@ class TestFilesystemOperations(unittest.TestCase):
             output_dir=self.temp_dir,
             run_id="test_run",
             transcribe_missing=False,  # Explicitly disable to avoid whisper suffix
+            auto_speakers=False,  # Disable to avoid speaker detection suffix
         )
         effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
         self.assertIn("test_run", effective_dir)
-        self.assertEqual(run_suffix, "test_run")
+        # run_suffix may have counter if dir exists, so check startswith
+        self.assertTrue(run_suffix.startswith("test_run"))
 
         # With transcribe_missing (should add whisper model to run_suffix)
         cfg = config.Config(
@@ -137,9 +140,11 @@ class TestFilesystemOperations(unittest.TestCase):
             output_dir=self.temp_dir,
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            auto_speakers=False,  # Disable to only test whisper suffix
         )
         effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        self.assertIn("whisper_tiny.en", run_suffix or "")
+        # New format is "w_<model>" instead of "whisper_<model>"
+        self.assertIn("w_tiny", run_suffix or "")
 
     def test_output_directory_validation(self):
         """Test output directory validation."""

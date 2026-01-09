@@ -81,18 +81,12 @@ updates:
         patterns:
 
 ```
-      ml-core:
-        patterns:
-
 ```
 
       docs:
         patterns:
 
 ```
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Amsterdam"
     open-pull-requests-limit: 3
     labels:
 
@@ -281,8 +275,6 @@ def check_thresholds(import_data: dict) -> list[str]:
     """Check against architectural thresholds."""
     issues = []
 
-```
-
 ```python
 
 def main():
@@ -302,8 +294,6 @@ def main():
     issues = check_thresholds(import_data)
 
 ```
-
-```text
 
             json.dump(report, f, indent=2)
         print(f"\n📄 Report saved to: {report_path}")
@@ -519,9 +509,6 @@ def check_version_consistency(version: str | None) -> CheckResult:
         )
 
 ```
-        if f'version = "{version}"' not in content:
-            return CheckResult(
-                name="Version Consistency",
                 passed=False,
                 message=f"Version {version} not in pyproject.toml"
             )
@@ -536,9 +523,6 @@ def main():
     parser.add_argument("--version", help="Expected version number")
     parser.add_argument("--quick", action="store_true", help="Skip slow checks")
     args = parser.parse_args()
-
-```
-```
 
 ```python
 

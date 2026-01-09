@@ -188,12 +188,14 @@ class ContentMetadata(BaseModel):
 
 
 class SummaryMetadata(BaseModel):
-    """Summary metadata."""
+    """Summary metadata.
+
+    Note: Provider/model information is available in processing.config_snapshot.ml_providers
+    to avoid duplication and keep all ML configuration in one place.
+    """
 
     short_summary: str
     generated_at: datetime
-    model_used: Optional[str] = None
-    provider: str  # "local", "openai"
     word_count: Optional[int] = None
 
     @field_serializer("generated_at")
@@ -364,13 +366,72 @@ def _build_processing_metadata(cfg: config.Config, output_dir: str) -> Processin
     Returns:
         ProcessingMetadata object
     """
-    config_snapshot = {
-        "language": cfg.language,
-        "whisper_model": cfg.whisper_model if cfg.transcribe_missing else None,
-        "auto_speakers": cfg.auto_speakers,
-        "screenplay": cfg.screenplay,
-        "max_episodes": cfg.max_episodes,
-    }
+    # ML/Provider information - include all models whether implicit or explicit
+    # Place at top of config_snapshot for prominence
+    ml_providers: Dict[str, Any] = {}
+
+    # Transcription provider
+    if cfg.transcription_provider:
+        ml_providers["transcription"] = {
+            "provider": str(cfg.transcription_provider),
+        }
+        if cfg.transcription_provider == "whisper" and cfg.transcribe_missing:
+            ml_providers["transcription"]["whisper_model"] = cfg.whisper_model
+        elif cfg.transcription_provider == "openai":
+            # Include OpenAI transcription model
+            transcription_model = getattr(
+                cfg, "openai_transcription_model", config.PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+            )
+            ml_providers["transcription"]["openai_model"] = transcription_model
+
+    # Speaker detection provider
+    if cfg.speaker_detector_provider:
+        ml_providers["speaker_detection"] = {
+            "provider": str(cfg.speaker_detector_provider),
+        }
+        if cfg.speaker_detector_provider == "spacy" and cfg.ner_model:
+            ml_providers["speaker_detection"]["ner_model"] = cfg.ner_model
+        elif cfg.speaker_detector_provider == "openai":
+            # Include OpenAI speaker detection model
+            speaker_model = getattr(
+                cfg, "openai_speaker_model", config.PROD_DEFAULT_OPENAI_SPEAKER_MODEL
+            )
+            ml_providers["speaker_detection"]["openai_model"] = speaker_model
+
+    # Summarization provider
+    if cfg.summary_provider:
+        ml_providers["summarization"] = {
+            "provider": str(cfg.summary_provider),
+        }
+        if cfg.summary_provider in ("transformers", "local"):
+            # Include model information for transformers provider
+            if cfg.summary_model:
+                ml_providers["summarization"]["map_model"] = cfg.summary_model
+            if cfg.summary_reduce_model:
+                ml_providers["summarization"]["reduce_model"] = cfg.summary_reduce_model
+            if cfg.summary_device:
+                ml_providers["summarization"]["device"] = cfg.summary_device
+        elif cfg.summary_provider == "openai":
+            # Include OpenAI summarization model
+            summary_model = getattr(
+                cfg, "openai_summary_model", config.PROD_DEFAULT_OPENAI_SUMMARY_MODEL
+            )
+            ml_providers["summarization"]["openai_model"] = summary_model
+
+    # Build config_snapshot with ml_providers first for prominence
+    config_snapshot: Dict[str, Any] = {}
+    if ml_providers:
+        config_snapshot["ml_providers"] = ml_providers
+
+    # Add other config fields
+    config_snapshot.update(
+        {
+            "language": cfg.language,
+            "max_episodes": cfg.max_episodes,
+            "auto_speakers": cfg.auto_speakers,
+            "screenplay": cfg.screenplay,
+        }
+    )
 
     return ProcessingMetadata(
         processing_timestamp=datetime.now(),
@@ -381,7 +442,7 @@ def _build_processing_metadata(cfg: config.Config, output_dir: str) -> Processin
     )
 
 
-def _generate_episode_summary(
+def _generate_episode_summary(  # noqa: C901
     transcript_file_path: str,
     output_dir: str,
     cfg: config.Config,
@@ -389,6 +450,7 @@ def _generate_episode_summary(
     summary_provider=None,  # SummarizationProvider instance
     summary_model=None,  # Backward compatibility - deprecated
     reduce_model=None,  # Backward compatibility - deprecated
+    whisper_model: Optional[str] = None,  # Whisper model used for transcription
 ) -> Optional[SummaryMetadata]:
     """Generate summary for an episode transcript.
 
@@ -513,8 +575,6 @@ def _generate_episode_summary(
 
             summary_elapsed = time.time() - summary_start
             short_summary = result.get("summary")
-            metadata_dict = result.get("metadata", {})
-            model_used = metadata_dict.get("model_used", cfg.summary_provider)
 
             logger.info(
                 "[%s] Summary generated in %.1fs (length: %d chars)",
@@ -532,8 +592,6 @@ def _generate_episode_summary(
             return SummaryMetadata(
                 short_summary=short_summary,
                 generated_at=datetime.now(),
-                model_used=model_used,
-                provider=cfg.summary_provider,
                 word_count=word_count,
             )
         except Exception as e:
@@ -620,8 +678,6 @@ def _generate_episode_summary(
                 return SummaryMetadata(
                     short_summary=short_summary,
                     generated_at=datetime.now(),
-                    model_used=summary_model.model_name,
-                    provider=cfg.summary_provider,
                     word_count=word_count,
                 )
 
@@ -827,6 +883,7 @@ def generate_episode_metadata(
             summary_provider=summary_provider,
             summary_model=summary_model,  # Backward compatibility for parallel processing
             reduce_model=reduce_model,  # Backward compatibility for parallel processing
+            whisper_model=whisper_model,  # Whisper model used for transcription
         )
         summary_elapsed = time.time() - summary_start
         # Record summary generation time if metrics available

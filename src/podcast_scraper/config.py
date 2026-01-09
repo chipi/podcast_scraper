@@ -86,6 +86,39 @@ def _is_test_environment() -> bool:
     return False
 
 
+def _get_default_openai_transcription_model() -> str:
+    """Get default OpenAI transcription model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+    return PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+
+
+def _get_default_openai_speaker_model() -> str:
+    """Get default OpenAI speaker detection model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return TEST_DEFAULT_OPENAI_SPEAKER_MODEL
+    return PROD_DEFAULT_OPENAI_SPEAKER_MODEL
+
+
+def _get_default_openai_summary_model() -> str:
+    """Get default OpenAI summarization model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return TEST_DEFAULT_OPENAI_SUMMARY_MODEL
+    return PROD_DEFAULT_OPENAI_SUMMARY_MODEL
+
+
 # All constants are now imported from .config_constants
 # Re-exported here for backward compatibility
 # Note: TEST_DEFAULT_NER_MODEL uses DEFAULT_NER_MODEL ("en_core_web_sm")
@@ -297,26 +330,21 @@ class Config(BaseModel):
         "Used for E2E testing with mock servers.",
     )
     openai_transcription_model: str = Field(
-        default=PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL,
+        default_factory=_get_default_openai_transcription_model,
         alias="openai_transcription_model",
-        description=(
-            f"OpenAI Whisper API model version "
-            f"(default: '{PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL}')"
-        ),
+        description="OpenAI Whisper API model version (default: environment-based)",
     )
     openai_speaker_model: str = Field(
-        default=PROD_DEFAULT_OPENAI_SPEAKER_MODEL,
+        default_factory=_get_default_openai_speaker_model,
         alias="openai_speaker_model",
-        description=(
-            f"OpenAI model for speaker detection "
-            f"(default: '{PROD_DEFAULT_OPENAI_SPEAKER_MODEL}')"
-        ),
+        description="OpenAI model for speaker detection (default: environment-based)",
     )
     openai_summary_model: str = Field(
-        default=PROD_DEFAULT_OPENAI_SUMMARY_MODEL,
+        default_factory=_get_default_openai_summary_model,
         alias="openai_summary_model",
         description=(
-            f"OpenAI model for summarization " f"(default: '{PROD_DEFAULT_OPENAI_SUMMARY_MODEL}')"
+            "OpenAI model for summarization (default: environment-based, "
+            "gpt-4o-mini in test, gpt-4o in prod)"
         ),
     )
     openai_temperature: float = Field(
@@ -575,23 +603,33 @@ class Config(BaseModel):
         # SUMMARY_CACHE_DIR / CACHE_DIR: Only set from env if not in config
         # Also check for local cache in project root
         if "summary_cache_dir" not in data or data.get("summary_cache_dir") is None:
-            env_cache_dir = os.getenv("SUMMARY_CACHE_DIR") or os.getenv("CACHE_DIR")
-            if env_cache_dir:
-                env_value = str(env_cache_dir).strip()
+            # Check SUMMARY_CACHE_DIR first (explicit override)
+            summary_cache = os.getenv("SUMMARY_CACHE_DIR")
+            if summary_cache:
+                env_value = str(summary_cache).strip()
                 if env_value:
                     data["summary_cache_dir"] = env_value
             else:
-                # Check for local cache in project root
-                try:
-                    from .cache_utils import get_project_root
+                # If CACHE_DIR is set, derive summary cache from it
+                cache_dir = os.getenv("CACHE_DIR")
+                if cache_dir:
+                    # Derive Transformers cache path from CACHE_DIR
+                    from pathlib import Path
 
-                    project_root = get_project_root()
-                    local_cache = project_root / ".cache" / "huggingface" / "hub"
-                    if local_cache.exists():
-                        data["summary_cache_dir"] = str(local_cache)
-                except Exception:
-                    # If cache_utils not available, continue without local cache
-                    pass
+                    derived_cache = str(Path(cache_dir) / "huggingface" / "hub")
+                    data["summary_cache_dir"] = derived_cache
+                else:
+                    # Check for local cache in project root
+                    try:
+                        from .cache_utils import get_project_root
+
+                        project_root = get_project_root()
+                        local_cache = project_root / ".cache" / "huggingface" / "hub"
+                        if local_cache.exists():
+                            data["summary_cache_dir"] = str(local_cache)
+                    except Exception:
+                        # If cache_utils not available, continue without local cache
+                        pass
 
         # WORKERS: Only set from env if not in config
         if "workers" not in data or data.get("workers") is None:
@@ -666,6 +704,33 @@ class Config(BaseModel):
                 env_value = str(env_device).strip().lower()
                 if env_value in ("cpu", "cuda", "mps"):
                     data["summary_device"] = env_value
+
+        # OPENAI_API_KEY: Only set from env if not in config
+        if "openai_api_key" not in data or data.get("openai_api_key") is None:
+            env_key = os.getenv("OPENAI_API_KEY")
+            if env_key:
+                env_value = str(env_key).strip()
+                if env_value:
+                    data["openai_api_key"] = env_value
+
+        # OPENAI_API_BASE: Only set from env if not in config
+        if "openai_api_base" not in data or data.get("openai_api_base") is None:
+            env_base = os.getenv("OPENAI_API_BASE")
+            if env_base:
+                env_value = str(env_base).strip()
+                if env_value:
+                    data["openai_api_base"] = env_value
+
+        # OPENAI_TEMPERATURE: Only set from env if not in config
+        if "openai_temperature" not in data or data.get("openai_temperature") is None:
+            env_temp = os.getenv("OPENAI_TEMPERATURE")
+            if env_temp:
+                try:
+                    temp_value = float(env_temp)
+                    if 0.0 <= temp_value <= 2.0:
+                        data["openai_temperature"] = temp_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
 
         return data
 

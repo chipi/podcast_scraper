@@ -262,10 +262,12 @@ class TestSetupOutputDirectory(unittest.TestCase):
             run_id=TEST_RUN_ID,
             skip_existing=False,
             clean_output=False,
+            auto_speakers=False,  # Disable to prevent provider suffix
         )
         output_dir, run_suffix = filesystem.setup_output_directory(cfg)
         self.assertIn(f"run_{TEST_RUN_ID}", output_dir)
-        self.assertEqual(run_suffix, TEST_RUN_ID)
+        # run_suffix should start with run_id (may have counter suffix if dir exists)
+        self.assertTrue(run_suffix.startswith(TEST_RUN_ID))
 
     def test_with_whisper_auto_run_id(self):
         """Test setting up output directory with Whisper auto run ID."""
@@ -286,11 +288,12 @@ class TestSetupOutputDirectory(unittest.TestCase):
             run_id=None,
             skip_existing=False,
             clean_output=False,
+            auto_speakers=False,  # Disable to only test whisper suffix
         )
         output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        # Test uses TEST_DEFAULT_WHISPER_MODEL (tiny.en), so run_suffix should reflect that
-        expected_model_in_suffix = config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", "")
-        self.assertIn(f"whisper_{expected_model_in_suffix}", run_suffix or "")
+        # Test uses TEST_DEFAULT_WHISPER_MODEL (tiny.en), so run_suffix should include "w_tiny"
+        # The new format is "w_<model_short>" instead of "whisper_<model>"
+        self.assertIn("w_tiny", run_suffix or "")
 
 
 class TestWriteFile(unittest.TestCase):

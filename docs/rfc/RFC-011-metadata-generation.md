@@ -152,8 +152,6 @@ class EpisodeMetadataDocument(BaseModel):
 
     """Complete episode metadata document.
 
-```
-```text
 ```python
 
 def generate_episode_metadata(

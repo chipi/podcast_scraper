@@ -1143,7 +1143,14 @@ def e2e_server():
             rss_url = e2e_server.urls.feed("podcast1")
             audio_url = e2e_server.urls.audio("p01_e01")
             # Use URLs in tests...
+
+    Real API Mode:
+        When USE_REAL_OPENAI_API=1, the server still starts to serve fixture feeds,
+        but the mock OpenAI endpoints are not used (real API is called instead).
+        This allows testing real API with known fixture data.
     """
+    # Always start the server, even in real API mode (needed for fixture feeds)
+    # The mock OpenAI endpoints won't be used when USE_REAL_OPENAI_API=1
     server = E2EHTTPServer()
     server.start()
     yield server

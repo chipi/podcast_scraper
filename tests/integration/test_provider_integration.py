@@ -4,6 +4,7 @@
 These tests verify that all providers work together correctly in the workflow.
 """
 
+import os
 import unittest
 from unittest.mock import Mock, patch
 
@@ -200,8 +201,17 @@ class TestProviderSwitching(unittest.TestCase):
         self.assertTrue(hasattr(provider2, "transcribe"))
 
         # Test error handling: missing API key (caught by validator)
-        with self.assertRaises(ValidationError):
-            config.Config(rss_url="https://example.com/feed.xml", transcription_provider="openai")
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            with self.assertRaises(ValidationError):
+                config.Config(
+                    rss_url="https://example.com/feed.xml", transcription_provider="openai"
+                )
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_key
 
     @pytest.mark.llm
     @pytest.mark.openai
@@ -228,10 +238,17 @@ class TestProviderSwitching(unittest.TestCase):
         self.assertTrue(hasattr(detector2, "detect_speakers"))
 
         # Test error handling: missing API key (caught by validator)
-        with self.assertRaises(ValidationError):
-            config.Config(
-                rss_url="https://example.com/feed.xml", speaker_detector_provider="openai"
-            )
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            with self.assertRaises(ValidationError):
+                config.Config(
+                    rss_url="https://example.com/feed.xml", speaker_detector_provider="openai"
+                )
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_key
 
     @pytest.mark.llm
     @pytest.mark.openai
@@ -261,12 +278,19 @@ class TestProviderSwitching(unittest.TestCase):
         self.assertTrue(hasattr(provider2, "summarize"))
 
         # Test error handling: missing API key (caught by validator)
-        with self.assertRaises(ValidationError):
-            config.Config(
-                rss_url="https://example.com/feed.xml",
-                summary_provider="openai",
-                generate_summaries=False,
-            )
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            with self.assertRaises(ValidationError):
+                config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    summary_provider="openai",
+                    generate_summaries=False,
+                )
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_key
 
 
 @pytest.mark.integration

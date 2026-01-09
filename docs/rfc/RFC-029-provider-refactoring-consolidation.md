@@ -489,9 +489,6 @@ The naming is inconsistent:
 ### Test File Organization
 
 ```
-    └── test_ml_models_e2e.py                    # ML models E2E
-
-```
 
 ## Rollout Plan
 
@@ -814,7 +811,6 @@ make test-integration
 make test-e2e
 
 ```
-
 - Some tests might need updates for new defaults
 - Backward compatibility tests should verify deprecated names work
 
@@ -854,7 +850,6 @@ grep -r "from.*local_provider import" tests/
 grep -r "WhisperTranscriptionProvider\|NERSpeakerDetector\|TransformersSummarizationProvider" tests/
 
 ```
-
 - Update assertions to check protocol compliance
 - Use `hasattr()` or protocol checks instead of `isinstance()`
 

@@ -444,7 +444,10 @@ def select_summary_model(cfg) -> str:
         )
 
     # Default to BART-large for MAP phase (production quality chunk summarization)
-    return DEFAULT_SUMMARY_MODELS["bart-large"]
+    default_model = DEFAULT_SUMMARY_MODELS.get("bart-large")
+    if not default_model:
+        raise ValueError("DEFAULT_SUMMARY_MODELS['bart-large'] is not defined")
+    return default_model
 
 
 def select_reduce_model(cfg, default_model_name: str) -> str:
@@ -472,7 +475,10 @@ def select_reduce_model(cfg, default_model_name: str) -> str:
     reduce_key = getattr(cfg, "summary_reduce_model", None)
     if not reduce_key:
         # Default to LED-large for reduce phase (best quality, long-context)
-        return DEFAULT_SUMMARY_MODELS["long"]
+        default_model = DEFAULT_SUMMARY_MODELS.get("long")
+        if not default_model:
+            raise ValueError("DEFAULT_SUMMARY_MODELS['long'] is not defined")
+        return default_model
 
     reduce_key = cast(str, reduce_key)
     # Only allow keys from DEFAULT_SUMMARY_MODELS
@@ -508,6 +514,8 @@ class SummaryModel:
                      Example: "main" or a specific commit hash like "abc123def456"
                      If None, uses the latest version (less secure but more convenient)
         """
+        if not model_name:
+            raise ValueError("model_name cannot be None or empty")
         self.model_name = model_name
         self.revision = revision
         self.device = self._detect_device(device)

@@ -24,7 +24,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import Config, run_pipeline, service
+from podcast_scraper import Config, config, run_pipeline, service
 
 
 @pytest.mark.e2e
@@ -39,6 +39,7 @@ class TestSpecialCharactersInTitles:
                 rss_url=e2e_server.urls.feed("edgecases"),
                 output_dir=tmpdir,
                 max_episodes=1,  # Only episode 1 has special chars
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should handle special characters gracefully
@@ -70,6 +71,7 @@ class TestUnicodeCharacters:
                 rss_url=e2e_server.urls.feed("edgecases"),
                 output_dir=tmpdir,
                 max_episodes=2,  # Episode 2 has Unicode
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should handle Unicode gracefully
@@ -109,6 +111,7 @@ class TestVeryLongTitles:
                 rss_url=e2e_server.urls.feed("edgecases"),
                 output_dir=tmpdir,
                 max_episodes=3,  # Episode 3 has very long title
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should handle long titles gracefully (may truncate filename)
@@ -147,6 +150,7 @@ class TestMissingOptionalFields:
                 rss_url=e2e_server.urls.feed("edgecases"),
                 output_dir=tmpdir,
                 max_episodes=4,  # Episode 4 has missing fields
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should handle missing fields gracefully
@@ -182,6 +186,7 @@ class TestEmptyDescriptions:
                 rss_url=e2e_server.urls.feed("edgecases"),
                 output_dir=tmpdir,
                 max_episodes=5,  # Episode 5 has empty description
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should handle empty description gracefully
@@ -215,6 +220,7 @@ class TestRelativeURLs:
                 rss_url=e2e_server.urls.feed("edgecases"),
                 output_dir=tmpdir,
                 max_episodes=6,  # Episode 6 has relative URLs
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should resolve relative URLs correctly
@@ -250,6 +256,7 @@ class TestAllEdgeCasesTogether:
                 rss_url=e2e_server.urls.feed("edgecases"),
                 output_dir=tmpdir,
                 max_episodes=6,  # All edge case episodes
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should handle all edge cases gracefully
@@ -284,6 +291,7 @@ class TestAllEdgeCasesTogether:
                 output_dir=tmpdir,
                 max_episodes=2,  # First 2 episodes (avoid episode 3 with long title)
                 generate_metadata=True,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run pipeline - should handle edge cases with metadata
@@ -330,6 +338,7 @@ class TestAllEdgeCasesTogether:
                 rss_url=e2e_server.urls.feed("edgecases"),
                 output_dir=tmpdir,
                 max_episodes=2,  # First 2 episodes (avoid episode 3 with long title)
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Run service - should handle edge cases gracefully

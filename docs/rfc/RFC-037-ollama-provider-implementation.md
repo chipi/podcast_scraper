@@ -499,7 +499,6 @@ class OllamaSummarizationProvider:
         if not self._initialized:
             raise RuntimeError("Provider not initialized")
 
-```
 ```json
 
             response = self._client.chat.completions.create(
@@ -527,9 +526,6 @@ class OllamaSummarizationProvider:
             if system_prompt_name:
                 prompt_metadata["system"] = get_prompt_metadata(system_prompt_name)
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name)
-
-```
-            }
 
 ```python
 
