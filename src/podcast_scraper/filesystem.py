@@ -151,7 +151,9 @@ def _build_provider_model_suffix(cfg: config.Config) -> Optional[str]:
             model_short = _shorten_model_name(cfg.whisper_model)
             parts.append(f"w_{sanitize_filename(model_short)}")
         elif cfg.transcription_provider == "openai":
-            model = getattr(cfg, "openai_transcription_model", "whisper-1")
+            model = getattr(
+                cfg, "openai_transcription_model", config.PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+            )
             parts.append(f"oa_{sanitize_filename(model)}")
 
     # Summary provider + models
@@ -171,7 +173,7 @@ def _build_provider_model_suffix(cfg: config.Config) -> Optional[str]:
                 reduce_short = _shorten_model_name(reduce_model)
                 parts.append(f"r_{sanitize_filename(reduce_short)}")
         elif cfg.summary_provider == "openai":
-            model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
+            model = getattr(cfg, "openai_summary_model", config.PROD_DEFAULT_OPENAI_SUMMARY_MODEL)
             parts.append(f"oa_{sanitize_filename(model)}")
 
     # Speaker detection provider + model
@@ -188,7 +190,7 @@ def _build_provider_model_suffix(cfg: config.Config) -> Optional[str]:
                 model_short = ner_model
             parts.append(f"sp_{sanitize_filename(model_short)}")
         elif cfg.speaker_detector_provider == "openai":
-            model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
+            model = getattr(cfg, "openai_speaker_model", config.PROD_DEFAULT_OPENAI_SPEAKER_MODEL)
             parts.append(f"oa_{sanitize_filename(model)}")
 
     if not parts:

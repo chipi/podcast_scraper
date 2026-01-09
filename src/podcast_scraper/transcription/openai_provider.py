@@ -48,8 +48,10 @@ class OpenAITranscriptionProvider:
         if cfg.openai_api_base:
             client_kwargs["base_url"] = cfg.openai_api_base
         self.client = OpenAI(**client_kwargs)
-        # Default to whisper-1 (OpenAI's Whisper API model)
-        self.model = getattr(cfg, "openai_transcription_model", "whisper-1")
+        # Default to environment-based model (whisper-1 is only option)
+        self.model = getattr(
+            cfg, "openai_transcription_model", config.PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+        )
         self._initialized = False
 
     def initialize(self) -> None:

@@ -1214,6 +1214,18 @@ def _prepare_episode_download_args(
                         manual_guest,
                         ", ".join(detected_hosts_set),
                     )
+                    # Filter out hosts from fallback_names to get only guests
+                    detected_speaker_names = [
+                        name for name in fallback_names if name not in detected_hosts_set
+                    ]
+                    # Filter out generic labels (shouldn't happen with manual names,
+                    # but safety check)
+                    generic_labels = {"host", "guest", "speaker", "hosts", "guests", "speakers"}
+                    detected_speaker_names = [
+                        name
+                        for name in detected_speaker_names
+                        if name.lower().strip() not in generic_labels
+                    ]
                 else:
                     # No hosts detected either, use both manual names
                     fallback_names = [manual_host, manual_guest]
@@ -1222,15 +1234,53 @@ def _prepare_episode_download_args(
                         manual_host,
                         manual_guest,
                     )
-                detected_speaker_names = fallback_names
+                    # Filter out the manual host to get only the guest
+                    detected_speaker_names = [manual_guest]
             elif detection_succeeded:
                 detected_speaker_names = detected_speakers
+                # Filter out hosts from detected_speaker_names to get only guests
+                # detected_speakers includes hosts first, then guests
+                # (may also include defaults like "Host", "Guest")
+                # We need to separate them for metadata storage
+                if detected_hosts_set:
+                    # Remove hosts from the list to get only guests
+                    detected_speaker_names = [
+                        name for name in detected_speaker_names if name not in detected_hosts_set
+                    ]
+                    # Also filter out generic labels that might have been added as defaults
+                    # (e.g., "Host", "Guest" added for screenplay formatting when min_speakers=2)
+                    generic_labels = {"host", "guest", "speaker", "hosts", "guests", "speakers"}
+                    detected_speaker_names = [
+                        name
+                        for name in detected_speaker_names
+                        if name.lower().strip() not in generic_labels
+                    ]
+                else:
+                    # No hosts detected - filter out generic labels anyway (safety check)
+                    generic_labels = {"host", "guest", "speaker", "hosts", "guests", "speakers"}
+                    detected_speaker_names = [
+                        name
+                        for name in detected_speaker_names
+                        if name.lower().strip() not in generic_labels
+                    ]
             # Note: Guest logging happens inside detect_speaker_names()
             # Note: We don't update cached_hosts here because hosts are only
             # detected from feed metadata, not from episodes
         elif cfg.screenplay_speaker_names:
             # If auto_speakers is disabled, use manual names directly
-            detected_speaker_names = cfg.screenplay_speaker_names
+            # Manual names: first item = host, second item = guest
+            # Filter to get only guests (skip the first item which is the host)
+            if len(cfg.screenplay_speaker_names) >= 2:
+                detected_speaker_names = cfg.screenplay_speaker_names[1:]  # Skip host, keep guests
+            else:
+                detected_speaker_names = cfg.screenplay_speaker_names
+            # Filter out generic labels (shouldn't happen with manual names, but safety check)
+            generic_labels = {"host", "guest", "speaker", "hosts", "guests", "speakers"}
+            detected_speaker_names = [
+                name
+                for name in detected_speaker_names
+                if name.lower().strip() not in generic_labels
+            ]
 
         download_args.append(
             (

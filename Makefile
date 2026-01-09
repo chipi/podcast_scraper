@@ -52,10 +52,14 @@ help:
 	@echo "  make test-openai-multi   Run OpenAI tests with multi-episode feed (p01_multi.xml - 5 episodes)"
 	@echo "  make test-openai-all-feeds Run OpenAI tests against all p01-p05 feeds (p01_mtb.xml through p05_investing.xml)"
 	@echo "  make test-openai-real    Run OpenAI tests with REAL API using fast feed (fixture input, real API calls)"
+	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "  make test-openai-real-multi Run OpenAI tests with REAL API using multi-episode feed"
+	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "  make test-openai-real-all-feeds Run OpenAI tests with REAL API against all p01-p05 feeds"
+	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "  make test-openai-real-feed Run OpenAI tests with REAL API using a real RSS feed"
 	@echo "                            Usage: make test-openai-real-feed FEED_URL=\"https://...\" [MAX_EPISODES=5]"
+	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "  Tip: For debugging, use pytest directly with -n 0 for sequential execution"
 	@echo ""
 	@echo "Coverage commands:"
@@ -371,6 +375,7 @@ test-openai-real:
 	@# Test OpenAI providers with REAL API using fast feed (p01_fast.xml - 1 episode, 1 minute)
 	@# Uses fixture feeds as input but makes real OpenAI API calls
 	@# Requires OPENAI_API_KEY in .env file
+	@# NOTE: Only runs test_openai_all_providers_in_pipeline to minimize API costs
 	@echo "Running OpenAI tests with REAL API (using fast feed fixture)..."
 	@if [ -z "$$OPENAI_API_KEY" ] && ! grep -q "^OPENAI_API_KEY=" .env 2>/dev/null; then \
 		echo "❌ Error: OPENAI_API_KEY not set in environment or .env file"; \
@@ -380,12 +385,12 @@ test-openai-real:
 	@echo "⚠️  WARNING: Running tests with REAL OpenAI API (will incur costs)"
 	@echo "⚠️  This will make actual API calls to OpenAI endpoints"
 	@echo "⚠️  Using fixture feed (p01_fast.xml) as input"
+	@echo "⚠️  Running ONLY test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "⚠️  Press Ctrl+C within 5 seconds to cancel..."
 	@sleep 5
 	@echo ""
 	E2E_TEST_MODE=fast USE_REAL_OPENAI_API=1 OPENAI_TEST_FEED=fast $(PYTHON) -m pytest \
-		tests/e2e/test_openai_provider_integration_e2e.py \
-		-m "openai" \
+		tests/e2e/test_openai_provider_integration_e2e.py::TestOpenAIProviderE2E::test_openai_all_providers_in_pipeline \
 		-v \
 		-s \
 		--tb=short \
@@ -396,6 +401,7 @@ test-openai-real-multi:
 	@# Test OpenAI providers with REAL API using multi-episode feed (p01_multi.xml - 5 episodes)
 	@# Uses fixture feeds as input but makes real OpenAI API calls
 	@# Requires OPENAI_API_KEY in .env file
+	@# NOTE: Only runs test_openai_all_providers_in_pipeline to minimize API costs
 	@echo "Running OpenAI tests with REAL API (using multi-episode feed fixture)..."
 	@if [ -z "$$OPENAI_API_KEY" ] && ! grep -q "^OPENAI_API_KEY=" .env 2>/dev/null; then \
 		echo "❌ Error: OPENAI_API_KEY not set in environment or .env file"; \
@@ -405,12 +411,12 @@ test-openai-real-multi:
 	@echo "⚠️  WARNING: Running tests with REAL OpenAI API (will incur costs)"
 	@echo "⚠️  This will make actual API calls to OpenAI endpoints"
 	@echo "⚠️  Using multi-episode fixture feed (p01_multi.xml - 5 episodes) as input"
+	@echo "⚠️  Running ONLY test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "⚠️  Press Ctrl+C within 5 seconds to cancel..."
 	@sleep 5
 	@echo ""
 	E2E_TEST_MODE=fast USE_REAL_OPENAI_API=1 OPENAI_TEST_FEED=multi $(PYTHON) -m pytest \
-		tests/e2e/test_openai_provider_integration_e2e.py \
-		-m "openai" \
+		tests/e2e/test_openai_provider_integration_e2e.py::TestOpenAIProviderE2E::test_openai_all_providers_in_pipeline \
 		-v \
 		--tb=short \
 		--durations=10 \
@@ -420,9 +426,11 @@ test-openai-real-all-feeds:
 	@# Test OpenAI providers with REAL API against all p01-p05 feeds
 	@# Uses fixture feeds as input but makes real OpenAI API calls
 	@# Requires OPENAI_API_KEY in .env file
+	@# NOTE: Only runs test_openai_all_providers_in_pipeline to minimize API costs
 	@echo "Running OpenAI tests with REAL API against all p01-p05 feeds..."
 	@echo "  This will test: p01 (mtb), p02 (software), p03 (scuba), p04 (photo), p05 (investing)"
 	@echo "  Using fixture feeds as input but making REAL OpenAI API calls"
+	@echo "  Running ONLY test_openai_all_providers_in_pipeline to minimize costs"
 	@echo ""
 	@if [ -z "$$OPENAI_API_KEY" ] && ! grep -q "^OPENAI_API_KEY=" .env 2>/dev/null; then \
 		echo "❌ Error: OPENAI_API_KEY not set in environment or .env file"; \
@@ -440,8 +448,7 @@ test-openai-real-all-feeds:
 		echo "Testing feed: $$feed (REAL API)"; \
 		echo "========================================="; \
 		E2E_TEST_MODE=nightly USE_REAL_OPENAI_API=1 OPENAI_TEST_FEED=$$feed $(PYTHON) -m pytest \
-			tests/e2e/test_openai_provider_integration_e2e.py \
-			-m "openai" \
+			tests/e2e/test_openai_provider_integration_e2e.py::TestOpenAIProviderE2E::test_openai_all_providers_in_pipeline \
 			-v \
 			--tb=short \
 			--durations=10 \
@@ -456,6 +463,7 @@ test-openai-real-feed:
 	@# Test OpenAI providers with REAL API using a real RSS feed
 	@# Usage: make test-openai-real-feed FEED_URL="https://example.com/podcast.rss" [MAX_EPISODES=5]
 	@# Requires OPENAI_API_KEY in .env file
+	@# NOTE: Only runs test_openai_all_providers_in_pipeline to minimize API costs
 	@if [ -z "$(FEED_URL)" ]; then \
 		echo "❌ Error: FEED_URL is required"; \
 		echo ""; \
@@ -477,12 +485,12 @@ test-openai-real-feed:
 	echo "⚠️  This will make actual API calls to OpenAI endpoints"; \
 	echo "⚠️  Feed URL: $(FEED_URL)"; \
 	echo "⚠️  Max Episodes: $$MAX_EPISODES"; \
+	echo "⚠️  Running ONLY test_openai_all_providers_in_pipeline to minimize costs"; \
 	echo "⚠️  Press Ctrl+C within 5 seconds to cancel..."; \
 	sleep 5; \
 	echo ""; \
 	USE_REAL_OPENAI_API=1 OPENAI_TEST_RSS_FEED="$(FEED_URL)" OPENAI_TEST_MAX_EPISODES=$$MAX_EPISODES $(PYTHON) -m pytest \
-		tests/e2e/test_openai_provider_integration_e2e.py \
-		-m "openai" \
+		tests/e2e/test_openai_provider_integration_e2e.py::TestOpenAIProviderE2E::test_openai_all_providers_in_pipeline \
 		-v \
 		-s \
 		--tb=short \
@@ -669,9 +677,27 @@ backup-cache-cleanup:
 
 restore-cache:
 	@echo "Restoring .cache directory from backup..."
-	@$(PYTHON) scripts/restore_cache.py
+	@cmd="$(PYTHON) scripts/restore_cache.py"; \
+	if [ -n "$(TARGET)" ]; then \
+		echo "  Target: $(TARGET)"; \
+		cmd="$$cmd --target \"$(TARGET)\""; \
+	fi; \
+	if [ -n "$(BACKUP)" ]; then \
+		echo "  Backup: $(BACKUP)"; \
+		cmd="$$cmd --backup \"$(BACKUP)\""; \
+	fi; \
+	eval $$cmd
 
 restore-cache-dry-run:
 	@echo "Dry run: Checking what would be restored..."
-	@$(PYTHON) scripts/restore_cache.py --dry-run --verbose
+	@cmd="$(PYTHON) scripts/restore_cache.py --dry-run --verbose"; \
+	if [ -n "$(TARGET)" ]; then \
+		echo "  Target: $(TARGET)"; \
+		cmd="$$cmd --target \"$(TARGET)\""; \
+	fi; \
+	if [ -n "$(BACKUP)" ]; then \
+		echo "  Backup: $(BACKUP)"; \
+		cmd="$$cmd --backup \"$(BACKUP)\""; \
+	fi; \
+	eval $$cmd
 

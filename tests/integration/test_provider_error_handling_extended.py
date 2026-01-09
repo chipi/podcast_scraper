@@ -8,6 +8,7 @@ These tests verify comprehensive error handling scenarios including:
 - Error propagation
 """
 
+import os
 import unittest
 from unittest.mock import Mock, patch
 
@@ -78,11 +79,18 @@ class TestTranscriptionProviderErrorHandling(unittest.TestCase):
     def test_openai_provider_missing_api_key(self):
         """Test that OpenAI provider requires API key."""
         # Missing API key should be caught by config validator
-        with self.assertRaises(ValidationError):
-            config.Config(
-                rss_url="https://example.com/feed.xml",
-                transcription_provider="openai",
-            )
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            with self.assertRaises(ValidationError):
+                config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    transcription_provider="openai",
+                )
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_key
 
     def test_cleanup_after_failed_initialization(self):
         """Test that cleanup() works even after failed initialization."""
@@ -152,11 +160,18 @@ class TestSpeakerDetectorErrorHandling(unittest.TestCase):
     def test_openai_detector_missing_api_key(self):
         """Test that OpenAI detector requires API key."""
         # Missing API key should be caught by config validator
-        with self.assertRaises(ValidationError):
-            config.Config(
-                rss_url="https://example.com/feed.xml",
-                speaker_detector_provider="openai",
-            )
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            with self.assertRaises(ValidationError):
+                config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    speaker_detector_provider="openai",
+                )
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_key
 
     def test_clear_cache_failure(self):
         """Test error handling when clear_cache() fails."""
@@ -241,12 +256,19 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
     def test_openai_provider_missing_api_key(self):
         """Test that OpenAI provider requires API key."""
         # Missing API key should be caught by config validator
-        with self.assertRaises(ValidationError):
-            config.Config(
-                rss_url="https://example.com/feed.xml",
-                summary_provider="openai",
-                generate_summaries=False,
-            )
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            with self.assertRaises(ValidationError):
+                config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    summary_provider="openai",
+                    generate_summaries=False,
+                )
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_key
 
 
 @pytest.mark.integration
@@ -287,11 +309,18 @@ class TestProviderSwitchingErrorHandling(unittest.TestCase):
     def test_switch_provider_without_required_config(self):
         """Test error handling when switching provider without required config."""
         # OpenAI provider requires API key
-        with self.assertRaises(ValidationError):
-            config.Config(
-                rss_url="https://example.com/feed.xml",
-                transcription_provider="openai",
-            )
+        # Unset environment variable to ensure it's not loaded
+        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            with self.assertRaises(ValidationError):
+                config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    transcription_provider="openai",
+                )
+        finally:
+            # Restore original environment variable if it existed
+            if original_key is not None:
+                os.environ["OPENAI_API_KEY"] = original_key
 
 
 @pytest.mark.integration

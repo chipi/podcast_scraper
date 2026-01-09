@@ -53,8 +53,8 @@ class OpenAISummarizationProvider:
         if cfg.openai_api_base:
             client_kwargs["base_url"] = cfg.openai_api_base
         self.client = OpenAI(**client_kwargs)
-        # Default to gpt-4o-mini (cost-effective with large context window)
-        self.model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
+        # Default to environment-based model
+        self.model = getattr(cfg, "openai_summary_model", config.PROD_DEFAULT_OPENAI_SUMMARY_MODEL)
         self.temperature = getattr(cfg, "openai_temperature", 0.3)
         # GPT-4o-mini supports 128k context window - can handle full transcripts
         self.max_context_tokens = 128000  # Conservative estimate

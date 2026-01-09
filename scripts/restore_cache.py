@@ -51,8 +51,10 @@ def get_backup_info(backup_path: Path) -> dict:
     }
 
 
-def select_backup(backup_dir: Path, backup_name: Optional[str] = None) -> Path | None:
-    """Select a backup file, either by name or interactively."""
+def select_backup(
+    backup_dir: Path, backup_name: Optional[str] = None, auto_select_latest: bool = False
+) -> Path | None:
+    """Select a backup file, either by name, automatically (latest), or interactively."""
     backups = list_backups(backup_dir)
 
     if not backups:
@@ -78,6 +80,15 @@ def select_backup(backup_dir: Path, backup_name: Optional[str] = None) -> Path |
         else:
             print(f"No backup found matching '{backup_name}'", file=sys.stderr)
             return None
+
+    # Auto-select latest backup (for non-interactive use)
+    if auto_select_latest:
+        latest = backups[0]  # Already sorted by date (newest first)
+        info = get_backup_info(latest)
+        print(f"Auto-selecting most recent backup: {info['name']}")
+        print(f"  Size: {format_size(info['size'])}")
+        print(f"  Date: {info['mtime'].strftime('%Y-%m-%d %H:%M:%S')}")
+        return latest
 
     # Interactive selection
     print(f"Available backups in {backup_dir}:\n")
@@ -176,8 +187,8 @@ def restore_backup(
         print("\n[DRY RUN] Would extract backup to target directory")
         return True
 
-    # Create parent directory if needed
-    target_cache_dir.parent.mkdir(parents=True, exist_ok=True)
+    # Create target directory
+    target_cache_dir.mkdir(parents=True, exist_ok=True)
 
     # Extract backup
     print("\nExtracting backup...")
@@ -189,10 +200,6 @@ def restore_backup(
             # Get all members
             members = tar.getmembers()
 
-            # Extract to parent of target (so .cache ends up in the right place)
-            # The backup contains .cache/... so we extract to the project root
-            extract_root = target_cache_dir.parent
-
             for member in members:
                 # Only extract .cache/ paths (skip other files)
                 if not member.name.startswith(".cache/"):
@@ -201,13 +208,38 @@ def restore_backup(
                     continue
 
                 try:
-                    # Extract member (tarfile handles the .cache/ prefix automatically)
-                    tar.extract(member, path=extract_root)
-                    if member.isfile():
+                    # Strip .cache/ prefix to get relative path
+                    # Example: .cache/whisper/base.en.pt -> whisper/base.en.pt
+                    relative_path = member.name[len(".cache/") :]
+
+                    if not relative_path:  # Skip .cache/ directory itself
+                        continue
+
+                    # Build target path
+                    target_path = target_cache_dir / relative_path
+
+                    # Extract to target location
+                    if member.isdir():
+                        target_path.mkdir(parents=True, exist_ok=True)
+                    elif member.isfile():
+                        # Ensure parent directory exists
+                        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+                        # Extract file
+                        with tar.extractfile(member) as source:
+                            if source:
+                                with open(target_path, "wb") as target:
+                                    shutil.copyfileobj(source, target)
+
+                        # Preserve permissions
+                        target_path.chmod(member.mode)
+
                         extracted_count += 1
                         total_size += member.size
-                    if verbose and extracted_count % 100 == 0:
-                        print(f"  Extracted {extracted_count} files...")
+
+                        if verbose and extracted_count % 100 == 0:
+                            print(f"  Extracted {extracted_count} files...")
+
                 except Exception as e:
                     print(f"  Warning: Could not extract {member.name}: {e}", file=sys.stderr)
 
@@ -217,16 +249,19 @@ def restore_backup(
         print(f"  Target: {target_cache_dir}")
 
         # Verify the restore
-        if target_cache_dir.exists():
-            print("  ✓ Cache directory exists and is ready")
+        if target_cache_dir.exists() and any(target_cache_dir.iterdir()):
+            print("  ✓ Cache directory exists and contains files")
         else:
-            print("  ⚠ Warning: Cache directory not found after restore", file=sys.stderr)
+            print("  ⚠ Warning: Cache directory is empty after restore", file=sys.stderr)
             return False
 
         return True
 
     except Exception as e:
         print(f"Error restoring backup: {e}", file=sys.stderr)
+        import traceback
+
+        traceback.print_exc()
         # Clean up partial restore
         if target_cache_dir.exists():
             print("Cleaning up partial restore...", file=sys.stderr)
@@ -244,23 +279,26 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # List available backups and select interactively
+  # Auto-select most recent backup and restore to .cache
   python scripts/restore_cache.py
+
+  # Restore most recent backup to custom directory
+  python scripts/restore_cache.py --target my-restored-cache
 
   # Restore a specific backup by name
   python scripts/restore_cache.py --backup cache_backup_20250108-120000.tar.gz
 
-  # Restore with partial name match
-  python scripts/restore_cache.py --backup 20250108
+  # Restore specific backup to custom directory
+  python scripts/restore_cache.py --backup 20250108 --target my-cache
 
   # Dry run to see what would be restored
   python scripts/restore_cache.py --backup 20250108 --dry-run
 
-  # Force overwrite existing .cache directory
-  python scripts/restore_cache.py --backup 20250108 --force
+  # Force overwrite existing directory
+  python scripts/restore_cache.py --target my-cache --force
 
   # Restore from custom backup location
-  python scripts/restore_cache.py --backup-dir ~/my_backups --backup 20250108
+  python scripts/restore_cache.py --backup-dir ~/my_backups
         """,
     )
     parser.add_argument(
@@ -274,8 +312,12 @@ Examples:
         "-b",
         type=str,
         help=(
-            "Backup file name to restore (partial match supported, "
-            "or omit for interactive selection)"
+            (
+                "Backup file name to restore (partial match supported). "
+                "If omitted, automatically selects the most recent backup "
+                "when running non-interactively, "
+                "or prompts for selection when running interactively."
+            )
         ),
     )
     parser.add_argument(
@@ -318,7 +360,9 @@ Examples:
         target_cache_dir = project_root / ".cache"
 
     # Select backup
-    backup_path = select_backup(backup_dir, args.backup)
+    # Auto-select latest if running non-interactively (backup not specified and stdin is not a tty)
+    auto_select = args.backup is None and not sys.stdin.isatty()
+    backup_path = select_backup(backup_dir, args.backup, auto_select_latest=auto_select)
     if backup_path is None:
         return 1
 

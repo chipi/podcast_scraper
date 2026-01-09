@@ -286,17 +286,20 @@ def _add_openai_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--openai-transcription-model",
         default=None,
-        help="OpenAI model for transcription (default: whisper-1)",
+        help="OpenAI model for transcription (default: environment-based, whisper-1)",
     )
     parser.add_argument(
         "--openai-speaker-model",
         default=None,
-        help="OpenAI model for speaker detection (default: gpt-4o-mini)",
+        help="OpenAI model for speaker detection (default: environment-based, gpt-4o-mini)",
     )
     parser.add_argument(
         "--openai-summary-model",
         default=None,
-        help="OpenAI model for summarization (default: gpt-4o-mini)",
+        help=(
+            "OpenAI model for summarization (default: environment-based, "
+            "gpt-4o-mini in test, gpt-4o in prod)"
+        ),
     )
     parser.add_argument(
         "--openai-temperature",
