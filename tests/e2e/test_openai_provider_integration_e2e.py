@@ -47,16 +47,17 @@ USE_REAL_OPENAI_API = os.getenv("USE_REAL_OPENAI_API", "0") == "1"
 
 # Feed selection for OpenAI tests
 # Options:
-# - "fast": Use p01_fast.xml (1 episode, 1 minute) - DEFAULT
-# - "multi": Use p01_multi.xml (5 episodes, 10-15 seconds each)
-# - "p01": Use p01_mtb.xml (podcast1)
-# - "p02": Use p02_software.xml (podcast2)
-# - "p03": Use p03_scuba.xml (podcast3)
-# - "p04": Use p04_photo.xml (podcast4)
-# - "p05": Use p05_investing.xml (podcast5)
+# - "fast": Use p01_fast.xml (1 episode, 1 minute) - requires E2E_TEST_MODE=fast
+# - "multi": Use p01_multi.xml (5 episodes, 10-15 seconds each) - DEFAULT (works in all modes)
+# - "p01": Use p01_mtb.xml (podcast1) - requires E2E_TEST_MODE=nightly or data_quality
+# - "p02": Use p02_software.xml (podcast2) - requires E2E_TEST_MODE=nightly or data_quality
+# - "p03": Use p03_scuba.xml (podcast3) - requires E2E_TEST_MODE=nightly or data_quality
+# - "p04": Use p04_photo.xml (podcast4) - requires E2E_TEST_MODE=nightly or data_quality
+# - "p05": Use p05_investing.xml (podcast5) - requires E2E_TEST_MODE=nightly or data_quality
 # For real API mode: Set USE_REAL_OPENAI_API=1 and OPENAI_TEST_RSS_FEED=<feed-url>
 #   (no default real feed - must be explicitly provided)
-OPENAI_TEST_FEED = os.getenv("OPENAI_TEST_FEED", "fast")
+# Default to "multi" to work in both fast and multi_episode E2E_TEST_MODE
+OPENAI_TEST_FEED = os.getenv("OPENAI_TEST_FEED", "multi")
 
 # Real RSS feed URL for testing (only used when USE_REAL_OPENAI_API=1)
 # NOTE: No default real feed - must be explicitly set via OPENAI_TEST_RSS_FEED
