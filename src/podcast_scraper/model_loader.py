@@ -138,8 +138,13 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
     # Resolve aliases to actual HuggingFace model IDs
     resolved_models = [_resolve_model_alias(name) for name in model_names]
     # Remove duplicates while preserving order
-    seen = set()
-    model_names = [m for m in resolved_models if not (m in seen or seen.add(m))]
+    seen: set[str] = set()
+    unique_models: list[str] = []
+    for model in resolved_models:
+        if model not in seen:
+            seen.add(model)
+            unique_models.append(model)
+    model_names = unique_models
 
     if not model_names:
         logger.debug("Skipping Transformers model preloading (no models specified)")
