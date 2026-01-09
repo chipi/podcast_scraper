@@ -35,6 +35,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-038](RFC-038-continuous-review-tooling.md) | Continuous Review Tooling | #45 | Dependabot, pydeps, pre-release checklist |
 | [RFC-039](RFC-039-development-workflow-worktrees-ci.md) | Development Workflow | - | Git worktrees, Cursor integration, CI evolution |
 | [RFC-040](RFC-040-automated-metrics-alerts.md) | Automated Metrics Alerts | - | PR comments and webhook alerts for metric deviations |
+| [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | - | Repeatable, objective ML benchmarking system |
 
 ## Completed RFCs
 
