@@ -63,7 +63,6 @@ flowchart TD
     style Complete fill:#d4edda
 
 ```
-
 ### 1. Transcript Cleaning
 
 - Removes timestamps (language-agnostic: `[00:12:34]` patterns)

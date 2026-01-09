@@ -163,7 +163,6 @@ def render_prompt(name: str, **params: Any) -> str:
     """
     Render a prompt template with optional parameters.
 
-```
 ```python
 
 def get_prompt_source(name: str) -> str:
@@ -198,8 +197,6 @@ def get_prompt_metadata(
 
     """
     Return metadata describing a prompt configuration.
-
-```
 
 ```python
 
@@ -315,8 +312,6 @@ class ExperimentParams(BaseModel):
 
 ```
 
-    # Allow arbitrary extra keys for specific experiments
-
 ```python
 
     @validator("extra", pre=True, always=True)
@@ -415,7 +410,6 @@ class OpenAISummarizationProvider:
         # Load prompts from prompt_store (provider-specific)
 
 ```
-            cfg.summary_user_prompt or "summarization/long_v1",
             transcript=text,
             title=cfg.episode_title or "",
             paragraphs_min=(min_length or cfg.summary_min_length) // 100,
@@ -480,7 +474,6 @@ class OpenAISpeakerDetector:
         """Detect speakers using OpenAI API with prompts from prompt_store.
 
 ```
-            **self.cfg.ner_prompt_params,
         )
 
 ```text
@@ -556,14 +549,12 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
 
 ```
 
-        **cfg.prompts.params,
     )
 
 ```text
 
     # Get prompt metadata for tracking
 
-```
 ```python
 
     if cfg.task == "summarization":
@@ -578,7 +569,6 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
         raise ValueError(f"Unknown task: {cfg.task}")
 
 ```
-
                 min_length=cfg.params.min_length,
             )
             prediction = prediction_dict["summary"]
@@ -593,8 +583,6 @@ def run_experiment(cfg_path: str | Path) -> Dict[str, Any]:
             raise ValueError(f"Provider not available for task: {cfg.task}")
 
 ```
-
-    # Save results
 
 ```python
 

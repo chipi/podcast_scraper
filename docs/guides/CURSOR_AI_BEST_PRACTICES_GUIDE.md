@@ -902,7 +902,6 @@ The following prompt templates are available in `.cursor/prompts/`:
         Update README.md following project markdown standards"
 
 ```
-
 ### 2. Core Rules Are Always Active
 
 **You don't need to mention these** - `.cursorrules` handles them:
@@ -953,7 +952,6 @@ AI automatically:
 Commit these changes following the mandatory workflow
 
 ```
-
 ### 4. Test Execution Strategy (Use @Rules testing-strategy)
 
 **For this project:**

@@ -327,8 +327,6 @@ class AnthropicSpeakerDetector:
     ) -> Set[str]:
         """Detect hosts from feed metadata using Anthropic API.
 
-```
-
 ```python
 
         except Exception as e:
@@ -346,7 +344,6 @@ class AnthropicSpeakerDetector:
         """Detect speakers for an episode using Anthropic API.
 
 ```
-
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
             )
@@ -386,8 +383,6 @@ class AnthropicSpeakerDetector:
         from ..prompt_store import render_prompt
 
 ```
-        )
-        return system_prompt, user_prompt
 
 ```python
 
@@ -401,8 +396,6 @@ class AnthropicSpeakerDetector:
         from ..prompt_store import render_prompt
 
 ```
-        )
-        return system_prompt, user_prompt
 
 ```python
 
@@ -419,8 +412,6 @@ class AnthropicSpeakerDetector:
             pass
 
 ```
-        return hosts
-
 ```python
 
     def _parse_speakers_from_response(
@@ -438,8 +429,6 @@ class AnthropicSpeakerDetector:
                 return all_speakers, hosts, True
         except json.JSONDecodeError:
             pass
-
-```
 
 ```
 
@@ -479,7 +468,6 @@ class AnthropicSummarizationProvider:
     def __init__(self, cfg: config.Config):
         """Initialize Anthropic summarization provider.
 
-```
 ```python
 
     def initialize(self) -> None:
@@ -499,12 +487,10 @@ class AnthropicSummarizationProvider:
         """Summarize text using Anthropic Claude API.
 
 ```
-                "AnthropicSummarizationProvider not initialized. Call initialize() first."
+
             )
 
 ```
-
-                system_prompt_name,
                 user_prompt_name,
                 paragraphs_min,
                 paragraphs_max,
@@ -513,7 +499,7 @@ class AnthropicSummarizationProvider:
             )
 
 ```
-                messages=[{"role": "user", "content": user_prompt}],
+
             )
 
 ```python
@@ -522,7 +508,7 @@ class AnthropicSummarizationProvider:
             from ..prompt_store import get_prompt_metadata
 
 ```
-            }
+
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
 ```python
@@ -546,15 +532,11 @@ class AnthropicSummarizationProvider:
 
 ```
 
-        template_params.update(self.cfg.summary_prompt_params)
-
 ```text
 
         user_prompt = render_prompt(user_prompt_name, **template_params)
 
 ```
-
-            paragraphs_min,
             paragraphs_max,
         )
 
@@ -565,7 +547,6 @@ class AnthropicSummarizationProvider:
         pass
 
 ```
-
 ### 6. Factory Updates
 
 #### 6.1 Speaker Detector Factory
@@ -597,7 +578,6 @@ def create_speaker_detector(cfg: config.Config) -> Optional[SpeakerDetector]:
         )
 
 ```
-
 #### 6.2 Summarization Factory
 
 **File**: `podcast_scraper/summarization/factory.py` (update)
@@ -627,7 +607,6 @@ def create_summarization_provider(cfg: config.Config) -> Optional[SummarizationP
         )
 
 ```
-
 ### 7. Anthropic-Specific Prompt Templates
 
 #### 7.1 Summarization System Prompt
@@ -647,7 +626,6 @@ Guidelines:
 - Structure the summary with logical flow
 
 ```
-
 #### 7.2 Summarization User Prompt
 
 **File**: `prompts/anthropic/summarization/long_v1.j2`
@@ -666,7 +644,6 @@ Transcript:
 Provide a comprehensive summary covering the main topics, key insights, and important takeaways.
 
 ```
-
 #### 7.3 NER System Prompt
 
 **File**: `prompts/anthropic/ner/system_ner_v1.j2`
@@ -682,7 +659,6 @@ Guidelines:
 - Respond in JSON format with "hosts" and "guests" arrays
 
 ```
-
 #### 7.4 NER User Prompt
 
 **File**: `prompts/anthropic/ner/guest_host_v1.j2`
@@ -708,7 +684,6 @@ Return a JSON object with format: {"speakers": [...], "hosts": [...], "guests": 
 {% endif %}
 
 ```
-
 ### 8. E2E Server Mock Endpoints
 
 Add Anthropic mock endpoints to `tests/e2e/fixtures/e2e_http_server.py`:
@@ -742,8 +717,6 @@ def _handle_anthropic_messages(self):
         model = request_data.get("model", "claude-3-5-haiku-latest")
 
 ```
-            response_content = summary_text
-
 ```json
 
         # Build Anthropic response format
@@ -776,7 +749,6 @@ class E2EServerURLs:
         return f"http://{self.host}:{self.port}"
 
 ```
-
 ### 9. Dependencies
 
 Add to `pyproject.toml`:
@@ -797,7 +769,6 @@ ai = [
 ]
 
 ```
-
 # For Anthropic support
 
 pip install -e ".[anthropic]"
@@ -835,6 +806,7 @@ tests/
     └── test_anthropic_provider_integration_e2e.py
 
 ```
+
 ### Test Markers
 
 ```python

@@ -499,7 +499,6 @@ class OllamaSummarizationProvider:
         if not self._initialized:
             raise RuntimeError("Provider not initialized")
 
-```
 ```json
 
             response = self._client.chat.completions.create(
@@ -529,8 +528,6 @@ class OllamaSummarizationProvider:
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name)
 
 ```
-            }
-
 ```python
 
         except Exception as exc:
@@ -562,6 +559,7 @@ class OllamaSummarizationProvider:
         pass
 
 ```
+
 ### 5. Dependencies
 
 Add `httpx` for health checks (likely already installed):
@@ -574,6 +572,7 @@ ollama = [
 ]
 
 ```
+
 ## Testing Strategy
 
 ### Unit Tests

@@ -100,7 +100,7 @@ Each stage is benchmarked independently to isolate regressions.
 → Text Post-processing
 → Chunking
 → LLM (Summarization / Embeddings)
-```
+```yaml
 
 Each stage emits structured metrics and artifacts.
 
@@ -225,7 +225,7 @@ total_cost = (
     (output_tokens * output_price_per_million / 1_000_000) +
     (storage_gb * storage_price_per_gb_month * days / 30)
 )
-```
+```yaml
 
 Output: `cost.json`
 
@@ -296,11 +296,13 @@ name: ML Benchmarks
 on:
   pull_request:
     paths:
+
       - 'podcast_scraper/transcription/**'
       - 'podcast_scraper/summarization/**'
       - 'podcast_scraper/audio_processing/**'
       - 'benchmarks/**'
   schedule:
+
     - cron: '0 3 * * *'  # 3 AM UTC
 
 jobs:
@@ -308,31 +310,45 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
       - name: Run smoke test (3 episodes)
         run: make benchmark-smoke
+
       - name: Upload results
         uses: actions/upload-artifact@v4
+
+```text
+
         with:
           name: benchmark-smoke
           path: benchmarks/runs/
 
+```
   full-benchmark:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+
       - uses: actions/checkout@v4
       - name: Run full benchmark (20 episodes)
         run: make benchmark-full
+
       - name: Upload results
         uses: actions/upload-artifact@v4
+
+```text
+
         with:
           name: benchmark-full
           path: benchmarks/runs/
+
+```
       - name: Post summary to dashboard
         run: python scripts/upload_benchmark_metrics.py
-```
+
+```python
 
 ### Artifacts
 
@@ -375,7 +391,7 @@ benchmarks/
     latest.md                  # Human-readable report
     history.jsonl              # Time series data
   CHANGELOG.md                 # Baseline update log
-```
+```yaml
 
 ---
 
@@ -408,7 +424,7 @@ Details:
 Episodes Processed: 20/20
 Total Duration: 187 minutes
 Total Runtime: 14.3 minutes (real-time factor: 0.08)
-```
+```yaml
 
 ---
 

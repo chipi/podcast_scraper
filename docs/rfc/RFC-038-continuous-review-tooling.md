@@ -81,8 +81,6 @@ updates:
         patterns:
 
 ```
-      ml-core:
-        patterns:
 
 ```
 
@@ -90,8 +88,6 @@ updates:
         patterns:
 
 ```
-      day: "monday"
-      time: "06:00"
       timezone: "Europe/Amsterdam"
     open-pull-requests-limit: 3
     labels:
@@ -281,8 +277,6 @@ def check_thresholds(import_data: dict) -> list[str]:
     """Check against architectural thresholds."""
     issues = []
 
-```
-
 ```python
 
 def main():
@@ -302,8 +296,6 @@ def main():
     issues = check_thresholds(import_data)
 
 ```
-
-```text
 
             json.dump(report, f, indent=2)
         print(f"\n📄 Report saved to: {report_path}")
@@ -519,8 +511,6 @@ def check_version_consistency(version: str | None) -> CheckResult:
         )
 
 ```
-        if f'version = "{version}"' not in content:
-            return CheckResult(
                 name="Version Consistency",
                 passed=False,
                 message=f"Version {version} not in pyproject.toml"
@@ -538,8 +528,6 @@ def main():
     args = parser.parse_args()
 
 ```
-```
-
 ```python
 
 if __name__ == "__main__":
@@ -549,7 +537,6 @@ if __name__ == "__main__":
     main()
 
 ```
-
 ### 3.3 Makefile Target
 
 ```makefile
@@ -588,7 +575,6 @@ def process_large_transcript():
     pass
 
 ```
-
 ## 4.2 Performance Benchmarking
 
 For future implementation:

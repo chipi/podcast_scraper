@@ -191,7 +191,6 @@ def validate_openai_config(self) -> 'Config':
     """Validate OpenAI provider configuration."""
 
 ```
-
 # .env (add to .gitignore!)
 
 # OpenAI API Configuration
@@ -407,8 +406,6 @@ class OpenAISpeakerDetector:
             )
 
 ```
-            logger.error(f"OpenAI API error in speaker detection: {e}")
-            raise
 
 ```python
 
@@ -514,8 +511,6 @@ class OpenAITranscriptionProvider:
         import time
 
 ```
-                    model=self.model,
-                    file=audio_file,
                     language=getattr(cfg, 'whisper_language', None),  # Optional language hint
                     response_format="verbose_json",  # Get segments
                 )

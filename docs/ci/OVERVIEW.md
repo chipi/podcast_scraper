@@ -81,7 +81,6 @@ graph TB
     style SNYK1 fill:#ffe1f5
 
 ```
-
 ### Workflow Trigger Conditions
 
 Each workflow only runs when specific files are modified:
@@ -154,7 +153,6 @@ graph LR
     style G fill:#90EE90
 
 ```
-
 ### Push to Main Execution Flow
 
 On push to main branch, separate test jobs run in parallel:
@@ -184,7 +182,6 @@ graph LR
     style G fill:#90EE90
 
 ```
-
 ## Parallel Execution Summary
 
 ### Workflow Independence

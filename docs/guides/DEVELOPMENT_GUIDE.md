@@ -964,7 +964,6 @@ logger.info("Summary generated in %.1fs (length: %d chars)", elapsed, len(summar
 logger.info("Loading summarization model: %s on %s", model_name, device)
 
 ```
-
 ## Rationale
 
 This approach ensures:
@@ -1001,7 +1000,6 @@ for episode in tqdm(episodes):
     process_episode(episode)
 
 ```
-
 ## Lazy Loading Pattern
 
 **For optional dependencies:**
@@ -1027,7 +1025,6 @@ def load_whisper():
     return _whisper
 
 ```
-
 ## Module Responsibilities
 
 - **`cli.py`**: CLI only, no business logic

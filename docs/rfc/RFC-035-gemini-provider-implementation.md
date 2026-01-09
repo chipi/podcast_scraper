@@ -278,8 +278,6 @@ class GeminiTranscriptionProvider:
         """Transcribe audio file using Gemini's native audio understanding.
 
 ```
-            mime_types = {
-                ".mp3": "audio/mpeg",
                 ".wav": "audio/wav",
                 ".m4a": "audio/mp4",
                 ".ogg": "audio/ogg",
@@ -541,8 +539,6 @@ class GeminiSummarizationProvider:
             raise RuntimeError("Provider not initialized")
 
 ```
-            )
-
 ```
 
             )

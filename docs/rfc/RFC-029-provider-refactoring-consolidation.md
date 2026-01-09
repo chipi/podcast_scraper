@@ -489,8 +489,6 @@ The naming is inconsistent:
 ### Test File Organization
 
 ```
-    └── test_ml_models_e2e.py                    # ML models E2E
-
 ```
 
 ## Rollout Plan

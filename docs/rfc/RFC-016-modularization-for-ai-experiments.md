@@ -1,14 +1,75 @@
 # RFC-016: Modularization for AI Experiment Pipeline
 
-- **Status**: Draft
+- **Status**: 🟡 **80% Complete** - Core provider pattern implemented, cleanup and experiment enhancements needed
 - **Authors**:
 - **Stakeholders**: Maintainers, developers implementing AI experiment pipeline, developers maintaining core workflow
-- **Related RFCs**: `docs/rfc/RFC-015-ai-experiment-pipeline.md`, `docs/rfc/RFC-017-prompt-management.md`, `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference)
-- **Related Issues**: (to be created)
+- **Related RFCs**: `docs/rfc/RFC-015-ai-experiment-pipeline.md`, `docs/rfc/RFC-017-prompt-management.md`, `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference), `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (completed)
+- **Related Issues**: [#303](https://github.com/chipi/podcast_scraper/issues/303) (RFC-016 Implementation)
+- **Updated**: 2026-01-08
+
+---
+
+## 📊 Implementation Status (80% Complete)
+
+### ✅ Completed (Core Foundation)
+
+1. **Provider Protocols** ✅ (100% Complete)
+   - `src/podcast_scraper/summarization/base.py` → `SummarizationProvider` protocol
+   - `src/podcast_scraper/transcription/base.py` → `TranscriptionProvider` protocol
+   - `src/podcast_scraper/speaker_detectors/base.py` → `SpeakerDetector` protocol
+   - All protocols have consistent interfaces and comprehensive docstrings
+
+2. **Unified Provider Implementations** ✅ (100% Complete)
+   - `src/podcast_scraper/ml/ml_provider.py` → `MLProvider` (implements all 3 protocols)
+     - Whisper (transcription)
+     - spaCy NER (speaker detection)
+     - Transformers BART/LED (summarization)
+   - `src/podcast_scraper/openai/openai_provider.py` → `OpenAIProvider` (implements all 3 protocols)
+     - Whisper API (transcription)
+     - GPT API (speaker detection)
+     - GPT API (summarization)
+
+3. **Factory Functions** ✅ (100% Complete)
+   - `src/podcast_scraper/summarization/factory.py` → `create_summarization_provider()`
+   - `src/podcast_scraper/transcription/factory.py` → `create_transcription_provider()`
+   - `src/podcast_scraper/speaker_detectors/factory.py` → `create_speaker_detector()`
+
+4. **Production Integration** ✅ (100% Complete)
+   - `src/podcast_scraper/workflow.py` uses new provider factories
+   - Clean separation between orchestration and implementation
+   - Proper lifecycle management
+
+### 🟡 Remaining Work (20%)
+
+**Phase 1: Legacy Module Cleanup** (Optional - Low Priority)
+- Deprecate `src/podcast_scraper/summarizer.py`
+- Deprecate `src/podcast_scraper/speaker_detection.py`
+- Deprecate `src/podcast_scraper/whisper_integration.py`
+
+**Phase 2: Experiment-Specific Factory Enhancements** (Critical - 3-5 days)
+- Enable factories to accept experiment-style params dict (not just `Config`)
+- Required for RFC-015 Phase 1
+
+**Phase 3: Extract Evaluation Infrastructure** (Important - 1 week)
+- Create `src/podcast_scraper/experiments/evaluation.py`
+- Extract ROUGE, BLEU from `scripts/eval_summaries.py`
+- Add WER calculation (jiwer)
+- Add semantic similarity (sentence-transformers)
+- Required for RFC-015 Phase 2
+
+**See [GitHub Issue #303](https://github.com/chipi/podcast_scraper/issues/303) for detailed implementation plan.**
+
+---
+
+---
 
 ## Abstract
 
-This RFC identifies the refactoring and modularization needed to support the AI experiment pipeline (RFC-015) while maintaining the existing production workflow. **This refactoring aligns with and builds upon the modularization already planned in RFC-013 (OpenAI Provider Implementation)**. The goal is to create clean abstractions that allow the experiment pipeline to run independently without duplicating code or interfering with the main pipeline.
+**🎯 Quick Summary:** This RFC is **80% complete**. The core provider pattern (protocols, implementations, factories) is production-ready. Remaining work (20%) focuses on legacy cleanup, experiment-specific factory enhancements, and evaluation infrastructure extraction. **You can start RFC-015 as soon as Phase 2 (factory enhancements) is complete (~3-5 days).**
+
+---
+
+This RFC identifies the refactoring and modularization needed to support the AI experiment pipeline (RFC-015) while maintaining the existing production workflow. **This refactoring aligns with and builds upon the modularization already completed in RFC-029 (Provider Refactoring Consolidation)**. The goal is to create clean abstractions that allow the experiment pipeline to run independently without duplicating code or interfering with the main pipeline.
 
 **Key Concept**: The experiment pipeline wraps existing pieces (gold data, HF baseline, eval scripts) in a repeatable pipeline. The provider system enables this by allowing the experiment runner to reuse production providers without code duplication. Once the structure is in place, adding new providers is just "add config + small backend class".
 
@@ -170,7 +231,6 @@ class LocalSummarizationProvider:
 
         # Current summarizer.py logic, but as a provider
 
-```
 ```python
 
 # podcast_scraper/metadata.py
@@ -192,13 +252,14 @@ def generate_episode_metadata(
     if summarization_provider is None:
 
 ```python
+
         # Create default provider from config (backward compatibility)
+
 ```python
 
         from .providers.summarization.factory import create_summarization_provider
         summarization_provider = create_summarization_provider(cfg)
 
-```
 ```
 
     summary_result = summarization_provider.summarize(
@@ -233,9 +294,6 @@ def remove_sponsor_blocks(text: str) -> str:
 ```python
 
     """Remove sponsor blocks (moved from summarizer.py)."""
-
-```
-    # Current remove_sponsor_blocks() implementation
 
 ```
 ```python
@@ -282,8 +340,6 @@ class OpenAISummarizationProvider:
         # Use prompts in API call...
 
 ```
-
-- ✅ Local providers (transformers, Whisper) don't use prompts
 - ✅ Prompt management doesn't affect protocol compliance
 - ✅ Same `prompt_store` used in both application and experiments
 
@@ -327,12 +383,11 @@ class SummarizationBackend:
         self.config = experiment_config
 
 ```text
+
         # Convert experiment config to Config object
-```
-
-        cfg = self._create_config_from_experiment(experiment_config)
 
 ```
+
 ```
 
         self.provider = create_summarization_provider(cfg)
@@ -351,8 +406,6 @@ class SummarizationBackend:
         # Merge experiment params with method params
 
 ```
-```
-
         return self.provider.summarize(
             text=transcript,
             episode_title=episode_title,
@@ -361,11 +414,9 @@ class SummarizationBackend:
         )
 
 ```python
+
     def _create_config_from_experiment(self, exp_config: Dict[str, Any]) -> config.Config:
         """Convert experiment config to Config object."""
-```
-
-        # Map experiment config to Config fields
 
 ```
 
@@ -420,8 +471,6 @@ def evaluate_summaries(
     """
 
 ```
-    # Current evaluation logic, but with standardized input/output
-
 ```python
 
     ...
@@ -436,14 +485,8 @@ def main():
 
 ```
 
-    # Load predictions and gold data
-
 ```
-    # Call evaluate_summaries()
-
 ```
-
-    # Print results
 
 ```python
 
@@ -470,8 +513,6 @@ def load_predictions_from_metadata(metadata_dir: Path) -> List[Dict[str, Any]]:
     # Load from existing metadata.json files
 
 ```
-
-```text
 ```python
 
 # podcast_scraper/workflow.py
@@ -500,7 +541,6 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
         transcription_provider = create_transcription_provider(cfg)
 
-```
 ```
 
     # ...
@@ -537,8 +577,6 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
     # Map models
 
 ```
-    if "summarizer" in experiment_config.get("models", {}):
-        model_config = experiment_config["models"]["summarizer"]
         if model_config["type"] == "openai":
             config_dict["summary_provider"] = "openai"
             config_dict["openai_summarization_model"] = model_config["name"]
@@ -547,15 +585,13 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
             config_dict["summary_model"] = model_config["name"]
 
 ```
-```
+
             if "reduce" in experiment_config.get("models", {}):
                 reduce_config = experiment_config["models"]["reduce"]
                 if reduce_config["type"] == "hf_local":
                     config_dict["summary_reduce_model"] = reduce_config["name"]
 
 ```
-```
-    if "params" in experiment_config:
         params = experiment_config["params"]
         if "max_length" in params:
             config_dict["summary_max_length"] = params["max_length"]
@@ -571,10 +607,9 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
             config_dict["summary_device"] = params["device"]
 
 ```
-```
+
         # Note: Some OpenAI params (temperature, etc.) may need to be passed
 
-```
 ```python
 
     # Map prompts (using prompt_store from RFC-017)
@@ -584,8 +619,6 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
         prompts = experiment_config["prompts"]
 
 ```
-        # Map prompt names to config fields
-
 ```
 
             config_dict["summary_system_prompt"] = prompts["system"]
@@ -595,8 +628,6 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
             config_dict["summary_prompt_params"] = prompts["params"]
 
 ```
-    return config.Config(**config_dict)
-
 ```go
 
 - Versioned prompt files (`.j2` templates)

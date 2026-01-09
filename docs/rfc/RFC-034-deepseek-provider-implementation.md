@@ -298,7 +298,6 @@ class DeepSeekSpeakerDetector:
     def __init__(self, cfg: config.Config):
         """Initialize DeepSeek speaker detector.
 
-```
 ```python
 
     def initialize(self) -> None:
@@ -344,8 +343,6 @@ class DeepSeekSpeakerDetector:
         known_hosts: Set[str],
     ) -> Tuple[List[str], Set[str], bool]:
         """Detect speakers for an episode using DeepSeek API.
-
-```
 
 ```json
 
@@ -474,7 +471,6 @@ class DeepSeekSummarizationProvider:
 
 ```
 
-        self.max_context_tokens = 64000
         self._initialized = False
         # API providers are thread-safe
         self._requires_separate_instances = False
@@ -498,11 +494,8 @@ class DeepSeekSummarizationProvider:
         """Summarize text using DeepSeek chat API.
 
 ```
-            )
-
 ```
 
-                user_prompt,
                 system_prompt_name,
                 user_prompt_name,
                 paragraphs_min,
@@ -537,10 +530,7 @@ class DeepSeekSummarizationProvider:
 
 ```
 
-            prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
-
 ```
-                    "prompts": prompt_metadata,
                 },
             }
 
@@ -564,8 +554,6 @@ class DeepSeekSummarizationProvider:
         from ..prompt_store import render_prompt
 
 ```
-
-        user_prompt = render_prompt(user_prompt_name, **template_params)
 
 ```python
 
