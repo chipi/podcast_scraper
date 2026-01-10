@@ -984,14 +984,16 @@ def _detect_feed_hosts_and_patterns(
         # Initialize provider (loads spaCy model for ML, or sets up API client for OpenAI)
         speaker_detector.initialize()
 
-        # Only detect and cache hosts if cache_detected_hosts is enabled
+        # Always detect hosts (for metadata generation), regardless of cache_detected_hosts
+        # Detect hosts: prefer RSS author tags, fall back to NER
+        feed_hosts = speaker_detector.detect_hosts(
+            feed_title=feed.title,
+            feed_description=None,  # TODO: Extract from feed XML if needed
+            feed_authors=feed.authors if feed.authors else None,
+        )
+
+        # Only validate and analyze patterns if cache_detected_hosts is enabled
         if cfg.cache_detected_hosts:
-            # Detect hosts: prefer RSS author tags, fall back to NER
-            feed_hosts = speaker_detector.detect_hosts(
-                feed_title=feed.title,
-                feed_description=None,  # TODO: Extract from feed XML if needed
-                feed_authors=feed.authors if feed.authors else None,
-            )
 
             # Validate hosts with first episode: hosts should appear in first episode too
             # Skip validation if hosts came from author tags (they're already reliable)
@@ -1039,6 +1041,7 @@ def _detect_feed_hosts_and_patterns(
                 logger.debug("No hosts detected from feed metadata")
 
             # Analyze patterns from first few episodes to extract heuristics
+            # Only analyze if cache_detected_hosts is enabled (to avoid unnecessary work)
             if episodes:
                 heuristics_dict = speaker_detector.analyze_patterns(
                     episodes=episodes, known_hosts=cached_hosts
@@ -1050,8 +1053,14 @@ def _detect_feed_hosts_and_patterns(
                             "Pattern analysis: guest names typically appear at %s of title",
                             heuristics["title_position_preference"],
                         )
+        else:
+            # Hosts detected but cache_detected_hosts is False - still store them for metadata
+            # but don't log or analyze patterns (to avoid unnecessary work)
+            cached_hosts = feed_hosts
 
         # Return result with provider instance (always return detector if auto_speakers is enabled)
+        # Always include detected hosts in cached_hosts (even if caching is disabled)
+        # for metadata generation
         return _HostDetectionResult(cached_hosts, heuristics, speaker_detector)
     except Exception as exc:
         logger.error("Failed to initialize speaker detector provider: %s", exc)
@@ -1195,13 +1204,14 @@ def _prepare_episode_download_args(
                 # Stage 3: Use provider for speaker detection
                 speaker_detector = host_detection_result.speaker_detector
                 if speaker_detector:
-                    cached_hosts_for_detection = (
-                        host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
-                    )
+                    # Always use detected hosts for filtering guests,
+                    # regardless of cache_detected_hosts
+                    cached_hosts_for_detection = host_detection_result.cached_hosts
                     detected_speakers, detected_hosts_set, detection_succeeded = (
                         speaker_detector.detect_speakers(
                             episode_title=episode.title,
                             episode_description=episode_description,
+                            # Use detected hosts for filtering
                             known_hosts=cached_hosts_for_detection,
                         )
                     )
