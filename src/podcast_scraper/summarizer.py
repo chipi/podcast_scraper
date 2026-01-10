@@ -204,6 +204,56 @@ LENGTH_PENALTY = (
     1.0  # Length penalty for beam search (1.0 = no penalty, encourage longer summaries)
 )
 
+# Generation parameters for REDUCE phase (final summary) - tighter to force synthesis
+REDUCE_NO_REPEAT_NGRAM_SIZE = 5  # Higher to prevent redundancy in final summary
+REDUCE_LENGTH_PENALTY = 0.9  # Slightly < 1 to discourage rambling
+REDUCE_NUM_BEAMS = 3  # Fewer beams can reduce "safe copying" behavior
+
+# Generation parameters for DISTILL phase (final compression pass)
+# This is pure compression, NOT semantic pruning.
+# Target: 150-220 tokens - forces headline facts only, removes narration
+DISTILL_MAX_TOKENS = 200  # Target upper bound (was 210)
+DISTILL_MIN_TOKENS = 120  # Target lower bound (was 100) - avoid truncation
+DISTILL_NO_REPEAT_NGRAM_SIZE = 6  # Strongest anti-repeat
+DISTILL_LENGTH_PENALTY = 0.75  # More aggressive (was 0.8) - favor shorter
+DISTILL_NUM_BEAMS = 4  # Standard beams for distill
+
+# Post-distill pruning patterns - ONLY remove KNOWN garbage after distillation
+# IMPORTANT: Never do "importance pruning" before abstraction.
+# BART/LED need messy, redundant, narrative content - they decide importance.
+# These patterns are for AFTER DISTILL only, and are very conservative.
+
+# Credit patterns that might leak through to final summary
+# These are safe to remove because they're definitively not content
+POST_DISTILL_CREDIT_PATTERNS = [
+    r"\bproduced by\b",
+    r"\bedited by\b",
+    r"\bfact[- ]?checked by\b",
+    r"\bengineering by\b",
+    r"\bspecial thanks to\b",
+]
+
+# Rhetorical filler starts - sentences starting with these are low-value
+RHETORICAL_FILLER_STARTS = [
+    r"^if there'?s one (?:headline|thing|takeaway)",
+    r"^(?:and )?that'?s (?:the|a) wrap",
+    r"^(?:so )?what does (?:this|that|it) (?:all )?mean",
+    r"^(?:in )?(?:the )?end,?\s",
+    r"^(?:at )?the end of the day",
+    r"^(?:all )?(?:in )?all,?\s",
+    r"^(?:to )?sum(?:marize|ming)? (?:up|it all)",
+]
+
+# Structured joiner constants
+MAX_BULLETS_PER_CHUNK = 8  # Cap bullets per chunk to prevent overflow
+MAX_BULLET_CHARS = 150  # Max characters per bullet
+MIN_BULLET_CHARS = 10  # Min characters for a valid bullet
+SENTENCE_SPLIT_THRESHOLD = 220  # Only split sentences if line > this many chars
+MAX_CHUNK_CHARS = 1000  # Max total characters per chunk block
+
+# Pattern for stripping leading numbers from bullets
+_LEADING_NUMBER_PATTERN = re.compile(r"^\d+[\.\)]\s*")
+
 # Default model selection
 # Note: BART models have 1024 token limit, requiring chunking for long texts
 # PEGASUS models were trained directly for summarization, 1024 token limit
@@ -677,6 +727,8 @@ class SummaryModel:
         min_length: int = 30,
         do_sample: bool = False,
         prompt: Optional[str] = None,
+        is_reduce_phase: bool = False,
+        is_distill_phase: bool = False,
     ) -> str:
         """Generate summary of input text.
 
@@ -686,6 +738,8 @@ class SummaryModel:
             min_length: Minimum length of summary
             do_sample: Whether to use sampling (False = deterministic)
             prompt: Optional instruction/prompt to prepend to guide summarization
+            is_reduce_phase: If True, use REDUCE-specific generation params
+            is_distill_phase: If True, use DISTILL-specific generation params
 
         Returns:
             Generated summary text
@@ -697,20 +751,11 @@ class SummaryModel:
         if not text or len(text.strip()) < MIN_TEXT_LENGTH:
             return text.strip()
 
-        # Note: Summarization pipelines don't support prompts in the input text
-        # Prepending prompts causes them to leak into the summary output
-        # The prompt is logged for debugging but not used in the input
-        # Summarization models are trained to summarize without explicit prompts
-        # OLDinput_text = text
-        if prompt:
-            # Inject prompt directly into the summarization text
-            # input_text = prompt + "\n\n" + text
-            input_text = f"Instruction: {prompt}\n\nTranscript:\n{text}"
-        else:
-            input_text = text
-
-        # Prompt logging removed to reduce log noise (called once per chunk)
-        # Custom prompts are logged at the start of summarize_long_text if needed
+        # IMPORTANT: For BART/LED models, do NOT inject prompts into input text.
+        # These models copy prompts verbatim into output, causing instruction leakage.
+        # Only use prompts for instruction-following models (GPT, etc.)
+        # For BART/LED, the model learns to summarize from training, not from prompts.
+        input_text = text
 
         # Check input length to prevent buffer size errors
         # MPS has buffer size limits, so we need to ensure text isn't too long
@@ -729,6 +774,24 @@ class SummaryModel:
             # Add repetition_penalty and no_repeat_ngram_size to prevent hallucinations/repetition
             # Use beam search (num_beams) for better quality summaries instead of greedy decoding
             # LED models benefit from beam search for more coherent summaries
+
+            # Select generation parameters based on phase
+            if is_distill_phase:
+                # DISTILL phase: tightest constraints for final compression
+                ngram_size = DISTILL_NO_REPEAT_NGRAM_SIZE
+                length_pen = DISTILL_LENGTH_PENALTY
+                num_beams = DISTILL_NUM_BEAMS
+            elif is_reduce_phase:
+                # REDUCE phase: tighter than MAP to force synthesis
+                ngram_size = REDUCE_NO_REPEAT_NGRAM_SIZE
+                length_pen = REDUCE_LENGTH_PENALTY
+                num_beams = REDUCE_NUM_BEAMS
+            else:
+                # MAP phase: standard parameters
+                ngram_size = NO_REPEAT_NGRAM_SIZE
+                length_pen = LENGTH_PENALTY
+                num_beams = NUM_BEAMS
+
             pipeline_kwargs = {
                 "max_length": max_length,
                 "max_new_tokens": None,  # Explicitly disable to prevent warning
@@ -736,7 +799,7 @@ class SummaryModel:
                 "truncation": True,
                 # Penalize repetition to prevent hallucinations
                 "repetition_penalty": REPETITION_PENALTY,
-                "no_repeat_ngram_size": NO_REPEAT_NGRAM_SIZE,  # Prevent n-gram repetition
+                "no_repeat_ngram_size": ngram_size,
             }
 
             # Use beam search for better quality (LED models work better with beam search)
@@ -745,10 +808,8 @@ class SummaryModel:
                 pipeline_kwargs["do_sample"] = True
             else:
                 # Beam search produces better summaries than greedy decoding
-                pipeline_kwargs["num_beams"] = NUM_BEAMS  # Balance of quality and speed
-                pipeline_kwargs["length_penalty"] = (
-                    LENGTH_PENALTY  # Encourage longer, more detailed summaries
-                )
+                pipeline_kwargs["num_beams"] = num_beams
+                pipeline_kwargs["length_penalty"] = length_pen
                 pipeline_kwargs["early_stopping"] = True  # Stop when all beams agree
 
             result = self.pipeline(input_text, **pipeline_kwargs)
@@ -1763,9 +1824,325 @@ def _select_key_summaries(chunk_summaries: List[str]) -> List[str]:
         ]
 
 
+def _normalize_bullet(line: str) -> str:
+    """Normalize a line to consistent bullet format.
+
+    Strips leading numbering (1), 1., etc.) and existing bullet prefixes
+    to ensure consistent formatting in reducer input.
+    """
+    line = line.strip()
+    # Strip existing bullet prefixes
+    if line.startswith(("-", "•", "*")):
+        line = line[1:].strip()
+    # Strip leading numbering like "1)", "1.", "2) "
+    line = _LEADING_NUMBER_PATTERN.sub("", line)
+    return line.strip()
+
+
 def _join_summaries_with_structure(summaries: List[str]) -> str:
-    """Join summaries with structural separation to preserve semantics."""
-    return "\n\n".join(summaries)
+    """Join chunk summaries for BART/LED reduce phase.
+
+    IMPORTANT: For BART/LED, we output ONLY plain bullets with neutral separators.
+    NO instruction text, NO headers - these get copied verbatim by the model.
+
+    The structure helps the model:
+    1. See clear chunk boundaries (===)
+    2. Treat content as "notes" not "sentences to copy"
+    3. Avoid extractive copying of prose
+
+    Args:
+        summaries: List of chunk summary strings
+
+    Returns:
+        Structured text for reducer input (bullets only, no instructions)
+    """
+    blocks = []
+    for i, s in enumerate(summaries, start=1):
+        s = s.strip()
+        if not s:
+            continue
+
+        # Sanitize: remove any artifacts that might have leaked through
+        s = preprocessing.remove_summarization_artifacts(s)
+
+        # Convert prose to bullets
+        lines = [ln.strip() for ln in s.splitlines() if ln.strip()]
+
+        # If single long line, split into sentences (but only if very long)
+        if len(lines) == 1 and len(lines[0]) > SENTENCE_SPLIT_THRESHOLD:
+            text = lines[0]
+            # Crude sentence segmentation - only split on clear boundaries
+            parts = [p.strip() for p in re.split(r"(?<=[.!?])\s+", text) if p.strip()]
+            lines = parts[:MAX_BULLETS_PER_CHUNK]
+
+        # Convert to bullets, cap length
+        bullet_lines = []
+        total_chars = 0
+        for ln in lines:
+            ln = _normalize_bullet(ln)
+            if len(ln) < MIN_BULLET_CHARS:
+                continue
+            if len(ln) > MAX_BULLET_CHARS:
+                ln = ln[:MAX_BULLET_CHARS] + "..."
+            if total_chars + len(ln) > MAX_CHUNK_CHARS:
+                break
+            bullet_lines.append(f"- {ln}")
+            total_chars += len(ln)
+            if len(bullet_lines) >= MAX_BULLETS_PER_CHUNK:
+                break
+
+        if bullet_lines:
+            # Use neutral separator - no headers (they get echoed)
+            block = "\n".join(bullet_lines)
+            blocks.append(block)
+
+    # Join with neutral separator that won't be echoed
+    return "\n===\n".join(blocks).strip()
+
+
+def _postprocess_ml_summary(text: str) -> str:
+    """Clean up BART/LED output artifacts.
+
+    BART/LED models can produce:
+    - Leaked separators (===)
+    - Bullet prefixes we don't want in final output
+    - Repetition spirals
+    - Minor formatting issues
+
+    This function cleans the output into plain sentences.
+
+    Args:
+        text: Raw model output
+
+    Returns:
+        Clean, sentence-formatted summary
+    """
+    if not text:
+        return text
+
+    # Remove any leaked separators
+    text = text.replace("===", " ")
+    text = re.sub(r"\s+", " ", text)
+
+    # Handle inline bullets (.-) by converting to newlines first
+    text = re.sub(r"\.\s*-\s*", ".\n", text)
+
+    # Split into sentences
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+
+    cleaned = []
+    seen_starts = set()  # Track sentence starts to detect repetition
+
+    for sent in sentences:
+        sent = sent.strip()
+        if not sent:
+            continue
+
+        # Remove bullet prefixes
+        if sent.startswith(("-", "•", "*")):
+            sent = sent[1:].strip()
+
+        # Skip very short fragments
+        if len(sent) < 15:
+            continue
+
+        # Detect repetition spirals (same start repeated)
+        start = sent[:30].lower() if len(sent) >= 30 else sent.lower()
+        if start in seen_starts:
+            continue
+        seen_starts.add(start)
+
+        # Capitalize first letter
+        if sent and sent[0].islower():
+            sent = sent[0].upper() + sent[1:]
+
+        # Ensure ends with punctuation
+        if sent and sent[-1] not in ".!?":
+            sent = sent + "."
+
+        cleaned.append(sent)
+
+    result = " ".join(cleaned)
+
+    # Final cleanup
+    result = re.sub(r"\s+", " ", result)
+    result = re.sub(r"\s+([.,!?])", r"\1", result)
+
+    return result.strip()
+
+
+def _dedupe_sentences(text: str, similarity_threshold: float = 0.7) -> str:
+    """Remove near-duplicate sentences using character n-gram overlap.
+
+    This is a safe, surface-level deduplication that removes:
+    - Near-duplicate sentences (same idea, slightly different wording)
+    - "she did X... she repeated Y..." patterns
+
+    Uses character trigram Jaccard similarity - no semantics, no risk.
+
+    Args:
+        text: Text to deduplicate
+        similarity_threshold: Jaccard similarity threshold (0.7 = 70% overlap)
+
+    Returns:
+        Text with near-duplicates removed
+    """
+    if not text:
+        return text
+
+    def get_trigrams(s: str) -> set:
+        """Get character trigrams from a string."""
+        s = s.lower()
+        return {s[i : i + 3] for i in range(len(s) - 2)} if len(s) >= 3 else {s}
+
+    def jaccard_similarity(s1: str, s2: str) -> float:
+        """Calculate Jaccard similarity between two strings using trigrams."""
+        t1 = get_trigrams(s1)
+        t2 = get_trigrams(s2)
+        if not t1 or not t2:
+            return 0.0
+        intersection = len(t1 & t2)
+        union = len(t1 | t2)
+        return intersection / union if union > 0 else 0.0
+
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    kept: list[str] = []
+
+    for sent in sentences:
+        sent = sent.strip()
+        if not sent:
+            continue
+
+        # Check if this sentence is too similar to any already kept
+        is_duplicate = False
+        for kept_sent in kept:
+            if jaccard_similarity(sent, kept_sent) > similarity_threshold:
+                # Keep the longer one (more informative)
+                if len(sent) > len(kept_sent):
+                    kept.remove(kept_sent)
+                    kept.append(sent)
+                is_duplicate = True
+                break
+
+        if not is_duplicate:
+            kept.append(sent)
+
+    return " ".join(kept)
+
+
+def _prune_filler_sentences(text: str) -> str:
+    """Remove ONLY known filler patterns after distillation.
+
+    IMPORTANT: This is now VERY CONSERVATIVE.
+    Only removes sentences that:
+    1. Start with specific rhetorical filler patterns
+    2. Contain credit patterns that leaked through
+
+    NO semantic pruning (numbers, entities, etc.) - that was too aggressive
+    and caused the model to collapse to credits.
+
+    Args:
+        text: Distilled summary text
+
+    Returns:
+        Text with known filler removed
+    """
+    if not text:
+        return text
+
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    kept = []
+
+    for sent in sentences:
+        sent = sent.strip()
+        if not sent:
+            continue
+
+        sent_lower = sent.lower()
+
+        # Check if sentence starts with rhetorical filler - remove
+        is_filler_start = any(re.match(pat, sent_lower) for pat in RHETORICAL_FILLER_STARTS)
+        if is_filler_start:
+            logger.debug(f"[PRUNE] Removing filler sentence: {sent[:50]}...")
+            continue
+
+        # Check if sentence contains credit patterns - remove
+        is_credit = any(re.search(pat, sent, re.IGNORECASE) for pat in POST_DISTILL_CREDIT_PATTERNS)
+        if is_credit:
+            logger.debug(f"[PRUNE] Removing credit sentence: {sent[:50]}...")
+            continue
+
+        # Keep everything else - no semantic pruning!
+        kept.append(sent)
+
+    result = " ".join(kept)
+
+    # Safety: if we pruned too aggressively, return original
+    if len(result) < len(text) * 0.5:  # More conservative threshold (was 0.3)
+        logger.debug("[PRUNE] Pruning too aggressive, keeping original")
+        return text
+
+    return result
+
+
+def _distill_final_summary(model: "SummaryModel", summary_text: str) -> str:
+    """Apply final distillation pass to tighten the summary.
+
+    This pass:
+    1. Runs another summarization with tight constraints
+    2. Removes ONLY known garbage (credits, filler starts)
+
+    IMPORTANT: No semantic pruning before distillation.
+    BART/LED need messy content - they decide importance.
+
+    Args:
+        model: The summary model (use reduce model for consistency)
+        summary_text: The reduce phase output
+
+    Returns:
+        Tighter summary
+    """
+    if not summary_text or not summary_text.strip():
+        return summary_text
+
+    # Log input length for debugging
+    logger.debug(f"[DISTILL] Input length: {len(summary_text)} chars")
+
+    # Step 1: Run distillation pass with tight constraints
+    # Note: We don't use prompts for BART/LED (they get copied)
+    # The tight decoding params do the work
+    # NO pre-filtering - let the model see everything
+    distilled = model.summarize(
+        summary_text,  # Use original, no pre-filtering
+        max_length=DISTILL_MAX_TOKENS,
+        min_length=DISTILL_MIN_TOKENS,
+        do_sample=False,
+        is_reduce_phase=False,
+        is_distill_phase=True,
+    )
+
+    # Step 2: Post-process the distilled output
+    distilled = _postprocess_ml_summary(distilled)
+
+    # Step 3: Remove near-duplicate sentences (surface similarity)
+    # This is safe - no semantics, just character n-gram overlap
+    distilled = _dedupe_sentences(distilled)
+
+    # Step 4: CONSERVATIVE post-distill pruning
+    # Only remove KNOWN garbage (credits, filler starts)
+    distilled = _prune_filler_sentences(distilled)
+
+    logger.debug(f"[DISTILL] Output length: {len(distilled) if distilled else 0} chars")
+
+    # If distillation produced something too short or empty, return original
+    if not distilled or len(distilled) < 50:
+        logger.warning(
+            f"Distillation produced too short output ({len(distilled) if distilled else 0} chars), "
+            "returning pre-distill summary."
+        )
+        return _postprocess_ml_summary(summary_text)
+
+    return distilled
 
 
 def _combine_summaries_extractive(
@@ -2116,13 +2493,24 @@ def _combine_summaries_abstractive(
     )
 
     try:
+        logger.debug(f"[REDUCE] Input length: {len(combined_text)} chars")
+
         final_summary = model.summarize(
             combined_text,
             max_length=final_max_length,
             min_length=min_length,
             do_sample=False,
             prompt=prompt,
+            is_reduce_phase=True,  # Use REDUCE-specific generation params
         )
+
+        logger.debug(f"[REDUCE] Output length: {len(final_summary) if final_summary else 0} chars")
+
+        # Post-process the REDUCE output
+        final_summary = _postprocess_ml_summary(final_summary)
+
+        # Apply DISTILL phase for final compression
+        final_summary = _distill_final_summary(model, final_summary)
 
         # Validate summary quality (Issue #283 follow-up)
         # Check for expansion (summary longer than input) - this is a critical issue
