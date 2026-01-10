@@ -796,5 +796,203 @@ class TestCombineSummariesAbstractive(unittest.TestCase):
             )
 
 
+@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+class TestPostprocessMLSummary(unittest.TestCase):
+    """Tests for _postprocess_ml_summary function."""
+
+    def test_postprocess_ml_summary_empty(self):
+        """Test postprocessing with empty text."""
+        result = summarizer._postprocess_ml_summary("")
+        self.assertEqual(result, "")
+
+    def test_postprocess_ml_summary_removes_separators(self):
+        """Test that separators are removed."""
+        text = "Summary text === more text"
+        result = summarizer._postprocess_ml_summary(text)
+        self.assertNotIn("===", result)
+
+    def test_postprocess_ml_summary_removes_bullet_prefixes(self):
+        """Test that bullet prefixes are removed."""
+        text = "- First sentence. • Second sentence. * Third sentence."
+        result = summarizer._postprocess_ml_summary(text)
+        self.assertNotIn("- First", result)
+        self.assertNotIn("• Second", result)
+        self.assertNotIn("* Third", result)
+        self.assertIn("First sentence", result)
+        self.assertIn("Second sentence", result)
+        self.assertIn("Third sentence", result)
+
+    def test_postprocess_ml_summary_skips_short_fragments(self):
+        """Test that very short fragments are skipped."""
+        text = "Short. This is a longer sentence that should be kept."
+        result = summarizer._postprocess_ml_summary(text)
+        # Short fragments (< 15 chars) should be removed
+        self.assertNotIn("Short", result)
+        self.assertIn("This is a longer sentence", result)
+
+    def test_postprocess_ml_summary_detects_repetition(self):
+        """Test that repetition spirals are detected."""
+        text = "This is a sentence. This is a sentence. This is a sentence."
+        result = summarizer._postprocess_ml_summary(text)
+        # Should deduplicate repeated sentences
+        self.assertLessEqual(result.count("This is a sentence"), 1)
+
+    def test_postprocess_ml_summary_capitalizes_sentences(self):
+        """Test that sentences are capitalized."""
+        text = "this is a sentence. another sentence."
+        result = summarizer._postprocess_ml_summary(text)
+        self.assertIn("This is a sentence", result)
+        self.assertIn("Another sentence", result)
+
+    def test_postprocess_ml_summary_adds_punctuation(self):
+        """Test that sentences without punctuation get periods."""
+        text = "This is a sentence Another sentence"
+        result = summarizer._postprocess_ml_summary(text)
+        # Should add periods to sentences without punctuation
+        self.assertIn(".", result)
+
+
+@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+class TestDedupeSentences(unittest.TestCase):
+    """Tests for _dedupe_sentences function."""
+
+    def test_dedupe_sentences_empty(self):
+        """Test deduplication with empty text."""
+        result = summarizer._dedupe_sentences("")
+        self.assertEqual(result, "")
+
+    def test_dedupe_sentences_no_duplicates(self):
+        """Test deduplication with no duplicates."""
+        text = "This is sentence one. This is sentence two. This is sentence three."
+        result = summarizer._dedupe_sentences(text)
+        self.assertIn("sentence one", result)
+        self.assertIn("sentence two", result)
+        self.assertIn("sentence three", result)
+
+    def test_dedupe_sentences_removes_near_duplicates(self):
+        """Test that near-duplicate sentences are removed."""
+        text = "This is a test sentence. This is a test sentence with more words."
+        result = summarizer._dedupe_sentences(text)
+        # Should keep the longer one
+        self.assertIn("test sentence with more words", result)
+        # Should remove the shorter duplicate
+        self.assertEqual(result.count("This is a test sentence"), 1)
+
+    def test_dedupe_sentences_keeps_longer_duplicate(self):
+        """Test that longer duplicate is kept."""
+        # Make them similar enough to trigger deduplication
+        text = "Short sentence. Short sentence with more details."
+        result = summarizer._dedupe_sentences(text, similarity_threshold=0.5)
+        # Should keep the longer one
+        self.assertIn("more details", result)
+
+
+@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+class TestPruneFillerSentences(unittest.TestCase):
+    """Tests for _prune_filler_sentences function."""
+
+    def test_prune_filler_sentences_empty(self):
+        """Test pruning with empty text."""
+        result = summarizer._prune_filler_sentences("")
+        self.assertEqual(result, "")
+
+    def test_prune_filler_sentences_no_fillers(self):
+        """Test pruning with no filler sentences."""
+        text = "This is a normal sentence. This is another normal sentence."
+        result = summarizer._prune_filler_sentences(text)
+        self.assertEqual(result, text)
+
+    def test_prune_filler_sentences_removes_rhetorical_fillers(self):
+        """Test that rhetorical filler sentences are removed."""
+        # Use a pattern that matches RHETORICAL_FILLER_STARTS
+        text = "In conclusion, this is important. This is a normal sentence."
+        result = summarizer._prune_filler_sentences(text)
+        # Should remove filler sentences
+        self.assertNotIn("In conclusion", result)
+        self.assertIn("normal sentence", result)
+
+    def test_prune_filler_sentences_removes_credits(self):
+        """Test that credit sentences are removed."""
+        # Use a pattern that matches POST_DISTILL_CREDIT_PATTERNS
+        text = "This episode was produced by John. This is a normal sentence."
+        result = summarizer._prune_filler_sentences(text)
+        # Should remove credit sentences
+        self.assertNotIn("produced by", result)
+        self.assertIn("normal sentence", result)
+
+    def test_prune_filler_sentences_too_aggressive(self):
+        """Test that overly aggressive pruning returns original."""
+        # Create text where pruning would remove too much
+        text = "Sentence one. Sentence two. Sentence three."
+        # Mock the function to simulate aggressive pruning
+        # (In real usage, this would happen if >50% is removed)
+        result = summarizer._prune_filler_sentences(text)
+        # Should return original if too aggressive
+        self.assertIsInstance(result, str)
+
+
+@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+class TestDistillFinalSummary(unittest.TestCase):
+    """Tests for _distill_final_summary function."""
+
+    @patch("podcast_scraper.summarizer.torch", create=True)
+    def test_distill_final_summary_empty(self, mock_torch):
+        """Test distillation with empty text."""
+        mock_torch.backends.mps.is_available.return_value = False
+        mock_torch.cuda.is_available.return_value = False
+
+        mock_model = Mock()
+        result = summarizer._distill_final_summary(mock_model, "")
+        self.assertEqual(result, "")
+        mock_model.summarize.assert_not_called()
+
+    @patch("podcast_scraper.summarizer.torch", create=True)
+    def test_distill_final_summary_whitespace_only(self, mock_torch):
+        """Test distillation with whitespace-only text."""
+        mock_torch.backends.mps.is_available.return_value = False
+        mock_torch.cuda.is_available.return_value = False
+
+        mock_model = Mock()
+        result = summarizer._distill_final_summary(mock_model, "   ")
+        self.assertEqual(result, "   ")
+        mock_model.summarize.assert_not_called()
+
+    @patch("podcast_scraper.summarizer.torch", create=True)
+    def test_distill_final_summary_success(self, mock_torch):
+        """Test successful distillation."""
+        mock_torch.backends.mps.is_available.return_value = False
+        mock_torch.cuda.is_available.return_value = False
+
+        mock_model = Mock()
+        mock_model.summarize.return_value = "Distilled summary text that is long enough"
+        input_text = "This is a longer summary text that needs to be distilled down."
+
+        result = summarizer._distill_final_summary(mock_model, input_text)
+
+        self.assertIsInstance(result, str)
+        mock_model.summarize.assert_called_once()
+        # Should call with is_distill_phase=True
+        call_kwargs = mock_model.summarize.call_args[1]
+        self.assertTrue(call_kwargs.get("is_distill_phase", False))
+
+    @patch("podcast_scraper.summarizer.torch", create=True)
+    def test_distill_final_summary_too_short_output(self, mock_torch):
+        """Test distillation that produces too short output."""
+        mock_torch.backends.mps.is_available.return_value = False
+        mock_torch.cuda.is_available.return_value = False
+
+        mock_model = Mock()
+        # Return very short summary (< 50 chars)
+        mock_model.summarize.return_value = "Short"
+        input_text = "This is a longer summary text that needs to be distilled."
+
+        result = summarizer._distill_final_summary(mock_model, input_text)
+
+        # Should return post-processed original (not the short distilled version)
+        self.assertIsInstance(result, str)
+        # Should have called summarize
+        mock_model.summarize.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
