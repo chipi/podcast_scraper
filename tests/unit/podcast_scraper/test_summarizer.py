@@ -494,7 +494,23 @@ class TestChunking(unittest.TestCase):
 
         mock_tokenizer = Mock()
         # Mock tokenizer to return many tokens (needs chunking)
-        mock_tokenizer.encode.return_value = list(range(2000))  # 2000 tokens
+        # The encode method will be called multiple times for different chunks
+        # Return appropriate token counts: full text = 2000 tokens, chunks = smaller
+        encode_call_count = [0]
+
+        def mock_encode(text, **kwargs):
+            encode_call_count[0] += 1
+            # First call is for the full text to check if chunking is needed
+            if encode_call_count[0] == 1:
+                return list(range(2000))  # Full text = 2000 tokens (triggers chunking)
+            # Subsequent calls are for individual chunks or combined summaries
+            # Return smaller token counts that fit within model limits
+            text_len = len(text)
+            # Estimate: ~4 chars per token, but return a reasonable count
+            estimated_tokens = max(100, min(500, text_len // 4))
+            return list(range(estimated_tokens))
+
+        mock_tokenizer.encode.side_effect = mock_encode
         mock_tokenizer.decode.return_value = "chunk text"
         mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
@@ -509,14 +525,49 @@ class TestChunking(unittest.TestCase):
         mock_model_class.from_pretrained.return_value = mock_model
 
         # Create a callable mock pipeline that returns proper summary format
-        # Make it return different summaries for different calls to simulate chunking
-        mock_pipe = Mock()
-        # First call returns chunk summary, second call returns final summary
-        mock_pipe.side_effect = [
-            [{"summary_text": "Chunk summary 1."}],
-            [{"summary_text": "Chunk summary 2."}],
-            [{"summary_text": "Final combined summary."}],
-        ]
+        # The pipeline will be called multiple times: once per chunk in MAP phase,
+        # then once in REDUCE phase
+        # Use longer summaries that will pass MIN_BULLET_CHARS (15) filter
+        call_count = [0]  # Use list to allow modification in nested function
+
+        def mock_pipeline_call(*args, **kwargs):
+            call_count[0] += 1
+            # For MAP phase (chunk summaries), return longer summaries
+            if call_count[0] <= 2:  # First 2 calls are for chunks
+                return [
+                    {
+                        "summary_text": (
+                            "This is a longer chunk summary that should pass the "
+                            "minimum character threshold for filtering and will be "
+                            "used in the reduce phase."
+                        )
+                    }
+                ]
+            # For REDUCE phase (final summary), return the final combined summary
+            # For DISTILL phase, return a summary that's long enough (> 50 chars)
+            # to pass validation
+            # Check if this is a distill phase call by looking for is_distill_phase
+            if kwargs.get("is_distill_phase", False):
+                return [
+                    {
+                        "summary_text": (
+                            "This is a distilled summary that is long enough to "
+                            "pass the minimum character validation threshold."
+                        )
+                    }
+                ]
+            # For REDUCE phase
+            return [
+                {
+                    "summary_text": (
+                        "This is the final combined summary that should be "
+                        "returned by the function and is long enough to pass "
+                        "validation."
+                    )
+                }
+            ]
+
+        mock_pipe = Mock(side_effect=mock_pipeline_call)
         mock_pipeline.return_value = mock_pipe
 
         # Patch _load_model to prevent network calls
@@ -533,9 +584,11 @@ class TestChunking(unittest.TestCase):
         model.model = mock_model
         model.pipeline = mock_pipe
 
+        # Use a longer text that actually needs chunking
+        long_text = "This is a very long text that needs chunking. " * 200
         result = summarizer.summarize_long_text(
             model=model,
-            text="This is a very long text that needs chunking.",
+            text=long_text,
             chunk_size=500,
             max_length=100,
             min_length=30,
