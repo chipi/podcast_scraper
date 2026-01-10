@@ -378,6 +378,12 @@ def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
         help=f"Whisper model to use (default: {config.PROD_DEFAULT_WHISPER_MODEL})",
     )
     parser.add_argument(
+        "--whisper-device",
+        choices=["cuda", "mps", "cpu", "auto"],
+        default=None,
+        help="Device for Whisper transcription (cuda/mps/cpu/auto, default: auto-detect)",
+    )
+    parser.add_argument(
         "--screenplay", action="store_true", help="Format Whisper transcript as screenplay"
     )
     parser.add_argument(
@@ -651,6 +657,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "transcribe_missing": args.transcribe_missing,
         "transcription_provider": args.transcription_provider,
         "whisper_model": args.whisper_model,
+        "whisper_device": args.whisper_device,
         "screenplay": args.screenplay,
         "screenplay_gap_s": args.screenplay_gap,
         "screenplay_num_speakers": args.num_speakers,

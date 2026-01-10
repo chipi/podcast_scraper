@@ -324,6 +324,33 @@ class MLProvider:
         if self.cfg.generate_summaries and not self._transformers_initialized:
             self._initialize_transformers()
 
+    def _detect_whisper_device(self) -> str:
+        """Detect the best device for Whisper transcription.
+
+        Returns:
+            Device string: 'mps', 'cuda', or 'cpu'
+        """
+        # Use explicit config if set
+        if self.cfg.whisper_device:
+            logger.debug("Using configured whisper_device: %s", self.cfg.whisper_device)
+            return self.cfg.whisper_device
+
+        # Auto-detect: prefer MPS (Apple Silicon) > CUDA (NVIDIA) > CPU
+        try:
+            import torch
+
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                logger.debug("Auto-detected MPS (Apple Silicon) for Whisper")
+                return "mps"
+            if torch.cuda.is_available():
+                logger.debug("Auto-detected CUDA for Whisper")
+                return "cuda"
+        except ImportError:
+            pass
+
+        logger.debug("Using CPU for Whisper (no GPU detected)")
+        return "cpu"
+
     def _initialize_whisper(self) -> None:  # noqa: C901
         """Initialize Whisper model for transcription."""
         logger.debug("Initializing Whisper transcription (model: %s)", self.cfg.whisper_model)
@@ -387,7 +414,11 @@ class MLProvider:
                         attempt_model,
                         model_name,
                     )
-                model = whisper_lib.load_model(attempt_model, download_root=whisper_cache_str)
+                # Detect and use optimal device (MPS/CUDA/CPU)
+                device_to_use = self._detect_whisper_device()
+                model = whisper_lib.load_model(
+                    attempt_model, download_root=whisper_cache_str, device=device_to_use
+                )
                 if attempt_model != model_name:
                     logger.debug(
                         "Loaded fallback Whisper model: %s (requested %s was not available)",

@@ -62,6 +62,7 @@ python -m podcast_scraper.cli --config config.yaml
 
 - `--transcribe-missing` - Use Whisper for episodes without transcripts
 - `--whisper-model MODEL` - Whisper model to use (tiny, base, small, medium, large)
+- `--whisper-device DEVICE` - Device for Whisper (cuda/mps/cpu/auto, default: auto-detect)
 - `--screenplay` - Format Whisper output as screenplay
 - `--num-speakers N` - Number of speakers (default: 2)
 - `--speaker-names NAMES` - Comma-separated speaker names

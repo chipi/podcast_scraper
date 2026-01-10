@@ -1386,16 +1386,79 @@ def _combine_summaries_abstractive(
     Returns:
         Final summary
     """
-    return map_reduce.combine_summaries_abstractive(
-        model,
-        combined_text,
-        chunk_summaries,
-        max_length,
-        min_length,
-        prompt,
-        model_max,
-        combined_tokens,
+    # Cap max_length to prevent expansion (Issue #283)
+    # When max_length > input_length, LED models tend to expand instead of summarize
+    max_output_ratio = 0.8  # Target 80% of input length
+    input_based_max = int(combined_tokens * max_output_ratio)
+
+    base_max_length = int(
+        min(
+            max_length * FINAL_MAX_LENGTH_MULTIPLIER,
+            model_max - MODEL_MAX_BUFFER,
+            SAFE_MAX_LENGTH,
+        )
     )
+
+    # Use the smaller of base_max_length and input_based_max, but ensure min_length
+    final_max_length = max(min_length, min(base_max_length, input_based_max))
+
+    if input_based_max < base_max_length:
+        logger.debug(
+            f"[MAP-REDUCE VALIDATION] Capping max_length from {base_max_length} "
+            f"to {final_max_length} (input={combined_tokens} tokens, "
+            f"max_output_ratio={max_output_ratio}) to prevent expansion"
+        )
+
+    logger.debug(
+        f"Final summarization: {len(chunk_summaries)} chunks, "
+        f"combined ~{combined_tokens} tokens, "
+        f"using max_length={final_max_length} for final summary"
+    )
+
+    try:
+        final_summary = model.summarize(
+            combined_text,
+            max_length=final_max_length,
+            min_length=min_length,
+            do_sample=False,
+            prompt=prompt,
+        )
+
+        # Validate summary quality (Issue #283 follow-up)
+        # Check for expansion (summary longer than input) - this is a critical issue
+        if len(final_summary) > len(combined_text):
+            logger.warning(
+                f"Final summary ({len(final_summary)} chars) is LONGER than input "
+                f"({len(combined_text)} chars). Model expanded instead of summarizing. "
+                "This may indicate model issues or input already being very concise."
+            )
+        # Check for poor compression (summary close to input length)
+        elif len(final_summary) > len(combined_text) * SUMMARY_VALIDATION_THRESHOLD:
+            compression_ratio = len(combined_text) / len(final_summary)
+            logger.debug(
+                f"Final summary length ({len(final_summary)} chars) is close to "
+                f"input length ({len(combined_text)} chars, compression={compression_ratio:.2f}x). "
+                f"Acceptable for LED models (threshold={SUMMARY_VALIDATION_THRESHOLD})."
+            )
+
+        if len(final_summary) < min_length * MIN_SUMMARY_LENGTH_MULTIPLIER:
+            logger.warning(
+                f"Final summary seems too short ({len(final_summary)} chars). "
+                "This might indicate summarization issues."
+            )
+
+        return final_summary
+    except RuntimeError as e:
+        error_msg = str(e).lower()
+        if "invalid buffer size" in error_msg or "out of memory" in error_msg:
+            # Abstractive path failed - re-raise to let caller decide
+            # (they can fall back to extractive)
+            logger.error(
+                f"Abstractive summarization failed ({e}). "
+                "Caller should fall back to extractive approach if needed. "
+                "Abstractive paths must use ALL summaries, not a subset."
+            )
+        raise
 
 
 def safe_summarize(

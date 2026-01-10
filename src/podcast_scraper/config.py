@@ -157,6 +157,7 @@ class Config(BaseModel):
         prefer_types: Preferred transcript types or extensions (e.g., ["text/vtt", ".srt"]).
         transcribe_missing: Enable Whisper transcription for episodes without transcripts.
         whisper_model: Whisper model name (e.g., "base", "small", "medium").
+        whisper_device: Device for Whisper execution ("cpu", "cuda", "mps", or None for auto).
         screenplay: Format transcripts as screenplay with speaker labels.
         screenplay_gap_s: Minimum gap in seconds between speaker segments.
         screenplay_num_speakers: Number of speakers for Whisper diarization.
@@ -251,6 +252,7 @@ class Config(BaseModel):
     prefer_types: List[str] = Field(default_factory=list, alias="prefer_type")
     transcribe_missing: bool = Field(default=False, alias="transcribe_missing")
     whisper_model: str = Field(default=PROD_DEFAULT_WHISPER_MODEL, alias="whisper_model")
+    whisper_device: Optional[str] = Field(default=None, alias="whisper_device")
     screenplay: bool = Field(default=False, alias="screenplay")
     screenplay_gap_s: float = Field(default=DEFAULT_SCREENPLAY_GAP_SECONDS, alias="screenplay_gap")
     screenplay_num_speakers: int = Field(default=DEFAULT_NUM_SPEAKERS, alias="num_speakers")
@@ -723,6 +725,14 @@ class Config(BaseModel):
                 if env_value in ("cpu", "cuda", "mps"):
                     data["summary_device"] = env_value
 
+        # WHISPER_DEVICE: Only set from env if not in config
+        if "whisper_device" not in data or data.get("whisper_device") is None:
+            env_device = os.getenv("WHISPER_DEVICE")
+            if env_device:
+                env_value = str(env_device).strip().lower()
+                if env_value in ("cpu", "cuda", "mps"):
+                    data["whisper_device"] = env_value
+
         # OPENAI_API_KEY: Only set from env if not in config
         if "openai_api_key" not in data or data.get("openai_api_key") is None:
             env_key = os.getenv("OPENAI_API_KEY")
@@ -1140,6 +1150,19 @@ class Config(BaseModel):
             return None
         if value_str not in ("cuda", "mps", "cpu"):
             raise ValueError("summary_device must be 'cuda', 'mps', 'cpu', or 'auto'")
+        return value_str
+
+    @field_validator("whisper_device", mode="before")
+    @classmethod
+    def _coerce_whisper_device(cls, value: Any) -> Optional[str]:
+        """Coerce whisper device to string or None."""
+        if value is None or value == "":
+            return None
+        value_str = str(value).strip().lower()
+        if value_str == "auto":
+            return None
+        if value_str not in ("cuda", "mps", "cpu"):
+            raise ValueError("whisper_device must be 'cuda', 'mps', 'cpu', or 'auto'")
         return value_str
 
     @field_validator("transcription_parallelism", mode="before")

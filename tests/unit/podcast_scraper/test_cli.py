@@ -253,6 +253,7 @@ class TestValidateArgs(unittest.TestCase):
             delay_ms=0,
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -271,6 +272,7 @@ class TestValidateArgs(unittest.TestCase):
             delay_ms=-1,  # Invalid
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -300,6 +302,7 @@ class TestValidateArgs(unittest.TestCase):
             delay_ms=0,
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -320,6 +323,7 @@ class TestValidateArgs(unittest.TestCase):
             delay_ms=0,
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -338,6 +342,7 @@ class TestValidateArgs(unittest.TestCase):
             delay_ms=0,
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -358,6 +363,7 @@ class TestValidateArgs(unittest.TestCase):
             delay_ms=0,
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -384,6 +390,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=True,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=True,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -470,6 +477,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -530,6 +538,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="openai",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -584,6 +593,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -637,6 +647,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -691,6 +702,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -746,6 +758,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -801,6 +814,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="openai",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -855,6 +869,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -909,6 +924,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -963,6 +979,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -1179,6 +1196,7 @@ class TestParseArgs(unittest.TestCase):
             delay_ms=0,
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=1.25,
             num_speakers=2,
