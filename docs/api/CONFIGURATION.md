@@ -166,6 +166,15 @@ podcast-scraper --rss https://example.com/feed.xml \
 - **Priority**: Config file → Environment variable → Default
 - **Use Cases**: Docker containers (`SUMMARY_DEVICE=cpu`), CI/CD (`SUMMARY_DEVICE=cpu`), NVIDIA GPU (`SUMMARY_DEVICE=cuda` or auto-detect), Apple Silicon (`SUMMARY_DEVICE=mps` or auto-detect)
 
+**`WHISPER_DEVICE`**
+
+- **Description**: Device for Whisper transcription (CPU, CUDA, MPS, or None for auto-detection)
+- **Required**: No (defaults to None for auto-detection)
+- **Valid Values**: `cpu`, `cuda`, `mps`, `auto`, or empty string (for None/auto-detect)
+- **Priority**: Config file → Environment variable → Default
+- **Auto-Detection Order**: MPS (Apple Silicon) → CUDA (NVIDIA) → CPU
+- **Use Cases**: Docker containers (`WHISPER_DEVICE=cpu`), CI/CD (`WHISPER_DEVICE=cpu`), NVIDIA GPU (`WHISPER_DEVICE=cuda`), Apple Silicon (`WHISPER_DEVICE=mps`)
+
 #### ML Library Configuration (Advanced)
 
 **`HF_HUB_DISABLE_PROGRESS_BARS`**
@@ -332,6 +341,7 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 # TIMEOUT=60
 
 # SUMMARY_DEVICE=cpu
+# WHISPER_DEVICE=mps  # Device for Whisper transcription (cuda/mps/cpu/auto)
 
 # ML Library Configuration (Advanced)
 # HF_HUB_DISABLE_PROGRESS_BARS=1  # Disable progress bars (default: 1)

@@ -84,6 +84,38 @@ def _import_third_party_whisper() -> ModuleType:
         ) from exc
 
 
+def _detect_whisper_device(cfg: config.Config) -> str:
+    """Detect and return appropriate device for Whisper.
+
+    Supports CUDA (NVIDIA), MPS (Apple Silicon), and CPU fallback.
+
+    Args:
+        cfg: Configuration object with optional whisper_device setting
+
+    Returns:
+        Device string ("cuda", "mps", or "cpu")
+    """
+    # Use configured device if specified
+    if cfg.whisper_device:
+        return cfg.whisper_device
+
+    # Auto-detect device
+    try:
+        import torch
+
+        # Check for Apple Silicon MPS backend first (M-series chips)
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"
+
+        # Check for CUDA (NVIDIA GPUs)
+        if torch.cuda.is_available():
+            return "cuda"
+    except ImportError:
+        pass
+
+    return "cpu"
+
+
 def load_whisper_model(cfg: config.Config) -> Optional[Any]:
     """Load Whisper model with failover to smaller models if requested model fails.
 
@@ -105,6 +137,17 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
         )
         return None
 
+    # Detect device for Whisper (auto-detect or use configured value)
+    whisper_device = _detect_whisper_device(cfg)
+    device_info = f"{whisper_device}"
+    if whisper_device == "mps":
+        device_info += " (Apple Silicon GPU)"
+    elif whisper_device == "cuda":
+        device_info += " (NVIDIA GPU)"
+    else:
+        device_info += " (CPU)"
+    logger.debug("Whisper device: %s", device_info)
+
     # Use centralized fallback logic (config-driven, no hardcoded values)
     from .whisper_utils import normalize_whisper_model_name
 
@@ -125,7 +168,10 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
                 )
             # Use download_root parameter to specify cache directory directly
             # This ensures we use pre-cached models and avoid network calls
-            model = whisper_lib.load_model(attempt_model, download_root=whisper_cache_str)
+            # Load model with device parameter for GPU acceleration
+            model = whisper_lib.load_model(
+                attempt_model, device=whisper_device, download_root=whisper_cache_str
+            )
             if attempt_model != model_name:
                 logger.debug(
                     "Loaded fallback Whisper model: %s (requested %s was not available)",

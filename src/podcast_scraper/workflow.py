@@ -183,6 +183,7 @@ def _should_preload_ml_models(cfg: config.Config) -> bool:
 
 
 def _preload_ml_models_if_needed(cfg: config.Config) -> None:
+    global _preloaded_ml_provider
     import sys
 
     workflow_pkg = sys.modules.get("podcast_scraper.workflow")
@@ -193,6 +194,13 @@ def _preload_ml_models_if_needed(cfg: config.Config) -> None:
         if isinstance(func, Mock):
             return func(cfg)
     setup.preload_ml_models_if_needed(cfg)
+    # Sync the preloaded provider from setup module to workflow module
+    # so that factories can access it via `from ..workflow import _preloaded_ml_provider`
+    _preloaded_ml_provider = setup.get_preloaded_ml_provider()
+    # Also update the package's copy (workflow/__init__.py re-exports this)
+    # so that factories importing from the package get the updated value
+    if workflow_pkg is not None and _preloaded_ml_provider is not None:
+        workflow_pkg._preloaded_ml_provider = _preloaded_ml_provider
 
 
 def _ensure_ml_models_cached(cfg: config.Config) -> None:

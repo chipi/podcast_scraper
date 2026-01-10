@@ -220,7 +220,8 @@ def preload_ml_models_if_needed(cfg: config.Config) -> None:
 
     # Create MLProvider instance and preload models
     try:
-        from ..ml.ml_provider import MLProvider
+        # Note: ...ml (3 dots) to go up from stages/ -> workflow/ -> podcast_scraper/
+        from ...ml.ml_provider import MLProvider
 
         _preloaded_ml_provider = MLProvider(cfg)
         _preloaded_ml_provider.preload()

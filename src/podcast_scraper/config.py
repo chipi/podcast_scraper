@@ -308,6 +308,14 @@ class Config(BaseModel):
             "(default: 1 for sequential. Whisper ignores >1, OpenAI uses for parallel API calls)"
         ),
     )
+    whisper_device: Optional[str] = Field(
+        default=None,
+        alias="whisper_device",
+        description=(
+            "Device for Whisper transcription ('cuda', 'mps', 'cpu', or None for auto-detect). "
+            "Auto-detection prefers MPS (Apple Silicon) > CUDA (NVIDIA) > CPU."
+        ),
+    )
     processing_parallelism: int = Field(
         default=2,
         alias="processing_parallelism",
@@ -722,6 +730,14 @@ class Config(BaseModel):
                 env_value = str(env_device).strip().lower()
                 if env_value in ("cpu", "cuda", "mps"):
                     data["summary_device"] = env_value
+
+        # WHISPER_DEVICE: Only set from env if not in config
+        if "whisper_device" not in data or data.get("whisper_device") is None:
+            env_device = os.getenv("WHISPER_DEVICE")
+            if env_device:
+                env_value = str(env_device).strip().lower()
+                if env_value in ("cpu", "cuda", "mps"):
+                    data["whisper_device"] = env_value
 
         # OPENAI_API_KEY: Only set from env if not in config
         if "openai_api_key" not in data or data.get("openai_api_key") is None:
@@ -1140,6 +1156,19 @@ class Config(BaseModel):
             return None
         if value_str not in ("cuda", "mps", "cpu"):
             raise ValueError("summary_device must be 'cuda', 'mps', 'cpu', or 'auto'")
+        return value_str
+
+    @field_validator("whisper_device", mode="before")
+    @classmethod
+    def _coerce_whisper_device(cls, value: Any) -> Optional[str]:
+        """Coerce whisper device to string or None."""
+        if value is None or value == "":
+            return None
+        value_str = str(value).strip().lower()
+        if value_str == "auto":
+            return None
+        if value_str not in ("cuda", "mps", "cpu"):
+            raise ValueError("whisper_device must be 'cuda', 'mps', 'cpu', or 'auto'")
         return value_str
 
     @field_validator("transcription_parallelism", mode="before")

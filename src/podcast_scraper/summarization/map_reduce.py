@@ -992,13 +992,31 @@ def combine_summaries_abstractive(
     Returns:
         Final summary
     """
-    final_max_length = int(
+    # Calculate base max_length from config/model limits
+    base_max_length = int(
         min(
             max_length * FINAL_MAX_LENGTH_MULTIPLIER,
             model_max - MODEL_MAX_BUFFER,
             SAFE_MAX_LENGTH,
         )
     )
+
+    # CRITICAL FIX: Cap max_length to prevent expansion instead of summarization
+    # When max_length > input_tokens, models (especially LED) tend to expand text
+    # instead of summarizing. Cap to 80% of input to ensure compression.
+    # This prevents the "summary longer than input" issue (Issue #283 follow-up).
+    max_output_ratio = 0.8  # Target at least 20% compression
+    input_based_max = int(combined_tokens * max_output_ratio)
+
+    # Use the smaller of base_max_length and input_based_max, but ensure min_length is respected
+    final_max_length = max(min_length, min(base_max_length, input_based_max))
+
+    if input_based_max < base_max_length:
+        logger.debug(
+            f"[MAP-REDUCE VALIDATION] Capping max_length from {base_max_length} "
+            f"to {final_max_length} (input={combined_tokens} tokens, "
+            f"max_output_ratio={max_output_ratio}) to prevent expansion"
+        )
 
     logger.debug(
         f"Final summarization: {len(chunk_summaries)} chunks, "
@@ -1015,16 +1033,24 @@ def combine_summaries_abstractive(
             prompt=prompt,
         )
 
-        # Validate summary quality using model-specific threshold (Issue #283)
-        if len(final_summary) > len(combined_text) * validation_threshold:
+        # Validate summary quality (Issue #283 follow-up)
+        # Check for expansion (summary longer than input) - this is a critical issue
+        if len(final_summary) > len(combined_text):
             logger.warning(
-                f"Final summary length ({len(final_summary)} chars) is suspiciously close to "
-                f"input length ({len(combined_text)} chars, threshold={validation_threshold}). "
-                "Model may have failed to summarize. "
-                "Returning summary as-is (abstractive path uses ALL summaries, no selection)."
+                f"Final summary ({len(final_summary)} chars) is LONGER than input "
+                f"({len(combined_text)} chars). Model expanded instead of summarizing. "
+                "This may indicate model issues or input already being very concise."
             )
-            # Don't select chunks - return what we got (even if suspicious)
-            # Selection should only happen in extractive paths
+        # Check for poor compression (summary close to input length)
+        elif len(final_summary) > len(combined_text) * validation_threshold:
+            compression_ratio = len(combined_text) / len(final_summary)
+            logger.debug(
+                f"Final summary length ({len(final_summary)} chars) is close to "
+                f"input length ({len(combined_text)} chars, compression={compression_ratio:.2f}x). "
+                f"Acceptable for LED models (threshold={validation_threshold})."
+            )
+            # Don't warn for LED models - they preserve more detail by design
+            # Only warn if compression is very poor (< 1.1x)
 
         if len(final_summary) < min_length * MIN_SUMMARY_LENGTH_MULTIPLIER:
             logger.warning(

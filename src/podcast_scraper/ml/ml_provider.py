@@ -312,6 +312,34 @@ class MLProvider:
         if self.cfg.generate_summaries and not self._transformers_initialized:
             self._initialize_transformers()
 
+    def _detect_whisper_device(self) -> str:
+        """Detect and return appropriate device for Whisper.
+
+        Supports CUDA (NVIDIA), MPS (Apple Silicon), and CPU fallback.
+
+        Returns:
+            Device string ("cuda", "mps", or "cpu")
+        """
+        # Use configured device if specified
+        if self.cfg.whisper_device:
+            return self.cfg.whisper_device
+
+        # Auto-detect device
+        try:
+            import torch
+
+            # Check for Apple Silicon MPS backend first (M-series chips)
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                return "mps"
+
+            # Check for CUDA (NVIDIA GPUs)
+            if torch.cuda.is_available():
+                return "cuda"
+        except ImportError:
+            pass
+
+        return "cpu"
+
     def _initialize_whisper(self) -> None:  # noqa: C901
         """Initialize Whisper model for transcription."""
         logger.debug("Initializing Whisper transcription (model: %s)", self.cfg.whisper_model)
@@ -327,6 +355,17 @@ class MLProvider:
                 "Failed to load Whisper model. "
                 "Make sure 'openai-whisper' is installed: pip install openai-whisper"
             )
+
+        # Detect device for Whisper (auto-detect or use configured value)
+        whisper_device = self._detect_whisper_device()
+        device_info = f"{whisper_device}"
+        if whisper_device == "mps":
+            device_info += " (Apple Silicon GPU)"
+        elif whisper_device == "cuda":
+            device_info += " (NVIDIA GPU)"
+        else:
+            device_info += " (CPU)"
+        logger.debug("Whisper device: %s", device_info)
 
         # Use centralized fallback logic (config-driven, no hardcoded values)
         model_name, fallback_models = normalize_whisper_model_name(
@@ -373,14 +412,17 @@ class MLProvider:
                         attempt_model,
                         model_name,
                     )
-                model = whisper_lib.load_model(attempt_model, download_root=whisper_cache_str)
+                # Load model with device parameter for GPU acceleration
+                model = whisper_lib.load_model(
+                    attempt_model, device=whisper_device, download_root=whisper_cache_str
+                )
                 if attempt_model != model_name:
                     logger.debug(
                         "Loaded fallback Whisper model: %s (requested %s was not available)",
                         attempt_model,
                         model_name,
                     )
-                logger.debug("Whisper model loaded: %s", attempt_model)
+                logger.debug("Whisper model loaded: %s on %s", attempt_model, whisper_device)
                 device = getattr(model, "device", None)
                 device_type = getattr(device, "type", None)
                 dtype = getattr(model, "dtype", None)
