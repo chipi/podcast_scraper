@@ -84,6 +84,37 @@ def _import_third_party_whisper() -> ModuleType:
         ) from exc
 
 
+def _detect_whisper_device(cfg: config.Config) -> str:
+    """Detect the best device for Whisper transcription.
+
+    Args:
+        cfg: Configuration object with optional whisper_device setting
+
+    Returns:
+        Device string: 'mps', 'cuda', or 'cpu'
+    """
+    # Use explicit config if set
+    if cfg.whisper_device:
+        logger.debug("Using configured whisper_device: %s", cfg.whisper_device)
+        return cfg.whisper_device
+
+    # Auto-detect: prefer MPS (Apple Silicon) > CUDA (NVIDIA) > CPU
+    try:
+        import torch
+
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            logger.debug("Auto-detected MPS (Apple Silicon) for Whisper")
+            return "mps"
+        if torch.cuda.is_available():
+            logger.debug("Auto-detected CUDA for Whisper")
+            return "cuda"
+    except ImportError:
+        pass
+
+    logger.debug("Using CPU for Whisper (no GPU detected)")
+    return "cpu"
+
+
 def load_whisper_model(cfg: config.Config) -> Optional[Any]:
     """Load Whisper model with failover to smaller models if requested model fails.
 
@@ -166,7 +197,11 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
                 )
             # Use download_root parameter to specify cache directory directly
             # This ensures we use pre-cached models and avoid network calls
-            model = whisper_lib.load_model(attempt_model, download_root=whisper_cache_str)
+            # Detect and use optimal device (MPS/CUDA/CPU)
+            device_to_use = _detect_whisper_device(cfg)
+            model = whisper_lib.load_model(
+                attempt_model, download_root=whisper_cache_str, device=device_to_use
+            )
             if attempt_model != model_name:
                 logger.debug(
                     "Loaded fallback Whisper model: %s (requested %s was not available)",
