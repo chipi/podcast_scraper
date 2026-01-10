@@ -5,10 +5,11 @@ place where ML models can be downloaded. All other code must use local_files_onl
 """
 
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -29,11 +30,24 @@ class TestModelLoaderWhisper(unittest.TestCase):
         self.whisper_cache = Path(self.temp_dir) / "whisper"
         self.whisper_cache.mkdir(parents=True, exist_ok=True)
 
+        # Create mock whisper module in sys.modules if it doesn't exist
+        # This allows @patch("whisper.load_model") to work even when whisper isn't installed
+        if "whisper" not in sys.modules:
+            mock_whisper = MagicMock()
+            sys.modules["whisper"] = mock_whisper
+        self._original_whisper = sys.modules.get("whisper")
+
     def tearDown(self):
         """Clean up test fixtures."""
         import shutil
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+        # Restore original whisper module if it existed
+        if self._original_whisper is None and "whisper" in sys.modules:
+            del sys.modules["whisper"]
+        elif self._original_whisper is not None:
+            sys.modules["whisper"] = self._original_whisper
 
     @patch("podcast_scraper.model_loader.get_whisper_cache_dir")
     @patch("whisper.load_model")
@@ -211,11 +225,25 @@ class TestModelLoaderTransformers(unittest.TestCase):
         self.transformers_cache = Path(self.temp_dir) / "huggingface" / "hub"
         self.transformers_cache.mkdir(parents=True, exist_ok=True)
 
+        # Create mock transformers module in sys.modules if it doesn't exist
+        # This allows @patch("transformers.AutoTokenizer") to work even when
+        # transformers isn't installed
+        if "transformers" not in sys.modules:
+            mock_transformers = MagicMock()
+            sys.modules["transformers"] = mock_transformers
+        self._original_transformers = sys.modules.get("transformers")
+
     def tearDown(self):
         """Clean up test fixtures."""
         import shutil
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+        # Restore original transformers module if it existed
+        if self._original_transformers is None and "transformers" in sys.modules:
+            del sys.modules["transformers"]
+        elif self._original_transformers is not None:
+            sys.modules["transformers"] = self._original_transformers
 
     @patch("podcast_scraper.model_loader.get_transformers_cache_dir")
     @patch("transformers.AutoModelForSeq2SeqLM")
