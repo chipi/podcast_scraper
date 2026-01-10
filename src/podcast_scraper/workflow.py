@@ -1039,7 +1039,8 @@ def _detect_feed_hosts_and_patterns(
                 logger.debug("No hosts detected from feed metadata")
 
             # Analyze patterns from first few episodes to extract heuristics
-            if episodes:
+            # Only analyze if cache_detected_hosts is enabled (to avoid unnecessary work)
+            if cfg.cache_detected_hosts and episodes:
                 heuristics_dict = speaker_detector.analyze_patterns(
                     episodes=episodes, known_hosts=cached_hosts
                 )
@@ -1050,8 +1051,14 @@ def _detect_feed_hosts_and_patterns(
                             "Pattern analysis: guest names typically appear at %s of title",
                             heuristics["title_position_preference"],
                         )
+        else:
+            # Hosts detected but cache_detected_hosts is False - still store them for metadata
+            # but don't log or analyze patterns (to avoid unnecessary work)
+            cached_hosts = feed_hosts
 
         # Return result with provider instance (always return detector if auto_speakers is enabled)
+        # Always include detected hosts in cached_hosts (even if caching is disabled)
+        # for metadata generation
         return _HostDetectionResult(cached_hosts, heuristics, speaker_detector)
     except Exception as exc:
         logger.error("Failed to initialize speaker detector provider: %s", exc)
@@ -1195,16 +1202,19 @@ def _prepare_episode_download_args(
                 # Stage 3: Use provider for speaker detection
                 speaker_detector = host_detection_result.speaker_detector
                 if speaker_detector:
-                    cached_hosts_for_detection = (
-                        host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
-                    )
+                    # Always use detected hosts for filtering guests, regardless of cache_detected_hosts
+                    cached_hosts_for_detection = host_detection_result.cached_hosts
                     detected_speakers, detected_hosts_set, detection_succeeded = (
                         speaker_detector.detect_speakers(
                             episode_title=episode.title,
                             episode_description=episode_description,
-                            known_hosts=cached_hosts_for_detection,
+                            known_hosts=cached_hosts_for_detection,  # Use detected hosts for filtering
                         )
                     )
+                else:
+                    # Fallback: No provider available (should not happen in normal flow)
+                    logger.warning("Speaker detector not available, skipping speaker detection")
+                    detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
                 else:
                     # Fallback: No provider available (should not happen in normal flow)
                     logger.warning("Speaker detector not available, skipping speaker detection")

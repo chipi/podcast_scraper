@@ -66,14 +66,17 @@ MAX_WORD_OVERLAP = 200  # Maximum recommended word overlap
 ENCODER_DECODER_TOKEN_CHUNK_SIZE = (
     600  # Forced token chunk size for encoder-decoder models (BART/PEGASUS)
 )
-CHUNK_SUMMARY_MIN_TOKENS = 80  # Target lower bound for map summaries
-CHUNK_SUMMARY_MAX_TOKENS = 160  # Target upper bound for map summaries
-SECTION_SUMMARY_MIN_TOKENS = 80  # Target lower bound for hierarchical section summaries
-SECTION_SUMMARY_MAX_TOKENS = 160  # Target upper bound for hierarchical section summaries
-FINAL_SUMMARY_MIN_TOKENS = 200  # Target lower bound for final reduce
-FINAL_SUMMARY_MAX_TOKENS = (
-    480  # Target upper bound for final reduce (slightly higher for more detail)
-)
+# Token limits for MAP phase chunk summaries (Issue #283)
+# Increased from 80-160 to 150-300 to allow more detail preservation
+# and reduce extractive behavior in BART/LED models
+CHUNK_SUMMARY_MIN_TOKENS = 150  # Target lower bound for map summaries (was 80)
+CHUNK_SUMMARY_MAX_TOKENS = 300  # Target upper bound for map summaries (was 160)
+SECTION_SUMMARY_MIN_TOKENS = 150  # Target lower bound for hierarchical section summaries (was 80)
+SECTION_SUMMARY_MAX_TOKENS = 300  # Target upper bound for hierarchical section summaries (was 160)
+# Token limits for REDUCE phase final summary (Issue #283)
+# Increased from 200-480 to 400-800 to produce more comprehensive summaries
+FINAL_SUMMARY_MIN_TOKENS = 400  # Target lower bound for final reduce (was 200)
+FINAL_SUMMARY_MAX_TOKENS = 800  # Target upper bound for final reduce (was 480)
 # Sponsor removal patterns
 SPONSOR_BLOCK_PATTERNS = [
     r"this episode is brought to you by.*?(?=\n\n|\Z)",
@@ -158,7 +161,7 @@ REPETITIVE_SUMMARY_THRESHOLD = 0.8  # Flag summary if length > 80% of selected s
 MAX_LENGTH_MULTIPLIER = 2  # Multiplier for safe max length calculation
 FINAL_MAX_LENGTH_MULTIPLIER = 1.8  # Multiplier for final max length calculation
 MODEL_MAX_BUFFER = 200  # Buffer to subtract from model max for safety
-SAFE_MAX_LENGTH = 512  # Safe maximum length for final summarization
+SAFE_MAX_LENGTH = 800  # Safe maximum length for final summarization (was 512, Issue #283)
 
 # Chunk selection thresholds
 FEW_CHUNKS_THRESHOLD = 3  # Use all chunks if <= this many

@@ -898,8 +898,9 @@ class TestDetectFeedHostsAndPatterns(unittest.TestCase):
         # Speaker detector should be created (needed for speaker detection)
         mock_create.assert_called_once_with(cfg)
         mock_detector.initialize.assert_called_once()
-        # But host detection/caching should be skipped
-        mock_detector.detect_hosts.assert_not_called()
+        # Hosts are always detected (for metadata generation), even when caching is disabled
+        mock_detector.detect_hosts.assert_called_once()
+        # But validation and pattern analysis should be skipped when caching is disabled
         mock_detector.analyze_patterns.assert_not_called()
         # Detector should still be returned for use in episode processing
         self.assertIsNotNone(result.speaker_detector)
