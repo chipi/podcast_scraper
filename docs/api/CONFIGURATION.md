@@ -190,11 +190,19 @@ podcast-scraper --rss https://example.com/feed.xml \
 
 **`SUMMARY_DEVICE`**
 
-- **Description**: Device for model execution (CPU, CUDA, MPS, or None for auto-detection)
+- **Description**: Device for summarization model execution (CPU, CUDA, MPS, or None for auto-detection)
 - **Required**: No (defaults to None for auto-detection)
 - **Valid Values**: `cpu`, `cuda`, `mps`, or empty string (for None/auto-detect)
 - **Priority**: Config file → Environment variable → Default
 - **Use Cases**: Docker containers (`SUMMARY_DEVICE=cpu`), CI/CD (`SUMMARY_DEVICE=cpu`), NVIDIA GPU (`SUMMARY_DEVICE=cuda` or auto-detect), Apple Silicon (`SUMMARY_DEVICE=mps` or auto-detect)
+
+**`WHISPER_DEVICE`**
+
+- **Description**: Device for Whisper transcription (CPU, CUDA, MPS, or None for auto-detection)
+- **Required**: No (defaults to None for auto-detection)
+- **Valid Values**: `cpu`, `cuda`, `mps`, or empty string (for None/auto-detect)
+- **Priority**: Config file → Environment variable → Default
+- **Use Cases**: Docker containers (`WHISPER_DEVICE=cpu`), CI/CD (`WHISPER_DEVICE=cpu`), NVIDIA GPU (`WHISPER_DEVICE=cuda` or auto-detect), Apple Silicon (`WHISPER_DEVICE=mps` or auto-detect)
 
 #### ML Library Configuration (Advanced)
 
@@ -362,6 +370,7 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 # TIMEOUT=60
 
 # SUMMARY_DEVICE=cpu
+# WHISPER_DEVICE=mps  # For Apple Silicon GPU acceleration
 
 # ML Library Configuration (Advanced)
 # HF_HUB_DISABLE_PROGRESS_BARS=1  # Disable progress bars (default: 1)
