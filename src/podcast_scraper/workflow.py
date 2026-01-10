@@ -984,14 +984,16 @@ def _detect_feed_hosts_and_patterns(
         # Initialize provider (loads spaCy model for ML, or sets up API client for OpenAI)
         speaker_detector.initialize()
 
-        # Only detect and cache hosts if cache_detected_hosts is enabled
+        # Always detect hosts (for metadata generation), regardless of cache_detected_hosts
+        # Detect hosts: prefer RSS author tags, fall back to NER
+        feed_hosts = speaker_detector.detect_hosts(
+            feed_title=feed.title,
+            feed_description=None,  # TODO: Extract from feed XML if needed
+            feed_authors=feed.authors if feed.authors else None,
+        )
+
+        # Only validate and analyze patterns if cache_detected_hosts is enabled
         if cfg.cache_detected_hosts:
-            # Detect hosts: prefer RSS author tags, fall back to NER
-            feed_hosts = speaker_detector.detect_hosts(
-                feed_title=feed.title,
-                feed_description=None,  # TODO: Extract from feed XML if needed
-                feed_authors=feed.authors if feed.authors else None,
-            )
 
             # Validate hosts with first episode: hosts should appear in first episode too
             # Skip validation if hosts came from author tags (they're already reliable)
@@ -1040,7 +1042,7 @@ def _detect_feed_hosts_and_patterns(
 
             # Analyze patterns from first few episodes to extract heuristics
             # Only analyze if cache_detected_hosts is enabled (to avoid unnecessary work)
-            if cfg.cache_detected_hosts and episodes:
+            if episodes:
                 heuristics_dict = speaker_detector.analyze_patterns(
                     episodes=episodes, known_hosts=cached_hosts
                 )
@@ -1202,13 +1204,15 @@ def _prepare_episode_download_args(
                 # Stage 3: Use provider for speaker detection
                 speaker_detector = host_detection_result.speaker_detector
                 if speaker_detector:
-                    # Always use detected hosts for filtering guests, regardless of cache_detected_hosts
+                    # Always use detected hosts for filtering guests,
+                    # regardless of cache_detected_hosts
                     cached_hosts_for_detection = host_detection_result.cached_hosts
                     detected_speakers, detected_hosts_set, detection_succeeded = (
                         speaker_detector.detect_speakers(
                             episode_title=episode.title,
                             episode_description=episode_description,
-                            known_hosts=cached_hosts_for_detection,  # Use detected hosts for filtering
+                            # Use detected hosts for filtering
+                            known_hosts=cached_hosts_for_detection,
                         )
                     )
                 else:
