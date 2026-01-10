@@ -1215,10 +1215,6 @@ def _prepare_episode_download_args(
                     # Fallback: No provider available (should not happen in normal flow)
                     logger.warning("Speaker detector not available, skipping speaker detection")
                     detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
-                else:
-                    # Fallback: No provider available (should not happen in normal flow)
-                    logger.warning("Speaker detector not available, skipping speaker detection")
-                    detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
                 extract_names_elapsed = time.time() - extract_names_start
                 # Record speaker detection time if metrics available
                 if pipeline_metrics is not None:
