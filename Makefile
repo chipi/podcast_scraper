@@ -269,6 +269,7 @@ test-e2e-fast:
 	# Uses fast feed (1 episode) - set via E2E_TEST_MODE environment variable
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
+	# Coverage: measured independently but no threshold (fast tests are a subset, full suite enforces threshold)
 	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
 
 test-e2e-data-quality:

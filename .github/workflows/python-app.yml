@@ -545,13 +545,14 @@ jobs:
         mkdir -p reports
         # Run tests with coverage and network guard: --disable-socket --allow-hosts=127.0.0.1,localhost
         # Critical path tests only for faster CI feedback
+        # Note: Fast tests don't enforce coverage threshold (they're a subset, full suite enforces threshold)
         # Serial tests first, then parallel tests (matches Makefile pattern)
         set +e  # Don't exit on non-zero return code yet
         # Run serial tests first with coverage
         OUTPUT_SERIAL=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path and serial" --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1 || true)
         echo "$OUTPUT_SERIAL"
         # Run parallel tests with coverage (append to same file)
-        OUTPUT=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path and not serial" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        OUTPUT=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path and not serial" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
