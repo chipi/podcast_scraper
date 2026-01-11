@@ -62,7 +62,7 @@ dev = [
   "vulture>=2.10,<3.0.0",  # Dead code detection (RFC-031)
   "interrogate>=1.5.0,<2.0.0",  # Docstring coverage (RFC-031)
   "codespell>=2.2.0,<3.0.0",  # Spell checking (RFC-031)
-  "pydeps>=1.12.0,<2.0.0",  # Module dependency visualization (RFC-038, #170)
+  "pydeps>=1.12.0,<4.0.0",  # Module dependency visualization (RFC-038, #170)
 ]
 # Documentation - see docs/requirements.txt
 
