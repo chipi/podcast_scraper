@@ -325,5 +325,134 @@ class TestCleanForSummarization(unittest.TestCase):
         self.assertNotIn("thank you so much for listening", result.lower())
 
 
+class TestRemoveSummarizationArtifacts(unittest.TestCase):
+    """Test remove_summarization_artifacts function."""
+
+    def test_remove_artifacts_textcolor(self):
+        """Test removal of TextColor artifacts."""
+        text = "TextColor- This is content. TextColor More content."
+        result = preprocessing.remove_summarization_artifacts(text)
+        self.assertNotIn("TextColor", result)
+        self.assertIn("This is content", result)
+
+    def test_remove_artifacts_music_markers(self):
+        """Test removal of MUSIC markers."""
+        text = "This is content. MUSIC More content."
+        result = preprocessing.remove_summarization_artifacts(text)
+        self.assertNotIn("MUSIC", result)
+        self.assertIn("This is content", result)
+
+    def test_remove_artifacts_speaker_labels(self):
+        """Test removal of generic speaker labels."""
+        text = "SPEAKER 1: This is content. SPEAKER 2: More content."
+        result = preprocessing.remove_summarization_artifacts(text)
+        self.assertNotIn("SPEAKER 1", result)
+        self.assertNotIn("SPEAKER 2", result)
+        self.assertIn("This is content", result)
+
+    def test_remove_artifacts_bracketed_annotations(self):
+        """Test removal of bracketed annotations."""
+        text = "This is content [MUSIC] More content [LAUGHTER]."
+        result = preprocessing.remove_summarization_artifacts(text)
+        self.assertNotIn("[MUSIC]", result)
+        self.assertNotIn("[LAUGHTER]", result)
+        self.assertIn("This is content", result)
+
+    def test_remove_artifacts_html_tags(self):
+        """Test removal of HTML-like tags."""
+        text = "This is content <tag>More content</tag>."
+        result = preprocessing.remove_summarization_artifacts(text)
+        self.assertNotIn("<tag>", result)
+        self.assertNotIn("</tag>", result)
+        self.assertIn("This is content", result)
+
+    def test_remove_artifacts_empty(self):
+        """Test with empty text."""
+        result = preprocessing.remove_summarization_artifacts("")
+        self.assertEqual(result, "")
+
+    def test_remove_artifacts_cleans_whitespace(self):
+        """Test that whitespace is cleaned after artifact removal."""
+        text = "TextColor-  This is content  ."
+        result = preprocessing.remove_summarization_artifacts(text)
+        # Should clean up double spaces and spaces before punctuation
+        self.assertNotIn("  ", result)
+        self.assertNotIn(" .", result)
+
+
+class TestStripGarbageLines(unittest.TestCase):
+    """Test strip_garbage_lines function."""
+
+    def test_strip_garbage_lines_inline(self):
+        """Test removal of inline garbage patterns."""
+        text = "This is content. Back to Mail Online home page. More content."
+        result = preprocessing.strip_garbage_lines(text)
+        self.assertNotIn("Back to Mail Online home page", result)
+        self.assertIn("This is content", result)
+
+    def test_strip_garbage_lines_anchored(self):
+        """Test removal of anchored garbage lines."""
+        # Use a pattern that actually matches GARBAGE_LINE_PATTERNS
+        text = "This is content.\nmail online\nMore content."
+        result = preprocessing.strip_garbage_lines(text)
+        self.assertNotIn("mail online", result.lower())
+        self.assertIn("This is content", result)
+        self.assertIn("More content", result)
+
+    def test_strip_garbage_lines_preserves_blank_lines(self):
+        """Test that blank lines are preserved."""
+        text = "Line 1\n\n\nLine 2"
+        result = preprocessing.strip_garbage_lines(text)
+        # Blank lines should be preserved for structure
+        self.assertIn("\n\n", result)
+
+    def test_strip_garbage_lines_empty(self):
+        """Test with empty text."""
+        result = preprocessing.strip_garbage_lines("")
+        self.assertEqual(result, "")
+
+    def test_strip_garbage_lines_no_garbage(self):
+        """Test with text containing no garbage."""
+        text = "This is clean content.\nMore clean content."
+        result = preprocessing.strip_garbage_lines(text)
+        self.assertEqual(result, text)
+
+
+class TestStripCredits(unittest.TestCase):
+    """Test strip_credits function."""
+
+    def test_strip_credits_produced_by(self):
+        """Test removal of 'produced by' credits."""
+        text = "This is content.\nThis episode was produced by John.\nMore content."
+        result = preprocessing.strip_credits(text)
+        self.assertNotIn("produced by", result.lower())
+        self.assertIn("This is content", result)
+
+    def test_strip_credits_edited_by(self):
+        """Test removal of 'edited by' credits."""
+        text = "This is content.\nEdited by Jane.\nMore content."
+        result = preprocessing.strip_credits(text)
+        self.assertNotIn("edited by", result.lower())
+        self.assertIn("This is content", result)
+
+    def test_strip_credits_preserves_blank_lines(self):
+        """Test that blank lines are preserved."""
+        text = "Line 1\n\n\nLine 2"
+        result = preprocessing.strip_credits(text)
+        # Blank lines should be preserved
+        self.assertIn("\n\n", result)
+
+    def test_strip_credits_empty(self):
+        """Test with empty text."""
+        result = preprocessing.strip_credits("")
+        self.assertEqual(result, "")
+
+    def test_strip_credits_no_credits(self):
+        """Test with text containing no credits."""
+        text = "This is clean content.\nMore clean content."
+        result = preprocessing.strip_credits(text)
+        self.assertEqual(result, text)
+
+
 if __name__ == "__main__":
     unittest.main()

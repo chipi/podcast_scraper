@@ -8,6 +8,7 @@ This architecture document is the central hub for understanding the system. For 
 
 ### Core Documentation
 
+- **[ADR Index](adr/index.md)** — **The immutable record of architectural laws and decisions**
 - **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** — Detailed implementation instructions, dependency management, code patterns, and development workflows
 - **[Testing Strategy](TESTING_STRATEGY.md)** — Testing philosophy, test pyramid, and quality standards
 - **[Testing Guide](guides/TESTING_GUIDE.md)** — Quick reference and test execution commands
@@ -26,7 +27,7 @@ This architecture document is the central hub for understanding the system. For 
 ### Feature Documentation
 
 - **[Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** — Complete guide for implementing new providers (includes OpenAI example, testing, E2E server mocking)
-- **[Summarization Guide](guides/SUMMARIZATION_GUIDE.md)** — Summarization implementation details
+- **[ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md)** — ML implementation details
 - **[Configuration API](api/CONFIGURATION.md)** — Configuration API reference (includes environment variables)
 
 ### Specifications
@@ -41,6 +42,33 @@ This architecture document is the central hub for understanding the system. For 
 - Keep the public surface area small (`Config`, `load_config_file`, `run_pipeline`, `service.run`, `service.run_from_config_file`, `cli.main`) while exposing well-factored submodules for advanced use.
 - Provide a service API (`service.py`) optimized for non-interactive use (daemons, process managers) with structured error handling and exit codes.
 
+## Architectural Decisions (ADRs)
+
+The following architectural principles govern this system. For the full history and rationale, see the **[ADR Index](adr/index.md)**.
+
+### Core Patterns
+
+- **Concurrency**: IO-bound threading for downloads, sequential CPU/GPU tasks for ML ([ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md)).
+- **Providers**: Protocol-based discovery ([ADR-012](adr/ADR-012-protocol-based-provider-discovery.md)) using unified provider classes ([ADR-011](adr/ADR-011-unified-provider-pattern.md)) and library-based naming ([ADR-013](adr/ADR-013-technology-based-provider-naming.md)).
+- **Lazy Loading**: Heavy ML dependencies are loaded only when needed ([ADR-005](adr/ADR-005-lazy-ml-dependency-loading.md)).
+
+### Data & Filesystem
+
+- **Storage**: Hash-based deterministic directory layout ([ADR-003](adr/ADR-003-deterministic-feed-storage.md)) with flat archives ([ADR-004](adr/ADR-004-flat-filesystem-archive-layout.md)).
+- **Identity**: Universal GUID-based episode identification ([ADR-007](adr/ADR-007-universal-episode-identity.md)).
+- **Metadata**: Unified JSON schema compatible with SQL and NoSQL ([ADR-008](adr/ADR-008-database-agnostic-metadata-schema.md)).
+
+### ML & AI Processing
+
+- **Summarization**: Hybrid MAP-REDUCE strategy ([ADR-010](adr/ADR-010-hierarchical-summarization-pattern.md), [ADR-036](adr/ADR-036-hybrid-map-reduce-summarization.md)) favoring local models ([ADR-009](adr/ADR-009-privacy-first-local-summarization.md)).
+- **Audio**: Mandatory preprocessing ([ADR-032](adr/ADR-032-standardized-pre-provider-audio-stage.md)) with content-hash caching ([ADR-033](adr/ADR-033-content-hash-based-audio-caching.md)) using FFmpeg ([ADR-034](adr/ADR-034-ffmpeg-first-audio-manipulation.md)) and Opus ([ADR-035](adr/ADR-035-speech-optimized-codec-opus.md)).
+- **Governance**: Explicit benchmarking gates ([ADR-031](adr/ADR-031-heuristic-based-quality-gates.md)) and golden dataset versioning ([ADR-026](adr/ADR-026-explicit-golden-dataset-versioning.md)).
+
+### Development & CI
+
+- **Workflow**: Git worktree-based isolation ([ADR-016](adr/ADR-016-git-worktree-based-development.md)) with independent environments ([ADR-018](adr/ADR-018-isolated-runtime-environments.md)).
+- **Quality**: Three-tier test pyramid ([ADR-021](adr/ADR-021-standardized-test-pyramid.md)) with automated health metrics ([ADR-023](adr/ADR-023-public-operational-metrics.md)).
+
 ## High-Level Flow
 
 1. **Entry**: `podcast_scraper.cli.main` parses CLI args (optionally merging JSON/YAML configs) into a validated `Config` object and applies global logging preferences.
@@ -49,7 +77,7 @@ This architecture document is the central hub for understanding the system. For 
 4. **Speaker detection** (RFC-010): When automatic speaker detection is enabled, host names are extracted from RSS author tags (channel-level `<author>`, `<itunes:author>`, `<itunes:owner>`) as the primary source, falling back to NER extraction from feed metadata if no author tags exist. Guest names are extracted from episode-specific metadata (titles and descriptions) using Named Entity Recognition (NER) with spaCy. Manual speaker names are only used as fallback when detection fails.
 5. **Transcription**: When Whisper fallback is enabled, `episode_processor.download_media_for_transcription` downloads media to a temp area and `episode_processor.transcribe_media_to_text` persists Whisper output using deterministic naming. Detected speaker names are integrated into screenplay formatting when enabled.
 6. **Metadata generation** (PRD-004/RFC-011): When enabled, per-episode metadata documents are generated alongside transcripts, capturing feed-level and episode-level information, detected speaker names, and processing metadata in JSON/YAML format.
-7. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using local transformer models (BART, PEGASUS, LED) with a hybrid map-reduce strategy. See [Summarization Guide](guides/SUMMARIZATION_GUIDE.md) for detailed architecture.
+7. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using local transformer models (BART, PEGASUS, LED) with a hybrid map-reduce strategy. See [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md) for detailed architecture.
 8. **Progress/UI**: All long-running operations report progress through the pluggable factory in `progress.py`, defaulting to `tqdm` in the CLI.
 
 ### Pipeline Flow Diagram
@@ -95,18 +123,18 @@ flowchart TD
 - `service.py`: Service API for programmatic/daemon use. Provides `service.run()` and `service.run_from_config_file()` functions that return structured `ServiceResult` objects. Works exclusively with configuration files (no CLI arguments), optimized for non-interactive use (supervisor, systemd, etc.). Entry point: `python -m podcast_scraper.service --config config.yaml`.
 - `config.py`: Immutable Pydantic model representing all runtime options; JSON/YAML loader with strict validation and normalization helpers. Includes language configuration, NER settings, and speaker detection flags (RFC-010).
 - `workflow.py`: Pipeline coordinator that orchestrates directory prep, RSS parsing, download concurrency, Whisper lifecycle, speaker detection coordination, and cleanup.
-- `rss_parser.py`: Safe RSS/XML parsing, discovery of transcript/enclosure URLs, and creation of `Episode` models.
+- `rss_parser.py`: Safe RSS/XML parsing using `defusedxml` ([ADR-002](adr/ADR-002-security-first-xml-processing.md)), discovery of transcript/enclosure URLs, and creation of `Episode` models.
 - `downloader.py`: HTTP session pooling with retry-enabled adapters, streaming downloads, and shared progress hooks.
 - `episode_processor.py`: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
-- `filesystem.py`: Filename sanitization, output directory derivation, run suffix logic, and helper utilities for Whisper output paths.
-- **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization. Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
-  - **Unified Providers** (RFC-029): Two unified provider classes implement all three protocols:
-    - `ml/ml_provider.py` - `MLProvider`: Implements all three protocols using local ML models (Whisper for transcription, spaCy for speaker detection, Transformers for summarization)
-    - `openai/openai_provider.py` - `OpenAIProvider`: Implements all three protocols using OpenAI APIs (Whisper API for transcription, GPT API for speaker detection and summarization)
+- `filesystem.py`: Filename sanitization, output directory derivation based on feed hash ([ADR-003](adr/ADR-003-deterministic-feed-storage.md)), run suffix logic, and helper utilities for Whisper output paths.
+- **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-012](adr/ADR-012-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
+- **Unified Providers** (RFC-029): Two unified provider classes implement all three protocols ([ADR-011](adr/ADR-011-unified-provider-pattern.md)):
+  - `ml/ml_provider.py` - `MLProvider`: Implements all three protocols using local ML models (Whisper for transcription, spaCy for speaker detection, Transformers for summarization)
+  - `openai/openai_provider.py` - `OpenAIProvider`: Implements all three protocols using OpenAI APIs (Whisper API for transcription, GPT API for speaker detection and summarization)
   - **Factories**: Factory functions in `transcription/factory.py`, `speaker_detectors/factory.py`, and `summarization/factory.py` create the appropriate unified provider based on configuration.
 - `whisper_integration.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names. Now accessed via `MLProvider` (unified provider pattern).
 - `speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Now accessed via `MLProvider` (unified provider pattern).
-- `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Now accessed via `MLProvider` (unified provider pattern). See [Summarization Guide](guides/SUMMARIZATION_GUIDE.md) for details.
+- `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Now accessed via `MLProvider` (unified provider pattern). See [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md) for details.
 - `progress.py`: Minimal global progress publishing API so callers can swap in alternative UIs.
 - `models.py`: Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob`) shared across modules. May be extended to include detected speaker metadata.
 - `metadata.py` (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, processing metadata, and optional summaries in structured JSON/YAML format. Opt-in feature for backwards compatibility.
@@ -141,14 +169,15 @@ graph TB
         OpenAIProvider[openai/openai_provider.py]
     end
 
-    subgraph "Optional Features"
+    subgraph "Internal ML Logic"
         Whisper[whisper_integration.py]
         SpeakerDetect[speaker_detection.py]
-        Metadata[metadata.py]
         Summarizer[summarizer.py]
     end
 
-```python
+    subgraph "Optional Features"
+        Metadata[metadata.py]
+    end
 
     CLI --> Config
     CLI --> Workflow
@@ -159,25 +188,23 @@ graph TB
     Workflow --> TranscriptionFactory
     Workflow --> SpeakerFactory
     Workflow --> SummaryFactory
-    TranscriptionFactory --> WhisperProvider
-    TranscriptionFactory --> OpenAITranscription
-    SpeakerFactory --> NERProvider
-    SpeakerFactory --> OpenAISpeaker
-    SummaryFactory --> LocalSummary
-    SummaryFactory --> OpenAISummary
-    WhisperProvider --> Whisper
-    NERProvider --> SpeakerDetect
-    LocalSummary --> Summarizer
+    TranscriptionFactory --> MLProvider
+    TranscriptionFactory --> OpenAIProvider
+    SpeakerFactory --> MLProvider
+    SpeakerFactory --> OpenAIProvider
+    SummaryFactory --> MLProvider
+    SummaryFactory --> OpenAIProvider
+    MLProvider --> Whisper
+    MLProvider --> SpeakerDetect
+    MLProvider --> Summarizer
     Workflow --> Metadata
     Workflow --> Filesystem
     Workflow --> Models
     Workflow --> Progress
     EpisodeProc --> Downloader
     EpisodeProc --> Filesystem
-    EpisodeProc --> Whisper
     EpisodeProc --> Models
     RSSParser --> Models
-    Whisper --> SpeakerDetect
     Metadata --> Summarizer
     Metadata --> Models
     Summarizer --> Models
@@ -191,7 +218,7 @@ graph TB
 - **Dry-run and resumability**: `--dry-run` walks the entire plan without touching disk, while `--skip-existing` short-circuits work per episode, making repeated runs idempotent.
 - **Pluggable progress/UI**: A narrow `ProgressFactory` abstraction lets embedding applications replace the default `tqdm` progress without touching business logic.
 - **Optional Whisper dependency**: Whisper is imported lazily and guarded so environments without GPU support or `openai-whisper` can still run transcript-only workloads.
-- **Optional summarization dependency** (PRD-005/RFC-012): Summarization requires `torch` and `transformers` dependencies and is imported lazily. When dependencies are unavailable, summarization is gracefully skipped. Models are automatically selected based on available hardware (MPS for Apple Silicon, CUDA for NVIDIA GPUs, CPU fallback). See [Summarization Guide](guides/SUMMARIZATION_GUIDE.md) for details.
+- **Optional summarization dependency** (PRD-005/RFC-012): Summarization requires `torch` and `transformers` dependencies and is imported lazily. When dependencies are unavailable, summarization is gracefully skipped. Models are automatically selected based on available hardware (MPS for Apple Silicon, CUDA for NVIDIA GPUs, CPU fallback). See [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md) for details.
 - **Language-aware processing** (RFC-010): A single `language` configuration drives both Whisper model selection (preferring English-only `.en` variants) and NER model selection (e.g., `en_core_web_sm`), ensuring consistent language handling across the pipeline.
 - **Automatic speaker detection** (RFC-010): Named Entity Recognition extracts speaker names from episode metadata transparently. Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails, not as override. spaCy is a required dependency for speaker detection.
 - **Host/guest distinction**: Host detection prioritizes RSS author tags (channel-level only) as the most reliable source, falling back to NER extraction from feed metadata when author tags are unavailable. Guests are always detected from episode-specific metadata using NER, ensuring accurate speaker labeling in Whisper screenplay output.
@@ -223,7 +250,7 @@ The project uses **pydeps** for visualizing module dependencies, detecting circu
 - `make deps-analyze` - Run full dependency analysis (cycles + graph)
 
 **Analysis Script:**
-- `python scripts/analyze_dependencies.py` - Analyze dependencies and detect issues
+- `python scripts/tools/analyze_dependencies.py` - Analyze dependencies and detect issues
   - `--check` - Exit with error if issues found
   - `--report` - Generate detailed JSON report
 
@@ -353,6 +380,4 @@ The project follows a three-tier testing strategy (Unit, Integration, E2E). For 
 | **[Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md)** | Integration test guidelines |
 | **[E2E Testing Guide](guides/E2E_TESTING_GUIDE.md)** | E2E server, real ML models |
 | **[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md)** | What to test, prioritization |
-| **[Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** | Provider-specific testing
-
-````
+| **[Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** | Provider-specific testing |

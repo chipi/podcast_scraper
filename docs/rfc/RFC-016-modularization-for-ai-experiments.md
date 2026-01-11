@@ -3,6 +3,10 @@
 - **Status**: 🟡 **80% Complete** - Core provider pattern implemented, cleanup and experiment enhancements needed
 - **Authors**:
 - **Stakeholders**: Maintainers, developers implementing AI experiment pipeline, developers maintaining core workflow
+- **Related ADRs**:
+  - [ADR-027: Deep Provider Fingerprinting](../adr/ADR-027-deep-provider-fingerprinting.md)
+  - [ADR-028: Typed Provider Parameter Models](../adr/ADR-028-typed-provider-parameter-models.md)
+  - [ADR-029: Registered Preprocessing Profiles](../adr/ADR-029-registered-preprocessing-profiles.md)
 - **Related RFCs**: `docs/rfc/RFC-015-ai-experiment-pipeline.md`, `docs/rfc/RFC-017-prompt-management.md`, `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference), `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (completed)
 - **Related Issues**: [#303](https://github.com/chipi/podcast_scraper/issues/303) (RFC-016 Implementation)
 - **Updated**: 2026-01-08
@@ -42,17 +46,20 @@
 ### 🟡 Remaining Work (20%)
 
 **Phase 1: Legacy Module Cleanup** (Optional - Low Priority)
+
 - Deprecate `src/podcast_scraper/summarizer.py`
 - Deprecate `src/podcast_scraper/speaker_detection.py`
 - Deprecate `src/podcast_scraper/whisper_integration.py`
 
 **Phase 2: Experiment-Specific Factory Enhancements** (Critical - 3-5 days)
+
 - Enable factories to accept experiment-style params dict (not just `Config`)
 - Required for RFC-015 Phase 1
 
 **Phase 3: Extract Evaluation Infrastructure** (Important - 1 week)
+
 - Create `src/podcast_scraper/experiments/evaluation.py`
-- Extract ROUGE, BLEU from `scripts/eval_summaries.py`
+- Extract ROUGE, BLEU from `scripts/eval/eval_summaries.py`
 - Add WER calculation (jiwer)
 - Add semantic similarity (sentence-transformers)
 - Required for RFC-015 Phase 2
@@ -419,7 +426,7 @@ class SummarizationBackend:
 ```
 ```python
 
-# scripts/eval_summaries.py (refactored)
+# scripts/eval/eval_summaries.py (refactored)
 
 from typing import List, Dict, Any
 from pathlib import Path
@@ -707,10 +714,422 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
 - ✅ Clear separation of concerns
 - ✅ Provider interfaces are well-defined and testable
 
+---
+
+## 🚀 Evolution & Improvements (2026-01-10 Update)
+
+### Critical Enhancements for Phase 2 Implementation
+
+Based on lessons learned from manual experiments and comparison issues, the following improvements are **critical** for Phase 2 (factory enhancements).
+
+---
+
+### 1. Strengthen Phase 2: Stable Typed Contract for Experiment Params
+
+**Problem:** Current plan says "accept experiment-style params dict" but doesn't specify the contract. This leads to fuzzy parameter resolution and incomparable experiments.
+
+**Solution:** Define typed `ProviderParams` models per task, ensuring consistent parameter handling.
+
+#### Typed Parameter Models
+
+```python
+# src/podcast_scraper/providers/params.py
+
+from pydantic import BaseModel, Field
+from typing import Optional, Literal
+
+class SummarizationParams(BaseModel):
+    """Typed params for summarization providers."""
+
+    # Chunking
+    chunk_size: int = Field(2048, description="Max tokens per chunk")
+    word_chunk_size: int = Field(900, description="Max words per chunk")
+    word_overlap: int = Field(150, description="Word overlap between chunks")
+
+    # Generation
+    max_length: int = Field(160, description="Max summary length")
+    min_length: int = Field(60, description="Min summary length")
+    temperature: Optional[float] = Field(None, description="Sampling temperature")
+    top_p: Optional[float] = Field(None, description="Nucleus sampling")
+
+    # Hardware
+    device: Literal["cpu", "cuda", "mps", "auto"] = Field("auto", description="Device for inference")
+
+    # Model-specific
+    use_16bit: bool = Field(False, description="Use 16-bit precision")
+    batch_size: int = Field(1, description="Batch size for MAP phase")
+
+class TranscriptionParams(BaseModel):
+    """Typed params for transcription providers."""
+
+    model_size: str = Field("large-v3", description="Whisper model size")
+    device: Literal["cpu", "cuda", "mps", "auto"] = Field("auto")
+    language: Optional[str] = Field(None, description="Force language (None = auto-detect)")
+    beam_size: int = Field(5, description="Beam search width")
+    temperature: float = Field(0.0, description="Sampling temperature")
+
+class SpeakerDetectionParams(BaseModel):
+    """Typed params for speaker detection providers."""
+
+    spacy_model: str = Field("en_core_web_lg", description="spaCy NER model")
+    min_confidence: float = Field(0.7, description="Min confidence for NER")
+    context_window: int = Field(100, description="Context chars around mention")
+```
+
+#### Factory Integration
+
+```python
+# src/podcast_scraper/providers/summarization/factory.py
+
+def create_summarization_provider(
+    config: Config,
+    params: Optional[SummarizationParams] = None,
+) -> SummarizationProvider:
+    """Create summarization provider with typed params."""
+
+    # Use params if provided, otherwise create from config
+    if params is None:
+        params = SummarizationParams(
+            chunk_size=config.chunk_size,
+            max_length=config.max_length,
+            device=config.device,
+            # ... map all config fields to params
+        )
+
+    # Log resolved params
+    logger.info(f"Summarization params: {params.dict()}")
+
+    # Create provider with typed params
+    if config.summarization_provider == "transformers":
+        return LocalSummarizationProvider(config, params)
+    elif config.summarization_provider == "openai":
+        return OpenAISummarizationProvider(config, params)
+    else:
+        raise ValueError(f"Unknown provider: {config.summarization_provider}")
+```
+
+#### Experiment Config Usage
+
+```yaml
+# experiments/summarization_experiment_v1.yaml
+
+models:
+  summarizer:
+    type: "transformers"
+    name: "facebook/bart-large-cnn"
+
+# Typed params (validated against SummarizationParams)
+params:
+  chunk_size: 2048
+  word_chunk_size: 900
+  word_overlap: 150
+  max_length: 160
+  min_length: 60
+  device: "mps"
+  use_16bit: false
+  batch_size: 1
+```
+
+**Why:** Explicit types prevent parameter confusion. Pydantic validation catches errors early. Logged params enable exact reproduction.
+
+---
+
+### 2. Add Provider Fingerprinting to Outputs
+
+**Problem:** "Why did results change?" is impossible to answer without knowing exact provider state (model version, device, precision, dependencies).
+
+**Solution:** Record comprehensive provider fingerprint in every output.
+
+#### Provider Fingerprint
+
+```python
+# src/podcast_scraper/providers/base.py
+
+from dataclasses import dataclass
+import torch
+import transformers
+from typing import Dict, Any
+
+@dataclass
+class ProviderFingerprint:
+    """Complete provider state for reproducibility."""
+
+    # Provider info
+    provider_type: str  # "transformers", "openai", "hybrid_ml"
+    provider_version: str  # Package version
+
+    # Model info
+    model_names: Dict[str, str]  # {"map": "facebook/bart-large-cnn", "reduce": "allenai/led-base-16384"}
+    model_versions: Dict[str, str]  # Model file hashes or API versions
+
+    # Hardware
+    device: str  # "cuda:0", "mps", "cpu"
+    device_name: Optional[str]  # GPU name if available
+    precision: str  # "fp32", "fp16", "int8"
+
+    # Environment
+    git_commit: str  # Current git commit hash
+    git_branch: str  # Current git branch
+    git_dirty: bool  # Uncommitted changes
+
+    # Dependencies
+    python_version: str
+    torch_version: Optional[str]
+    transformers_version: Optional[str]
+    cuda_version: Optional[str]
+
+    # Params (resolved final values)
+    params: Dict[str, Any]
+
+    # Preprocessing
+    preprocessing_profile: str  # "cleaning_v3"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dict for JSON storage."""
+        return asdict(self)
+
+def capture_provider_fingerprint(
+    provider_type: str,
+    model_names: Dict[str, str],
+    params: BaseModel,
+    preprocessing_profile: str,
+) -> ProviderFingerprint:
+    """Capture complete provider state."""
+
+    return ProviderFingerprint(
+        provider_type=provider_type,
+        provider_version=get_package_version("podcast_scraper"),
+        model_names=model_names,
+        model_versions=get_model_versions(model_names),
+        device=str(params.device),
+        device_name=get_device_name(params.device),
+        precision=get_precision(params),
+        git_commit=get_git_commit(),
+        git_branch=get_git_branch(),
+        git_dirty=has_uncommitted_changes(),
+        python_version=sys.version,
+        torch_version=torch.__version__ if torch else None,
+        transformers_version=transformers.__version__ if transformers else None,
+        cuda_version=torch.version.cuda if torch and torch.cuda.is_available() else None,
+        params=params.dict(),
+        preprocessing_profile=preprocessing_profile,
+    )
+```
+
+#### Output Metadata
+
+```json
+{
+  "run_id": "summarization_bart_led_v1_20260110_143022",
+  "fingerprint": {
+    "provider_type": "transformers",
+    "provider_version": "2.4.0",
+    "model_names": {
+      "map": "facebook/bart-large-cnn",
+      "reduce": "allenai/led-base-16384"
+    },
+    "model_versions": {
+      "map": "abc123...",
+      "reduce": "def456..."
+    },
+    "device": "mps",
+    "device_name": "Apple M1 Max",
+    "precision": "fp32",
+    "git_commit": "abc123def456",
+    "git_branch": "feat/experiment-pipeline",
+    "git_dirty": false,
+    "python_version": "3.10.12",
+    "torch_version": "2.1.0",
+    "transformers_version": "4.35.2",
+    "cuda_version": null,
+    "params": {
+      "chunk_size": 2048,
+      "max_length": 160,
+      "device": "mps"
+    },
+    "preprocessing_profile": "cleaning_v3"
+  }
+}
+```
+
+**Why:** Complete reproducibility. When results change, you know exactly what changed (model version? CUDA? preprocessing?).
+
+---
+
+### 3. Preprocessing Should Be Explicitly Provider-Agnostic and Versioned
+
+**Problem:** Preprocessing changes are as impactful as model changes, but aren't tracked or versioned.
+
+**Solution:** Make preprocessing profiles first-class, versioned, and tracked in metadata.
+
+#### Preprocessing Profiles
+
+```python
+# src/podcast_scraper/preprocessing/profiles.py
+
+from dataclasses import dataclass
+from typing import Callable
+
+@dataclass
+class PreprocessingProfile:
+    """Versioned preprocessing configuration."""
+
+    profile_id: str  # "cleaning_v3"
+    version: str  # "3.0"
+    description: str
+
+    # Cleaning steps
+    remove_timestamps: bool = True
+    normalize_speakers: bool = True
+    collapse_blank_lines: bool = True
+    remove_fillers: bool = False
+    remove_sponsors: bool = True
+    remove_outros: bool = True
+
+    # Custom transformations
+    custom_transforms: list[Callable[[str], str]] = None
+
+    def apply(self, text: str) -> str:
+        """Apply preprocessing pipeline."""
+        # Apply transformations in order
+        ...
+
+# Registry of profiles
+PREPROCESSING_PROFILES = {
+    "cleaning_v1": PreprocessingProfile(
+        profile_id="cleaning_v1",
+        version="1.0",
+        description="Basic cleaning (timestamps, speakers, whitespace)",
+        remove_timestamps=True,
+        normalize_speakers=True,
+        collapse_blank_lines=True,
+        remove_fillers=False,
+        remove_sponsors=False,
+        remove_outros=False,
+    ),
+    "cleaning_v2": PreprocessingProfile(
+        profile_id="cleaning_v2",
+        version="2.0",
+        description="Basic + sponsor removal",
+        remove_timestamps=True,
+        normalize_speakers=True,
+        collapse_blank_lines=True,
+        remove_fillers=False,
+        remove_sponsors=True,
+        remove_outros=False,
+    ),
+    "cleaning_v3": PreprocessingProfile(
+        profile_id="cleaning_v3",
+        version="3.0",
+        description="Full cleaning (default)",
+        remove_timestamps=True,
+        normalize_speakers=True,
+        collapse_blank_lines=True,
+        remove_fillers=False,
+        remove_sponsors=True,
+        remove_outros=True,
+    ),
+}
+
+def get_preprocessing_profile(profile_id: str) -> PreprocessingProfile:
+    """Get preprocessing profile by ID."""
+    if profile_id not in PREPROCESSING_PROFILES:
+        raise ValueError(f"Unknown preprocessing profile: {profile_id}")
+    return PREPROCESSING_PROFILES[profile_id]
+```
+
+#### Integration with Experiments
+
+```yaml
+# experiments/summarization_experiment_v1.yaml
+
+preprocessing:
+  profile_id: "cleaning_v3"  # Explicit, versioned
+
+models:
+  summarizer:
+    type: "transformers"
+```
+
+#### Metadata Recording
+
+```json
+{
+  "preprocessing": {
+    "profile_id": "cleaning_v3",
+    "version": "3.0",
+    "steps": {
+      "remove_timestamps": true,
+      "remove_sponsors": true,
+      "remove_outros": true
+    }
+  }
+}
+```
+
+**Why:** Preprocessing changes can silently improve ROUGE while deleting signal. Versioned profiles make changes explicit and traceable.
+
+---
+
+### 4. Baseline Reference in Provider Metadata
+
+**Problem:** Providers don't know which baseline they're being compared against, making "delta from baseline" reporting impossible.
+
+**Solution:** Pass `baseline_id` to providers and include in fingerprint.
+
+```python
+def create_summarization_provider(
+    config: Config,
+    params: Optional[SummarizationParams] = None,
+    baseline_id: Optional[str] = None,  # NEW
+) -> SummarizationProvider:
+    """Create provider with baseline reference."""
+
+    provider = LocalSummarizationProvider(config, params)
+    provider.baseline_id = baseline_id
+    return provider
+```
+
+**Why:** Enables automatic "vs baseline" reporting without external coordination.
+
+---
+
+## Updated Phase 2 Deliverables
+
+Based on these improvements, Phase 2 should deliver:
+
+### Core Deliverables
+
+1. ✅ Typed `ProviderParams` models (Summarization, Transcription, SpeakerDetection)
+2. ✅ Factory functions accept typed params
+3. ✅ Provider fingerprinting (model versions, device, git commit, dependencies)
+4. ✅ Preprocessing profiles (versioned, registered, tracked)
+5. ✅ Baseline ID integration
+
+### Code Changes
+
+- `src/podcast_scraper/providers/params.py` - Typed parameter models
+- `src/podcast_scraper/providers/base.py` - ProviderFingerprint
+- `src/podcast_scraper/preprocessing/profiles.py` - Preprocessing profiles
+- `src/podcast_scraper/providers/*/factory.py` - Updated factory signatures
+
+### Metadata Enhancements
+
+Every provider output includes:
+- ✅ Complete fingerprint (models, device, precision, git state)
+- ✅ Resolved params (actual values used)
+- ✅ Preprocessing profile used
+- ✅ Baseline ID reference (if applicable)
+
+**Timeline:** 1 week (instead of 3-5 days) due to added rigor.
+
+---
+
 ## Related Documents
 
 - `docs/prd/PRD-007-ai-experiment-pipeline.md`: Product requirements, use cases, and functional specifications
-- `docs/rfc/RFC-015-ai-experiment-pipeline.md`: Technical design and implementation details
+- `docs/rfc/RFC-015-ai-experiment-pipeline.md`: Technical design and implementation details (updated with baseline-first concepts)
+- `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md`: Benchmarking framework (complementary, shares baseline concept)
 - `docs/rfc/RFC-013-openai-provider-implementation.md`: OpenAI provider design (shared refactoring plan)
 - `docs/rfc/RFC-017-prompt-management.md`: Prompt management and loading implementation
 - `docs/prd/PRD-006-openai-provider-integration.md`: Product requirements for OpenAI integration

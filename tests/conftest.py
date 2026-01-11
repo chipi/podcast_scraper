@@ -99,7 +99,7 @@ def create_test_config(**overrides):
     """
     defaults = {
         "rss_url": TEST_FEED_URL,
-        "output_dir": ".",
+        "output_dir": TEST_OUTPUT_DIR,
         "max_episodes": None,
         "user_agent": "test-agent",
         "timeout": 30,

@@ -1,14 +1,13 @@
 # Core API
 
-This is the primary public API for podcast_scraper. Use these functions for programmatic access.
+This is the primary public API for `podcast_scraper`. Use these functions for programmatic access.
 
 ## Quick Start
 
-````python
+```python
 import podcast_scraper
 
 # Create configuration
-
 cfg = podcast_scraper.Config(
     rss="https://example.com/feed.xml",
     output_dir="./transcripts",
@@ -16,11 +15,13 @@ cfg = podcast_scraper.Config(
 )
 
 # Run the pipeline
-
 count, summary = podcast_scraper.run_pipeline(cfg)
 print(f"Downloaded {count} transcripts: {summary}")
-```text
+```
 
+## API Reference
+
+::: podcast_scraper.run_pipeline
     options:
       show_root_heading: true
       heading_level: 3
@@ -31,6 +32,8 @@ print(f"Downloaded {count} transcripts: {summary}")
       heading_level: 3
 
 ## Package Information
+
+### Versioning
 
 ::: podcast_scraper.__version__
     options:
@@ -47,5 +50,3 @@ print(f"Downloaded {count} transcripts: {summary}")
 - [Configuration](CONFIGURATION.md) - Detailed configuration options
 - [Service API](SERVICE.md) - Non-interactive service interface
 - [CLI Interface](CLI.md) - Command-line interface
-
-````

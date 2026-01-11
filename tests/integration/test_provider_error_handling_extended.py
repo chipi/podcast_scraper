@@ -50,8 +50,10 @@ class TestTranscriptionProviderErrorHandling(unittest.TestCase):
         )
         provider = create_transcription_provider(cfg)
 
-        # Should raise RuntimeError if not initialized
-        with self.assertRaises(RuntimeError):
+        # Should raise ProviderNotInitializedError if not initialized
+        from podcast_scraper.exceptions import ProviderNotInitializedError
+
+        with self.assertRaises(ProviderNotInitializedError):
             provider.transcribe("test.mp3")
 
     @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
@@ -225,8 +227,10 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
         )
         provider = create_summarization_provider(cfg)
 
-        # Should raise RuntimeError if not initialized
-        with self.assertRaises(RuntimeError):
+        # Should raise ProviderNotInitializedError if not initialized
+        from podcast_scraper.exceptions import ProviderNotInitializedError
+
+        with self.assertRaises(ProviderNotInitializedError):
             provider.summarize("test text")
 
     @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")

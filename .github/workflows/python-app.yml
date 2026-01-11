@@ -2,7 +2,7 @@
 # Dependency flow:
 # 1. lint, build, preload-ml-models run in parallel (no deps)
 # 2. security-quality and test-unit run in parallel (both gate: lint, build)
-# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models + test-unit)
+# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models only)
 # 4. coverage-unified gates: security-quality + all test jobs (including test-unit)
 # 5. docs gates coverage-unified (very last step, final validation)
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
@@ -162,7 +162,7 @@ jobs:
     - name: Verify unit tests can import without ML dependencies
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        python scripts/check_unit_test_imports.py
+        python scripts/tools/check_unit_test_imports.py
       env:
         PACKAGE: podcast_scraper
     - name: Run unit tests with coverage (network isolation enforced, parallel execution)
@@ -268,7 +268,7 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
-        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-${{ runner.os }}-
     - name: Set up Python 3.11 (only if cache miss - needed for model download)
@@ -299,7 +299,7 @@ jobs:
   test-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30  # Conservative timeout for integration tests with ML models
-    needs: [preload-ml-models, test-unit]  # Wait for model preload and unit tests to pass
+    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -332,7 +332,7 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
-        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-${{ runner.os }}-
     - name: Install full dependencies (including ML)
@@ -399,7 +399,7 @@ jobs:
   test-integration-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Conservative timeout for fast integration tests
-    needs: [preload-ml-models, test-unit]  # Wait for model preload and unit tests to pass
+    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -432,7 +432,7 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
-        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-${{ runner.os }}-
     - name: Install dev dependencies with ML (pytest-socket for network guard)
@@ -451,8 +451,9 @@ jobs:
         mkdir -p reports
         # Run tests with coverage and network guard: --disable-socket --allow-hosts=127.0.0.1,localhost
         # Critical path tests only for faster CI feedback
+        # Note: Fast tests don't enforce coverage threshold (they're a subset, full suite enforces threshold)
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/integration/ -v -m "integration and critical_path" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        OUTPUT=$(pytest tests/integration/ -v -m "integration and critical_path" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -491,7 +492,7 @@ jobs:
   test-e2e-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 25  # Conservative timeout for fast E2E tests
-    needs: [preload-ml-models, test-unit]  # Wait for model preload and unit tests to pass
+    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -524,7 +525,7 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
-        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-${{ runner.os }}-
     - name: Install dev dependencies (pytest-socket for network guard)
@@ -544,13 +545,14 @@ jobs:
         mkdir -p reports
         # Run tests with coverage and network guard: --disable-socket --allow-hosts=127.0.0.1,localhost
         # Critical path tests only for faster CI feedback
+        # Note: Fast tests don't enforce coverage threshold (they're a subset, full suite enforces threshold)
         # Serial tests first, then parallel tests (matches Makefile pattern)
         set +e  # Don't exit on non-zero return code yet
         # Run serial tests first with coverage
         OUTPUT_SERIAL=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path and serial" --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1 || true)
         echo "$OUTPUT_SERIAL"
         # Run parallel tests with coverage (append to same file)
-        OUTPUT=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path and not serial" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        OUTPUT=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path and not serial" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -588,7 +590,7 @@ jobs:
   test-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 45  # Conservative timeout for E2E tests with ML models
-    needs: [preload-ml-models, test-unit]  # Wait for model preload and unit tests to pass
+    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -621,7 +623,7 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
-        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-${{ runner.os }}-
     - name: Install full dependencies (including ML)
@@ -928,7 +930,7 @@ jobs:
         # Install ML dependencies for pipeline execution
         pip install -e .[ml] || echo "⚠️ ML dependencies not available, skipping pipeline metrics"
         # Run minimal pipeline to collect performance metrics
-        python scripts/collect_pipeline_metrics.py \
+        python scripts/dashboard/collect_pipeline_metrics.py \
           --output reports/pipeline_metrics.json \
           --max-episodes 1 || echo "⚠️ Pipeline metrics collection failed (non-blocking)"
       continue-on-error: true  # Don't fail if pipeline metrics collection fails
@@ -958,7 +960,7 @@ jobs:
         # Generate metrics JSON (includes complexity and pipeline metrics)
         # Coverage threshold (80%) is for combined coverage only
         # Save with CI prefix for unified dashboard
-        python scripts/generate_metrics.py \
+        python scripts/dashboard/generate_metrics.py \
           --reports-dir reports \
           --output metrics/latest-ci.json \
           --history metrics/history-ci.jsonl \
@@ -982,13 +984,10 @@ jobs:
           echo "$(cat metrics/latest-ci.json)" >> metrics/history-ci.jsonl
           echo "✅ Appended to CI history"
         fi
-    - name: Generate unified HTML dashboard
-      # Only generate dashboard HTML on main branch
-      # Release branches only update metrics data (JSON/JSONL)
-      # The unified dashboard has a dropdown to select which build to view
-      if: always() && github.ref == 'refs/heads/main'
+    - name: Generate HTML dashboard
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
       run: |
-        python scripts/generate_dashboard.py \
+        python scripts/dashboard/generate_dashboard.py \
           --unified \
           --output metrics/index.html || echo "⚠️ Dashboard generation failed (non-blocking)"
     - name: Upload unified coverage report
@@ -1010,7 +1009,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
     - name: Upload metrics as artifact
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v4
       with:
         name: metrics
         path: metrics/

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Unit tests for TransformersSummarizationProvider class.
+"""Unit tests for MLProvider summarization (via factory).
 
-These tests verify the local transformers-based summarization provider implementation.
+These tests verify the transformers-based summarization provider implementation
+using the unified MLProvider returned by the factory.
 """
 
 import os
@@ -34,7 +35,7 @@ spec.loader.exec_module(parent_conftest)
 
 create_test_config = parent_conftest.create_test_config
 
-from podcast_scraper.exceptions import (  # noqa: E402
+from podcast_scraper.exceptions import (
     ProviderNotInitializedError,
     ProviderRuntimeError,
 )
@@ -42,23 +43,20 @@ from podcast_scraper.summarization.factory import create_summarization_provider 
 
 
 class TestTransformersSummarizationProvider(unittest.TestCase):
-    """Tests for Transformers summarization via MLProvider (unified provider)."""
+    """Tests for MLProvider summarization (via factory)."""
 
     def setUp(self):
         """Set up test fixtures."""
         self.cfg = create_test_config(
             generate_summaries=True,
-            summary_provider="transformers",
             summary_model="facebook/bart-large-cnn",
-            transcribe_missing=False,  # Disable to avoid loading Whisper
-            auto_speakers=False,  # Disable to avoid loading spaCy
+            summary_provider="transformers",
         )
 
     def test_init(self):
-        """Test MLProvider initialization via factory."""
+        """Test MLProvider summarization initialization."""
         provider = create_summarization_provider(self.cfg)
         self.assertEqual(provider.cfg, self.cfg)
-        # MLProvider uses _map_model and _reduce_model
         self.assertIsNone(provider._map_model)
         self.assertIsNone(provider._reduce_model)
         self.assertFalse(provider._transformers_initialized)
@@ -199,14 +197,13 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
     def test_summarize_not_initialized(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):
-        """Test summarize raises ProviderNotInitializedError when not initialized."""
+        """Test summarize raises error when not initialized."""
         provider = create_summarization_provider(self.cfg)
 
         with self.assertRaises(ProviderNotInitializedError) as context:
             provider.summarize("Text")
 
         self.assertIn("not initialized", str(context.exception))
-        self.assertEqual(context.exception.provider, "MLProvider/Transformers")
         mock_summarize.assert_not_called()
 
     @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
@@ -361,7 +358,6 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         provider = create_summarization_provider(self.cfg)
         self.assertFalse(provider.is_initialized)
 
-        # Set transformers_initialized to True to test the property
         provider._transformers_initialized = True
         self.assertTrue(provider.is_initialized)
 

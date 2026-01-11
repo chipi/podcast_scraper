@@ -4,6 +4,9 @@
 - **Authors**:
 - **Stakeholders**: Maintainers, users wanting OpenAI API integration, developers implementing providers
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
+- **Related ADRs**:
+  - [ADR-015: Secure Credential Injection](../adr/ADR-015-secure-credential-injection.md)
+  - [ADR-019: Provider-Agnostic Preprocessing](../adr/ADR-019-provider-agnostic-preprocessing.md)
 - **Related RFCs**: `docs/rfc/RFC-017-prompt-management.md`
 - **Related RFCs**: `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference - modularization plan)
 - **Related Issues**: (to be created)
@@ -872,6 +875,7 @@ pip install -e ".[openai]"
 # Or with all ML dependencies
 
 ```
+
 ## 8.2 Integration Tests
 
 - Optional tests with real API (requires API key)
@@ -994,6 +998,7 @@ class CustomSpeakerDetector:
     def analyze_patterns(self, ...) -> Optional[Dict[str, Any]]:
 
 ```
+
 # Type checker will verify protocol compliance
 
 detector: SpeakerDetector = CustomSpeakerDetector()  # ✅ Type-safe
@@ -1545,6 +1550,7 @@ def create(cfg: config.Config):
         return MyCustomSummarizationProvider(cfg)
 
 ```
+
 ## 3. Environment Variable Documentation (`docs/api/CONFIGURATION.md`)
 
 **Purpose:** Comprehensive reference for all environment variables

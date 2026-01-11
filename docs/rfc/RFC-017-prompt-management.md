@@ -4,6 +4,8 @@
 - **Authors**:
 - **Stakeholders**: Maintainers, developers implementing AI features, researchers running experiments
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
+- **Related ADRs**:
+  - [ADR-014: Externalized Prompt Management](../adr/ADR-014-externalized-prompt-management.md)
 - **Related RFCs**: `docs/rfc/RFC-012-episode-summarization.md`, `docs/rfc/RFC-013-openai-provider-implementation.md`, `docs/rfc/RFC-015-ai-experiment-pipeline.md`
 - **Related Issues**: (to be created)
 

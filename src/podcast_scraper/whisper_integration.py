@@ -84,6 +84,37 @@ def _import_third_party_whisper() -> ModuleType:
         ) from exc
 
 
+def _detect_whisper_device(cfg: config.Config) -> str:
+    """Detect the best device for Whisper transcription.
+
+    Args:
+        cfg: Configuration object with optional whisper_device setting
+
+    Returns:
+        Device string: 'mps', 'cuda', or 'cpu'
+    """
+    # Use explicit config if set
+    if cfg.whisper_device:
+        logger.debug("Using configured whisper_device: %s", cfg.whisper_device)
+        return cfg.whisper_device
+
+    # Auto-detect: prefer MPS (Apple Silicon) > CUDA (NVIDIA) > CPU
+    try:
+        import torch
+
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            logger.debug("Auto-detected MPS (Apple Silicon) for Whisper")
+            return "mps"
+        if torch.cuda.is_available():
+            logger.debug("Auto-detected CUDA for Whisper")
+            return "cuda"
+    except ImportError:
+        pass
+
+    logger.debug("Using CPU for Whisper (no GPU detected)")
+    return "cpu"
+
+
 def load_whisper_model(cfg: config.Config) -> Optional[Any]:
     """Load Whisper model with failover to smaller models if requested model fails.
 
@@ -105,11 +136,52 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
         )
         return None
 
-    # Use centralized fallback logic (config-driven, no hardcoded values)
-    from .whisper_utils import normalize_whisper_model_name
+    # Language-aware model selection: prefer .en variants for English
+    requested_model = cfg.whisper_model
+    model_name = requested_model
+    if cfg.language in ("en", "english"):
+        # If user specified a base model without .en, prefer the .en variant
+        if model_name in ("tiny", "base", "small", "medium"):
+            model_name = f"{model_name}.en"
+            logger.debug("Language is English, preferring %s over %s", model_name, requested_model)
+    else:
+        # For non-English, ensure we use multilingual models (no .en suffix)
+        if model_name.endswith(".en"):
+            logger.debug(
+                "Language is %s, using multilingual model instead of %s",
+                cfg.language,
+                model_name,
+            )
+            model_name = model_name[:-3]  # Remove .en suffix
 
-    model_name, fallback_models = normalize_whisper_model_name(cfg.whisper_model, cfg.language)
+    # Build fallback chain: try requested model, then progressively smaller models
+    fallback_models = [model_name]
+    if cfg.language in ("en", "english"):
+        # For English, try .en variants in order: base.en, tiny.en
+        if model_name not in ("tiny.en", "base.en"):
+            if model_name.startswith("base"):
+                fallback_models.append("tiny.en")
+            elif model_name.startswith("small"):
+                fallback_models.extend(["base.en", "tiny.en"])
+            elif model_name.startswith("medium"):
+                fallback_models.extend(["small.en", "base.en", "tiny.en"])
+            elif model_name.startswith("large"):
+                fallback_models.extend(["medium.en", "small.en", "base.en", "tiny.en"])
+    else:
+        # For multilingual, try: base, tiny
+        if model_name not in ("tiny", "base"):
+            if model_name.startswith("base"):
+                fallback_models.append("tiny")
+            elif model_name.startswith("small"):
+                fallback_models.extend(["base", "tiny"])
+            elif model_name.startswith("medium"):
+                fallback_models.extend(["small", "base", "tiny"])
+            elif model_name.startswith("large"):
+                fallback_models.extend(["medium", "small", "base", "tiny"])
+
     logger.debug("Loading Whisper model: %s", model_name)
+    if len(fallback_models) > 1:
+        logger.debug("Fallback chain: %s", fallback_models)
 
     # Get whisper cache directory (prefers local cache if it exists)
     whisper_cache = get_whisper_cache_dir()
@@ -125,7 +197,11 @@ def load_whisper_model(cfg: config.Config) -> Optional[Any]:
                 )
             # Use download_root parameter to specify cache directory directly
             # This ensures we use pre-cached models and avoid network calls
-            model = whisper_lib.load_model(attempt_model, download_root=whisper_cache_str)
+            # Detect and use optimal device (MPS/CUDA/CPU)
+            device_to_use = _detect_whisper_device(cfg)
+            model = whisper_lib.load_model(
+                attempt_model, download_root=whisper_cache_str, device=device_to_use
+            )
             if attempt_model != model_name:
                 logger.debug(
                     "Loaded fallback Whisper model: %s (requested %s was not available)",

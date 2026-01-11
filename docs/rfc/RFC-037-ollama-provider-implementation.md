@@ -261,6 +261,7 @@ def validate_model_available(cfg: config.Config, model: str) -> None:
         available_models = [m.get("name", "") for m in data.get("models", [])]
 
 ```
+
 #### 4.2 Speaker Detection Provider
 
 **File**: `podcast_scraper/speaker_detectors/ollama_detector.py`
@@ -558,6 +559,7 @@ class OllamaSummarizationProvider:
         pass
 
 ```
+
 ### 5. Dependencies
 
 Add `httpx` for health checks (likely already installed):
@@ -570,6 +572,7 @@ ollama = [
 ]
 
 ```
+
 ## Testing Strategy
 
 ### Unit Tests
@@ -598,6 +601,6 @@ Mark tests as `@pytest.mark.ollama` and skip if Ollama not available.
 ## References
 
 - **Related PRD**: `docs/prd/PRD-014-ollama-provider-integration.md`
-- **Ollama Documentation**: https://ollama.ai
-- **Ollama API Reference**: https://github.com/ollama/ollama/blob/main/docs/api.md
-- **OpenAI Compatibility**: https://ollama.ai/blog/openai-compatibility
+- **Ollama Documentation**: <https://ollama.ai>
+- **Ollama API Reference**: <https://github.com/ollama/ollama/blob/main/docs/api.md>
+- **OpenAI Compatibility**: <https://ollama.ai/blog/openai-compatibility>

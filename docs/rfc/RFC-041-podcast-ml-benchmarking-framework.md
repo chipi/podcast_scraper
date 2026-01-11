@@ -16,6 +16,13 @@ Podcast Scraper Team
 
 2026-01-08
 
+## Related ADRs
+
+- [ADR-025: Codified Comparison Baselines](../adr/ADR-025-codified-comparison-baselines.md)
+- [ADR-026: Explicit Golden Dataset Versioning](../adr/ADR-026-explicit-golden-dataset-versioning.md)
+- [ADR-030: Multi-Tiered Benchmarking Strategy](../adr/ADR-030-multi-tiered-benchmarking-strategy.md)
+- [ADR-031: Heuristic-Based Quality Gates](../adr/ADR-031-heuristic-based-quality-gates.md)
+
 ## Related RFCs
 
 - RFC-025: Test Metrics and Health Tracking
@@ -325,6 +332,7 @@ jobs:
           path: benchmarks/runs/
 
 ```
+
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -344,6 +352,7 @@ jobs:
           path: benchmarks/runs/
 
 ```
+
         run: python scripts/upload_benchmark_metrics.py
 
 ```python
@@ -625,6 +634,303 @@ These may be added in future versions as the system matures.
 - Human-evaluated gold transcripts (partnership with NPR?)
 - Multi-language podcast support
 - Podcast-specific metrics (music detection, intro/outro detection)
+
+---
+
+## 🚀 Evolution & Improvements (2026-01-10 Update)
+
+### Critical Enhancements for Phase 0 Implementation
+
+Based on lessons learned from RFC-015 and RFC-016, the following improvements are **critical** before Phase 0 implementation.
+
+---
+
+### 1. Align Dataset Definitions with Experiment Runner
+
+**Problem:** RFC-041 defines `indicator_v1.json` datasets. RFC-015 defines `episode globs`. Two systems of truth will cause confusion.
+
+**Solution:** Make dataset JSON the canonical definition.
+
+#### Dataset JSON Format
+
+```json
+{
+  "dataset_id": "indicator_v1",
+  "version": "1.0",
+  "description": "NPR Planet Money: The Indicator episodes (explainer style)",
+  "created_at": "2026-01-10T14:00:00Z",
+  "content_regime": "explainer",
+  "episodes": [
+    {
+      "episode_id": "ep001",
+      "title": "Why gas prices are so high",
+      "duration_minutes": 8,
+      "audio_path": "data/eval/datasets/indicator_v1/audio/ep001.mp3",
+      "transcript_path": "data/eval/datasets/indicator_v1/transcripts/ep001.txt",
+      "golden_summary_path": "data/eval/golden/indicator_v1/ep001.txt",
+      "content_hash": "abc123...",
+      "preprocessing_profile": "cleaning_v3"
+    }
+  ]
+}
+```
+
+#### Materialization Script
+
+```bash
+# scripts/materialize_dataset.py
+
+def materialize_dataset(dataset_json: Path, output_dir: Path):
+    """Materialize dataset JSON into episode folders."""
+
+    dataset = json.loads(dataset_json.read_text())
+
+    for episode in dataset["episodes"]:
+        ep_dir = output_dir / dataset["dataset_id"] / episode["episode_id"]
+        ep_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy/link files
+        shutil.copy(episode["transcript_path"], ep_dir / "transcript.txt")
+        if episode.get("golden_summary_path"):
+            shutil.copy(episode["golden_summary_path"], ep_dir / "golden.txt")
+
+        # Write metadata
+        (ep_dir / "metadata.json").write_text(json.dumps({
+            "episode_id": episode["episode_id"],
+            "dataset_id": dataset["dataset_id"],
+            "content_hash": episode["content_hash"],
+            "preprocessing_profile": episode["preprocessing_profile"],
+        }, indent=2))
+```
+
+**Why:** Single source of truth. Experiment runner reads dataset JSON, not globs. Prevents mismatched comparisons.
+
+---
+
+### 2. Add Summarization Quality Gates
+
+**Problem:** Current regression rules only cover ASR/chunking (WER, latency, cost). Missing summarization-specific failures.
+
+**Solution:** Add quality gates that match known podcast summary issues.
+
+#### Summarization-Specific Regression Rules
+
+```yaml
+# benchmarks/regression_rules.yaml
+
+summarization_gates:
+  # Boilerplate leak (MUST be zero)
+  boilerplate_leak_rate:
+    baseline: 0.0
+    max_delta: 0.0  # Zero tolerance
+    severity: "critical"
+
+  # Repetition score (n-gram duplication)
+  repetition_score:
+    baseline: 0.15  # 15% duplicate trigrams (from baseline measurement)
+    max_delta: 0.05  # Allow up to 20% (15% + 5%)
+    severity: "major"
+
+  # Truncation rate (ellipsis, incomplete sentences)
+  truncation_rate:
+    baseline: 0.02  # 2% of sentences incomplete
+    max_delta: 0.03  # Allow up to 5%
+    severity: "major"
+
+  # Numbers retained (preserve quantitative data)
+  numbers_retained:
+    baseline: 0.85  # 85% of numbers from reference
+    min_threshold: 0.80  # Never drop below 80%
+    severity: "minor"
+
+  # Speaker label leak
+  speaker_label_leak_rate:
+    baseline: 0.0
+    max_delta: 0.0  # Zero tolerance
+    severity: "critical"
+
+  # Summary length variance (stability)
+  summary_length_variance:
+    baseline_mean: 450  # chars
+    baseline_std: 50    # chars
+    max_std_delta: 20   # Allow std up to 70 chars
+    severity: "minor"
+```
+
+#### Gate Evaluation
+
+```python
+# src/podcast_scraper/benchmarks/gates.py
+
+def evaluate_quality_gates(metrics: Dict[str, float], rules: Dict[str, Any]) -> List[GateViolation]:
+    """Evaluate quality gates and return violations."""
+
+    violations = []
+
+    for metric_name, rule in rules.items():
+        current_value = metrics.get(metric_name)
+        if current_value is None:
+            continue
+
+        baseline = rule.get("baseline")
+        max_delta = rule.get("max_delta")
+        min_threshold = rule.get("min_threshold")
+        severity = rule["severity"]
+
+        # Check delta from baseline
+        if max_delta is not None and baseline is not None:
+            delta = current_value - baseline
+            if delta > max_delta:
+                violations.append(GateViolation(
+                    metric=metric_name,
+                    severity=severity,
+                    baseline=baseline,
+                    current=current_value,
+                    delta=delta,
+                    threshold=max_delta,
+                    message=f"{metric_name} increased by {delta:.3f} (max allowed: {max_delta})"
+                ))
+
+        # Check absolute threshold
+        if min_threshold is not None:
+            if current_value < min_threshold:
+                violations.append(GateViolation(
+                    metric=metric_name,
+                    severity=severity,
+                    current=current_value,
+                    threshold=min_threshold,
+                    message=f"{metric_name} is {current_value:.3f} (min required: {min_threshold})"
+                ))
+
+    return violations
+```
+
+**Why:** Catches real regressions that ROUGE misses. Zero-tolerance for critical failures (boilerplate, speaker labels).
+
+---
+
+### 3. Add Content Regime Datasets (Feed-Style Buckets)
+
+**Problem:** Current plan uses Indicator (explainer) + Short Wave (science). Missing narrative journalism stress case.
+
+**Solution:** Add The Journal as third dataset to cover narrative regime.
+
+#### Three Content Regimes
+
+```python
+CONTENT_REGIMES = {
+    "explainer": {
+        "datasets": ["indicator_v1"],
+        "characteristics": [
+            "Short episodes (5-10 min)",
+            "Single concept deep-dives",
+            "Data/stats heavy",
+            "Educational tone",
+        ],
+        "stress_tests": ["Numbers retention", "Concept clarity"],
+    },
+    "science": {
+        "datasets": ["shortwave_v1"],
+        "characteristics": [
+            "Medium episodes (15-20 min)",
+            "Scientific topics",
+            "Interview format",
+            "Technical vocabulary",
+        ],
+        "stress_tests": ["Technical term preservation", "Interview structure"],
+    },
+    "narrative": {
+        "datasets": ["journal_v1"],  # NEW
+        "characteristics": [
+            "Long episodes (20-30 min)",
+            "Story-driven journalism",
+            "Multiple speakers/sources",
+            "Chronological narrative",
+        ],
+        "stress_tests": ["Narrative flow", "Multi-speaker attribution", "Chronology preservation"],
+    },
+}
+```
+
+#### Dataset Sizing
+
+```yaml
+# Phase 0 (Baseline Establishment)
+datasets:
+  indicator_v1:
+    episodes: 10  # Representative explainer set
+    content_regime: "explainer"
+
+  shortwave_v1:
+    episodes: 10  # Representative science set
+    content_regime: "science"
+
+  journal_v1:  # NEW
+    episodes: 5-10  # Smaller but critical stress case
+    content_regime: "narrative"
+```
+
+**Why:** The Journal is your "real-world stress case" for long-form narrative. Don't skip it.
+
+---
+
+### 4. Baseline Integration (Shared with RFC-015/016)
+
+**Problem:** RFC-041 regression rules reference "baseline" but don't define the artifact structure.
+
+**Solution:** Use shared `baseline_id` concept from RFC-015.
+
+#### Baseline Reference in Benchmarks
+
+```yaml
+# benchmarks/benchmark_config.yaml
+
+benchmark_id: "podcast_ml_v1"
+baseline_id: "bart_led_baseline_v2"  # Shared with RFC-015
+baseline_path: "benchmarks/baselines/bart_led_baseline_v2/"
+
+datasets:
+  - indicator_v1
+  - shortwave_v1
+  - journal_v1
+
+regression_rules:
+  baseline: "bart_led_baseline_v2"  # Reference by ID
+  asr_gates: {...}
+  summarization_gates: {...}
+```
+
+**Why:** Single baseline artifact used by both experiment runner (RFC-015) and benchmarking (RFC-041). No duplication.
+
+---
+
+## Updated Implementation Plan
+
+Based on these improvements:
+
+### Phase 0: Dataset Freezing + Baseline Artifacts (1-2 weeks)
+
+1. ✅ Create dataset JSONs (indicator_v1, shortwave_v1, journal_v1)
+2. ✅ Collect/prepare 10-10-5 episodes respectively
+3. ✅ Generate golden summaries (expensive model, manual approval)
+4. ✅ Create initial baseline artifacts using current system
+5. ✅ Record baseline metrics including quality gates
+6. ✅ Commit datasets + baselines to git
+
+### Phase 1: Integration with RFC-015 (After RFC-015 Phase 1)
+
+1. ✅ Experiment runner reads dataset JSONs (not globs)
+2. ✅ Experiment runner references baseline_id
+3. ✅ Quality gates evaluated automatically
+4. ✅ Regression detection in reports
+
+### Phase 2: CI Integration (After RFC-015 Phase 4)
+
+1. ✅ Smoke tests (3 episodes from indicator_v1)
+2. ✅ Nightly full benchmarks (all datasets)
+3. ✅ Regression alerts (Slack/email)
+
+**Timeline:** 2 weeks for Phase 0, then depends on RFC-015 completion.
 
 ---
 

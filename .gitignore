@@ -8,10 +8,14 @@ podcast_scraper.egg-info/
 # Test outputs
 .test_outputs/
 output/
+run_*/
 reports/
 # Exclude dependency graphs (generated files)
 reports/deps*.svg
 reports/deps*.json
+
+# Benchmarks
+benchmarks/
 
 # Python cache
 *.pyc

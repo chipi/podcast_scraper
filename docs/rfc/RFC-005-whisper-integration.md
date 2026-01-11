@@ -4,6 +4,9 @@
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, operators enabling transcription fallback
 - **Related PRD**: `docs/prd/PRD-002-whisper-fallback.md`
+- **Related ADRs**:
+  - [ADR-001: Hybrid Concurrency Strategy](../adr/ADR-001-hybrid-concurrency-strategy.md)
+  - [ADR-005: Lazy ML Dependency Loading](../adr/ADR-005-lazy-ml-dependency-loading.md)
 
 ## Abstract
 

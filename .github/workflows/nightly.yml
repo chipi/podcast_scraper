@@ -11,7 +11,7 @@
 # Dependency flow:
 # 1. lint, build, preload-ml-models-nightly run in parallel (no deps)
 # 2. security-quality and test-unit run in parallel (both gate: lint, build)
-# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models-nightly + test-unit)
+# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models-nightly only)
 # 4. nightly-only-tests gates: test-unit, test-integration, test-e2e
 # 5. nightly-metrics gates: security-quality, nightly-only-tests
 # 6. nightly-docs gates nightly-metrics (very last step, final validation)
@@ -32,12 +32,11 @@ name: Nightly Comprehensive Tests
 
 on:
   schedule:
-    # Run nightly at 2 AM UTC
+    # Run nightly at 2 AM UTC (runs on default branch/main)
     - cron: '0 2 * * *'
   workflow_dispatch:  # Allow manual triggering
-  push:
-    branches:
-      - 'release/**'  # Run on all release branches
+  # Note: Metrics for main and release branches are handled by python-app.yml (regular CI)
+  # Nightly is for comprehensive testing and metrics on main branch only
 
 permissions:
   contents: write  # For publishing metrics to gh-pages branch
@@ -77,7 +76,7 @@ jobs:
           ~/.cache/whisper
           ~/.cache/huggingface
         # Fully content-based cache key
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-nightly-${{ runner.os }}-
 
@@ -243,56 +242,6 @@ jobs:
         make quality
 
   # ===========================================================================
-  # Dependency analysis - module coupling visualization and circular import detection
-  # Runs in parallel with security-quality, generates dependency graphs for tracking
-  # ===========================================================================
-  nightly-deps-analysis:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [nightly-lint, nightly-build]  # Wait for lint, build to pass
-    continue-on-error: true  # Don't fail nightly if dependency analysis has issues
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.11"
-        cache: "pip"
-        cache-dependency-path: pyproject.toml
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .[dev]
-
-    - name: Generate dependency graph
-      run: |
-        echo "Generating module dependency graphs..."
-        make deps-graph
-        make deps-graph-full
-
-    - name: Check for circular imports
-      run: |
-        echo "Checking for circular imports..."
-        make deps-check-cycles
-
-    - name: Run dependency analysis
-      run: |
-        echo "Running dependency analysis..."
-        python scripts/analyze_dependencies.py --report
-
-    - name: Upload dependency artifacts
-      uses: actions/upload-artifact@v6
-      if: always()
-      with:
-        name: nightly-deps-analysis
-        path: |
-          reports/deps*.svg
-          reports/deps*.json
-        retention-days: 90
-
-  # ===========================================================================
   # Documentation build - validates docs can be built correctly
   # Runs as very last step after all tests and metrics pass (final validation)
   # Docs deployment happens in docs.yml workflow (separate, already gated properly)
@@ -391,7 +340,7 @@ jobs:
     - name: Verify unit tests can import without ML dependencies
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        python scripts/check_unit_test_imports.py
+        python scripts/tools/check_unit_test_imports.py
       env:
         PACKAGE: podcast_scraper
 
@@ -438,7 +387,7 @@ jobs:
   nightly-test-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [preload-ml-models-nightly, nightly-test-unit]  # Wait for model preload and unit tests to pass
+    needs: [preload-ml-models-nightly]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
@@ -467,7 +416,7 @@ jobs:
         path: |
           ~/.cache/whisper
           ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-nightly-${{ runner.os }}-
 
@@ -523,7 +472,7 @@ jobs:
   nightly-test-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [preload-ml-models-nightly, nightly-test-unit]  # Wait for model preload and unit tests to pass
+    needs: [preload-ml-models-nightly]  # Wait for model preload only (can run in parallel with unit tests)
     env:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
@@ -554,7 +503,7 @@ jobs:
         path: |
           ~/.cache/whisper
           ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-nightly-${{ runner.os }}-
 
@@ -646,7 +595,7 @@ jobs:
         path: |
           ~/.cache/whisper
           ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-nightly-${{ runner.os }}-
 
@@ -686,7 +635,7 @@ jobs:
   nightly-metrics:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [nightly-lint, nightly-security-quality, nightly-docs, nightly-build, nightly-test-unit, nightly-test-integration, nightly-test-e2e, nightly-only-tests]  # Wait for all jobs to complete before generating summary
+    needs: [nightly-lint, nightly-security-quality, nightly-build, nightly-test-unit, nightly-test-integration, nightly-test-e2e, nightly-only-tests]  # Wait for all jobs to complete before generating summary (docs runs after metrics)
     if: always()
     steps:
     - uses: actions/checkout@v4
@@ -918,14 +867,14 @@ jobs:
 
     - name: Collect pipeline metrics
       run: |
-        python scripts/collect_pipeline_metrics.py \
+        python scripts/dashboard/collect_pipeline_metrics.py \
           --output reports/pipeline_metrics.json \
           --max-episodes 1 || echo "⚠️ Pipeline metrics collection failed (non-blocking)"
       continue-on-error: true
 
     - name: Generate metrics JSON
       run: |
-        python scripts/generate_metrics.py \
+        python scripts/dashboard/generate_metrics.py \
           --reports-dir reports \
           --output metrics/latest-nightly.json \
           --history metrics/history-nightly.jsonl \
@@ -964,13 +913,11 @@ jobs:
         fi
 
     - name: Generate unified HTML dashboard
-      # Only generate dashboard HTML when NOT triggered by push to release branches
-      # Release branches only update metrics data (JSON/JSONL)
-      # Schedule/manual runs generate full dashboard
+      # Generate dashboard HTML for schedule and manual dispatch runs
       # The unified dashboard has a dropdown to select which build to view
-      if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+      # (Metrics for release branches are handled by regular CI, not nightly)
       run: |
-        python scripts/generate_dashboard.py \
+        python scripts/dashboard/generate_dashboard.py \
           --unified \
           --output metrics/index.html
 
@@ -983,8 +930,8 @@ jobs:
         echo "## Job Status" >> $GITHUB_STEP_SUMMARY
         echo "- **Lint**: ${{ needs.nightly-lint.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Security/Quality**: ${{ needs.nightly-security-quality.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Docs**: ${{ needs.nightly-docs.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Build**: ${{ needs.nightly-build.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Docs**: Runs after metrics (no dependency to avoid cycle)" >> $GITHUB_STEP_SUMMARY
         echo "- **Unit Tests**: ${{ needs.nightly-test-unit.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Integration Tests**: ${{ needs.nightly-test-integration.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **E2E Tests**: ${{ needs.nightly-test-e2e.result }}" >> $GITHUB_STEP_SUMMARY
@@ -1093,7 +1040,8 @@ jobs:
 
   # NOTE: Metrics deployment strategy:
   # - Schedule/manual runs: Generate metrics data + unified dashboard HTML
-  # - Release branch pushes: Only generate metrics data (JSON/JSONL), no dashboard HTML
+  # - Regular CI (python-app.yml): Handles metrics for main and release branches
+  # - Nightly: Comprehensive testing and metrics on main branch only (via schedule)
   # - The docs.yml workflow deploys everything to GitHub Pages
   # - Nightly metrics are available as workflow artifacts for download
   # - The unified dashboard uses a dropdown to select CI vs Nightly builds

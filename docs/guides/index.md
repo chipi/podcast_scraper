@@ -36,13 +36,14 @@ Practical guides for using and developing Podcast Scraper.
 | [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md) | Compare all 8 providers: cost, quality, speed, privacy |
 | [Provider Configuration](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) | Quick provider configuration reference |
 | [Provider Implementation](PROVIDER_IMPLEMENTATION_GUIDE.md) | Implementing new providers |
+| [ML Provider Reference](ML_PROVIDER_REFERENCE.md) | Technical reference for local ML models |
 | [Protocol Extension](PROTOCOL_EXTENSION_GUIDE.md) | Extending protocols |
 
 ## Features
 
 | Guide | Description |
 | ------- | ------------- |
-| [Summarization Guide](SUMMARIZATION_GUIDE.md) | Episode summarization details |
+| [ML Provider Reference](ML_PROVIDER_REFERENCE.md) | Technical reference for local ML models |
 
 ## AI Coding
 

@@ -133,7 +133,7 @@ sys.modules["transformers"] = MagicMock()
 from podcast_scraper import summarizer
 ```python
 
-**CI Verification:** `scripts/check_unit_test_imports.py` verifies modules can import without ML deps.
+**CI Verification:** `scripts/tools/check_unit_test_imports.py` verifies modules can import without ML deps.
 
 ## Test Structure
 

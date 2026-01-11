@@ -71,7 +71,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN --mount=type=cache,target=/opt/whisper-cache \
     --mount=type=cache,target=/root/.cache/huggingface \
     bash -c 'if [ "$PRELOAD_ML_MODELS" = "true" ]; then \
-        python scripts/preload_ml_models.py; \
+        python scripts/cache/preload_ml_models.py; \
     else \
         echo "Skipping ML model preloading (PRELOAD_ML_MODELS=false)"; \
     fi'

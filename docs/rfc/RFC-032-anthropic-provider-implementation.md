@@ -219,6 +219,7 @@ def validate_anthropic_config(self) -> 'Config':
     return self
 
 ```
+
 ## 4. Provider Capability Validation
 
 Add validation to prevent using Anthropic for transcription:
@@ -239,6 +240,7 @@ def validate_provider_capabilities(self) -> 'Config':
     return self
 
 ```
+
 ## 5. Anthropic Provider Implementations
 
 ### 5.1 Shared Anthropic Utilities
@@ -344,6 +346,7 @@ class AnthropicSpeakerDetector:
         """Detect speakers for an episode using Anthropic API.
 
 ```
+
                 messages=[{"role": "user", "content": user_prompt}],
             )
 
@@ -382,6 +385,7 @@ class AnthropicSpeakerDetector:
         from ..prompt_store import render_prompt
 
 ```
+
 ```python
 
     def _build_speaker_detection_prompts(
@@ -394,6 +398,7 @@ class AnthropicSpeakerDetector:
         from ..prompt_store import render_prompt
 
 ```
+
 ```python
 
     def _parse_hosts_from_response(self, response_text: str) -> Set[str]:
@@ -427,6 +432,7 @@ class AnthropicSpeakerDetector:
             pass
 
 ```
+
 #### 5.3 Summarization Provider
 
 **File**: `podcast_scraper/summarization/anthropic_provider.py`
@@ -482,6 +488,7 @@ class AnthropicSummarizationProvider:
         """Summarize text using Anthropic Claude API.
 
 ```
+
             )
 
 ```
@@ -493,6 +500,7 @@ class AnthropicSummarizationProvider:
             )
 
 ```
+
             )
 
 ```python
@@ -501,6 +509,7 @@ class AnthropicSummarizationProvider:
             from ..prompt_store import get_prompt_metadata
 
 ```
+
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
 ```python
@@ -523,6 +532,7 @@ class AnthropicSummarizationProvider:
         from ..prompt_store import render_prompt
 
 ```
+
 ```text
 
         user_prompt = render_prompt(user_prompt_name, **template_params)
@@ -746,6 +756,7 @@ class E2EServerURLs:
         return f"http://{self.host}:{self.port}"
 
 ```
+
 ### 9. Dependencies
 
 Add to `pyproject.toml`:
@@ -766,6 +777,7 @@ ai = [
 ]
 
 ```
+
 # For Anthropic support
 
 pip install -e ".[anthropic]"

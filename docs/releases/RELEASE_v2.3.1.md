@@ -16,10 +16,10 @@ v2.3.1 is a **patch release** focused on **security fixes**, **code quality impr
 
 **Path Traversal Vulnerabilities (CWE-23):**
 
-- **Fixed**: `scripts/eval_cleaning.py` and `scripts/eval_summaries.py` now validate output paths to prevent path traversal attacks
+- **Fixed**: `scripts/eval/eval_cleaning.py` and `scripts/eval/eval_summaries.py` now validate output paths to prevent path traversal attacks
 - **Impact**: Prevents arbitrary file writes via malicious `--output` arguments
 - **Fix**: Added path resolution and validation to restrict output to current working directory or subdirectories
-- **Files**: `scripts/eval_cleaning.py`, `scripts/eval_summaries.py`
+- **Files**: `scripts/eval/eval_cleaning.py`, `scripts/eval/eval_summaries.py`
 
 **Dependency Security:**
 

@@ -68,7 +68,7 @@
    - Examples requiring immediate output:
      - `make test`, `make ci`, `make ci-fast`
      - `make lint`, `make format`, `make type`
-     - `make docs`, `make fix-md`
+     - `make docs`, `make lint-markdown`
      - `pytest`, `python -m pytest`
      - `git status`, `git diff`
 
@@ -83,12 +83,14 @@
 
 ### Documentation & Markdown
 
-9. **Run `make fix-md` before committing markdown files**
-   - Fixes: tables, trailing spaces, blank lines, code block languages
+9. **Fix markdown linting issues before committing markdown files**
+   - Use `markdownlint --fix` for reliable auto-fixes: `npx markdownlint-cli2 --fix '**/*.md'`
+   - Or fix manually based on `make lint-markdown` output
    - Then self-check: one H1, blank lines after headings, no trailing spaces, consistent lists, code fences have languages
 
 9a. **When creating or editing markdown, lint/format immediately with our tools**
-    - Run `make fix-md` / `make lint-markdown` immediately after any doc/markdown edit
+    - Run `make lint-markdown` immediately after any doc/markdown edit
+    - Fix issues using `markdownlint --fix` or manually
     - Do NOT leave lint errors for follow-up; ensure zero markdown lint violations before asking for review
     - This avoids lint churn and ensures clean commits from the start
     - Apply during the edit, not later
@@ -292,7 +294,7 @@ make ci              # Full suite: formatting, linting, tests, docs, build
 ```bash
 make docs            # Build docs (catches broken links)
 make lint-markdown   # Check markdown files
-make fix-md          # Auto-fix markdown issues
+# Use markdownlint --fix instead: npx markdownlint-cli2 --fix '**/*.md'
 ```
 
 ### Docker (conditional)

@@ -212,12 +212,58 @@ def test_parse_feed():
     pass
 ```
 
+## Provider-Specific Code (CRITICAL)
+
+**🚨 Provider-specific code MUST stay in the provider module - NEVER in central config/workflow**
+
+**Rule:** All provider-specific concerns (logging, SDK configuration, error handling, etc.) must be encapsulated within the provider module itself. Central configuration (`workflow.py`, `config.py`) must NOT contain provider-specific logic.
+
+### ❌ BAD: Provider-specific code in central config
+
+```python
+# workflow.py - WRONG!
+def apply_log_level(level: str):
+    # ... setup logging ...
+    # ❌ NO! OpenAI-specific logging config doesn't belong here
+    openai_logger = logging.getLogger("openai._base_client")
+    openai_logger.setLevel(logging.WARNING)
+```
+
+### ✅ GOOD: Provider manages its own concerns
+
+```python
+# openai/openai_provider.py - CORRECT
+class OpenAIProvider:
+    def __init__(self, cfg: Config):
+        # ✅ Provider-specific logging config belongs here
+        root_logger = logging.getLogger()
+        if root_logger.level <= logging.DEBUG:
+            openai_logger = logging.getLogger("openai._base_client")
+            openai_logger.setLevel(logging.WARNING)
+        # ... rest of provider initialization ...
+```
+
+**Examples of provider-specific concerns:**
+- SDK logging configuration
+- SDK initialization parameters
+- Provider-specific error handling
+- Provider-specific retry logic
+- Provider-specific rate limiting
+- Provider-specific authentication setup
+
+**Why this matters:**
+- **Encapsulation**: Each provider is self-contained
+- **Separation of concerns**: Central code doesn't need to know provider internals
+- **Maintainability**: Provider changes don't affect central code
+- **Testability**: Providers can be tested in isolation
+
 ## Quick Checklist Before Commit
 
 - [ ] Did I add HTTP calls to non-downloader modules? → ❌ Move to downloader
 - [ ] Did I add business logic to config.py? → ❌ Move to workflow/service
 - [ ] Did I add CLI prompts to service.py? → ❌ Service is non-interactive
 - [ ] Did I add parsing to downloader.py? → ❌ Move to appropriate parser
+- [ ] Did I add provider-specific code to workflow.py or config.py? → ❌ Move to provider module
 - [ ] Are imports organized (stdlib → third-party → local)? → ✅ Use isort
 - [ ] Am I using lazy loading correctly? → ✅ Check __init__.py pattern
 

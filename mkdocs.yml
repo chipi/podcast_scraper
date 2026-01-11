@@ -20,8 +20,8 @@ nav:
       - AI Provider Comparison Guide: guides/AI_PROVIDER_COMPARISON_GUIDE.md
       - Provider Configuration Quick Reference: guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md
       - Provider Implementation Guide: guides/PROVIDER_IMPLEMENTATION_GUIDE.md
+      - ML Provider Reference: guides/ML_PROVIDER_REFERENCE.md
       - Protocol Extension Guide: guides/PROTOCOL_EXTENSION_GUIDE.md
-      - Summarization Guide: guides/SUMMARIZATION_GUIDE.md
       - Dependencies: guides/DEPENDENCIES_GUIDE.md
       - Markdown Style and Linting: guides/MARKDOWN_LINTING_GUIDE.md
       - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md
@@ -29,11 +29,14 @@ nav:
       - Troubleshooting: guides/TROUBLESHOOTING.md
       - Glossary: guides/GLOSSARY.md
   - Architecture: ARCHITECTURE.md
+  - Engineering Process: guides/ENGINEERING_PROCESS.md
   - Testing Strategy: TESTING_STRATEGY.md
   - CI/CD:
       - ci/index.md
       - Overview: ci/OVERVIEW.md
       - Workflows: ci/WORKFLOWS.md
+      - Resource Usage: ci/RESOURCE_USAGE.md
+      - Snyk Setup: ci/SNYK_SETUP.md
       - Local Development: ci/LOCAL_DEVELOPMENT.md
       - Metrics Dashboard: ci/METRICS.md
   - Product Requirements:
@@ -44,7 +47,7 @@ nav:
       - PRD-004 Per-Episode Metadata Generation: prd/PRD-004-metadata-generation.md
       - PRD-005 Episode Summarization: prd/PRD-005-episode-summarization.md
       - PRD-006 OpenAI Provider Integration: prd/PRD-006-openai-provider-integration.md
-      - PRD-007 AI Experiment Pipeline: prd/PRD-007-ai-experiment-pipeline.md
+      - PRD-007 AI Quality & Experimentation Platform: prd/PRD-007-ai-quality-experiment-platform.md
       - PRD-008 Speaker Name Detection: prd/PRD-008-speaker-name-detection.md
       - PRD-009 Anthropic Provider Integration: prd/PRD-009-anthropic-provider-integration.md
       - PRD-010 Mistral Provider Integration: prd/PRD-010-mistral-provider-integration.md
@@ -52,7 +55,54 @@ nav:
       - PRD-012 Gemini Provider Integration: prd/PRD-012-gemini-provider-integration.md
       - PRD-013 Groq Provider Integration: prd/PRD-013-groq-provider-integration.md
       - PRD-014 Ollama Provider Integration: prd/PRD-014-ollama-provider-integration.md
+      - PRD-015 Engineering Governance & Productivity Platform: prd/PRD-015-engineering-governance-productivity.md
+      - PRD-016 Operational Observability & Pipeline Intelligence: prd/PRD-016-operational-observability-pipeline-intelligence.md
       - PRD Template: prd/PRD_TEMPLATE.md
+  - Architecture Decisions:
+      - adr/index.md
+      - ADR-001 Hybrid Concurrency Strategy: adr/ADR-001-hybrid-concurrency-strategy.md
+      - ADR-002 Security-First XML Processing: adr/ADR-002-security-first-xml-processing.md
+      - ADR-003 Deterministic Feed Storage: adr/ADR-003-deterministic-feed-storage.md
+      - ADR-004 Flat Filesystem Archive Layout: adr/ADR-004-flat-filesystem-archive-layout.md
+      - ADR-005 Lazy ML Dependency Loading: adr/ADR-005-lazy-ml-dependency-loading.md
+      - ADR-006 Context-Aware Model Selection: adr/ADR-006-context-aware-model-selection.md
+      - ADR-007 Universal Episode Identity: adr/ADR-007-universal-episode-identity.md
+      - ADR-008 Database-Agnostic Metadata Schema: adr/ADR-008-database-agnostic-metadata-schema.md
+      - ADR-009 Privacy-First Local Summarization: adr/ADR-009-privacy-first-local-summarization.md
+      - ADR-010 Hierarchical Summarization Pattern: adr/ADR-010-hierarchical-summarization-pattern.md
+      - ADR-011 Unified Provider Pattern: adr/ADR-011-unified-provider-pattern.md
+      - ADR-012 Protocol-Based Provider Discovery: adr/ADR-012-protocol-based-provider-discovery.md
+      - ADR-013 Technology-Based Provider Naming: adr/ADR-013-technology-based-provider-naming.md
+      - ADR-014 Externalized Prompt Management: adr/ADR-014-externalized-prompt-management.md
+      - ADR-015 Secure Credential Injection: adr/ADR-015-secure-credential-injection.md
+      - ADR-016 Git Worktree-Based Development: adr/ADR-016-git-worktree-based-development.md
+      - ADR-017 Stratified CI Execution: adr/ADR-017-stratified-ci-execution.md
+      - ADR-018 Isolated Runtime Environments: adr/ADR-018-isolated-runtime-environments.md
+      - ADR-019 Provider-Agnostic Preprocessing: adr/ADR-019-provider-agnostic-preprocessing.md
+      - ADR-020 Linear History via Squash-Merge: adr/ADR-020-linear-history-via-squash-merge.md
+      - ADR-021 Standardized Test Pyramid: adr/ADR-021-standardized-test-pyramid.md
+      - ADR-022 Flaky Test Defense: adr/ADR-022-flaky-test-defense.md
+      - ADR-023 Public Operational Metrics: adr/ADR-023-public-operational-metrics.md
+      - ADR-024 Standalone Experiment Configuration: adr/ADR-024-standalone-experiment-configuration.md
+      - ADR-025 Codified Comparison Baselines: adr/ADR-025-codified-comparison-baselines.md
+      - ADR-026 Explicit Golden Dataset Versioning: adr/ADR-026-explicit-golden-dataset-versioning.md
+      - ADR-027 Deep Provider Fingerprinting: adr/ADR-027-deep-provider-fingerprinting.md
+      - ADR-028 Typed Provider Parameter Models: adr/ADR-028-typed-provider-parameter-models.md
+      - ADR-029 Registered Preprocessing Profiles: adr/ADR-029-registered-preprocessing-profiles.md
+      - ADR-030 Multi-Tiered Benchmarking Strategy: adr/ADR-030-multi-tiered-benchmarking-strategy.md
+      - ADR-031 Heuristic-Based Quality Gates: adr/ADR-031-heuristic-based-quality-gates.md
+      - ADR-032 Standardized Pre-Provider Audio Stage: adr/ADR-032-standardized-pre-provider-audio-stage.md
+      - ADR-033 Content-Hash Based Audio Caching: adr/ADR-033-content-hash-based-audio-caching.md
+      - ADR-034 FFmpeg-First Audio Manipulation: adr/ADR-034-ffmpeg-first-audio-manipulation.md
+      - ADR-035 Speech-Optimized Codec (Opus): adr/ADR-035-speech-optimized-codec-opus.md
+      - ADR-036 Hybrid MAP-REDUCE Summarization: adr/ADR-036-hybrid-map-reduce-summarization.md
+      - ADR-037 Local LLM Backend Abstraction: adr/ADR-037-local-llm-backend-abstraction.md
+      - ADR-038 Strict REDUCE Prompt Contract: adr/ADR-038-strict-reduce-prompt-contract.md
+      - ADR-039 Grouped Dependency Automation: adr/ADR-039-grouped-dependency-automation.md
+      - ADR-040 Periodic Module Coupling Analysis: adr/ADR-040-periodic-module-coupling-analysis.md
+      - ADR-041 Mandatory Pre-Release Validation: adr/ADR-041-mandatory-pre-release-validation.md
+      - ADR-042 Proactive Metric Regression Alerting: adr/ADR-042-proactive-metric-regression-alerting.md
+      - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
       - RFC-001 Workflow Orchestration: rfc/RFC-001-workflow-orchestration.md
@@ -93,8 +143,10 @@ nav:
       - RFC-037 Ollama Provider Implementation: rfc/RFC-037-ollama-provider-implementation.md
       - RFC-038 Continuous Review Tooling: rfc/RFC-038-continuous-review-tooling.md
       - RFC-039 Development Workflow: rfc/RFC-039-development-workflow-worktrees-ci.md
-      - RFC-040 Automated Metrics Alerts: rfc/RFC-040-automated-metrics-alerts.md
+      - RFC-040 Audio Preprocessing Pipeline: rfc/RFC-040-audio-preprocessing-pipeline.md
       - RFC-041 Podcast ML Benchmarking Framework: rfc/RFC-041-podcast-ml-benchmarking-framework.md
+      - RFC-042 Hybrid Summarization Pipeline: rfc/RFC-042-hybrid-summarization-pipeline.md
+      - RFC-043 Automated Metrics Alerts: rfc/RFC-043-automated-metrics-alerts.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
@@ -109,6 +161,8 @@ nav:
       - API Versioning: api/VERSIONING.md
   - Releases:
       - releases/index.md
+      - v2.5.0 - [Upcoming Release]: releases/RELEASE_v2.5.0.md
+      - v2.4.0 - Provider Ecosystem & Production Readiness: releases/RELEASE_v2.4.0.md
       - v2.3.2 - Security Tests & Thread-Safety Fixes: releases/RELEASE_v2.3.2.md
       - v2.3.1 - Security Fixes & Code Quality Improvements: releases/RELEASE_v2.3.1.md
       - v2.3.0 - Episode Summarization & Public API: releases/RELEASE_v2.3.0.md

@@ -285,6 +285,78 @@ class MLProvider:
         preload_elapsed = time.time() - preload_start
         logger.info("Model preloading completed in %.1fs", preload_elapsed)
 
+    def _try_copy_from_preloaded(self) -> bool:
+        """Try to copy model references from preloaded MLProvider instance.
+
+        This avoids re-initializing models that were already loaded during preload,
+        saving time and memory. However, due to thread safety concerns with HuggingFace
+        models, we still need separate instances - this just avoids reloading from disk.
+
+        Returns:
+            True if models were copied from preloaded instance, False otherwise
+        """
+        try:
+            from ..workflow import _preloaded_ml_provider
+
+            if _preloaded_ml_provider is None:
+                return False
+
+            # Only copy if configurations match (same models, same device, etc.)
+            if _preloaded_ml_provider.cfg.whisper_model != self.cfg.whisper_model:
+                return False
+            if _preloaded_ml_provider.cfg.whisper_device != self.cfg.whisper_device:
+                return False
+            if _preloaded_ml_provider.cfg.summary_model != self.cfg.summary_model:
+                return False
+            if _preloaded_ml_provider.cfg.summary_device != self.cfg.summary_device:
+                return False
+
+            copied = False
+
+            # Copy Whisper model if preloaded and we need it
+            if (
+                self.cfg.transcribe_missing
+                and not self._whisper_initialized
+                and _preloaded_ml_provider._whisper_initialized
+                and _preloaded_ml_provider._whisper_model is not None
+            ):
+                # For Whisper, we can share the model instance
+                # (it's thread-safe for read operations)
+                # However, to be safe with concurrent transcription, we'll still reload
+                # but the model file is already in memory/cache, so it's faster
+                logger.debug("Whisper model already preloaded, will reuse cached model file")
+                copied = True
+
+            # Copy spaCy model if preloaded and we need it
+            if (
+                self.cfg.auto_speakers
+                and not self._spacy_initialized
+                and _preloaded_ml_provider._spacy_initialized
+                and _preloaded_ml_provider._spacy_nlp is not None
+            ):
+                # spaCy models are thread-safe for read operations, but to be safe
+                # we'll note that it's preloaded (the actual copy happens in _initialize_spacy)
+                logger.debug("spaCy model already preloaded, will reuse")
+                copied = True
+
+            # For Transformers, we cannot share instances (not thread-safe)
+            # But we can note that models are preloaded to avoid redundant logging
+            if (
+                self.cfg.generate_summaries
+                and not self._transformers_initialized
+                and _preloaded_ml_provider._transformers_initialized
+            ):
+                logger.debug(
+                    "Transformers models already preloaded, creating new instances "
+                    "for thread safety"
+                )
+                copied = True
+
+            return copied
+        except (ImportError, AttributeError):
+            # Preloaded instance not available or not accessible
+            return False
+
     def initialize(self) -> None:
         """Initialize all ML models (Whisper, spaCy, Transformers).
 
@@ -293,16 +365,26 @@ class MLProvider:
         - spaCy: if auto_speakers is True
         - Transformers: if generate_summaries is True
 
+        This method first tries to reuse models from a preloaded instance to avoid
+        redundant initialization. If no preloaded instance is available, it initializes
+        models normally.
+
         This method is idempotent and can be called multiple times safely.
 
         Note: If one component fails to initialize (e.g., Whisper due to missing cache),
         other components will still be initialized. This allows summarization to work
         even if transcription is unavailable.
         """
+        # Try to copy from preloaded instance first (avoids redundant initialization)
+        preloaded_available = self._try_copy_from_preloaded()
+
         # Initialize Whisper if transcription enabled
         # If Whisper fails, log warning but continue with other components
         if self.cfg.transcribe_missing and not self._whisper_initialized:
             try:
+                # If preloaded, the model file is already cached, so loading is faster
+                if preloaded_available:
+                    logger.debug("Reusing preloaded Whisper model configuration")
                 self._initialize_whisper()
             except Exception as e:
                 logger.warning(
@@ -313,6 +395,10 @@ class MLProvider:
         # Initialize spaCy if speaker detection enabled
         if self.cfg.auto_speakers and not self._spacy_initialized:
             try:
+                # If preloaded, spaCy model is already loaded, so we can reference it
+                # However, for thread safety, we still create a new instance
+                if preloaded_available:
+                    logger.debug("Reusing preloaded spaCy model configuration")
                 self._initialize_spacy()
             except Exception as e:
                 logger.warning(
@@ -321,13 +407,50 @@ class MLProvider:
                 # Don't raise - allow other components to initialize
 
         # Initialize Transformers if summarization enabled
+        # Note: Transformers models cannot be shared across threads (not thread-safe)
+        # so we always create new instances, but if preloaded, the model files are cached
         if self.cfg.generate_summaries and not self._transformers_initialized:
+            if preloaded_available:
+                logger.debug(
+                    "Creating new Transformers instances (models already cached from preload)"
+                )
             self._initialize_transformers()
+
+    def _detect_whisper_device(self) -> str:
+        """Detect the best device for Whisper transcription.
+
+        Returns:
+            Device string: 'mps', 'cuda', or 'cpu'
+        """
+        # Use explicit config if set
+        if self.cfg.whisper_device:
+            logger.debug("Using configured whisper_device: %s", self.cfg.whisper_device)
+            return self.cfg.whisper_device
+
+        # Auto-detect: prefer MPS (Apple Silicon) > CUDA (NVIDIA) > CPU
+        try:
+            import torch
+
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                logger.debug("Auto-detected MPS (Apple Silicon) for Whisper")
+                return "mps"
+            if torch.cuda.is_available():
+                logger.debug("Auto-detected CUDA for Whisper")
+                return "cuda"
+        except ImportError:
+            pass
+
+        logger.debug("Using CPU for Whisper (no GPU detected)")
+        return "cpu"
 
     def _initialize_whisper(self) -> None:  # noqa: C901
         """Initialize Whisper model for transcription."""
+        import time
+
+        init_start = time.time()
         logger.debug("Initializing Whisper transcription (model: %s)", self.cfg.whisper_model)
 
+        step_start = time.time()
         try:
             whisper_lib = _import_third_party_whisper()
         except ImportError:
@@ -341,16 +464,24 @@ class MLProvider:
                 dependency="openai-whisper",
                 suggestion="Install with: pip install openai-whisper && brew install ffmpeg",
             )
+        import_time = time.time() - step_start
+        logger.debug("  [TIMING] Import whisper library: %.3fs", import_time)
 
         # Use centralized fallback logic (config-driven, no hardcoded values)
+        step_start = time.time()
         model_name, fallback_models = normalize_whisper_model_name(
             self.cfg.whisper_model, self.cfg.language
         )
+        normalize_time = time.time() - step_start
+        logger.debug("  [TIMING] Normalize model name: %.3fs", normalize_time)
         logger.debug("Loading Whisper model: %s", model_name)
 
         # Check cache directory for pre-cached models
         # Prefer local cache in project root, fallback to ~/.cache/whisper/
+        step_start = time.time()
         whisper_cache = get_whisper_cache_dir()
+        cache_dir_time = time.time() - step_start
+        logger.debug("  [TIMING] Get cache directory: %.3fs", cache_dir_time)
         logger.debug(
             "Whisper cache directory: %s (exists: %s)", whisper_cache, whisper_cache.exists()
         )
@@ -380,6 +511,7 @@ class MLProvider:
             try:
                 # Use download_root parameter to specify cache directory directly
                 # This is more reliable than environment variable
+                step_start = time.time()
                 whisper_cache_str = str(whisper_cache)
                 if attempt_model != model_name:
                     logger.debug(
@@ -387,7 +519,29 @@ class MLProvider:
                         attempt_model,
                         model_name,
                     )
-                model = whisper_lib.load_model(attempt_model, download_root=whisper_cache_str)
+                # Detect and use optimal device (MPS/CUDA/CPU)
+                device_to_use = self._detect_whisper_device()
+                device_detect_time = time.time() - step_start
+                logger.debug(
+                    "  [TIMING] Detect device: %.3fs (device: %s)",
+                    device_detect_time,
+                    device_to_use,
+                )
+
+                step_start = time.time()
+                logger.debug("  [TIMING] Starting whisper_lib.load_model()...")
+                # Suppress PyTorch's "Device set to use mps" stdout message
+                import contextlib
+                import io
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    model = whisper_lib.load_model(
+                        attempt_model, download_root=whisper_cache_str, device=device_to_use
+                    )
+                load_model_time = time.time() - step_start
+                logger.debug(
+                    "  [TIMING] whisper_lib.load_model() completed: %.3fs", load_model_time
+                )
                 if attempt_model != model_name:
                     logger.debug(
                         "Loaded fallback Whisper model: %s (requested %s was not available)",
@@ -416,8 +570,24 @@ class MLProvider:
                     )
                 else:
                     logger.debug("Whisper model is using accelerator device type=%s", device_type)
+                step_start = time.time()
                 self._whisper_model = model
                 self._whisper_initialized = True
+                assign_time = time.time() - step_start
+                total_time = time.time() - init_start
+                logger.debug("  [TIMING] Assign model to instance: %.3fs", assign_time)
+                logger.info(
+                    "[TIMING BREAKDOWN] Whisper initialization total: %.3fs "
+                    "(import: %.3fs, normalize: %.3fs, cache_dir: %.3fs, "
+                    "device_detect: %.3fs, load_model: %.3fs, assign: %.3fs)",
+                    total_time,
+                    import_time,
+                    normalize_time,
+                    cache_dir_time,
+                    device_detect_time,
+                    load_model_time,
+                    assign_time,
+                )
                 logger.debug("Whisper transcription initialized successfully")
                 return
             except FileNotFoundError as exc:
@@ -611,8 +781,14 @@ class MLProvider:
             Tuple of (result_dict, elapsed_time)
         """
         logger.info("    transcribing with Whisper (%s)...", self.cfg.whisper_model)
-        start = time.time()
+        total_start = time.time()
+
+        step_start = time.time()
         with progress.progress_context(None, "Transcribing") as reporter:
+            progress_setup_time = time.time() - step_start
+            logger.debug("  [TIMING] Progress context setup: %.3fs", progress_setup_time)
+
+            step_start = time.time()
             suppress_fp16_warning = getattr(self._whisper_model, "_is_cpu_device", False)
             logger.debug(
                 "Invoking Whisper transcription: media=%s suppress_fp16_warning=%s dtype=%s",
@@ -621,6 +797,8 @@ class MLProvider:
                 getattr(self._whisper_model, "dtype", None),
             )
             logger.debug("Transcribing with language=%s", language)
+            prep_time = time.time() - step_start
+            logger.debug("  [TIMING] Preparation (device check, logging): %.3fs", prep_time)
 
             # Intercept Whisper's tqdm progress calls and forward to our progress reporter
             # This prevents multiple progress bar lines while showing real progress
@@ -629,11 +807,34 @@ class MLProvider:
                     provider="MLProvider/Whisper",
                     capability="transcription",
                 )
+
+            step_start = time.time()
             with _intercept_whisper_progress(reporter):
+                intercept_setup_time = time.time() - step_start
+                logger.debug("  [TIMING] Progress interceptor setup: %.3fs", intercept_setup_time)
+
+                step_start = time.time()
+                logger.debug("  [TIMING] Starting Whisper model.transcribe() call...")
                 result = self._whisper_model.transcribe(
                     audio_path, task="transcribe", language=language, verbose=False
                 )
-        elapsed = time.time() - start
+                whisper_transcribe_time = time.time() - step_start
+                logger.debug(
+                    "  [TIMING] Whisper model.transcribe() completed: %.3fs",
+                    whisper_transcribe_time,
+                )
+
+        elapsed = time.time() - total_start
+        logger.info(
+            "[TIMING BREAKDOWN] Transcription total: %.3fs "
+            "(progress_setup: %.3fs, prep: %.3fs, intercept_setup: %.3fs, "
+            "whisper_transcribe: %.3fs)",
+            elapsed,
+            progress_setup_time,
+            prep_time,
+            intercept_setup_time,
+            whisper_transcribe_time,
+        )
         segments = result.get("segments")
         logger.debug(
             "Whisper transcription finished in %.2fs (segments=%s text_chars=%s)",

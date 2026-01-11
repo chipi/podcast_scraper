@@ -63,6 +63,10 @@ def _create_mock_provider(mock_summary_model):
     from podcast_scraper.ml.ml_provider import MLProvider
 
     mock_provider.__class__ = MLProvider
+    # Configure summarize() to return proper dict structure
+    mock_provider.summarize.return_value = {"summary": "Test summary text"}
+    # Set _requires_separate_instances to False to use sequential path (API provider behavior)
+    mock_provider._requires_separate_instances = False
     return mock_provider
 
 
@@ -369,10 +373,12 @@ class TestParallelSummarizationFallback(unittest.TestCase):
             """Track summarize calls."""
             # Track both summary_provider and summary_model (for backward compatibility)
             summarize_calls.append((kwargs.get("summary_provider"), kwargs.get("summary_model")))
+            # Return None (function returns None)
+            return None
 
         mock_provider = _create_mock_provider(mock_summary_model)
         with patch(
-            "podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode",
+            "podcast_scraper.workflow._summarize_single_episode",
             side_effect=track_summarize,
         ):
             workflow._parallel_episode_summarization(
@@ -572,9 +578,11 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
             """Track summarize calls."""
             # Track both summary_provider and summary_model (for backward compatibility)
             summarize_calls.append((kwargs.get("summary_provider"), kwargs.get("summary_model")))
+            # Return None (function returns None)
+            return None
 
         with patch(
-            "podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode",
+            "podcast_scraper.workflow._summarize_single_episode",
             side_effect=track_summarize,
         ):
             workflow._parallel_episode_summarization(

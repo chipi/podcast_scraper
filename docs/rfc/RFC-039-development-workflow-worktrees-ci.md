@@ -3,6 +3,11 @@
 - **Status**: Completed
 - **Authors**: chipi
 - **Stakeholders**: Developers, CI/CD maintainers
+- **Related ADRs**:
+  - [ADR-016: Git Worktree-Based Development](../adr/ADR-016-git-worktree-based-development.md)
+  - [ADR-017: Stratified CI Execution](../adr/ADR-017-stratified-ci-execution.md)
+  - [ADR-018: Isolated Runtime Environments](../adr/ADR-018-isolated-runtime-environments.md)
+  - [ADR-020: Linear History via Squash-Merge](../adr/ADR-020-linear-history-via-squash-merge.md)
 - **Related PRDs**: None
 - **Related RFCs**:
   - RFC-038: Continuous Review Tooling (CI quality checks)
@@ -29,23 +34,23 @@ simultaneously.
 
 ## Table of Contents
 
-1. [Version Semantics](#version-semantics-and-terminology-important)
-2. [Problem Statement](#problem-statement)
-3. [Goals](#goals) | [Non-Goals](#non-goals) | [Constraints](#constraints-assumptions)
-4. [Workflow Rules (Normative)](#workflow-rules-normative)
-5. [Design and Implementation](#design-implementation)
-   - [1. Git Worktree Workflow](#1-git-worktree-workflow)
-   - [2. Complete Worktree Setup](#2-complete-worktree-setup-process)
-   - [3. Cursor Integration](#3-cursor-integration-details)
-   - [4. Rebase Strategy](#4-rebase-strategy-and-decision-tree)
-   - [5. GitHub Actions CI](#5-github-actions-ci-evolution)
-   - [6. Makefile Helpers](#6-makefile-helpers)
-   - [7. Emergency Recovery](#7-emergency-recovery)
-   - [8. Weekly Maintenance](#8-weekly-maintenance-checklist)
-6. [Documentation Updates](#documentation-updates-required)
-7. [Key Decisions](#key-decisions) | [Alternatives](#alternatives-considered)
-8. [Rollout Plan](#rollout-plan)
-9. [Quick Reference Cheat Sheet](#quick-reference-cheat-sheet)
+1. Version Semantics
+2. Problem Statement
+3. Goals | Non-Goals | Constraints
+4. Workflow Rules (Normative)
+5. Design and Implementation
+   - 1. Git Worktree Workflow
+   - 1. Complete Worktree Setup
+   - 1. Cursor Integration
+   - 1. Rebase Strategy
+   - 1. GitHub Actions CI
+   - 1. Makefile Helpers
+   - 1. Emergency Recovery
+   - 1. Weekly Maintenance
+6. Documentation Updates
+7. Key Decisions | Alternatives
+8. Rollout Plan
+9. Quick Reference Cheat Sheet
 
 ---
 
@@ -791,103 +796,103 @@ endef
 ## Create new worktree (interactive)
 
 wt-new:
-	@echo "=== Create New Worktree ==="
-	@read -p "Issue number (or press Enter to skip): " issue; \
-	read -p "Branch type (feat/fix/rel): " type; \
-	read -p "Short name (no spaces or slashes): " name; \
-	safename=$$(echo "$$name" | tr '/ ' '--' | tr -cd '[:alnum:]-_'); \
-	if [ "$$safename" != "$$name" ]; then \
-		echo "⚠️  Sanitized name: $$name → $$safename"; \
-	fi; \
-	if [ -z "$$safename" ]; then \
-		echo "❌ Error: name cannot be empty"; exit 1; \
-	fi; \
-	if [ -n "$$issue" ]; then \
-		branch="$$type/$$issue-$$safename"; \
-		folder="../podcast_scraper-$$issue-$$safename"; \
-	else \
-		branch="$$type/$$safename"; \
-		folder="../podcast_scraper-$$safename"; \
-	fi; \
-	echo "Creating: $$folder (branch: $$branch)"; \
-	git fetch origin && \
-	git worktree add "$$folder" -b "$$branch" origin/main && \
-	echo "" && \
-	echo "Next steps:" && \
-	echo "  cd $$folder" && \
-	echo "  python3 -m venv .venv" && \
-	echo "  source .venv/bin/activate" && \
-	echo "  pip install -e '.[dev]'" && \
-	echo "  cursor ."
+ @echo "=== Create New Worktree ==="
+ @read -p "Issue number (or press Enter to skip): " issue; \
+ read -p "Branch type (feat/fix/rel): " type; \
+ read -p "Short name (no spaces or slashes): " name; \
+ safename=$$(echo "$$name" | tr '/ ' '--' | tr -cd '[:alnum:]-_'); \
+ if [ "$$safename" != "$$name" ]; then \
+  echo "⚠️  Sanitized name: $$name → $$safename"; \
+ fi; \
+ if [ -z "$$safename" ]; then \
+  echo "❌ Error: name cannot be empty"; exit 1; \
+ fi; \
+ if [ -n "$$issue" ]; then \
+  branch="$$type/$$issue-$$safename"; \
+  folder="../podcast_scraper-$$issue-$$safename"; \
+ else \
+  branch="$$type/$$safename"; \
+  folder="../podcast_scraper-$$safename"; \
+ fi; \
+ echo "Creating: $$folder (branch: $$branch)"; \
+ git fetch origin && \
+ git worktree add "$$folder" -b "$$branch" origin/main && \
+ echo "" && \
+ echo "Next steps:" && \
+ echo "  cd $$folder" && \
+ echo "  python3 -m venv .venv" && \
+ echo "  source .venv/bin/activate" && \
+ echo "  pip install -e '.[dev]'" && \
+ echo "  cursor ."
 
 ## Create worktree with full setup (interactive)
 
 wt-setup:
-	@echo "=== Create Worktree with Full Setup ==="
-	@read -p "Issue number (or press Enter to skip): " issue; \
-	read -p "Branch type (feat/fix/rel): " type; \
-	read -p "Short name (no spaces or slashes): " name; \
-	safename=$$(echo "$$name" | tr '/ ' '--' | tr -cd '[:alnum:]-_'); \
-	if [ "$$safename" != "$$name" ]; then \
-		echo "⚠️  Sanitized name: $$name → $$safename"; \
-	fi; \
-	if [ -z "$$safename" ]; then \
-		echo "❌ Error: name cannot be empty"; exit 1; \
-	fi; \
-	if [ -n "$$issue" ]; then \
-		branch="$$type/$$issue-$$safename"; \
-		folder="../podcast_scraper-$$issue-$$safename"; \
-	else \
-		branch="$$type/$$safename"; \
-		folder="../podcast_scraper-$$safename"; \
-	fi; \
-	echo "Creating and setting up: $$folder"; \
-	git fetch origin && \
-	git worktree add "$$folder" -b "$$branch" origin/main && \
-	cd "$$folder" && \
-	python3 -m venv .venv && \
-	. .venv/bin/activate && \
-	pip install -e ".[dev]" && \
-	echo "" && \
-	echo "✅ Worktree ready: $$folder" && \
-	echo "   Branch: $$branch" && \
-	echo "   Run: cd $$folder && source .venv/bin/activate && cursor ."
+ @echo "=== Create Worktree with Full Setup ==="
+ @read -p "Issue number (or press Enter to skip): " issue; \
+ read -p "Branch type (feat/fix/rel): " type; \
+ read -p "Short name (no spaces or slashes): " name; \
+ safename=$$(echo "$$name" | tr '/ ' '--' | tr -cd '[:alnum:]-_'); \
+ if [ "$$safename" != "$$name" ]; then \
+  echo "⚠️  Sanitized name: $$name → $$safename"; \
+ fi; \
+ if [ -z "$$safename" ]; then \
+  echo "❌ Error: name cannot be empty"; exit 1; \
+ fi; \
+ if [ -n "$$issue" ]; then \
+  branch="$$type/$$issue-$$safename"; \
+  folder="../podcast_scraper-$$issue-$$safename"; \
+ else \
+  branch="$$type/$$safename"; \
+  folder="../podcast_scraper-$$safename"; \
+ fi; \
+ echo "Creating and setting up: $$folder"; \
+ git fetch origin && \
+ git worktree add "$$folder" -b "$$branch" origin/main && \
+ cd "$$folder" && \
+ python3 -m venv .venv && \
+ . .venv/bin/activate && \
+ pip install -e ".[dev]" && \
+ echo "" && \
+ echo "✅ Worktree ready: $$folder" && \
+ echo "   Branch: $$branch" && \
+ echo "   Run: cd $$folder && source .venv/bin/activate && cursor ."
 
 ## List all worktrees with status
 
 wt-list:
-	@echo "=== Active Worktrees ==="
-	@git worktree list
-	@echo ""
-	@echo "=== Worktree Details ==="
-	@for wt in $$(git worktree list --porcelain | grep "^worktree" | cut -d' ' -f2); do \
-		if [ -d "$$wt/.venv" ]; then venv="✅ venv"; else venv="❌ no venv"; fi; \
-		branch=$$(git -C "$$wt" branch --show-current 2>/dev/null || echo "detached"); \
-		echo "  $$wt ($$branch) [$$venv]"; \
-	done
+ @echo "=== Active Worktrees ==="
+ @git worktree list
+ @echo ""
+ @echo "=== Worktree Details ==="
+ @for wt in $$(git worktree list --porcelain | grep "^worktree" | cut -d' ' -f2); do \
+  if [ -d "$$wt/.venv" ]; then venv="✅ venv"; else venv="❌ no venv"; fi; \
+  branch=$$(git -C "$$wt" branch --show-current 2>/dev/null || echo "detached"); \
+  echo "  $$wt ($$branch) [$$venv]"; \
+ done
 
 ## Remove a worktree (interactive)
 
 wt-remove:
-	@echo "=== Remove Worktree ==="
-	@git worktree list
-	@echo ""
-	@read -p "Path to remove: " path; \
-	read -p "Also delete branch? (y/N): " delbranch; \
-	branch=$$(git -C "$$path" branch --show-current 2>/dev/null); \
-	git worktree remove "$$path" && \
-	if [ "$$delbranch" = "y" ] && [ -n "$$branch" ]; then \
-		git branch -d "$$branch" 2>/dev/null || git branch -D "$$branch"; \
-	fi && \
-	echo "✅ Removed: $$path"
+ @echo "=== Remove Worktree ==="
+ @git worktree list
+ @echo ""
+ @read -p "Path to remove: " path; \
+ read -p "Also delete branch? (y/N): " delbranch; \
+ branch=$$(git -C "$$path" branch --show-current 2>/dev/null); \
+ git worktree remove "$$path" && \
+ if [ "$$delbranch" = "y" ] && [ -n "$$branch" ]; then \
+  git branch -d "$$branch" 2>/dev/null || git branch -D "$$branch"; \
+ fi && \
+ echo "✅ Removed: $$path"
 
 ## Prune stale worktree references
 
 wt-prune:
-	@echo "=== Pruning Worktrees ==="
-	git worktree prune -v
-	git fetch --prune
-	@echo "✅ Cleanup complete"
+ @echo "=== Pruning Worktrees ==="
+ git worktree prune -v
+ git fetch --prune
+ @echo "✅ Cleanup complete"
 ```yaml
 
 ### 6.3 Input Sanitization
@@ -1175,7 +1180,7 @@ git branch release/2.5 origin/main
 git push origin release/2.5
 ```
 
-4. Create/rotate the NEXT worktree:
+1. Create/rotate the NEXT worktree:
 
 ```bash
 git worktree add ../podcast_scraper-next-2.5 release/2.5
