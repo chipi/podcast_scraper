@@ -108,6 +108,7 @@ class TestSetupStage(unittest.TestCase):
         cfg = create_test_config(
             transcribe_missing=False,
             transcription_provider="openai",
+            openai_api_key="sk-test-dummy-key-for-validation",
             generate_summaries=True,
             summary_provider="transformers",
         )
@@ -119,6 +120,7 @@ class TestSetupStage(unittest.TestCase):
         cfg = create_test_config(
             transcribe_missing=False,
             transcription_provider="openai",
+            openai_api_key="sk-test-dummy-key-for-validation",
             auto_speakers=True,
             speaker_detector_provider="spacy",
         )
@@ -130,6 +132,7 @@ class TestSetupStage(unittest.TestCase):
         cfg = create_test_config(
             transcribe_missing=False,
             transcription_provider="openai",
+            openai_api_key="sk-test-dummy-key-for-validation",
             generate_summaries=False,
             auto_speakers=False,
         )
