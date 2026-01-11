@@ -246,7 +246,7 @@ test-ci-fast:
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Includes reruns for flaky tests (matches CI behavior) - increased to 3 retries for very flaky tests
-	$(PYTHON) -m pytest tests/unit/ tests/integration/ tests/e2e/ -m '(not integration and not e2e) or (integration and critical_path) or (e2e and critical_path)' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2
+	$(PYTHON) -m pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2
 
 test-e2e:
 	# E2E tests: parallel execution for speed

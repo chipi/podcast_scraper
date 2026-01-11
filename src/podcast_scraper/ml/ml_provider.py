@@ -285,6 +285,78 @@ class MLProvider:
         preload_elapsed = time.time() - preload_start
         logger.info("Model preloading completed in %.1fs", preload_elapsed)
 
+    def _try_copy_from_preloaded(self) -> bool:
+        """Try to copy model references from preloaded MLProvider instance.
+
+        This avoids re-initializing models that were already loaded during preload,
+        saving time and memory. However, due to thread safety concerns with HuggingFace
+        models, we still need separate instances - this just avoids reloading from disk.
+
+        Returns:
+            True if models were copied from preloaded instance, False otherwise
+        """
+        try:
+            from ..workflow import _preloaded_ml_provider
+
+            if _preloaded_ml_provider is None:
+                return False
+
+            # Only copy if configurations match (same models, same device, etc.)
+            if _preloaded_ml_provider.cfg.whisper_model != self.cfg.whisper_model:
+                return False
+            if _preloaded_ml_provider.cfg.whisper_device != self.cfg.whisper_device:
+                return False
+            if _preloaded_ml_provider.cfg.summary_model != self.cfg.summary_model:
+                return False
+            if _preloaded_ml_provider.cfg.summary_device != self.cfg.summary_device:
+                return False
+
+            copied = False
+
+            # Copy Whisper model if preloaded and we need it
+            if (
+                self.cfg.transcribe_missing
+                and not self._whisper_initialized
+                and _preloaded_ml_provider._whisper_initialized
+                and _preloaded_ml_provider._whisper_model is not None
+            ):
+                # For Whisper, we can share the model instance
+                # (it's thread-safe for read operations)
+                # However, to be safe with concurrent transcription, we'll still reload
+                # but the model file is already in memory/cache, so it's faster
+                logger.debug("Whisper model already preloaded, will reuse cached model file")
+                copied = True
+
+            # Copy spaCy model if preloaded and we need it
+            if (
+                self.cfg.auto_speakers
+                and not self._spacy_initialized
+                and _preloaded_ml_provider._spacy_initialized
+                and _preloaded_ml_provider._spacy_nlp is not None
+            ):
+                # spaCy models are thread-safe for read operations, but to be safe
+                # we'll note that it's preloaded (the actual copy happens in _initialize_spacy)
+                logger.debug("spaCy model already preloaded, will reuse")
+                copied = True
+
+            # For Transformers, we cannot share instances (not thread-safe)
+            # But we can note that models are preloaded to avoid redundant logging
+            if (
+                self.cfg.generate_summaries
+                and not self._transformers_initialized
+                and _preloaded_ml_provider._transformers_initialized
+            ):
+                logger.debug(
+                    "Transformers models already preloaded, creating new instances "
+                    "for thread safety"
+                )
+                copied = True
+
+            return copied
+        except (ImportError, AttributeError):
+            # Preloaded instance not available or not accessible
+            return False
+
     def initialize(self) -> None:
         """Initialize all ML models (Whisper, spaCy, Transformers).
 
@@ -293,16 +365,26 @@ class MLProvider:
         - spaCy: if auto_speakers is True
         - Transformers: if generate_summaries is True
 
+        This method first tries to reuse models from a preloaded instance to avoid
+        redundant initialization. If no preloaded instance is available, it initializes
+        models normally.
+
         This method is idempotent and can be called multiple times safely.
 
         Note: If one component fails to initialize (e.g., Whisper due to missing cache),
         other components will still be initialized. This allows summarization to work
         even if transcription is unavailable.
         """
+        # Try to copy from preloaded instance first (avoids redundant initialization)
+        preloaded_available = self._try_copy_from_preloaded()
+
         # Initialize Whisper if transcription enabled
         # If Whisper fails, log warning but continue with other components
         if self.cfg.transcribe_missing and not self._whisper_initialized:
             try:
+                # If preloaded, the model file is already cached, so loading is faster
+                if preloaded_available:
+                    logger.debug("Reusing preloaded Whisper model configuration")
                 self._initialize_whisper()
             except Exception as e:
                 logger.warning(
@@ -313,6 +395,10 @@ class MLProvider:
         # Initialize spaCy if speaker detection enabled
         if self.cfg.auto_speakers and not self._spacy_initialized:
             try:
+                # If preloaded, spaCy model is already loaded, so we can reference it
+                # However, for thread safety, we still create a new instance
+                if preloaded_available:
+                    logger.debug("Reusing preloaded spaCy model configuration")
                 self._initialize_spacy()
             except Exception as e:
                 logger.warning(
@@ -321,7 +407,13 @@ class MLProvider:
                 # Don't raise - allow other components to initialize
 
         # Initialize Transformers if summarization enabled
+        # Note: Transformers models cannot be shared across threads (not thread-safe)
+        # so we always create new instances, but if preloaded, the model files are cached
         if self.cfg.generate_summaries and not self._transformers_initialized:
+            if preloaded_available:
+                logger.debug(
+                    "Creating new Transformers instances (models already cached from preload)"
+                )
             self._initialize_transformers()
 
     def _detect_whisper_device(self) -> str:

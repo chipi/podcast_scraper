@@ -812,7 +812,23 @@ class SummaryModel:
                 pipeline_kwargs["length_penalty"] = length_pen
                 pipeline_kwargs["early_stopping"] = True  # Stop when all beams agree
 
-            result = self.pipeline(input_text, **pipeline_kwargs)
+            # Suppress transformers warning about max_length > input_length
+            # This is expected behavior for summarization tasks where we want shorter outputs
+            import warnings
+
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r".*max_length.*input_length.*",
+                    category=UserWarning,
+                )
+                # Also filter the specific transformers warning about max_length
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r"Your max_length is set to \d+, but your input_length is only \d+.*",
+                    category=UserWarning,
+                )
+                result = self.pipeline(input_text, **pipeline_kwargs)
 
             # Pipeline returns list of dicts with 'summary_text' key
             if isinstance(result, list) and len(result) > 0:
