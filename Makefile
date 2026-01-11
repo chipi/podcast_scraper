@@ -230,7 +230,7 @@ test-integration-fast:
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
-	# Coverage: measured independently to match CI
+	# Coverage: measured independently but no threshold (fast tests are a subset, full suite enforces threshold)
 	$(PYTHON) -m pytest tests/integration/ -m "integration and critical_path" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
 
 test-ci:

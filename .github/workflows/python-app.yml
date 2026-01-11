@@ -451,8 +451,9 @@ jobs:
         mkdir -p reports
         # Run tests with coverage and network guard: --disable-socket --allow-hosts=127.0.0.1,localhost
         # Critical path tests only for faster CI feedback
+        # Note: Fast tests don't enforce coverage threshold (they're a subset, full suite enforces threshold)
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/integration/ -v -m "integration and critical_path" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        OUTPUT=$(pytest tests/integration/ -v -m "integration and critical_path" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
