@@ -62,6 +62,25 @@ class OpenAIProvider:
 
         self.cfg = cfg
 
+        # Suppress verbose OpenAI SDK debug logs (they're too long and clutter the output)
+        # Set OpenAI SDK loggers to WARNING level when root logger is DEBUG
+        # This keeps our debug logs visible while hiding OpenAI's verbose request/response logs
+        root_logger = logging.getLogger()
+        root_level = root_logger.level if root_logger.level else logging.INFO
+        if root_level <= logging.DEBUG:
+            openai_loggers = [
+                "openai",
+                "openai._base_client",
+                "openai.api_resources",
+                "httpx",
+                "httpcore",
+                "httpcore.connection",
+                "httpcore.http11",
+            ]
+            for logger_name in openai_loggers:
+                openai_logger = logging.getLogger(logger_name)
+                openai_logger.setLevel(logging.WARNING)
+
         # Support custom base_url for E2E testing with mock servers
         client_kwargs: dict[str, Any] = {"api_key": cfg.openai_api_key}
         if cfg.openai_api_base:

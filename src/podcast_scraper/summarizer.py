@@ -681,7 +681,12 @@ class SummaryModel:
                     os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = original_hf_disable
 
             # Move model to device
-            self.model = self.model.to(self.device)  # type: ignore[union-attr]
+            # Suppress PyTorch's "Device set to use mps" stdout message
+            import contextlib
+            import io
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.model = self.model.to(self.device)  # type: ignore[union-attr]
 
             # Create pipeline for easy inference
             # Map device to pipeline device parameter:
@@ -812,20 +817,35 @@ class SummaryModel:
                 pipeline_kwargs["length_penalty"] = length_pen
                 pipeline_kwargs["early_stopping"] = True  # Stop when all beams agree
 
-            # Suppress transformers warning about max_length > input_length
-            # This is expected behavior for summarization tasks where we want shorter outputs
+            # Suppress transformers warnings about max_length configuration
+            # These are expected for summarization tasks where we want shorter outputs
             import warnings
 
             with warnings.catch_warnings():
+                # Filter max_length > input_length warnings
                 warnings.filterwarnings(
                     "ignore",
                     message=r".*max_length.*input_length.*",
                     category=UserWarning,
                 )
-                # Also filter the specific transformers warning about max_length
+                # Filter specific transformers warning about max_length
                 warnings.filterwarnings(
                     "ignore",
                     message=r"Your max_length is set to \d+, but your input_length is only \d+.*",
+                    category=UserWarning,
+                )
+                # Filter "Asking to truncate to max_length but no maximum length
+                # is provided" warning
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r".*truncate.*max_length.*no maximum length.*",
+                    category=UserWarning,
+                )
+                # Filter "Asking to truncate to max_length but no maximum length
+                # is provided" (alternative wording)
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r".*no maximum length.*Default to no truncation.*",
                     category=UserWarning,
                 )
                 result = self.pipeline(input_text, **pipeline_kwargs)

@@ -530,9 +530,14 @@ class MLProvider:
 
                 step_start = time.time()
                 logger.debug("  [TIMING] Starting whisper_lib.load_model()...")
-                model = whisper_lib.load_model(
-                    attempt_model, download_root=whisper_cache_str, device=device_to_use
-                )
+                # Suppress PyTorch's "Device set to use mps" stdout message
+                import contextlib
+                import io
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    model = whisper_lib.load_model(
+                        attempt_model, download_root=whisper_cache_str, device=device_to_use
+                    )
                 load_model_time = time.time() - step_start
                 logger.debug(
                     "  [TIMING] whisper_lib.load_model() completed: %.3fs", load_model_time
