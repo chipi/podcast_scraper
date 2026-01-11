@@ -206,9 +206,27 @@ class TestIntegrationMain(unittest.TestCase):
                 exit_code = cli.main([rss_url, "--output-dir", malicious])
                 self.assertEqual(exit_code, 0)
                 effective_dir = Path(malicious).expanduser().resolve()
-                out_path = effective_dir / "transcripts" / "0001 - Episode 1.txt"
-                self.assertTrue(out_path.exists())
-                self.assertNotIn("..", str(out_path))
+                # The output may be in a run suffix subdirectory or directly in effective_dir
+                # Search for the transcript file in the actual output structure
+                transcript_file = None
+                if effective_dir.exists():
+                    # Check direct transcripts directory first
+                    direct_path = effective_dir / "transcripts" / "0001 - Episode 1.txt"
+                    if direct_path.exists():
+                        transcript_file = direct_path
+                    else:
+                        # Check run suffix subdirectories
+                        for item in effective_dir.iterdir():
+                            if item.is_dir() and item.name.startswith("run_"):
+                                candidate = item / "transcripts" / "0001 - Episode 1.txt"
+                                if candidate.exists():
+                                    transcript_file = candidate
+                                    break
+                self.assertIsNotNone(
+                    transcript_file, "Transcript file should exist in normalized output directory"
+                )
+                self.assertTrue(transcript_file.exists())
+                self.assertNotIn("..", str(transcript_file))
 
     def test_config_override_precedence_integration(self):
         rss_url = "https://example.com/feed.xml"
