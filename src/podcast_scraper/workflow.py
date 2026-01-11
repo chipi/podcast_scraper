@@ -379,8 +379,39 @@ def _ensure_ml_models_cached(cfg: config.Config) -> None:
         logger.debug(f"Error checking model cache: {e}")
 
 
-def _preload_ml_models_if_needed(cfg: config.Config) -> None:
+def _preload_ml_models_if_needed(cfg: config.Config) -> None:  # noqa: F811
     """Preload ML models early in the pipeline if configured to use them.
+
+    Uses re-exported version if available (for testability).
+
+    This wrapper allows tests to patch podcast_scraper.workflow._preload_ml_models_if_needed
+    and have it work even though workflow.py imports the function directly.
+
+    Args:
+        cfg: Configuration object
+
+    Raises:
+        RuntimeError: If required model cannot be loaded
+        ImportError: If ML dependencies are not installed
+    """
+    import sys
+    from unittest.mock import Mock
+
+    _workflow_pkg = sys.modules.get("podcast_scraper.workflow")
+    if _workflow_pkg and hasattr(_workflow_pkg, "_preload_ml_models_if_needed"):
+        func = getattr(_workflow_pkg, "_preload_ml_models_if_needed")
+        if isinstance(func, Mock):
+            return func(cfg)
+        if (
+            func is not _preload_ml_models_if_needed_impl
+            and func is not _preload_ml_models_if_needed
+        ):
+            return func(cfg)
+    return _preload_ml_models_if_needed_impl(cfg)
+
+
+def _preload_ml_models_if_needed_impl(cfg: config.Config) -> None:
+    """Implementation of ML model preloading.
 
     This function creates an MLProvider instance and calls preload() on it,
     storing the instance in a module-level registry for reuse by factories.
