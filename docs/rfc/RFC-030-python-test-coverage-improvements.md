@@ -382,14 +382,14 @@ Add a dedicated coverage target:
 
 ```makefile
 coverage-report:
-	# Generate combined coverage report
-	pytest tests/ --cov=$(PACKAGE) --cov-report=xml:reports/coverage.xml --cov-report=html:reports/coverage-html --cov-report=term-missing
-	@echo "Coverage report generated: reports/coverage.xml"
-	@echo "HTML report: reports/coverage-html/index.html"
+ # Generate combined coverage report
+ pytest tests/ --cov=$(PACKAGE) --cov-report=xml:reports/coverage.xml --cov-report=html:reports/coverage-html --cov-report=term-missing
+ @echo "Coverage report generated: reports/coverage.xml"
+ @echo "HTML report: reports/coverage-html/index.html"
 
 coverage-check:
-	# Check coverage threshold (useful for local development)
-	coverage report --fail-under=65
+ # Check coverage threshold (useful for local development)
+ coverage report --fail-under=65
 ```yaml
 
 ## Metrics and Monitoring
@@ -466,8 +466,8 @@ coverage-check:
 - `pyproject.toml` - Coverage configuration
 - `.github/workflows/python-app.yml` - Main CI workflow
 - `.github/workflows/nightly.yml` - Nightly comprehensive tests
-- `scripts/generate_metrics.py` - Metrics extraction
-- `scripts/generate_dashboard.py` - Dashboard generation
+- `scripts/dashboard/generate_metrics.py` - Metrics extraction
+- `scripts/dashboard/generate_dashboard.py` - Dashboard generation
 - `Makefile` - Development commands
 
 ## Notes

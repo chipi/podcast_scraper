@@ -3,6 +3,7 @@
 This document provides detailed documentation for all GitHub Actions workflows.
 
 For architecture and optimization strategies, see [Overview](OVERVIEW.md).
+For resource usage and limits, see [Resource Usage](RESOURCE_USAGE.md).
 For local development setup, see [Local Development](LOCAL_DEVELOPMENT.md).
 
 ---
@@ -1563,7 +1564,7 @@ The system now passes the "minimal docs CI/CD" requirement:
 4. **ML Dependency Import Verification** ⭐ NEW
    - Automatic check that unit tests can import modules without ML dependencies
    - Prevents modules from importing ML deps at top level (which would break CI)
-   - Script: `scripts/check_unit_test_imports.py`
+   - Script: `scripts/tools/check_unit_test_imports.py`
    - Runs before unit tests in CI, catches issues early
 
 4. **Comprehensive Security Scanning**
@@ -1701,13 +1702,13 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
    - Slowest tests (top 10)
    - Flaky tests detection (tests that passed on rerun)
    - Metric alerts (if any)
-9. Generate metrics (`scripts/generate_metrics.py`):
+9. Generate metrics (`scripts/dashboard/generate_metrics.py`):
    - Extracts metrics from pytest JSON and coverage XML
    - Creates `metrics/latest.json` with trends and alerts
    - Updates `metrics/history.jsonl` (appends to history)
    - Calculates trends (runtime, coverage, test count changes)
    - Detects deviations (regressions, coverage drops, flaky test increases)
-10. Generate HTML dashboard (`scripts/generate_dashboard.py`):
+10. Generate HTML dashboard (`scripts/dashboard/generate_dashboard.py`):
    - Creates interactive dashboard with Chart.js
    - Displays current metrics, trends, alerts, and slowest tests
    - Shows flaky test details and historical trends
@@ -1800,7 +1801,7 @@ preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
    - `make deps-graph-full` - Full dependency graph
 5. Check for circular imports via `make deps-check-cycles`
 6. Run dependency analysis script:
-   - `python scripts/analyze_dependencies.py --report`
+   - `python scripts/tools/analyze_dependencies.py --report`
    - Analyzes import patterns
    - Checks thresholds (max 15 imports per module)
    - Generates JSON report

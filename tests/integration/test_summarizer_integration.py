@@ -98,9 +98,10 @@ class TestModelIntegration(unittest.TestCase):
         """Test that test default MAP model can be loaded."""
         cfg = create_test_config(summary_model=config.TEST_DEFAULT_SUMMARY_MODEL)
         model_name = summarizer.select_summary_model(cfg)
-        self.assertEqual(
-            model_name, summarizer.DEFAULT_SUMMARY_MODELS[config.TEST_DEFAULT_SUMMARY_MODEL]
-        )
+        # config.TEST_DEFAULT_SUMMARY_MODEL is "facebook/bart-base" (raw model ID)
+        # select_summary_model returns it as-is since it's not an alias key
+        # So we compare directly to the expected model ID
+        self.assertEqual(model_name, config.TEST_DEFAULT_SUMMARY_MODEL)
 
         # Require model to be cached (fail fast if not)
         require_transformers_model_cached(model_name, cfg.summary_cache_dir)
@@ -124,10 +125,10 @@ class TestModelIntegration(unittest.TestCase):
         """Test that test default REDUCE model can be loaded."""
         cfg = create_test_config(summary_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL)
         model_name = summarizer.select_summary_model(cfg)
-        self.assertEqual(
-            model_name,
-            summarizer.DEFAULT_SUMMARY_MODELS[config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL],
-        )
+        # config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL is "allenai/led-base-16384" (raw model ID)
+        # select_summary_model returns it as-is since it's not an alias key
+        # So we compare directly to the expected model ID
+        self.assertEqual(model_name, config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL)
 
         # Require model to be cached (fail fast if not)
         require_transformers_model_cached(model_name, cfg.summary_cache_dir)

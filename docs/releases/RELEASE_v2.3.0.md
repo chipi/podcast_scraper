@@ -192,7 +192,7 @@ Pipeline Summary:
 
 **New evaluation scripts for quality assurance and regression testing:**
 
-#### Summarization Evaluation (`scripts/eval_summaries.py`)
+#### Summarization Evaluation (`scripts/eval/eval_summaries.py`)
 
 Evaluates summarization quality using ROUGE metrics and reference-free checks:
 
@@ -208,15 +208,15 @@ Evaluates summarization quality using ROUGE metrics and reference-free checks:
 
 # Use defaults (BART-large MAP, LED REDUCE)
 
-python scripts/eval_summaries.py
+python scripts/eval/eval_summaries.py
 
 # Specify models
 
-python scripts/eval_summaries.py --map-model bart-large --reduce-model long-fast
+python scripts/eval/eval_summaries.py --map-model bart-large --reduce-model long-fast
 
 # Custom output
 
-python scripts/eval_summaries.py --output results/my_eval.json
+python scripts/eval/eval_summaries.py --output results/my_eval.json
 ```yaml
 
 - **Removal Statistics**: Character and word removal percentages
@@ -232,11 +232,11 @@ python scripts/eval_summaries.py --output results/my_eval.json
 
 # Evaluate all episodes
 
-python scripts/eval_cleaning.py
+python scripts/eval/eval_cleaning.py
 
 # Single episode
 
-python scripts/eval_cleaning.py --episode ep01
+python scripts/eval/eval_cleaning.py --episode ep01
 ```text
 
 - `transcript.raw.txt` - Raw Whisper output
@@ -330,7 +330,7 @@ python scripts/eval_cleaning.py --episode ep01
 - **Hierarchical Reduce**: Multi-step abstractive reduce with iterative re-chunking for large outputs
 - **Parallel Processing**: Chunk processing parallelized on CPU, episode summarization parallelized
 - **Cache Management**: Functions to inspect and prune transformer model cache
-- **Evaluation Tools**: `scripts/eval_summaries.py` and `scripts/eval_cleaning.py` for quality assessment
+- **Evaluation Tools**: `scripts/eval/eval_summaries.py` and `scripts/eval/eval_cleaning.py` for quality assessment
 
 #### Service API Implementation
 

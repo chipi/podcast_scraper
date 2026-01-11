@@ -232,6 +232,7 @@ def create_groq_client(cfg: config.Config) -> OpenAI:
     )
 
 ```
+
 #### 5.2 Speaker Detection Provider
 
 **File**: `podcast_scraper/speaker_detectors/groq_detector.py`
@@ -542,6 +543,7 @@ class GroqSummarizationProvider:
         pass
 
 ```
+
 ### 6. Dependencies
 
 No new dependencies - uses existing `openai` package:
@@ -552,6 +554,7 @@ No new dependencies - uses existing `openai` package:
 # Groq uses OpenAI SDK with custom base_url
 
 ```
+
 ## Testing Strategy
 
 Same pattern as DeepSeek: reuse OpenAI mock endpoints with Groq base_url.
@@ -568,5 +571,5 @@ Same pattern as DeepSeek: reuse OpenAI mock endpoints with Groq base_url.
 
 - **Related PRD**: `docs/prd/PRD-013-groq-provider-integration.md`
 - **DeepSeek RFC**: `docs/rfc/RFC-034-deepseek-provider-implementation.md`
-- **Groq Documentation**: https://console.groq.com/docs
-- **Groq Models**: https://console.groq.com/docs/models
+- **Groq Documentation**: <https://console.groq.com/docs>
+- **Groq Models**: <https://console.groq.com/docs/models>

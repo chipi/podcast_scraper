@@ -4,6 +4,8 @@
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, data ingestion contributors
 - **Related PRD**: `docs/prd/PRD-001-transcript-pipeline.md`
+- **Related ADRs**:
+  - [ADR-002: Security-First XML Processing](../adr/ADR-002-security-first-xml-processing.md)
 
 ## Abstract
 

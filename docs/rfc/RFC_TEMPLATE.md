@@ -5,6 +5,8 @@
 - **Stakeholders**: [Who needs to review/approve this]
 - **Related PRDs**:
   - `docs/prd/PRD-XXX-feature-name.md` (if applicable)
+- **Related ADRs**:
+  - `docs/adr/ADR-NNN-decision-name.md` (if applicable)
 - **Related RFCs**:
   - `docs/rfc/RFC-XXX-related-feature.md` (if applicable)
 - **Related Documents**:

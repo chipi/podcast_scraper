@@ -751,7 +751,7 @@ class TestBuildProcessingMetadata(unittest.TestCase):
         """Test building processing metadata."""
         cfg = create_test_config(
             language="en",
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en)
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", ""),
             transcribe_missing=True,
             auto_speakers=True,
             screenplay=True,
@@ -762,10 +762,10 @@ class TestBuildProcessingMetadata(unittest.TestCase):
 
         self.assertEqual(result.output_directory, "/output")
         self.assertEqual(result.config_snapshot["language"], "en")
-        # whisper_model is now nested under ml_providers.transcription
+        # whisper_model is now in ml_providers.transcription.whisper_model
         self.assertEqual(
             result.config_snapshot["ml_providers"]["transcription"]["whisper_model"],
-            config.TEST_DEFAULT_WHISPER_MODEL,
+            config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", ""),
         )
         self.assertEqual(result.config_snapshot["auto_speakers"], True)
         self.assertEqual(result.config_snapshot["screenplay"], True)
@@ -779,11 +779,10 @@ class TestBuildProcessingMetadata(unittest.TestCase):
         result = metadata._build_processing_metadata(cfg, "/output")
 
         # When transcription is disabled, whisper_model should not be in transcription config
-        # Check that either ml_providers.transcription doesn't have whisper_model,
-        # or ml_providers doesn't have transcription at all
-        ml_providers = result.config_snapshot.get("ml_providers", {})
-        transcription = ml_providers.get("transcription", {})
-        self.assertNotIn("whisper_model", transcription)
+        if "transcription" in result.config_snapshot.get("ml_providers", {}):
+            self.assertNotIn(
+                "whisper_model", result.config_snapshot["ml_providers"]["transcription"]
+            )
 
 
 class TestDetermineMetadataPath(unittest.TestCase):
@@ -1037,7 +1036,9 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
         with open(transcript_path, "w") as f:
             f.write("This is a long transcript that should be long enough for summarization. " * 10)
 
-        mock_time.side_effect = [0.0, 1.0]  # start, end
+        # Use function-based side effect to avoid StopIteration if called extra times
+        time_values = iter([0.0, 1.0])
+        mock_time.side_effect = lambda: next(time_values, 1.0)
         mock_clean.return_value = "Cleaned transcript text"
         mock_provider = Mock()
         mock_provider.summarize.return_value = {
@@ -1057,8 +1058,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
 
         self.assertIsNotNone(result)
         self.assertEqual(result.short_summary, "This is a summary")
-        # Note: model_used is no longer stored in SummaryMetadata - provider/model info
-        # is now centralized in ProcessingMetadata.config_snapshot.ml_providers
+        # model_used is no longer stored in SummaryMetadata - it's in processing.config_snapshot
         mock_provider.summarize.assert_called_once()
 
     @patch("podcast_scraper.metadata.time.time")

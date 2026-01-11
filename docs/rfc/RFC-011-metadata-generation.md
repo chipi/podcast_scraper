@@ -4,6 +4,9 @@
 - **Authors**: GPT-5 Codex
 - **Stakeholders**: Maintainers, archivists, developers building integrations
 - **Related PRDs**: `docs/prd/PRD-004-metadata-generation.md`
+- **Related ADRs**:
+  - [ADR-007: Universal Episode Identity](../adr/ADR-007-universal-episode-identity.md)
+  - [ADR-008: Database-Agnostic Metadata Schema](../adr/ADR-008-database-agnostic-metadata-schema.md)
 
 ## Abstract
 

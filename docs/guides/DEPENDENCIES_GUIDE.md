@@ -271,5 +271,5 @@ pip install -e .[dev]
 
 - [Architecture](../ARCHITECTURE.md) - High-level system design and dependency overview
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices
-- [Summarization Guide](SUMMARIZATION_GUIDE.md) - Details on ML dependencies for summarization
+- [ML Provider Reference](ML_PROVIDER_REFERENCE.md) - Details on ML dependencies
 - [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md) - Provider testing with dependencies

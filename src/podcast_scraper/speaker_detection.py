@@ -60,6 +60,117 @@ COMBINED_SCORE_DIVISOR = 2.0
 # Minimum speakers constant
 MIN_SPEAKERS_REQUIRED = 2
 
+# Context-aware filtering patterns (Issue #325)
+# These patterns help distinguish actual guests from merely mentioned people
+INTERVIEW_INDICATOR_PATTERNS = [
+    r"interview(?:ed|ing|s)?\s+(?:with\s+)?",  # "interview with X", "interviewing X"
+    r"(?:we(?:'re|'ve)?|i(?:'m|'ve)?)\s+(?:been\s+)?joined\s+by\s+",  # "joined by X"
+    r"speaking\s+(?:with|to)\s+",  # "speaking with X"
+    r"talking\s+(?:with|to)\s+",  # "talking to X"
+    r"conversation\s+with\s+",  # "conversation with X"
+    r"guest(?:s)?(?:\s*:|\s+is|\s+are)?\s*",  # "guest: X", "guest is X"
+    r"featuring\s+",  # "featuring X"
+    r"(?:special\s+)?guest\s+",  # "special guest X"
+    r"welcomes?\s+",  # "welcomes X"
+    r"sits?\s+down\s+with\s+",  # "sits down with X"
+    r"chats?\s+with\s+",  # "chats with X"
+]
+
+MENTIONED_ONLY_PATTERNS = [
+    r"about\s+",  # "about John Smith"
+    r"on\s+\w+(?:'s)?\s+",  # "on Smith's policies"
+    r"discuss(?:es|ing|ed)?\s+",  # "discusses John Smith"
+    r"analysis\s+of\s+",  # "analysis of Smith's..."
+    r"according\s+to\s+",  # "according to Smith"
+    r"(?:he|she|they)\s+says?\s+",  # "he says..."
+    r"'s\s+(?:\w+\s+)*(?:policy|plan|speech|decision|statement)",  # "Smith's policy"
+    r"(?:the\s+)?(?:president|ceo|senator|governor)\s+",  # "CEO Jane Doe" (title prefix)
+    r"covers?\s+",  # "covers the story"
+    r"examines?\s+",  # "examines the issue"
+    r"looks?\s+at\s+",  # "looks at the data"
+    r"(?:news|story|report)\s+(?:about|on)\s+",  # "news about the company"
+]
+
+
+def _has_interview_indicator(name: str, text: str) -> bool:
+    """Check if name appears in an interview context.
+
+    Args:
+        name: Person name to check
+        text: Text to search in (title or description)
+
+    Returns:
+        True if name appears after an interview indicator pattern
+    """
+    text_lower = text.lower()
+    name_lower = name.lower()
+
+    for pattern in INTERVIEW_INDICATOR_PATTERNS:
+        # Check if pattern appears before the name
+        full_pattern = pattern + r".*?" + re.escape(name_lower)
+        if re.search(full_pattern, text_lower, re.IGNORECASE):
+            return True
+    return False
+
+
+def _has_mentioned_only_indicator(name: str, text: str) -> bool:
+    """Check if name appears in a mentioned-only context (not an actual guest).
+
+    Args:
+        name: Person name to check
+        text: Text to search in (title or description)
+
+    Returns:
+        True if name appears after a mentioned-only indicator pattern
+    """
+    text_lower = text.lower()
+    name_lower = name.lower()
+
+    for pattern in MENTIONED_ONLY_PATTERNS:
+        # Check if pattern appears before the name
+        full_pattern = pattern + r".*?" + re.escape(name_lower)
+        if re.search(full_pattern, text_lower, re.IGNORECASE):
+            return True
+    return False
+
+
+def _is_likely_actual_guest(name: str, title: str, description: str | None) -> bool:
+    """Determine if a detected person is likely an actual guest vs merely mentioned.
+
+    Uses context-aware filtering to reduce false positives from spaCy NER.
+
+    Args:
+        name: Person name detected by NER
+        title: Episode title
+        description: Episode description (may be None)
+
+    Returns:
+        True if the person is likely an actual guest, False if likely just mentioned
+    """
+    combined_text = title
+    if description:
+        combined_text += " " + description
+
+    # Check for interview indicators (strong signal for actual guest)
+    has_interview = _has_interview_indicator(name, combined_text)
+
+    # Check for mentioned-only indicators (strong signal for NOT a guest)
+    has_mentioned_only = _has_mentioned_only_indicator(name, combined_text)
+
+    # Decision logic:
+    # - If interview indicator found: likely actual guest
+    # - If mentioned-only indicator found AND no interview indicator: likely NOT a guest
+    # - If neither: default to including (conservative approach)
+    if has_interview:
+        logger.debug("Name '%s' has interview indicator - likely actual guest", name)
+        return True
+    if has_mentioned_only:
+        logger.debug("Name '%s' has mentioned-only indicator - filtering out", name)
+        return False
+
+    # Default: include the name (conservative - don't filter without evidence)
+    return True
+
 
 def _validate_model_name(model_name: str) -> bool:
     """Validate spaCy model name to prevent command injection.
@@ -797,6 +908,19 @@ def detect_speaker_names(
     ]
     description_guests_with_scores = [
         (name, score) for name, score in description_persons_with_scores if name not in hosts
+    ]
+
+    # Apply context-aware filtering to reduce false positives (Issue #325)
+    # Filter out people who are merely mentioned but not actual guests
+    title_guests_with_scores = [
+        (name, score)
+        for name, score in title_guests_with_scores
+        if _is_likely_actual_guest(name, episode_title, episode_description)
+    ]
+    description_guests_with_scores = [
+        (name, score)
+        for name, score in description_guests_with_scores
+        if _is_likely_actual_guest(name, episode_title, episode_description)
     ]
 
     # Build guest candidates with confidence scores and heuristics

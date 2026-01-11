@@ -22,13 +22,15 @@ PRDs serve as the foundation for technical design (RFCs) and help ensure feature
 
 | PRD | Title | Related RFCs | Description |
 | --- | ----- | ------------ | ----------- |
-| [PRD-007](PRD-007-ai-experiment-pipeline.md) | AI Experiment Pipeline | RFC-015 | Configuration-driven experiment pipeline |
+| [PRD-007](PRD-007-ai-quality-experiment-platform.md) | AI Quality & Experimentation Platform | RFC-015, 016, 041 | Integrated platform for experimentation and benchmarking |
 | [PRD-009](PRD-009-anthropic-provider-integration.md) | Anthropic Provider Integration | RFC-032 | Anthropic Claude API as optional provider |
 | [PRD-010](PRD-010-mistral-provider-integration.md) | Mistral Provider Integration | RFC-033 | Mistral AI as complete OpenAI alternative |
 | [PRD-011](PRD-011-deepseek-provider-integration.md) | DeepSeek Provider Integration | RFC-034 | DeepSeek AI - ultra low-cost provider |
 | [PRD-012](PRD-012-gemini-provider-integration.md) | Google Gemini Provider Integration | RFC-035 | Google Gemini - 2M context, native audio |
 | [PRD-013](PRD-013-groq-provider-integration.md) | Groq Provider Integration | RFC-036 | Groq - ultra-fast inference (10x speed) |
 | [PRD-014](PRD-014-ollama-provider-integration.md) | Ollama Provider Integration | RFC-037 | Ollama - fully local/offline, zero cost |
+| [PRD-015](PRD-015-engineering-governance-productivity.md) | Engineering Governance & Productivity Platform | RFC-018-024, 030, 031, 038, 039 | Integrated system for developer velocity and quality |
+| [PRD-016](PRD-016-operational-observability-pipeline-intelligence.md) | Operational Observability & Pipeline Intelligence | RFC-025, 026, 027 | System for managing operational health and visibility |
 
 ## Completed PRDs
 

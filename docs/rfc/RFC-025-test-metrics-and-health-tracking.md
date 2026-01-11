@@ -1,6 +1,8 @@
 # RFC-025: Test Metrics and Health Tracking
 
 - **Status**: ✅ Completed
+- **Related ADRs**:
+  - [ADR-022: Flaky Test Defense](../adr/ADR-022-flaky-test-defense.md)
 - **Authors**:
 - **Stakeholders**: Maintainers, developers, CI/CD pipeline maintainers
 - **Related PRDs**:

@@ -5,6 +5,9 @@ These tests validate core functionality of the evaluation scripts without
 requiring actual evaluation data or ML models.
 """
 
+# Import eval modules directly using importlib (avoiding 'eval' builtin conflict)
+import importlib.util
+
 # Import eval script functions
 import sys
 import tempfile
@@ -14,9 +17,22 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Calculate project root: tests/unit/podcast_scraper/scripts -> 5 levels up
+project_root = Path(__file__).parent.parent.parent.parent.parent
+eval_cleaning_path = project_root / "scripts" / "eval" / "eval_cleaning.py"
+eval_summaries_path = project_root / "scripts" / "eval" / "eval_summaries.py"
 
-from scripts import eval_cleaning, eval_summaries
+spec_cleaning = importlib.util.spec_from_file_location("eval_cleaning", eval_cleaning_path)
+eval_cleaning = importlib.util.module_from_spec(spec_cleaning)  # type: ignore
+spec_cleaning.loader.exec_module(eval_cleaning)  # type: ignore
+# Register in sys.modules so @patch can find it
+sys.modules["eval_cleaning"] = eval_cleaning
+
+spec_summaries = importlib.util.spec_from_file_location("eval_summaries", eval_summaries_path)
+eval_summaries = importlib.util.module_from_spec(spec_summaries)  # type: ignore
+spec_summaries.loader.exec_module(eval_summaries)  # type: ignore
+# Register in sys.modules so @patch can find it
+sys.modules["eval_summaries"] = eval_summaries
 
 
 @pytest.mark.unit
@@ -186,7 +202,7 @@ class TestEvalSummaries(unittest.TestCase):
         self.assertGreaterEqual(len(covered), 0)
         self.assertGreaterEqual(len(missing), 0)
 
-    @patch("scripts.eval_summaries.rouge_scorer")
+    @patch("eval_summaries.rouge_scorer")
     def test_compute_rouge_scores(self, mock_rouge):
         """Test ROUGE score computation."""
         # Mock rouge_scorer
@@ -228,7 +244,7 @@ class TestEvalSummaries(unittest.TestCase):
             self.assertIn("error", result)
             self.assertEqual(result["episode_id"], "ep01")
 
-    @patch("scripts.eval_summaries.summarizer.summarize_long_text")
+    @patch("eval_summaries.summarizer.summarize_long_text")
     def test_evaluate_episode_success(self, mock_summarize):
         """Test successful evaluation."""
         with tempfile.TemporaryDirectory() as tmpdir:

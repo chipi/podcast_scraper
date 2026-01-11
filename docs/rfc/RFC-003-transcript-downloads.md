@@ -4,6 +4,10 @@
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, networking contributors
 - **Related PRD**: `docs/prd/PRD-001-transcript-pipeline.md`
+- **Related ADRs**:
+  - [ADR-001: Hybrid Concurrency Strategy](../adr/ADR-001-hybrid-concurrency-strategy.md)
+  - [ADR-003: Deterministic Feed Storage](../adr/ADR-003-deterministic-feed-storage.md)
+  - [ADR-004: Flat Filesystem Archive Layout](../adr/ADR-004-flat-filesystem-archive-layout.md)
 
 ## Abstract
 

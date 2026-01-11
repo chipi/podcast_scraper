@@ -130,17 +130,17 @@ it's likely from the default rule set.
 
 ## Automated Markdown Fixing
 
-**Recommended:** Use `scripts/fix_markdown.py` to automatically fix common markdown linting issues:
+**Recommended:** Use `scripts/tools/fix_markdown.py` to automatically fix common markdown linting issues:
 
 ```bash
 
 # Fix all markdown files in the project
 
-python scripts/fix_markdown.py
+python scripts/tools/fix_markdown.py
 
 # Fix specific files
 
-python scripts/fix_markdown.py TESTING_STRATEGY.md rfc/RFC-020.md
+python scripts/tools/fix_markdown.py TESTING_STRATEGY.md rfc/RFC-020.md
 
 # Or using Makefile
 
@@ -148,7 +148,7 @@ make fix-md
 
 # Dry run (see what would be fixed)
 
-python scripts/fix_markdown.py --dry-run
+python scripts/tools/fix_markdown.py --dry-run
 
 # Verify with linter
 
@@ -204,7 +204,7 @@ To catch markdown table formatting issues (MD060) before pushing:
 
 # Run automated fixer (recommended)
 
-python scripts/fix_markdown.py
+python scripts/tools/fix_markdown.py
 
 # Or run markdown linting locally
 
@@ -341,7 +341,7 @@ git commit --no-verify
 **Local Development:**
 
 1. Edit markdown files
-2. **Fix common issues automatically:** `python scripts/fix_markdown.py`
+2. **Fix common issues automatically:** `python scripts/tools/fix_markdown.py`
 3. Stage files: `git add docs/...`
 4. Commit: `git commit` (pre-commit hook runs automatically)
 5. If errors: Fix manually or use `markdownlint --fix`
@@ -385,11 +385,11 @@ progress.
 
 # Step 1: Run automated fixer (fixes ~80% of issues)
 
-python scripts/fix_markdown.py
+python scripts/tools/fix_markdown.py
 
 # Step 2: Run again to catch issues fixed by first pass
 
-python scripts/fix_markdown.py
+python scripts/tools/fix_markdown.py
 
 # Step 3: Check remaining errors
 
@@ -456,7 +456,7 @@ descriptions). Consider:
 
 **To prevent errors from accumulating:**
 
-1. **Before committing:** Run `make fix-md` or `python scripts/fix_markdown.py`
+1. **Before committing:** Run `make fix-md` or `python scripts/tools/fix_markdown.py`
 2. **Use format-on-save:** Configure Prettier to format markdown on save
 3. **Pre-commit hook:** Already integrated - catches errors before commit
 4. **Regular cleanup:** Run fix script monthly to catch accumulated issues
@@ -500,7 +500,7 @@ descriptions). Consider:
 
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices
 - [CI/CD](../ci/index.md) - Continuous integration pipeline details
-- `scripts/fix_markdown.py` - Automated fixer script (see repository root)
+- `scripts/tools/fix_markdown.py` - Automated fixer script (see repository root)
 - `.markdownlint.json` - Linter configuration (see repository root)
 - `.prettierrc` - Prettier formatting rules (see repository root)
 - `.vscode/settings.json` - Editor settings for format-on-save (see repository root)

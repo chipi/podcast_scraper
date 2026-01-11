@@ -85,16 +85,19 @@ make preload-ml-models
 - Transformers: `facebook/bart-base` (test default), `facebook/bart-large-cnn` (production default), `sshleifer/distilbart-cnn-12-6` (fast option), `allenai/led-base-16384` (REDUCE default)
 
 **Rationale**: Preloading both test and production defaults ensures:
+
 - Fast test execution (using small models)
 - Production quality (using large models)
 - Flexibility to switch between models
 
 **Cache Locations:**
+
 - Whisper: `~/.cache/whisper/`
 - spaCy: `~/.local/share/spacy/`
 - Transformers: `~/.cache/huggingface/hub/`
 
 **Persistence:**
+
 - Models persist across runs indefinitely
 - Only deleted if user runs `make clean-cache`
 - Works offline after initial download
@@ -104,6 +107,7 @@ make preload-ml-models
 **Model Caching Strategy:**
 
 1. **Cache Step:**
+
    ```yaml
 
    - name: Cache ML models
@@ -121,6 +125,7 @@ make preload-ml-models
    ```
 
 2. **Preload on Cache Miss:**
+
    ```yaml
 
    - name: Preload ML models (if cache miss)
@@ -134,11 +139,13 @@ make preload-ml-models
    - Models persist for next CI run via cache
 
 **Jobs Updated:**
+
 - `test-integration-slow` (includes `ml_models`-marked integration tests)
 - `test-e2e-slow` (includes E2E tests with real models)
 - `test` (full test suite)
 
 **Cache Key Strategy:**
+
 - Versioned keys (`ml-models-v1`) for cache invalidation
 - OS-specific keys for cross-platform compatibility
 - Restore keys for fallback to older cache
@@ -146,11 +153,13 @@ make preload-ml-models
 ### Docker
 
 **Current State:**
+
 - ✅ Whisper models preloaded in Dockerfile
 - ❌ spaCy models NOT preloaded (future enhancement)
 - ❌ Transformers models NOT preloaded (future enhancement)
 
 **Docker Layer Caching:**
+
 - Models baked into image layers
 - GitHub Actions caches Docker layers
 - Models persist across Docker builds
@@ -176,6 +185,7 @@ make preload-ml-models
 ### Cache Size
 
 **Model Sizes:**
+
 - Whisper `base.en`: ~150 MB
 - Whisper `tiny`: ~75 MB
 - spaCy `en_core_web_sm`: ~50 MB
@@ -185,6 +195,7 @@ make preload-ml-models
 - **Total: ~2.7 GB**
 
 **GitHub Actions Limits:**
+
 - 10 GB per repository (free tier)
 - 10 GB per cache entry
 - Our usage: ~2.7 GB (well within limits)
@@ -226,12 +237,14 @@ make preload-ml-models
 ### Local Testing
 
 1. **Preload models:**
+
    ```bash
 
    make preload-ml-models
    ```
 
 2. **Verify cache:**
+
    ```bash
 
    ls -la ~/.cache/whisper/
@@ -239,14 +252,15 @@ make preload-ml-models
    ls -la ~/.cache/huggingface/hub/
    ```
 
-2. **Test E2E and ml_models integration tests are faster:**
+3. **Test E2E and ml_models integration tests are faster:**
+
    ```bash
 
    make test-e2e-slow          # E2E tests with real models (faster with cache)
    make test-integration-slow   # Integration tests marked ml_models (faster with cache)
    ```
 
-3. **Note on test categories:**
+4. **Note on test categories:**
    - **Unit tests:** Mock models (don't need cached models)
    - **Integration tests:** Most mock models, only `@pytest.mark.ml_models` tests use real models
    - **E2E tests:** Use real models (need cached models)
@@ -302,11 +316,13 @@ make preload-ml-models
 ### Developer Impact
 
 **Before:**
+
 - Models download on first use (slow)
 - Network required for tests
 - CI downloads models every run
 
 **After:**
+
 - Run `make preload-ml-models` once
 - Models cached locally
 - CI uses cached models (fast)

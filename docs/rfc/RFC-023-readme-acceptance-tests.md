@@ -295,12 +295,12 @@ This RFC defines a new category of **Acceptance Tests** that verify all examples
 
 ````
 
-4. **Failure Handling**:
+1. **Failure Handling**:
    - If acceptance tests fail, CI should fail
    - Clear error messages indicating which README example failed
    - Link to README section that failed
 
-5. **Makefile Target**:
+2. **Makefile Target**:
 
    ```makefile
    test-acceptance:

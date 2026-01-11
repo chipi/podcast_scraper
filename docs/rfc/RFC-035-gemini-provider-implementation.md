@@ -225,6 +225,7 @@ def create_gemini_client(cfg: config.Config) -> genai.Client:
         Gemini client instance
 
 ```
+
 #### 4.2 Transcription Provider
 
 **File**: `podcast_scraper/transcription/gemini_provider.py`
@@ -278,6 +279,7 @@ class GeminiTranscriptionProvider:
         """Transcribe audio file using Gemini's native audio understanding.
 
 ```
+
                 ".m4a": "audio/mp4",
                 ".ogg": "audio/ogg",
                 ".flac": "audio/flac",
@@ -589,6 +591,7 @@ class GeminiSummarizationProvider:
         pass
 
 ```
+
 ### 5. Factory Updates
 
 Update all factories to include `"gemini"` option following the same pattern as other providers.
@@ -605,6 +608,7 @@ gemini = [
 ]
 
 ```
+
 ## Testing Strategy
 
 Same pattern as other providers: unit tests, integration tests, E2E tests with mock endpoints.
@@ -620,5 +624,5 @@ Same pattern as other providers: unit tests, integration tests, E2E tests with m
 ## References
 
 - **Related PRD**: `docs/prd/PRD-012-gemini-provider-integration.md`
-- **Google AI Documentation**: https://ai.google.dev/docs
-- **Gemini API Reference**: https://ai.google.dev/api/rest
+- **Google AI Documentation**: <https://ai.google.dev/docs>
+- **Gemini API Reference**: <https://ai.google.dev/api/rest>

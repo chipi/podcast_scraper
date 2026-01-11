@@ -1,38 +1,39 @@
 {
-  "_comment": "Example configuration. Many settings can also be configured via environment variables (see docs/ENVIRONMENT_VARIABLES.md). Priority: CLI args > Config file > Environment variables > Defaults",
-  "rss": "https://example.com/feed.json",
-  "timeout": 45,
-  "transcribe_missing": true,
-  "run_id": "example_run",
-  "log_file": null,
-  "language": "en",
-  "auto_speakers": true,
-  "cache_detected_hosts": true,
-  "speaker_names": ["Host", "Guest"],
-  "screenplay": true,
-  "skip_existing": false,
-  "reuse_media": false,
-  "workers": 4,
-  "transcription_parallelism": 1,
-  "processing_parallelism": 2,
-  "generate_metadata": true,
-  "metadata_format": "json",
-  "metadata_subdirectory": null,
+  "_comment": "Example podcast scraper configuration. Note: Some settings (like OPENAI_API_KEY, WORKERS, TIMEOUT) are better set via .env file. See examples/.env.example for environment variable options. Priority: CLI args > Config file > Environment variables > Defaults",
+
+  "rss": "https://example.com/feed.xml",
+  "output_dir": "output_podcast_example",
+  "max_episodes": 10,
+
+  "_comment_providers": "Provider configuration - mixed example (can use different providers for different capabilities). Options: openai (API-based), whisper (local Whisper), spacy (local spaCy), transformers (local HuggingFace)",
   "transcription_provider": "whisper",
   "speaker_detector_provider": "spacy",
   "summary_provider": "transformers",
-  "openai_api_key": null,
-  "openai_api_base": null,
+
+  "transcribe_missing": true,
+  "whisper_model": "base.en",
+
+  "delay_ms": 250,
+  "language": "en",
+  "auto_speakers": true,
+  "cache_detected_hosts": true,
+  "screenplay": true,
+  "speaker_names": ["Host", "Guest"],
+  "run_id": "experiment",
+  "workers": 4,
+  "log_level": "INFO",
+
+  "_comment_optional": "Optional settings (uncommented for reference): skip_existing, reuse_media, dry_run, log_file",
+
+  "generate_metadata": true,
   "generate_summaries": true,
-  "summary_model": null,
-  "summary_reduce_model": null,
-  "summary_max_length": 150,
-  "summary_min_length": 30,
-  "summary_device": null,
-  "summary_batch_size": 1,
-  "summary_chunk_parallelism": 1,
-  "summary_chunk_size": null,
-  "summary_cache_dir": null,
-  "summary_prompt": null,
-  "save_cleaned_transcript": true
+  "metadata_format": "json",
+
+  "_comment_openai": "OpenAI configuration (required if using any OpenAI providers). Note: OPENAI_API_KEY should be set in .env file. Optional model settings: openai_transcription_model (default: whisper-1), openai_speaker_model (default: gpt-4o-mini), openai_summary_model (default: gpt-4o-mini), openai_temperature (default: 0.3)",
+
+  "_comment_ml": "ML-specific settings (used with local transformers/whisper providers). Optional: whisper_device (cpu/cuda/mps/auto), summary_model (bart-large/bart-small/fast/pegasus/long/long-fast), summary_reduce_model (long-fast/long), summary_device (cpu/cuda/mps/auto), summary_max_length (150), summary_min_length (30), summary_chunk_size (2048), summary_cache_dir, summary_prompt",
+
+  "_comment_parallelism": "Parallelism settings (useful for both OpenAI and ML providers). Optional: transcription_parallelism (1), processing_parallelism (2), summary_batch_size (1), summary_chunk_parallelism (1)",
+
+  "_comment_advanced": "Advanced settings. Optional: save_cleaned_transcript (true)"
 }

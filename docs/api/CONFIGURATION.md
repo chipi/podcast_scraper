@@ -6,7 +6,7 @@ The `Config` class is the central configuration model for podcast_scraper, built
 
 All runtime options flow through the `Config` model:
 
-````python
+```python
 from podcast_scraper import Config
 
 cfg = Config(
@@ -17,37 +17,64 @@ cfg = Config(
     whisper_model="base.en",
     workers=8
 )
-```text
-
-    options:
-
 ```
+
 ## Helper Functions
 
 ::: podcast_scraper.config.load_config_file
     options:
-
-```python
+      show_root_heading: true
 
 ## Environment Variables
 
 Many configuration options can be set via environment variables for flexible deployment. Environment variables can be set:
 
-1. **System environment variables** (highest priority)
-2. **`.env` file** (loaded automatically from project root or current directory)
-3. **Config file fields** (lowest priority, used as fallback)
+1. **System environment variables** (highest priority among env vars)
+2. **`.env` file** (loaded automatically from project root or current directory, lower priority than system env)
 
 Environment variables are automatically loaded when the `podcast_scraper.config` module is imported using `python-dotenv`.
 
 ### Priority Order
 
-**General Rule**:
+**General Rule** (for each configuration field):
 
-1. Config file field (highest priority)
-2. Environment variable
-3. Default value
+1. **Config file field** (highest priority) - if the field is set in the config file and not `null`/empty, it takes precedence
+2. **Environment variable** - only used if the config file field is `null`, not set, or empty
+3. **Default value** - used if neither config file nor environment variable is set
 
-**Exception**: `LOG_LEVEL` environment variable takes precedence over config file (allows easy runtime log level control).
+**Important**: You can define the same field in both the config file and as an environment variable. The config file value will be used if it's set (even if an environment variable is also set). This allows you to:
+
+- Use config files for project-specific defaults (committed to repo)
+- Use environment variables for deployment-specific overrides (secrets, per-environment settings)
+- Override config file values by removing them from the config file (set to `null` or omit the field)
+
+**Exception**: `LOG_LEVEL` environment variable takes precedence over config file (allows easy runtime log level control without modifying config files).
+
+**Example**:
+
+```yaml
+# config.yaml
+workers: 8
+```
+
+```bash
+# .env
+WORKERS=4
+```
+
+**Result**: `workers = 8` (config file wins)
+
+```yaml
+# config.yaml
+# workers: (not set or null)
+```
+
+```bash
+# .env
+WORKERS=4
+```
+
+**Result**: `workers = 4` (env var used because config file is not set)
 
 ### Supported Environment Variables
 
@@ -160,11 +187,19 @@ podcast-scraper --rss https://example.com/feed.xml \
 
 **`SUMMARY_DEVICE`**
 
-- **Description**: Device for model execution (CPU, CUDA, MPS, or None for auto-detection)
+- **Description**: Device for summarization model execution (CPU, CUDA, MPS, or None for auto-detection)
 - **Required**: No (defaults to None for auto-detection)
 - **Valid Values**: `cpu`, `cuda`, `mps`, or empty string (for None/auto-detect)
 - **Priority**: Config file → Environment variable → Default
 - **Use Cases**: Docker containers (`SUMMARY_DEVICE=cpu`), CI/CD (`SUMMARY_DEVICE=cpu`), NVIDIA GPU (`SUMMARY_DEVICE=cuda` or auto-detect), Apple Silicon (`SUMMARY_DEVICE=mps` or auto-detect)
+
+**`WHISPER_DEVICE`**
+
+- **Description**: Device for Whisper transcription (CPU, CUDA, MPS, or None for auto-detection)
+- **Required**: No (defaults to None for auto-detection)
+- **Valid Values**: `cpu`, `cuda`, `mps`, or empty string (for None/auto-detect)
+- **Priority**: Config file → Environment variable → Default
+- **Use Cases**: Docker containers (`WHISPER_DEVICE=cpu`), CI/CD (`WHISPER_DEVICE=cpu`), NVIDIA GPU (`WHISPER_DEVICE=cuda` or auto-detect), Apple Silicon (`WHISPER_DEVICE=mps` or auto-detect)
 
 #### ML Library Configuration (Advanced)
 
@@ -211,23 +246,22 @@ podcast-scraper --rss https://example.com/feed.xml \
 **Set for current session**:
 
 ```bash
-
 export OPENAI_API_KEY=sk-your-key-here
-python3 -m podcast_scraper <https://example.com/feed.xml>
+python3 -m podcast_scraper https://example.com/feed.xml
+```
 
-```text
-
-OPENAI_API_KEY=sk-your-key-here python3 -m podcast_scraper <https://example.com/feed.xml>
-
-````
+**Inline execution**:
 
 ```bash
+OPENAI_API_KEY=sk-your-key-here python3 -m podcast_scraper https://example.com/feed.xml
+```
 
+**Using .env file**:
+
+```bash
 # Create .env file in project root
-
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
-python3 -m podcast_scraper <https://example.com/feed.xml>
-
+python3 -m podcast_scraper https://example.com/feed.xml
 ```
 
 ## Docker
@@ -235,24 +269,20 @@ python3 -m podcast_scraper <https://example.com/feed.xml>
 **Using environment variable**:
 
 ```bash
-
 docker run -e OPENAI_API_KEY=sk-your-key-here podcast-scraper https://example.com/feed.xml
+```
 
-````
+**Using .env file**:
 
 ```bash
-
 # Create .env file
-
 echo "OPENAI_API_KEY=sk-your-key-here" > .env
 
 # Docker Compose automatically loads .env
-
-```yaml
-
-      - ./.env:/app/.env:ro
-
-```text
+# In docker-compose.yml:
+# env_file:
+#   - .env
+```
 
 ## .env File Setup
 
@@ -261,31 +291,23 @@ echo "OPENAI_API_KEY=sk-your-key-here" > .env
 1. **Copy example template** (if available):
 
    ```bash
-
    cp examples/.env.example .env
-
-````
-
-1. **Create `.env` file** in project root:
-
-   ```bash
-
-   # .env
-
-   OPENAI_API_KEY=sk-your-actual-api-key-here
-
    ```
 
-2. **Verify `.env` is in `.gitignore`**:
+2. **Create `.env` file** in project root:
 
    ```bash
+   # .env
+   OPENAI_API_KEY=sk-your-actual-api-key-here
+   ```
 
+3. **Verify `.env` is in `.gitignore`**:
+
+   ```bash
    # .gitignore should contain:
-
    .env
    .env.local
    .env.*.local
-
    ```
 
 ### .env File Location
@@ -299,54 +321,44 @@ The first existing file is used. Project root takes precedence.
 
 #### .env File Format
 
-````bash
-
+```bash
 # .env file format
-
 # Comments start with #
-
 # Empty lines are ignored
-
 # No spaces around = sign
 
 # OpenAI API Configuration
-
 OPENAI_API_KEY=sk-your-actual-api-key-here
 
 # Optional: Add other variables here
-
 # LOG_LEVEL=DEBUG  # Valid: DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 # Performance Configuration (optional)
-
 # WORKERS=4
-
 # TRANSCRIPTION_PARALLELISM=3
-
 # PROCESSING_PARALLELISM=4
-
 # SUMMARY_BATCH_SIZE=3
-
 # SUMMARY_CHUNK_PARALLELISM=2
-
 # TIMEOUT=60
 
+# Device Configuration
 # SUMMARY_DEVICE=cpu
+# WHISPER_DEVICE=mps  # For Apple Silicon GPU acceleration
 
 # ML Library Configuration (Advanced)
 # HF_HUB_DISABLE_PROGRESS_BARS=1  # Disable progress bars (default: 1)
-# OMP_NUM_THREADS=4  # Limit OpenMP threads (optional, not set by default)
-# MKL_NUM_THREADS=4  # Limit MKL threads (optional, not set by default)
-# TORCH_NUM_THREADS=4  # Limit PyTorch threads (optional, not set by default)
+# OMP_NUM_THREADS=4  # Limit OpenMP threads
+# MKL_NUM_THREADS=4  # Limit MKL threads
+# TORCH_NUM_THREADS=4  # Limit PyTorch threads
+```
 
-```text
+## Best Practices
 
 - **Add `.env` to `.gitignore`** (never commit secrets)
 - **Use `examples/.env.example` as template** (without real values)
 - **Use environment variables in production** (more secure than files)
 - **Rotate API keys regularly**
 - **Use separate keys for development/production**
-- **Restrict API key permissions** (if supported by provider)
 
 ## ❌ DON'T
 
@@ -354,7 +366,6 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 - **Never hardcode API keys** in source code
 - **Never log API keys** (they're automatically excluded from logs)
 - **Never share API keys** in public repositories or chat
-- **Never use production keys** in development
 
 ### Troubleshooting
 
@@ -373,63 +384,15 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 **Debug**:
 
 ```python
-
 import os
 print(os.getenv("OPENAI_API_KEY"))  # Should print your key (or None)
-
-```text
-
-1. **Check file location**: Must be in project root (where `config.py` is) or current directory
-2. **Check file name**: Must be exactly `.env` (not `.env.txt` or `env`)
-3. **Check file permissions**: Must be readable
-4. **Check file format**: No syntax errors, proper `KEY=value` format
-5. **Verify `python-dotenv` installed**: `pip install python-dotenv`
-
-**Debug**:
-
-```python
-
-from pathlib import Path
-from dotenv import load_dotenv
-
-env_path = Path(__file__).parent.parent / ".env"
-print(f"Looking for .env at: {env_path}")
-print(f"File exists: {env_path.exists()}")
-
-if env_path.exists():
-
-```python
-
-    load_dotenv(env_path, override=False)
-    import os
-    print(f"OPENAI_API_KEY loaded: {bool(os.getenv('OPENAI_API_KEY'))}")
-
-```python
-
-1. Config file field (`openai_api_key`)
-2. System environment variable (`OPENAI_API_KEY`)
-3. `.env` file (`OPENAI_API_KEY`)
-
-**Solution**: Remove `openai_api_key` from config file to use environment variable.
-
-**Exception**: `LOG_LEVEL` environment variable takes precedence over config file (allows easy runtime log level control).
-
-### Future Environment Variables
-
-The following environment variables may be added in future versions:
-
-- `OPENAI_ORGANIZATION` - OpenAI organization ID (for multi-org accounts)
-- `OPENAI_API_BASE` - Custom API base URL (for proxies)
-- `DRY_RUN` - Testing/debugging flag
-- `SKIP_EXISTING` - Resumption convenience flag
-- `CLEAN_OUTPUT` - Safety control flag
+```
 
 ## Configuration Files
 
 ### JSON Example
 
 ```json
-
 {
   "rss": "https://example.com/feed.xml",
   "output_dir": "./transcripts",
@@ -445,37 +408,41 @@ The following environment variables may be added in future versions:
   "summary_chunk_parallelism": 1,
   "preload_models": true
 }
+```
 
-```text
+### YAML Example
 
+```yaml
 max_episodes: 50
 transcribe_missing: true
 whisper_model: base
 workers: 8
-transcription_parallelism: 1  # Number of episodes to transcribe in parallel (Whisper ignores >1, OpenAI uses for parallel API calls)
-processing_parallelism: 2  # Number of episodes to process (metadata/summarization) in parallel
+transcription_parallelism: 1  # Number of episodes to transcribe in parallel
+processing_parallelism: 2  # Number of episodes to process in parallel
 generate_metadata: true
 generate_summaries: true
-summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summarize in parallel
-summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode
+summary_batch_size: 1  # Episode-level parallelism
+summary_chunk_parallelism: 1  # Chunk-level parallelism
+```
 
-```text
+## Aliases and Normalization
+
+The configuration system handles various aliases for backward compatibility:
 
 - `rss_url` or `rss` → `rss_url`
 - `output_dir` or `output_directory` → `output_dir`
 - `screenplay_gap` or `screenplay_gap_s` → `screenplay_gap_s`
-- And more...
 
 ## Validation
 
 The `Config` model performs validation on initialization:
 
 ```python
-
 from podcast_scraper import Config
 from pydantic import ValidationError
 
 try:
-    pass  # Your code here
-
+    config = Config(rss_url="invalid-url")
+except ValidationError as e:
+    print(f"Validation failed: {e}")
 ```

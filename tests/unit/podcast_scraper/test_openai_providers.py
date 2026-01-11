@@ -12,7 +12,6 @@ from unittest.mock import Mock, patch
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.exceptions import ProviderRuntimeError
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
@@ -29,7 +28,6 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             transcription_provider="openai",
             openai_api_key="sk-test123",
-            transcribe_missing=True,  # Required for transcription initialization
         )
 
     @patch("podcast_scraper.openai.openai_provider.OpenAI")
@@ -47,7 +45,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
 
     @patch("podcast_scraper.openai.openai_provider.OpenAI")
     def test_transcribe_success(self, mock_openai_class):
-        """Test successful transcription via OpenAI API."""
+        """Test successful transcription via OpenAI API via factory."""
         # Mock OpenAI client and response
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -113,9 +111,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
     @patch("podcast_scraper.openai.openai_provider.OpenAI")
     @patch("podcast_scraper.prompt_store.render_prompt")
     def test_detect_speakers_success(self, mock_render_prompt, mock_openai_class):
-        """Test successful speaker detection via OpenAI API."""
-        detector = create_speaker_detector(self.cfg)
-
+        """Test successful speaker detection via OpenAI API via factory."""
         # Mock OpenAI client and response
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -202,8 +198,7 @@ class TestOpenAISummarizationProvider(unittest.TestCase):
     @patch("podcast_scraper.openai.openai_provider.OpenAI")
     @patch("podcast_scraper.prompt_store.render_prompt")
     def test_summarize_success(self, mock_render_prompt, mock_openai_class):
-        """Test successful summarization via OpenAI API."""
-
+        """Test successful summarization via OpenAI API via factory."""
         # Mock OpenAI client and response
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -272,13 +267,11 @@ class TestOpenAIProviderErrorHandling(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             transcription_provider="openai",
             openai_api_key="sk-test123",
-            transcribe_missing=True,  # Required for transcription initialization
         )
 
     @patch("podcast_scraper.openai.openai_provider.OpenAI")
     def test_transcribe_api_error(self, mock_openai_class):
-        """Test that API errors are handled gracefully."""
-
+        """Test that API errors are handled gracefully via factory."""
         # Mock OpenAI client to raise exception
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -294,9 +287,11 @@ class TestOpenAIProviderErrorHandling(unittest.TestCase):
             audio_path = f.name
 
         try:
+            from podcast_scraper.exceptions import ProviderRuntimeError
+
             with self.assertRaises(ProviderRuntimeError) as cm:
                 provider.transcribe(audio_path)
-            self.assertIn("Transcription failed", str(cm.exception))
+            self.assertIn("OpenAI transcription failed", str(cm.exception))
         finally:
             import os
 

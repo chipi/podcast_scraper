@@ -4,6 +4,9 @@
 - **Authors**: Maintainers
 - **Stakeholders**: Developers working on provider system, test maintainers
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
+- **Related ADRs**:
+  - [ADR-011: Unified Provider Pattern](../adr/ADR-011-unified-provider-pattern.md)
+  - [ADR-013: Technology-Based Provider Naming](../adr/ADR-013-technology-based-provider-naming.md)
 - **Related RFCs**:
   - `docs/rfc/RFC-013-openai-provider-implementation.md` - Original OpenAI provider design
   - `docs/rfc/RFC-016-modularization-for-ai-experiments.md` - Provider system architecture
@@ -40,18 +43,21 @@ This RFC consolidates all provider refactoring documentation and provides a comp
 ## Problem Statement
 
 The original provider architecture had separate provider classes for each capability:
+
 - `WhisperTranscriptionProvider` for transcription
 - `NERSpeakerDetector` for speaker detection
 - `TransformersSummarizationProvider` for summarization
 - Separate OpenAI providers for each capability
 
 This architecture had several issues:
+
 1. **Duplication**: ML providers shared underlying libraries (Whisper, spaCy, Transformers) but were separate classes
 2. **Inconsistency**: Different patterns for ML vs OpenAI providers
 3. **Complexity**: Multiple provider classes to maintain
 4. **Test Complexity**: Tests needed to import and test multiple separate classes
 
 The unified provider architecture addresses these issues by:
+
 - Creating `MLProvider` that implements all three protocols using shared ML libraries
 - Creating `OpenAIProvider` that implements all three protocols using shared OpenAI client
 - Using factory pattern for provider creation
@@ -187,17 +193,21 @@ assert hasattr(provider, 'transcribe')
 assert hasattr(provider, 'initialize')
 
 ```
+
 ## Documentation Updates (Medium Priority)
 
 **Factory Documentation:**
+
 - `src/podcast_scraper/transcription/factory.py` - Mentions "WhisperTranscriptionProvider"
 - `src/podcast_scraper/speaker_detectors/factory.py` - Mentions "NERSpeakerDetector"
 - `src/podcast_scraper/summarization/factory.py` - Mentions "TransformersSummarizationProvider"
 
 **Workflow Comments:**
+
 - `src/podcast_scraper/workflow.py` - Line 526 mentions "NERSpeakerDetector"
 
 **Required Changes:**
+
 - Update docstrings to mention unified providers
 - Update comments to reference protocols or unified providers
 
@@ -219,19 +229,19 @@ assert hasattr(provider, 'initialize')
 
 ### Phase 2: Improvements (Do Soon)
 
-4. **Protocol Compliance Testing** (Medium Priority)
+1. **Protocol Compliance Testing** (Medium Priority)
    - Create protocol compliance test suite
    - Verify all providers implement required methods
    - Verify method signatures match protocols
    - Run for all providers
 
-5. **Standardize Error Messages** (Medium Priority)
+2. **Standardize Error Messages** (Medium Priority)
    - Review and standardize error messages across providers
    - Ensure consistent user experience
 
 ### Phase 3: Polish (Do Later)
 
-6. **Extract Common Patterns** (Low Priority)
+1. **Extract Common Patterns** (Low Priority)
    - Evaluate if base class/mixins are worth it
    - Only if duplication becomes significant
    - Potential shared patterns:
@@ -240,11 +250,11 @@ assert hasattr(provider, 'initialize')
      - Protocol compliance verification
      - Cleanup patterns
 
-7. **Add Deprecation Warnings** (Low Priority)
+2. **Add Deprecation Warnings** (Low Priority)
    - Only if keeping old classes for transition period
    - Add warnings to old provider classes
 
-8. **Type Hints Consistency** (Low Priority)
+3. **Type Hints Consistency** (Low Priority)
    - Review and align type hints with protocol definitions
 
 ## Test Strategy
@@ -263,6 +273,7 @@ The test strategy follows a three-tier pyramid:
   /----------------\
 
 ```
+
 ### Unit Tests: Standalone Provider Tests
 
 **Location**: `tests/unit/podcast_scraper/ml/` and `tests/unit/podcast_scraper/openai/`
@@ -270,6 +281,7 @@ The test strategy follows a three-tier pyramid:
 **Purpose**: Test the provider classes themselves in isolation
 
 **What They Test**:
+
 - Provider creation and initialization
 - Protocol method implementation (transcribe, detect_speakers, summarize)
 - Error handling and edge cases
@@ -278,6 +290,7 @@ The test strategy follows a three-tier pyramid:
 - Internal state management
 
 **Mocking Strategy**:
+
 - **MLProvider**: Mock Whisper library, spaCy models, Transformers models
 - **OpenAIProvider**: Mock OpenAI API client
 
@@ -288,6 +301,7 @@ The test strategy follows a three-tier pyramid:
 **Purpose**: Test that factories create correct providers and verify protocol compliance
 
 **What They Test**:
+
 - Factory creates correct provider type (MLProvider vs OpenAIProvider)
 - Factory handles invalid provider types
 - Providers returned by factories implement protocols correctly
@@ -300,6 +314,7 @@ The test strategy follows a three-tier pyramid:
 **Purpose**: Test providers working with other components in the app
 
 **What They Test**:
+
 - Providers work with Config objects
 - Providers work with workflow components
 - Provider factory integration
@@ -309,6 +324,7 @@ The test strategy follows a three-tier pyramid:
 - Error handling in workflow context
 
 **Mocking Strategy**:
+
 - **Real Providers**: Use actual provider implementations (MLProvider, OpenAIProvider)
 - **Mocked External Services**: Mock HTTP APIs, ML model loading (for speed)
 - **Real Internal Components**: Use real Config, real workflow logic
@@ -320,6 +336,7 @@ The test strategy follows a three-tier pyramid:
 **Purpose**: Test providers in complete user workflows
 
 **What They Test**:
+
 - Providers work in full pipeline (CLI → workflow → providers → output)
 - Providers work with real HTTP client (E2E server mock endpoints)
 - Providers work with real ML models (for local providers)
@@ -338,9 +355,10 @@ The test strategy follows a three-tier pyramid:
 self.assertEqual(provider.__class__.__name__, "WhisperTranscriptionProvider")
 
 ```
+
 # GOOD: Checking protocol compliance
 
-self.assertEqual(provider.__class__.__name__, "MLProvider")  # Unified provider
+self.assertEqual(provider.**class**.**name**, "MLProvider")  # Unified provider
 self.assertTrue(hasattr(provider, "transcribe"))  # Protocol method
 self.assertTrue(hasattr(provider, "initialize"))  # Protocol method
 self.assertTrue(hasattr(provider, "cleanup"))  # Protocol method
@@ -511,27 +529,27 @@ The naming is inconsistent:
 
 ### Phase 2: Improvements (Soon)
 
-4. **Protocol Compliance Testing** (Medium Priority)
+1. **Protocol Compliance Testing** (Medium Priority)
    - Create protocol compliance test suite
    - Run for all providers
    - **Timeline**: 1 week
 
-5. **Standardize Error Messages** (Medium Priority)
+2. **Standardize Error Messages** (Medium Priority)
    - Review and standardize error messages
    - **Timeline**: 1 week
 
 ### Phase 3: Polish (Later)
 
-6. **Extract Common Patterns** (Low Priority)
+1. **Extract Common Patterns** (Low Priority)
    - Evaluate if base class/mixins are worth it
    - Only if duplication becomes significant
    - **Timeline**: TBD
 
-7. **Add Deprecation Warnings** (Low Priority)
+2. **Add Deprecation Warnings** (Low Priority)
    - Only if keeping old classes for transition period
    - **Timeline**: TBD
 
-8. **Type Hints Consistency** (Low Priority)
+3. **Type Hints Consistency** (Low Priority)
    - Review and align type hints
    - **Timeline**: TBD
 
@@ -584,6 +602,7 @@ Provider names are the same for tests and production, but model names differ to 
 ### Provider Names: Same for Tests and Production
 
 **Provider names are consistent:**
+
 - Transcription: `"whisper"` (default)
 - Speaker Detection: `"spacy"` (default, deprecated: `"ner"`)
 - Summarization: `"transformers"` (default, deprecated: `"local"`)
@@ -595,14 +614,17 @@ Provider names are the same for tests and production, but model names differ to 
 **Model names differ between tests and production:**
 
 #### Whisper Models
+
 - **Tests**: `TEST_DEFAULT_WHISPER_MODEL = "tiny.en"` (smallest, fastest)
 - **Production**: `whisper_model = "base"` (default, better quality)
 
 #### Transformers Models
+
 - **Tests**: `TEST_DEFAULT_SUMMARY_MODEL = "facebook/bart-base"` (~500MB, fast)
 - **Production**: `summary_model = None` → auto-selects `"bart-large-cnn"` (better quality)
 
 #### spaCy Models
+
 - **Tests**: `DEFAULT_NER_MODEL = "en_core_web_sm"` (same as production)
 - **Production**: `DEFAULT_NER_MODEL = "en_core_web_sm"` (same as tests)
 
@@ -811,6 +833,7 @@ make test-integration
 make test-e2e
 
 ```
+
 - Some tests might need updates for new defaults
 - Backward compatibility tests should verify deprecated names work
 
@@ -819,6 +842,7 @@ make test-e2e
 **Goal**: Mark old separate provider files as deprecated
 
 **Files to Deprecate**:
+
 - `src/podcast_scraper/transcription/whisper_provider.py` (empty, logic moved to MLProvider)
 - `src/podcast_scraper/speaker_detectors/ner_detector.py` (empty, logic moved to MLProvider)
 - `src/podcast_scraper/summarization/local_provider.py` (empty, logic moved to MLProvider)
@@ -827,6 +851,7 @@ make test-e2e
 - `src/podcast_scraper/summarization/openai_provider.py` (empty, logic moved to OpenAIProvider)
 
 **Actions**:
+
 1. Add deprecation warnings to these files
 2. Add `__all__ = []` to prevent accidental imports
 3. Add docstrings explaining they're deprecated
@@ -850,6 +875,7 @@ grep -r "from.*local_provider import" tests/
 grep -r "WhisperTranscriptionProvider\|NERSpeakerDetector\|TransformersSummarizationProvider" tests/
 
 ```
+
 - Update assertions to check protocol compliance
 - Use `hasattr()` or protocol checks instead of `isinstance()`
 
@@ -858,6 +884,7 @@ grep -r "WhisperTranscriptionProvider\|NERSpeakerDetector\|TransformersSummariza
 **Goal**: Ensure all documentation reflects current state
 
 **Files to Review**:
+
 - `docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md`
 - `docs/ARCHITECTURE.md`
 - `docs/guides/DEVELOPMENT_GUIDE.md`

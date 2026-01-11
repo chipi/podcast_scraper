@@ -448,7 +448,7 @@ The system now passes the "minimal docs CI/CD" requirement:
 4. **ML Dependency Import Verification** ⭐ NEW
    - Automatic check that unit tests can import modules without ML dependencies
    - Prevents modules from importing ML deps at top level (which would break CI)
-   - Script: `scripts/check_unit_test_imports.py`
+   - Script: `scripts/tools/check_unit_test_imports.py`
    - Runs before unit tests in CI, catches issues early
 
 4. **Comprehensive Security Scanning**

@@ -1,6 +1,6 @@
 # Data Models
 
-Data models used throughout the podcast_scraper codebase.
+Data models used throughout the `podcast_scraper` codebase.
 
 ## Overview
 
@@ -10,28 +10,28 @@ The `models` module defines core data structures:
 - `Episode` - Individual podcast episode
 - `TranscriptionJob` - Whisper transcription job
 
-## Models
+## API Reference
 
 ::: podcast_scraper.models.RssFeed
-options:
-show_root_heading: true
-heading_level: 3
+    options:
+      show_root_heading: true
+      heading_level: 3
 
 ::: podcast_scraper.models.Episode
-options:
-show_root_heading: true
-heading_level: 3
+    options:
+      show_root_heading: true
+      heading_level: 3
 
 ::: podcast_scraper.models.TranscriptionJob
-options:
-show_root_heading: true
-heading_level: 3
+    options:
+      show_root_heading: true
+      heading_level: 3
 
 ## Usage Examples
 
 ### Working with Episodes
 
-````python
+```python
 from podcast_scraper.models import Episode
 
 episode = Episode(
@@ -45,20 +45,30 @@ episode = Episode(
 
 print(f"Episode {episode.number}: {episode.title}")
 print(f"Transcript: {episode.transcript_url}")
-```python
+```
 
+### Working with Feeds
+
+```python
 from podcast_scraper.models import RssFeed, Episode
 
+# Create episodes
+ep1 = Episode(number=1, title="Ep 1", link="...", media_url="...")
+ep2 = Episode(number=2, title="Ep 2", link="...", media_url="...")
+
+# Create feed
 feed = RssFeed(
     title="Example Podcast",
     description="A great podcast",
     link="https://example.com",
-    episodes=[episode1, episode2, episode3]
+    episodes=[ep1, ep2]
 )
 
 print(f"Feed: {feed.title}")
 print(f"Episodes: {len(feed.episodes)}")
+```
 
-```python
-- RSS Parser: `rss_parser.py` - Constructs these models from RSS
-````
+## See Also
+
+- [RSS Parser](../ARCHITECTURE.md) - How these models are populated
+- [Core API](CORE.md) - How to run the pipeline using these models

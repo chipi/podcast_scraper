@@ -28,13 +28,10 @@ Common issues and solutions for podcast_scraper development and usage.
 **Solution:**
 
 ```bash
-
 # Preload all ML models (requires network)
-
 make preload-ml-models
 
 # Verify models are cached (project-local cache)
-
 ls -la .cache/whisper/          # Whisper models (tiny.en.pt, etc.)
 ls -la .cache/huggingface/hub/  # Transformers models (bart, led)
 python -c "import spacy; spacy.load('en_core_web_sm')"
@@ -43,32 +40,39 @@ python -c "import spacy; spacy.load('en_core_web_sm')"
 **Note:** Models are cached in the project-local `.cache/` directory, not `~/.cache/`.
 See `.cache/README.md` for cache structure details.
 
-## Whisper Model Download Fails
+**Backup/Restore:** If you need to backup or restore your cache (e.g., when switching machines or after cleanup):
+
+```bash
+# Backup cache
+make backup-cache
+
+# Restore cache (interactive)
+make restore-cache
+```
+
+See `.cache/README.md` for detailed backup/restore instructions.
+
+### Whisper Model Download Fails
 
 **Symptom:** Network errors when loading Whisper models.
 
 **Solution:**
 
 ```bash
-
 # Preload models using make target (recommended)
-
 make preload-ml-models
 
 # Or download model manually
-
 python -c "import whisper; whisper.load_model('tiny.en')"
 
 # Check project-local cache
-
 ls .cache/whisper/
 
 # Use smaller model for testing
-
 python3 -m podcast_scraper.cli feed.xml --whisper-model tiny
 ```
 
-## transformers/torch Import Errors
+### transformers/torch Import Errors
 
 **Symptom:** `ModuleNotFoundError: No module named 'transformers'`
 
@@ -85,7 +89,7 @@ pip install -e ".[ml]"
 pip install -e ".[dev,ml]"
 ```
 
-## Memory Issues with ML Models
+### Memory Issues with ML Models
 
 **Symptom:** Tests crash with memory errors, or system becomes unresponsive.
 
@@ -106,13 +110,10 @@ pip install -e ".[dev,ml]"
 **Solutions:**
 
 ```bash
-
 # Reduce parallel workers (default is 8)
-
 PYTEST_WORKERS=4 make test-integration
 
 # Set smaller batch sizes
-
 export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 ```
 
@@ -127,15 +128,12 @@ The Makefile uses a dynamic formula: `min(max(1, cpu_count - 2), 8)`
 **Memory analysis script:**
 
 ```bash
-
 # Analyze memory usage during tests
-
-python scripts/analyze_test_memory.py --test-target test-unit
+python scripts/tools/analyze_test_memory.py --test-target test-unit
 
 # With limited workers
-
-python scripts/analyze_test_memory.py --test-target test-integration --max-workers 4
-```yaml
+python scripts/tools/analyze_test_memory.py --test-target test-integration --max-workers 4
+```
 
 ---
 
@@ -160,7 +158,7 @@ sudo apt install ffmpeg
 # Verify installation
 
 ffmpeg -version
-```yaml
+```
 
 ---
 
@@ -219,7 +217,7 @@ grep -r "scope=" tests/conftest.py
 
 ```
 
-## Test Hangs with `-s` Flag
+### Test Hangs with `-s` Flag
 
 **Symptom:** Tests hang indefinitely when using `-s` (no capture) with parallel execution.
 
@@ -246,25 +244,19 @@ to disable all tqdm progress bars during test execution.
 **Workarounds:**
 
 ```bash
-
 # Use -v instead of -s (provides verbose output without hang)
-
 pytest tests/unit/ -v
 
 # Disable parallelism when using -s
-
 pytest tests/unit/ -s -n 0
 
 # Use sequential Makefile targets
-
 make test-unit-sequential
 
 # Use --tb=short for better error output
-
 pytest tests/unit/ --tb=short
 
 # For debugging, use --pdb instead
-
 pytest tests/unit/ --pdb
 ```yaml
 

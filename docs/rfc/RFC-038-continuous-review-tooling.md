@@ -5,6 +5,10 @@
 - **RFC ID**: RFC-038
 - **Title**: Continuous Review Tooling Implementation
 - **Status**: Draft
+- **Related ADRs**:
+  - [ADR-039: Grouped Dependency Automation](../adr/ADR-039-grouped-dependency-automation.md)
+  - [ADR-040: Periodic Module Coupling Analysis](../adr/ADR-040-periodic-module-coupling-analysis.md)
+  - [ADR-041: Mandatory Pre-Release Validation](../adr/ADR-041-mandatory-pre-release-validation.md)
 - **Created**: 2026-01-04
 - **Related Issues**: #45, #169, #170
 - **Related RFCs**: RFC-031 (Code Complexity Analysis)
@@ -81,12 +85,14 @@ updates:
         patterns:
 
 ```
+
 ```
 
       docs:
         patterns:
 
 ```
+
     open-pull-requests-limit: 3
     labels:
 
@@ -155,43 +161,43 @@ Add to `Makefile`:
 ## Generate module dependency graph (simplified)
 
 deps-graph:
-	@echo "=== Module Dependency Graph (Simplified) ==="
-	@mkdir -p reports
-	@$(PYTHON) -m pydeps src/podcast_scraper \
-		--cluster \
-		--max-bacon=2 \
-		--exclude-exact podcast_scraper.__main__ \
-		-o reports/deps-simple.svg
-	@echo "Generated: reports/deps-simple.svg"
+ @echo "=== Module Dependency Graph (Simplified) ==="
+ @mkdir -p reports
+ @$(PYTHON) -m pydeps src/podcast_scraper \
+  --cluster \
+  --max-bacon=2 \
+  --exclude-exact podcast_scraper.__main__ \
+  -o reports/deps-simple.svg
+ @echo "Generated: reports/deps-simple.svg"
 
 ## Generate full module dependency graph
 
 deps-graph-full:
-	@echo "=== Module Dependency Graph (Full) ==="
-	@mkdir -p reports
-	@$(PYTHON) -m pydeps src/podcast_scraper \
-		--cluster \
-		--show-deps \
-		-o reports/deps-full.svg
-	@echo "Generated: reports/deps-full.svg"
+ @echo "=== Module Dependency Graph (Full) ==="
+ @mkdir -p reports
+ @$(PYTHON) -m pydeps src/podcast_scraper \
+  --cluster \
+  --show-deps \
+  -o reports/deps-full.svg
+ @echo "Generated: reports/deps-full.svg"
 
 ## Check for circular imports
 
 deps-check-cycles:
-	@echo "=== Checking for Circular Imports ==="
-	@$(PYTHON) -m pydeps src/podcast_scraper --show-cycles --no-show || true
+ @echo "=== Checking for Circular Imports ==="
+ @$(PYTHON) -m pydeps src/podcast_scraper --show-cycles --no-show || true
 
 ## Full dependency analysis
 
 deps-analyze: deps-check-cycles deps-graph
-	@echo "=== Dependency Analysis Complete ==="
-	@echo "Check reports/deps-simple.svg for visualization"
+ @echo "=== Dependency Analysis Complete ==="
+ @echo "Check reports/deps-simple.svg for visualization"
 
 ```
 
 ### 2.4 Analysis Script
 
-Create `scripts/analyze_dependencies.py`:
+Create `scripts/tools/analyze_dependencies.py`:
 
 ```python
 
@@ -200,7 +206,7 @@ Create `scripts/analyze_dependencies.py`:
 Analyze module dependencies and detect architectural issues.
 
 Usage:
-    python scripts/analyze_dependencies.py [--check] [--report]
+    python scripts/tools/analyze_dependencies.py [--check] [--report]
 
 Options:
     --check     Run checks and exit with error if issues found
@@ -307,6 +313,7 @@ if __name__ == "__main__":
     main()
 
 ```
+
 ### 2.5 CI Integration
 
 Add to nightly workflow (`.github/workflows/nightly.yml`):
@@ -346,7 +353,7 @@ Add to nightly workflow (`.github/workflows/nightly.yml`):
       - name: Run dependency analysis
         run: |
 
-          python scripts/analyze_dependencies.py --report
+          python scripts/tools/analyze_dependencies.py --report
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -509,6 +516,7 @@ def check_version_consistency(version: str | None) -> CheckResult:
         )
 
 ```
+
                 passed=False,
                 message=f"Version {version} not in pyproject.toml"
             )
@@ -541,14 +549,14 @@ if __name__ == "__main__":
 ## Pre-release validation
 
 pre-release:
-	@echo "=== Pre-Release Validation ==="
-	@$(PYTHON) scripts/pre_release_check.py
+ @echo "=== Pre-Release Validation ==="
+ @$(PYTHON) scripts/pre_release_check.py
 
 ## Pre-release validation (quick - skip tests)
 
 pre-release-quick:
-	@echo "=== Pre-Release Validation (Quick) ==="
-	@$(PYTHON) scripts/pre_release_check.py --quick
+ @echo "=== Pre-Release Validation (Quick) ==="
+ @$(PYTHON) scripts/pre_release_check.py --quick
 
 ```yaml
 
@@ -596,7 +604,7 @@ def test_transcription_performance(benchmark):
 | File | Action | Description |
 | ------ | -------- | ------------- |
 | `.github/dependabot.yml` | Create | Dependabot configuration |
-| `scripts/analyze_dependencies.py` | Create | Dependency analysis script |
+| `scripts/tools/analyze_dependencies.py` | Create | Dependency analysis script |
 | `scripts/pre_release_check.py` | Create | Pre-release validation |
 | `Makefile` | Modify | Add deps-graph, pre-release targets |
 | `pyproject.toml` | Modify | Add pydeps to dev dependencies |

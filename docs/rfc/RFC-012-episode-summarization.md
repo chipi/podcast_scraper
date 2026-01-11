@@ -4,6 +4,9 @@
 - **Authors**:
 - **Stakeholders**: Maintainers, users generating episode summaries, developers integrating summarization
 - **Related PRDs**: `docs/prd/PRD-005-episode-summarization.md` (to be created), `docs/prd/PRD-004-metadata-generation.md`
+- **Related ADRs**:
+  - [ADR-009: Privacy-First Local Summarization](../adr/ADR-009-privacy-first-local-summarization.md)
+  - [ADR-010: Hierarchical Summarization Pattern](../adr/ADR-010-hierarchical-summarization-pattern.md)
 - **Related Issues**: Issue #17, Issue #30
 
 ## Abstract

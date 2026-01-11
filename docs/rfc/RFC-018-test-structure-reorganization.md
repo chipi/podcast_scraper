@@ -1,6 +1,8 @@
 # RFC-018: Test Structure Reorganization
 
 - **Status**: Completed
+- **Related ADRs**:
+  - [ADR-021: Standardized Test Pyramid](../adr/ADR-021-standardized-test-pyramid.md)
 - **Authors**:
 - **Stakeholders**: Maintainers, developers writing tests, CI/CD pipeline maintainers
 - **Related PRDs**: N/A

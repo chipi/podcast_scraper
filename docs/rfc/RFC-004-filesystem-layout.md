@@ -4,6 +4,9 @@
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, operators concerned with storage hygiene
 - **Related PRDs**: `docs/prd/PRD-001-transcript-pipeline.md`, `docs/prd/PRD-002-whisper-fallback.md`
+- **Related ADRs**:
+  - [ADR-003: Deterministic Feed Storage](../adr/ADR-003-deterministic-feed-storage.md)
+  - [ADR-004: Flat Filesystem Archive Layout](../adr/ADR-004-flat-filesystem-archive-layout.md)
 
 ## Abstract
 

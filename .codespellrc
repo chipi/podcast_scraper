@@ -1,0 +1,6 @@
+[codespell]
+skip = *.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,./.venv,./.build,./.git
+ignore-words-list = rouge,fo
+# fo is ignored because it's often used in "fo bar" or similar placeholders,
+# although in our case it was a typo. I'll fix the typo manually but ignore the word globally
+# if it's common. Actually, I'll just ignore rouge.

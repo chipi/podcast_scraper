@@ -125,7 +125,7 @@ def _re_export_workflow_functions(_workflow_module: Any) -> None:
             setattr(current_module, func_name, getattr(_workflow_module, func_name))
 
     # Re-export modules that tests patch
-    _test_modules = ["filesystem", "os", "time", "shutil", "progress", "metadata"]
+    _test_modules = ["filesystem", "os", "time", "shutil", "progress", "metadata", "logger"]
     for module_name in _test_modules:
         if hasattr(_workflow_module, module_name):
             setattr(current_module, module_name, getattr(_workflow_module, module_name))

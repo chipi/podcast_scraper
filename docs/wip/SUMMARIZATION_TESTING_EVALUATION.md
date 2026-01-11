@@ -85,7 +85,7 @@ For each:
        - Manually written by you (best, but time-consuming)
 ```
 
-2. **Store in a simple structure, e.g.:**
+1. **Store in a simple structure, e.g.:**
 
    ```text
    data/eval/
@@ -248,7 +248,7 @@ You can create a simple regression test workflow:
 1. Run a command like:
 
     ```bash
-    python scripts/eval_summaries.py \
+    python scripts/eval/eval_summaries.py \
         --model bart-large \
         --output results/bart_run_01.json
     ```
@@ -299,7 +299,7 @@ Here's a practical plan:
    - Coverage, Faithfulness, Clarity, Conciseness (1-5 each)
    - Track scores in CSV format for comparison over time
 
-3. **Automated evaluation**: Use `scripts/eval_summaries.py`:
+3. **Automated evaluation**: Use `scripts/eval/eval_summaries.py`:
    - Generates summaries using your configured models
    - Computes ROUGE scores (if references exist)
    - Performs reference-free checks (compression, repetition, keyword coverage)

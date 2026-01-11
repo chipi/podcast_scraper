@@ -57,6 +57,15 @@ def initialize_ml_environment() -> None:
         os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
         logger.debug("Set HF_HUB_DISABLE_PROGRESS_BARS=1 to suppress misleading progress bars")
 
+    # Set TOKENIZERS_PARALLELISM to false to prevent deadlock warnings when forking
+    # This must be set BEFORE any tokenizer is used (before preloading models)
+    # to avoid the warning: "The current process just got forked, after parallelism
+    # has already been used. Disabling parallelism to avoid deadlocks..."
+    # Only set if not already set by user (respects .env file or system environment)
+    if "TOKENIZERS_PARALLELISM" not in os.environ:
+        os.environ["TOKENIZERS_PARALLELISM"] = "false"
+        logger.debug("Set TOKENIZERS_PARALLELISM=false to prevent forking deadlocks")
+
     # Note: We don't set OMP_NUM_THREADS, MKL_NUM_THREADS, or TORCH_NUM_THREADS here
     # because in production we want to use all available CPU cores for best performance.
     # Users can set these environment variables in `.env` file or system environment

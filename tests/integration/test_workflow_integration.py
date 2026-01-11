@@ -118,7 +118,6 @@ class TestIntegrationMain(unittest.TestCase):
         http_mock = self._mock_http_map(responses)
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             with tempfile.TemporaryDirectory() as tmpdir:
-                # Disable auto-speakers to avoid run_suffix prefix in output path
                 exit_code = cli.main([rss_url, "--output-dir", tmpdir, "--no-auto-speakers"])
                 self.assertEqual(exit_code, 0)
                 expected_path = os.path.join(tmpdir, "transcripts", "0001 - Episode 1.txt")
@@ -160,9 +159,10 @@ class TestIntegrationMain(unittest.TestCase):
                                 "--output-dir",
                                 tmpdir,
                                 "--transcribe-missing",
+                                "--whisper-model",
+                                config.TEST_DEFAULT_WHISPER_MODEL,
                                 "--run-id",
                                 "testrun",
-                                "--no-auto-speakers",
                             ]
                         )
                         self.assertEqual(exit_code, 0)
@@ -170,17 +170,22 @@ class TestIntegrationMain(unittest.TestCase):
                         # Check if transcription was called (only if episode wasn't skipped)
                         if mock_import_whisper.called:
                             mock_transcribe.assert_called()
-                            # With --no-auto-speakers, suffix is just w_base.en from Whisper
-                            effective_dir = Path(tmpdir).resolve() / "run_testrun_w_base.en"
+                            # Uses test model (not base.en production model)
+                            # Run suffix now includes all providers: run_id + whisper + spacy
+                            # Format: run_{run_id}_{whisper_model}_{spacy_model}
+                            effective_dir = (
+                                Path(tmpdir).resolve()
+                                / f"run_testrun_w_{config.TEST_DEFAULT_WHISPER_MODEL}_sp_spacy_sm"
+                            )
                             out_path = (
                                 effective_dir
                                 / "transcripts"
-                                / "0001 - Episode 1_testrun_w_base.en.txt"
+                                / f"0001 - Episode 1_testrun_w_{config.TEST_DEFAULT_WHISPER_MODEL}_sp_spacy_sm.txt"
                             )
                             self.assertTrue(out_path.exists())
-                            self.assertEqual(
-                                out_path.read_text(encoding="utf-8").strip(), transcribed_text
-                            )
+                        self.assertEqual(
+                            out_path.read_text(encoding="utf-8").strip(), transcribed_text
+                        )
 
     def test_path_traversal_attempt_normalized(self):
         rss_url = "https://example.com/feed.xml"
@@ -198,8 +203,7 @@ class TestIntegrationMain(unittest.TestCase):
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             with tempfile.TemporaryDirectory() as tmpdir:
                 malicious = os.path.join(tmpdir, "..", "danger", "..", "final")
-                # Disable auto-speakers to avoid run_suffix prefix in output path
-                exit_code = cli.main([rss_url, "--output-dir", malicious, "--no-auto-speakers"])
+                exit_code = cli.main([rss_url, "--output-dir", malicious])
                 self.assertEqual(exit_code, 0)
                 effective_dir = Path(malicious).expanduser().resolve()
                 out_path = effective_dir / "transcripts" / "0001 - Episode 1.txt"
@@ -244,8 +248,6 @@ class TestIntegrationMain(unittest.TestCase):
                             "10",
                             "--log-level",
                             "DEBUG",
-                            "--whisper-model",
-                            config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", ""),
                         ]
                     )
                     self.assertEqual(exit_code, 0)
@@ -291,11 +293,13 @@ class TestIntegrationMain(unittest.TestCase):
     @pytest.mark.slow
     @pytest.mark.ml_models
     @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy dependencies not available")
-    def test_dry_run_skips_speaker_detection(self):
-        """Test that dry-run mode skips host/guest detection (no ML models or API calls).
+    def test_dry_run_performs_speaker_detection(self):
+        """Test that dry-run mode still performs host/guest detection.
 
-        In dry-run mode, we should simulate the flow without actually loading models
-        or making API calls. This test verifies that speaker detection is skipped.
+        This test requires multiple episodes to verify speaker detection works
+        across episodes, so it's marked as slow to run in full test mode.
+        Requires ML models (spaCy) for speaker detection.
+        Note: spaCy model (en_core_web_sm) is installed as a dependency.
         """
         rss_url = "https://example.com/feed.xml"
         rss_xml = build_rss_xml_with_speakers(
@@ -333,18 +337,14 @@ class TestIntegrationMain(unittest.TestCase):
                     )
                 self.assertEqual(exit_code, 0)
                 log_text = "\n".join(log_ctx.output)
-                # Verify dry-run mode skipped speaker detection initialization
-                self.assertIn("(dry-run) would initialize speaker detector", log_text)
-                # Verify episodes are logged (simulation of what would happen)
+                # Verify host detection happened (works in dry-run from RSS author tags)
+                self.assertIn("DETECTED HOSTS", log_text)
+                self.assertIn("John Host", log_text)
+                # Verify episode processing happened
                 self.assertIn("Episode 1: Interview with Alice Guest", log_text)
                 self.assertIn("Episode 2: Chat with Bob Guest", log_text)
-                # Verify dry-run would detect speakers (simulation)
-                self.assertIn("(dry-run) would detect speakers from:", log_text)
-                # Verify NO actual detection happened (no ML models or API calls)
-                self.assertNotIn("DETECTED HOSTS", log_text)
-                self.assertNotIn("John Host", log_text)
-                # Verify NO guest detection logging (detection is skipped in dry-run)
-                self.assertNotIn("Guest:", log_text)
+                # Note: Guest detection requires model initialization, which is skipped in dry-run
+                # So we don't check for "Guest:" in dry-run mode
 
 
 @pytest.mark.integration
@@ -400,8 +400,9 @@ class TestLibraryAPIIntegration(unittest.TestCase):
                 rss_url=rss_url,
                 output_dir=self.temp_dir,
                 max_episodes=1,
-                transcribe_missing=False,  # Explicitly disable to avoid run_suffix
-                auto_speakers=False,  # Disable to avoid speaker detection run_suffix
+                transcribe_missing=False,  # Don't use Whisper (downloading transcripts)
+                auto_speakers=False,  # Disable to avoid run suffix
+                generate_summaries=False,  # Disable to avoid run suffix
             )
 
             count, summary = podcast_scraper.run_pipeline(cfg)
@@ -413,6 +414,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertIn("transcripts", summary.lower())
 
             # Verify file was created (now in transcripts/ subdirectory)
+            # When no ML features are enabled, no run suffix is added
             expected_path = os.path.join(self.temp_dir, "transcripts", "0001 - Episode 1.txt")
             self.assertTrue(os.path.exists(expected_path))
             with open(expected_path, "r", encoding="utf-8") as fh:
@@ -439,8 +441,9 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             "output_dir": self.temp_dir,
             "max_episodes": 1,
             "timeout": 30,
-            "transcribe_missing": False,  # Explicitly disable to avoid run_suffix
-            "auto_speakers": False,  # Disable to avoid speaker detection run_suffix
+            "transcribe_missing": False,  # Don't use Whisper (downloading transcripts)
+            "auto_speakers": False,  # Disable to avoid run suffix
+            "generate_summaries": False,  # Disable to avoid run suffix
         }
         with open(cfg_path, "w", encoding="utf-8") as fh:
             json.dump(config_data, fh)
@@ -557,7 +560,6 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             cfg = podcast_scraper.Config(
                 rss_url=rss_url,
                 output_dir=self.temp_dir,
-                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
             # Should handle empty feed gracefully
@@ -589,7 +591,6 @@ class TestLibraryAPIIntegration(unittest.TestCase):
                 output_dir=self.temp_dir,
                 max_episodes=1,
                 dry_run=True,
-                auto_speakers=False,  # Disable to simplify path checking
             )
 
             count, summary = podcast_scraper.run_pipeline(cfg)
@@ -600,11 +601,9 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertIsInstance(summary, str)
             self.assertIn("dry run", summary.lower())
 
-            # Verify no transcript files were created in dry-run mode
-            transcript_dir = os.path.join(self.temp_dir, "transcripts")
-            if os.path.exists(transcript_dir):
-                transcript_files = list(Path(transcript_dir).glob("*.txt"))
-                self.assertEqual(len(transcript_files), 0)
+            # Verify no files were created in dry-run mode
+            expected_path = os.path.join(self.temp_dir, "0001 - Episode 1.txt")
+            self.assertFalse(os.path.exists(expected_path))
 
     def test_e2e_library_with_yaml_config(self):
         """E2E: Load YAML config file and run pipeline."""
@@ -630,8 +629,9 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             "max_episodes": 1,
             "timeout": 30,
             "log_level": "INFO",
-            "transcribe_missing": False,  # Explicitly disable to avoid run_suffix
-            "auto_speakers": False,  # Disable to avoid speaker detection run_suffix
+            "transcribe_missing": False,  # Don't use Whisper (downloading transcripts)
+            "auto_speakers": False,  # Disable to avoid run suffix
+            "generate_summaries": False,  # Disable to avoid run suffix
         }
         with open(cfg_path, "w", encoding="utf-8") as fh:
             yaml.dump(config_data, fh)

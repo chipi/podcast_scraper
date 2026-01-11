@@ -465,49 +465,59 @@ parallel with `-n auto`. All tests use network isolation via
 
 **For detailed test infrastructure information, see [Testing Guide](guides/TESTING_GUIDE.md).**
 
+## ML Quality Evaluation
+
+Beyond functional testing, the project uses objective metrics to evaluate the **quality** of ML-generated outputs. These evaluations are performed using dedicated scripts and a "golden" dataset.
+
+### Evaluation Layers
+
+| Layer | Focus | Metrics | Tools |
+| :--- | :--- | :--- | :--- |
+| **Cleaning** | Effective removal of ads/outro | Removal %, Brand detection | `eval_cleaning.py` |
+| **Summarization** | Accuracy and synthesis quality | ROUGE-1/2/L, Compression ratio | `eval_summaries.py` |
+
+### Golden Datasets
+
+Evaluation is performed against human-verified ground truth data stored in `data/eval/`. This dataset is versioned and frozen to provide a stable baseline for comparison. See [ADR-026](adr/ADR-026-explicit-golden-dataset-versioning.md) for details.
+
+### Continuous Improvement
+
+Quality evaluation is integrated into the **[AI Quality & Experimentation Platform](prd/PRD-007-ai-quality-experiment-platform.md)** (PRD-007), which uses these metrics to gate new model deployments and configuration changes.
+
 ## CI/CD Integration
 
 ### Continuous Integration Strategy
 
-**On Every PR** (GitHub Actions):
+The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strategy to balance fast feedback with comprehensive quality control.
 
-- **`test-fast` job**: Fast feedback (unit + fast integration + fast e2e, no coverage, ~6-10 min)
-- **`test` job**: Full validation (unit + fast integration + fast e2e, with coverage, ~10-15 min)
-- **`lint` job**: Formatting, linting, type checking, security scans
-- **`docs` job**: Documentation build
-- **`build` job**: Package build validation
+#### 1. Every Pull Request (Per-Commit Feedback)
+*   **lint**: Fast formatting, code linting, markdown linting, and type checking (~2 min)
+*   **test-unit**: All unit tests with coverage, verified network isolation (~3-5 min)
+*   **test-integration-fast**: Critical path integration tests using test ML models (~5-8 min)
+*   **test-e2e-fast**: Critical path E2E tests (Tier 1) using test ML models (~8-12 min)
+*   **build**: Package build validation (~2 min)
+*   **docs**: Documentation build validation (~3 min)
 
-**On Main Branch**:
+#### 2. Main Branch & Release Branches (Full Validation)
+*   **Unified Coverage**: Combines unit, integration, and E2E coverage reports into a single artifact.
+*   **test-integration**: Complete integration test suite.
+*   **test-e2e**: Complete E2E test suite (Tier 1).
+*   **Automated Metrics**: Collection of test health, code quality, and pipeline performance metrics.
+*   **Unified Dashboard**: Deployment of the [Metrics Dashboard](ci/METRICS.md) to GitHub Pages.
 
-- **`test-unit` job**: All unit tests with coverage (no ML deps, ~2-5 min)
-- **`test-integration-fast` job**: Fast integration tests excluding slow/ml_models (with re-runs, ~5-8 min, PRs only)
-- **`test-integration` job**: All integration tests (with re-runs, ~10-15 min, main branch only)
-- **`test-e2e-fast` job**: Fast E2E tests excluding slow/ml_models (with re-runs, ~10-15 min, PRs only)
-- **`test-e2e` job**: All E2E tests including slow/ml_models (with re-runs, ~20-30 min, main branch only)
-- **`test` job**: Combined fast tests with coverage (unit + fast integration + fast e2e, ~10-15 min)
-- **`lint` job**: Formatting, linting, type checking, security scans
-- **`docs` job**: Documentation build
-- **`build` job**: Package build validation
+#### 3. Nightly Comprehensive (Deep Analysis)
+*   **nightly-only-tests**: Full validation (Tier 3) using production-quality ML models (Whisper base, BART-large, LED-large).
+*   **Data Quality (Tier 2)**: Volume validation with multiple episodes.
+*   **Module Dependency Analysis**: Automated graph generation and coupling analysis.
+*   **Trend Tracking**: Historical metrics accumulation for long-term health monitoring.
 
-**Test Execution Strategy**:
+#### Test Execution Pattern
+*   **Parallel Execution**: Most jobs run in parallel with reserved cores for system stability (`auto - 2`).
+*   **Flaky Test Resilience**: Integration and E2E tests use automatic reruns (`--reruns 2`).
+*   **Network Isolation**: Enforced via `pytest-socket` across all test tiers.
+*   **LLM Exclusion**: API-based tests (OpenAI) are excluded from nightly runs to avoid costs.
 
-- **PRs**: Fast feedback + full validation run in parallel (both exclude slow/ml_models tests)
-- **Main branch**: Separate test jobs for maximum parallelization (includes all tests, slow jobs
-  run only on push to main)
-
-- **Unit tests**: Run on every PR and push (fast feedback, parallel execution)
-- **Fast integration tests**: Run on PRs and main (excludes slow/ml_models, parallel execution, with re-runs)
-- **Slow integration tests**: Run only on push to main (includes slow/ml_models, parallel execution, with re-runs)
-- **Fast E2E tests**: Run on PRs and main (excludes slow/ml_models, parallel execution, network guard, with re-runs)
-- **Slow E2E tests**: Run only on push to main (includes slow/ml_models, parallel execution, network guard, with re-runs)
-- **Test execution**: Parallel by default (`-n auto`), use `pytest -n 0` for sequential debugging
-- **Flaky test reruns**: Enabled for integration and E2E tests (`--reruns 2 --reruns-delay 1`)
-- **Nightly workflow**: Comprehensive test suite with full metrics collection, trend tracking,
-  and dashboard generation (RFC-025 Layer 3). **Note:** LLM/OpenAI tests are excluded
-
-  (`-m "not llm"`) to avoid API costs (see issue #183)
-
-**For detailed test execution commands, parallel execution, flaky test reruns, and coverage, see [Testing Guide](guides/TESTING_GUIDE.md).**
+**For detailed test execution commands, parallel execution, and coverage configuration, see [Testing Guide](guides/TESTING_GUIDE.md).**
 
 ## Testing Patterns
 
@@ -524,7 +534,7 @@ parallel with `-n auto`. All tests use network isolation via
 - **ML Dependencies (spacy, torch, transformers)**:
   - **Unit Tests**: Mock in `sys.modules` before importing dependent modules
   - **Integration Tests**: Real ML dependencies required
-  - **Verification**: CI runs `scripts/check_unit_test_imports.py` to ensure modules can import without ML deps
+  - **Verification**: CI runs `scripts/tools/check_unit_test_imports.py` to ensure modules can import without ML deps
 - **File System**: Use `tempfile` for isolated test environments
 - **API Providers (OpenAI, etc.)**:
   - **Unit Tests**: Mock API clients (`OpenAI` class)

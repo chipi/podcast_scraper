@@ -262,6 +262,7 @@ def create_deepseek_client(cfg: config.Config) -> OpenAI:
     """Create DeepSeek client using OpenAI SDK with custom base_url.
 
 ```
+
 #### 5.2 Speaker Detection Provider
 
 **File**: `podcast_scraper/speaker_detectors/deepseek_detector.py`
@@ -528,6 +529,7 @@ class DeepSeekSummarizationProvider:
             from ..prompt_store import get_prompt_metadata
 
 ```
+
 ```
 
             }
@@ -552,6 +554,7 @@ class DeepSeekSummarizationProvider:
         from ..prompt_store import render_prompt
 
 ```
+
 ```python
 
     def cleanup(self) -> None:
@@ -559,6 +562,7 @@ class DeepSeekSummarizationProvider:
         pass
 
 ```
+
 ### 6. Factory Updates
 
 #### 6.1 Speaker Detector Factory
@@ -638,6 +642,7 @@ def create_summarization_provider(cfg: config.Config) -> Optional[SummarizationP
         )
 
 ```
+
 ### 7. DeepSeek-Specific Prompt Templates
 
 #### 7.1 Summarization System Prompt
@@ -657,6 +662,7 @@ Guidelines:
 - Structure the summary with logical flow
 
 ```
+
 #### 7.2 Summarization User Prompt
 
 **File**: `prompts/deepseek/summarization/long_v1.j2`
@@ -675,6 +681,7 @@ Transcript:
 Provide a comprehensive summary covering the main topics, key insights, and important takeaways.
 
 ```
+
 #### 7.3 NER System Prompt
 
 **File**: `prompts/deepseek/ner/system_ner_v1.j2`
@@ -690,6 +697,7 @@ Guidelines:
 - Respond in JSON format with "hosts" and "guests" arrays
 
 ```
+
 #### 7.4 NER User Prompt
 
 **File**: `prompts/deepseek/ner/guest_host_v1.j2`
@@ -715,6 +723,7 @@ Return a JSON object with format: {"speakers": [...], "hosts": [...], "guests": 
 {% endif %}
 
 ```
+
 ### 8. E2E Server Mock Endpoints
 
 DeepSeek uses OpenAI-compatible API, so we can reuse OpenAI mock endpoints. Add URL helper:
@@ -732,6 +741,7 @@ class E2EServerURLs:
         return f"http://{self.host}:{self.port}"
 
 ```
+
 ### 9. Dependencies
 
 No new dependencies required - DeepSeek uses OpenAI SDK:
@@ -767,6 +777,7 @@ tests/
     └── test_deepseek_provider_integration_e2e.py
 
 ```
+
 ### Test Markers
 
 ```python

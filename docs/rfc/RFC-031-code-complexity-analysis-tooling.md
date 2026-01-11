@@ -383,25 +383,25 @@ dev = [
 # Code complexity analysis
 
 complexity:
-	radon cc src/podcast_scraper/ -a -s --total-average
-	@echo ""
-	@echo "Maintainability Index:"
-	radon mi src/podcast_scraper/ -s
+ radon cc src/podcast_scraper/ -a -s --total-average
+ @echo ""
+ @echo "Maintainability Index:"
+ radon mi src/podcast_scraper/ -s
 
 # Dead code detection
 
 deadcode:
-	vulture src/podcast_scraper/ --min-confidence 80
+ vulture src/podcast_scraper/ --min-confidence 80
 
 # Docstring coverage
 
 docstrings:
-	interrogate src/podcast_scraper/ -v
+ interrogate src/podcast_scraper/ -v
 
 # Spell checking
 
 spelling:
-	codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3"
+ codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3"
 
 # All code quality checks
 

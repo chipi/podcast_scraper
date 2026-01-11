@@ -19,6 +19,40 @@ from .progress import ProgressReporter
 
 logger = logging.getLogger(__name__)
 
+# Track if we've suppressed urllib3 logs (lazy initialization)
+_urllib3_logs_suppressed = False
+
+
+def _suppress_urllib3_debug_logs() -> None:
+    """Suppress verbose urllib3 debug logs when root logger is DEBUG.
+
+    This is called lazily when downloader is first used, ensuring root logger
+    is already configured. This keeps our debug logs visible while hiding
+    urllib3's verbose connection logs.
+    """
+    global _urllib3_logs_suppressed
+    if _urllib3_logs_suppressed:
+        return
+
+    root_logger = logging.getLogger()
+    root_level = root_logger.level if root_logger.level else logging.INFO
+    if root_level <= logging.DEBUG:
+        urllib3_loggers = [
+            "urllib3",
+            "urllib3.connectionpool",
+            "urllib3.connection",
+            "urllib3.util",
+            "httpcore",
+            "httpcore.connection",
+            "httpcore.http11",
+        ]
+        for logger_name in urllib3_loggers:
+            urllib3_logger = logging.getLogger(logger_name)
+            urllib3_logger.setLevel(logging.WARNING)
+
+    _urllib3_logs_suppressed = True
+
+
 BYTES_PER_MB = 1024 * 1024
 DEFAULT_HTTP_BACKOFF_FACTOR = 0.5
 DEFAULT_HTTP_RETRY_TOTAL = 5
@@ -80,6 +114,9 @@ def _configure_http_session(session: requests.Session) -> None:
 
 
 def _get_thread_request_session() -> requests.Session:
+    # Suppress urllib3 debug logs on first use
+    _suppress_urllib3_debug_logs()
+
     session = getattr(_THREAD_LOCAL, "session", None)
     if session is None:
         session = requests.Session()

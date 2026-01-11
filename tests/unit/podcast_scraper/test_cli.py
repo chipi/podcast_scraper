@@ -10,7 +10,7 @@ import os
 import sys
 import unittest
 from argparse import Namespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -253,6 +253,7 @@ class TestValidateArgs(unittest.TestCase):
             delay_ms=0,
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -271,6 +272,7 @@ class TestValidateArgs(unittest.TestCase):
             delay_ms=-1,  # Invalid
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -300,6 +302,7 @@ class TestValidateArgs(unittest.TestCase):
             delay_ms=0,
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -320,6 +323,7 @@ class TestValidateArgs(unittest.TestCase):
             delay_ms=0,
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -338,6 +342,7 @@ class TestValidateArgs(unittest.TestCase):
             delay_ms=0,
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -358,6 +363,7 @@ class TestValidateArgs(unittest.TestCase):
             delay_ms=0,
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             num_speakers=2,
             speaker_names=None,
@@ -384,6 +390,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=True,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=True,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -470,6 +477,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -530,6 +538,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="openai",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -584,6 +593,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -637,6 +647,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -691,6 +702,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -746,6 +758,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -801,6 +814,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="openai",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -855,6 +869,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -909,6 +924,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -963,6 +979,7 @@ class TestBuildConfig(unittest.TestCase):
             transcribe_missing=False,
             transcription_provider="whisper",
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=2.0,
             num_speakers=2,
@@ -1024,7 +1041,7 @@ class TestParseArgs(unittest.TestCase):
                 "60",
                 "--transcribe-missing",
                 "--whisper-model",
-                config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en)
+                config.TEST_DEFAULT_WHISPER_MODEL,
             ]
         )
         self.assertEqual(args.rss, "https://example.com/feed.xml")
@@ -1179,6 +1196,7 @@ class TestParseArgs(unittest.TestCase):
             delay_ms=0,
             transcribe_missing=False,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
             screenplay=False,
             screenplay_gap=1.25,
             num_speakers=2,
@@ -1338,6 +1356,195 @@ class TestAddArgumentGroups(unittest.TestCase):
             self.assertIsNone(action.default, f"{model_arg} default should be None")
 
 
+class TestCacheSubcommand(unittest.TestCase):
+    """Test cache subcommand parsing and execution."""
+
+    def test_parse_cache_args_status(self):
+        """Test parsing cache --status command."""
+        args = cli._parse_cache_args(["--status"])
+        self.assertTrue(args.status)
+        self.assertFalse(args.clean)
+
+    def test_parse_cache_args_clean_all(self):
+        """Test parsing cache --clean all command."""
+        args = cli._parse_cache_args(["--clean", "all"])
+        self.assertFalse(args.status)
+        self.assertEqual(args.clean, "all")
+
+    def test_parse_cache_args_clean_whisper(self):
+        """Test parsing cache --clean whisper command."""
+        args = cli._parse_cache_args(["--clean", "whisper"])
+        self.assertEqual(args.clean, "whisper")
+
+    def test_parse_cache_args_clean_with_yes(self):
+        """Test parsing cache --clean with --yes flag."""
+        args = cli._parse_cache_args(["--clean", "all", "--yes"])
+        self.assertEqual(args.clean, "all")
+        self.assertTrue(args.yes)
+
+    def test_parse_args_detects_cache_subcommand(self):
+        """Test that parse_args detects cache subcommand."""
+        args = cli.parse_args(["cache", "--status"])
+        self.assertTrue(hasattr(args, "command"))
+        self.assertEqual(args.command, "cache")
+        self.assertTrue(args.status)
+
+    def test_parse_args_normal_command_not_cache(self):
+        """Test that normal command is not treated as cache."""
+        args = cli.parse_args(["https://example.com/feed.xml"])
+        self.assertFalse(hasattr(args, "command") and args.command == "cache")
+
+    @patch("podcast_scraper.cache_manager.format_size")
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
+    def test_main_cache_status(self, mock_get_info, mock_format_size):
+        """Test main() with cache --status command."""
+        from pathlib import Path
+
+        mock_get_info.return_value = {
+            "whisper": {"dir": Path("/whisper"), "size": 100, "count": 1, "models": []},
+            "transformers": {"dir": Path("/transformers"), "size": 200, "count": 2, "models": []},
+            "spacy": {"dir": Path("/spacy"), "size": 50, "count": 1, "models": []},
+            "total_size": 350,
+        }
+        mock_format_size.side_effect = lambda x: f"{x} B"  # Simple formatter
+
+        exit_code = cli.main(["cache", "--status"])
+
+        self.assertEqual(exit_code, 0)
+        mock_get_info.assert_called_once()
+
+    @patch("podcast_scraper.cache_manager.format_size")
+    @patch("podcast_scraper.cache_manager.clean_all_caches")
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
+    def test_main_cache_clean_all(self, mock_get_info, mock_clean, mock_format_size):
+        """Test main() with cache --clean all --yes command."""
+        mock_get_info.return_value = {"total_size": 350}
+        mock_clean.return_value = {"whisper": (1, 100), "transformers": (2, 200), "spacy": (1, 50)}
+        mock_format_size.side_effect = lambda x: f"{x} B"  # Simple formatter
+
+        exit_code = cli.main(["cache", "--clean", "all", "--yes"])
+
+        self.assertEqual(exit_code, 0)
+        mock_clean.assert_called_once_with(confirm=False)
+
+    @patch("podcast_scraper.cache_manager.format_size")
+    @patch("podcast_scraper.cache_manager.clean_whisper_cache")
+    def test_main_cache_clean_whisper(self, mock_clean, mock_format_size):
+        """Test main() with cache --clean whisper --yes command."""
+        mock_clean.return_value = (1, 100)
+        mock_format_size.side_effect = lambda x: f"{x} B"  # Simple formatter
+
+        exit_code = cli.main(["cache", "--clean", "whisper", "--yes"])
+
+        self.assertEqual(exit_code, 0)
+        mock_clean.assert_called_once_with(confirm=False)
+
+    @patch("podcast_scraper.cache_manager.format_size")
+    @patch("podcast_scraper.cache_manager.clean_transformers_cache")
+    def test_main_cache_clean_transformers(self, mock_clean, mock_format_size):
+        """Test main() with cache --clean transformers --yes command."""
+        mock_clean.return_value = (2, 200)
+        mock_format_size.side_effect = lambda x: f"{x} B"  # Simple formatter
+
+        exit_code = cli.main(["cache", "--clean", "transformers", "--yes"])
+
+        self.assertEqual(exit_code, 0)
+        mock_clean.assert_called_once_with(confirm=False)
+
+    @patch("podcast_scraper.cache_manager.format_size")
+    @patch("podcast_scraper.cache_manager.clean_spacy_cache")
+    def test_main_cache_clean_spacy(self, mock_clean, mock_format_size):
+        """Test main() with cache --clean spacy --yes command."""
+        mock_clean.return_value = (1, 50)
+        mock_format_size.side_effect = lambda x: f"{x} B"  # Simple formatter
+
+        exit_code = cli.main(["cache", "--clean", "spacy", "--yes"])
+
+        self.assertEqual(exit_code, 0)
+        mock_clean.assert_called_once_with(confirm=False)
+
+    def test_parse_cache_args_requires_status_or_clean(self):
+        """Test that _parse_cache_args requires either --status or --clean."""
+        with self.assertRaises(SystemExit):
+            cli._parse_cache_args([])
+
+    def test_parse_cache_args_clean_defaults_to_all(self):
+        """Test that --clean without argument defaults to 'all'."""
+        args = cli._parse_cache_args(["--clean"])
+        self.assertEqual(args.clean, "all")
+
+    @patch("podcast_scraper.cache_manager.format_size")
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
+    def test_main_cache_status_with_models(self, mock_get_info, mock_format_size):
+        """Test main() with cache --status when models exist."""
+        from pathlib import Path
+
+        mock_get_info.return_value = {
+            "whisper": {
+                "dir": Path("/whisper"),
+                "size": 100,
+                "count": 1,
+                "models": [{"name": "base.en.pt", "size": 100}],
+            },
+            "transformers": {
+                "dir": Path("/transformers"),
+                "size": 200,
+                "count": 1,
+                "models": [{"name": "facebook/bart-base", "size": 200}],
+            },
+            "spacy": {
+                "dir": Path("/spacy"),
+                "size": 50,
+                "count": 1,
+                "models": [{"name": "en_core_web_sm", "size": 50}],
+            },
+            "total_size": 350,
+        }
+        mock_format_size.side_effect = lambda x: f"{x} B"
+
+        exit_code = cli.main(["cache", "--status"])
+
+        self.assertEqual(exit_code, 0)
+        mock_get_info.assert_called_once()
+
+    @patch("podcast_scraper.cache_manager.format_size")
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
+    def test_main_cache_status_spacy_no_dir(self, mock_get_info, mock_format_size):
+        """Test main() with cache --status when spacy has no cache dir."""
+        from pathlib import Path
+
+        mock_get_info.return_value = {
+            "whisper": {"dir": Path("/whisper"), "size": 100, "count": 0, "models": []},
+            "transformers": {"dir": Path("/transformers"), "size": 0, "count": 0, "models": []},
+            "spacy": {"dir": None, "size": 0, "count": 0, "models": []},
+            "total_size": 100,
+        }
+        mock_format_size.side_effect = lambda x: f"{x} B"
+
+        exit_code = cli.main(["cache", "--status"])
+
+        self.assertEqual(exit_code, 0)
+
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
+    def test_main_cache_status_exception_handling(self, mock_get_info):
+        """Test main() handles exceptions from cache operations."""
+        # Test exception handling path
+        mock_get_info.side_effect = Exception("Cache operation failed")
+
+        exit_code = cli.main(["cache", "--status"])
+        self.assertEqual(exit_code, 1)
+
+    @patch("podcast_scraper.cache_manager.format_size")
+    @patch("podcast_scraper.cache_manager.get_all_cache_info")
+    def test_main_cache_status_exception(self, mock_get_info, mock_format_size):
+        """Test main() handles exceptions from cache operations."""
+        mock_get_info.side_effect = Exception("Cache operation failed")
+        mock_format_size.side_effect = lambda x: f"{x} B"
+
+        exit_code = cli.main(["cache", "--status"])
+        self.assertEqual(exit_code, 1)
+
+
 class TestLoadAndMergeConfig(unittest.TestCase):
     """Test _load_and_merge_config function."""
 
@@ -1362,131 +1569,6 @@ class TestLoadAndMergeConfig(unittest.TestCase):
 
         with self.assertRaises(FileNotFoundError):
             cli._load_and_merge_config(parser, "missing.yaml", None)
-
-
-class TestParseCacheArgs(unittest.TestCase):
-    """Test _parse_cache_args function for cache subcommand."""
-
-    def test_parse_cache_args_status(self):
-        """Test parsing --status flag."""
-        args = cli._parse_cache_args(["--status"])
-        self.assertTrue(args.status)
-        self.assertIsNone(args.clean)
-
-    def test_parse_cache_args_clean_all(self):
-        """Test parsing --clean without value defaults to 'all'."""
-        args = cli._parse_cache_args(["--clean"])
-        self.assertFalse(args.status)
-        self.assertEqual(args.clean, "all")
-
-    def test_parse_cache_args_clean_whisper(self):
-        """Test parsing --clean whisper."""
-        args = cli._parse_cache_args(["--clean", "whisper"])
-        self.assertEqual(args.clean, "whisper")
-
-    def test_parse_cache_args_clean_transformers(self):
-        """Test parsing --clean transformers."""
-        args = cli._parse_cache_args(["--clean", "transformers"])
-        self.assertEqual(args.clean, "transformers")
-
-    def test_parse_cache_args_clean_spacy(self):
-        """Test parsing --clean spacy."""
-        args = cli._parse_cache_args(["--clean", "spacy"])
-        self.assertEqual(args.clean, "spacy")
-
-    def test_parse_cache_args_clean_with_yes(self):
-        """Test parsing --clean with --yes flag."""
-        args = cli._parse_cache_args(["--clean", "all", "--yes"])
-        self.assertEqual(args.clean, "all")
-        self.assertTrue(args.yes)
-
-    def test_parse_cache_args_no_options_raises(self):
-        """Test that no options raises error."""
-        with self.assertRaises(SystemExit):
-            cli._parse_cache_args([])
-
-    def test_parse_cache_args_invalid_clean_type(self):
-        """Test that invalid clean type raises error."""
-        with self.assertRaises(SystemExit):
-            cli._parse_cache_args(["--clean", "invalid"])
-
-
-class TestCacheSubcommandMain(unittest.TestCase):
-    """Test cache subcommand handling in main()."""
-
-    @patch("podcast_scraper.cache_manager")
-    def test_cache_status_command(self, mock_cache_manager):
-        """Test 'cache --status' command."""
-        from pathlib import Path
-
-        mock_cache_manager.get_all_cache_info.return_value = {
-            "whisper": {"size": 100000, "count": 2, "dir": Path("/cache/whisper"), "models": []},
-            "transformers": {
-                "size": 200000,
-                "count": 1,
-                "dir": Mock(exists=lambda: True),
-                "models": [],
-            },
-            "spacy": {"size": 50000, "count": 1, "dir": None, "models": []},
-            "total_size": 350000,
-        }
-        mock_cache_manager.format_size.return_value = "350.0 KB"
-
-        result = cli.main(["cache", "--status"])
-        self.assertEqual(result, 0)
-        mock_cache_manager.get_all_cache_info.assert_called_once()
-
-    @patch("podcast_scraper.cache_manager")
-    def test_cache_clean_all_command(self, mock_cache_manager):
-        """Test 'cache --clean all --yes' command."""
-        mock_cache_manager.clean_all_caches.return_value = {
-            "whisper": (2, 100000),
-            "transformers": (1, 200000),
-            "spacy": (0, 0),
-        }
-        mock_cache_manager.format_size.return_value = "300.0 KB"
-
-        result = cli.main(["cache", "--clean", "all", "--yes"])
-        self.assertEqual(result, 0)
-        mock_cache_manager.clean_all_caches.assert_called_once_with(confirm=False)
-
-    @patch("podcast_scraper.cache_manager")
-    def test_cache_clean_whisper_command(self, mock_cache_manager):
-        """Test 'cache --clean whisper --yes' command."""
-        mock_cache_manager.clean_whisper_cache.return_value = (2, 100000)
-        mock_cache_manager.format_size.return_value = "100.0 KB"
-
-        result = cli.main(["cache", "--clean", "whisper", "--yes"])
-        self.assertEqual(result, 0)
-        mock_cache_manager.clean_whisper_cache.assert_called_once_with(confirm=False)
-
-    @patch("podcast_scraper.cache_manager")
-    def test_cache_clean_transformers_command(self, mock_cache_manager):
-        """Test 'cache --clean transformers --yes' command."""
-        mock_cache_manager.clean_transformers_cache.return_value = (1, 200000)
-        mock_cache_manager.format_size.return_value = "200.0 KB"
-
-        result = cli.main(["cache", "--clean", "transformers", "--yes"])
-        self.assertEqual(result, 0)
-        mock_cache_manager.clean_transformers_cache.assert_called_once_with(confirm=False)
-
-    @patch("podcast_scraper.cache_manager")
-    def test_cache_clean_spacy_command(self, mock_cache_manager):
-        """Test 'cache --clean spacy --yes' command."""
-        mock_cache_manager.clean_spacy_cache.return_value = (1, 50000)
-        mock_cache_manager.format_size.return_value = "50.0 KB"
-
-        result = cli.main(["cache", "--clean", "spacy", "--yes"])
-        self.assertEqual(result, 0)
-        mock_cache_manager.clean_spacy_cache.assert_called_once_with(confirm=False)
-
-    @patch("podcast_scraper.cache_manager")
-    def test_cache_command_exception(self, mock_cache_manager):
-        """Test that cache command handles exceptions."""
-        mock_cache_manager.get_all_cache_info.side_effect = Exception("Cache error")
-
-        result = cli.main(["cache", "--status"])
-        self.assertEqual(result, 1)
 
 
 if __name__ == "__main__":

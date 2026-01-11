@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "podcast-scraper"
-version = "2.4.0"
+version = "2.5.0"
 description = "Download podcast transcripts from RSS feeds with optional Whisper fallback"
 readme = "README.md"
 authors = [{name = "Podcast Scraper Maintainers"}]
@@ -57,7 +57,7 @@ dev = [
   "bandit>=1.7.5,<2.0.0",
   "pip-audit>=2.6.0,<3.0.0",
   "build",
-  "rouge-score>=0.1.2,<1.0.0",  # Required for scripts/eval_summaries.py
+  "rouge-score>=0.1.2,<1.0.0",  # Required for scripts/eval/eval_summaries.py
   "radon>=6.0.0,<7.0.0",  # Code complexity analysis (RFC-031)
   "vulture>=2.10,<3.0.0",  # Dead code detection (RFC-031)
   "interrogate>=1.5.0,<2.0.0",  # Docstring coverage (RFC-031)
@@ -153,6 +153,7 @@ filterwarnings = [
 # Reruns: use --reruns 2 --reruns-delay 1 for flaky tests
 markers = [
     "analysis: diagnostic/analysis tools (not run in regular test suites)",
+    "analytical: analytical/diagnostic test tools (separate from regular tests, in tests/analytical/)",
     "unit: marks tests as unit tests (deselect with '-m \"not unit\"')",
     "multi_episode: multi-episode tests with multiple short episodes (10-15 seconds each) for testing multi-episode processing logic",
     "data_quality: data quality validation tests with multiple episodes (nightly only)",

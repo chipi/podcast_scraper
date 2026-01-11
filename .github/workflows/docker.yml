@@ -7,7 +7,7 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - 'pyproject.toml'
-      - '*.py'
+      - '**.py'
   # Fast Docker build runs on PRs when Docker-related files change
   # Full Docker validation still runs on merge to main
   pull_request:
@@ -16,7 +16,7 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - 'pyproject.toml'
-      - '*.py'
+      - '**.py'
 
 permissions:
   contents: read

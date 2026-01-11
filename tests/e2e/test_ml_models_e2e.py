@@ -64,13 +64,23 @@ class TestTransformersSummarization:
     """Real Transformers summarization model E2E tests."""
 
     def test_transformers_provider_summarize(self, e2e_server):
-        """Test Transformers summarization provider with real model."""
+        """Test Transformers summarization provider with real model.
+
+        This is a DIRECT PROVIDER TEST (not a full pipeline test):
+        - Tests Transformers provider in isolation
+        - Directly calls provider.summarize() with transcript text
+        - Does NOT use RSS feed or run_pipeline()
+        - Uses p01_e01_fast.txt (smallest/fastest transcript file)
+
+        For tests that process full episodes from a feed, see:
+        - test_transformers_provider_in_full_workflow (uses run_pipeline with RSS feed)
+        """
         # Require model to be cached (fail fast if not)
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
-        # Get transcript text from fixtures
+        # Get transcript text from fixtures - use fast file for direct provider tests
         fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e01.txt"
+        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
 
         if not transcript_file.exists():
             pytest.skip(f"Transcript file not found: {transcript_file}")
@@ -92,9 +102,9 @@ class TestTransformersSummarization:
             provider = create_summarization_provider(cfg)
             provider.initialize()
 
-            # Summarize text
+            # Summarize text (p01_e01_fast.txt is already small, no need to slice)
             result = provider.summarize(
-                text=transcript_text[:2000],  # Use first 2000 chars for speed
+                text=transcript_text,
                 episode_title="Test Episode",
             )
 
@@ -108,7 +118,14 @@ class TestTransformersSummarization:
             provider.cleanup()
 
     def test_transformers_provider_in_full_workflow(self, e2e_server):
-        """Test Transformers summarization provider in full workflow."""
+        """Test Transformers summarization provider in full workflow.
+
+        This test verifies the complete workflow with MAP-REDUCE summarization
+        and validates that a reduce strategy was correctly selected.
+        """
+        import logging
+        from io import StringIO
+
         # Require model to be cached (fail fast if not)
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
@@ -117,34 +134,64 @@ class TestTransformersSummarization:
         # Require Whisper model for transcription (podcast1 has no transcript URL)
         require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cfg = Config(
-                rss_url=rss_url,
-                output_dir=tmpdir,
-                max_episodes=1,
-                generate_metadata=True,  # Required for summaries
-                generate_summaries=True,
-                summary_provider="transformers",
-                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
-                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
-                transcribe_missing=True,  # Required: podcast1 has no transcript URL
-                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
-            )
+        # Capture log output to verify strategy selection
+        log_capture = StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.DEBUG)
+        # Get logger for summarizer module to capture strategy selection logs
+        # (The actual implementation is in summarizer.py, not map_reduce.py)
+        logger = logging.getLogger("podcast_scraper.summarizer")
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
 
-            # Run pipeline
-            count, summary = run_pipeline(cfg)
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                cfg = Config(
+                    rss_url=rss_url,
+                    output_dir=tmpdir,
+                    max_episodes=1,
+                    generate_metadata=True,  # Required for summaries
+                    generate_summaries=True,
+                    summary_provider="transformers",
+                    # Use test default (small, fast)
+                    summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+                    summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
+                    transcribe_missing=True,  # Required: podcast1 has no transcript URL
+                    whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+                )
 
-            # Verify pipeline completed
-            assert count > 0, "Should process at least one episode"
-            assert isinstance(summary, str), "Summary should be a string"
+                # Run pipeline
+                count, summary = run_pipeline(cfg)
 
-            # Verify transcript file was created (use rglob to search recursively)
-            transcript_files = list(Path(tmpdir).rglob("*.txt"))
-            assert len(transcript_files) > 0, "At least one transcript file should be created"
+                # Verify pipeline completed
+                assert count > 0, "Should process at least one episode"
+                assert isinstance(summary, str), "Summary should be a string"
 
-            # Verify metadata file was created (summaries are stored in metadata)
-            metadata_files = list(Path(tmpdir).rglob("*.metadata.json"))
-            assert len(metadata_files) > 0, "At least one metadata file should be created"
+                # Verify transcript file was created (use rglob to search recursively)
+                transcript_files = list(Path(tmpdir).rglob("*.txt"))
+                assert len(transcript_files) > 0, "At least one transcript file should be created"
+
+                # Verify metadata file was created (summaries are stored in metadata)
+                metadata_files = list(Path(tmpdir).rglob("*.metadata.json"))
+                assert len(metadata_files) > 0, "At least one metadata file should be created"
+
+                # Verify reduce strategy was selected (check logs)
+                # Note: If text is short enough, MAP-REDUCE may not be triggered
+                # (uses "Direct summary" instead). Only check for approach= if MAP-REDUCE was used.
+                log_output = log_capture.getvalue()
+                if "Direct summary (no chunking)" not in log_output:
+                    # MAP-REDUCE was triggered, verify approach was logged
+                    assert (
+                        "approach=abstractive (single-pass)" in log_output
+                        or 'approach="abstractive (single-pass)"' in log_output
+                        or "approach=hierarchical reduce" in log_output
+                        or 'approach="hierarchical reduce"' in log_output
+                        or "approach=extractive" in log_output
+                        or 'approach="extractive"' in log_output
+                    ), f"Expected a valid reduce strategy in logs, but found:\n{log_output[:500]}"
+                # If "Direct summary" was used, that's also valid (text was short enough)
+        finally:
+            logger.removeHandler(handler)
 
 
 @pytest.mark.e2e
@@ -237,45 +284,80 @@ class TestAllMLModelsTogether:
     def test_all_models_in_full_workflow(self, e2e_server):
         """Test complete workflow with all real ML models.
 
+        This test verifies the complete workflow with all ML models (Whisper, spaCy, Transformers)
+        and validates that MAP-REDUCE reduce strategy was correctly selected.
+
         Note: spaCy model (en_core_web_sm) is installed as a dependency.
         """
+        import logging
+        from io import StringIO
+
         # Require transformers model to be cached (fail fast if not)
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
         rss_url = e2e_server.urls.feed("podcast1")
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cfg = Config(
-                rss_url=rss_url,
-                output_dir=tmpdir,
-                max_episodes=1,
-                transcribe_missing=True,  # Enable Whisper transcription
-                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
-                generate_metadata=True,
-                metadata_format="json",
-                generate_summaries=True,
-                summary_provider="transformers",
-                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
-                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
-                auto_speakers=True,
-                speaker_detector_provider="spacy",
-                ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
-            )
+        # Capture log output to verify strategy selection
+        log_capture = StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.DEBUG)
+        # Get logger for summarizer module to capture strategy selection logs
+        # (The actual implementation is in summarizer.py, not map_reduce.py)
+        logger = logging.getLogger("podcast_scraper.summarizer")
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
 
-            # Run pipeline with all models
-            count, summary = run_pipeline(cfg)
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                cfg = Config(
+                    rss_url=rss_url,
+                    output_dir=tmpdir,
+                    max_episodes=1,
+                    transcribe_missing=True,  # Enable Whisper transcription
+                    whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+                    generate_metadata=True,
+                    metadata_format="json",
+                    generate_summaries=True,
+                    summary_provider="transformers",
+                    summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+                    summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
+                    auto_speakers=True,
+                    speaker_detector_provider="spacy",
+                    ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
+                )
 
-            # Verify pipeline completed
-            assert count > 0, "Should process at least one episode"
-            assert isinstance(summary, str), "Summary should be a string"
+                # Run pipeline with all models
+                count, summary = run_pipeline(cfg)
 
-            # Verify transcript file was created (use rglob to search recursively)
-            transcript_files = list(Path(tmpdir).rglob("*.txt"))
-            assert len(transcript_files) > 0, "At least one transcript file should be created"
+                # Verify pipeline completed
+                assert count > 0, "Should process at least one episode"
+                assert isinstance(summary, str), "Summary should be a string"
 
-            # Verify metadata file was created (use rglob to search recursively)
-            metadata_files = list(Path(tmpdir).rglob("*.metadata.json"))
-            assert len(metadata_files) > 0, "At least one metadata file should be created"
+                # Verify transcript file was created (use rglob to search recursively)
+                transcript_files = list(Path(tmpdir).rglob("*.txt"))
+                assert len(transcript_files) > 0, "At least one transcript file should be created"
+
+                # Verify metadata file was created (use rglob to search recursively)
+                metadata_files = list(Path(tmpdir).rglob("*.metadata.json"))
+                assert len(metadata_files) > 0, "At least one metadata file should be created"
+
+                # Verify reduce strategy was selected (check logs)
+                # Note: If text is short enough, MAP-REDUCE may not be triggered
+                # (uses "Direct summary" instead). Only check for approach= if MAP-REDUCE was used.
+                log_output = log_capture.getvalue()
+                if "Direct summary (no chunking)" not in log_output:
+                    # MAP-REDUCE was triggered, verify approach was logged
+                    assert (
+                        "approach=abstractive (single-pass)" in log_output
+                        or 'approach="abstractive (single-pass)"' in log_output
+                        or "approach=hierarchical reduce" in log_output
+                        or 'approach="hierarchical reduce"' in log_output
+                        or "approach=extractive" in log_output
+                        or 'approach="extractive"' in log_output
+                    ), f"Expected a valid reduce strategy in logs, but found:\n{log_output[:500]}"
+                # If "Direct summary" was used, that's also valid (text was short enough)
+        finally:
+            logger.removeHandler(handler)
 
     def test_model_loading_and_cleanup(self, e2e_server):
         """Test that models load and cleanup correctly.
@@ -285,14 +367,14 @@ class TestAllMLModelsTogether:
         # Require transformers model to be cached (spaCy model is installed as dependency)
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
-        # Get transcript text from fixtures
+        # Get transcript text from fixtures - use fast file for direct provider tests
         fixture_root = Path(__file__).parent.parent / "fixtures"
-        transcript_file = fixture_root / "transcripts" / "p01_e01.txt"
+        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
 
         if not transcript_file.exists():
             pytest.skip(f"Transcript file not found: {transcript_file}")
 
-        transcript_text = transcript_file.read_text(encoding="utf-8")[:2000]  # First 2000 chars
+        transcript_text = transcript_file.read_text(encoding="utf-8")  # Fast file is already small
 
         with tempfile.TemporaryDirectory():
             # Test Transformers provider

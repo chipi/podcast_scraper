@@ -32,9 +32,76 @@ This will download and cache the test default models:
 By default, `.cache/` is **not** ignored in `.gitignore` so you can optionally commit models to share
 with your team. If you prefer to keep models out of git, uncomment the `.cache/` line in `.gitignore`.
 
+## Backup and Restore
+
+The `.cache` directory can grow large (several GB) with both dev/test and production models. Use the backup and
+restore scripts to manage your cache:
+
+### Backup
+
+Create a compressed backup of the cache (excludes locks, incomplete downloads, and temporary files):
+
+```bash
+# Create backup in default location (~/podcast_scraper_cache_backups/)
+make backup-cache
+# or
+python scripts/backup_cache.py
+
+# Dry run to see what would be backed up
+make backup-cache-dry-run
+
+# List existing backups
+make backup-cache-list
+
+# Clean up old backups (keep 5 most recent)
+make backup-cache-cleanup
+```
+
+**What gets backed up:**
+
+- Whisper models (`.cache/whisper/`)
+- HuggingFace models (`.cache/huggingface/hub/`)
+- spaCy models (`.cache/spacy/` if present)
+- `README.md` in `.cache/`
+
+**What gets excluded:**
+
+- `.lock` files (HuggingFace locks)
+- `.incomplete` download files
+- `.locks/` directories
+- Temporary files (`.tmp`, `.temp`)
+- Hidden system files (`.DS_Store`)
+
+### Restore
+
+Restore a backup to the current project:
+
+```bash
+# Interactive restore (lists backups, prompts for selection)
+make restore-cache
+# or
+python scripts/restore_cache.py
+
+# Restore specific backup by name
+python scripts/restore_cache.py --backup cache_backup_20250108-120000.tar.gz
+
+# Restore with partial name match
+python scripts/restore_cache.py --backup 20250108
+
+# Dry run to preview
+make restore-cache-dry-run
+
+# Force overwrite existing .cache
+python scripts/restore_cache.py --backup 20250108 --force
+```
+
+**Note:** Backups are stored in `~/podcast_scraper_cache_backups/` by default. The restore script automatically
+targets the current project's `.cache` directory.
+
 ## Benefits
 
 - **Consistent cache location**: Models are stored in the project directory
 - **Team sharing**: Models can be committed to git (if desired)
 - **Faster CI**: CI can use the same cache structure
 - **Easier debugging**: Cache location is predictable and visible
+- **Backup/restore**: Easy management of large cache directories

@@ -3,7 +3,10 @@
 - **Status**: 🔴 **Not Started** - Waiting for RFC-016 Phase 2 (factory enhancements)
 - **Authors**:
 - **Stakeholders**: Maintainers, researchers tuning AI models/prompts, developers evaluating model performance
-- **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`, `docs/prd/PRD-007-ai-experiment-pipeline.md`
+- **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`, `docs/prd/PRD-007-ai-quality-experiment-platform.md`
+- **Related ADRs**:
+  - [ADR-024: Standalone Experiment Configuration](../adr/ADR-024-standalone-experiment-configuration.md)
+  - [ADR-025: Codified Comparison Baselines](../adr/ADR-025-codified-comparison-baselines.md)
 - **Related RFCs**:
   - `docs/rfc/RFC-012-episode-summarization.md`
   - `docs/rfc/RFC-013-openai-provider-implementation.md`
@@ -20,11 +23,13 @@
 ### Prerequisites
 
 **RFC-016 Phase 2 (Critical - 3-5 days):**
+
 - ⏳ Enhance factories to accept experiment-style params dict
 - ⏳ Required before RFC-015 Phase 1 can start
 - See [GitHub Issue #303](https://github.com/chipi/podcast_scraper/issues/303)
 
 **RFC-016 Phase 3 (Important - 1 week):**
+
 - ⏳ Extract evaluation infrastructure into reusable module
 - ⏳ Required before RFC-015 Phase 2 can start
 - Can be done in parallel with RFC-015 Phase 1
@@ -32,21 +37,25 @@
 ### Planned Implementation (6 Weeks After Prerequisites)
 
 **Phase 1: Experiment Runner** (Weeks 1-2)
+
 - Create experiment config schema
 - Build experiment runner using RFC-016 providers
 - Add `make experiment` command
 
 **Phase 2: Evaluation Metrics** (Weeks 3-4)
+
 - Integrate RFC-016 evaluation module
 - Add automated metric calculation
 - Generate human-readable reports
 
 **Phase 3: Storage & Comparison** (Week 5)
+
 - Experiment results storage
 - Historical tracking
 - Comparison tools
 
 **Phase 4: CI Integration** (Week 6)
+
 - Smoke tests on PRs
 - Nightly comprehensive experiments
 - Regression detection
@@ -1750,7 +1759,7 @@ Refactor `eval_summaries.py` to expose reusable functions:
 
 ```python
 
-# scripts/eval_summaries.py (refactored)
+# scripts/eval/eval_summaries.py (refactored)
 
 """
 Evaluate summarization quality using ROUGE metrics.
@@ -2920,15 +2929,466 @@ The experiment runner evolves through four phases:
 - **Phase 3**: Add integrated evaluation once eval scripts are refactored
 - **Phase 4**: Add advanced features as needed
 
+---
+
+## 🚀 Evolution & Improvements (2026-01-10 Update)
+
+### Critical Enhancements for Production Readiness
+
+Based on real-world pain points from manual eyeballing and baseline drift, the following improvements are **critical** before Phase 1 implementation.
+
+---
+
+### 1. Make Baseline + Golden First-Class Concepts
+
+**Problem:** Current design treats golden paths as optional, leading to manual eyeball comparisons and inconsistent baselines.
+
+**Solution:** Enforce strict baseline and golden reference requirements in every experiment config.
+
+#### Required Config Fields
+
+```yaml
+# experiments/summarization_bart_led_v1.yaml
+id: "summarization_bart_led_v1"
+task: "summarization"
+
+# NEW: Required baseline reference
+baseline_id: "bart_led_baseline_v2"  # REQUIRED - fail loudly if missing
+baseline_path: "benchmarks/baselines/bart_led_baseline_v2/"
+
+# NEW: Required dataset reference
+dataset_id: "indicator_v1"  # REQUIRED - prevents cross-dataset comparison
+dataset_path: "data/eval/datasets/indicator_v1/"
+
+# NEW: Golden reference for evaluation mode
+golden_ref: "data/eval/golden/indicator_v1/"  # REQUIRED unless golden_required: false
+golden_required: true  # Explicit - false only for smoke tests
+
+models:
+  map:
+    type: "hf_local"
+    name: "facebook/bart-large-cnn"
+  reduce:
+    type: "hf_local"
+    name: "allenai/led-base-16384"
+```
+
+#### Baseline Artifact Structure
+
+```
+benchmarks/baselines/
+├── bart_led_baseline_v2/
+│   ├── metadata.json          # Model versions, params, git commit
+│   ├── predictions/           # All episode predictions
+│   │   ├── ep001.json
+│   │   ├── ep002.json
+│   │   └── ...
+│   ├── metrics.json           # Aggregate metrics
+│   └── config.yaml            # Exact config that produced this baseline
+└── ...
+```
+
+#### Validation Rules
+
+```python
+def validate_experiment_config(config: ExperimentConfig):
+    """Validate experiment config before running."""
+
+    # Baseline validation
+    if not config.baseline_id:
+        raise ValueError("baseline_id is REQUIRED - specify which baseline to compare against")
+
+    baseline_path = Path(f"benchmarks/baselines/{config.baseline_id}")
+    if not baseline_path.exists():
+        raise ValueError(f"Baseline {config.baseline_id} not found at {baseline_path}")
+
+    # Dataset validation
+    if not config.dataset_id:
+        raise ValueError("dataset_id is REQUIRED - prevents cross-dataset comparison")
+
+    # Golden reference validation
+    if config.golden_required and not config.golden_ref:
+        raise ValueError("golden_ref is REQUIRED for evaluation mode (set golden_required: false for smoke tests)")
+
+    # Prevent mismatched comparisons
+    baseline_meta = load_json(baseline_path / "metadata.json")
+    if baseline_meta["dataset_id"] != config.dataset_id:
+        raise ValueError(
+            f"Dataset mismatch: experiment uses {config.dataset_id}, "
+            f"baseline uses {baseline_meta['dataset_id']}"
+        )
+```
+
+**Why:** Makes it impossible to do "wrong" comparisons. The runner enforces correctness.
+
+---
+
+### 2. Artifact Locking to Prevent Data Drift
+
+**Problem:** Preprocessing changes can "improve" ROUGE while actually deleting signal (e.g., removing all numbers accidentally). Need to detect artifact drift.
+
+**Solution:** Content hash every input and intermediate artifact.
+
+#### Hash Recording
+
+```python
+def process_episode(episode_path: Path, preprocessing_profile: str) -> Dict[str, Any]:
+    """Process episode and record content hashes."""
+
+    # Read raw transcript
+    raw_text = episode_path.read_text()
+    raw_hash = hashlib.sha256(raw_text.encode()).hexdigest()
+
+    # Apply preprocessing
+    cleaned_text = apply_preprocessing(raw_text, preprocessing_profile)
+    cleaned_hash = hashlib.sha256(cleaned_text.encode()).hexdigest()
+
+    return {
+        "episode_id": episode_path.stem,
+        "input_sha256": raw_hash,
+        "preprocessed_sha256": cleaned_hash,
+        "preprocessing_profile": preprocessing_profile,
+        "raw_length_chars": len(raw_text),
+        "cleaned_length_chars": len(cleaned_text),
+        "reduction_ratio": len(cleaned_text) / len(raw_text),
+    }
+```
+
+#### Metadata Storage
+
+```json
+{
+  "run_id": "summarization_bart_led_v1_20260110_143022",
+  "episodes": [
+    {
+      "episode_id": "ep001",
+      "input_sha256": "abc123...",
+      "preprocessed_sha256": "def456...",
+      "preprocessing_profile": "cleaning_v3",
+      "raw_length_chars": 45000,
+      "cleaned_length_chars": 42000,
+      "reduction_ratio": 0.933
+    }
+  ]
+}
+```
+
+#### Drift Detection
+
+```python
+def detect_artifact_drift(current_run, baseline_run):
+    """Detect if artifacts have changed between runs."""
+
+    for ep_id in current_run["episodes"]:
+        curr = current_run["episodes"][ep_id]
+        base = baseline_run["episodes"][ep_id]
+
+        # Input drift
+        if curr["input_sha256"] != base["input_sha256"]:
+            warnings.warn(f"{ep_id}: Input file has changed since baseline!")
+
+        # Preprocessing drift
+        if curr["preprocessing_profile"] != base["preprocessing_profile"]:
+            warnings.warn(f"{ep_id}: Preprocessing changed from {base['preprocessing_profile']} to {curr['preprocessing_profile']}")
+
+        # Suspicious reduction
+        if curr["reduction_ratio"] < 0.8:  # Lost >20% of content
+            warnings.warn(f"{ep_id}: Suspicious preprocessing reduction ({curr['reduction_ratio']:.2%})")
+```
+
+**Why:** Catches accidental changes that invalidate comparisons ("wait, why did ROUGE go up? Oh, we're deleting half the transcript now...")
+
+---
+
+### 3. Add Non-ROUGE Metrics for Real Failure Modes
+
+**Problem:** ROUGE doesn't catch podcast-specific failures (boilerplate leak, truncation, repetition, speaker label leak).
+
+**Solution:** Add cheap regex-based metric plugins that catch 80% of real regressions.
+
+#### Failure-Mode Metrics
+
+```python
+# src/podcast_scraper/evaluation/failure_metrics.py
+
+def calculate_boilerplate_leak_rate(summary: str) -> float:
+    """Detect leaked boilerplate text."""
+    boilerplate_patterns = [
+        r"article continues below",
+        r"read more at",
+        r"subscribe to our newsletter",
+        r"credits\s*:",
+        r"produced by",
+        r"music by",
+        r"\\[\\d{2}:\\d{2}\\]",  # Timestamps
+    ]
+
+    matches = sum(1 for pattern in boilerplate_patterns if re.search(pattern, summary, re.I))
+    return matches / len(boilerplate_patterns)
+
+def calculate_ellipsis_rate(summary: str) -> float:
+    """Detect dangling sentence endings (truncation)."""
+    sentences = summary.split(". ")
+    truncated = sum(1 for s in sentences if s.strip().endswith("...") or not s.strip().endswith((".', "!", "?")))
+    return truncated / max(len(sentences), 1)
+
+def calculate_repetition_score(summary: str) -> float:
+    """Detect duplicate n-grams (3-grams)."""
+    words = summary.lower().split()
+    trigrams = [tuple(words[i:i+3]) for i in range(len(words)-2)]
+    unique_trigrams = set(trigrams)
+    return 1.0 - (len(unique_trigrams) / max(len(trigrams), 1))
+
+def calculate_numbers_retained(summary: str, reference: str) -> float:
+    """Check if numbers are preserved."""
+    summary_numbers = set(re.findall(r'\b\d+(?:,\d{3})*(?:\.\d+)?\b', summary))
+    reference_numbers = set(re.findall(r'\b\d+(?:,\d{3})*(?:\.\d+)?\b', reference))
+
+    if not reference_numbers:
+        return 1.0
+
+    return len(summary_numbers & reference_numbers) / len(reference_numbers)
+
+def calculate_speaker_label_leak_rate(summary: str) -> float:
+    """Detect leaked speaker labels."""
+    speaker_patterns = [
+        r'\b(Speaker|Host|Guest)\s+\d+:',
+        r'\b[A-Z][a-z]+:',  # "John:" "Jane:"
+    ]
+
+    matches = sum(1 for pattern in speaker_patterns if re.search(pattern, summary))
+    return min(matches / 10, 1.0)  # Normalize to [0, 1]
+```
+
+#### Integration into Metrics
+
+```python
+def calculate_all_metrics(prediction: str, reference: str) -> Dict[str, float]:
+    """Calculate all metrics including failure-mode detection."""
+
+    # Standard metrics
+    rouge_scores = calculate_rouge(prediction, reference)
+    bleu_score = calculate_bleu(prediction, reference)
+
+    # Failure-mode metrics (NEW)
+    failure_metrics = {
+        "boilerplate_leak_rate": calculate_boilerplate_leak_rate(prediction),
+        "ellipsis_rate": calculate_ellipsis_rate(prediction),
+        "repetition_score": calculate_repetition_score(prediction),
+        "numbers_retained": calculate_numbers_retained(prediction, reference),
+        "speaker_label_leak_rate": calculate_speaker_label_leak_rate(prediction),
+    }
+
+    return {
+        **rouge_scores,
+        "bleu": bleu_score,
+        **failure_metrics,
+    }
+```
+
+**Why:** These are cheap (regex), fast, and catch 80% of real regressions that ROUGE misses.
+
+---
+
+### 4. Clarify "Golden Creation" as Separate Pipeline
+
+**Problem:** Golden data might regenerate silently and invalidate history.
+
+**Solution:** Make golden creation an explicit, manual-approval pipeline.
+
+#### Three Separate Commands
+
+```bash
+# 1. Generate golden outputs (expensive, manual approval required)
+make golden EXPERIMENT=summarization_gpt4_turbo_golden
+
+# 2. Run experiment (generate predictions)
+make experiment EXPERIMENT=summarization_bart_led_v1
+
+# 3. Evaluate predictions vs golden
+make eval EXPERIMENT=summarization_bart_led_v1
+```
+
+#### Golden Creation Workflow
+
+```python
+# scripts/create_golden.py
+
+def create_golden_dataset(config: GoldenConfig):
+    """Create golden dataset with manual approval."""
+
+    logger.info(f"Generating golden outputs for {config.dataset_id}...")
+    logger.info(f"Using expensive model: {config.model}")
+    logger.info("⚠️  This will be expensive! Estimated cost: $X.XX")
+
+    # Generate outputs
+    predictions = run_expensive_model(config)
+
+    # Show preview
+    print("\n=== Preview of golden outputs ===")
+    for ep_id, pred in list(predictions.items())[:3]:
+        print(f"\n{ep_id}:")
+        print(pred[:500] + "...")
+
+    # Manual approval
+    response = input("\n✅ Approve these outputs as golden reference? (yes/no): ")
+    if response.lower() != "yes":
+        logger.info("Golden creation cancelled")
+        return
+
+    # Save with version
+    golden_dir = Path(f"data/eval/golden/{config.dataset_id}_{config.version}/")
+    golden_dir.mkdir(parents=True, exist_ok=True)
+
+    for ep_id, pred in predictions.items():
+        (golden_dir / f"{ep_id}.txt").write_text(pred)
+
+    # Save metadata
+    metadata = {
+        "dataset_id": config.dataset_id,
+        "version": config.version,
+        "model": config.model,
+        "created_at": datetime.now().isoformat(),
+        "created_by": get_git_user(),
+        "git_commit": get_git_commit(),
+        "estimated_cost": calculate_cost(predictions),
+    }
+    (golden_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
+
+    logger.info(f"✅ Golden dataset created at {golden_dir}")
+    logger.info("⚠️  Commit this to git to make it official")
+```
+
+**Why:** Golden data is sacred. Don't let it change silently. Require explicit approval and git commit.
+
+---
+
+## Baseline as a Product Feature
+
+**Key Insight:** Make `baseline_id` a first-class, codified artifact across all three RFCs.
+
+### Shared Baseline Concept
+
+```python
+# Shared across RFC-015, RFC-016, RFC-041
+
+@dataclass
+class Baseline:
+    """A codified baseline for comparison."""
+
+    baseline_id: str  # e.g., "bart_led_baseline_v2"
+    dataset_id: str   # e.g., "indicator_v1"
+    created_at: datetime
+    git_commit: str
+
+    # Model/provider info
+    provider_type: str
+    model_names: Dict[str, str]
+    params: Dict[str, Any]
+
+    # Artifacts
+    predictions_dir: Path
+    metrics: Dict[str, float]
+
+    # Preprocessing
+    preprocessing_profile: str
+
+    def compare(self, other: "ExperimentRun") -> "ComparisonReport":
+        """Compare experiment run against this baseline."""
+        ...
+```
+
+### Baseline Storage
+
+```
+benchmarks/baselines/
+├── bart_led_baseline_v2/
+│   ├── metadata.json          # Baseline info
+│   ├── config.yaml            # Exact config
+│   ├── predictions/           # Episode outputs
+│   ├── metrics.json           # Aggregate metrics
+│   └── artifacts/             # Hashes, logs
+└── ...
+```
+
+### Usage Across RFCs
+
+**RFC-015 (Experiment Runner):**
+
+```yaml
+baseline_id: "bart_led_baseline_v2"  # REQUIRED
+```
+
+**RFC-016 (Provider Factories):**
+
+```python
+# Factories log which baseline_id was used
+provider = create_summarization_provider(config, baseline_id="bart_led_baseline_v2")
+```
+
+**RFC-041 (Benchmarking):**
+
+```yaml
+regression_rules:
+  baseline: "bart_led_baseline_v2"
+  max_wer_delta: 0.05
+```
+
+**Why:** Baseline becomes a shared, version-controlled artifact. No more "what should I use as baseline?" - it's codified.
+
+---
+
+## Updated Implementation Order
+
+Based on these improvements, the recommended implementation order is:
+
+### 1. **RFC-016 Phase 2** (3-5 days) 🔴 **CRITICAL**
+
+- Enhance factories to accept experiment params dict
+- Add `ProviderParams` typed models per task
+- Add provider fingerprinting (model name, version, device, git commit)
+- Add preprocessing profile ID tracking
+
+### 2. **RFC-015 Phase 1** (2 weeks) 🟡 **HIGH PRIORITY**
+
+- Create minimal experiment runner
+- Enforce baseline_id + dataset_id + golden_ref requirements
+- Add artifact hashing (input_sha256, preprocessed_sha256)
+- Generate predictions + metadata
+- Add failure-mode metrics (boilerplate, repetition, truncation, etc.)
+
+### 3. **RFC-041 Phase 0** (1 week) 🟢 **MEDIUM PRIORITY**
+
+- Freeze datasets (indicator_v1, journal_v1)
+- Create initial baseline artifacts
+- Add quality gates for summarization (boilerplate leak, repetition, truncation)
+
+### 4. **Evaluation + Metrics** (1 week)
+
+- Integrate failure-mode metrics into eval pipeline
+- Add drift detection
+- Add comparison reports (experiment vs baseline)
+
+### 5. **CI Integration** (1 week)
+
+- Add CI smoke tests (3 episodes)
+- Add nightly full benchmarks
+- Add regression detection alerts
+
+**Total: ~6 weeks to "measurable deltas without eyeballing"**
+
+---
+
 ## Related Documents
 
 - `docs/rfc/RFC-012-episode-summarization.md`: Summarization design
 - `docs/prd/PRD-007-ai-experiment-pipeline.md`: Product requirements, use cases, and functional specifications
 - `docs/rfc/RFC-013-openai-provider-implementation.md`: OpenAI provider design
-- `docs/rfc/RFC-016-modularization-for-ai-experiments.md`: Provider system architecture
+- `docs/rfc/RFC-016-modularization-for-ai-experiments.md`: Provider system architecture (prerequisite)
+- `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md`: Benchmarking framework (complementary)
 - `docs/rfc/RFC-017-prompt-management.md`: Prompt management and loading implementation
 - `docs/EVALUATION_STRATEGY.md`: Evaluation strategy (to be created)
-- `scripts/eval_summaries.py`: Existing summarization evaluation script
-- `scripts/eval_cleaning.py`: Existing cleaning evaluation script
+- `scripts/eval/eval_summaries.py`: Existing summarization evaluation script
+- `scripts/eval/eval_cleaning.py`: Existing cleaning evaluation script
 
 ````
