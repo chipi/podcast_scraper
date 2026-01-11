@@ -635,7 +635,7 @@ jobs:
   nightly-metrics:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [nightly-lint, nightly-security-quality, nightly-docs, nightly-build, nightly-test-unit, nightly-test-integration, nightly-test-e2e, nightly-only-tests]  # Wait for all jobs to complete before generating summary
+    needs: [nightly-lint, nightly-security-quality, nightly-build, nightly-test-unit, nightly-test-integration, nightly-test-e2e, nightly-only-tests]  # Wait for all jobs to complete before generating summary (docs runs after metrics)
     if: always()
     steps:
     - uses: actions/checkout@v4
@@ -930,8 +930,8 @@ jobs:
         echo "## Job Status" >> $GITHUB_STEP_SUMMARY
         echo "- **Lint**: ${{ needs.nightly-lint.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Security/Quality**: ${{ needs.nightly-security-quality.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Docs**: ${{ needs.nightly-docs.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Build**: ${{ needs.nightly-build.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Docs**: Runs after metrics (no dependency to avoid cycle)" >> $GITHUB_STEP_SUMMARY
         echo "- **Unit Tests**: ${{ needs.nightly-test-unit.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Integration Tests**: ${{ needs.nightly-test-integration.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **E2E Tests**: ${{ needs.nightly-test-e2e.result }}" >> $GITHUB_STEP_SUMMARY
