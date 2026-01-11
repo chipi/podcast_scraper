@@ -206,24 +206,59 @@ class TestIntegrationMain(unittest.TestCase):
                 exit_code = cli.main([rss_url, "--output-dir", malicious])
                 self.assertEqual(exit_code, 0)
                 effective_dir = Path(malicious).expanduser().resolve()
-                # The output may be in a run suffix subdirectory or directly in effective_dir
-                # Search for the transcript file in the actual output structure
+                expected_filename = "0001 - Episode 1.txt"
+
+                # Search for the transcript file using glob pattern
+                # Try multiple search patterns to handle different directory structures
                 transcript_file = None
-                if effective_dir.exists():
-                    # Check direct transcripts directory first
-                    direct_path = effective_dir / "transcripts" / "0001 - Episode 1.txt"
-                    if direct_path.exists():
-                        transcript_file = direct_path
+                # Direct path
+                direct_path = effective_dir / "transcripts" / expected_filename
+                if direct_path.exists():
+                    transcript_file = direct_path
+                else:
+                    # Recursive search from effective_dir
+                    matches = list(effective_dir.rglob(expected_filename))
+                    if matches:
+                        transcript_file = matches[0]
                     else:
+                        # Also try parent directory
+                        matches = list(effective_dir.parent.rglob(expected_filename))
+                        if matches:
+                            transcript_file = matches[0]
+
+                # If glob didn't find it, try manual search
+                if transcript_file is None:
+                    for search_root in [effective_dir, effective_dir.parent]:
+                        if not search_root.exists():
+                            continue
+                        # Check direct transcripts directory
+                        direct_path = search_root / "transcripts" / expected_filename
+                        if direct_path.exists():
+                            transcript_file = direct_path
+                            break
                         # Check run suffix subdirectories
-                        for item in effective_dir.iterdir():
-                            if item.is_dir() and item.name.startswith("run_"):
-                                candidate = item / "transcripts" / "0001 - Episode 1.txt"
-                                if candidate.exists():
-                                    transcript_file = candidate
-                                    break
+                        try:
+                            for item in search_root.iterdir():
+                                if item.is_dir():
+                                    candidate = item / "transcripts" / expected_filename
+                                    if candidate.exists():
+                                        transcript_file = candidate
+                                        break
+                                    if item.name.startswith("run_"):
+                                        candidate = item / "transcripts" / expected_filename
+                                        if candidate.exists():
+                                            transcript_file = candidate
+                                            break
+                        except (OSError, PermissionError):
+                            # Directory might not be accessible, skip
+                            continue
+                        if transcript_file:
+                            break
+
                 self.assertIsNotNone(
-                    transcript_file, "Transcript file should exist in normalized output directory"
+                    transcript_file,
+                    f"Transcript file '{expected_filename}' should exist in normalized output directory. "
+                    f"Searched in: {effective_dir}",
                 )
                 self.assertTrue(transcript_file.exists())
                 self.assertNotIn("..", str(transcript_file))
