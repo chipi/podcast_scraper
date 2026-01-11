@@ -110,22 +110,26 @@ class TestFilesystemOperations(unittest.TestCase):
 
     def test_output_directory_setup(self):
         """Test output directory setup and validation."""
-        # Basic output directory
+        # Basic output directory (no ML features, so no run suffix)
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             output_dir=self.temp_dir,
             transcribe_missing=False,  # Explicitly disable to test basic case
+            auto_speakers=False,  # Disable to avoid run suffix
+            generate_summaries=False,  # Disable to avoid run suffix
         )
         effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
         self.assertEqual(effective_dir, self.temp_dir)
         self.assertIsNone(run_suffix)
 
-        # With run_id
+        # With run_id (disable ML features to test run_id only)
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             output_dir=self.temp_dir,
             run_id="test_run",
             transcribe_missing=False,  # Explicitly disable to test run_id only
+            auto_speakers=False,  # Disable to avoid adding spacy to run suffix
+            generate_summaries=False,  # Disable to avoid adding transformers to run suffix
         )
         effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
         self.assertIn("test_run", effective_dir)
@@ -139,7 +143,8 @@ class TestFilesystemOperations(unittest.TestCase):
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
         effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        self.assertIn("whisper_tiny.en", run_suffix or "")
+        # Run suffix format: w_{model}_sp_{spacy_model} (shortened prefixes)
+        self.assertIn("w_tiny.en", run_suffix or "")
 
     def test_output_directory_validation(self):
         """Test output directory validation."""

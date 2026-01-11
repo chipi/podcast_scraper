@@ -5,6 +5,11 @@
 - **Stakeholders**: Core Pipeline, Transcription Providers
 - **Related PRDs**:
   - N/A (new capability)
+- **Related ADRs**:
+  - [ADR-032: Standardized Pre-Provider Audio Stage](../adr/ADR-032-standardized-pre-provider-audio-stage.md)
+  - [ADR-033: Content-Hash Based Audio Caching](../adr/ADR-033-content-hash-based-audio-caching.md)
+  - [ADR-034: FFmpeg-First Audio Manipulation](../adr/ADR-034-ffmpeg-first-audio-manipulation.md)
+  - [ADR-035: Speech-Optimized Codec (Opus)](../adr/ADR-035-speech-optimized-codec-opus.md)
 - **Related RFCs**:
   - `docs/rfc/RFC-005-whisper-integration.md` (transcription pipeline)
   - `docs/rfc/RFC-013-openai-provider-implementation.md` (provider pattern)
@@ -64,6 +69,7 @@ Different transcription providers impose various file size constraints:
 | **Ollama** | ❌ | ✅ | ✅ | Local LLMs (PRD-014) |
 
 **Critical Constraints**:
+
 - **OpenAI**: 25 MB hard limit (most restrictive known, currently supported)
 - **Mistral & Gemini**: Limits unknown, assumed similar or more generous
 - **Conservative Design**: Target <25 MB to ensure compatibility with all current and planned providers
@@ -78,12 +84,14 @@ To support both current (OpenAI) and planned (Mistral, Gemini) API transcription
 4. **Benefit**: If Mistral/Gemini have more generous limits (>25 MB), preprocessed files will still be well-optimized
 
 **Real-World Impact**:
+
 - Raw podcast episodes (30-60 minutes) typically range from **30-100 MB** in MP3 format
 - **70-80% of podcast episodes exceed the 25 MB limit** and cannot be uploaded to OpenAI without preprocessing
 - Preprocessing is **mandatory** (not optional) for API-based transcription of typical podcast content
 - **Target output**: 2-5 MB for typical episodes (10-25× reduction, well below any likely provider limit)
 
 **Real-World Impact**:
+
 - Raw podcast episodes (30-60 minutes) typically range from **30-100 MB** in MP3 format
 - **70-80% of podcast episodes exceed the 25 MB limit** and cannot be uploaded without preprocessing
 - Preprocessing is **not optional** for API-based transcription of typical podcast content
@@ -460,6 +468,7 @@ def transcribe_media_to_text(
 3. **Providers are agnostic** — They don't know if audio was preprocessed
 4. **Cache is shared** — Same preprocessed audio reused across provider switches
 5. **Separation of concerns** — Preprocessing is orthogonal to transcription
+
 ```
 
 ### 6. Configuration Fields

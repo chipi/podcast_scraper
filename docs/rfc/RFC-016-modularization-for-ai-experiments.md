@@ -3,6 +3,10 @@
 - **Status**: 🟡 **80% Complete** - Core provider pattern implemented, cleanup and experiment enhancements needed
 - **Authors**:
 - **Stakeholders**: Maintainers, developers implementing AI experiment pipeline, developers maintaining core workflow
+- **Related ADRs**:
+  - [ADR-027: Deep Provider Fingerprinting](../adr/ADR-027-deep-provider-fingerprinting.md)
+  - [ADR-028: Typed Provider Parameter Models](../adr/ADR-028-typed-provider-parameter-models.md)
+  - [ADR-029: Registered Preprocessing Profiles](../adr/ADR-029-registered-preprocessing-profiles.md)
 - **Related RFCs**: `docs/rfc/RFC-015-ai-experiment-pipeline.md`, `docs/rfc/RFC-017-prompt-management.md`, `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference), `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (completed)
 - **Related Issues**: [#303](https://github.com/chipi/podcast_scraper/issues/303) (RFC-016 Implementation)
 - **Updated**: 2026-01-08
@@ -42,17 +46,20 @@
 ### 🟡 Remaining Work (20%)
 
 **Phase 1: Legacy Module Cleanup** (Optional - Low Priority)
+
 - Deprecate `src/podcast_scraper/summarizer.py`
 - Deprecate `src/podcast_scraper/speaker_detection.py`
 - Deprecate `src/podcast_scraper/whisper_integration.py`
 
 **Phase 2: Experiment-Specific Factory Enhancements** (Critical - 3-5 days)
+
 - Enable factories to accept experiment-style params dict (not just `Config`)
 - Required for RFC-015 Phase 1
 
 **Phase 3: Extract Evaluation Infrastructure** (Important - 1 week)
+
 - Create `src/podcast_scraper/experiments/evaluation.py`
-- Extract ROUGE, BLEU from `scripts/eval_summaries.py`
+- Extract ROUGE, BLEU from `scripts/eval/eval_summaries.py`
 - Add WER calculation (jiwer)
 - Add semantic similarity (sentence-transformers)
 - Required for RFC-015 Phase 2
@@ -419,7 +426,7 @@ class SummarizationBackend:
 ```
 ```python
 
-# scripts/eval_summaries.py (refactored)
+# scripts/eval/eval_summaries.py (refactored)
 
 from typing import List, Dict, Any
 from pathlib import Path

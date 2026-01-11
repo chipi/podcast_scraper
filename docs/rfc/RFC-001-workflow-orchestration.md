@@ -4,6 +4,8 @@
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Project maintainers, pipeline integrators
 - **Related PRD**: `docs/prd/PRD-001-transcript-pipeline.md`
+- **Related ADRs**:
+  - [ADR-001: Hybrid Concurrency Strategy](../adr/ADR-001-hybrid-concurrency-strategy.md)
 
 ## Abstract
 

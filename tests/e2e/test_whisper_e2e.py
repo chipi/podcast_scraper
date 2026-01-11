@@ -52,22 +52,21 @@ class TestWhisperProviderDirect:
     def test_whisper_provider_transcribe_audio_file(self, e2e_server):
         """Test Whisper provider directly with real audio file.
 
-        Uses E2E server to get audio file URL, which automatically uses fast audio
-        (p01_e01_fast.mp3) in fast mode or regular audio (p01_e01.mp3) in multi-episode mode.
+        This is a DIRECT PROVIDER TEST (not a full pipeline test):
+        - Tests Whisper provider in isolation
+        - Directly calls provider.transcribe() with ONE audio file
+        - Does NOT use RSS feed or run_pipeline()
+        - Uses p01_e01_fast.mp3 (smallest/fastest audio file)
+
+        For tests that process multiple episodes from a feed, see:
+        - test_multi_episode_processing (uses run_pipeline with RSS feed)
+        - test_whisper_fallback_workflow_no_transcript (uses run_pipeline)
         """
         # Require model to be cached (fail fast if not)
         require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-        # Get audio file from E2E server (respects E2E_TEST_MODE: fast vs multi-episode)
-        # In fast mode: uses p01_e01_fast.mp3 (1 minute)
-        # In multi-episode mode: uses p01_e01.mp3 (10:30)
-        # Since these tests are critical_path, they should use fast audio
-        # when run via make test-e2e-fast
-        test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
-        if test_mode == "fast":
-            episode_id = "p01_e01_fast"  # Fast audio file (1 minute)
-        else:
-            episode_id = "p01_e01"  # Regular audio file (10:30)
+        # Use smallest/fastest audio file for direct provider tests
+        episode_id = "p01_e01_fast"  # Fast audio file (1 minute, smallest)
 
         audio_url = e2e_server.urls.audio(episode_id)
 
@@ -83,6 +82,8 @@ class TestWhisperProviderDirect:
             audio_file = tmp_file.name
 
         try:
+            import time
+
             # Create config with tiny.en model (test default, preloaded by make preload-ml-models)
             cfg = Config(
                 transcribe_missing=True,  # Required for Whisper to load
@@ -91,11 +92,22 @@ class TestWhisperProviderDirect:
             )
 
             # Initialize provider via factory
+            step_start = time.time()
             provider = create_transcription_provider(cfg)
+            create_time = time.time() - step_start
+            print(f"[TEST TIMING] Create provider: {create_time:.3f}s")
+
+            step_start = time.time()
             provider.initialize()
+            init_time = time.time() - step_start
+            print(f"[TEST TIMING] Initialize provider: {init_time:.3f}s")
 
             # Transcribe audio file
+            step_start = time.time()
             transcript = provider.transcribe(audio_file, language="en")
+            transcribe_time = time.time() - step_start
+            print(f"[TEST TIMING] Transcribe audio: {transcribe_time:.3f}s")
+            print(f"[TEST TIMING] TOTAL: {create_time + init_time + transcribe_time:.3f}s")
 
             # Verify transcription output
             assert isinstance(transcript, str), "Transcript should be a string"
@@ -113,22 +125,21 @@ class TestWhisperProviderDirect:
     def test_whisper_provider_transcribe_with_segments(self, e2e_server):
         """Test Whisper provider transcribe_with_segments() method.
 
-        Uses E2E server to get audio file URL, which automatically uses fast audio
-        (p01_e01_fast.mp3) in fast mode or regular audio (p01_e01.mp3) in multi-episode mode.
+        This is a DIRECT PROVIDER TEST (not a full pipeline test):
+        - Tests Whisper provider in isolation
+        - Directly calls provider.transcribe_with_segments() with ONE audio file
+        - Does NOT use RSS feed or run_pipeline()
+        - Uses p01_e01_fast.mp3 (smallest/fastest audio file)
+
+        For tests that process multiple episodes from a feed, see:
+        - test_multi_episode_processing (uses run_pipeline with RSS feed)
+        - test_whisper_fallback_workflow_no_transcript (uses run_pipeline)
         """
         # Require model to be cached (fail fast if not)
         require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-        # Get audio file from E2E server (respects E2E_TEST_MODE: fast vs multi-episode)
-        # In fast mode: uses p01_e01_fast.mp3 (1 minute)
-        # In multi-episode mode: uses p01_e01.mp3 (10:30)
-        # Since these tests are critical_path, they should use fast audio
-        # when run via make test-e2e-fast
-        test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
-        if test_mode == "fast":
-            episode_id = "p01_e01_fast"  # Fast audio file (1 minute)
-        else:
-            episode_id = "p01_e01"  # Regular audio file (10:30)
+        # Use smallest/fastest audio file for direct provider tests
+        episode_id = "p01_e01_fast"  # Fast audio file (1 minute, smallest)
 
         audio_url = e2e_server.urls.audio(episode_id)
 
@@ -144,6 +155,8 @@ class TestWhisperProviderDirect:
             audio_file = tmp_file.name
 
         try:
+            import time
+
             # Create config with tiny.en model (test default, preloaded by make preload-ml-models)
             cfg = Config(
                 transcribe_missing=True,  # Required for Whisper to load
@@ -152,11 +165,22 @@ class TestWhisperProviderDirect:
             )
 
             # Initialize provider via factory
+            step_start = time.time()
             provider = create_transcription_provider(cfg)
+            create_time = time.time() - step_start
+            print(f"[TEST TIMING] Create provider: {create_time:.3f}s")
+
+            step_start = time.time()
             provider.initialize()
+            init_time = time.time() - step_start
+            print(f"[TEST TIMING] Initialize provider: {init_time:.3f}s")
 
             # Transcribe with segments
+            step_start = time.time()
             result, elapsed = provider.transcribe_with_segments(audio_file, language="en")
+            transcribe_time = time.time() - step_start
+            print(f"[TEST TIMING] Transcribe with segments: {transcribe_time:.3f}s")
+            print(f"[TEST TIMING] TOTAL: {create_time + init_time + transcribe_time:.3f}s")
 
             # Verify result structure
             assert isinstance(result, dict), "Result should be a dictionary"

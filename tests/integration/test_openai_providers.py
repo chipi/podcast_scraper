@@ -334,7 +334,7 @@ class TestOpenAIProviderErrorHandling(unittest.TestCase):
 
             with self.assertRaises(ProviderRuntimeError) as cm:
                 provider.transcribe(audio_path)
-            self.assertIn("Transcription failed", str(cm.exception))
+            self.assertIn("OpenAI transcription failed", str(cm.exception))
         finally:
             import os
 

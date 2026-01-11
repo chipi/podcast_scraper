@@ -15,6 +15,11 @@ from unittest.mock import Mock, patch
 import pytest
 
 from podcast_scraper import config
+from podcast_scraper.exceptions import (
+    ProviderDependencyError,
+    ProviderNotInitializedError,
+    ProviderRuntimeError,
+)
 from podcast_scraper.ml.ml_provider import MLProvider
 
 
@@ -297,11 +302,11 @@ class TestMLProviderTranscription(unittest.TestCase):
         self.assertEqual(call_args[1]["language"], "fr")
 
     def test_transcribe_not_initialized(self):
-        """Test transcribe raises RuntimeError if not initialized."""
+        """Test transcribe raises ProviderNotInitializedError if not initialized."""
         provider = MLProvider(self.cfg)
         # Don't call initialize()
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderNotInitializedError) as context:
             provider.transcribe("/path/to/audio.mp3")
 
         self.assertIn("not initialized", str(context.exception))
@@ -309,7 +314,7 @@ class TestMLProviderTranscription(unittest.TestCase):
     @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
     @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
     def test_transcribe_empty_text_raises_error(self, mock_progress, mock_import_whisper):
-        """Test transcribe raises ValueError if transcription returns empty text."""
+        """Test transcribe raises ProviderRuntimeError if transcription returns empty text."""
         mock_model = Mock()
         mock_model.device.type = "cpu"
         mock_model.transcribe.return_value = {"text": "", "segments": []}
@@ -321,7 +326,7 @@ class TestMLProviderTranscription(unittest.TestCase):
         provider = MLProvider(self.cfg)
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.transcribe("/path/to/audio.mp3")
 
         self.assertIn("empty text", str(context.exception))
@@ -538,11 +543,11 @@ class TestMLProviderSummarization(unittest.TestCase):
         self.assertEqual(result["metadata"]["model_used"], config.TEST_DEFAULT_SUMMARY_MODEL)
 
     def test_summarize_not_initialized(self):
-        """Test summarize raises RuntimeError if not initialized."""
+        """Test summarize raises ProviderNotInitializedError if not initialized."""
         provider = MLProvider(self.cfg)
         # Don't call initialize()
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderNotInitializedError) as context:
             provider.summarize("Text")
 
         self.assertIn("not initialized", str(context.exception))
@@ -593,7 +598,7 @@ class TestMLProviderSummarization(unittest.TestCase):
         provider = MLProvider(self.cfg)
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.summarize("Text")
 
         self.assertIn("Summarization failed", str(context.exception))
@@ -765,7 +770,7 @@ class TestMLProviderPreload(unittest.TestCase):
 
         mock_import_whisper.side_effect = ImportError("openai-whisper not installed")
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderDependencyError) as context:
             provider.preload()
 
         # Verify error message
@@ -788,7 +793,7 @@ class TestMLProviderPreload(unittest.TestCase):
 
         mock_get_ner.side_effect = OSError("Model not found")
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderDependencyError) as context:
             provider.preload()
 
         # Verify error message
@@ -817,7 +822,7 @@ class TestMLProviderPreload(unittest.TestCase):
         mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
         mock_summary_model.side_effect = RuntimeError("Model download failed")
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderDependencyError) as context:
             provider.preload()
 
         # Verify error message

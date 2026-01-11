@@ -5,22 +5,29 @@ via CLI, config files, and programmatically.
 
 ## Provider Options
 
+### Unified Provider Architecture
+
+The podcast scraper uses a **Unified Provider** pattern where a single class implementation handles multiple capabilities.
+
+1. **`MLProvider` (Local)**: Handles `whisper`, `spacy`, and `transformers`.
+2. **`OpenAIProvider` (API)**: Handles all OpenAI-based transcription, speaker detection, and summarization.
+
 ### Transcription Providers
 
-- **`whisper`** (default): Local Whisper models (MLProvider)
-- **`openai`**: OpenAI Whisper API (OpenAIProvider)
+- **`whisper`** (default): Local Whisper models (via `MLProvider`)
+- **`openai`**: OpenAI Whisper API (via `OpenAIProvider`)
 
 ### Speaker Detection Providers
 
-- **`spacy`** (default): spaCy NER models (MLProvider)
-- **`openai`**: OpenAI GPT API (OpenAIProvider)
-- **Deprecated**: `ner` (alias for `spacy`, will be removed in future version)
+- **`spacy`** (default): Local spaCy NER models (via `MLProvider`)
+- **`openai`**: OpenAI GPT API (via `OpenAIProvider`)
+- **Deprecated Aliases**: `ner` (alias for `spacy`)
 
 ### Summarization Providers
 
-- **`transformers`** (default): HuggingFace Transformers models (MLProvider)
-- **`openai`**: OpenAI GPT API (OpenAIProvider)
-- **Deprecated**: `local` (alias for `transformers`, will be removed in future version)
+- **`transformers`** (default): Local HuggingFace Transformers models (via `MLProvider`)
+- **`openai`**: OpenAI GPT API (via `OpenAIProvider`)
+- **Deprecated Aliases**: `local` (alias for `transformers`)
 
 ## Configuration Methods
 
@@ -57,7 +64,7 @@ podcast-scraper --rss https://example.com/feed.xml \
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider whisper \
   --speaker-detector-provider openai \
-  --summary-provider local \
+  --summary-provider transformers \
   --openai-api-key sk-your-key-here
 
 # All OpenAI providers
@@ -98,8 +105,8 @@ output_dir: ./transcripts
 # Provider configuration
 
 transcription_provider: whisper  # or "openai"
-speaker_detector_provider: ner  # or "openai"
-summary_provider: local  # or "openai"
+speaker_detector_provider: spacy  # or "openai"
+summary_provider: transformers  # or "openai"
 
 # OpenAI configuration (required if using OpenAI providers)
 
@@ -306,8 +313,8 @@ podcast-scraper --rss https://example.com/feed.xml \
 
 ```yaml
 transcription_provider: whisper
-speaker_detector_provider: ner
-summary_provider: local
+speaker_detector_provider: spacy
+summary_provider: transformers
 ```
 
 - Fast, no API costs
@@ -332,7 +339,7 @@ openai_api_key: sk-your-key-here
 ```yaml
 transcription_provider: whisper      # Local (fast, free)
 speaker_detector_provider: openai    # API (accurate)
-summary_provider: local               # Local (fast, free)
+summary_provider: transformers       # Local (fast, free)
 openai_api_key: sk-your-key-here
 ```
 
@@ -422,7 +429,7 @@ podcast-scraper --rss https://example.com/feed.xml \
 rss: https://example.com/feed.xml
 transcription_provider: whisper
 speaker_detector_provider: openai
-summary_provider: local
+summary_provider: transformers
 openai_api_key: sk-your-key-here
 
 ```
@@ -441,7 +448,7 @@ cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="whisper",
     speaker_detector_provider="openai",
-    summary_provider="local",
+    summary_provider="transformers",
     openai_api_key="sk-your-key-here",
     transcribe_missing=True,
     auto_speakers=True,

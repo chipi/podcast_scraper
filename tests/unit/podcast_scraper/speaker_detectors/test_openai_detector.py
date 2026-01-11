@@ -38,6 +38,8 @@ create_test_config = parent_conftest.create_test_config
 create_test_episode = parent_conftest.create_test_episode
 
 from podcast_scraper import config  # noqa: E402
+
+# OpenAI provider still uses ValueError/RuntimeError (not yet migrated to structured exceptions)
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector  # noqa: E402
 
 
@@ -324,9 +326,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         self.assertEqual(hosts, set())
 
-    @patch(
-        "podcast_scraper.speaker_detectors.openai_detector.OpenAISpeakerDetector.detect_speakers"
-    )
+    @patch("podcast_scraper.openai.openai_provider.OpenAIProvider.detect_speakers")
     def test_detect_hosts_handles_exception(self, mock_detect_speakers):
         """Test detect_hosts handles exceptions gracefully."""
         mock_detect_speakers.side_effect = Exception("API error")

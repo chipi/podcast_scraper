@@ -224,19 +224,19 @@ We evaluate candidates based on:
 
 ### Phase 2: Medium Priority (Performance Tuning) - ✅ COMPLETED
 
-4. ✅ `WORKERS` - Performance tuning - **IMPLEMENTED**
-5. ✅ `TRANSCRIPTION_PARALLELISM` - OpenAI provider tuning - **IMPLEMENTED**
-6. ✅ `PROCESSING_PARALLELISM` - Performance tuning - **IMPLEMENTED**
-7. ✅ `SUMMARY_BATCH_SIZE` - Memory management - **IMPLEMENTED**
-8. ✅ `SUMMARY_CHUNK_PARALLELISM` - CPU tuning - **IMPLEMENTED**
-9. ✅ `TIMEOUT` - Network flexibility - **IMPLEMENTED**
-10. ✅ `SUMMARY_DEVICE` - Hardware flexibility - **IMPLEMENTED**
+1. ✅ `WORKERS` - Performance tuning - **IMPLEMENTED**
+2. ✅ `TRANSCRIPTION_PARALLELISM` - OpenAI provider tuning - **IMPLEMENTED**
+3. ✅ `PROCESSING_PARALLELISM` - Performance tuning - **IMPLEMENTED**
+4. ✅ `SUMMARY_BATCH_SIZE` - Memory management - **IMPLEMENTED**
+5. ✅ `SUMMARY_CHUNK_PARALLELISM` - CPU tuning - **IMPLEMENTED**
+6. ✅ `TIMEOUT` - Network flexibility - **IMPLEMENTED**
+7. ✅ `SUMMARY_DEVICE` - Hardware flexibility - **IMPLEMENTED**
 
 ### Phase 3: Low Priority (Convenience) - ⚠️ NOT IMPLEMENTED (As Recommended)
 
-11. ⚠️ `DRY_RUN` - Testing convenience - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
-12. ⚠️ `SKIP_EXISTING` - Resumption convenience - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
-13. ⚠️ `CLEAN_OUTPUT` - Safety control - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
+1. ⚠️ `DRY_RUN` - Testing convenience - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
+2. ⚠️ `SKIP_EXISTING` - Resumption convenience - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
+3. ⚠️ `CLEAN_OUTPUT` - Safety control - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
 
 **Note**: Phase 3 variables were marked as "maybe" in the original analysis and were intentionally not implemented, as they are better suited for config files or CLI flags.
 

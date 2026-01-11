@@ -35,6 +35,10 @@ spec.loader.exec_module(parent_conftest)
 
 create_test_config = parent_conftest.create_test_config
 
+from podcast_scraper.exceptions import (
+    ProviderNotInitializedError,
+    ProviderRuntimeError,
+)
 from podcast_scraper.summarization.factory import create_summarization_provider  # noqa: E402
 
 
@@ -196,7 +200,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         """Test summarize raises error when not initialized."""
         provider = create_summarization_provider(self.cfg)
 
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaises(ProviderNotInitializedError) as context:
             provider.summarize("Text")
 
         self.assertIn("not initialized", str(context.exception))
@@ -254,7 +258,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         provider = create_summarization_provider(self.cfg)
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.summarize("Text")
 
         self.assertIn("Summarization failed", str(context.exception))

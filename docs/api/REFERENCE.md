@@ -21,7 +21,7 @@ Complete reference documentation for the `podcast_scraper` public API.
 
 ## Core API
 
-### `run_pipeline`
+### run_pipeline {: #run_pipeline }
 
 Execute the main podcast scraping pipeline.
 
@@ -68,20 +68,20 @@ config = Config(
 count, summary = run_pipeline(config)
 print(f"Processed {count} episodes")
 print(summary)
-```yaml
+```
 
 - [Config](#config) - Configuration options
-- [service.run](#servicerun) - Service API with structured results
+- [service.run](#service_run) - Service API with structured results
 
 ---
 
-### `Config`
+### Config {: #config }
 
 Configuration model for podcast scraping pipeline.
 
 ```python
 class Config(BaseModel)
-```python
+```
 
 **Fields:**
 
@@ -187,20 +187,20 @@ config = Config(
     log_level="DEBUG",
     log_file="scraper.log",
 )
-```python
+```
 
 - [load_config_file](#load_config_file) - Load configuration from file
-- [Examples](../../examples/) - Example configuration files
+- [Configuration Examples](CONFIGURATION.md) - Example configuration files
 
 ---
 
-## `load_config_file`
+## load_config_file {: #load_config_file }
 
 Load configuration from a JSON or YAML file.
 
 ```python
 def load_config_file(path: str) -> Dict[str, Any]
-```python
+```
 
 **Note:** This function returns a dictionary, not a `Config` object. To create a `Config` object from the loaded dictionary, pass it to the `Config` constructor.
 
@@ -271,7 +271,7 @@ log_level: "INFO"
 ```
 
 - [Config](#config) - Configuration model
-- [Examples](../../examples/) - Example configuration files
+- [Configuration Examples](CONFIGURATION.md) - Example configuration files
 
 ---
 
@@ -279,19 +279,17 @@ log_level: "INFO"
 
 The service API provides a programmatic interface optimized for non-interactive use, such as running as a daemon or service.
 
-### `ServiceResult`
+### ServiceResult {: #serviceresult }
 
 Result of a service run.
 
 ```python
-
 @dataclass
 class ServiceResult:
     episodes_processed: int
     summary: str
     success: bool = True
     error: Optional[str] = None
-
 ```
 
 - `episodes_processed` (`int`): Number of episodes processed (transcripts saved/planned).
@@ -302,7 +300,6 @@ class ServiceResult:
 **Example:**
 
 ```python
-
 from podcast_scraper import service
 
 result = service.run_from_config_file("config.yaml")
@@ -313,19 +310,18 @@ if result.success:
 else:
     print(f"Error: {result.error}")
     sys.exit(1)
+```
 
-```yaml
 ---
 
-### `service.run`
+### service.run {: #service_run }
 
 Run the pipeline with a Config object.
 
 ```python
-
 def run(cfg: Config) -> ServiceResult
+```
 
-```python
 **Parameters:**
 
 - `cfg` (`Config`): Configuration object (can be created from `Config()` or `Config(**load_config_file())`).
@@ -337,7 +333,6 @@ def run(cfg: Config) -> ServiceResult
 **Example:**
 
 ```python
-
 from podcast_scraper import service, config
 
 # Create config programmatically
@@ -353,20 +348,18 @@ if result.success:
     print(f"Summary: {result.summary}")
 else:
     print(f"Error: {result.error}")
+```
 
-```yaml
 - [Config](#config) - Configuration options
 
 ---
 
-## `service.run_from_config_file`
+## service.run_from_config_file {: #service_run_from_config_file }
 
 Run the pipeline from a configuration file.
 
 ```python
-
 def run_from_config_file(config_path: str | Path) -> ServiceResult
-
 ```
 
 - `config_path` (`str | Path`): Path to configuration file (JSON or YAML).
@@ -383,7 +376,6 @@ def run_from_config_file(config_path: str | Path) -> ServiceResult
 **Example:**
 
 ```python
-
 from podcast_scraper import service
 
 # Run from config file
@@ -395,7 +387,6 @@ if not result.success:
     sys.exit(1)
 
 print(f"Success: {result.summary}")
-
 ```
 
 ```bash
@@ -406,23 +397,22 @@ python -m podcast_scraper.service --config config.yaml
 ```
 
 - [load_config_file](#load_config_file) - Load configuration from file
-- [Examples](../../examples/) - Supervisor and systemd configuration examples
+- [Service Examples](SERVICE.md) - Supervisor and systemd configuration examples
 
 ---
 
 ## Version Information
 
-### `__api_version__`
+### **api_version** {: #api_version }
 
 API version string following semantic versioning.
 
 ```python
-
 import podcast_scraper
 
 api_version = podcast_scraper.__api_version__  # "2.3.0"
+```
 
-```javascript
 - **Major version (X.y.z)**: Breaking API changes (function signatures, return types, required parameters)
 - **Minor version (x.Y.z)**: New features, backward compatible (new functions, optional parameters)
 - **Patch version (x.y.Z)**: Bug fixes, backward compatible (no API changes)
@@ -430,7 +420,6 @@ api_version = podcast_scraper.__api_version__  # "2.3.0"
 **Example:**
 
 ```python
-
 import podcast_scraper
 
 # Check API version
@@ -445,8 +434,8 @@ else:
     # Handle older versions
 
     pass
+```
 
-```yaml
 - [API Migration Guide](MIGRATION_GUIDE.md) - Migration between major versions
 
 ---
@@ -551,5 +540,5 @@ def process_podcast(rss_url: str) -> Tuple[int, str]:
 ## See Also
 
 - [Architecture](../ARCHITECTURE.md) - System architecture overview
-- [Configuration Examples](../../examples/) - Example configuration files
-- [Service Examples](../../examples/) - Supervisor and systemd configurations
+- [Configuration Examples](CONFIGURATION.md) - Example configuration files
+- [Service Examples](SERVICE.md) - Supervisor and systemd configurations

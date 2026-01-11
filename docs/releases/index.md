@@ -4,12 +4,15 @@ All releases of the Podcast Scraper project.
 
 ## Latest Release
 
-- **[v2.3.2](RELEASE_v2.3.2.md)** — Security tests & thread-safety fixes
+- **[v2.5.0](RELEASE_v2.5.0.md)** — [Upcoming Release]
+- **[v2.4.0](RELEASE_v2.4.0.md)** — Provider ecosystem & production readiness
 
 ## All Releases
 
 | Version | Highlights |
 | --------- | ------------ |
+| [v2.5.0](RELEASE_v2.5.0.md) | [Upcoming: Hybrid summarization, audio preprocessing] |
+| [v2.4.0](RELEASE_v2.4.0.md) | Multi-provider ecosystem (8 providers), production defaults, cache management |
 | [v2.3.2](RELEASE_v2.3.2.md) | Security tests, thread-safety fixes |
 | [v2.3.1](RELEASE_v2.3.1.md) | Security fixes, code quality improvements |
 | [v2.3.0](RELEASE_v2.3.0.md) | Episode summarization, public API, cleaned transcripts |

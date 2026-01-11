@@ -54,6 +54,39 @@ def _is_test_environment() -> bool:
     return False
 
 
+def _get_default_openai_transcription_model() -> str:
+    """Get default OpenAI transcription model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+    return PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+
+
+def _get_default_openai_speaker_model() -> str:
+    """Get default OpenAI speaker detection model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return TEST_DEFAULT_OPENAI_SPEAKER_MODEL
+    return PROD_DEFAULT_OPENAI_SPEAKER_MODEL
+
+
+def _get_default_openai_summary_model() -> str:
+    """Get default OpenAI summarization model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return TEST_DEFAULT_OPENAI_SUMMARY_MODEL
+    return PROD_DEFAULT_OPENAI_SUMMARY_MODEL
+
+
 DEFAULT_NER_MODEL = "en_core_web_sm"
 DEFAULT_MAX_DETECTED_NAMES = 4
 MIN_NUM_SPEAKERS = 1
@@ -96,7 +129,7 @@ TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
 TEST_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
 TEST_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
 PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
-PROD_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o"  # Higher quality for production
+PROD_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cost-effective for production
 PROD_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o"  # Higher quality for production
 VALID_WHISPER_MODELS = (
     "tiny",
@@ -348,19 +381,19 @@ class Config(BaseModel):
         "Used for E2E testing with mock servers.",
     )
     openai_transcription_model: str = Field(
-        default="whisper-1",
+        default_factory=_get_default_openai_transcription_model,
         alias="openai_transcription_model",
-        description="OpenAI Whisper API model version (default: 'whisper-1')",
+        description="OpenAI Whisper API model version (default: environment-based)",
     )
     openai_speaker_model: str = Field(
-        default="gpt-4o-mini",
+        default_factory=_get_default_openai_speaker_model,
         alias="openai_speaker_model",
-        description="OpenAI model for speaker detection (default: 'gpt-4o-mini')",
+        description="OpenAI model for speaker detection (default: environment-based)",
     )
     openai_summary_model: str = Field(
-        default="gpt-4o-mini",
+        default_factory=_get_default_openai_summary_model,
         alias="openai_summary_model",
-        description="OpenAI model for summarization (default: 'gpt-4o-mini')",
+        description="OpenAI model for summarization (default: environment-based)",
     )
     openai_temperature: float = Field(
         default=0.3,

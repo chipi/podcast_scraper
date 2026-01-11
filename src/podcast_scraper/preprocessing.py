@@ -44,13 +44,15 @@ SUMMARIZATION_ARTIFACT_PATTERNS = [
 # can match across the entire content!
 GARBAGE_LINE_PATTERNS = [
     r"^back to (?:the )?(?:home|main|top|previous) page",  # Specific navigation
+    r"^back to top$",  # Standalone "back to top"
+    r"^article continues",  # "Article continues below" etc.
     r"^home\s*page$",  # Standalone "home page"
     r"^click here\b",
     r"^sign up\b",
     r"^log in\b",
     r"^subscribe now\b",
     r"^share this\b",
-    r"^read more$",
+    r"^read more\b",
     r"^learn more$",
     r"^view all$",
     r"^see all$",

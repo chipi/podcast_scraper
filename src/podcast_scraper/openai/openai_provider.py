@@ -197,7 +197,12 @@ class OpenAIProvider:
 
         except Exception as exc:
             logger.error("OpenAI Whisper API error: %s", exc)
-            raise ValueError(f"OpenAI transcription failed: {exc}") from exc
+            from podcast_scraper.exceptions import ProviderRuntimeError
+
+            raise ProviderRuntimeError(
+                message=f"OpenAI transcription failed: {exc}",
+                provider="OpenAIProvider/Transcription",
+            ) from exc
 
     def transcribe_with_segments(
         self, audio_path: str, language: str | None = None

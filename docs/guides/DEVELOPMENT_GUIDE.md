@@ -14,6 +14,7 @@ For comprehensive testing information, see the dedicated testing documentation:
 
 - **[Testing Strategy](../TESTING_STRATEGY.md)** - Testing philosophy, test pyramid, decision criteria
 - **[Testing Guide](TESTING_GUIDE.md)** - Quick reference, test execution commands
+- **[Quality Evaluation](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md#evaluation-scripts-eval)** — ROUGE scoring and cleaning quality evaluation scripts
 - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test guidelines
 - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models
@@ -30,11 +31,15 @@ For comprehensive testing information, see the dedicated testing documentation:
 ### Running Tests
 
 ```bash
-make test-unit            # Unit tests (parallel)
-make test-integration     # Integration tests (parallel, reruns)
-make test-e2e             # E2E tests (serial first, then parallel)
-make test                 # All tests
-make test-fast            # Unit + critical path only
+make check-unit-imports        # Verify modules can import without ML dependencies
+make deps-analyze              # Analyze module dependencies (with report)
+make deps-check                # Check dependencies (exits on error)
+make analyze-test-memory       # Analyze test memory usage (default: test-unit)
+make test-unit                 # Unit tests (parallel)
+make test-integration          # Integration tests (parallel, reruns)
+make test-e2e                  # E2E tests (serial first, then parallel)
+make test                      # All tests
+make test-fast                 # Unit + critical path only
 ```python
 
 ### ML Dependencies in Tests
@@ -54,7 +59,128 @@ Modules importing ML dependencies at **module level** will fail unit tests in CI
 
 1. **Use lazy imports**: Import inside functions, not at module level
 
-1. **Verify locally**: Run `make test-unit` before pushing
+1. **Verify imports work without ML deps**: Run `make check-unit-imports` before pushing
+   - This verifies modules can be imported without ML dependencies installed
+   - Runs automatically in CI before unit tests
+   - Use when: adding new modules, refactoring imports, or debugging CI failures
+
+1. **Run unit tests**: Run `make test-unit` before pushing
+
+### Module Dependency Analysis
+
+Analyze module dependencies to detect architectural issues like circular imports and excessive coupling.
+
+**When to use:**
+
+- After refactoring modules or moving code between modules
+- When adding new imports or dependencies
+- Before major refactoring to understand current architecture
+- When debugging circular import errors
+- Before committing if you changed module structure
+
+**Usage:**
+
+```bash
+make deps-analyze    # Full analysis with JSON report (reports/deps-analysis.json)
+make deps-check      # Quick check (exits with error if issues found, CI-friendly)
+```
+
+**What it checks:**
+
+- **Circular imports**: Detects cycles in the import graph (should be 0)
+- **Import thresholds**: Flags modules with >15 imports (suggests refactoring)
+- **Import patterns**: Analyzes import structure across all modules
+
+**Output:**
+
+- Console output with issues and summary
+- JSON report (with `--report` flag) saved to `reports/deps-analysis.json`
+- Visual dependency graphs (generated separately via `make deps-graph`)
+
+**Runs automatically in CI:** In nightly workflow (`nightly-deps-analysis` job) with 90-day artifact retention for tracking architecture changes over time.
+
+**See also:** [Module Dependency Analysis](../ARCHITECTURE.md#module-dependency-analysis) for detailed documentation.
+
+### Test Memory Analysis
+
+Analyze memory usage during test execution to identify memory leaks, excessive resource usage, and optimization opportunities.
+
+**When to use:**
+
+- Debugging memory issues (tests crash with OOM errors, system becomes unresponsive)
+- Optimizing test performance (finding optimal worker count, understanding resource usage)
+- Investigating memory leaks (memory growth over time, system memory decreases after tests)
+- Capacity planning (determining required RAM for CI, understanding resource needs)
+- Before major changes (after adding ML model tests, changing parallelism settings)
+
+**Usage:**
+
+```bash
+# Analyze default test target (test-unit)
+make analyze-test-memory
+
+# Analyze specific test target
+make analyze-test-memory TARGET=test-unit
+make analyze-test-memory TARGET=test-integration
+make analyze-test-memory TARGET=test-e2e
+
+# Analyze with limited workers (to test memory impact)
+make analyze-test-memory TARGET=test-integration WORKERS=4
+```
+
+**What it monitors:**
+
+- **Peak memory usage**: Maximum memory consumed during test execution
+- **Average memory usage**: Average memory over test duration
+- **Worker processes**: Number of parallel test workers spawned
+- **Memory growth**: Detects potential memory leaks (memory increasing over time)
+- **System resources**: CPU cores, total/available memory (before/after)
+
+**Output:**
+
+- Memory usage statistics (peak, average, worker count)
+- Memory usage over time (sample points every 2 seconds)
+- Recommendations (warnings if thresholds exceeded)
+- System resource changes (before/after comparison)
+
+**Recommendations provided:**
+
+- Warns if peak memory > 80% of total RAM
+- Warns if worker count > CPU cores
+- Warns if peak memory > 8 GB
+- Suggests optimal worker count (CPU cores - 2)
+- Detects memory growth (potential leaks)
+
+**Dependencies:** Requires `psutil` package (`pip install psutil`)
+
+**See also:** [Troubleshooting Guide](TROUBLESHOOTING.md#memory-issues-with-ml-models) for memory issue debugging.
+
+### Quality Evaluation Scripts
+
+The project includes specialized scripts for evaluating the quality of ML-driven features (cleaning and summarization). These are distinct from traditional tests as they measure **accuracy** and **effectiveness** rather than just correctness.
+
+**When to use:**
+
+- After modifying cleaning logic in `preprocessing.py`
+- When testing new summarization models or chunking strategies
+- Before major releases to ensure no regression in output quality
+
+**Scripts:**
+
+- **`eval_cleaning.py`**: Measures effectiveness of sponsor/outro removal and character/word reduction.
+- **`eval_summaries.py`**: Calculates ROUGE scores against human-written "golden" references.
+
+**Usage:**
+
+```bash
+# Evaluate cleaning effectiveness
+python scripts/eval/eval_cleaning.py
+
+# Evaluate summarization quality (requires rouge-score)
+python scripts/eval/eval_summaries.py
+```
+
+For detailed documentation on options and output formats, see the **[Scripts README](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md#evaluation-scripts-eval)**.
 
 ## Environment Setup
 
@@ -211,10 +337,10 @@ make backup-cache-cleanup
 make restore-cache
 
 # Restore specific backup
-python scripts/restore_cache.py --backup cache_backup_20250108-120000.tar.gz
+python scripts/cache/restore_cache.py --backup cache_backup_20250108-120000.tar.gz
 
 # Force overwrite existing .cache
-python scripts/restore_cache.py --backup 20250108 --force
+python scripts/cache/restore_cache.py --backup 20250108 --force
 ```
 
 **What gets backed up:**
@@ -225,8 +351,8 @@ python scripts/restore_cache.py --backup 20250108 --force
 
 **See also:**
 
-- `scripts/backup_cache.py` - Backup script documentation
-- `scripts/restore_cache.py` - Restore script documentation
+- `scripts/cache/backup_cache.py` - Backup script documentation
+- `scripts/cache/restore_cache.py` - Restore script documentation
 - `.cache/README.md` - Cache directory documentation
 
 #### Cleaning Cache
@@ -796,7 +922,7 @@ nav:
 
 ## CI/CD Integration
 
-> **See also:** [`CI_CD.md`](../CI_CD.md) for complete CI/CD pipeline documentation with visualizations.
+> **See also:** [CI/CD Documentation](../ci/index.md) for complete CI/CD pipeline documentation with visualizations.
 
 ### What Runs in CI
 
@@ -889,7 +1015,7 @@ If CI fails on your PR:
 | Type errors | Add missing type hints |
 | Test failures | Fix or update tests |
 | Coverage drop | Add tests for new code |
-| Markdown linting | Run `python scripts/fix_markdown.py` or `markdownlint --fix` |
+| Markdown linting | Run `python scripts/tools/fix_markdown.py` or `markdownlint --fix` |
 
 **Prevent failures with pre-commit hooks:**
 
@@ -1154,4 +1280,4 @@ For detailed information about third-party dependencies, see the
 ## Summarization Implementation
 
 For detailed information about the summarization system, see the
-[Summarization Guide](SUMMARIZATION_GUIDE.md).
+[ML Provider Reference](ML_PROVIDER_REFERENCE.md).

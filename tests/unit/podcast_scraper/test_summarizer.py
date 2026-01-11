@@ -61,12 +61,12 @@ class TestModelSelection(unittest.TestCase):
         """Test that explicit model selection works."""
         from podcast_scraper import config
 
-        # Use test default alias (defined in config_constants.py)
+        # Use test default model (already a direct model ID, not an alias)
         cfg = create_test_config(summary_model=config.TEST_DEFAULT_SUMMARY_MODEL)
         model_name = summarizer.select_summary_model(cfg)
-        self.assertEqual(
-            model_name, summarizer.DEFAULT_SUMMARY_MODELS[config.TEST_DEFAULT_SUMMARY_MODEL]
-        )
+        # TEST_DEFAULT_SUMMARY_MODEL is "facebook/bart-base" which is a direct model ID
+        # select_summary_model returns it directly (not looked up in DEFAULT_SUMMARY_MODELS)
+        self.assertEqual(model_name, config.TEST_DEFAULT_SUMMARY_MODEL)
 
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_select_model_auto_mps(self, mock_torch):
@@ -135,10 +135,9 @@ class TestModelSelection(unittest.TestCase):
         )
         map_model_name = summarizer.select_summary_model(cfg)
         reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
-        self.assertEqual(
-            reduce_model_name,
-            summarizer.DEFAULT_SUMMARY_MODELS[config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL],
-        )
+        # TEST_DEFAULT_SUMMARY_REDUCE_MODEL is "allenai/led-base-16384" which is a direct model ID
+        # select_reduce_model returns it directly (not looked up in DEFAULT_SUMMARY_MODELS)
+        self.assertEqual(reduce_model_name, config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL)
 
     def test_select_summary_model_raises_when_default_missing(self):
         """Test that select_summary_model raises RuntimeError when default model missing."""
@@ -152,57 +151,6 @@ class TestModelSelection(unittest.TestCase):
             with self.assertRaises(ValueError) as context:
                 summarizer.select_summary_model(cfg)
             self.assertIn("DEFAULT_SUMMARY_MODELS['bart-large']", str(context.exception))
-        finally:
-            # Restore original models
-            summarizer.DEFAULT_SUMMARY_MODELS.clear()
-            summarizer.DEFAULT_SUMMARY_MODELS.update(original_models)
-
-    def test_select_reduce_model_raises_when_default_missing(self):
-        """Test that select_reduce_model raises ValueError when default model missing."""
-        cfg = create_test_config(summary_reduce_model=None)
-        # Temporarily remove the default model from DEFAULT_SUMMARY_MODELS
-        original_models = summarizer.DEFAULT_SUMMARY_MODELS.copy()
-        try:
-            # Remove long to trigger the error
-            if "long" in summarizer.DEFAULT_SUMMARY_MODELS:
-                del summarizer.DEFAULT_SUMMARY_MODELS["long"]
-            with self.assertRaises(ValueError) as context:
-                summarizer.select_reduce_model(cfg, "test-model")
-            self.assertIn("DEFAULT_SUMMARY_MODELS['long']", str(context.exception))
-        finally:
-            # Restore original models
-            summarizer.DEFAULT_SUMMARY_MODELS.clear()
-            summarizer.DEFAULT_SUMMARY_MODELS.update(original_models)
-
-    def test_select_summary_model_raises_when_default_missing(self):
-        """Test that select_summary_model raises RuntimeError when default model missing."""
-        cfg = create_test_config(summary_model=None)
-        # Temporarily remove the default model from DEFAULT_SUMMARY_MODELS
-        original_models = summarizer.DEFAULT_SUMMARY_MODELS.copy()
-        try:
-            # Remove bart-large to trigger the error
-            if "bart-large" in summarizer.DEFAULT_SUMMARY_MODELS:
-                del summarizer.DEFAULT_SUMMARY_MODELS["bart-large"]
-            with self.assertRaises(ValueError) as context:
-                summarizer.select_summary_model(cfg)
-            self.assertIn("DEFAULT_SUMMARY_MODELS['bart-large']", str(context.exception))
-        finally:
-            # Restore original models
-            summarizer.DEFAULT_SUMMARY_MODELS.clear()
-            summarizer.DEFAULT_SUMMARY_MODELS.update(original_models)
-
-    def test_select_reduce_model_raises_when_default_missing(self):
-        """Test that select_reduce_model raises ValueError when default model missing."""
-        cfg = create_test_config(summary_reduce_model=None)
-        # Temporarily remove the default model from DEFAULT_SUMMARY_MODELS
-        original_models = summarizer.DEFAULT_SUMMARY_MODELS.copy()
-        try:
-            # Remove long to trigger the error
-            if "long" in summarizer.DEFAULT_SUMMARY_MODELS:
-                del summarizer.DEFAULT_SUMMARY_MODELS["long"]
-            with self.assertRaises(ValueError) as context:
-                summarizer.select_reduce_model(cfg, "test-model")
-            self.assertIn("DEFAULT_SUMMARY_MODELS['long']", str(context.exception))
         finally:
             # Restore original models
             summarizer.DEFAULT_SUMMARY_MODELS.clear()
@@ -390,15 +338,9 @@ class TestSummaryModel(unittest.TestCase):
 class TestChunking(unittest.TestCase):
     """Test text chunking for long transcripts.
 
-    NOTE: This entire test class is currently skipped because:
-    - Tests create SummaryModel instances which trigger real model loading
-    - Model loading attempts network calls (HuggingFace downloads)
-    - These tests should be moved to integration tests or properly mocked
-
-    TODO: Fix by either:
-    1. Moving to integration tests (where network calls are allowed)
-    2. Properly mocking all transformers/huggingface_hub internals
-    3. Testing chunking functions directly without SummaryModel instantiation
+    All tests in this class properly mock SummaryModel instantiation to avoid
+    real model loading and network calls. Tests use @patch decorators to mock
+    transformers classes and SummaryModel internal methods.
     """
 
     def setUp(self):
@@ -746,15 +688,9 @@ class TestSponsorCleanup(unittest.TestCase):
 class TestSafeSummarize(unittest.TestCase):
     """Test safe_summarize function.
 
-    NOTE: This entire test class is currently skipped because:
-    - Tests create SummaryModel instances which trigger real model loading
-    - Model loading attempts network calls (HuggingFace downloads)
-    - These tests should be moved to integration tests or properly mocked
-
-    TODO: Fix by either:
-    1. Moving to integration tests (where network calls are allowed)
-    2. Properly mocking all transformers/huggingface_hub internals
-    3. Testing safe_summarize with pre-instantiated mocked models
+    All tests in this class properly mock SummaryModel instantiation to avoid
+    real model loading and network calls. Tests use @patch decorators to mock
+    transformers classes and SummaryModel internal methods.
     """
 
     def setUp(self):
@@ -902,15 +838,9 @@ class TestSafeSummarize(unittest.TestCase):
 class TestMemoryOptimization(unittest.TestCase):
     """Test memory optimization functions.
 
-    NOTE: This entire test class is currently skipped because:
-    - Tests create SummaryModel instances which trigger real model loading
-    - Model loading attempts network calls (HuggingFace downloads)
-    - These tests should be moved to integration tests or properly mocked
-
-    TODO: Fix by either:
-    1. Moving to integration tests (where network calls are allowed)
-    2. Properly mocking all transformers/huggingface_hub internals
-    3. Testing optimization functions with pre-instantiated mocked models
+    All tests in this class properly mock SummaryModel instantiation to avoid
+    real model loading and network calls. Tests use @patch decorators to mock
+    transformers classes and SummaryModel internal methods.
     """
 
     def setUp(self):

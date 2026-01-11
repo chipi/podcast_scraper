@@ -4,6 +4,8 @@
 - **Authors**: GPT-5 Codex
 - **Stakeholders**: Maintainers, Whisper integration owners, CLI users
 - **Related PRDs**: `docs/prd/PRD-008-speaker-name-detection.md` (primary), `docs/prd/PRD-001-transcript-pipeline.md`, `docs/prd/PRD-002-whisper-fallback.md`
+- **Related ADRs**:
+  - [ADR-006: Context-Aware Model Selection](../adr/ADR-006-context-aware-model-selection.md)
 
 ## Abstract
 
@@ -39,10 +41,10 @@ Automating speaker name extraction improves UX, increases transcript quality, an
      - `cfg.ner_model` optional override; default model derived from language (e.g., `"en_core_web_sm"`).
 ```
 
-   - CLI gains `--language` (reused by Whisper) and `--ner-model` flags; config supports `language`, `ner_model`, and `auto_speakers` toggle (default `true`).
-   - Maintain compatibility with existing Whisper language handling; ensure screenplay formatter respects detected language.
+- CLI gains `--language` (reused by Whisper) and `--ner-model` flags; config supports `language`, `ner_model`, and `auto_speakers` toggle (default `true`).
+- Maintain compatibility with existing Whisper language handling; ensure screenplay formatter respects detected language.
 
-2. **Whisper Model Selection Based on Language**
+1. **Whisper Model Selection Based on Language**
    - Per [Whisper documentation](https://github.com/openai/whisper), English-only models (`.en` variants) exist for `tiny`, `base`, `small`, and `medium` sizes and perform better for English-only applications, especially for `tiny.en` and `base.en`.
    - **Model selection logic**:
 
@@ -55,14 +57,14 @@ Automating speaker name extraction improves UX, increases transcript quality, an
      - This selection happens transparently in `whisper.load_whisper_model()`; users can still explicitly request `.en` models via `--whisper-model base.en` if desired.
 ```
 
-   - **Language parameter propagation**:
+- **Language parameter propagation**:
 
 ```text
      - The `cfg.language` value is passed to `whisper_model.transcribe()` as the `language` parameter, enabling proper language-specific transcription and improving accuracy for non-English content.
      - Default behavior (when language not specified) remains English (`"en"`) for backwards compatibility.
 ```
 
-3. **Extraction Pipeline**
+1. **Extraction Pipeline**
    - **Host Detection** (feed-level only):
 
 ```python
@@ -149,8 +151,8 @@ Automating speaker name extraction improves UX, increases transcript quality, an
     - Validates: must be at least 2 characters and contain at least one letter
 ```
 
-  - **Deduplication**: Names are deduplicated case-insensitively to avoid duplicates.
-  - **Pattern-based Fallback**: When NER fails (e.g., spaCy misclassifies names or fails on long titles), a pattern-based fallback:
+- **Deduplication**: Names are deduplicated case-insensitively to avoid duplicates.
+- **Pattern-based Fallback**: When NER fails (e.g., spaCy misclassifies names or fails on long titles), a pattern-based fallback:
 
 ```text
     - Splits title on common separators (`|`, `—`, `–`, `-`)

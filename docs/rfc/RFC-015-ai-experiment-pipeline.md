@@ -3,7 +3,10 @@
 - **Status**: 🔴 **Not Started** - Waiting for RFC-016 Phase 2 (factory enhancements)
 - **Authors**:
 - **Stakeholders**: Maintainers, researchers tuning AI models/prompts, developers evaluating model performance
-- **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`, `docs/prd/PRD-007-ai-experiment-pipeline.md`
+- **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`, `docs/prd/PRD-007-ai-quality-experiment-platform.md`
+- **Related ADRs**:
+  - [ADR-024: Standalone Experiment Configuration](../adr/ADR-024-standalone-experiment-configuration.md)
+  - [ADR-025: Codified Comparison Baselines](../adr/ADR-025-codified-comparison-baselines.md)
 - **Related RFCs**:
   - `docs/rfc/RFC-012-episode-summarization.md`
   - `docs/rfc/RFC-013-openai-provider-implementation.md`
@@ -20,11 +23,13 @@
 ### Prerequisites
 
 **RFC-016 Phase 2 (Critical - 3-5 days):**
+
 - ⏳ Enhance factories to accept experiment-style params dict
 - ⏳ Required before RFC-015 Phase 1 can start
 - See [GitHub Issue #303](https://github.com/chipi/podcast_scraper/issues/303)
 
 **RFC-016 Phase 3 (Important - 1 week):**
+
 - ⏳ Extract evaluation infrastructure into reusable module
 - ⏳ Required before RFC-015 Phase 2 can start
 - Can be done in parallel with RFC-015 Phase 1
@@ -32,21 +37,25 @@
 ### Planned Implementation (6 Weeks After Prerequisites)
 
 **Phase 1: Experiment Runner** (Weeks 1-2)
+
 - Create experiment config schema
 - Build experiment runner using RFC-016 providers
 - Add `make experiment` command
 
 **Phase 2: Evaluation Metrics** (Weeks 3-4)
+
 - Integrate RFC-016 evaluation module
 - Add automated metric calculation
 - Generate human-readable reports
 
 **Phase 3: Storage & Comparison** (Week 5)
+
 - Experiment results storage
 - Historical tracking
 - Comparison tools
 
 **Phase 4: CI Integration** (Week 6)
+
 - Smoke tests on PRs
 - Nightly comprehensive experiments
 - Regression detection
@@ -1750,7 +1759,7 @@ Refactor `eval_summaries.py` to expose reusable functions:
 
 ```python
 
-# scripts/eval_summaries.py (refactored)
+# scripts/eval/eval_summaries.py (refactored)
 
 """
 Evaluate summarization quality using ROUGE metrics.
@@ -3379,7 +3388,7 @@ Based on these improvements, the recommended implementation order is:
 - `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md`: Benchmarking framework (complementary)
 - `docs/rfc/RFC-017-prompt-management.md`: Prompt management and loading implementation
 - `docs/EVALUATION_STRATEGY.md`: Evaluation strategy (to be created)
-- `scripts/eval_summaries.py`: Existing summarization evaluation script
-- `scripts/eval_cleaning.py`: Existing cleaning evaluation script
+- `scripts/eval/eval_summaries.py`: Existing summarization evaluation script
+- `scripts/eval/eval_cleaning.py`: Existing cleaning evaluation script
 
 ````

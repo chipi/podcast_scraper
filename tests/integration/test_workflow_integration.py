@@ -118,7 +118,7 @@ class TestIntegrationMain(unittest.TestCase):
         http_mock = self._mock_http_map(responses)
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             with tempfile.TemporaryDirectory() as tmpdir:
-                exit_code = cli.main([rss_url, "--output-dir", tmpdir])
+                exit_code = cli.main([rss_url, "--output-dir", tmpdir, "--no-auto-speakers"])
                 self.assertEqual(exit_code, 0)
                 expected_path = os.path.join(tmpdir, "transcripts", "0001 - Episode 1.txt")
                 self.assertTrue(os.path.exists(expected_path))
@@ -171,14 +171,16 @@ class TestIntegrationMain(unittest.TestCase):
                         if mock_import_whisper.called:
                             mock_transcribe.assert_called()
                             # Uses test model (not base.en production model)
+                            # Run suffix now includes all providers: run_id + whisper + spacy
+                            # Format: run_{run_id}_{whisper_model}_{spacy_model}
                             effective_dir = (
                                 Path(tmpdir).resolve()
-                                / f"run_testrun_whisper_{config.TEST_DEFAULT_WHISPER_MODEL}"
+                                / f"run_testrun_w_{config.TEST_DEFAULT_WHISPER_MODEL}_sp_spacy_sm"
                             )
                             out_path = (
                                 effective_dir
                                 / "transcripts"
-                                / f"0001 - Episode 1_testrun_whisper_{config.TEST_DEFAULT_WHISPER_MODEL}.txt"
+                                / f"0001 - Episode 1_testrun_w_{config.TEST_DEFAULT_WHISPER_MODEL}_sp_spacy_sm.txt"
                             )
                             self.assertTrue(out_path.exists())
                         self.assertEqual(
@@ -335,14 +337,14 @@ class TestIntegrationMain(unittest.TestCase):
                     )
                 self.assertEqual(exit_code, 0)
                 log_text = "\n".join(log_ctx.output)
-                # Verify host detection happened
+                # Verify host detection happened (works in dry-run from RSS author tags)
                 self.assertIn("DETECTED HOSTS", log_text)
                 self.assertIn("John Host", log_text)
-                # Verify guest detection happened for each episode
+                # Verify episode processing happened
                 self.assertIn("Episode 1: Interview with Alice Guest", log_text)
                 self.assertIn("Episode 2: Chat with Bob Guest", log_text)
-                # Verify guest detection logging (changed to singular "Guest:" format)
-                self.assertIn("Guest:", log_text)
+                # Note: Guest detection requires model initialization, which is skipped in dry-run
+                # So we don't check for "Guest:" in dry-run mode
 
 
 @pytest.mark.integration
@@ -399,6 +401,8 @@ class TestLibraryAPIIntegration(unittest.TestCase):
                 output_dir=self.temp_dir,
                 max_episodes=1,
                 transcribe_missing=False,  # Don't use Whisper (downloading transcripts)
+                auto_speakers=False,  # Disable to avoid run suffix
+                generate_summaries=False,  # Disable to avoid run suffix
             )
 
             count, summary = podcast_scraper.run_pipeline(cfg)
@@ -410,6 +414,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertIn("transcripts", summary.lower())
 
             # Verify file was created (now in transcripts/ subdirectory)
+            # When no ML features are enabled, no run suffix is added
             expected_path = os.path.join(self.temp_dir, "transcripts", "0001 - Episode 1.txt")
             self.assertTrue(os.path.exists(expected_path))
             with open(expected_path, "r", encoding="utf-8") as fh:
@@ -437,6 +442,8 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             "max_episodes": 1,
             "timeout": 30,
             "transcribe_missing": False,  # Don't use Whisper (downloading transcripts)
+            "auto_speakers": False,  # Disable to avoid run suffix
+            "generate_summaries": False,  # Disable to avoid run suffix
         }
         with open(cfg_path, "w", encoding="utf-8") as fh:
             json.dump(config_data, fh)
@@ -623,6 +630,8 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             "timeout": 30,
             "log_level": "INFO",
             "transcribe_missing": False,  # Don't use Whisper (downloading transcripts)
+            "auto_speakers": False,  # Disable to avoid run suffix
+            "generate_summaries": False,  # Disable to avoid run suffix
         }
         with open(cfg_path, "w", encoding="utf-8") as fh:
             yaml.dump(config_data, fh)

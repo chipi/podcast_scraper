@@ -33,8 +33,10 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-036](RFC-036-groq-provider-implementation.md) | Groq Provider Implementation | PRD-013 | Technical design for Groq (ultra-fast) |
 | [RFC-037](RFC-037-ollama-provider-implementation.md) | Ollama Provider Implementation | PRD-014 | Technical design for Ollama (local/offline) |
 | [RFC-038](RFC-038-continuous-review-tooling.md) | Continuous Review Tooling | #45 | Dependabot, pydeps, pre-release checklist |
-| [RFC-039](RFC-039-development-workflow-worktrees-ci.md) | Development Workflow | - | Git worktrees, Cursor integration, CI evolution |
 | [RFC-040](RFC-040-audio-preprocessing-pipeline.md) | Audio Preprocessing Pipeline | - | Optional audio preprocessing (VAD, normalization) before transcription |
+| [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | PRD-007 | Repeatable, objective ML benchmarking system |
+| [RFC-042](RFC-042-hybrid-summarization-pipeline.md) | Hybrid Podcast Summarization Pipeline | - | Hybrid MAP-REDUCE with instruction-tuned LLMs (v2.5) |
+| [RFC-043](RFC-043-automated-metrics-alerts.md) | Automated Metrics Alerts | - | Automated regression alerts and PR comments for pipeline metrics |
 
 ## Completed RFCs
 
@@ -52,20 +54,21 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-010](RFC-010-speaker-name-detection.md) | Automatic Speaker Name Detection | PRD-008 | v2.1.0 | NER-based host and guest identification |
 | [RFC-011](RFC-011-metadata-generation.md) | Per-Episode Metadata Generation | PRD-004 | v2.2.0 | Structured metadata document generation |
 | [RFC-012](RFC-012-episode-summarization.md) | Episode Summarization Using Local Transformers | PRD-005 | v2.3.0 | Local transformer-based summarization |
-| [RFC-013](RFC-013-openai-provider-implementation.md) | OpenAI Provider Implementation | PRD-006 | - | Technical design for OpenAI API providers |
-| [RFC-017](RFC-017-prompt-management.md) | Prompt Management | PRD-007 | - | Versioned, parameterized prompt management system |
-| [RFC-018](RFC-018-test-structure-reorganization.md) | Test Structure Reorganization | - | - | Reorganize test suite into unit/integration/e2e directories |
-| [RFC-019](RFC-019-e2e-test-improvements.md) | E2E Test Infrastructure and Coverage Improvements | PRD-001+ | - | Comprehensive E2E test infrastructure and coverage |
-| [RFC-020](RFC-020-integration-test-improvements.md) | Integration Test Infrastructure and Coverage Improvements | PRD-001+ | - | Integration test suite improvements (10 stages, 182 tests) |
-| [RFC-024](RFC-024-test-execution-optimization.md) | Test Execution Optimization | - | - | Optimize test execution with markers, tiers, parallel execution |
-| [RFC-025](RFC-025-test-metrics-and-health-tracking.md) | Test Metrics and Health Tracking | - | - | Metrics collection, CI integration, flaky test detection |
-| [RFC-028](RFC-028-ml-model-preloading-and-caching.md) | ML Model Preloading and Caching | - | - | Model preloading for local dev and GitHub Actions caching |
-| [RFC-029](RFC-029-provider-refactoring-consolidation.md) | Provider Refactoring Consolidation | PRD-006 | - | Unified provider architecture documentation |
-| [RFC-030](RFC-030-python-test-coverage-improvements.md) | Python Test Coverage Improvements | - | - | Coverage collection in CI, threshold enforcement |
-| [RFC-021](RFC-021-modularization-refactoring-plan.md) | Modularization Refactoring Plan | PRD-006 | - | Detailed plan for modular provider architecture |
-| [RFC-022](RFC-022-environment-variable-candidates-analysis.md) | Environment Variable Candidates Analysis | - | - | Environment variable support for deployment flexibility |
-| [RFC-026](RFC-026-metrics-consumption-and-dashboards.md) | Metrics Consumption and Dashboards | - | - | GitHub Pages metrics JSON API and job summaries |
-| [RFC-031](RFC-031-code-complexity-analysis-tooling.md) | Code Complexity Analysis Tooling | - | - | Code complexity, dead code, docstrings, spell checking |
+| [RFC-013](RFC-013-openai-provider-implementation.md) | OpenAI Provider Implementation | PRD-006 | v2.4.0 | OpenAI API providers for transcription, NER, and summarization |
+| [RFC-017](RFC-017-prompt-management.md) | Prompt Management | PRD-006 | v2.4.0 | Versioned, parameterized prompt management system (Jinja2) |
+| [RFC-018](RFC-018-test-structure-reorganization.md) | Test Structure Reorganization | - | v2.4.0 | Reorganized test suite into unit/integration/e2e directories |
+| [RFC-019](RFC-019-e2e-test-improvements.md) | E2E Test Infrastructure and Coverage Improvements | PRD-001+ | v2.4.0 | Comprehensive E2E test infrastructure and coverage |
+| [RFC-020](RFC-020-integration-test-improvements.md) | Integration Test Infrastructure and Coverage Improvements | PRD-001+ | v2.4.0 | Integration test suite improvements (10 stages, 182 tests) |
+| [RFC-021](RFC-021-modularization-refactoring-plan.md) | Modularization Refactoring Plan | PRD-006 | v2.4.0 | Detailed plan for modular provider architecture |
+| [RFC-022](RFC-022-environment-variable-candidates-analysis.md) | Environment Variable Candidates Analysis | - | v2.4.0 | Environment variable support for deployment flexibility |
+| [RFC-024](RFC-024-test-execution-optimization.md) | Test Execution Optimization | - | v2.4.0 | Optimized test execution with markers, tiers, parallel execution |
+| [RFC-025](RFC-025-test-metrics-and-health-tracking.md) | Test Metrics and Health Tracking | - | v2.4.0 | Metrics collection, CI integration, flaky test detection |
+| [RFC-026](RFC-026-metrics-consumption-and-dashboards.md) | Metrics Consumption and Dashboards | - | v2.4.0 | GitHub Pages metrics JSON API and job summaries |
+| [RFC-028](RFC-028-ml-model-preloading-and-caching.md) | ML Model Preloading and Caching | - | v2.4.0 | Model preloading for local dev and GitHub Actions caching |
+| [RFC-029](RFC-029-provider-refactoring-consolidation.md) | Provider Refactoring Consolidation | PRD-006 | v2.4.0 | Unified provider architecture documentation |
+| [RFC-030](RFC-030-python-test-coverage-improvements.md) | Python Test Coverage Improvements | - | v2.4.0 | Coverage collection in CI, threshold enforcement |
+| [RFC-031](RFC-031-code-complexity-analysis-tooling.md) | Code Complexity Analysis Tooling | - | v2.4.0 | Radon, Vulture, Interrogate, and codespell integration |
+| [RFC-039](RFC-039-development-workflow-worktrees-ci.md) | Development Workflow | - | v2.4.0 | Git worktrees, Cursor integration, CI evolution |
 
 ## Quick Links
 

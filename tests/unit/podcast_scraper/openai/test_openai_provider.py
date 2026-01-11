@@ -327,7 +327,9 @@ class TestOpenAIProviderTranscription(unittest.TestCase):
         provider.client = mock_client
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        from podcast_scraper.exceptions import ProviderRuntimeError
+
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.transcribe("/path/to/audio.mp3")
 
         self.assertIn("transcription failed", str(context.exception))

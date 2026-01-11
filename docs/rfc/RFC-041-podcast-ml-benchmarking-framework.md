@@ -16,6 +16,13 @@ Podcast Scraper Team
 
 2026-01-08
 
+## Related ADRs
+
+- [ADR-025: Codified Comparison Baselines](../adr/ADR-025-codified-comparison-baselines.md)
+- [ADR-026: Explicit Golden Dataset Versioning](../adr/ADR-026-explicit-golden-dataset-versioning.md)
+- [ADR-030: Multi-Tiered Benchmarking Strategy](../adr/ADR-030-multi-tiered-benchmarking-strategy.md)
+- [ADR-031: Heuristic-Based Quality Gates](../adr/ADR-031-heuristic-based-quality-gates.md)
+
 ## Related RFCs
 
 - RFC-025: Test Metrics and Health Tracking
@@ -325,6 +332,7 @@ jobs:
           path: benchmarks/runs/
 
 ```
+
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -344,6 +352,7 @@ jobs:
           path: benchmarks/runs/
 
 ```
+
         run: python scripts/upload_benchmark_metrics.py
 
 ```python

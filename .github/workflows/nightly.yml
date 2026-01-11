@@ -32,12 +32,11 @@ name: Nightly Comprehensive Tests
 
 on:
   schedule:
-    # Run nightly at 2 AM UTC
+    # Run nightly at 2 AM UTC (runs on default branch/main)
     - cron: '0 2 * * *'
   workflow_dispatch:  # Allow manual triggering
-  push:
-    branches:
-      - 'release/**'  # Run on all release branches
+  # Note: Metrics for main and release branches are handled by python-app.yml (regular CI)
+  # Nightly is for comprehensive testing and metrics on main branch only
 
 permissions:
   contents: write  # For publishing metrics to gh-pages branch
@@ -77,7 +76,7 @@ jobs:
           ~/.cache/whisper
           ~/.cache/huggingface
         # Fully content-based cache key
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-nightly-${{ runner.os }}-
 
@@ -341,7 +340,7 @@ jobs:
     - name: Verify unit tests can import without ML dependencies
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        python scripts/check_unit_test_imports.py
+        python scripts/tools/check_unit_test_imports.py
       env:
         PACKAGE: podcast_scraper
 
@@ -417,7 +416,7 @@ jobs:
         path: |
           ~/.cache/whisper
           ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-nightly-${{ runner.os }}-
 
@@ -504,7 +503,7 @@ jobs:
         path: |
           ~/.cache/whisper
           ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-nightly-${{ runner.os }}-
 
@@ -596,7 +595,7 @@ jobs:
         path: |
           ~/.cache/whisper
           ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
           ml-models-nightly-${{ runner.os }}-
 
@@ -868,14 +867,14 @@ jobs:
 
     - name: Collect pipeline metrics
       run: |
-        python scripts/collect_pipeline_metrics.py \
+        python scripts/dashboard/collect_pipeline_metrics.py \
           --output reports/pipeline_metrics.json \
           --max-episodes 1 || echo "⚠️ Pipeline metrics collection failed (non-blocking)"
       continue-on-error: true
 
     - name: Generate metrics JSON
       run: |
-        python scripts/generate_metrics.py \
+        python scripts/dashboard/generate_metrics.py \
           --reports-dir reports \
           --output metrics/latest-nightly.json \
           --history metrics/history-nightly.jsonl \
@@ -914,13 +913,11 @@ jobs:
         fi
 
     - name: Generate unified HTML dashboard
-      # Only generate dashboard HTML when NOT triggered by push to release branches
-      # Release branches only update metrics data (JSON/JSONL)
-      # Schedule/manual runs generate full dashboard
+      # Generate dashboard HTML for schedule and manual dispatch runs
       # The unified dashboard has a dropdown to select which build to view
-      if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+      # (Metrics for release branches are handled by regular CI, not nightly)
       run: |
-        python scripts/generate_dashboard.py \
+        python scripts/dashboard/generate_dashboard.py \
           --unified \
           --output metrics/index.html
 
@@ -1043,7 +1040,8 @@ jobs:
 
   # NOTE: Metrics deployment strategy:
   # - Schedule/manual runs: Generate metrics data + unified dashboard HTML
-  # - Release branch pushes: Only generate metrics data (JSON/JSONL), no dashboard HTML
+  # - Regular CI (python-app.yml): Handles metrics for main and release branches
+  # - Nightly: Comprehensive testing and metrics on main branch only (via schedule)
   # - The docs.yml workflow deploys everything to GitHub Pages
   # - Nightly metrics are available as workflow artifacts for download
   # - The unified dashboard uses a dropdown to select CI vs Nightly builds

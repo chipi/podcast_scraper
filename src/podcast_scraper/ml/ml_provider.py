@@ -353,8 +353,12 @@ class MLProvider:
 
     def _initialize_whisper(self) -> None:  # noqa: C901
         """Initialize Whisper model for transcription."""
+        import time
+
+        init_start = time.time()
         logger.debug("Initializing Whisper transcription (model: %s)", self.cfg.whisper_model)
 
+        step_start = time.time()
         try:
             whisper_lib = _import_third_party_whisper()
         except ImportError:
@@ -368,16 +372,24 @@ class MLProvider:
                 dependency="openai-whisper",
                 suggestion="Install with: pip install openai-whisper && brew install ffmpeg",
             )
+        import_time = time.time() - step_start
+        logger.debug("  [TIMING] Import whisper library: %.3fs", import_time)
 
         # Use centralized fallback logic (config-driven, no hardcoded values)
+        step_start = time.time()
         model_name, fallback_models = normalize_whisper_model_name(
             self.cfg.whisper_model, self.cfg.language
         )
+        normalize_time = time.time() - step_start
+        logger.debug("  [TIMING] Normalize model name: %.3fs", normalize_time)
         logger.debug("Loading Whisper model: %s", model_name)
 
         # Check cache directory for pre-cached models
         # Prefer local cache in project root, fallback to ~/.cache/whisper/
+        step_start = time.time()
         whisper_cache = get_whisper_cache_dir()
+        cache_dir_time = time.time() - step_start
+        logger.debug("  [TIMING] Get cache directory: %.3fs", cache_dir_time)
         logger.debug(
             "Whisper cache directory: %s (exists: %s)", whisper_cache, whisper_cache.exists()
         )
@@ -407,6 +419,7 @@ class MLProvider:
             try:
                 # Use download_root parameter to specify cache directory directly
                 # This is more reliable than environment variable
+                step_start = time.time()
                 whisper_cache_str = str(whisper_cache)
                 if attempt_model != model_name:
                     logger.debug(
@@ -416,8 +429,21 @@ class MLProvider:
                     )
                 # Detect and use optimal device (MPS/CUDA/CPU)
                 device_to_use = self._detect_whisper_device()
+                device_detect_time = time.time() - step_start
+                logger.debug(
+                    "  [TIMING] Detect device: %.3fs (device: %s)",
+                    device_detect_time,
+                    device_to_use,
+                )
+
+                step_start = time.time()
+                logger.debug("  [TIMING] Starting whisper_lib.load_model()...")
                 model = whisper_lib.load_model(
                     attempt_model, download_root=whisper_cache_str, device=device_to_use
+                )
+                load_model_time = time.time() - step_start
+                logger.debug(
+                    "  [TIMING] whisper_lib.load_model() completed: %.3fs", load_model_time
                 )
                 if attempt_model != model_name:
                     logger.debug(
@@ -447,8 +473,24 @@ class MLProvider:
                     )
                 else:
                     logger.debug("Whisper model is using accelerator device type=%s", device_type)
+                step_start = time.time()
                 self._whisper_model = model
                 self._whisper_initialized = True
+                assign_time = time.time() - step_start
+                total_time = time.time() - init_start
+                logger.debug("  [TIMING] Assign model to instance: %.3fs", assign_time)
+                logger.info(
+                    "[TIMING BREAKDOWN] Whisper initialization total: %.3fs "
+                    "(import: %.3fs, normalize: %.3fs, cache_dir: %.3fs, "
+                    "device_detect: %.3fs, load_model: %.3fs, assign: %.3fs)",
+                    total_time,
+                    import_time,
+                    normalize_time,
+                    cache_dir_time,
+                    device_detect_time,
+                    load_model_time,
+                    assign_time,
+                )
                 logger.debug("Whisper transcription initialized successfully")
                 return
             except FileNotFoundError as exc:
@@ -642,8 +684,14 @@ class MLProvider:
             Tuple of (result_dict, elapsed_time)
         """
         logger.info("    transcribing with Whisper (%s)...", self.cfg.whisper_model)
-        start = time.time()
+        total_start = time.time()
+
+        step_start = time.time()
         with progress.progress_context(None, "Transcribing") as reporter:
+            progress_setup_time = time.time() - step_start
+            logger.debug("  [TIMING] Progress context setup: %.3fs", progress_setup_time)
+
+            step_start = time.time()
             suppress_fp16_warning = getattr(self._whisper_model, "_is_cpu_device", False)
             logger.debug(
                 "Invoking Whisper transcription: media=%s suppress_fp16_warning=%s dtype=%s",
@@ -652,6 +700,8 @@ class MLProvider:
                 getattr(self._whisper_model, "dtype", None),
             )
             logger.debug("Transcribing with language=%s", language)
+            prep_time = time.time() - step_start
+            logger.debug("  [TIMING] Preparation (device check, logging): %.3fs", prep_time)
 
             # Intercept Whisper's tqdm progress calls and forward to our progress reporter
             # This prevents multiple progress bar lines while showing real progress
@@ -660,11 +710,34 @@ class MLProvider:
                     provider="MLProvider/Whisper",
                     capability="transcription",
                 )
+
+            step_start = time.time()
             with _intercept_whisper_progress(reporter):
+                intercept_setup_time = time.time() - step_start
+                logger.debug("  [TIMING] Progress interceptor setup: %.3fs", intercept_setup_time)
+
+                step_start = time.time()
+                logger.debug("  [TIMING] Starting Whisper model.transcribe() call...")
                 result = self._whisper_model.transcribe(
                     audio_path, task="transcribe", language=language, verbose=False
                 )
-        elapsed = time.time() - start
+                whisper_transcribe_time = time.time() - step_start
+                logger.debug(
+                    "  [TIMING] Whisper model.transcribe() completed: %.3fs",
+                    whisper_transcribe_time,
+                )
+
+        elapsed = time.time() - total_start
+        logger.info(
+            "[TIMING BREAKDOWN] Transcription total: %.3fs "
+            "(progress_setup: %.3fs, prep: %.3fs, intercept_setup: %.3fs, "
+            "whisper_transcribe: %.3fs)",
+            elapsed,
+            progress_setup_time,
+            prep_time,
+            intercept_setup_time,
+            whisper_transcribe_time,
+        )
         segments = result.get("segments")
         logger.debug(
             "Whisper transcription finished in %.2fs (segments=%s text_chars=%s)",

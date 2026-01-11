@@ -45,7 +45,7 @@ summary_provider: transformers       # or openai, anthropic, mistral, etc.
 
 # CLI - Easy provider switching
 
-python3 -m podcast_scraper.cli https://example.com/feed.xml \
+python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
   --transcription-provider openai \
   --speaker-detector-provider anthropic \
   --summary-provider mistral
@@ -96,6 +96,7 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml --no-transcribe-miss
 whisper_model: base.en  # New default (was: base)
 
 ```
+
 ## 🗂️ Advanced Cache Management
 
 **Comprehensive cache management CLI:**
@@ -115,6 +116,7 @@ python3 -m podcast_scraper.cli cache --status
 # Total: 10.85 GB
 
 ```
+
 ## Cache Cleaning Command
 
 ```bash
@@ -134,6 +136,7 @@ python3 -m podcast_scraper.cli cache --clean spacy
 python3 -m podcast_scraper.cli cache --clean --yes
 
 ```
+
 ## Makefile Integration
 
 ```bash
@@ -153,6 +156,7 @@ make cache-clean-transformers
 make cache-clean-spacy
 
 ```
+
 ## 🎯 Summarization Quality Improvements
 
 **Significant quality enhancements for ML summarization:**
@@ -200,6 +204,7 @@ BART_TRANSITION_START = 3500
 BART_TRANSITION_END = 4500
 
 ```
+
 ## Increased Token Limits
 
 - **Chunk summaries**: 80-160 tokens (was 60-100)
@@ -234,6 +239,7 @@ output/
             └── 002_episode_title.metadata.json
 
 ```
+
         ├── 001_episode_title.metadata.json
         ├── 002_episode_title.txt
         └── 002_episode_title.metadata.json
@@ -289,6 +295,7 @@ run_id: my_experiment  # Results in: run_my_experiment_w_base.en_...
 RUN_ID=my_experiment python3 -m podcast_scraper.cli ...
 
 ```
+
 ## 🧪 Test Infrastructure Improvements
 
 **Comprehensive test coverage and stability enhancements:**
@@ -486,6 +493,7 @@ transcribe_missing: true             # Was: false (NEW DEFAULT)
 whisper_model: base.en               # Was: base (NEW DEFAULT)
 
 ```
+
 ## CLI Changes
 
 **New Commands:**
@@ -505,6 +513,7 @@ python3 -m podcast_scraper.cli URL --speaker-detector-provider anthropic
 python3 -m podcast_scraper.cli URL --summary-provider mistral
 
 ```
+
 # Transcription (new default behavior)
 
 --transcribe-missing        # Now default (no longer needed)

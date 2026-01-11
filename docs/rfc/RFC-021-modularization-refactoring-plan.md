@@ -3,6 +3,8 @@
 - **Status**: Completed (Historical Reference)
 - **Authors**:
 - **Stakeholders**: Maintainers, developers implementing OpenAI providers
+- **Related ADRs**:
+  - [ADR-012: Protocol-Based Provider Discovery](../adr/ADR-012-protocol-based-provider-discovery.md)
 - **Related RFCs**:
   - `docs/rfc/RFC-013-openai-provider-implementation.md` - OpenAI provider implementation (built on this plan)
   - `docs/rfc/RFC-016-modularization-for-ai-experiments.md` - Provider system architecture
@@ -160,12 +162,12 @@ class SpeakerDetectorFactory:
 
 ````
 
-2. **Create protocol definitions:**
+1. **Create protocol definitions:**
    - Create `podcast_scraper/speaker_detectors/` package
    - Define `SpeakerDetector` protocol in `base.py`
    - No implementation changes yet
 
-3. **Create factory function:**
+2. **Create factory function:**
    - Create `factory.py` with `SpeakerDetectorFactory.create()`
    - Returns current NER implementation wrapped in protocol
 
@@ -195,6 +197,7 @@ class SpeakerDetectorFactory:
        hosts = detector.detect_hosts(feed.title, feed.description, feed.authors)
 
 ```
+
 ### Phase 3: Add OpenAI Provider - Speaker Detection (Future)
 
 1. **Create `speaker_detectors/openai_detector.py`:**
@@ -349,12 +352,12 @@ class TranscriptionProviderFactory:
 
 ````
 
-2. **Create protocol definitions:**
+1. **Create protocol definitions:**
    - Create `podcast_scraper/transcription/` package
    - Define `TranscriptionProvider` protocol in `base.py`
    - No implementation changes yet
 
-3. **Create factory function:**
+2. **Create factory function:**
    - Create `factory.py` with `TranscriptionProviderFactory.create()`
    - Returns current Whisper implementation wrapped in protocol
 
@@ -398,6 +401,7 @@ class TranscriptionProviderFactory:
        # ... rest
 
 ```
+
 ### Phase 3: Add OpenAI Provider - Transcription (Future)
 
 1. **Create `transcription/openai_provider.py`:**
@@ -573,12 +577,12 @@ class SummarizationProviderFactory:
 
 ````
 
-2. **Create protocol definitions:**
+1. **Create protocol definitions:**
    - Create `podcast_scraper/summarization/` package
    - Define `SummarizationProvider` protocol in `base.py`
    - No implementation changes yet
 
-3. **Create factory function:**
+2. **Create factory function:**
    - Create `factory.py` with `SummarizationProviderFactory.create()`
    - Returns current local implementation wrapped in protocol
 
@@ -619,6 +623,7 @@ class SummarizationProviderFactory:
        resource = provider.initialize(cfg)
 
 ```
+
 ### Phase 3: Add OpenAI Provider - Summarization (Future)
 
 1. **Create `summarization/openai_provider.py`:**

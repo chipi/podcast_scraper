@@ -14,7 +14,7 @@ PACKAGE = podcast_scraper
 # Can be overridden: PYTEST_WORKERS=4 make test
 PYTEST_WORKERS ?= $(shell python3 -c "import os; print(min(max(1, (os.cpu_count() or 4) - 2), 8))")
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown type security security-bandit security-audit complexity deadcode docstrings spelling quality test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production
+.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity deadcode docstrings spelling spelling-docs quality check-unit-imports deps-analyze deps-check analyze-test-memory test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run
 
 help:
 	@echo "Common developer commands:"
@@ -32,6 +32,14 @@ help:
 	@echo "  make spelling        Run codespell spell checking"
 	@echo "  make quality         Run all code quality checks (complexity, deadcode, docstrings, spelling)"
 	@echo ""
+	@echo "Verification commands:"
+	@echo "  make check-unit-imports  Verify unit tests can import modules without ML dependencies"
+	@echo "  make deps-analyze        Analyze module dependencies and detect architectural issues (with report)"
+	@echo "  make deps-check          Check dependencies and exit with error if issues found"
+	@echo ""
+	@echo "Analysis commands:"
+	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
+	@echo ""
 	@echo "Test commands:"
 	@echo "  make test-unit            Run unit tests with coverage in parallel (default, matches CI)"
 	@echo "  make test-unit-sequential Run unit tests sequentially (for debugging, slower but clearer output)"
@@ -47,6 +55,20 @@ help:
 	@echo "  make test                Run all tests (unit + integration + e2e, full suite, uses multi-episode feed)"
 	@echo "  make test-sequential     Run all tests sequentially (for debugging, uses multi-episode feed)"
 	@echo "  make test-fast           Run fast tests (unit + critical path integration + critical path e2e, uses fast feed)"
+	@echo ""
+	@echo "OpenAI test commands:"
+	@echo "  make test-openai         Run OpenAI tests with fast feed (p01_fast.xml - 1 episode, 1 minute)"
+	@echo "  make test-openai-multi   Run OpenAI tests with multi-episode feed (p01_multi.xml - 5 episodes)"
+	@echo "  make test-openai-all-feeds Run OpenAI tests against all p01-p05 feeds (p01_mtb.xml through p05_investing.xml)"
+	@echo "  make test-openai-real    Run OpenAI tests with REAL API using fast feed (fixture input, real API calls)"
+	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
+	@echo "  make test-openai-real-multi Run OpenAI tests with REAL API using multi-episode feed"
+	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
+	@echo "  make test-openai-real-all-feeds Run OpenAI tests with REAL API against all p01-p05 feeds"
+	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
+	@echo "  make test-openai-real-feed Run OpenAI tests with REAL API using a real RSS feed"
+	@echo "                            Usage: make test-openai-real-feed FEED_URL=\"https://...\" [MAX_EPISODES=5]"
+	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
 	@echo "  Tip: For debugging, use pytest directly with -n 0 for sequential execution"
 	@echo ""
@@ -62,6 +84,7 @@ help:
 	@echo ""
 	@echo "Other commands:
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
+	@echo "  make docs-check      Run all documentation checks (linting + spelling + build)"
 	@echo "  make build           Build source and wheel distributions (outputs to .build/dist/)"
 	@echo "  make ci              Run the full CI suite locally (all tests: unit + integration + e2e, uses multi-episode feed)"
 	@echo "  make ci-fast         Run fast CI checks (unit + critical path integration + critical path e2e, uses fast feed)"
@@ -73,11 +96,17 @@ help:
 	@echo "  make docker-test        Build and test Docker image"
 	@echo "  make docker-clean       Remove Docker test images"
 	@echo "  make install-hooks   Install git pre-commit hook for automatic linting"
-	@echo "  make clean           Remove build artifacts (.build/, .mypy_cache/, .pytest_cache/)"
+	@echo "  make clean           Remove build artifacts (.build/, .mypy_cache/, .pytest_cache/, output/)"
 	@echo "  make clean-cache     Remove ML model caches (Whisper, spaCy) to test network isolation"
 	@echo "  make clean-all       Remove both build artifacts and ML model caches"
 	@echo "  make preload-ml-models  Pre-download and cache all required ML models locally (test models)"
 	@echo "  make preload-ml-models-production  Pre-download and cache production ML models (for nightly tests)"
+	@echo "  make backup-cache    Backup .cache directory (ML models)"
+	@echo "  make backup-cache-dry-run  Dry run: Check what would be backed up"
+	@echo "  make backup-cache-list     List existing cache backups"
+	@echo "  make backup-cache-cleanup   Clean up old cache backups (keeping 5 most recent)"
+	@echo "  make restore-cache   Restore .cache directory from backup (use TARGET=path BACKUP=name)"
+	@echo "  make restore-cache-dry-run  Dry run: Check what would be restored"
 
 init:
 	$(PYTHON) -m pip install --upgrade pip setuptools
@@ -99,6 +128,10 @@ lint:
 lint-markdown:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
 	markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site --ignore "docs/wip/**" --ignore "tests/fixtures/**" --config .markdownlint.json
+
+lint-markdown-docs:
+	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
+	markdownlint "docs/**/*.md" --ignore "docs/wip/**" --config .markdownlint.json
 
 fix-md:
 	@echo "⚠️  WARNING: fix-md script is disabled due to issues."
@@ -140,6 +173,10 @@ spelling:
 	@echo "=== Spell Checking ==="
 	@codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
 
+spelling-docs:
+	@echo "=== Spell Checking (Docs only) ==="
+	@codespell docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
+
 quality: complexity deadcode docstrings spelling
 	@echo ""
 	@echo "✓ All code quality checks completed"
@@ -154,6 +191,10 @@ quality: complexity deadcode docstrings spelling
 docs:
 	$(PYTHON) -m mkdocs build --strict
 
+docs-check: lint-markdown-docs spelling-docs docs
+	@echo ""
+	@echo "✓ Documentation validation complete (linting + spelling + build)"
+
 # Coverage thresholds per layer (minimums to ensure balanced coverage)
 # These are ambitious but achievable targets based on current coverage levels
 # Combined threshold is enforced in CI; per-layer thresholds ensure no layer is neglected
@@ -161,6 +202,12 @@ COVERAGE_THRESHOLD_UNIT := 70          # Current: ~74% local, ~70% CI
 COVERAGE_THRESHOLD_INTEGRATION := 40   # Current: ~54% local, ~42% CI
 COVERAGE_THRESHOLD_E2E := 40           # Current: ~53% local, ~50% CI
 COVERAGE_THRESHOLD_COMBINED := 80      # Current: ~82% local
+
+check-unit-imports:
+	# Verify that unit tests can import modules without ML dependencies
+	# This ensures unit tests can run in CI without heavy ML dependencies installed
+	# Run this when: adding new modules, refactoring imports, or debugging CI failures
+	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_unit_test_imports.py
 
 test-unit:
 	# Unit tests: parallel execution for faster feedback
@@ -203,30 +250,45 @@ test-ci-fast:
 
 test-e2e:
 	# E2E tests: parallel execution for speed
+	# Excludes analysis/diagnostic tests - these are slow diagnostic tools, not regular tests
 	# Includes reruns for flaky tests (matches CI behavior) - 3 retries for ML model variability
 	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
-	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not analysis" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 test-e2e-sequential:
 	# E2E tests: sequential execution (slower but clearer output, useful for debugging)
+	# Excludes analysis/diagnostic tests - these are slow diagnostic tools, not regular tests
 	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
-	E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m e2e --disable-socket --allow-hosts=127.0.0.1,localhost
+	E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not analysis" --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-e2e-fast:
 	# Fast E2E tests: parallel execution for speed
 	# Critical path tests only (includes ML tests if models are cached)
+	# Excludes analysis/diagnostic tests (p07/p08 threshold analysis) - these are slow and not critical path
 	# Includes reruns for flaky tests (matches CI behavior) - 3 retries for ML model variability
 	# Uses fast feed (1 episode) - set via E2E_TEST_MODE environment variable
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
 
 test-e2e-data-quality:
 	# Data quality E2E tests: full pipeline validation with multiple episodes
+	# Excludes analysis/diagnostic tests - these are slow diagnostic tools, not regular tests
 	# Uses all original mock data (not fast fixtures)
 	# Runs with 3-5 episodes per test to validate data quality and consistency
 	# For nightly builds only - not part of regular CI/CD code quality checks
-	@E2E_TEST_MODE=data_quality pytest tests/e2e/ -m "e2e and data_quality" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	@E2E_TEST_MODE=data_quality pytest tests/e2e/ -m "e2e and data_quality and not analysis" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+
+test-analytical:
+	# Analytical/diagnostic tests: tools for investigating specific behaviors and thresholds
+	# These are NOT regular tests - they are diagnostic tools for:
+	# - Investigating threshold behavior (e.g., summarization thresholds)
+	# - Capturing baseline metrics for comparison
+	# - Diagnosing specific issues
+	# - Performance analysis
+	# Uses E2E infrastructure (E2E server, fixtures) but separate from regular E2E tests
+	# Run explicitly when investigating specific issues or capturing metrics
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/analytical/ -m "analytical" -v --disable-socket --allow-hosts=127.0.0.1,localhost --durations=10
 
 test-nightly:
 	# Nightly-only tests: comprehensive tests with production ML models (p01-p05 full suite)
@@ -268,6 +330,225 @@ test-fast:
 test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	$(PYTHON) -m pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
+
+test-openai:
+	# Test OpenAI providers (uses E2E server by default, or real API if USE_REAL_OPENAI_API=1)
+	# Feed selection via OPENAI_TEST_FEED environment variable (E2E mode):
+	#   - fast: p01_fast.xml (1 episode, 1 minute) - DEFAULT
+	#   - multi: p01_multi.xml (5 episodes, 10-15s each)
+	#   - p01-p05: Individual podcast feeds (p01_mtb.xml, p02_software.xml, etc.)
+	# For real API mode: Set USE_REAL_OPENAI_API=1 and OPENAI_TEST_RSS_FEED=<feed-url>
+	# Examples:
+	#   make test-openai                    # Uses fast feed with E2E server (1 episode, 1 minute)
+	#   make test-openai-multi              # Uses multi-episode feed (5 episodes, 10-15s each)
+	#   OPENAI_TEST_FEED=p02 make test-openai    # Uses podcast2 feed
+	#   USE_REAL_OPENAI_API=1 OPENAI_TEST_RSS_FEED=https://example.com/podcast.rss make test-openai  # Real API
+	@echo "Running OpenAI tests..."
+	@echo "  Feed type: $${OPENAI_TEST_FEED:-fast} (use OPENAI_TEST_FEED to change)"
+	@if [ "$${USE_REAL_OPENAI_API:-0}" = "1" ]; then \
+		if [ -z "$$OPENAI_API_KEY" ] && ! grep -q "^OPENAI_API_KEY=" .env 2>/dev/null; then \
+			echo "❌ Error: OPENAI_API_KEY not set in environment or .env file"; \
+			echo "   Set it in your .env file or export it before running this target"; \
+			exit 1; \
+		fi; \
+		echo "⚠️  WARNING: Running tests with REAL OpenAI API (will incur costs)"; \
+		echo "⚠️  This will make actual API calls to OpenAI endpoints"; \
+		echo "⚠️  Press Ctrl+C within 5 seconds to cancel..."; \
+		sleep 5; \
+	fi
+	@echo ""
+	E2E_TEST_MODE=fast USE_REAL_OPENAI_API=$${USE_REAL_OPENAI_API:-0} OPENAI_TEST_FEED=$${OPENAI_TEST_FEED:-fast} $(PYTHON) -m pytest \
+		tests/e2e/test_openai_provider_integration_e2e.py \
+		-m "openai" \
+		-v \
+		--tb=short \
+		--durations=10 \
+		--maxfail=1
+
+test-openai-multi:
+	# Test OpenAI providers with multi-episode feed (p01_multi.xml - 5 episodes, 10-15s each)
+	# Uses E2E server by default (no API costs)
+	@echo "Running OpenAI tests with multi-episode feed..."
+	@if [ "$${USE_REAL_OPENAI_API:-0}" = "1" ]; then \
+		if [ -z "$$OPENAI_API_KEY" ] && ! grep -q "^OPENAI_API_KEY=" .env 2>/dev/null; then \
+			echo "❌ Error: OPENAI_API_KEY not set in environment or .env file"; \
+			echo "   Set it in your .env file or export it before running this target"; \
+			exit 1; \
+		fi; \
+		echo "⚠️  WARNING: Running tests with REAL OpenAI API (will incur costs)"; \
+		echo "⚠️  This will make actual API calls to OpenAI endpoints"; \
+		echo "⚠️  Press Ctrl+C within 5 seconds to cancel..."; \
+		sleep 5; \
+	fi
+	@echo ""
+	E2E_TEST_MODE=fast USE_REAL_OPENAI_API=$${USE_REAL_OPENAI_API:-0} OPENAI_TEST_FEED=multi $(PYTHON) -m pytest \
+		tests/e2e/test_openai_provider_integration_e2e.py \
+		-m "openai" \
+		-v \
+		--tb=short \
+		--durations=10 \
+		--maxfail=1
+
+test-openai-all-feeds:
+	@# Test OpenAI providers against all p01-p05 feeds (p01_mtb.xml through p05_investing.xml)
+	@# Uses E2E server in nightly mode (allows all podcasts 1-5)
+	@# Each feed is tested sequentially to ensure clean state between runs
+	@echo "Running OpenAI tests against all p01-p05 feeds..."
+	@echo "  This will test: p01 (mtb), p02 (software), p03 (scuba), p04 (photo), p05 (investing)"
+	@echo ""
+	@if [ "$${USE_REAL_OPENAI_API:-0}" = "1" ]; then \
+		if [ -z "$$OPENAI_API_KEY" ] && ! grep -q "^OPENAI_API_KEY=" .env 2>/dev/null; then \
+			echo "❌ Error: OPENAI_API_KEY not set in environment or .env file"; \
+			echo "   Set it in your .env file or export it before running this target"; \
+			exit 1; \
+		fi; \
+		echo "⚠️  WARNING: Running tests with REAL OpenAI API (will incur costs)"; \
+		echo "⚠️  This will make actual API calls to OpenAI endpoints"; \
+		echo "⚠️  Press Ctrl+C within 5 seconds to cancel..."; \
+		sleep 5; \
+	fi
+	@for feed in p01 p02 p03 p04 p05; do \
+		echo "========================================="; \
+		echo "Testing feed: $$feed"; \
+		echo "========================================="; \
+		E2E_TEST_MODE=nightly USE_REAL_OPENAI_API=$${USE_REAL_OPENAI_API:-0} OPENAI_TEST_FEED=$$feed $(PYTHON) -m pytest \
+			tests/e2e/test_openai_provider_integration_e2e.py \
+			-m "openai" \
+			-v \
+			--tb=short \
+			--durations=10 \
+			--maxfail=1 || exit 1; \
+		echo ""; \
+	done
+	@echo "========================================="
+	@echo "All feeds tested successfully!"
+	@echo "========================================="
+
+test-openai-real:
+	@# Test OpenAI providers with REAL API using fast feed (p01_fast.xml - 1 episode, 1 minute)
+	@# Uses fixture feeds as input but makes real OpenAI API calls
+	@# Requires OPENAI_API_KEY in .env file
+	@# NOTE: Only runs test_openai_all_providers_in_pipeline to minimize API costs
+	@echo "Running OpenAI tests with REAL API (using fast feed fixture)..."
+	@if [ -z "$$OPENAI_API_KEY" ] && ! grep -q "^OPENAI_API_KEY=" .env 2>/dev/null; then \
+		echo "❌ Error: OPENAI_API_KEY not set in environment or .env file"; \
+		echo "   Set it in your .env file or export it before running this target"; \
+		exit 1; \
+	fi
+	@echo "⚠️  WARNING: Running tests with REAL OpenAI API (will incur costs)"
+	@echo "⚠️  This will make actual API calls to OpenAI endpoints"
+	@echo "⚠️  Using fixture feed (p01_fast.xml) as input"
+	@echo "⚠️  Running ONLY test_openai_all_providers_in_pipeline to minimize costs"
+	@echo "⚠️  Press Ctrl+C within 5 seconds to cancel..."
+	@sleep 5
+	@echo ""
+	E2E_TEST_MODE=fast USE_REAL_OPENAI_API=1 OPENAI_TEST_FEED=fast $(PYTHON) -m pytest \
+		tests/e2e/test_openai_provider_integration_e2e.py::TestOpenAIProviderE2E::test_openai_all_providers_in_pipeline \
+		-v \
+		-s \
+		--tb=short \
+		--durations=10 \
+		--maxfail=1
+
+test-openai-real-multi:
+	@# Test OpenAI providers with REAL API using multi-episode feed (p01_multi.xml - 5 episodes)
+	@# Uses fixture feeds as input but makes real OpenAI API calls
+	@# Requires OPENAI_API_KEY in .env file
+	@# NOTE: Only runs test_openai_all_providers_in_pipeline to minimize API costs
+	@echo "Running OpenAI tests with REAL API (using multi-episode feed fixture)..."
+	@if [ -z "$$OPENAI_API_KEY" ] && ! grep -q "^OPENAI_API_KEY=" .env 2>/dev/null; then \
+		echo "❌ Error: OPENAI_API_KEY not set in environment or .env file"; \
+		echo "   Set it in your .env file or export it before running this target"; \
+		exit 1; \
+	fi
+	@echo "⚠️  WARNING: Running tests with REAL OpenAI API (will incur costs)"
+	@echo "⚠️  This will make actual API calls to OpenAI endpoints"
+	@echo "⚠️  Using multi-episode fixture feed (p01_multi.xml - 5 episodes) as input"
+	@echo "⚠️  Running ONLY test_openai_all_providers_in_pipeline to minimize costs"
+	@echo "⚠️  Press Ctrl+C within 5 seconds to cancel..."
+	@sleep 5
+	@echo ""
+	E2E_TEST_MODE=fast USE_REAL_OPENAI_API=1 OPENAI_TEST_FEED=multi $(PYTHON) -m pytest \
+		tests/e2e/test_openai_provider_integration_e2e.py::TestOpenAIProviderE2E::test_openai_all_providers_in_pipeline \
+		-v \
+		--tb=short \
+		--durations=10 \
+		--maxfail=1
+
+test-openai-real-all-feeds:
+	@# Test OpenAI providers with REAL API against all p01-p05 feeds
+	@# Uses fixture feeds as input but makes real OpenAI API calls
+	@# Requires OPENAI_API_KEY in .env file
+	@# NOTE: Only runs test_openai_all_providers_in_pipeline to minimize API costs
+	@echo "Running OpenAI tests with REAL API against all p01-p05 feeds..."
+	@echo "  This will test: p01 (mtb), p02 (software), p03 (scuba), p04 (photo), p05 (investing)"
+	@echo "  Using fixture feeds as input but making REAL OpenAI API calls"
+	@echo "  Running ONLY test_openai_all_providers_in_pipeline to minimize costs"
+	@echo ""
+	@if [ -z "$$OPENAI_API_KEY" ] && ! grep -q "^OPENAI_API_KEY=" .env 2>/dev/null; then \
+		echo "❌ Error: OPENAI_API_KEY not set in environment or .env file"; \
+		echo "   Set it in your .env file or export it before running this target"; \
+		exit 1; \
+	fi
+	@echo "⚠️  WARNING: Running tests with REAL OpenAI API (will incur costs)"
+	@echo "⚠️  This will make actual API calls to OpenAI endpoints"
+	@echo "⚠️  Testing all 5 feeds (p01-p05) with fixture data"
+	@echo "⚠️  Press Ctrl+C within 5 seconds to cancel..."
+	@sleep 5
+	@echo ""
+	@for feed in p01 p02 p03 p04 p05; do \
+		echo "========================================="; \
+		echo "Testing feed: $$feed (REAL API)"; \
+		echo "========================================="; \
+		E2E_TEST_MODE=nightly USE_REAL_OPENAI_API=1 OPENAI_TEST_FEED=$$feed $(PYTHON) -m pytest \
+			tests/e2e/test_openai_provider_integration_e2e.py::TestOpenAIProviderE2E::test_openai_all_providers_in_pipeline \
+			-v \
+			--tb=short \
+			--durations=10 \
+			--maxfail=1 || exit 1; \
+		echo ""; \
+	done
+	@echo "========================================="
+	@echo "All feeds tested successfully with REAL API!"
+	@echo "========================================="
+
+test-openai-real-feed:
+	@# Test OpenAI providers with REAL API using a real RSS feed
+	@# Usage: make test-openai-real-feed FEED_URL="https://example.com/podcast.rss" [MAX_EPISODES=5]
+	@# Requires OPENAI_API_KEY in .env file
+	@# NOTE: Only runs test_openai_all_providers_in_pipeline to minimize API costs
+	@if [ -z "$(FEED_URL)" ]; then \
+		echo "❌ Error: FEED_URL is required"; \
+		echo ""; \
+		echo "Usage: make test-openai-real-feed FEED_URL=\"https://example.com/podcast.rss\" [MAX_EPISODES=5]"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make test-openai-real-feed FEED_URL=\"https://example.com/podcast.rss\""; \
+		echo "  make test-openai-real-feed FEED_URL=\"https://example.com/podcast.rss\" MAX_EPISODES=3"; \
+		exit 1; \
+	fi
+	@if [ -z "$$OPENAI_API_KEY" ] && ! grep -q "^OPENAI_API_KEY=" .env 2>/dev/null; then \
+		echo "❌ Error: OPENAI_API_KEY not set in environment or .env file"; \
+		echo "   Set it in your .env file or export it before running this target"; \
+		exit 1; \
+	fi
+	@MAX_EPISODES=$${MAX_EPISODES:-5}; \
+	echo "Running OpenAI tests with REAL API using real RSS feed..."; \
+	echo "⚠️  WARNING: Running tests with REAL OpenAI API (will incur costs)"; \
+	echo "⚠️  This will make actual API calls to OpenAI endpoints"; \
+	echo "⚠️  Feed URL: $(FEED_URL)"; \
+	echo "⚠️  Max Episodes: $$MAX_EPISODES"; \
+	echo "⚠️  Running ONLY test_openai_all_providers_in_pipeline to minimize costs"; \
+	echo "⚠️  Press Ctrl+C within 5 seconds to cancel..."; \
+	sleep 5; \
+	echo ""; \
+	USE_REAL_OPENAI_API=1 OPENAI_TEST_RSS_FEED="$(FEED_URL)" OPENAI_TEST_MAX_EPISODES=$$MAX_EPISODES $(PYTHON) -m pytest \
+		tests/e2e/test_openai_provider_integration_e2e.py::TestOpenAIProviderE2E::test_openai_all_providers_in_pipeline \
+		-v \
+		-s \
+		--tb=short \
+		--durations=10 \
+		--maxfail=1
 
 coverage: test
 	# Runs all tests with coverage (same as 'make test')
@@ -384,12 +665,47 @@ install-hooks:
 	@echo ""
 	@echo "To skip the hook for a specific commit, use: git commit --no-verify"
 
+deps-analyze:
+	# Analyze module dependencies and detect architectural issues
+	# Checks for circular imports, analyzes import patterns, checks thresholds
+	# Generates detailed JSON report in reports/deps-analysis.json
+	# Run this when: refactoring modules, adding new imports, or debugging architecture issues
+	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/analyze_dependencies.py --report
+
+deps-check:
+	# Check dependencies and exit with error if issues found
+	# Use in CI or before committing to catch architectural issues early
+	# Checks: circular imports, import thresholds (max 15 imports per module)
+	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/analyze_dependencies.py --check
+
+analyze-test-memory:
+	# Analyze test suite memory usage and resource consumption
+	# Helps identify memory leaks, excessive resource usage, and optimization opportunities
+	# Run this when: debugging memory issues, optimizing test performance, investigating leaks
+	# Usage: make analyze-test-memory TARGET=test-unit WORKERS=4
+	#   TARGET: Makefile test target (default: test-unit)
+	#   WORKERS: Max parallel workers (optional, overrides Makefile setting)
+	@if [ -z "$(TARGET)" ]; then \
+		echo "Running memory analysis for default target (test-unit)..."; \
+		export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/analyze_test_memory.py; \
+	else \
+		if [ -z "$(WORKERS)" ]; then \
+			echo "Running memory analysis for $(TARGET)..."; \
+			export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/analyze_test_memory.py --test-target $(TARGET); \
+		else \
+			echo "Running memory analysis for $(TARGET) with $(WORKERS) workers..."; \
+			export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/analyze_test_memory.py --test-target $(TARGET) --max-workers $(WORKERS); \
+		fi; \
+	fi
+
 clean:
 	rm -rf build .build .mypy_cache .pytest_cache
 	# Coverage files: .coverage.* are created during parallel test execution (pytest -n auto)
 	rm -f .coverage .coverage.*
 	# Coverage reports (XML, HTML)
 	rm -rf reports/ htmlcov/
+	# Test output directories (created during test runs)
+	rm -rf output/
 
 clean-cache:
 	@echo "Cleaning ML model caches..."
@@ -424,10 +740,51 @@ clean-all: clean clean-cache
 
 preload-ml-models:
 	@echo "Preloading ML models for local development..."
-	@$(PYTHON) scripts/preload_ml_models.py
+	@$(PYTHON) scripts/cache/preload_ml_models.py
 
 preload-ml-models-production:
 	@echo "Preloading production ML models for nightly tests..."
 	@echo "Models: Whisper base, BART-large-cnn, LED-large-16384, en_core_web_sm"
-	@$(PYTHON) scripts/preload_ml_models.py --production
+	@$(PYTHON) scripts/cache/preload_ml_models.py --production
 
+backup-cache:
+	@echo "Backing up .cache directory (ML models)..."
+	@$(PYTHON) scripts/cache/backup_cache.py
+
+backup-cache-dry-run:
+	@echo "Dry run: Checking what would be backed up..."
+	@$(PYTHON) scripts/cache/backup_cache.py --dry-run --verbose
+
+backup-cache-list:
+	@echo "Listing existing cache backups..."
+	@$(PYTHON) scripts/cache/backup_cache.py --list
+
+backup-cache-cleanup:
+	@echo "Cleaning up old cache backups (keeping 5 most recent)..."
+	@$(PYTHON) scripts/cache/backup_cache.py --cleanup 5
+
+restore-cache:
+	@echo "Restoring .cache directory from backup..."
+	@cmd="$(PYTHON) scripts/cache/restore_cache.py"; \
+	if [ -n "$(TARGET)" ]; then \
+		echo "  Target: $(TARGET)"; \
+		cmd="$$cmd --target \"$(TARGET)\""; \
+	fi; \
+	if [ -n "$(BACKUP)" ]; then \
+		echo "  Backup: $(BACKUP)"; \
+		cmd="$$cmd --backup \"$(BACKUP)\""; \
+	fi; \
+	eval $$cmd
+
+restore-cache-dry-run:
+	@echo "Dry run: Checking what would be restored..."
+	@cmd="$(PYTHON) scripts/cache/restore_cache.py --dry-run --verbose"; \
+	if [ -n "$(TARGET)" ]; then \
+		echo "  Target: $(TARGET)"; \
+		cmd="$$cmd --target \"$(TARGET)\""; \
+	fi; \
+	if [ -n "$(BACKUP)" ]; then \
+		echo "  Backup: $(BACKUP)"; \
+		cmd="$$cmd --backup \"$(BACKUP)\""; \
+	fi; \
+	eval $$cmd

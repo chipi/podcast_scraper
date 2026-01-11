@@ -11,7 +11,8 @@ Thanks for contributing! This guide gets you from zero to your first PR.
 | Step | Document | Time | What You'll Learn |
 | ---- | -------- | ---- | ----------------- |
 | 1 | [README](README.md) | 5 min | What this project does |
-| 2 | [Architecture](docs/ARCHITECTURE.md) | 10 min | How it's structured |
+| 2 | [Engineering Process](docs/guides/ENGINEERING_PROCESS.md) | 5 min | **The "Triad of Truth": PRDs, RFCs, and ADRs** |
+| 3 | [Architecture](docs/ARCHITECTURE.md) | 10 min | How it's structured |
 | 3 | [Quick Reference](docs/guides/QUICK_REFERENCE.md) | 5 min | Common commands |
 | 4 | [Testing Guide](docs/guides/TESTING_GUIDE.md) | 5 min | How to run tests |
 | 5 | [Development Guide](docs/guides/DEVELOPMENT_GUIDE.md) | 10 min | Code patterns |
@@ -70,9 +71,24 @@ See [`examples/.env.example`](examples/.env.example) for all options.
 
 ### 1. Create a Branch
 
+**⚠️ CRITICAL: Check for uncommitted changes first!**
+
+```bash
+# Quick check - should return nothing if clean
+git status --porcelain
+
+# If you see output, handle changes first (commit, stash, or discard)
+```
+
+**Then create your branch:**
+
 ```bash
 git checkout -b feature/my-feature   # or fix/bug-name, docs/update-xyz
 ```
+
+**💡 Why this matters:** Uncommitted changes get included in your new branch, causing confusing PRs with unrelated files.
+
+**📖 For full branch creation checklist:** See [Development Guide - Branch Creation](docs/guides/DEVELOPMENT_GUIDE.md#critical-workflow-rules)
 
 ### 2. Make Changes
 

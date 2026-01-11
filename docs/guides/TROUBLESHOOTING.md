@@ -129,10 +129,10 @@ The Makefile uses a dynamic formula: `min(max(1, cpu_count - 2), 8)`
 
 ```bash
 # Analyze memory usage during tests
-python scripts/analyze_test_memory.py --test-target test-unit
+python scripts/tools/analyze_test_memory.py --test-target test-unit
 
 # With limited workers
-python scripts/analyze_test_memory.py --test-target test-integration --max-workers 4
+python scripts/tools/analyze_test_memory.py --test-target test-integration --max-workers 4
 ```
 
 ---
@@ -466,5 +466,5 @@ If your issue isn't covered here:
 
 - [Testing Guide](TESTING_GUIDE.md) - Test execution and debugging
 - [Development Guide](DEVELOPMENT_GUIDE.md) - Environment setup
-- [CI/CD](../CI_CD.md) - Pipeline configuration
+- [CI/CD](../ci/index.md) - Pipeline configuration
 - [Dependencies Guide](DEPENDENCIES_GUIDE.md) - Package management

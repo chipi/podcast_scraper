@@ -1,6 +1,8 @@
 # RFC-026: Metrics Consumption and Dashboards
 
 - **Status**: ✅ **Completed** (Phases 0-3 complete, Phase 4 extracted to RFC-040)
+- **Related ADRs**:
+  - [ADR-023: Public Operational Metrics](../adr/ADR-023-public-operational-metrics.md)
 - **Authors**:
 - **Stakeholders**: Maintainers, developers, CI/CD pipeline maintainers
 - **Completed**: 2026-01-07
@@ -315,14 +317,14 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest-nightly.json | jq
 
     # Extract metrics from JUnit XML and coverage
 
-    python scripts/generate_metrics.py \
+    python scripts/dashboard/generate_metrics.py \
       --junit reports/junit.xml \
       --coverage reports/coverage.xml \
       --output metrics/
 
     # Generate HTML dashboard
 
-    python scripts/generate_dashboard.py \
+    python scripts/dashboard/generate_dashboard.py \
       --metrics metrics/latest.json \
       --history metrics/history.jsonl \
       --output metrics/index.html
@@ -430,7 +432,7 @@ def detect_deviations(current, history):
 
 **Deliverables:**
 
-- `scripts/generate_metrics.py` - Extract metrics from JUnit/coverage
+- `scripts/dashboard/generate_metrics.py` - Extract metrics from JUnit/coverage
 - GitHub Actions step to publish to gh-pages
 - `metrics/latest-ci.json` and `metrics/latest-nightly.json` accessible via GitHub Pages
 
@@ -442,7 +444,7 @@ def detect_deviations(current, history):
 
 **Deliverables:**
 
-- `scripts/generate_dashboard.py` - Generate HTML dashboard
+- `scripts/dashboard/generate_dashboard.py` - Generate HTML dashboard
 - `metrics/index.html` with charts and alerts
 - CSS styling for visual indicators
 
@@ -574,8 +576,8 @@ Phase 4 (automated alerts) has been extracted to a separate RFC to enable:
 ## Related Files
 
 - `.github/workflows/python-app.yml`: CI test jobs
-- `scripts/generate_metrics.py`: Extract metrics from test artifacts (to be created)
-- `scripts/generate_dashboard.py`: Generate HTML dashboard (to be created)
+- `scripts/dashboard/generate_metrics.py`: Extract metrics from test artifacts (to be created)
+- `scripts/dashboard/generate_dashboard.py`: Generate HTML dashboard (to be created)
 - `docs/rfc/RFC-025-test-metrics-and-health-tracking.md`: Metrics collection (prerequisite)
 
 ## Notes
