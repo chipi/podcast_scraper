@@ -274,15 +274,15 @@ The decision questions above provide a quick way to determine test type. For cri
     providers work together, error scenarios (API failures, rate limits)
 ```
 
-  - **E2E Server Tests**: Mock endpoint returns correct format, mock endpoint handles different
+- **E2E Server Tests**: Mock endpoint returns correct format, mock endpoint handles different
     request types, mock endpoint error handling, URL helper methods work correctly
 
-  - **Provider-specific tests**:
-    - **MLProvider**: Unified provider for Whisper (transcription), spaCy (speaker detection),
+- **Provider-specific tests**:
+  - **MLProvider**: Unified provider for Whisper (transcription), spaCy (speaker detection),
       Transformers (summarization) - test all three capabilities together
-    - **OpenAIProvider**: Unified provider for OpenAI API (transcription, speaker detection,
+  - **OpenAIProvider**: Unified provider for OpenAI API (transcription, speaker detection,
       summarization) - test all three capabilities together
-  - **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
+- **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
 
 #### Service API (`service.py`)
 
