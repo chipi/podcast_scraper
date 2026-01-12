@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 from pydantic import ValidationError
 
 from . import __version__, config, filesystem, progress, workflow
+from .workflow.stages import setup
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import tqdm
@@ -797,7 +798,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
 ) -> int:
     """Entry point for the CLI; returns an exit status code."""
     # Initialize ML environment variables early (before any ML imports)
-    workflow._initialize_ml_environment()
+    setup.initialize_ml_environment()
 
     progress.set_progress_factory(_tqdm_progress)
     log = logger or _LOGGER

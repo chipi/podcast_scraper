@@ -54,6 +54,8 @@ def _suppress_urllib3_debug_logs() -> None:
 
 
 BYTES_PER_MB = 1024 * 1024
+# OpenAI Whisper API file size limit (25 MB)
+OPENAI_MAX_FILE_SIZE_BYTES = 25 * BYTES_PER_MB
 DEFAULT_HTTP_BACKOFF_FACTOR = 0.5
 DEFAULT_HTTP_RETRY_TOTAL = 5
 DOWNLOAD_CHUNK_SIZE = 1024 * 256
@@ -170,6 +172,44 @@ def _open_http_request(
         return resp
     except requests.RequestException as exc:
         logger.warning(f"Failed to fetch {url}: {exc}")
+        return None
+
+
+def http_head(url: str, user_agent: str, timeout: int) -> Optional[requests.Response]:
+    """Execute an HTTP HEAD request to get headers without downloading the body.
+
+    This is useful for checking Content-Length before downloading large files.
+
+    Args:
+        url: URL to check
+        user_agent: User-Agent header value
+        timeout: Request timeout in seconds
+
+    Returns:
+        Response object with headers, or None if request failed
+    """
+    normalized_url = normalize_url(url)
+    headers = {"User-Agent": user_agent}
+    try:
+        session = _get_thread_request_session()
+        logger.debug(
+            "Checking file size via HEAD request to %s (timeout=%s) via session %s",
+            normalized_url,
+            timeout,
+            hex(id(session)),
+        )
+        resp = session.head(normalized_url, headers=headers, timeout=timeout)
+        resp.raise_for_status()
+        content_length = resp.headers.get("Content-Length")
+        logger.debug(
+            "HEAD request to %s succeeded with status %s and Content-Length=%s",
+            normalized_url,
+            resp.status_code,
+            content_length,
+        )
+        return resp
+    except requests.RequestException as exc:
+        logger.debug(f"HEAD request to {url} failed: {exc}")
         return None
 
 

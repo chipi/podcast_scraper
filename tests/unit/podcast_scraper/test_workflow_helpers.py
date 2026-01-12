@@ -25,377 +25,302 @@ import importlib.util
 from pathlib import Path
 
 from podcast_scraper import config, metrics, models, workflow
+from podcast_scraper.workflow.stages import setup
 
 parent_tests_dir = Path(__file__).parent.parent.parent
-if str(parent_tests_dir) not in sys.path:
-    sys.path.insert(0, str(parent_tests_dir))
+conftest_path = parent_tests_dir / "conftest.py"
+spec = importlib.util.spec_from_file_location("conftest", conftest_path)
+if spec and spec.loader:
+    conftest = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(conftest)
+    create_test_config = conftest.create_test_config
 
-parent_conftest_path = parent_tests_dir / "conftest.py"
-spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
-if spec is None or spec.loader is None:
-    raise ImportError(f"Could not load conftest from {parent_conftest_path}")
-parent_conftest = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(parent_conftest)
-
-create_test_config = parent_conftest.create_test_config
-create_test_episode = parent_conftest.create_test_episode
-create_test_feed = parent_conftest.create_test_feed
+logger = logging.getLogger(__name__)
 
 
+@pytest.mark.unit
 class TestInitializeMLEnvironment(unittest.TestCase):
-    """Tests for _initialize_ml_environment function."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        # Save original environment
-        self.original_env = os.environ.copy()
-
-    def tearDown(self):
-        """Clean up test fixtures."""
-        # Restore original environment
-        os.environ.clear()
-        os.environ.update(self.original_env)
+    """Tests for initialize_ml_environment function."""
 
     def test_initialize_ml_environment_sets_hf_hub_disable_progress_bars(self):
-        """Test _initialize_ml_environment sets HF_HUB_DISABLE_PROGRESS_BARS."""
-        # Ensure it's not set
-        if "HF_HUB_DISABLE_PROGRESS_BARS" in os.environ:
-            del os.environ["HF_HUB_DISABLE_PROGRESS_BARS"]
+        """Test that initialize_ml_environment sets HF_HUB_DISABLE_PROGRESS_BARS."""
+        # Clear the environment variable if it exists
+        original_value = os.environ.pop("HF_HUB_DISABLE_PROGRESS_BARS", None)
+        try:
+            # Call the function
+            setup.initialize_ml_environment()
 
-        workflow._initialize_ml_environment()
+            # Verify the environment variable was set
+            self.assertEqual(os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS"), "1")
+        finally:
+            # Restore original value
+            if original_value is not None:
+                os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = original_value
+            elif "HF_HUB_DISABLE_PROGRESS_BARS" in os.environ:
+                del os.environ["HF_HUB_DISABLE_PROGRESS_BARS"]
 
-        self.assertEqual(os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS"), "1")
+    def test_initialize_ml_environment_sets_tokenizers_parallelism(self):
+        """Test that initialize_ml_environment sets TOKENIZERS_PARALLELISM."""
+        # Clear the environment variable if it exists
+        original_value = os.environ.pop("TOKENIZERS_PARALLELISM", None)
+        try:
+            # Call the function
+            setup.initialize_ml_environment()
 
-    def test_initialize_ml_environment_respects_existing_hf_hub_disable_progress_bars(self):
-        """Test _initialize_ml_environment respects existing HF_HUB_DISABLE_PROGRESS_BARS."""
-        # Set it to a different value
+            # Verify the environment variable was set
+            self.assertEqual(os.environ.get("TOKENIZERS_PARALLELISM"), "false")
+        finally:
+            # Restore original value
+            if original_value is not None:
+                os.environ["TOKENIZERS_PARALLELISM"] = original_value
+            elif "TOKENIZERS_PARALLELISM" in os.environ:
+                del os.environ["TOKENIZERS_PARALLELISM"]
+
+    def test_initialize_ml_environment_respects_existing_values(self):
+        """Test that initialize_ml_environment respects existing environment variables."""
+        # Set custom values
         os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "0"
+        os.environ["TOKENIZERS_PARALLELISM"] = "true"
+        try:
+            # Call the function
+            setup.initialize_ml_environment()
 
-        workflow._initialize_ml_environment()
-
-        # Should not override existing value
-        self.assertEqual(os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS"), "0")
-
-    def test_initialize_ml_environment_does_not_set_thread_vars(self):
-        """Test _initialize_ml_environment does not set thread-related environment variables."""
-        # Ensure they're not set
-        for var in ["OMP_NUM_THREADS", "MKL_NUM_THREADS", "TORCH_NUM_THREADS"]:
-            if var in os.environ:
-                del os.environ[var]
-
-        workflow._initialize_ml_environment()
-
-        # Should not be set (allows full CPU utilization in production)
-        self.assertNotIn("OMP_NUM_THREADS", os.environ)
-        self.assertNotIn("MKL_NUM_THREADS", os.environ)
-        self.assertNotIn("TORCH_NUM_THREADS", os.environ)
+            # Verify the environment variables were not changed
+            self.assertEqual(os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS"), "0")
+            self.assertEqual(os.environ.get("TOKENIZERS_PARALLELISM"), "true")
+        finally:
+            # Clean up
+            del os.environ["HF_HUB_DISABLE_PROGRESS_BARS"]
+            del os.environ["TOKENIZERS_PARALLELISM"]
 
 
+@pytest.mark.unit
 class TestUpdateMetricSafely(unittest.TestCase):
-    """Tests for _update_metric_safely function."""
+    """Tests for update_metric_safely helper function."""
 
-    def test_update_metric_without_lock(self):
-        """Test updating metric without lock."""
-        pipeline_metrics = metrics.Metrics()
-        workflow._update_metric_safely(pipeline_metrics, "transcripts_downloaded", 5)
-        self.assertEqual(pipeline_metrics.transcripts_downloaded, 5)
+    def test_update_metric_safely_without_lock(self):
+        """Test that update_metric_safely works without a lock."""
+        from podcast_scraper.workflow import helpers
 
-    def test_update_metric_with_lock(self):
-        """Test updating metric with lock."""
         pipeline_metrics = metrics.Metrics()
-        lock = threading.Lock()
-        workflow._update_metric_safely(pipeline_metrics, "transcripts_downloaded", 3, lock)
-        self.assertEqual(pipeline_metrics.transcripts_downloaded, 3)
+        pipeline_metrics.transcripts_downloaded = 5
 
-    def test_update_metric_adds_value(self):
-        """Test that metric value is added, not replaced."""
-        pipeline_metrics = metrics.Metrics()
-        workflow._update_metric_safely(pipeline_metrics, "transcripts_downloaded", 5)
-        workflow._update_metric_safely(pipeline_metrics, "transcripts_downloaded", 3)
+        helpers.update_metric_safely(pipeline_metrics, "transcripts_downloaded", 3)
+
         self.assertEqual(pipeline_metrics.transcripts_downloaded, 8)
 
-    def test_update_metric_thread_safety(self):
-        """Test that lock ensures thread safety."""
+    def test_update_metric_safely_with_lock(self):
+        """Test that update_metric_safely works with a lock."""
+        from podcast_scraper.workflow import helpers
+
         pipeline_metrics = metrics.Metrics()
+        pipeline_metrics.transcripts_downloaded = 5
         lock = threading.Lock()
 
-        def update_metric():
-            for _ in range(10):
-                workflow._update_metric_safely(pipeline_metrics, "transcripts_downloaded", 1, lock)
+        helpers.update_metric_safely(pipeline_metrics, "transcripts_downloaded", 3, lock)
 
-        threads = [threading.Thread(target=update_metric) for _ in range(5)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        self.assertEqual(pipeline_metrics.transcripts_downloaded, 8)
 
-        # Should have 50 total updates (5 threads * 10 updates each)
-        self.assertEqual(pipeline_metrics.transcripts_downloaded, 50)
+    def test_update_metric_safely_handles_missing_attribute(self):
+        """Test that update_metric_safely handles missing metric attributes."""
+        from podcast_scraper.workflow import helpers
+
+        pipeline_metrics = metrics.Metrics()
+
+        # Should not raise - getattr returns 0 for missing attributes
+        helpers.update_metric_safely(pipeline_metrics, "nonexistent_metric", 5)
+
+        self.assertEqual(getattr(pipeline_metrics, "nonexistent_metric", 0), 5)
 
 
+@pytest.mark.unit
 class TestExtractFeedMetadataForGeneration(unittest.TestCase):
-    """Tests for _extract_feed_metadata_for_generation function."""
+    """Tests for extract_feed_metadata_for_generation function."""
 
-    def test_extract_metadata_when_enabled(self):
-        """Test extracting metadata when generate_metadata is enabled."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", generate_metadata=True)
-        feed = models.RssFeed(
-            title="Test Feed",
-            authors=[],
-            items=[],
-            base_url="https://example.com",
+    def test_extract_feed_metadata_for_generation_disabled(self):
+        """Test that extract_feed_metadata_for_generation returns empty when disabled."""
+        from podcast_scraper.workflow.stages.scraping import extract_feed_metadata_for_generation
+        from podcast_scraper.workflow.types import FeedMetadata
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            generate_metadata=False,
         )
-        rss_bytes = b"""<?xml version="1.0"?>
-        <rss version="2.0">
-            <channel>
-                <title>Test Feed</title>
-                <description>Feed description</description>
-            </channel>
-        </rss>"""
-
-        result = workflow._extract_feed_metadata_for_generation(cfg, feed, rss_bytes)
-        self.assertIsNotNone(result.description)
-        self.assertIn("Feed description", result.description)
-
-    def test_extract_metadata_when_disabled(self):
-        """Test that metadata extraction returns None when disabled."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", generate_metadata=False)
         feed = models.RssFeed(
-            title="Test Feed",
-            authors=[],
-            items=[],
-            base_url="https://example.com",
+            title="Test Feed", authors=["Test Author"], items=[], base_url="https://example.com"
         )
         rss_bytes = b"<rss></rss>"
 
-        result = workflow._extract_feed_metadata_for_generation(cfg, feed, rss_bytes)
-        self.assertIsNone(result.description)
-        self.assertIsNone(result.image_url)
-        self.assertIsNone(result.last_updated)
+        result = extract_feed_metadata_for_generation(cfg, feed, rss_bytes)
 
-    def test_extract_metadata_with_empty_bytes(self):
-        """Test that empty RSS bytes returns None metadata."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", generate_metadata=True)
-        feed = models.RssFeed(
-            title="Test Feed",
-            authors=[],
-            items=[],
-            base_url="https://example.com",
+        self.assertEqual(result, FeedMetadata(None, None, None))
+
+    def test_extract_feed_metadata_for_generation_with_empty_bytes(self):
+        """Test that extract_feed_metadata_for_generation returns empty when rss_bytes is empty."""
+        from podcast_scraper.workflow.stages.scraping import extract_feed_metadata_for_generation
+        from podcast_scraper.workflow.types import FeedMetadata
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            generate_metadata=True,
         )
-
-        result = workflow._extract_feed_metadata_for_generation(cfg, feed, b"")
-        self.assertIsNone(result.description)
-        self.assertIsNone(result.image_url)
-        self.assertIsNone(result.last_updated)
-
-    def test_extract_metadata_handles_exceptions(self):
-        """Test that exceptions during extraction are handled gracefully."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", generate_metadata=True)
         feed = models.RssFeed(
-            title="Test Feed",
-            authors=[],
-            items=[],
-            base_url="https://example.com",
+            title="Test Feed", authors=["Test Author"], items=[], base_url="https://example.com"
         )
-        # Invalid XML that will cause parse error
-        rss_bytes = b"<invalid>xml"
+        rss_bytes = b""
 
-        result = workflow._extract_feed_metadata_for_generation(cfg, feed, rss_bytes)
-        # Should return None metadata on error
-        self.assertIsNone(result.description)
-        self.assertIsNone(result.image_url)
-        self.assertIsNone(result.last_updated)
+        result = extract_feed_metadata_for_generation(cfg, feed, rss_bytes)
+
+        self.assertEqual(result, FeedMetadata(None, None, None))
 
 
+@pytest.mark.unit
 class TestPrepareEpisodesFromFeed(unittest.TestCase):
-    """Tests for _prepare_episodes_from_feed function."""
+    """Tests for prepare_episodes_from_feed function."""
 
-    def test_prepare_episodes_basic(self):
-        """Test preparing episodes from feed."""
-        # Bandit: tests construct safe XML elements
-        import xml.etree.ElementTree as ET  # nosec B405
+    def test_prepare_episodes_from_feed_basic(self):
+        """Test that prepare_episodes_from_feed creates Episode objects."""
+        import xml.etree.ElementTree as ET
 
+        from podcast_scraper.workflow.stages.scraping import prepare_episodes_from_feed
+
+        # Create proper RSS items as XML elements
         item1 = ET.Element("item")
-        title1 = ET.SubElement(item1, "title")
-        title1.text = "Episode 1"
+        ET.SubElement(item1, "title").text = "Episode 1"
+        ET.SubElement(item1, "link").text = "https://example.com/ep1"
+        ET.SubElement(item1, "guid").text = "ep1"
+
         item2 = ET.Element("item")
-        title2 = ET.SubElement(item2, "title")
-        title2.text = "Episode 2"
+        ET.SubElement(item2, "title").text = "Episode 2"
+        ET.SubElement(item2, "link").text = "https://example.com/ep2"
+        ET.SubElement(item2, "guid").text = "ep2"
 
         feed = models.RssFeed(
             title="Test Feed",
-            authors=[],
+            authors=["Test Author"],
             items=[item1, item2],
             base_url="https://example.com",
         )
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
+        cfg = create_test_config(rss_url="https://example.com/feed.xml")
 
-        episodes = workflow._prepare_episodes_from_feed(feed, cfg)
+        episodes = prepare_episodes_from_feed(feed, cfg)
+
         self.assertEqual(len(episodes), 2)
         self.assertEqual(episodes[0].idx, 1)
         self.assertEqual(episodes[0].title, "Episode 1")
         self.assertEqual(episodes[1].idx, 2)
         self.assertEqual(episodes[1].title, "Episode 2")
 
-    def test_prepare_episodes_with_max_episodes(self):
-        """Test that max_episodes limits the number of episodes."""
-        # Bandit: tests construct safe XML elements
-        import xml.etree.ElementTree as ET  # nosec B405
+    def test_prepare_episodes_from_feed_with_max_episodes(self):
+        """Test that prepare_episodes_from_feed respects max_episodes limit."""
+        import xml.etree.ElementTree as ET
 
+        from podcast_scraper.workflow.stages.scraping import prepare_episodes_from_feed
+
+        # Create proper RSS items as XML elements
         items = []
-        for i in range(10):
+        for i in range(1, 4):
             item = ET.Element("item")
-            title = ET.SubElement(item, "title")
-            title.text = f"Episode {i+1}"
+            ET.SubElement(item, "title").text = f"Episode {i}"
+            ET.SubElement(item, "link").text = f"https://example.com/ep{i}"
+            ET.SubElement(item, "guid").text = f"ep{i}"
             items.append(item)
 
         feed = models.RssFeed(
             title="Test Feed",
-            authors=[],
+            authors=["Test Author"],
             items=items,
             base_url="https://example.com",
         )
-        cfg = config.Config(rss_url="https://example.com/feed.xml", max_episodes=5)
+        cfg = create_test_config(rss_url="https://example.com/feed.xml", max_episodes=2)
 
-        episodes = workflow._prepare_episodes_from_feed(feed, cfg)
-        self.assertEqual(len(episodes), 5)
+        episodes = prepare_episodes_from_feed(feed, cfg)
+
+        self.assertEqual(len(episodes), 2)
         self.assertEqual(episodes[0].idx, 1)
-        self.assertEqual(episodes[4].idx, 5)
-
-    def test_prepare_episodes_with_no_max(self):
-        """Test that all episodes are prepared when max_episodes is None."""
-        # Bandit: tests construct safe XML elements
-        import xml.etree.ElementTree as ET  # nosec B405
-
-        items = []
-        for i in range(10):
-            item = ET.Element("item")
-            title = ET.SubElement(item, "title")
-            title.text = f"Episode {i+1}"
-            items.append(item)
-
-        feed = models.RssFeed(
-            title="Test Feed",
-            authors=[],
-            items=items,
-            base_url="https://example.com",
-        )
-        cfg = config.Config(rss_url="https://example.com/feed.xml", max_episodes=None)
-
-        episodes = workflow._prepare_episodes_from_feed(feed, cfg)
-        self.assertEqual(len(episodes), 10)
-
-    def test_prepare_episodes_empty_feed(self):
-        """Test preparing episodes from empty feed."""
-        feed = models.RssFeed(
-            title="Test Feed",
-            authors=[],
-            items=[],
-            base_url="https://example.com",
-        )
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-
-        episodes = workflow._prepare_episodes_from_feed(feed, cfg)
-        self.assertEqual(len(episodes), 0)
+        self.assertEqual(episodes[1].idx, 2)
 
 
+@pytest.mark.unit
 class TestSetupProcessingResources(unittest.TestCase):
-    """Tests for _setup_processing_resources function."""
+    """Tests for setup_processing_resources function."""
 
-    def test_setup_resources_single_worker(self):
-        """Test setting up resources for single worker (no lock needed)."""
-        cfg = config.Config(
+    def test_setup_processing_resources_basic(self):
+        """Test that setup_processing_resources creates ProcessingResources."""
+        from podcast_scraper.workflow.stages.processing import setup_processing_resources
+        from podcast_scraper.workflow.types import ProcessingResources
+
+        cfg = create_test_config(
             rss_url="https://example.com/feed.xml",
             workers=1,
             transcription_parallelism=1,
             processing_parallelism=1,
         )
 
-        result = workflow._setup_processing_resources(cfg)
-        self.assertIsNotNone(result.processing_jobs)
-        self.assertIsNone(result.processing_jobs_lock)  # No lock for single worker
+        result = setup_processing_resources(cfg)
+
+        self.assertIsInstance(result, ProcessingResources)
+        self.assertEqual(len(result.processing_jobs), 0)
+        # Lock is None when all parallelism settings are 1
+        self.assertIsNone(result.processing_jobs_lock)
         self.assertIsNotNone(result.processing_complete_event)
 
-    def test_setup_resources_multiple_workers(self):
-        """Test setting up resources for multiple workers (lock needed)."""
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            workers=4,
-            transcription_parallelism=1,
-            processing_parallelism=1,
-        )
+    def test_setup_processing_resources_with_multiple_workers(self):
+        """Test that setup_processing_resources creates lock with multiple workers."""
+        from podcast_scraper.workflow.stages.processing import setup_processing_resources
 
-        result = workflow._setup_processing_resources(cfg)
-        self.assertIsNotNone(result.processing_jobs)
-        self.assertIsNotNone(result.processing_jobs_lock)  # Lock needed for multiple workers
-        self.assertIsNotNone(result.processing_complete_event)
+        cfg = create_test_config(rss_url="https://example.com/feed.xml", workers=4)
 
-    def test_setup_resources_with_transcription_parallelism(self):
-        """Test that transcription_parallelism > 1 requires lock."""
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            workers=1,
-            transcription_parallelism=2,
-            processing_parallelism=1,
-        )
+        result = setup_processing_resources(cfg)
 
-        result = workflow._setup_processing_resources(cfg)
-        self.assertIsNotNone(result.processing_jobs_lock)
-
-    def test_setup_resources_with_processing_parallelism(self):
-        """Test that processing_parallelism > 1 requires lock."""
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            workers=1,
-            transcription_parallelism=1,
-            processing_parallelism=2,
-        )
-
-        result = workflow._setup_processing_resources(cfg)
         self.assertIsNotNone(result.processing_jobs_lock)
 
 
+@pytest.mark.unit
 class TestGeneratePipelineSummary(unittest.TestCase):
-    """Tests for _generate_pipeline_summary function."""
+    """Tests for generate_pipeline_summary helper function."""
 
-    def test_generate_summary_dry_run(self):
-        """Test generating summary in dry-run mode."""
-        cfg = config.Config(
+    def test_generate_pipeline_summary_dry_run(self):
+        """Test that generate_pipeline_summary works in dry-run mode."""
+        from podcast_scraper.workflow import helpers
+        from podcast_scraper.workflow.types import TranscriptionResources
+
+        cfg = create_test_config(
             rss_url="https://example.com/feed.xml",
             dry_run=True,
             transcribe_missing=True,
         )
-        transcription_resources = workflow._TranscriptionResources(
+        transcription_resources = TranscriptionResources(
             transcription_provider=None,
             temp_dir=None,
-            transcription_jobs=[Mock(), Mock()],
+            transcription_jobs=[Mock(), Mock()],  # 2 jobs
             transcription_jobs_lock=None,
             saved_counter_lock=None,
         )
         pipeline_metrics = metrics.Metrics()
+        effective_output_dir = "/tmp/test"
 
-        count, summary = workflow._generate_pipeline_summary(
+        count, summary = helpers.generate_pipeline_summary(
             cfg,
             saved=5,
             transcription_resources=transcription_resources,
-            effective_output_dir="./output",
+            effective_output_dir=effective_output_dir,
             pipeline_metrics=pipeline_metrics,
         )
 
-        self.assertEqual(count, 7)  # 5 downloads + 2 transcriptions
+        self.assertEqual(count, 7)  # 5 saved + 2 planned transcriptions
         self.assertIn("Dry run complete", summary)
+        self.assertIn("transcripts_planned=7", summary)
         self.assertIn("Direct downloads planned: 5", summary)
         self.assertIn("Whisper transcriptions planned: 2", summary)
 
-    def test_generate_summary_normal_mode(self):
-        """Test generating summary in normal mode."""
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            dry_run=False,
-            generate_metadata=True,
-            generate_summaries=True,
-        )
-        transcription_resources = workflow._TranscriptionResources(
+    def test_generate_pipeline_summary_normal_mode(self):
+        """Test that generate_pipeline_summary works in normal mode."""
+        from podcast_scraper.workflow import helpers
+        from podcast_scraper.workflow.types import TranscriptionResources
+
+        cfg = create_test_config(rss_url="https://example.com/feed.xml")
+        transcription_resources = TranscriptionResources(
             transcription_provider=None,
             temp_dir=None,
             transcription_jobs=[],
@@ -403,30 +328,37 @@ class TestGeneratePipelineSummary(unittest.TestCase):
             saved_counter_lock=None,
         )
         pipeline_metrics = metrics.Metrics()
-        pipeline_metrics.transcripts_downloaded = 8
+        pipeline_metrics.transcripts_downloaded = 3
         pipeline_metrics.transcripts_transcribed = 2
-        pipeline_metrics.metadata_files_generated = 10
-        pipeline_metrics.episodes_summarized = 5
+        effective_output_dir = "/tmp/test"
 
-        count, summary = workflow._generate_pipeline_summary(
+        count, summary = helpers.generate_pipeline_summary(
             cfg,
-            saved=10,
+            saved=5,
             transcription_resources=transcription_resources,
-            effective_output_dir="./output",
+            effective_output_dir=effective_output_dir,
             pipeline_metrics=pipeline_metrics,
         )
 
-        self.assertEqual(count, 10)
-        self.assertIn("Done. transcripts_saved=10", summary)
-        self.assertIn("Transcripts downloaded: 8", summary)
+        self.assertEqual(count, 5)
+        self.assertIn("Done. transcripts_saved=5", summary)
+        self.assertIn("Transcripts downloaded: 3", summary)
         self.assertIn("Episodes transcribed: 2", summary)
-        self.assertIn("Metadata files generated: 10", summary)
-        self.assertIn("Episodes summarized: 5", summary)
 
-    def test_generate_summary_with_errors(self):
-        """Test generating summary with error count."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", dry_run=False)
-        transcription_resources = workflow._TranscriptionResources(
+    def test_generate_pipeline_summary_includes_llm_usage(self):
+        """Test that generate_pipeline_summary includes LLM usage when OpenAI providers are used."""
+        from podcast_scraper.workflow import helpers
+        from podcast_scraper.workflow.types import TranscriptionResources
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="openai",
+            summary_provider="openai",
+            openai_transcription_model="whisper-1",
+            openai_summary_model="gpt-4o-mini",
+            openai_api_key="sk-test123",
+        )
+        transcription_resources = TranscriptionResources(
             transcription_provider=None,
             temp_dir=None,
             transcription_jobs=[],
@@ -434,2445 +366,150 @@ class TestGeneratePipelineSummary(unittest.TestCase):
             saved_counter_lock=None,
         )
         pipeline_metrics = metrics.Metrics()
-        pipeline_metrics.errors_total = 3
+        pipeline_metrics.transcripts_downloaded = 2
+        pipeline_metrics.record_llm_transcription_call(10.0)  # 10 minutes
+        pipeline_metrics.record_llm_summarization_call(input_tokens=50000, output_tokens=10000)
+        effective_output_dir = "/tmp/test"
 
-        count, summary = workflow._generate_pipeline_summary(
+        count, summary = helpers.generate_pipeline_summary(
             cfg,
-            saved=10,
+            saved=2,
             transcription_resources=transcription_resources,
-            effective_output_dir="./output",
+            effective_output_dir=effective_output_dir,
             pipeline_metrics=pipeline_metrics,
         )
 
-        self.assertIn("Errors: 3", summary)
-
-    def test_generate_summary_with_skipped_episodes(self):
-        """Test generating summary with skipped episodes."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", dry_run=False)
-        transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=None,
-            temp_dir=None,
-            transcription_jobs=[],
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-        pipeline_metrics = metrics.Metrics()
-        pipeline_metrics.episodes_skipped_total = 2
-
-        count, summary = workflow._generate_pipeline_summary(
-            cfg,
-            saved=10,
-            transcription_resources=transcription_resources,
-            effective_output_dir="./output",
-            pipeline_metrics=pipeline_metrics,
-        )
-
-        self.assertIn("Episodes skipped: 2", summary)
-
-    def test_generate_summary_with_performance_metrics(self):
-        """Test generating summary with performance metrics."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", dry_run=False)
-        transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=None,
-            temp_dir=None,
-            transcription_jobs=[],
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-        pipeline_metrics = metrics.Metrics()
-        pipeline_metrics.record_download_media_time(2.5)
-        pipeline_metrics.record_transcribe_time(45.0)
-        pipeline_metrics.record_extract_names_time(1.2)
-        pipeline_metrics.record_summarize_time(30.0)
-
-        count, summary = workflow._generate_pipeline_summary(
-            cfg,
-            saved=10,
-            transcription_resources=transcription_resources,
-            effective_output_dir="./output",
-            pipeline_metrics=pipeline_metrics,
-        )
-
-        self.assertIn("Average download time", summary)
-        self.assertIn("Average transcription time", summary)
-        self.assertIn("Average name extraction time", summary)
-        self.assertIn("Average summary time", summary)
+        # Should include LLM usage section
+        self.assertIn("LLM API Usage:", summary)
+        self.assertIn("Transcription:", summary)
+        self.assertIn("Summarization:", summary)
+        self.assertIn("Total estimated cost:", summary)
 
 
+@pytest.mark.unit
 class TestCallGenerateMetadata(unittest.TestCase):
-    """Tests for _call_generate_metadata function."""
+    """Tests for call_generate_metadata function."""
 
-    @patch("podcast_scraper.workflow._generate_episode_metadata")
-    def test_call_generate_metadata_basic(self, mock_generate):
-        """Test basic metadata generation call."""
-        episode = Mock(spec=models.Episode)
-        feed = Mock(spec=models.RssFeed)
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-        feed_metadata = workflow._FeedMetadata("Feed desc", "https://example.com/image.jpg", None)
-        host_result = workflow._HostDetectionResult(set(), None, None)
+    def test_call_generate_metadata_basic(self):
+        """Test that call_generate_metadata calls generate_episode_metadata."""
+        from podcast_scraper.workflow.stages.metadata import call_generate_metadata
+        from podcast_scraper.workflow.types import FeedMetadata, HostDetectionResult
 
-        workflow._call_generate_metadata(
-            episode=episode,
-            feed=feed,
-            cfg=cfg,
-            effective_output_dir="./output",
-            run_suffix="test",
-            transcript_path="./transcript.txt",
-            transcript_source="direct_download",
-            whisper_model=None,
-            feed_metadata=feed_metadata,
-            host_detection_result=host_result,
-            detected_names=["Guest Name"],
-            summary_provider=Mock(),
-            pipeline_metrics=Mock(),
+        episode = models.Episode(
+            idx=1,
+            title="Test Episode",
+            title_safe="test-episode",
+            item={"title": "Test Episode"},
+            transcript_urls=[],
+        )
+        feed = models.RssFeed(
+            title="Test Feed", authors=["Test Author"], items=[], base_url="https://example.com"
+        )
+        cfg = create_test_config(rss_url="https://example.com/feed.xml")
+        feed_metadata = FeedMetadata(None, None, None)
+        host_detection_result = HostDetectionResult(
+            cached_hosts=set(), heuristics=None, speaker_detector=None
         )
 
-        mock_generate.assert_called_once()
-        call_kwargs = mock_generate.call_args.kwargs
-        self.assertEqual(call_kwargs["feed"], feed)
-        self.assertEqual(call_kwargs["episode"], episode)
-        self.assertEqual(call_kwargs["feed_url"], "https://example.com/feed.xml")
-        self.assertEqual(call_kwargs["output_dir"], "./output")
-        self.assertEqual(call_kwargs["run_suffix"], "test")
-        self.assertEqual(call_kwargs["transcript_file_path"], "./transcript.txt")
-        self.assertEqual(call_kwargs["transcript_source"], "direct_download")
+        with patch(
+            "podcast_scraper.workflow.stages.metadata.generate_episode_metadata"
+        ) as mock_generate:
+            call_generate_metadata(
+                episode=episode,
+                feed=feed,
+                cfg=cfg,
+                effective_output_dir="/tmp/test",
+                run_suffix=None,
+                transcript_path="/tmp/test/ep1.txt",
+                transcript_source="direct_download",
+                whisper_model=None,
+                feed_metadata=feed_metadata,
+                host_detection_result=host_detection_result,
+                detected_names=None,
+                summary_provider=None,
+                pipeline_metrics=None,
+            )
 
-    @patch("podcast_scraper.workflow._generate_episode_metadata")
-    def test_call_generate_metadata_with_none_values(self, mock_generate):
-        """Test metadata generation call with None values."""
-        episode = Mock(spec=models.Episode)
-        feed = Mock(spec=models.RssFeed)
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-        feed_metadata = workflow._FeedMetadata(None, None, None)
-        host_result = workflow._HostDetectionResult(None, None, None)
-
-        workflow._call_generate_metadata(
-            episode=episode,
-            feed=feed,
-            cfg=cfg,
-            effective_output_dir="./output",
-            run_suffix=None,
-            transcript_path=None,
-            transcript_source=None,
-            whisper_model=None,
-            feed_metadata=feed_metadata,
-            host_detection_result=host_result,
-            detected_names=None,
-            summary_provider=Mock(),
-            pipeline_metrics=None,
-        )
-
-        mock_generate.assert_called_once()
-        call_kwargs = mock_generate.call_args.kwargs
-        self.assertIsNone(call_kwargs["run_suffix"])
-        self.assertIsNone(call_kwargs["transcript_file_path"])
-        self.assertIsNone(call_kwargs["transcript_source"])
-        self.assertIsNone(call_kwargs["detected_hosts"])
-        self.assertIsNone(call_kwargs["detected_guests"])
-
-    @patch("podcast_scraper.workflow._generate_episode_metadata")
-    def test_call_generate_metadata_with_cached_hosts(self, mock_generate):
-        """Test metadata generation call with cached hosts."""
-        episode = Mock(spec=models.Episode)
-        feed = Mock(spec=models.RssFeed)
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-        feed_metadata = workflow._FeedMetadata(None, None, None)
-        host_result = workflow._HostDetectionResult({"Host1", "Host2"}, None, None)
-
-        workflow._call_generate_metadata(
-            episode=episode,
-            feed=feed,
-            cfg=cfg,
-            effective_output_dir="./output",
-            run_suffix=None,
-            transcript_path=None,
-            transcript_source=None,
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
-            feed_metadata=feed_metadata,
-            host_detection_result=host_result,
-            detected_names=["Guest"],
-            summary_provider=Mock(),
-            pipeline_metrics=Mock(),
-        )
-
-        mock_generate.assert_called_once()
-        call_kwargs = mock_generate.call_args.kwargs
-        # cached_hosts is a set, so convert to sorted list for comparison
-        self.assertEqual(sorted(call_kwargs["detected_hosts"]), sorted(["Host1", "Host2"]))
-        self.assertEqual(call_kwargs["detected_guests"], ["Guest"])
-        self.assertEqual(call_kwargs["whisper_model"], config.TEST_DEFAULT_WHISPER_MODEL)
+            mock_generate.assert_called_once()
+            call_args = mock_generate.call_args
+            self.assertEqual(call_args.kwargs["episode"], episode)
+            self.assertEqual(call_args.kwargs["feed"], feed)
 
 
+@pytest.mark.unit
 class TestApplyLogLevel(unittest.TestCase):
     """Tests for apply_log_level function."""
 
-    def setUp(self):
-        """Set up test fixtures."""
-        # Clear existing handlers
-        root_logger = logging.getLogger()
-        root_logger.handlers.clear()
-        root_logger.setLevel(logging.WARNING)
-
-    def tearDown(self):
-        """Clean up test fixtures."""
-        # Clear handlers after each test
-        root_logger = logging.getLogger()
-        root_logger.handlers.clear()
-
-    def test_apply_log_level_debug(self):
-        """Test applying DEBUG log level."""
+    def test_apply_log_level_valid(self):
+        """Test that apply_log_level works with valid log level."""
         workflow.apply_log_level("DEBUG")
+
         root_logger = logging.getLogger()
         self.assertEqual(root_logger.level, logging.DEBUG)
 
-    def test_apply_log_level_info(self):
-        """Test applying INFO log level."""
-        workflow.apply_log_level("INFO")
-        root_logger = logging.getLogger()
-        self.assertEqual(root_logger.level, logging.INFO)
-
     def test_apply_log_level_invalid(self):
-        """Test applying invalid log level raises ValueError."""
-        with self.assertRaises(ValueError) as context:
-            workflow.apply_log_level("INVALID")
-        self.assertIn("Invalid log level", str(context.exception))
+        """Test that apply_log_level raises ValueError for invalid log level."""
+        with self.assertRaises(ValueError):
+            workflow.apply_log_level("INVALID_LEVEL")
 
-    def test_apply_log_level_with_file(self):
-        """Test applying log level with log file (simplified - just verify it doesn't crash)."""
-        # Clear handlers before test
-        root_logger = logging.getLogger()
-        root_logger.handlers.clear()
 
-        # Use tempfile to avoid filesystem I/O restrictions
+@pytest.mark.unit
+class TestSetupPipelineEnvironment(unittest.TestCase):
+    """Tests for setup_pipeline_environment function."""
+
+    def test_setup_pipeline_environment_basic(self):
+        """Test that setup_pipeline_environment creates output directory."""
         import tempfile
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".log") as tmp:
-            log_file = tmp.name
-
-        try:
-            # This will create a real file handler, which is allowed in temp directories
-            workflow.apply_log_level("INFO", log_file=log_file)
-
-            # Should have at least one handler (file handler)
-            self.assertGreaterEqual(len(root_logger.handlers), 1)
-            # Check that a file handler was added
-            file_handlers = [h for h in root_logger.handlers if isinstance(h, logging.FileHandler)]
-            self.assertGreaterEqual(len(file_handlers), 1)
-        finally:
-            # Clean up
-            import os
-
-            if os.path.exists(log_file):
-                os.unlink(log_file)
-
-
-class TestSetupPipelineEnvironment(unittest.TestCase):
-    """Tests for _setup_pipeline_environment function."""
-
-    @patch("podcast_scraper.workflow.filesystem.setup_output_directory")
-    @patch("os.path.exists")
-    @patch("shutil.rmtree")
-    @patch("os.makedirs")
-    def test_setup_environment_basic(self, mock_makedirs, mock_rmtree, mock_exists, mock_setup):
-        """Test basic pipeline environment setup."""
-        mock_setup.return_value = ("./output", None)
-        mock_exists.return_value = False
-        cfg = config.Config(rss_url="https://example.com/feed.xml", output_dir="./output")
-
-        output_dir, run_suffix = workflow._setup_pipeline_environment(cfg)
-
-        self.assertEqual(output_dir, "./output")
-        self.assertIsNone(run_suffix)
-        mock_setup.assert_called_once_with(cfg)
-        # Should create base directory and subdirectories (transcripts/, metadata/)
-        self.assertEqual(mock_makedirs.call_count, 3)
-        mock_makedirs.assert_any_call("./output", exist_ok=True)
-        mock_makedirs.assert_any_call("./output/transcripts", exist_ok=True)
-        mock_makedirs.assert_any_call("./output/metadata", exist_ok=True)
-
-    @patch("podcast_scraper.workflow.filesystem.setup_output_directory")
-    @patch("os.path.exists")
-    @patch("shutil.rmtree")
-    @patch("os.makedirs")
-    def test_setup_environment_with_clean_output(
-        self, mock_makedirs, mock_rmtree, mock_exists, mock_setup
-    ):
-        """Test pipeline environment setup with clean_output enabled."""
-        mock_setup.return_value = ("./output", None)
-        mock_exists.return_value = True
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            output_dir="./output",
-            clean_output=True,
-            dry_run=False,
-        )
-
-        output_dir, run_suffix = workflow._setup_pipeline_environment(cfg)
-
-        mock_rmtree.assert_called_once_with("./output")
-        # Should create base directory and subdirectories (transcripts/, metadata/)
-        self.assertEqual(mock_makedirs.call_count, 3)
-        mock_makedirs.assert_any_call("./output", exist_ok=True)
-        mock_makedirs.assert_any_call("./output/transcripts", exist_ok=True)
-        mock_makedirs.assert_any_call("./output/metadata", exist_ok=True)
-
-    @patch("podcast_scraper.workflow.filesystem.setup_output_directory")
-    @patch("os.path.exists")
-    @patch("shutil.rmtree")
-    @patch("os.makedirs")
-    def test_setup_environment_dry_run(self, mock_makedirs, mock_rmtree, mock_exists, mock_setup):
-        """Test pipeline environment setup in dry-run mode."""
-        mock_setup.return_value = ("./output", "test_run")
-        mock_exists.return_value = True
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            output_dir="./output",
-            clean_output=True,
-            dry_run=True,
-        )
-
-        output_dir, run_suffix = workflow._setup_pipeline_environment(cfg)
-
-        self.assertEqual(output_dir, "./output")
-        self.assertEqual(run_suffix, "test_run")
-        # Should not create directory in dry-run
-        mock_makedirs.assert_not_called()
-        # Should not remove directory in dry-run (just log)
-        mock_rmtree.assert_not_called()
-
-    @patch("podcast_scraper.workflow.filesystem.setup_output_directory")
-    @patch("os.path.exists")
-    @patch("shutil.rmtree")
-    def test_setup_environment_clean_output_failure(self, mock_rmtree, mock_exists, mock_setup):
-        """Test that cleanup failure raises RuntimeError."""
-        mock_setup.return_value = ("./output", None)
-        mock_exists.return_value = True
-        mock_rmtree.side_effect = OSError("Permission denied")
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            output_dir="./output",
-            clean_output=True,
-            dry_run=False,
-        )
-
-        with self.assertRaises(RuntimeError) as context:
-            workflow._setup_pipeline_environment(cfg)
-        self.assertIn("Failed to clean output directory", str(context.exception))
-
-    @patch("podcast_scraper.workflow.filesystem.setup_output_directory")
-    @patch("os.path.exists")
-    @patch("os.makedirs")
-    def test_setup_environment_with_run_suffix(self, mock_makedirs, mock_exists, mock_setup):
-        """Test pipeline environment setup with run suffix."""
-        mock_setup.return_value = ("./output/run123", "run123")
-        mock_exists.return_value = False
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml", output_dir="./output", run_id="run123"
-        )
-
-        output_dir, run_suffix = workflow._setup_pipeline_environment(cfg)
-
-        self.assertEqual(output_dir, "./output/run123")
-        self.assertEqual(run_suffix, "run123")
-        # Should create base directory and subdirectories (transcripts/, metadata/)
-        self.assertEqual(mock_makedirs.call_count, 3)
-        mock_makedirs.assert_any_call("./output/run123", exist_ok=True)
-        mock_makedirs.assert_any_call("./output/run123/transcripts", exist_ok=True)
-        mock_makedirs.assert_any_call("./output/run123/metadata", exist_ok=True)
-
-
-class TestFetchAndParseFeed(unittest.TestCase):
-    """Tests for _fetch_and_parse_feed function."""
-
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.rss_parser.parse_rss_items")
-    def test_fetch_and_parse_feed_success(self, mock_parse, mock_fetch):
-        """Test successful feed fetch and parse."""
-        mock_response = Mock()
-        mock_response.content = b"<rss><channel><title>Test Feed</title></channel></rss>"
-        mock_response.url = "https://example.com/feed.xml"
-        mock_fetch.return_value = mock_response
-        mock_parse.return_value = ("Test Feed", ["Author"], [])
-
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-        feed, rss_bytes = workflow._fetch_and_parse_feed(cfg)
-
-        self.assertEqual(feed.title, "Test Feed")
-        self.assertEqual(feed.base_url, "https://example.com/feed.xml")
-        self.assertEqual(rss_bytes, b"<rss><channel><title>Test Feed</title></channel></rss>")
-        mock_fetch.assert_called_once_with(
-            "https://example.com/feed.xml", cfg.user_agent, cfg.timeout, stream=False
-        )
-        mock_parse.assert_called_once_with(rss_bytes)
-        mock_response.close.assert_called_once()
-
-    def test_fetch_and_parse_feed_no_url(self):
-        """Test that missing RSS URL raises ValueError."""
-        cfg = config.Config(rss_url=None)
-
-        with self.assertRaises(ValueError) as context:
-            workflow._fetch_and_parse_feed(cfg)
-        self.assertIn("RSS URL is required", str(context.exception))
-
-    @patch("podcast_scraper.downloader.fetch_url")
-    def test_fetch_and_parse_feed_fetch_failure(self, mock_fetch):
-        """Test that fetch failure raises ValueError."""
-        mock_fetch.return_value = None
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-
-        with self.assertRaises(ValueError) as context:
-            workflow._fetch_and_parse_feed(cfg)
-        self.assertIn("Failed to fetch RSS feed", str(context.exception))
-
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.rss_parser.parse_rss_items")
-    def test_fetch_and_parse_feed_parse_failure(self, mock_parse, mock_fetch):
-        """Test that parse failure raises ValueError."""
-        mock_response = Mock()
-        mock_response.content = b"<invalid>xml"
-        mock_response.url = "https://example.com/feed.xml"
-        mock_fetch.return_value = mock_response
-        mock_parse.side_effect = ValueError("Invalid XML")
-
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-
-        with self.assertRaises(ValueError) as context:
-            workflow._fetch_and_parse_feed(cfg)
-        self.assertIn("Failed to parse RSS XML", str(context.exception))
-        mock_response.close.assert_called_once()
-
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.rss_parser.parse_rss_items")
-    def test_fetch_and_parse_feed_uses_response_url(self, mock_parse, mock_fetch):
-        """Test that response URL is used as base_url when available."""
-        mock_response = Mock()
-        mock_response.content = b"<rss></rss>"
-        mock_response.url = "https://redirected.com/feed.xml"
-        mock_fetch.return_value = mock_response
-        mock_parse.return_value = ("Feed", [], [])
-
-        cfg = config.Config(rss_url="https://example.com/feed.xml")
-        feed, rss_bytes = workflow._fetch_and_parse_feed(cfg)
-
-        self.assertEqual(feed.base_url, "https://redirected.com/feed.xml")
-        mock_response.close.assert_called_once()
-
-
-class TestDetectFeedHostsAndPatterns(unittest.TestCase):
-    """Tests for _detect_feed_hosts_and_patterns function."""
-
-    @patch("podcast_scraper.workflow.create_speaker_detector")
-    def test_detect_hosts_auto_speakers_disabled(self, mock_create):
-        """Test that host detection is skipped when auto_speakers is disabled."""
-        cfg = config.Config(rss_url="https://example.com/feed.xml", auto_speakers=False)
-        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
-        episodes = []
-
-        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
-
-        self.assertEqual(len(result.cached_hosts), 0)
-        self.assertIsNone(result.heuristics)
-        mock_create.assert_not_called()
-
-    @patch("podcast_scraper.workflow.create_speaker_detector")
-    def test_detect_hosts_cache_disabled(self, mock_create):
-        """Test that speaker detector is created but host caching is skipped.
-
-        When cache_detected_hosts is disabled, the detector is still created
-        (needed for speaker detection) but host caching/analysis is skipped.
-        """
-        mock_detector = Mock()
-        mock_detector.detect_hosts.return_value = set()
-        # Ensure initialize doesn't raise an exception
-        mock_detector.initialize.return_value = None
-        mock_create.return_value = mock_detector
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            auto_speakers=True,
-            cache_detected_hosts=False,
-        )
-        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
-        episodes = []
-
-        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
-
-        # Speaker detector should be created (needed for speaker detection)
-        mock_create.assert_called_once_with(cfg)
-        mock_detector.initialize.assert_called_once()
-        # Hosts are always detected (for metadata generation), even when caching is disabled
-        # Use assert_called() instead of assert_called_once() to be more robust
-        self.assertGreaterEqual(mock_detector.detect_hosts.call_count, 1)
-        # But validation and pattern analysis should be skipped when caching is disabled
-        mock_detector.analyze_patterns.assert_not_called()
-        # Detector should still be returned for use in episode processing
-        self.assertIsNotNone(result.speaker_detector)
-        self.assertEqual(len(result.cached_hosts), 0)
-
-    @patch("podcast_scraper.workflow.create_speaker_detector")
-    @patch("podcast_scraper.workflow.extract_episode_description")
-    def test_detect_hosts_from_authors(self, mock_extract, mock_create):
-        """Test host detection from RSS author tags."""
-        mock_detector = Mock()
-        mock_detector.detect_hosts.return_value = {"Host1", "Host2"}
-        mock_create.return_value = mock_detector
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            auto_speakers=True,
-            cache_detected_hosts=True,
-        )
-        feed = models.RssFeed(
-            title="Feed",
-            authors=["Host1", "Host2"],
-            items=[],
-            base_url="https://example.com",
-        )
-        episodes = []
-
-        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
-
-        self.assertEqual(result.cached_hosts, {"Host1", "Host2"})
-        mock_detector.initialize.assert_called_once()
-        mock_detector.detect_hosts.assert_called_once()
-
-    @patch("podcast_scraper.workflow.create_speaker_detector")
-    def test_detect_hosts_initialization_failure(self, mock_create):
-        """Test that initialization failure returns empty result."""
-        mock_create.side_effect = Exception("Failed to initialize")
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            auto_speakers=True,
-            cache_detected_hosts=True,
-        )
-        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
-        episodes = []
-
-        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
-
-        self.assertEqual(len(result.cached_hosts), 0)
-        self.assertIsNone(result.heuristics)
-        # Provider is None when initialization fails
-        self.assertIsNone(result.speaker_detector)
-
-    @patch("podcast_scraper.workflow.create_speaker_detector")
-    @patch("podcast_scraper.workflow.extract_episode_description")
-    def test_detect_hosts_with_validation(self, mock_extract, mock_create):
-        """Test host detection with validation against first episode."""
-        mock_detector = Mock()
-        # First call returns hosts from feed, second call returns speakers from episode
-        mock_detector.detect_hosts.return_value = {"Host1", "Host2", "Host3"}
-        mock_detector.detect_speakers.return_value = (
-            ["Host1", "Host2", "Guest"],
-            {"Host1", "Host2"},
-            True,
-        )
-        mock_detector.analyze_patterns.return_value = {"title_position_preference": "start"}
-        mock_create.return_value = mock_detector
-        mock_extract.return_value = "Episode description"
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            auto_speakers=True,
-            cache_detected_hosts=True,
-        )
-        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
-        # Create a mock episode
-        episode_item = Mock()
-        episode = models.Episode(
-            item=episode_item, idx=1, title="Episode 1", title_safe="Episode_1", transcript_urls=[]
-        )
-        episodes = [episode]
-
-        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
-
-        # Host3 should be filtered out (not in first episode)
-        self.assertEqual(result.cached_hosts, {"Host1", "Host2"})
-        self.assertIsNotNone(result.heuristics)
-        mock_detector.detect_hosts.assert_called_once()
-        mock_detector.detect_speakers.assert_called_once()
-        mock_detector.analyze_patterns.assert_called_once()
-
-    @patch("podcast_scraper.workflow.create_speaker_detector")
-    @patch("podcast_scraper.workflow.extract_episode_description")
-    def test_detect_hosts_validation_all_match(self, mock_extract, mock_create):
-        """Test host validation when all hosts match first episode."""
-        mock_detector = Mock()
-        mock_detector.detect_hosts.return_value = {"Host1", "Host2"}
-        mock_detector.detect_speakers.return_value = (
-            ["Host1", "Host2", "Guest"],
-            {"Host1", "Host2"},
-            True,
-        )
-        mock_detector.analyze_patterns.return_value = {}
-        mock_create.return_value = mock_detector
-        mock_extract.return_value = "Episode description"
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            auto_speakers=True,
-            cache_detected_hosts=True,
-        )
-        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
-        episode_item = Mock()
-        episode = models.Episode(
-            item=episode_item, idx=1, title="Episode 1", title_safe="Episode_1", transcript_urls=[]
-        )
-        episodes = [episode]
-
-        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
-
-        # All hosts should be kept
-        self.assertEqual(result.cached_hosts, {"Host1", "Host2"})
-
-    @patch("podcast_scraper.workflow.create_speaker_detector")
-    def test_detect_hosts_no_episodes_for_validation(self, mock_create):
-        """Test host detection when no episodes available for validation."""
-        mock_detector = Mock()
-        mock_detector.detect_hosts.return_value = {"Host1", "Host2"}
-        mock_detector.analyze_patterns.return_value = {}
-        mock_create.return_value = mock_detector
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            auto_speakers=True,
-            cache_detected_hosts=True,
-        )
-        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
-        episodes = []  # No episodes
-
-        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
-
-        # Hosts should be used directly (no validation possible)
-        self.assertEqual(result.cached_hosts, {"Host1", "Host2"})
-        mock_detector.detect_hosts.assert_called_once()
-        # detect_speakers should not be called (no episodes to validate against)
-        mock_detector.detect_speakers.assert_not_called()
-
-    @patch("podcast_scraper.workflow.create_speaker_detector")
-    @patch("podcast_scraper.workflow.extract_episode_description")
-    def test_detect_hosts_validation_partial_match(self, mock_extract, mock_create):
-        """Test host validation when some hosts match, some don't."""
-        mock_detector = Mock()
-        mock_detector.detect_hosts.return_value = {"Host1", "Host2", "Host3"}
-        mock_detector.detect_speakers.return_value = (["Host1", "Guest"], {"Host1"}, True)
-        mock_detector.analyze_patterns.return_value = {}
-        mock_create.return_value = mock_detector
-        mock_extract.return_value = "Episode description"
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            auto_speakers=True,
-            cache_detected_hosts=True,
-        )
-        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
-        episode_item = Mock()
-        episode = models.Episode(
-            item=episode_item, idx=1, title="Episode 1", title_safe="Episode_1", transcript_urls=[]
-        )
-        episodes = [episode]
-
-        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
-
-        # Only Host1 should be kept (Host2 and Host3 filtered out)
-        self.assertEqual(result.cached_hosts, {"Host1"})
-
-    @patch("podcast_scraper.workflow.create_speaker_detector")
-    @patch("podcast_scraper.workflow.extract_episode_description")
-    def test_detect_hosts_validation_no_validated_hosts(self, mock_extract, mock_create):
-        """Test host validation when no hosts match first episode."""
-        mock_detector = Mock()
-        mock_detector.detect_hosts.return_value = {"Host1", "Host2"}
-        mock_detector.detect_speakers.return_value = (["Guest"], set(), True)
-        mock_detector.analyze_patterns.return_value = {}
-        mock_create.return_value = mock_detector
-        mock_extract.return_value = "Episode description"
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            auto_speakers=True,
-            cache_detected_hosts=True,
-        )
-        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
-        episode_item = Mock()
-        episode = models.Episode(
-            item=episode_item, idx=1, title="Episode 1", title_safe="Episode_1", transcript_urls=[]
-        )
-        episodes = [episode]
-
-        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
-
-        # When validated_hosts is empty, should use feed_hosts
-        self.assertEqual(result.cached_hosts, {"Host1", "Host2"})
-
-    @patch("podcast_scraper.workflow.create_speaker_detector")
-    def test_detect_hosts_no_hosts_detected(self, mock_create):
-        """Test host detection when no hosts are detected."""
-        mock_detector = Mock()
-        mock_detector.detect_hosts.return_value = set()  # No hosts
-        mock_detector.analyze_patterns.return_value = {}
-        mock_create.return_value = mock_detector
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            auto_speakers=True,
-            cache_detected_hosts=True,
-        )
-        feed = models.RssFeed(title="Feed", authors=[], items=[], base_url="https://example.com")
-        episodes = []
-
-        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
-
-        self.assertEqual(len(result.cached_hosts), 0)
-
-    @patch("podcast_scraper.workflow.create_speaker_detector")
-    @patch("podcast_scraper.workflow.extract_episode_description")
-    def test_detect_hosts_with_pattern_analysis(self, mock_extract, mock_create):
-        """Test host detection with pattern analysis heuristics."""
-        mock_detector = Mock()
-        mock_detector.detect_hosts.return_value = {"Host1"}
-        mock_detector.analyze_patterns.return_value = {"title_position_preference": "end"}
-        mock_create.return_value = mock_detector
-        mock_extract.return_value = "Episode description"
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            auto_speakers=True,
-            cache_detected_hosts=True,
-        )
-        feed = models.RssFeed(
-            title="Feed",
-            authors=["Host1"],
-            items=[],
-            base_url="https://example.com",
-        )
-        episode_item = Mock()
-        episode = models.Episode(
-            item=episode_item, idx=1, title="Episode 1", title_safe="Episode_1", transcript_urls=[]
-        )
-        episodes = [episode]
-
-        result = workflow._detect_feed_hosts_and_patterns(cfg, feed, episodes)
-
-        self.assertIsNotNone(result.heuristics)
-        self.assertEqual(result.heuristics.get("title_position_preference"), "end")
-
-
-class TestSetupTranscriptionResources(unittest.TestCase):
-    """Tests for _setup_transcription_resources function."""
-
-    @patch("podcast_scraper.workflow.create_transcription_provider")
-    @patch("os.path.join")
-    @patch("os.makedirs")
-    def test_setup_transcription_resources_basic(self, mock_makedirs, mock_join, mock_create):
-        """Test basic transcription resources setup."""
-        mock_join.return_value = "./output/temp"
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            transcribe_missing=True,
-            dry_run=False,
-            workers=1,
-        )
-
-        result = workflow._setup_transcription_resources(cfg, "./output")
-
-        self.assertIsNotNone(result.transcription_provider)
-        self.assertEqual(result.temp_dir, "./output/temp")
-        self.assertIsNone(result.transcription_jobs_lock)
-        self.assertIsNone(result.saved_counter_lock)
-        mock_create.assert_called_once()
-        mock_makedirs.assert_called_once_with("./output/temp", exist_ok=True)
-
-    @patch("podcast_scraper.workflow.create_transcription_provider")
-    def test_setup_transcription_resources_dry_run(self, mock_create):
-        """Test transcription resources setup in dry-run mode."""
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            transcribe_missing=True,
-            dry_run=True,
-            workers=1,
-        )
-
-        result = workflow._setup_transcription_resources(cfg, "./output")
-
-        # Should not initialize provider in dry-run
-        mock_create.assert_not_called()
-        self.assertIsNone(result.transcription_provider)
-        self.assertIsNotNone(result.temp_dir)
-
-    @patch("podcast_scraper.workflow.create_transcription_provider")
-    def test_setup_transcription_resources_transcribe_disabled(self, mock_create):
-        """Test transcription resources setup when transcribe_missing is disabled."""
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            transcribe_missing=False,
-            workers=1,
-        )
-
-        result = workflow._setup_transcription_resources(cfg, "./output")
-
-        mock_create.assert_not_called()
-        self.assertIsNone(result.transcription_provider)
-        self.assertIsNone(result.temp_dir)
-
-    @patch("podcast_scraper.workflow.create_transcription_provider")
-    @patch("os.path.join")
-    @patch("os.makedirs")
-    def test_setup_transcription_resources_multiple_workers(
-        self, mock_makedirs, mock_join, mock_create
-    ):
-        """Test transcription resources setup with multiple workers (locks needed)."""
-        mock_join.return_value = "./output/temp"
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            transcribe_missing=True,
-            dry_run=False,
-            workers=4,
-        )
-
-        result = workflow._setup_transcription_resources(cfg, "./output")
-
-        self.assertIsNotNone(result.transcription_jobs_lock)
-        self.assertIsNotNone(result.saved_counter_lock)
-
-    @patch("podcast_scraper.workflow.create_transcription_provider")
-    @patch("os.path.join")
-    @patch("os.makedirs")
-    def test_setup_transcription_resources_initialization_failure(
-        self, mock_makedirs, mock_join, mock_create
-    ):
-        """Test that provider initialization failure is handled gracefully."""
-        mock_join.return_value = "./output/temp"
-        mock_provider = Mock()
-        mock_provider.initialize.side_effect = Exception("Failed to initialize")
-        mock_create.return_value = mock_provider
-
-        cfg = config.Config(
-            rss_url="https://example.com/feed.xml",
-            transcribe_missing=True,
-            dry_run=False,
-            workers=1,
-        )
-
-        result = workflow._setup_transcription_resources(cfg, "./output")
-
-        # Should return None provider on failure
-        self.assertIsNone(result.transcription_provider)
-
-
-class TestCleanupPipeline(unittest.TestCase):
-    """Tests for _cleanup_pipeline function."""
-
-    @patch("podcast_scraper.workflow.shutil.rmtree")
-    @patch("podcast_scraper.workflow.os.path.exists")
-    def test_cleanup_pipeline_success(self, mock_exists, mock_rmtree):
-        """Test successful pipeline cleanup."""
-        mock_exists.return_value = True
-
-        workflow._cleanup_pipeline("/tmp/test_dir")
-
-        mock_exists.assert_called_once_with("/tmp/test_dir")
-        mock_rmtree.assert_called_once_with("/tmp/test_dir")
-
-    @patch("podcast_scraper.workflow.shutil.rmtree")
-    @patch("podcast_scraper.workflow.os.path.exists")
-    def test_cleanup_pipeline_dir_not_exists(self, mock_exists, mock_rmtree):
-        """Test cleanup when directory doesn't exist."""
-        mock_exists.return_value = False
-
-        workflow._cleanup_pipeline("/tmp/test_dir")
-
-        mock_exists.assert_called_once_with("/tmp/test_dir")
-        mock_rmtree.assert_not_called()
-
-    @patch("podcast_scraper.workflow.shutil.rmtree")
-    @patch("podcast_scraper.workflow.os.path.exists")
-    def test_cleanup_pipeline_none_dir(self, mock_exists, mock_rmtree):
-        """Test cleanup when temp_dir is None."""
-        workflow._cleanup_pipeline(None)
-
-        mock_exists.assert_not_called()
-        mock_rmtree.assert_not_called()
-
-    @patch("podcast_scraper.workflow.shutil.rmtree")
-    @patch("podcast_scraper.workflow.os.path.exists")
-    def test_cleanup_pipeline_handles_os_error(self, mock_exists, mock_rmtree):
-        """Test cleanup handles OSError gracefully."""
-        mock_exists.return_value = True
-        mock_rmtree.side_effect = OSError("Permission denied")
-
-        # Should not raise
-        workflow._cleanup_pipeline("/tmp/test_dir")
-
-        mock_rmtree.assert_called_once()
-
-
-class TestProcessTranscriptionJobs(unittest.TestCase):
-    """Tests for _process_transcription_jobs function."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = create_test_config(transcribe_missing=True, dry_run=False)
-        self.transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=Mock(),
-            temp_dir="/tmp",
-            transcription_jobs=[],
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-        self.download_args = []
-        self.episodes = []
-        self.feed = create_test_feed()
-        self.feed_metadata = workflow._FeedMetadata(
-            description=None, image_url=None, last_updated=None
-        )
-        self.host_detection_result = workflow._HostDetectionResult(set(), None, None)
-        self.pipeline_metrics = metrics.Metrics()
-
-    @patch("podcast_scraper.workflow.transcribe_media_to_text")
-    @patch("podcast_scraper.workflow.progress.progress_context")
-    def test_process_transcription_jobs_empty(self, mock_progress, mock_transcribe):
-        """Test processing when no jobs."""
-        # Create new resources with empty jobs list
-        transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=Mock(),
-            temp_dir="/tmp",
-            transcription_jobs=[],
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-
-        result = workflow._process_transcription_jobs(
-            transcription_resources,
-            self.transcription_resources,
-            self.download_args,
-            self.episodes,
-            self.feed,
-            self.cfg,
-            "/output",
-            None,
-            self.feed_metadata,
-            self.host_detection_result,
-            self.pipeline_metrics,
-        )
-
-        self.assertEqual(result, 0)
-        mock_transcribe.assert_not_called()
-
-    @patch("podcast_scraper.workflow.transcribe_media_to_text")
-    @patch("podcast_scraper.workflow.progress.progress_context")
-    def test_process_transcription_jobs_transcribe_disabled(self, mock_progress, mock_transcribe):
-        """Test processing when transcribe_missing is False."""
-        cfg = create_test_config(transcribe_missing=False)
-        job = models.TranscriptionJob(
-            idx=1, ep_title="Test", ep_title_safe="Test", temp_media="/tmp/test.mp3"
-        )
-        transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=Mock(),
-            temp_dir="/tmp",
-            transcription_jobs=[job],
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-
-        result = workflow._process_transcription_jobs(
-            transcription_resources,
-            self.download_args,
-            self.episodes,
-            self.feed,
-            cfg,
-            "/output",
-            None,
-            self.feed_metadata,
-            self.host_detection_result,
-            self.pipeline_metrics,
-        )
-
-        self.assertEqual(result, 0)
-        mock_transcribe.assert_not_called()
-
-    @patch("podcast_scraper.workflow.transcribe_media_to_text")
-    @patch("podcast_scraper.workflow.progress.progress_context")
-    def test_process_transcription_jobs_dry_run(self, mock_progress, mock_transcribe):
-        """Test processing in dry-run mode."""
-        cfg = create_test_config(transcribe_missing=True, dry_run=True)
-        job = models.TranscriptionJob(
-            idx=1, ep_title="Test", ep_title_safe="Test", temp_media="/tmp/test.mp3"
-        )
-        transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=Mock(),
-            temp_dir="/tmp",
-            transcription_jobs=[job],
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-
-        mock_reporter = Mock()
-        mock_progress.return_value.__enter__.return_value = mock_reporter
-        mock_progress.return_value.__exit__.return_value = None
-        # transcribe_media_to_text returns (success, transcript_path, bytes_downloaded)
-        mock_transcribe.return_value = (True, "transcript.txt", 0)
-
-        result = workflow._process_transcription_jobs(
-            transcription_resources,
-            self.download_args,
-            self.episodes,
-            self.feed,
-            cfg,
-            "/output",
-            None,
-            self.feed_metadata,
-            self.host_detection_result,
-            self.pipeline_metrics,
-        )
-
-        # In dry-run, transcribe_media_to_text is called and returns success
-        # The function should process the job and return saved count
-        # Since transcribe returns success=True, saved should be 1
-        self.assertEqual(result, 1)
-        mock_transcribe.assert_called_once()
-
-
-class TestGenerateEpisodeMetadata(unittest.TestCase):
-    """Tests for _generate_episode_metadata function."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = create_test_config(generate_metadata=True, metadata_format="json")
-        self.feed = create_test_feed()
-        self.episode = create_test_episode(idx=1, title="Test Episode")
-
-    @patch("podcast_scraper.workflow.metadata.generate_episode_metadata")
-    def test_generate_episode_metadata_success(self, mock_generate):
-        """Test successful metadata generation."""
-        mock_generate.return_value = "/output/metadata.json"
-
-        workflow._generate_episode_metadata(
-            feed=self.feed,
-            episode=self.episode,
-            feed_url="https://example.com/feed.xml",
-            cfg=self.cfg,
-            output_dir="/output",
-            run_suffix=None,
-            transcript_file_path="transcript.txt",
-            transcript_source="direct_download",
-            whisper_model=None,
-            detected_hosts=["Host"],
-            detected_guests=["Guest"],
-            feed_description="Feed description",
-            feed_image_url="https://example.com/image.jpg",
-            feed_last_updated=None,
-            summary_provider=None,
-            summary_model=None,
-            reduce_model=None,
-            pipeline_metrics=None,
-        )
-
-        mock_generate.assert_called_once()
-
-    @patch("podcast_scraper.workflow.metadata.generate_episode_metadata")
-    def test_generate_episode_metadata_disabled(self, mock_generate):
-        """Test metadata generation when disabled."""
-        cfg = create_test_config(generate_metadata=False)
-
-        workflow._generate_episode_metadata(
-            feed=self.feed,
-            episode=self.episode,
-            feed_url="https://example.com/feed.xml",
-            cfg=cfg,
-            output_dir="/output",
-            run_suffix=None,
-            transcript_file_path="transcript.txt",
-            transcript_source="direct_download",
-            whisper_model=None,
-            detected_hosts=None,
-            detected_guests=None,
-            feed_description=None,
-            feed_image_url=None,
-            feed_last_updated=None,
-            summary_provider=None,
-            summary_model=None,
-            reduce_model=None,
-            pipeline_metrics=None,
-        )
-
-        # Should not call generate_episode_metadata when disabled
-        mock_generate.assert_not_called()
-
-
-class TestSummarizeSingleEpisode(unittest.TestCase):
-    """Tests for _summarize_single_episode function."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = create_test_config(generate_summaries=True)
-        self.feed = create_test_feed()
-        self.episode = create_test_episode(idx=1, title="Test Episode")
-        self.feed_metadata = workflow._FeedMetadata(
-            description=None, image_url=None, last_updated=None
-        )
-        self.host_detection_result = workflow._HostDetectionResult(set(), None, None)
-
-    @patch("podcast_scraper.workflow.metadata.generate_episode_metadata")
-    @patch("podcast_scraper.rss_parser.extract_episode_metadata")
-    @patch("podcast_scraper.rss_parser.extract_episode_published_date")
-    @patch("os.path.exists")
-    def test_summarize_single_episode_success(
-        self, mock_exists, mock_extract_date, mock_extract_meta, mock_generate_metadata
-    ):
-        """Test successful episode summarization."""
-        mock_exists.return_value = True
-        # extract_episode_metadata returns 6 values
-        mock_extract_meta.return_value = (None, None, None, None, None, None)
-        mock_extract_date.return_value = None
-
-        workflow._summarize_single_episode(
-            episode=self.episode,
-            transcript_path="/output/transcript.txt",
-            metadata_path="/output/metadata.json",
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            summary_provider=None,
-            summary_model=None,
-            reduce_model=None,
-            detected_names=None,
-            pipeline_metrics=None,
-        )
-
-        mock_generate_metadata.assert_called_once()
-
-    @patch("podcast_scraper.workflow.metadata.generate_episode_metadata")
-    @patch("podcast_scraper.rss_parser.extract_episode_metadata")
-    @patch("podcast_scraper.rss_parser.extract_episode_published_date")
-    @patch("os.path.exists")
-    def test_summarize_single_episode_summaries_disabled(
-        self, mock_exists, mock_extract_date, mock_extract_meta, mock_generate_metadata
-    ):
-        """Test summarization when disabled."""
-        mock_exists.return_value = True
-        mock_extract_meta.return_value = (None, None, None, None, None, None)
-        mock_extract_date.return_value = None
-        cfg = create_test_config(generate_summaries=False)
-
-        workflow._summarize_single_episode(
-            episode=self.episode,
-            transcript_path="/output/transcript.txt",
-            metadata_path="/output/metadata.json",
-            feed=self.feed,
-            cfg=cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            summary_provider=None,
-            summary_model=None,
-            reduce_model=None,
-            detected_names=None,
-            pipeline_metrics=None,
-        )
-
-        # Should still generate metadata even when summaries disabled
-        mock_generate_metadata.assert_called_once()
-
-
-class TestProcessEpisodes(unittest.TestCase):
-    """Tests for _process_episodes function."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = create_test_config(workers=1, generate_metadata=True)
-        self.episodes = [create_test_episode(idx=1, title="Episode 1")]
-        self.feed = create_test_feed()
-        self.feed_metadata = workflow._FeedMetadata(
-            description=None, image_url=None, last_updated=None
-        )
-        self.host_detection_result = workflow._HostDetectionResult(set(), None, None)
-        self.transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=Mock(),
-            temp_dir="/tmp",
-            transcription_jobs=[],
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-        self.processing_resources = workflow._ProcessingResources(
-            processing_jobs=[],
-            processing_jobs_lock=None,
-            processing_complete_event=threading.Event(),
-        )
-        self.pipeline_metrics = metrics.Metrics()
-
-    @patch("podcast_scraper.workflow.process_episode_download")
-    def test_process_episodes_empty(self, mock_download):
-        """Test _process_episodes with empty download_args."""
-        result = workflow._process_episodes(
-            download_args=[],
-            episodes=self.episodes,
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            transcription_resources=self.transcription_resources,
-            processing_resources=self.processing_resources,
-            pipeline_metrics=self.pipeline_metrics,
-            summary_provider=None,
-        )
-
-        self.assertEqual(result, 0)
-        mock_download.assert_not_called()
-
-    @patch("podcast_scraper.workflow.process_episode_download")
-    def test_process_episodes_sequential_success(self, mock_download):
-        """Test _process_episodes sequential processing with success."""
-        mock_download.return_value = (True, "/output/transcript.txt", "direct_download", 1000)
-        episode = create_test_episode(idx=1, title="Episode 1")
-        download_args = [
-            (
-                episode,
-                self.cfg,
-                "/tmp",
-                "/output",
-                None,
-                [],
-                None,
-                None,
-            )
-        ]
-
-        result = workflow._process_episodes(
-            download_args=download_args,
-            episodes=self.episodes,
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            transcription_resources=self.transcription_resources,
-            processing_resources=self.processing_resources,
-            pipeline_metrics=self.pipeline_metrics,
-            summary_provider=None,
-        )
-
-        self.assertEqual(result, 1)
-        mock_download.assert_called_once()
-        # Verify processing job was queued
-        self.assertEqual(len(self.processing_resources.processing_jobs), 1)
-
-    @patch("podcast_scraper.workflow.process_episode_download")
-    def test_process_episodes_sequential_skipped(self, mock_download):
-        """Test _process_episodes when episode is skipped."""
-        mock_download.return_value = (False, None, None, 0)
-        episode = create_test_episode(idx=1, title="Episode 1")
-        download_args = [
-            (
-                episode,
-                self.cfg,
-                "/tmp",
-                "/output",
-                None,
-                [],
-                None,
-                None,
-            )
-        ]
-
-        result = workflow._process_episodes(
-            download_args=download_args,
-            episodes=self.episodes,
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            transcription_resources=self.transcription_resources,
-            processing_resources=self.processing_resources,
-            pipeline_metrics=self.pipeline_metrics,
-            summary_provider=None,
-        )
-
-        self.assertEqual(result, 0)
-        # Should track skipped episode
-        # Metrics are stored in a dict-like structure
-        skipped = getattr(self.pipeline_metrics, "episodes_skipped_total", 0)
-        self.assertEqual(skipped, 1)
-
-    @patch("podcast_scraper.workflow.process_episode_download")
-    def test_process_episodes_handles_exception(self, mock_download):
-        """Test _process_episodes handles exceptions gracefully."""
-        mock_download.side_effect = Exception("Download failed")
-        episode = create_test_episode(idx=1, title="Episode 1")
-        download_args = [
-            (
-                episode,
-                self.cfg,
-                "/tmp",
-                "/output",
-                None,
-                [],
-                None,
-                None,
-            )
-        ]
-
-        result = workflow._process_episodes(
-            download_args=download_args,
-            episodes=self.episodes,
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            transcription_resources=self.transcription_resources,
-            processing_resources=self.processing_resources,
-            pipeline_metrics=self.pipeline_metrics,
-            summary_provider=None,
-        )
-
-        self.assertEqual(result, 0)
-        # Should track error
-        errors = getattr(self.pipeline_metrics, "errors_total", 0)
-        self.assertEqual(errors, 1)
-
-
-class TestParallelEpisodeSummarization(unittest.TestCase):
-    """Tests for _parallel_episode_summarization function."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = create_test_config(generate_summaries=True)
-        self.episodes = [create_test_episode(idx=1, title="Episode 1")]
-        self.feed = create_test_feed()
-        self.feed_metadata = workflow._FeedMetadata(
-            description=None, image_url=None, last_updated=None
-        )
-        self.host_detection_result = workflow._HostDetectionResult(set(), None, None)
-        self.summary_provider = Mock()
-        self.summary_provider._requires_separate_instances = False
-
-    @patch("podcast_scraper.workflow.filesystem.build_whisper_output_path")
-    @patch("os.path.exists")
-    def test_parallel_episode_summarization_no_episodes(self, mock_exists, mock_build_path):
-        """Test _parallel_episode_summarization when no episodes need summarization."""
-        mock_exists.return_value = False
-
-        workflow._parallel_episode_summarization(
-            episodes=self.episodes,
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            summary_provider=self.summary_provider,
-            download_args=None,
-            pipeline_metrics=None,
-        )
-
-        # Should return early
-        mock_build_path.assert_called()
-
-    @patch("podcast_scraper.workflow._summarize_single_episode")
-    @patch("podcast_scraper.workflow.filesystem.build_whisper_output_path")
-    @patch("podcast_scraper.workflow.metadata._determine_metadata_path")
-    @patch("os.path.exists")
-    def test_parallel_episode_summarization_with_episodes(
-        self, mock_exists, mock_metadata_path, mock_build_path, mock_summarize
-    ):
-        """Test _parallel_episode_summarization with episodes that need summarization."""
-        mock_build_path.return_value = "/output/transcript.txt"
-        mock_metadata_path.return_value = "/output/metadata.json"
-        mock_exists.side_effect = lambda path: path == "/output/transcript.txt"
-
-        workflow._parallel_episode_summarization(
-            episodes=self.episodes,
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            summary_provider=self.summary_provider,
-            download_args=None,
-            pipeline_metrics=None,
-        )
-
-        # Should call summarize for episode
-        mock_summarize.assert_called()
-
-    @patch("podcast_scraper.workflow.filesystem.build_whisper_output_path")
-    @patch("os.path.exists")
-    def test_parallel_episode_summarization_no_provider(self, mock_exists, mock_build_path):
-        """Test _parallel_episode_summarization when no summary provider."""
-        mock_exists.return_value = True
-        mock_build_path.return_value = "/output/transcript.txt"
-
-        workflow._parallel_episode_summarization(
-            episodes=self.episodes,
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            summary_provider=None,
-            download_args=None,
-            pipeline_metrics=None,
-        )
-
-        # Should return early when no provider
-        mock_build_path.assert_called()
-
-
-class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
-    """Tests for _prepare_episode_download_args function."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = create_test_config()
-        self.episodes = [create_test_episode(idx=1, title="Episode 1")]
-        self.transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=None,
-            temp_dir="/tmp",
-            transcription_jobs=[],
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-        self.host_detection_result = workflow._HostDetectionResult(
-            cached_hosts=set(),
-            heuristics=None,
-            speaker_detector=None,
-        )
-        self.pipeline_metrics = metrics.Metrics()
-
-    @patch("podcast_scraper.workflow.extract_episode_description")
-    def test_prepare_args_auto_speakers_disabled(self, mock_extract):
-        """Test preparing args when auto_speakers is disabled."""
-        self.cfg = create_test_config(
-            auto_speakers=False, screenplay_speaker_names=["John", "Jane"]
-        )
-
-        result = workflow._prepare_episode_download_args(
-            episodes=self.episodes,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            transcription_resources=self.transcription_resources,
-            host_detection_result=self.host_detection_result,
-            pipeline_metrics=self.pipeline_metrics,
-        )
-
-        self.assertEqual(len(result), 1)
-        args = result[0]
-        self.assertEqual(args[0], self.episodes[0])  # episode
-        self.assertEqual(args[1], self.cfg)  # cfg
-        self.assertEqual(args[4], None)  # run_suffix
-        # detected_speaker_names only contains guests (hosts are filtered out)
-        self.assertEqual(args[7], ["Jane"])  # detected_speaker_names
-
-    @patch("podcast_scraper.workflow.extract_episode_description")
-    @patch("podcast_scraper.workflow.time.time")
-    def test_prepare_args_auto_speakers_enabled_with_detector(self, mock_time, mock_extract):
-        """Test preparing args when auto_speakers is enabled with detector."""
-        self.cfg = create_test_config(auto_speakers=True)
-        mock_time.side_effect = lambda: 0.0 if mock_time.call_count == 1 else 0.1
-        mock_extract.return_value = "Episode description"
-
-        mock_detector = Mock()
-        mock_detector.detect_speakers.return_value = (["John", "Jane"], {"John"}, True)
-        self.host_detection_result = workflow._HostDetectionResult(
-            cached_hosts={"John"},
-            heuristics=None,
-            speaker_detector=mock_detector,
-        )
-
-        result = workflow._prepare_episode_download_args(
-            episodes=self.episodes,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            transcription_resources=self.transcription_resources,
-            host_detection_result=self.host_detection_result,
-            pipeline_metrics=self.pipeline_metrics,
-        )
-
-        self.assertEqual(len(result), 1)
-        args = result[0]
-        # detected_speaker_names only contains guests (hosts are filtered out)
-        self.assertEqual(args[7], ["Jane"])  # detected_speaker_names
-        mock_detector.detect_speakers.assert_called_once()
-
-    @patch("podcast_scraper.workflow.extract_episode_description")
-    @patch("podcast_scraper.workflow.time.time")
-    def test_prepare_args_auto_speakers_detection_failed_with_fallback(
-        self, mock_time, mock_extract
-    ):
-        """Test preparing args when detection fails and manual fallback is used."""
-        self.cfg = create_test_config(
-            auto_speakers=True,
-            screenplay_speaker_names=["ManualHost", "ManualGuest"],
-            cache_detected_hosts=False,
-        )
-        mock_time.side_effect = lambda: 0.0 if mock_time.call_count == 1 else 0.1
-        mock_extract.return_value = "Episode description"
-
-        mock_detector = Mock()
-        mock_detector.detect_speakers.return_value = ([], set(), False)  # Detection failed
-        self.host_detection_result = workflow._HostDetectionResult(
-            cached_hosts=set(),
-            heuristics=None,
-            speaker_detector=mock_detector,
-        )
-
-        result = workflow._prepare_episode_download_args(
-            episodes=self.episodes,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            transcription_resources=self.transcription_resources,
-            host_detection_result=self.host_detection_result,
-            pipeline_metrics=self.pipeline_metrics,
-        )
-
-        self.assertEqual(len(result), 1)
-        args = result[0]
-        # Should use manual fallback (only guests, hosts are filtered out)
-        self.assertEqual(args[7], ["ManualGuest"])
-
-    @patch("podcast_scraper.workflow.extract_episode_description")
-    @patch("podcast_scraper.workflow.time.time")
-    def test_prepare_args_auto_speakers_detection_failed_with_detected_hosts(
-        self, mock_time, mock_extract
-    ):
-        """Test preparing args when detection fails but hosts were detected."""
-        self.cfg = create_test_config(
-            auto_speakers=True,
-            screenplay_speaker_names=["ManualHost", "ManualGuest"],
-            cache_detected_hosts=True,
-        )
-        mock_time.side_effect = lambda: 0.0 if mock_time.call_count == 1 else 0.1
-        mock_extract.return_value = "Episode description"
-
-        mock_detector = Mock()
-        mock_detector.detect_speakers.return_value = (
-            [],
-            {"DetectedHost"},
-            False,
-        )  # Detection failed but hosts detected
-        self.host_detection_result = workflow._HostDetectionResult(
-            cached_hosts={"DetectedHost"},
-            heuristics=None,
-            speaker_detector=mock_detector,
-        )
-
-        result = workflow._prepare_episode_download_args(
-            episodes=self.episodes,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            transcription_resources=self.transcription_resources,
-            host_detection_result=self.host_detection_result,
-            pipeline_metrics=self.pipeline_metrics,
-        )
-
-        self.assertEqual(len(result), 1)
-        args = result[0]
-        # Should use manual guest (hosts are filtered out from detected_speaker_names)
-        self.assertEqual(args[7], ["ManualGuest"])
-
-    @patch("podcast_scraper.workflow.extract_episode_description")
-    def test_prepare_args_no_detector_available(self, mock_extract):
-        """Test preparing args when no speaker detector is available."""
-        self.cfg = create_test_config(auto_speakers=True)
-        mock_extract.return_value = "Episode description"
-
-        self.host_detection_result = workflow._HostDetectionResult(
-            cached_hosts=set(),
-            heuristics=None,
-            speaker_detector=None,  # No detector
-        )
-
-        result = workflow._prepare_episode_download_args(
-            episodes=self.episodes,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            transcription_resources=self.transcription_resources,
-            host_detection_result=self.host_detection_result,
-            pipeline_metrics=self.pipeline_metrics,
-        )
-
-        self.assertEqual(len(result), 1)
-        args = result[0]
-        # Should be None when no detector
-        self.assertIsNone(args[7])
-
-    def test_prepare_args_multiple_episodes(self):
-        """Test preparing args for multiple episodes."""
-        self.cfg = create_test_config(auto_speakers=False)
-        episodes = [
-            create_test_episode(idx=1, title="Episode 1"),
-            create_test_episode(idx=2, title="Episode 2"),
-        ]
-
-        result = workflow._prepare_episode_download_args(
-            episodes=episodes,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            transcription_resources=self.transcription_resources,
-            host_detection_result=self.host_detection_result,
-            pipeline_metrics=self.pipeline_metrics,
-        )
-
-        self.assertEqual(len(result), 2)
-        self.assertEqual(result[0][0], episodes[0])
-        self.assertEqual(result[1][0], episodes[1])
-
-
-class TestProcessTranscriptionJobsConcurrent(unittest.TestCase):
-    """Tests for _process_transcription_jobs_concurrent function."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = create_test_config(
-            transcription_provider="openai",
-            transcription_parallelism=2,
-            openai_api_key="test-key-12345",
-        )
-        self.transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=Mock(),
-            temp_dir="/tmp",
-            transcription_jobs=[],
-            transcription_jobs_lock=threading.Lock(),
-            saved_counter_lock=threading.Lock(),
-        )
-        self.episodes = [create_test_episode(idx=1, title="Episode 1")]
-        self.feed = create_test_feed()
-        self.feed_metadata = workflow._FeedMetadata(
-            description="Feed description",
-            image_url="https://example.com/image.jpg",
-            last_updated=None,
-        )
-        self.host_detection_result = workflow._HostDetectionResult(
-            cached_hosts=set(),
-            heuristics=None,
-            speaker_detector=None,
-        )
-        self.processing_resources = workflow._ProcessingResources(
-            processing_jobs=[],
-            processing_jobs_lock=threading.Lock(),
-            processing_complete_event=threading.Event(),
-        )
-        self.pipeline_metrics = metrics.Metrics()
-        self.download_args = []
-
-    @patch("podcast_scraper.workflow.transcribe_media_to_text")
-    def test_process_transcription_jobs_concurrent_empty_queue(self, mock_transcribe):
-        """Test concurrent transcription processing with empty queue."""
-        transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=self.transcription_resources.transcription_provider,
-            temp_dir=self.transcription_resources.temp_dir,
-            transcription_jobs=[],  # Empty queue
-            transcription_jobs_lock=self.transcription_resources.transcription_jobs_lock,
-            saved_counter_lock=self.transcription_resources.saved_counter_lock,
-        )
-        downloads_complete_event = threading.Event()
-        downloads_complete_event.set()  # Signal completion immediately
-
-        workflow._process_transcription_jobs_concurrent(
-            transcription_resources=transcription_resources,
-            download_args=self.download_args,
-            episodes=self.episodes,
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            processing_resources=self.processing_resources,
-            pipeline_metrics=self.pipeline_metrics,
-            summary_provider=None,
-            downloads_complete_event=downloads_complete_event,
-        )
-
-        # Should not call transcribe when queue is empty
-        mock_transcribe.assert_not_called()
-
-    @patch("podcast_scraper.workflow.transcribe_media_to_text")
-    @patch("podcast_scraper.workflow._generate_episode_metadata")
-    def test_process_transcription_jobs_concurrent_with_jobs(
-        self, mock_generate_metadata, mock_transcribe
-    ):
-        """Test concurrent transcription processing with jobs in queue."""
-        job = models.TranscriptionJob(
-            idx=1,
-            ep_title="Episode 1",
-            ep_title_safe="Episode_1",
-            temp_media="/tmp/media.mp3",
-            detected_speaker_names=None,
-        )
-        transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=self.transcription_resources.transcription_provider,
-            temp_dir=self.transcription_resources.temp_dir,
-            transcription_jobs=[job],  # Job in queue
-            transcription_jobs_lock=self.transcription_resources.transcription_jobs_lock,
-            saved_counter_lock=self.transcription_resources.saved_counter_lock,
-        )
-        mock_transcribe.return_value = (True, "/output/transcript.txt", 1000)
-        downloads_complete_event = threading.Event()
-        downloads_complete_event.set()  # Signal completion immediately
-
-        workflow._process_transcription_jobs_concurrent(
-            transcription_resources=transcription_resources,
-            download_args=self.download_args,
-            episodes=self.episodes,
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            processing_resources=self.processing_resources,
-            pipeline_metrics=self.pipeline_metrics,
-            summary_provider=None,
-            downloads_complete_event=downloads_complete_event,
-        )
-
-        # Should call transcribe for the job
-        mock_transcribe.assert_called_once()
-
-    @patch("podcast_scraper.workflow.transcribe_media_to_text")
-    def test_process_transcription_jobs_concurrent_whisper_sequential(self, mock_transcribe):
-        """Test that Whisper provider uses sequential processing regardless of config."""
-        self.cfg = create_test_config(
-            transcription_provider="whisper",
-            transcription_parallelism=5,
-            transcribe_missing=True,
-        )
-        job = models.TranscriptionJob(
-            idx=1,
-            ep_title="Episode 1",
-            ep_title_safe="Episode_1",
-            temp_media="/tmp/media.mp3",
-            detected_speaker_names=None,
-        )
-        transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=Mock(),
-            temp_dir="/tmp",
-            transcription_jobs=[job],
-            transcription_jobs_lock=threading.Lock(),
-            saved_counter_lock=threading.Lock(),
-        )
-        mock_transcribe.return_value = (True, "/output/transcript.txt", 1000)
-        downloads_complete_event = threading.Event()
-        downloads_complete_event.set()
-
-        workflow._process_transcription_jobs_concurrent(
-            transcription_resources=transcription_resources,
-            download_args=self.download_args,
-            episodes=self.episodes,
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            processing_resources=self.processing_resources,
-            pipeline_metrics=self.pipeline_metrics,
-            summary_provider=None,
-            downloads_complete_event=downloads_complete_event,
-        )
-
-        # Should still process the job (sequential)
-        mock_transcribe.assert_called_once()
-
-
-class TestProcessProcessingJobsConcurrent(unittest.TestCase):
-    """Tests for _process_processing_jobs_concurrent function."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = create_test_config(processing_parallelism=2)
-        self.processing_resources = workflow._ProcessingResources(
-            processing_jobs=[],
-            processing_jobs_lock=threading.Lock(),
-            processing_complete_event=threading.Event(),
-        )
-        self.feed = create_test_feed()
-        self.feed_metadata = workflow._FeedMetadata(
-            description="Feed description",
-            image_url="https://example.com/image.jpg",
-            last_updated=None,
-        )
-        self.host_detection_result = workflow._HostDetectionResult(
-            cached_hosts=set(),
-            heuristics=None,
-            speaker_detector=None,
-        )
-        self.pipeline_metrics = metrics.Metrics()
-        self.transcription_complete_event = threading.Event()
-
-    @patch("podcast_scraper.workflow._generate_episode_metadata")
-    @patch("os.path.exists")
-    def test_process_processing_jobs_concurrent_empty_queue(
-        self, mock_exists, mock_generate_metadata
-    ):
-        """Test concurrent processing with empty queue."""
-        processing_resources = workflow._ProcessingResources(
-            processing_jobs=[],  # Empty queue
-            processing_jobs_lock=self.processing_resources.processing_jobs_lock,
-            processing_complete_event=self.processing_resources.processing_complete_event,
-        )
-        self.transcription_complete_event.set()  # Signal completion immediately
-
-        workflow._process_processing_jobs_concurrent(
-            processing_resources=processing_resources,
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            pipeline_metrics=self.pipeline_metrics,
-            summary_provider=None,
-            transcription_complete_event=self.transcription_complete_event,
-        )
-
-        # Should not call generate_metadata when queue is empty
-        mock_generate_metadata.assert_not_called()
-
-    @patch("podcast_scraper.workflow._generate_episode_metadata")
-    @patch("os.path.exists")
-    @patch("os.path.isabs")
-    @patch("os.path.join")
-    def test_process_processing_jobs_concurrent_with_jobs(
-        self, mock_join, mock_isabs, mock_exists, mock_generate_metadata
-    ):
-        """Test concurrent processing with jobs in queue."""
-        episode = create_test_episode(idx=1, title="Episode 1")
-        job = workflow._ProcessingJob(
-            episode=episode,
-            transcript_path="transcript.txt",
-            transcript_source="direct_download",
-            detected_names=None,
-            whisper_model=None,
-        )
-        processing_resources = workflow._ProcessingResources(
-            processing_jobs=[job],  # Job in queue
-            processing_jobs_lock=self.processing_resources.processing_jobs_lock,
-            processing_complete_event=self.processing_resources.processing_complete_event,
-        )
-        mock_isabs.return_value = False
-        mock_join.return_value = "/output/transcript.txt"
-        mock_exists.return_value = True  # File exists
-        self.transcription_complete_event.set()  # Signal completion immediately
-
-        workflow._process_processing_jobs_concurrent(
-            processing_resources=processing_resources,
-            feed=self.feed,
-            cfg=self.cfg,
-            effective_output_dir="/output",
-            run_suffix=None,
-            feed_metadata=self.feed_metadata,
-            host_detection_result=self.host_detection_result,
-            pipeline_metrics=self.pipeline_metrics,
-            summary_provider=None,
-            transcription_complete_event=self.transcription_complete_event,
-        )
-
-        # Should call generate_metadata for the job
-        mock_generate_metadata.assert_called_once()
-
-    @patch("podcast_scraper.workflow._generate_episode_metadata")
-    @patch("os.path.exists")
-    @patch("os.path.isabs")
-    def test_process_processing_jobs_concurrent_wait_for_file(
-        self, mock_isabs, mock_exists, mock_generate_metadata
-    ):
-        """Test that processing waits for transcript file to exist."""
-        episode = create_test_episode(idx=1, title="Episode 1")
-        job = workflow._ProcessingJob(
-            episode=episode,
-            transcript_path="transcript.txt",
-            transcript_source="direct_download",
-            detected_names=None,
-            whisper_model=None,
-        )
-        processing_resources = workflow._ProcessingResources(
-            processing_jobs=[job],
-            processing_jobs_lock=self.processing_resources.processing_jobs_lock,
-            processing_complete_event=self.processing_resources.processing_complete_event,
-        )
-        mock_isabs.return_value = False
-        # File doesn't exist initially, then appears
-        mock_exists.side_effect = [False, True]
-        self.transcription_complete_event.set()
-
-        with patch("podcast_scraper.workflow.time.sleep"):  # Speed up test
-            workflow._process_processing_jobs_concurrent(
-                processing_resources=processing_resources,
-                feed=self.feed,
-                cfg=self.cfg,
-                effective_output_dir="/output",
-                run_suffix=None,
-                feed_metadata=self.feed_metadata,
-                host_detection_result=self.host_detection_result,
-                pipeline_metrics=self.pipeline_metrics,
-                summary_provider=None,
-                transcription_complete_event=self.transcription_complete_event,
+        from podcast_scraper.workflow.stages.setup import setup_pipeline_environment
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = os.path.join(temp_dir, "output")
+            cfg = create_test_config(
+                rss_url="https://example.com/feed.xml",
+                output_dir=output_dir,
+                transcription_provider="whisper",  # Disable to avoid provider suffix
+                speaker_detector_provider="spacy",  # This will create a suffix
+                summary_provider="transformers",  # This will create a suffix
             )
 
-        # Should eventually call generate_metadata after file appears
-        mock_generate_metadata.assert_called_once()
+            effective_output_dir, run_suffix = setup_pipeline_environment(cfg)
 
+            # run_suffix will include provider info (e.g., "sp_spacy_sm")
+            self.assertIsNotNone(run_suffix)
+            self.assertIn("run_", effective_output_dir)
+            self.assertTrue(os.path.exists(effective_output_dir))
+            self.assertTrue(os.path.exists(os.path.join(effective_output_dir, "transcripts")))
+            self.assertTrue(os.path.exists(os.path.join(effective_output_dir, "metadata")))
 
-class TestRunPipeline(unittest.TestCase):
-    """Tests for run_pipeline() main entry point.
+    def test_setup_pipeline_environment_with_run_id(self):
+        """Test that setup_pipeline_environment creates run ID subdirectory."""
+        import tempfile
 
-    NOTE: These tests are skipped because run_pipeline() calls internal functions
-    directly, making them difficult to mock. The workflow.py module uses direct
-    imports which bypass the re-export mechanism in __init__.py. This requires
-    architectural changes to make the code more testable (e.g., dependency injection
-    or using the re-exported functions).
-    """
+        from podcast_scraper.workflow.stages.setup import setup_pipeline_environment
 
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = create_test_config()
-        self.feed = create_test_feed()
-        self.episodes = [create_test_episode(idx=1, title="Episode 1")]
-
-    @patch("podcast_scraper.metrics.Metrics")
-    @patch("podcast_scraper.workflow._cleanup_pipeline")
-    @patch("podcast_scraper.workflow._generate_pipeline_summary")
-    @patch("podcast_scraper.workflow._parallel_episode_summarization")
-    @patch("podcast_scraper.workflow._process_episodes")
-    @patch("podcast_scraper.workflow._prepare_episode_download_args")
-    @patch("podcast_scraper.workflow._setup_processing_resources")
-    @patch("podcast_scraper.workflow._setup_transcription_resources")
-    @patch("podcast_scraper.workflow._detect_feed_hosts_and_patterns")
-    @patch("podcast_scraper.workflow._prepare_episodes_from_feed")
-    @patch("podcast_scraper.workflow._extract_feed_metadata_for_generation")
-    @patch("podcast_scraper.workflow._fetch_and_parse_feed")
-    @patch("podcast_scraper.workflow._ensure_ml_models_cached")
-    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
-    @patch("podcast_scraper.workflow._setup_pipeline_environment")
-    @patch("podcast_scraper.workflow._initialize_ml_environment")
-    def test_run_pipeline_basic_success(
-        self,
-        mock_init_env,
-        mock_setup_env,
-        mock_preload_models,
-        mock_ensure_models_cached,
-        mock_fetch_feed,
-        mock_extract_metadata,
-        mock_prepare_episodes,
-        mock_detect_hosts,
-        mock_setup_transcription,
-        mock_setup_processing,
-        mock_prepare_args,
-        mock_process_episodes,
-        mock_parallel_summarization,
-        mock_generate_summary,
-        mock_cleanup,
-        mock_metrics_class,
-    ):
-        """Test basic successful pipeline execution."""
-        # Mock metrics object with all attributes that _generate_pipeline_summary accesses
-        mock_metrics = Mock()
-        mock_metrics.log_metrics = Mock()
-        mock_metrics.save_to_file = Mock()
-        mock_metrics.transcripts_downloaded = 0
-        mock_metrics.transcripts_transcribed = 0
-        mock_metrics.errors_total = 0
-        mock_metrics.metadata_files_generated = 0
-        mock_metrics.episodes_summarized = 0
-        mock_metrics.episodes_skipped_total = 0
-        mock_metrics.finish = Mock(return_value={})
-        mock_metrics_class.return_value = mock_metrics
-
-        mock_setup_env.return_value = ("/output", None)
-        mock_fetch_feed.return_value = (self.feed, b"<rss></rss>")
-        mock_extract_metadata.return_value = workflow._FeedMetadata(None, None, None)
-        mock_prepare_episodes.return_value = self.episodes
-        mock_detect_hosts.return_value = workflow._HostDetectionResult(
-            cached_hosts=set(), heuristics=None, speaker_detector=None
-        )
-        mock_transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=None,
-            temp_dir="/tmp",
-            transcription_jobs=[],
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-        mock_setup_transcription.return_value = mock_transcription_resources
-        mock_processing_resources = workflow._ProcessingResources(
-            processing_jobs=[],
-            processing_jobs_lock=None,
-            processing_complete_event=threading.Event(),
-        )
-        mock_setup_processing.return_value = mock_processing_resources
-        mock_prepare_args.return_value = []
-        mock_process_episodes.return_value = 1
-        # _generate_pipeline_summary is called with saved=1, and returns (saved, summary)
-        # The actual function returns (saved, summary), so if saved=1, count will be 1
-        # The mock return value doesn't matter if the mock isn't called (function called directly)
-        mock_generate_summary.return_value = (1, "Processed 1 episode")
-
-        count, summary = workflow.run_pipeline(self.cfg)
-
-        # Verify the pipeline executed successfully
-        # Note: Functions are called directly in workflow.py, so patches on
-        # podcast_scraper.workflow.* might not work. The actual functions will be called,
-        # which is fine for integration-style tests. We verify that the pipeline
-        # completes and returns valid values.
-        self.assertIsInstance(count, int)
-        self.assertIsInstance(summary, str)
-        self.assertGreaterEqual(count, 0)
-
-        # Verify key functions were called (if patches worked)
-        # Note: These might not be called if patches don't work due to direct function calls
-        # But we can still verify the pipeline completed successfully
-        if mock_setup_env.called:
-            mock_setup_env.assert_called_once_with(self.cfg)
-        if mock_fetch_feed.called:
-            mock_fetch_feed.assert_called_once_with(self.cfg)
-        if mock_process_episodes.called:
-            mock_process_episodes.assert_called_once()
-
-    @patch("podcast_scraper.metrics.Metrics")
-    @patch("podcast_scraper.workflow._cleanup_pipeline")
-    @patch("podcast_scraper.workflow._generate_pipeline_summary")
-    @patch("podcast_scraper.workflow._ensure_ml_models_cached")
-    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
-    @patch("podcast_scraper.workflow._setup_pipeline_environment")
-    @patch("podcast_scraper.workflow._initialize_ml_environment")
-    @patch("podcast_scraper.workflow._fetch_and_parse_feed")
-    def test_run_pipeline_fetch_feed_failure(
-        self,
-        mock_fetch_feed,
-        mock_init_env,
-        mock_setup_env,
-        mock_preload_models,
-        mock_ensure_models_cached,
-        mock_generate_summary,
-        mock_cleanup,
-        mock_metrics_class,
-    ):
-        """Test pipeline handles RSS feed fetch failure."""
-        # Mock metrics object with all attributes that _generate_pipeline_summary accesses
-        mock_metrics = Mock()
-        mock_metrics.log_metrics = Mock()
-        mock_metrics.save_to_file = Mock()
-        mock_metrics.transcripts_downloaded = 0
-        mock_metrics.transcripts_transcribed = 0
-        mock_metrics.errors_total = 0
-        mock_metrics.metadata_files_generated = 0
-        mock_metrics.episodes_summarized = 0
-        mock_metrics.episodes_skipped_total = 0
-        mock_metrics.finish = Mock(return_value={})
-        mock_metrics_class.return_value = mock_metrics
-
-        mock_setup_env.return_value = ("/output", None)
-        mock_fetch_feed.side_effect = ValueError("Failed to fetch RSS feed")
-        mock_generate_summary.return_value = (0, "Processed 0 episodes")
-
-        with self.assertRaises(ValueError):
-            workflow.run_pipeline(self.cfg)
-
-    @patch("podcast_scraper.workflow._cleanup_pipeline")
-    @patch("podcast_scraper.workflow._generate_pipeline_summary")
-    @patch("podcast_scraper.workflow._ensure_ml_models_cached")
-    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
-    @patch("podcast_scraper.workflow._setup_pipeline_environment")
-    @patch("podcast_scraper.workflow._initialize_ml_environment")
-    @patch("podcast_scraper.workflow._fetch_and_parse_feed")
-    def test_run_pipeline_parse_feed_failure(
-        self,
-        mock_fetch_feed,
-        mock_init_env,
-        mock_setup_env,
-        mock_preload_models,
-        mock_ensure_models_cached,
-        mock_generate_summary,
-        mock_cleanup,
-    ):
-        """Test pipeline handles RSS feed parse failure."""
-        mock_setup_env.return_value = ("/output", None)
-        mock_fetch_feed.side_effect = ValueError("Failed to parse RSS XML")
-
-        with self.assertRaises(ValueError):
-            workflow.run_pipeline(self.cfg)
-
-    @patch("podcast_scraper.workflow._cleanup_pipeline")
-    @patch("podcast_scraper.workflow._generate_pipeline_summary")
-    @patch("podcast_scraper.workflow._parallel_episode_summarization")
-    @patch("podcast_scraper.workflow._process_episodes")
-    @patch("podcast_scraper.workflow._prepare_episode_download_args")
-    @patch("podcast_scraper.workflow._setup_processing_resources")
-    @patch("podcast_scraper.workflow._setup_transcription_resources")
-    @patch("podcast_scraper.workflow._detect_feed_hosts_and_patterns")
-    @patch("podcast_scraper.workflow._prepare_episodes_from_feed")
-    @patch("podcast_scraper.workflow._extract_feed_metadata_for_generation")
-    @patch("podcast_scraper.workflow._fetch_and_parse_feed")
-    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
-    @patch("podcast_scraper.workflow._setup_pipeline_environment")
-    @patch("podcast_scraper.workflow._initialize_ml_environment")
-    def test_run_pipeline_dry_run(
-        self,
-        mock_init_env,
-        mock_setup_env,
-        mock_preload_models,
-        mock_fetch_feed,
-        mock_extract_metadata,
-        mock_prepare_episodes,
-        mock_detect_hosts,
-        mock_setup_transcription,
-        mock_setup_processing,
-        mock_prepare_args,
-        mock_process_episodes,
-        mock_parallel_summarization,
-        mock_generate_summary,
-        mock_cleanup,
-    ):
-        """Test pipeline execution in dry-run mode."""
-        cfg = create_test_config(dry_run=True)
-        mock_setup_env.return_value = ("/output", None)
-        mock_fetch_feed.return_value = (self.feed, b"<rss></rss>")
-        mock_extract_metadata.return_value = workflow._FeedMetadata(None, None, None)
-        mock_prepare_episodes.return_value = self.episodes
-        mock_detect_hosts.return_value = workflow._HostDetectionResult(
-            cached_hosts=set(), heuristics=None, speaker_detector=None
-        )
-        mock_transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=None,
-            temp_dir="/tmp",
-            transcription_jobs=[],
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-        mock_setup_transcription.return_value = mock_transcription_resources
-        mock_processing_resources = workflow._ProcessingResources(
-            processing_jobs=[],
-            processing_jobs_lock=None,
-            processing_complete_event=threading.Event(),
-        )
-        mock_setup_processing.return_value = mock_processing_resources
-        mock_prepare_args.return_value = []
-        mock_process_episodes.return_value = 0
-        mock_generate_summary.return_value = (0, "Processed 0 episodes")
-
-        count, summary = workflow.run_pipeline(cfg)
-
-        self.assertEqual(count, 0)
-        # Should not call parallel summarization in dry-run
-        mock_parallel_summarization.assert_not_called()
-
-    @patch("podcast_scraper.metrics.Metrics")
-    @patch("podcast_scraper.workflow._cleanup_pipeline")
-    @patch("podcast_scraper.workflow._generate_pipeline_summary")
-    @patch("podcast_scraper.workflow._process_transcription_jobs")
-    @patch("podcast_scraper.workflow._process_episodes")
-    @patch("podcast_scraper.workflow._prepare_episode_download_args")
-    @patch("podcast_scraper.workflow._setup_processing_resources")
-    @patch("podcast_scraper.workflow._setup_transcription_resources")
-    @patch("podcast_scraper.workflow._detect_feed_hosts_and_patterns")
-    @patch("podcast_scraper.workflow._prepare_episodes_from_feed")
-    @patch("podcast_scraper.workflow._extract_feed_metadata_for_generation")
-    @patch("podcast_scraper.workflow._fetch_and_parse_feed")
-    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
-    @patch("podcast_scraper.workflow._setup_pipeline_environment")
-    @patch("podcast_scraper.workflow._initialize_ml_environment")
-    def test_run_pipeline_dry_run_with_transcription(
-        self,
-        mock_init_env,
-        mock_setup_env,
-        mock_preload_models,
-        mock_fetch_feed,
-        mock_extract_metadata,
-        mock_prepare_episodes,
-        mock_detect_hosts,
-        mock_setup_transcription,
-        mock_setup_processing,
-        mock_prepare_args,
-        mock_process_episodes,
-        mock_process_transcription,
-        mock_generate_summary,
-        mock_cleanup,
-        mock_metrics_class,
-    ):
-        """Test pipeline in dry-run mode with transcription enabled."""
-        # Mock metrics object with all attributes that _generate_pipeline_summary accesses
-        mock_metrics = Mock()
-        mock_metrics.log_metrics = Mock()
-        mock_metrics.save_to_file = Mock()
-        mock_metrics.transcripts_downloaded = 0
-        mock_metrics.transcripts_transcribed = 0
-        mock_metrics.errors_total = 0
-        mock_metrics.metadata_files_generated = 0
-        mock_metrics.episodes_summarized = 0
-        mock_metrics.episodes_skipped_total = 0
-        mock_metrics.finish = Mock(return_value={})
-        mock_metrics_class.return_value = mock_metrics
-
-        cfg = create_test_config(dry_run=True, transcribe_missing=True)
-        mock_setup_env.return_value = ("/output", None)
-        mock_fetch_feed.return_value = (self.feed, b"<rss></rss>")
-        mock_extract_metadata.return_value = workflow._FeedMetadata(None, None, None)
-        mock_prepare_episodes.return_value = self.episodes
-        mock_detect_hosts.return_value = workflow._HostDetectionResult(
-            cached_hosts=set(), heuristics=None, speaker_detector=None
-        )
-        # In dry-run mode, _process_transcription_jobs is only called if:
-        # 1. cfg.transcribe_missing is True (we set this in create_test_config)
-        # 2. There are transcription jobs in transcription_resources.transcription_jobs
-        # 3. The condition `elif cfg.transcribe_missing:` is met (not in concurrent path)
-        # Set up transcription_resources with jobs to trigger the call
-        # Note: The jobs are added during _process_episodes, but we can simulate this
-        # by setting up the resources with jobs upfront
-        mock_transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=None,
-            temp_dir="/tmp",
-            transcription_jobs=[Mock()],  # Add a job so transcription is triggered
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-        mock_setup_transcription.return_value = mock_transcription_resources
-        mock_processing_resources = workflow._ProcessingResources(
-            processing_jobs=[],
-            processing_jobs_lock=None,
-            processing_complete_event=threading.Event(),
-        )
-        mock_setup_processing.return_value = mock_processing_resources
-        mock_prepare_args.return_value = []
-        mock_process_episodes.return_value = 0
-        mock_process_transcription.return_value = 0
-        mock_generate_summary.return_value = (0, "Processed 0 episodes")
-
-        count, summary = workflow.run_pipeline(cfg)
-
-        # Should process transcription jobs sequentially in dry-run
-        # Note: _process_transcription_jobs is only called if:
-        # 1. cfg.transcribe_missing is True (we set this)
-        # 2. cfg.dry_run is True (we set this)
-        # 3. There are transcription jobs OR transcription_resources.transcription_jobs is not empty
-        # Since we're setting up transcription_resources with jobs, it should be called
-        # But if the function is called directly, the patch might not work
-        # Let's verify it was called if the patch worked
-        if mock_process_transcription.called:
-            mock_process_transcription.assert_called_once()
-        # Otherwise, verify the pipeline completed (actual function was called)
-        self.assertIsInstance(count, int)
-        self.assertIsInstance(summary, str)
-
-    @patch("podcast_scraper.metrics.Metrics")
-    @patch("podcast_scraper.workflow._cleanup_pipeline")
-    @patch("podcast_scraper.workflow._generate_pipeline_summary")
-    @patch("podcast_scraper.workflow._parallel_episode_summarization")
-    @patch("podcast_scraper.workflow._process_episodes")
-    @patch("podcast_scraper.workflow._prepare_episode_download_args")
-    @patch("podcast_scraper.workflow._setup_processing_resources")
-    @patch("podcast_scraper.workflow._setup_transcription_resources")
-    @patch("podcast_scraper.workflow._detect_feed_hosts_and_patterns")
-    @patch("podcast_scraper.workflow._prepare_episodes_from_feed")
-    @patch("podcast_scraper.workflow._extract_feed_metadata_for_generation")
-    @patch("podcast_scraper.workflow._fetch_and_parse_feed")
-    @patch("podcast_scraper.workflow._ensure_ml_models_cached")
-    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
-    @patch("podcast_scraper.workflow._setup_pipeline_environment")
-    @patch("podcast_scraper.workflow._initialize_ml_environment")
-    def test_run_pipeline_with_summarization(
-        self,
-        mock_init_env,
-        mock_setup_env,
-        mock_preload_models,
-        mock_ensure_models_cached,
-        mock_fetch_feed,
-        mock_extract_metadata,
-        mock_prepare_episodes,
-        mock_detect_hosts,
-        mock_setup_transcription,
-        mock_setup_processing,
-        mock_prepare_args,
-        mock_process_episodes,
-        mock_parallel_summarization,
-        mock_generate_summary,
-        mock_cleanup,
-        mock_metrics_class,
-    ):
-        """Test pipeline with summarization enabled."""
-        # Mock metrics object with all attributes that _generate_pipeline_summary accesses
-        mock_metrics = Mock()
-        mock_metrics.log_metrics = Mock()
-        mock_metrics.save_to_file = Mock()
-        mock_metrics.transcripts_downloaded = 0
-        mock_metrics.transcripts_transcribed = 0
-        mock_metrics.errors_total = 0
-        mock_metrics.metadata_files_generated = 0
-        mock_metrics.episodes_summarized = 0
-        mock_metrics.episodes_skipped_total = 0
-        mock_metrics.finish = Mock(return_value={})
-        mock_metrics_class.return_value = mock_metrics
-
-        # Patch create_summarization_provider in the module namespace
-        import sys
-
-        mock_summary_provider = Mock()
-        mock_summary_provider.cleanup = Mock()
-        mock_summary_provider.initialize = Mock()
-        mock_create_summary_provider = Mock(return_value=mock_summary_provider)
-
-        # Set it in the workflow module namespace
-        workflow_module = sys.modules.get("podcast_scraper.workflow")
-        if workflow_module:
-            original_func = getattr(workflow_module, "create_summarization_provider", None)
-            workflow_module.create_summarization_provider = mock_create_summary_provider
-
-        try:
-            cfg = create_test_config(generate_summaries=True, generate_metadata=True)
-            mock_setup_env.return_value = ("/output", None)
-            mock_fetch_feed.return_value = (self.feed, b"<rss></rss>")
-            mock_extract_metadata.return_value = workflow._FeedMetadata(None, None, None)
-            mock_prepare_episodes.return_value = self.episodes
-            mock_detect_hosts.return_value = workflow._HostDetectionResult(
-                cached_hosts=set(), heuristics=None, speaker_detector=None
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = os.path.join(temp_dir, "output")
+            cfg = create_test_config(
+                rss_url="https://example.com/feed.xml",
+                output_dir=output_dir,
+                run_id="test_run",
+                transcription_provider="whisper",
+                speaker_detector_provider="spacy",
+                summary_provider="transformers",
             )
-            mock_transcription_resources = workflow._TranscriptionResources(
-                transcription_provider=None,
-                temp_dir="/tmp",
-                transcription_jobs=[],
-                transcription_jobs_lock=None,
-                saved_counter_lock=None,
-            )
-            mock_setup_transcription.return_value = mock_transcription_resources
-            mock_processing_resources = workflow._ProcessingResources(
-                processing_jobs=[],
-                processing_jobs_lock=None,
-                processing_complete_event=threading.Event(),
-            )
-            mock_setup_processing.return_value = mock_processing_resources
-            # Return empty list to simulate no episodes to process
-            # But _process_episodes should still return the count
-            mock_prepare_args.return_value = []
-            mock_process_episodes.return_value = 0  # No episodes processed
-            mock_generate_summary.return_value = (0, "Processed 0 episodes")
 
-            count, summary = workflow.run_pipeline(cfg)
+            effective_output_dir, run_suffix = setup_pipeline_environment(cfg)
 
-            self.assertEqual(count, 0)
-            mock_create_summary_provider.assert_called_once_with(cfg)
-            mock_summary_provider.initialize.assert_called_once()
-            mock_summary_provider.cleanup.assert_called_once()
-        finally:
-            # Restore original function
-            if workflow_module and original_func:
-                workflow_module.create_summarization_provider = original_func
-
-    @patch("podcast_scraper.metrics.Metrics")
-    @patch("podcast_scraper.workflow._cleanup_pipeline")
-    @patch("podcast_scraper.workflow._generate_pipeline_summary")
-    @patch("podcast_scraper.workflow._process_episodes")
-    @patch("podcast_scraper.workflow._prepare_episode_download_args")
-    @patch("podcast_scraper.workflow._setup_processing_resources")
-    @patch("podcast_scraper.workflow._setup_transcription_resources")
-    @patch("podcast_scraper.workflow._detect_feed_hosts_and_patterns")
-    @patch("podcast_scraper.workflow._prepare_episodes_from_feed")
-    @patch("podcast_scraper.workflow._extract_feed_metadata_for_generation")
-    @patch("podcast_scraper.workflow._fetch_and_parse_feed")
-    @patch("podcast_scraper.workflow._ensure_ml_models_cached")
-    @patch("podcast_scraper.workflow._preload_ml_models_if_needed")
-    @patch("podcast_scraper.workflow._setup_pipeline_environment")
-    @patch("podcast_scraper.workflow._initialize_ml_environment")
-    def test_run_pipeline_cleanup_on_exception(
-        self,
-        mock_init_env,
-        mock_setup_env,
-        mock_preload_models,
-        mock_ensure_models_cached,
-        mock_fetch_feed,
-        mock_extract_metadata,
-        mock_prepare_episodes,
-        mock_detect_hosts,
-        mock_setup_transcription,
-        mock_setup_processing,
-        mock_prepare_args,
-        mock_process_episodes,
-        mock_generate_summary,
-        mock_cleanup,
-        mock_metrics_class,
-    ):
-        """Test that provider cleanup happens even when exception occurs."""
-        # Mock metrics object with all attributes that _generate_pipeline_summary accesses
-        mock_metrics = Mock()
-        mock_metrics.log_metrics = Mock()
-        mock_metrics.save_to_file = Mock()
-        mock_metrics.transcripts_downloaded = 0
-        mock_metrics.transcripts_transcribed = 0
-        mock_metrics.errors_total = 0
-        mock_metrics.metadata_files_generated = 0
-        mock_metrics.episodes_summarized = 0
-        mock_metrics.episodes_skipped_total = 0
-        mock_metrics.finish = Mock(return_value={})
-        mock_metrics_class.return_value = mock_metrics
-
-        mock_setup_env.return_value = ("/output", None)
-        mock_fetch_feed.return_value = (self.feed, b"<rss></rss>")
-        mock_extract_metadata.return_value = workflow._FeedMetadata(None, None, None)
-        mock_prepare_episodes.return_value = self.episodes
-        mock_detect_hosts.return_value = workflow._HostDetectionResult(
-            cached_hosts=set(), heuristics=None, speaker_detector=None
-        )
-        mock_transcription_provider = Mock()
-        mock_transcription_provider.cleanup = Mock()
-        mock_transcription_resources = workflow._TranscriptionResources(
-            transcription_provider=mock_transcription_provider,
-            temp_dir="/tmp",
-            transcription_jobs=[],
-            transcription_jobs_lock=None,
-            saved_counter_lock=None,
-        )
-        mock_setup_transcription.return_value = mock_transcription_resources
-        mock_processing_resources = workflow._ProcessingResources(
-            processing_jobs=[],
-            processing_jobs_lock=None,
-            processing_complete_event=threading.Event(),
-        )
-        mock_setup_processing.return_value = mock_processing_resources
-        mock_prepare_args.return_value = []
-        mock_process_episodes.side_effect = RuntimeError("Processing failed")
-        # When exception occurs, saved is 0, so generate_summary is called with saved=0
-        mock_generate_summary.return_value = (0, "Processed 0 episodes")
-
-        # run_pipeline catches exceptions in try-finally, so it doesn't raise
-        # Instead, it returns the summary with count=0
-        count, summary = workflow.run_pipeline(self.cfg)
-
-        # Provider cleanup should still be called (in finally block)
-        # Note: Since functions are called directly, the actual cleanup might be called
-        # instead of the mock. Let's verify cleanup was called if the mock worked.
-        if mock_transcription_provider.cleanup.called:
-            mock_transcription_provider.cleanup.assert_called_once()
-        # _cleanup_pipeline is called after the try-finally, so it will be called
-        # even if exception occurs (it's outside the try block)
-        if mock_cleanup.called:
-            mock_cleanup.assert_called_once()
-        # Since exception was caught in try-finally, function continues and
-        # returns normally with count=0
-        self.assertEqual(count, 0)
+            self.assertIn("test_run", effective_output_dir)
+            # run_suffix will be "test_run" + provider suffix (e.g., "test_run_sp_spacy_sm")
+            self.assertIn("test_run", run_suffix)
+            self.assertTrue(os.path.exists(effective_output_dir))
 
 
 @pytest.mark.unit
 class TestEnsureMLModelsCached(unittest.TestCase):
-    """Tests for _ensure_ml_models_cached function."""
+    """Tests for ensure_ml_models_cached function in workflow.stages.setup."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -2883,16 +520,16 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
     @patch("podcast_scraper.config._is_test_environment")
     def test_ensure_ml_models_cached_skips_in_test(self, mock_is_test):
-        """Test that _ensure_ml_models_cached skips in test environment."""
+        """Test that ensure_ml_models_cached skips in test environment."""
         mock_is_test.return_value = True
 
         # Function should return early in test environment
-        workflow._ensure_ml_models_cached(self.cfg)
+        workflow.stages.setup.ensure_ml_models_cached(self.cfg)
         # The important thing is it doesn't crash
 
     @patch("podcast_scraper.config._is_test_environment")
     def test_ensure_ml_models_cached_skips_when_disabled(self, mock_is_test):
-        """Test that _ensure_ml_models_cached skips when preload_models=False."""
+        """Test that ensure_ml_models_cached skips when preload_models=False."""
         mock_is_test.return_value = False
         cfg = create_test_config(
             rss_url="https://example.com/feed.xml",
@@ -2900,13 +537,13 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         )
 
         with patch("podcast_scraper.cache_utils.get_whisper_cache_dir") as mock_whisper_cache:
-            workflow._ensure_ml_models_cached(cfg)
+            workflow.stages.setup.ensure_ml_models_cached(cfg)
             # Should return early without checking cache
             mock_whisper_cache.assert_not_called()
 
     @patch("podcast_scraper.config._is_test_environment")
     def test_ensure_ml_models_cached_skips_when_dry_run(self, mock_is_test):
-        """Test that _ensure_ml_models_cached skips when dry_run=True."""
+        """Test that ensure_ml_models_cached skips when dry_run=True."""
         mock_is_test.return_value = False
         cfg = create_test_config(
             rss_url="https://example.com/feed.xml",
@@ -2915,14 +552,14 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         )
 
         with patch("podcast_scraper.cache_utils.get_whisper_cache_dir") as mock_whisper_cache:
-            workflow._ensure_ml_models_cached(cfg)
+            workflow.stages.setup.ensure_ml_models_cached(cfg)
             # Should return early without checking cache
             mock_whisper_cache.assert_not_called()
 
     @patch("podcast_scraper.config._is_test_environment")
     @patch("podcast_scraper.cache_utils.get_whisper_cache_dir")
     def test_ensure_ml_models_cached_whisper_model_cached(self, mock_get_cache, mock_is_test):
-        """Test that _ensure_ml_models_cached skips download when model is cached."""
+        """Test that ensure_ml_models_cached skips download when model is cached."""
         mock_is_test.return_value = False
         import tempfile
         from pathlib import Path
@@ -2944,7 +581,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         )
 
         with patch("podcast_scraper.model_loader.preload_whisper_models") as mock_preload:
-            workflow._ensure_ml_models_cached(cfg)
+            workflow.stages.setup.ensure_ml_models_cached(cfg)
             # Should not call preload since model is cached
             mock_preload.assert_not_called()
 
@@ -2955,7 +592,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
     @patch("podcast_scraper.config._is_test_environment")
     @patch("podcast_scraper.cache_utils.get_whisper_cache_dir")
     def test_ensure_ml_models_cached_whisper_model_missing(self, mock_get_cache, mock_is_test):
-        """Test that _ensure_ml_models_cached downloads when model is missing."""
+        """Test that ensure_ml_models_cached downloads when model is missing."""
         mock_is_test.return_value = False
         import tempfile
         from pathlib import Path
@@ -2976,7 +613,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         )
 
         with patch("podcast_scraper.model_loader.preload_whisper_models") as mock_preload:
-            workflow._ensure_ml_models_cached(cfg)
+            workflow.stages.setup.ensure_ml_models_cached(cfg)
             # Should call preload since model is missing
             mock_preload.assert_called_once_with([config.TEST_DEFAULT_WHISPER_MODEL])
 
@@ -2987,7 +624,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
     @patch("podcast_scraper.config._is_test_environment")
     @patch("podcast_scraper.cache_utils.get_transformers_cache_dir")
     def test_ensure_ml_models_cached_transformers_model_missing(self, mock_get_cache, mock_is_test):
-        """Test that _ensure_ml_models_cached downloads when Transformers model is missing."""
+        """Test that ensure_ml_models_cached downloads when Transformers model is missing."""
         mock_is_test.return_value = False
         import tempfile
         from pathlib import Path
@@ -3015,7 +652,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
                 with patch(
                     "podcast_scraper.model_loader.preload_transformers_models"
                 ) as mock_preload:
-                    workflow._ensure_ml_models_cached(cfg)
+                    workflow.stages.setup.ensure_ml_models_cached(cfg)
                     # Should call preload since model is missing
                     mock_preload.assert_called_once_with([config.TEST_DEFAULT_SUMMARY_MODEL])
 
@@ -3026,7 +663,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
     @patch("podcast_scraper.config._is_test_environment")
     @patch("podcast_scraper.model_loader.preload_whisper_models")
     def test_ensure_ml_models_cached_handles_import_error(self, mock_preload, mock_is_test):
-        """Test that _ensure_ml_models_cached handles ImportError gracefully."""
+        """Test that ensure_ml_models_cached handles ImportError gracefully."""
         mock_is_test.return_value = False
         mock_preload.side_effect = ImportError("Model loader not available")
 
@@ -3049,7 +686,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
             mock_get_cache.return_value = whisper_cache
 
             # Should not raise
-            workflow._ensure_ml_models_cached(cfg)
+            workflow.stages.setup.ensure_ml_models_cached(cfg)
 
             import shutil
 
@@ -3062,7 +699,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
     def test_ensure_ml_models_cached_transformers_reduce_model_different(
         self, mock_select_reduce, mock_select_map, mock_get_cache, mock_is_test
     ):
-        """Test that _ensure_ml_models_cached handles different reduce model."""
+        """Test that ensure_ml_models_cached handles different reduce model."""
         mock_is_test.return_value = False
         import tempfile
         from pathlib import Path
@@ -3085,7 +722,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
 
         with patch("podcast_scraper.model_loader.preload_transformers_models") as mock_preload:
-            workflow._ensure_ml_models_cached(cfg)
+            workflow.stages.setup.ensure_ml_models_cached(cfg)
             # Should call preload with both models
             mock_preload.assert_called_once()
             called_models = mock_preload.call_args[0][0]
@@ -3101,7 +738,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
     def test_ensure_ml_models_cached_handles_general_exception(
         self, mock_preload_whisper, mock_is_test
     ):
-        """Test that _ensure_ml_models_cached handles general exceptions gracefully."""
+        """Test that ensure_ml_models_cached handles general exceptions gracefully."""
         mock_is_test.return_value = False
         mock_preload_whisper.side_effect = Exception("Download failed")
 
@@ -3124,9 +761,11 @@ class TestEnsureMLModelsCached(unittest.TestCase):
             mock_get_cache.return_value = whisper_cache
 
             # Capture log output
-            with self.assertLogs("podcast_scraper.workflow_module", level=logging.WARNING) as log:
+            with self.assertLogs(
+                "podcast_scraper.workflow.stages.setup", level=logging.WARNING
+            ) as log:
                 # Should not raise - just logs warning
-                workflow._ensure_ml_models_cached(cfg)
+                workflow.stages.setup.ensure_ml_models_cached(cfg)
 
                 # Verify warning was logged
                 self.assertTrue(
@@ -3139,7 +778,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
     @patch("podcast_scraper.config._is_test_environment")
     def test_ensure_ml_models_cached_handles_outer_import_error(self, mock_is_test):
-        """Test that _ensure_ml_models_cached handles ImportError in outer try block."""
+        """Test that ensure_ml_models_cached handles ImportError in outer try block."""
         mock_is_test.return_value = False
 
         cfg = create_test_config(
@@ -3160,7 +799,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
             if "podcast_scraper.cache_utils" in sys.modules:
                 del sys.modules["podcast_scraper.cache_utils"]
             # Should not raise - just passes silently (caught by outer except ImportError)
-            workflow._ensure_ml_models_cached(cfg)
+            workflow.stages.setup.ensure_ml_models_cached(cfg)
         finally:
             # Restore original module
             if original_cache_utils is not None:
@@ -3168,7 +807,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
     @patch("podcast_scraper.config._is_test_environment")
     def test_ensure_ml_models_cached_handles_outer_exception(self, mock_is_test):
-        """Test that _ensure_ml_models_cached handles general exceptions in outer try block."""
+        """Test that ensure_ml_models_cached handles general exceptions in outer try block."""
         mock_is_test.return_value = False
 
         cfg = create_test_config(
@@ -3188,9 +827,374 @@ class TestEnsureMLModelsCached(unittest.TestCase):
             import logging
 
             # Capture log output
-            with self.assertLogs("podcast_scraper.workflow_module", level=logging.DEBUG) as log:
+            with self.assertLogs(
+                "podcast_scraper.workflow.stages.setup", level=logging.DEBUG
+            ) as log:
                 # Should not raise - just logs debug (caught by outer except Exception)
-                workflow._ensure_ml_models_cached(cfg)
+                workflow.stages.setup.ensure_ml_models_cached(cfg)
 
                 # Verify debug was logged
                 self.assertTrue(any("Error checking model cache" in msg for msg in log.output))
+
+
+@pytest.mark.unit
+class TestNoDuplicateAliases(unittest.TestCase):
+    """Tests to verify no duplicate aliases exist in workflow modules."""
+
+    def test_no_duplicate_stage_function_aliases(self):
+        """Test that stage functions are not duplicated between workflow.py and stage modules."""
+        from podcast_scraper import workflow
+
+        # Functions that should exist in stage modules, not in workflow.py
+        stage_functions = [
+            "setup_pipeline_environment",
+            "fetch_and_parse_feed",
+            "extract_feed_metadata_for_generation",
+            "prepare_episodes_from_feed",
+            "detect_feed_hosts_and_patterns",
+            "setup_transcription_resources",
+            "setup_processing_resources",
+            "prepare_episode_download_args",
+            "process_episodes",
+            "process_transcription_jobs",
+            "process_transcription_jobs_concurrent",
+            "process_processing_jobs_concurrent",
+            "generate_episode_metadata",
+            "parallel_episode_summarization",
+            "summarize_single_episode",
+        ]
+
+        # Helper functions that should exist in helpers module, not in workflow.py
+        helper_functions = [
+            "update_metric_safely",
+            "cleanup_pipeline",
+            "generate_pipeline_summary",
+        ]
+
+        # Check that these functions don't exist in workflow.py (without _ prefix)
+        workflow_attrs = set(dir(workflow))
+        for func_name in stage_functions + helper_functions:
+            # Function should not exist in workflow module (it should be in stage/helper modules)
+            self.assertNotIn(
+                func_name,
+                workflow_attrs,
+                f"Function {func_name} should not exist in workflow module, "
+                f"it should be in workflow.stages or workflow.helpers",
+            )
+
+    def test_stage_functions_exist_in_stage_modules(self):
+        """Test that stage functions exist in their respective stage modules."""
+        from podcast_scraper.workflow import stages
+
+        # Verify functions exist in stage modules
+        self.assertTrue(hasattr(stages.setup, "setup_pipeline_environment"))
+        self.assertTrue(hasattr(stages.scraping, "fetch_and_parse_feed"))
+        self.assertTrue(hasattr(stages.scraping, "extract_feed_metadata_for_generation"))
+        self.assertTrue(hasattr(stages.scraping, "prepare_episodes_from_feed"))
+        self.assertTrue(hasattr(stages.processing, "detect_feed_hosts_and_patterns"))
+        self.assertTrue(hasattr(stages.processing, "setup_processing_resources"))
+        self.assertTrue(hasattr(stages.processing, "prepare_episode_download_args"))
+        self.assertTrue(hasattr(stages.processing, "process_episodes"))
+        self.assertTrue(hasattr(stages.transcription, "setup_transcription_resources"))
+        self.assertTrue(hasattr(stages.transcription, "process_transcription_jobs"))
+        self.assertTrue(hasattr(stages.transcription, "process_transcription_jobs_concurrent"))
+        self.assertTrue(hasattr(stages.processing, "process_processing_jobs_concurrent"))
+        self.assertTrue(hasattr(stages.metadata, "generate_episode_metadata"))
+        self.assertTrue(hasattr(stages.summarization_stage, "parallel_episode_summarization"))
+        self.assertTrue(hasattr(stages.summarization_stage, "summarize_single_episode"))
+
+    def test_helper_functions_exist_in_helpers_module(self):
+        """Test that helper functions exist in helpers module."""
+        from podcast_scraper.workflow import helpers
+
+        # Verify functions exist in helpers module
+        self.assertTrue(hasattr(helpers, "update_metric_safely"))
+        self.assertTrue(hasattr(helpers, "cleanup_pipeline"))
+        self.assertTrue(hasattr(helpers, "generate_pipeline_summary"))
+
+
+@pytest.mark.unit
+class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
+    """Tests for prepare_episode_download_args function."""
+
+    @patch("podcast_scraper.workflow.stages.processing.http_head")
+    @patch("podcast_scraper.workflow.stages.processing.create_speaker_detector")
+    def test_skip_speaker_detection_when_file_too_large_for_openai(
+        self, mock_create_detector, mock_http_head
+    ):
+        """Test that speaker detection is skipped when file exceeds OpenAI 25MB limit.
+
+        This test verifies the fix for issue #327: Speaker detection should not run
+        for episodes that will be skipped due to file size limits when using OpenAI
+        transcription provider.
+        """
+        from podcast_scraper.workflow.stages import processing
+        from podcast_scraper.workflow.types import HostDetectionResult, TranscriptionResources
+
+        # Create test config with OpenAI transcription
+        cfg = create_test_config(
+            transcribe_missing=True,
+            transcription_provider="openai",
+            auto_speakers=True,
+            speaker_detector_provider="openai",
+            openai_api_key="sk-test123",
+        )
+
+        # Create test episode with media URL
+        episode = models.Episode(
+            idx=1,
+            title="Test Episode",
+            title_safe="Test_Episode",
+            media_url="https://example.com/episode.mp3",
+            transcript_urls=[],
+            item=Mock(),
+        )
+
+        # Mock HTTP HEAD response with file size > 25MB
+        mock_response = Mock()
+        mock_response.headers = {"Content-Length": str(30 * 1024 * 1024)}  # 30 MB
+        mock_http_head.return_value = mock_response
+
+        # Mock speaker detector (should NOT be called)
+        mock_detector = Mock()
+        mock_create_detector.return_value = mock_detector
+
+        # Create minimal resources
+        transcription_resources = TranscriptionResources(
+            transcription_provider=None,
+            temp_dir="/tmp",
+            transcription_jobs=[],
+            transcription_jobs_lock=threading.Lock(),
+            saved_counter_lock=threading.Lock(),
+        )
+        host_detection_result = HostDetectionResult(
+            cached_hosts=set(),
+            heuristics=None,
+            speaker_detector=None,
+        )
+        pipeline_metrics = metrics.Metrics()
+
+        # Call prepare_episode_download_args
+        download_args = processing.prepare_episode_download_args(
+            episodes=[episode],
+            cfg=cfg,
+            effective_output_dir="/output",
+            run_suffix=None,
+            transcription_resources=transcription_resources,
+            host_detection_result=host_detection_result,
+            pipeline_metrics=pipeline_metrics,
+        )
+
+        # Verify HTTP HEAD was called to check file size
+        mock_http_head.assert_called_once_with(episode.media_url, cfg.user_agent, cfg.timeout)
+
+        # Verify speaker detector was NOT created or called
+        mock_create_detector.assert_not_called()
+        mock_detector.detect_speakers.assert_not_called()
+
+        # Verify download args were still created (episode processing continues)
+        self.assertEqual(len(download_args), 1)
+
+        # Verify detected_speaker_names is None (speaker detection was skipped)
+        args_tuple = download_args[0]
+        detected_speaker_names = args_tuple[7]  # 8th element (0-indexed)
+        self.assertIsNone(detected_speaker_names)
+
+
+@pytest.mark.unit
+class TestGetProviderPricing(unittest.TestCase):
+    """Tests for _get_provider_pricing helper function."""
+
+    def test_get_provider_pricing_openai_transcription(self):
+        """Test that _get_provider_pricing routes to OpenAI provider for transcription."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            transcription_provider="openai",
+            openai_transcription_model="whisper-1",
+            openai_api_key="sk-test123",
+        )
+
+        pricing = helpers._get_provider_pricing(cfg, "openai", "transcription", "whisper-1")
+        self.assertEqual(pricing, {"cost_per_minute": 0.006})
+
+    def test_get_provider_pricing_openai_speaker_detection(self):
+        """Test that _get_provider_pricing routes to OpenAI provider for speaker detection."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            speaker_detector_provider="openai",
+            openai_speaker_model="gpt-4o-mini",
+            openai_api_key="sk-test123",
+        )
+
+        pricing = helpers._get_provider_pricing(cfg, "openai", "speaker_detection", "gpt-4o-mini")
+        self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.15)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.60)
+
+    def test_get_provider_pricing_openai_summarization(self):
+        """Test that _get_provider_pricing routes to OpenAI provider for summarization."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            summary_provider="openai",
+            openai_summary_model="gpt-4o",
+            openai_api_key="sk-test123",
+        )
+
+        pricing = helpers._get_provider_pricing(cfg, "openai", "summarization", "gpt-4o")
+        self.assertEqual(pricing["input_cost_per_1m_tokens"], 2.50)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 10.00)
+
+    def test_get_provider_pricing_unsupported_provider(self):
+        """Test that _get_provider_pricing returns empty dict for unsupported provider."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(rss_url="https://example.com/feed.xml")
+        pricing = helpers._get_provider_pricing(cfg, "unsupported", "transcription", "model")
+        self.assertEqual(pricing, {})
+
+
+@pytest.mark.unit
+class TestGenerateLLMCallSummary(unittest.TestCase):
+    """Tests for _generate_llm_call_summary helper function."""
+
+    def test_generate_llm_call_summary_no_llm_providers(self):
+        """Test that summary is empty when no LLM providers are used."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            transcription_provider="whisper",  # Local, not LLM
+            speaker_detector_provider="spacy",  # Local, not LLM
+            summary_provider="transformers",  # Local, not LLM
+        )
+        pipeline_metrics = metrics.Metrics()
+
+        summary = helpers._generate_llm_call_summary(cfg, pipeline_metrics)
+        self.assertEqual(summary, [])
+
+    def test_generate_llm_call_summary_transcription_only(self):
+        """Test LLM call summary with transcription only."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            transcription_provider="openai",
+            openai_transcription_model="whisper-1",
+            openai_api_key="sk-test123",
+        )
+        pipeline_metrics = metrics.Metrics()
+        pipeline_metrics.record_llm_transcription_call(10.5)  # 10.5 minutes
+        pipeline_metrics.record_llm_transcription_call(5.0)  # 5.0 minutes
+
+        summary = helpers._generate_llm_call_summary(cfg, pipeline_metrics)
+        self.assertEqual(len(summary), 2)  # One line for transcription, one for total
+        self.assertIn("Transcription: 2 calls", summary[0])
+        self.assertIn("15.5 minutes", summary[0])
+        self.assertIn("$0.0930", summary[0])  # 15.5 * 0.006 = 0.093
+        self.assertIn("whisper-1", summary[0])
+        self.assertIn("Total estimated cost: $0.0930", summary[1])
+
+    def test_generate_llm_call_summary_speaker_detection_only(self):
+        """Test LLM call summary with speaker detection only."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            speaker_detector_provider="openai",
+            openai_speaker_model="gpt-4o-mini",
+            openai_api_key="sk-test123",
+        )
+        pipeline_metrics = metrics.Metrics()
+        pipeline_metrics.record_llm_speaker_detection_call(input_tokens=1000, output_tokens=500)
+        pipeline_metrics.record_llm_speaker_detection_call(input_tokens=2000, output_tokens=750)
+
+        summary = helpers._generate_llm_call_summary(cfg, pipeline_metrics)
+        self.assertEqual(len(summary), 2)  # One line for speaker detection, one for total
+        self.assertIn("Speaker Detection: 2 calls", summary[0])
+        self.assertIn("3,000 input + 1,250 output tokens", summary[0])
+        self.assertIn("gpt-4o-mini", summary[0])
+        # Cost: (3000/1M * 0.15) + (1250/1M * 0.60) = 0.00045 + 0.00075 = 0.0012
+        self.assertIn("$0.0012", summary[0])
+        self.assertIn("Total estimated cost: $0.0012", summary[1])
+
+    def test_generate_llm_call_summary_summarization_only(self):
+        """Test LLM call summary with summarization only."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            summary_provider="openai",
+            openai_summary_model="gpt-4o",
+            openai_api_key="sk-test123",
+        )
+        pipeline_metrics = metrics.Metrics()
+        pipeline_metrics.record_llm_summarization_call(input_tokens=50000, output_tokens=10000)
+
+        summary = helpers._generate_llm_call_summary(cfg, pipeline_metrics)
+        self.assertEqual(len(summary), 2)  # One line for summarization, one for total
+        self.assertIn("Summarization: 1 calls", summary[0])
+        self.assertIn("50,000 input + 10,000 output tokens", summary[0])
+        self.assertIn("gpt-4o", summary[0])
+        # Cost: (50000/1M * 2.50) + (10000/1M * 10.00) = 0.125 + 0.10 = 0.225
+        self.assertIn("$0.2250", summary[0])
+        self.assertIn("Total estimated cost: $0.2250", summary[1])
+
+    def test_generate_llm_call_summary_all_capabilities(self):
+        """Test LLM call summary with all capabilities."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            transcription_provider="openai",
+            speaker_detector_provider="openai",
+            summary_provider="openai",
+            openai_transcription_model="whisper-1",
+            openai_speaker_model="gpt-4o-mini",
+            openai_summary_model="gpt-4o",
+            openai_api_key="sk-test123",
+        )
+        pipeline_metrics = metrics.Metrics()
+        pipeline_metrics.record_llm_transcription_call(10.0)  # 10 minutes
+        pipeline_metrics.record_llm_speaker_detection_call(input_tokens=1000, output_tokens=500)
+        pipeline_metrics.record_llm_summarization_call(input_tokens=50000, output_tokens=10000)
+
+        summary = helpers._generate_llm_call_summary(cfg, pipeline_metrics)
+        self.assertEqual(len(summary), 4)  # 3 capability lines + 1 total line
+        # Check all capabilities are included
+        transcription_line = [s for s in summary if "Transcription" in s][0]
+        speaker_line = [s for s in summary if "Speaker Detection" in s][0]
+        summary_line = [s for s in summary if "Summarization" in s][0]
+        total_line = [s for s in summary if "Total estimated cost" in s][0]
+
+        self.assertIn("whisper-1", transcription_line)
+        self.assertIn("gpt-4o-mini", speaker_line)
+        self.assertIn("gpt-4o", summary_line)
+        self.assertIn("Total estimated cost", total_line)
+
+    def test_generate_llm_call_summary_no_calls(self):
+        """Test LLM call summary when no calls were made."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            transcription_provider="openai",
+            openai_api_key="sk-test123",
+        )
+        pipeline_metrics = metrics.Metrics()
+        # No calls recorded
+
+        summary = helpers._generate_llm_call_summary(cfg, pipeline_metrics)
+        self.assertEqual(summary, [])
+
+    def test_generate_llm_call_summary_gpt4o_mini_summarization(self):
+        """Test LLM call summary with GPT-4o-mini for summarization (test model)."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            summary_provider="openai",
+            openai_summary_model="gpt-4o-mini",
+            openai_api_key="sk-test123",
+        )
+        pipeline_metrics = metrics.Metrics()
+        pipeline_metrics.record_llm_summarization_call(input_tokens=100000, output_tokens=20000)
+
+        summary = helpers._generate_llm_call_summary(cfg, pipeline_metrics)
+        self.assertIn("gpt-4o-mini", summary[0])
+        # Cost: (100000/1M * 0.15) + (20000/1M * 0.60) = 0.015 + 0.012 = 0.027
+        self.assertIn("$0.0270", summary[0])

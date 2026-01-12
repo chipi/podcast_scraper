@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional, Set, Tuple
 
 from openai import OpenAI
 
-from .. import config, models
+from .. import config, metrics, models
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,25 @@ logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
 DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
+
+# OpenAI API pricing constants (for cost estimation)
+# Source: https://openai.com/pricing
+# Last updated: 2025-01
+# Note: Prices subject to change. Always verify current rates at https://openai.com/pricing
+#
+# Pricing is model-based, not environment-based. The same model costs the same
+# whether used in test or production. Test/prod distinction is only in which
+# models are selected (test uses cheaper models, prod uses higher quality models).
+#
+# Only models actually defined in config_constants.py are tracked here:
+# - whisper-1: Used for transcription (test and prod)
+# - gpt-4o-mini: Used for speaker detection (test and prod) and summarization (test)
+# - gpt-4o: Used for summarization (prod)
+OPENAI_WHISPER_COST_PER_MINUTE = 0.006  # Whisper API: $0.006 per minute of audio
+OPENAI_GPT4O_MINI_INPUT_COST_PER_1M_TOKENS = 0.15  # GPT-4o-mini: $0.15 per 1M input tokens
+OPENAI_GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS = 0.60  # GPT-4o-mini: $0.60 per 1M output tokens
+OPENAI_GPT4O_INPUT_COST_PER_1M_TOKENS = 2.50  # GPT-4o: $2.50 per 1M input tokens
+OPENAI_GPT4O_OUTPUT_COST_PER_1M_TOKENS = 10.00  # GPT-4o: $10.00 per 1M output tokens
 
 
 class OpenAIProvider:
@@ -108,6 +127,48 @@ class OpenAIProvider:
         # Mark provider as thread-safe (API clients can be shared across threads)
         # API providers handle rate limiting internally, so parallelism isn't needed
         self._requires_separate_instances = False
+
+    @staticmethod
+    def get_pricing(model: str, capability: str) -> Dict[str, float]:
+        """Get pricing information for a specific model and capability.
+
+        Only models defined in config_constants.py are supported:
+        - whisper-1: Transcription (test and prod)
+        - gpt-4o-mini: Speaker detection (test and prod), Summarization (test)
+        - gpt-4o: Summarization (prod)
+
+        Pricing is model-based, not environment-based. The same model costs the same
+        whether used in test or production. Test/prod distinction is only in which
+        models are selected.
+
+        Args:
+            model: Model name (must match one of the models in config_constants.py)
+            capability: Capability type ("transcription", "speaker_detection", "summarization")
+
+        Returns:
+            Dictionary with pricing information:
+            - For transcription: {"cost_per_minute": float}
+            - For chat models: {"input_cost_per_1m_tokens": float,
+              "output_cost_per_1m_tokens": float}
+            - Empty dict if pricing not available for the model/capability
+        """
+        if capability == "transcription":
+            if model == "whisper-1":
+                return {"cost_per_minute": OPENAI_WHISPER_COST_PER_MINUTE}
+        elif capability in ("speaker_detection", "summarization"):
+            model_lower = model.lower()
+            # Only support models actually defined in config_constants.py
+            if "gpt-4o-mini" in model_lower:
+                return {
+                    "input_cost_per_1m_tokens": OPENAI_GPT4O_MINI_INPUT_COST_PER_1M_TOKENS,
+                    "output_cost_per_1m_tokens": OPENAI_GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS,
+                }
+            elif "gpt-4o" in model_lower and "mini" not in model_lower:
+                return {
+                    "input_cost_per_1m_tokens": OPENAI_GPT4O_INPUT_COST_PER_1M_TOKENS,
+                    "output_cost_per_1m_tokens": OPENAI_GPT4O_OUTPUT_COST_PER_1M_TOKENS,
+                }
+        return {}
 
     def initialize(self) -> None:
         """Initialize all OpenAI capabilities.
@@ -224,7 +285,11 @@ class OpenAIProvider:
             ) from exc
 
     def transcribe_with_segments(
-        self, audio_path: str, language: str | None = None
+        self,
+        audio_path: str,
+        language: str | None = None,
+        pipeline_metrics: metrics.Metrics | None = None,
+        episode_duration_seconds: int | None = None,
     ) -> tuple[dict[str, object], float]:
         """Transcribe audio file and return full result with segments.
 
@@ -278,6 +343,24 @@ class OpenAIProvider:
                     )
 
             elapsed = time.time() - start_time
+
+            # Track LLM call metrics if available
+            if pipeline_metrics is not None:
+                # Get audio duration from episode metadata, response, or estimate from file size
+                audio_minutes = 0.0
+                if episode_duration_seconds is not None:
+                    audio_minutes = episode_duration_seconds / 60.0
+                elif hasattr(response, "duration") and response.duration:
+                    audio_minutes = response.duration / 60.0
+                else:
+                    # Estimate from file size (rough: 1MB ≈ 1 minute for typical MP3)
+                    try:
+                        file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
+                        audio_minutes = file_size_mb  # Rough estimate
+                    except OSError:
+                        pass
+                if audio_minutes > 0:
+                    pipeline_metrics.record_llm_transcription_call(audio_minutes)
 
             # OpenAI API returns a Transcription object with text and segments
             # when verbose_json is used. Convert to dict format matching Whisper output.
@@ -376,6 +459,7 @@ class OpenAIProvider:
         episode_title: str,
         episode_description: str | None,
         known_hosts: Set[str],
+        pipeline_metrics: metrics.Metrics | None = None,
     ) -> Tuple[list[str], Set[str], bool]:
         """Detect speaker names from episode metadata using OpenAI API.
 
@@ -446,6 +530,12 @@ class OpenAIProvider:
                 len(detected_hosts),
                 success,
             )
+
+            # Track LLM call metrics if available
+            if pipeline_metrics is not None and hasattr(response, "usage"):
+                input_tokens = response.usage.prompt_tokens if response.usage else 0
+                output_tokens = response.usage.completion_tokens if response.usage else 0
+                pipeline_metrics.record_llm_speaker_detection_call(input_tokens, output_tokens)
 
             return speakers, detected_hosts, success
 
@@ -628,6 +718,7 @@ class OpenAIProvider:
         episode_title: Optional[str] = None,
         episode_description: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: metrics.Metrics | None = None,
     ) -> Dict[str, Any]:
         """Summarize text using OpenAI GPT API.
 
@@ -705,6 +796,12 @@ class OpenAIProvider:
                 summary = ""
 
             logger.debug("OpenAI summarization completed: %d characters", len(summary))
+
+            # Track LLM call metrics if available
+            if pipeline_metrics is not None and hasattr(response, "usage"):
+                input_tokens = response.usage.prompt_tokens if response.usage else 0
+                output_tokens = response.usage.completion_tokens if response.usage else 0
+                pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
 
             # Get prompt metadata for tracking (RFC-017)
             from ..prompt_store import get_prompt_metadata

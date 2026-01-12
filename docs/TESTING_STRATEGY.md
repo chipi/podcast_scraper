@@ -482,7 +482,7 @@ Evaluation is performed against human-verified ground truth data stored in `data
 
 ### Continuous Improvement
 
-Quality evaluation is integrated into the **[AI Quality & Experimentation Platform](prd/PRD-007-ai-quality-experiment-platform.md)** (PRD-007), which uses these metrics to gate new model deployments and configuration changes.
+Quality evaluation is integrated into the **[AI Quality & Experimentation Platform](prd/PRD-007-ai-quality-experiment-platform.md)** (PRD-007), which uses these metrics to gate new model deployments and configuration changes. Detailed methodology is available in the **[Quality Evaluation Guide](guides/EVALUATION_GUIDE.md)**.
 
 ## CI/CD Integration
 

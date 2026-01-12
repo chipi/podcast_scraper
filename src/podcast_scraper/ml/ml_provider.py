@@ -358,12 +358,12 @@ class MLProvider:
             return False
 
     def initialize(self) -> None:
-        """Initialize all ML models (Whisper, spaCy, Transformers).
+        """Initialize ML models based on provider configuration.
 
-        Models are lazy-loaded based on configuration flags:
-        - Whisper: if transcribe_missing is True
-        - spaCy: if auto_speakers is True
-        - Transformers: if generate_summaries is True
+        Models are lazy-loaded based on configuration flags AND provider types:
+        - Whisper: if transcribe_missing=True and transcription_provider="whisper"
+        - spaCy: if auto_speakers=True and speaker_detector_provider="spacy"
+        - Transformers: if generate_summaries=True and summary_provider="transformers"
 
         This method first tries to reuse models from a preloaded instance to avoid
         redundant initialization. If no preloaded instance is available, it initializes
@@ -374,13 +374,18 @@ class MLProvider:
         Note: If one component fails to initialize (e.g., Whisper due to missing cache),
         other components will still be initialized. This allows summarization to work
         even if transcription is unavailable.
+
+        Note: Models are only loaded if the corresponding provider is set to use ML.
+        For example, if summary_provider="openai", Transformers models will not be loaded
+        even if generate_summaries=True.
         """
         # Try to copy from preloaded instance first (avoids redundant initialization)
         preloaded_available = self._try_copy_from_preloaded()
 
-        # Initialize Whisper if transcription enabled
+        # Initialize Whisper if transcription enabled AND provider is Whisper
         # If Whisper fails, log warning but continue with other components
-        if self.cfg.transcribe_missing and not self._whisper_initialized:
+        needs_whisper = self.cfg.transcribe_missing and self.cfg.transcription_provider == "whisper"
+        if needs_whisper and not self._whisper_initialized:
             try:
                 # If preloaded, the model file is already cached, so loading is faster
                 if preloaded_available:
@@ -392,8 +397,9 @@ class MLProvider:
                 )
                 # Don't raise - allow other components to initialize
 
-        # Initialize spaCy if speaker detection enabled
-        if self.cfg.auto_speakers and not self._spacy_initialized:
+        # Initialize spaCy if speaker detection enabled AND provider is spaCy
+        needs_spacy = self.cfg.auto_speakers and self.cfg.speaker_detector_provider == "spacy"
+        if needs_spacy and not self._spacy_initialized:
             try:
                 # If preloaded, spaCy model is already loaded, so we can reference it
                 # However, for thread safety, we still create a new instance
@@ -406,10 +412,13 @@ class MLProvider:
                 )
                 # Don't raise - allow other components to initialize
 
-        # Initialize Transformers if summarization enabled
+        # Initialize Transformers if summarization enabled AND provider is Transformers
         # Note: Transformers models cannot be shared across threads (not thread-safe)
         # so we always create new instances, but if preloaded, the model files are cached
-        if self.cfg.generate_summaries and not self._transformers_initialized:
+        needs_transformers = (
+            self.cfg.generate_summaries and self.cfg.summary_provider == "transformers"
+        )
+        if needs_transformers and not self._transformers_initialized:
             if preloaded_available:
                 logger.debug(
                     "Creating new Transformers instances (models already cached from preload)"

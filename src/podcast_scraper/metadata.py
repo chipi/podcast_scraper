@@ -445,6 +445,7 @@ def _generate_episode_summary(  # noqa: C901
     summary_model=None,  # Backward compatibility - deprecated
     reduce_model=None,  # Backward compatibility - deprecated
     whisper_model: Optional[str] = None,  # Whisper model used for transcription
+    pipeline_metrics=None,  # Metrics object for tracking LLM calls
 ) -> Optional[SummaryMetadata]:
     """Generate summary for an episode transcript.
 
@@ -560,12 +561,25 @@ def _generate_episode_summary(  # noqa: C901
             if cfg.summary_prompt:
                 params["prompt"] = str(cfg.summary_prompt)
 
-            result = summary_provider.summarize(
-                text=cleaned_text,
-                episode_title=None,  # Not available in this context
-                episode_description=None,  # Not available in this context
-                params=params,
-            )
+            # Pass pipeline_metrics for LLM call tracking (if OpenAI provider)
+            import inspect
+
+            sig = inspect.signature(summary_provider.summarize)
+            if "pipeline_metrics" in sig.parameters:
+                result = summary_provider.summarize(
+                    text=cleaned_text,
+                    episode_title=None,  # Not available in this context
+                    episode_description=None,  # Not available in this context
+                    params=params,
+                    pipeline_metrics=pipeline_metrics,
+                )
+            else:
+                result = summary_provider.summarize(
+                    text=cleaned_text,
+                    episode_title=None,  # Not available in this context
+                    episode_description=None,  # Not available in this context
+                    params=params,
+                )
 
             summary_elapsed = time.time() - summary_start
             short_summary = result.get("summary")
@@ -617,17 +631,24 @@ def _generate_episode_summary(  # noqa: C901
             )
 
             if not short_summary:
-                logger.warning("[%s] Summary generation returned empty result", episode_idx)
-                return None
+                # Fail fast - empty summary should never be expected when generate_summaries=True
+                error_msg = (
+                    f"[{episode_idx}] Summary generation returned empty result. "
+                    "Empty summaries are not allowed when generate_summaries=True."
+                )
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
 
             # Ensure short_summary is a string (Pydantic validation requirement)
             if not isinstance(short_summary, str):
-                logger.warning(
-                    "[%s] Summary is not a string (type: %s), skipping",
-                    episode_idx,
-                    type(short_summary).__name__,
+                # Fail fast - non-string summary is invalid when generate_summaries=True
+                error_msg = (
+                    f"[{episode_idx}] Summary is not a string "
+                    f"(type: {type(short_summary).__name__}). "
+                    "Invalid summary format when generate_summaries=True."
                 )
-                return None
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
 
             word_count = len(transcript_text.split())
 
@@ -637,13 +658,13 @@ def _generate_episode_summary(  # noqa: C901
                 word_count=word_count,
             )
         except Exception as e:
-            logger.error(
-                "[%s] Failed to generate summary using provider: %s",
-                episode_idx,
-                e,
-                exc_info=True,
+            # Fail fast - if summarization fails for a specific episode, raise exception
+            error_msg = (
+                f"[{episode_idx}] Failed to generate summary using provider: {e}. "
+                "Summarization is required when generate_summaries=True."
             )
-            return None
+            logger.error(error_msg, exc_info=True)
+            raise RuntimeError(error_msg) from e
 
     # Require summary_provider - no fallback to direct model loading
     # This ensures consistent provider pattern usage
@@ -752,17 +773,26 @@ def _generate_episode_summary(  # noqa: C901
                 )
 
                 if not short_summary:
-                    logger.warning("[%s] Summary generation returned empty result", episode_idx)
-                    return None
+                    # Fail fast - empty summary should never be expected
+                    # when generate_summaries=True
+                    error_msg = (
+                        f"[{episode_idx}] Summary generation returned empty result. "
+                        "Empty summaries are not allowed when "
+                        "generate_summaries=True."
+                    )
+                    logger.error(error_msg)
+                    raise RuntimeError(error_msg)
 
                 # Ensure short_summary is a string (Pydantic validation requirement)
                 if not isinstance(short_summary, str):
-                    logger.warning(
-                        "[%s] Summary is not a string (type: %s), skipping",
-                        episode_idx,
-                        type(short_summary).__name__,
+                    # Fail fast - non-string summary is invalid when generate_summaries=True
+                    error_msg = (
+                        f"[{episode_idx}] Summary is not a string "
+                        f"(type: {type(short_summary).__name__}). "
+                        "Invalid summary format when generate_summaries=True."
                     )
-                    return None
+                    logger.error(error_msg)
+                    raise RuntimeError(error_msg)
 
                 word_count = len(transcript_text.split())
 
@@ -773,19 +803,21 @@ def _generate_episode_summary(  # noqa: C901
                 )
 
             except Exception as e:
-                logger.error(
-                    "[%s] Failed to generate summary: %s",
-                    episode_idx,
-                    e,
-                    exc_info=True,
+                # Fail fast - if summarization fails for a specific episode, raise exception
+                error_msg = (
+                    f"[{episode_idx}] Failed to generate summary: {e}. "
+                    "Summarization is required when generate_summaries=True."
                 )
-                return None
+                logger.error(error_msg, exc_info=True)
+                raise RuntimeError(error_msg) from e
         else:
-            logger.info(
-                "[%s] Summary provider not available, skipping summary generation",
-                episode_idx,
+            # Fail fast - summary_provider is required when generate_summaries=True
+            error_msg = (
+                f"[{episode_idx}] Summary provider not available but generate_summaries=True. "
+                "Cannot generate summary without provider."
             )
-            return None
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
 
 
 def _determine_metadata_path(
@@ -975,6 +1007,7 @@ def generate_episode_metadata(
             summary_model=summary_model,  # Backward compatibility for parallel processing
             reduce_model=reduce_model,  # Backward compatibility for parallel processing
             whisper_model=whisper_model,  # Whisper model used for transcription
+            pipeline_metrics=pipeline_metrics,
         )
         summary_elapsed = time.time() - summary_start
         # Record summary generation time if metrics available

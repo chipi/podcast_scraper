@@ -6,7 +6,7 @@ For general configuration, see the [Provider Configuration Quick Reference](PROV
 
 ---
 
-## 1. Architectural Overview
+## Architectural Overview
 
 The `MLProvider` is a unified implementation that handles three core capabilities using local machine learning models:
 
@@ -42,7 +42,7 @@ flowchart TD
 ### Key Concepts
 
 * **Unified Implementation**: Matches the pattern of cloud providers (like OpenAI), where a single provider class orchestrates multiple tasks using shared underlying libraries.
-* **Lazy Loading**: Models are loaded into memory only when first requested, saving resources during dry runs or partial processing.
+* **Optimized Lazy Loading**: Models are loaded into memory only when first requested **and** only if the corresponding provider is configured to use local ML (e.g., Transformers won't load if `summary_provider="openai"`). This saves significant memory during hybrid cloud/local runs.
 * **Device Awareness**: Automatic detection and utilization of the best available hardware accelerator:
   * **MPS** (Apple Silicon GPU)
   * **CUDA** (NVIDIA GPU)
@@ -51,7 +51,7 @@ flowchart TD
 
 ---
 
-## 2. Transcription Pipeline
+## Transcription Pipeline
 
 The transcription pipeline converts raw audio into structured text with timing information.
 
@@ -84,7 +84,7 @@ Whisper performance varies wildly based on hardware. The system prefers:
 
 ---
 
-## 3. Speaker Detection Pipeline
+## Speaker Detection Pipeline
 
 The system uses Named Entity Recognition (NER) to identify potential hosts and guests from episode metadata.
 
@@ -120,7 +120,7 @@ The system supports standard `spaCy` models:
 
 ---
 
-## 4. Preprocessing Pipeline (Sanitation)
+## Preprocessing Pipeline (Sanitation)
 
 Before any text reaches a summarization model, it undergoes a multi-stage "hard cleaning" process. This was identified in **Issue #83** as the single most important factor for preventing model hallucinations and "scaffolding echo."
 
@@ -147,7 +147,7 @@ flowchart LR
 
 ---
 
-## 5. Summarization Pipeline (BART/LED Implementation)
+## Summarization Pipeline (BART/LED Implementation)
 
 The summarization system uses a **MAP-REDUCE** architecture designed to handle transcripts ranging from 5 minutes to 2 hours.
 
@@ -221,7 +221,7 @@ To ensure stability, only validated model aliases are supported for the `transfo
 
 ---
 
-## 6. Performance & Quality
+## Performance & Quality
 
 ### 6.1 Performance Characteristics
 
@@ -239,7 +239,7 @@ The system applies several "safety gates" to the final summary:
 
 ---
 
-## 7. Current State & Frozen Baseline
+## Current State & Frozen Baseline
 
 As of **Issue #83**, the BART/LED implementation is considered **stable and frozen**.
 
@@ -253,10 +253,42 @@ The following issues are architectural limits of BART/LED, not bugs:
 
 ---
 
-## 8. Next Steps & Evolution
+## Next Steps & Evolution
 
 The current BART/LED implementation serves as the **Classic Summarizer Baseline**. The next evolution includes:
 
 * **Hybrid MAP-REDUCE (RFC-042)**: Replacing the REDUCE phase with instruction-following models (Mistral, Qwen) for better abstraction.
 * **Semantic Cleaning**: Using lightweight models to filter ads based on meaning.
 * **Experimentation Runner (RFC-015)**: Benchmarking new models against this frozen baseline.
+
+---
+
+## Hardware Acceleration & Scaling
+
+The performance and feasibility of local ML models depend heavily on your hardware configuration.
+
+### 9.1 Device Preferences
+
+The system automatically detects and utilizes hardware accelerators:
+
+1. **Apple Silicon (MPS)**: Highly efficient for both transcription and summarization. Unified memory allows running larger models (7B-14B) than typical consumer GPUs.
+2. **NVIDIA (CUDA)**: The gold standard for high-throughput server processing.
+3. **CPU**: Fallback mode. Uses FP32 for stability. Parallelism is achieved via `ThreadPoolExecutor` for map-phase chunks.
+
+### 9.2 Scaling for Long Content (30k-40k Tokens)
+
+Even on high-end hardware (e.g., Mac Studio or MBP M4 Pro with 48GB+ RAM), attempting to process 40,000 tokens in a single context window is often counterproductive due to quadratic attention complexity and quality degradation ("lost in the middle").
+
+**The system-enforced scaling strategy is:**
+
+* **Never Brute-Force**: Always use the **MAP-REDUCE** pipeline for content exceeding the model's native context window (typically 600-1024 tokens for BART).
+* **Memory vs. Context**: Use large RAM/VRAM to run **better** models (e.g., `bart-large` vs `bart-small`) and more **parallel chunks**, rather than attempting to increase the context window beyond the model's training limit.
+* **Recursive Reduction**: For extremely long transcripts, the system uses hierarchical reduction to consolidate summaries without losing key insights.
+
+### 9.3 Evolution Roadmap
+
+| Phase | Strategy | Model Class | Context Handling |
+| :--- | :--- | :--- | :--- |
+| **Current (Stable)** | Classic Map-Reduce | Encoder-Decoder (BART/LED) | Fixed chunking (600 tokens) |
+| **Medium Term** | Hybrid Map-Reduce | LLM (Mistral/Llama/Qwen) | Larger chunks (4k-8k tokens) |
+| **Future** | Intelligent Synthesis | Mixture-of-Experts (MoE) | Semantic chunking |

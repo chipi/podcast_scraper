@@ -956,3 +956,110 @@ class TestMLProviderPreload(unittest.TestCase):
         self.assertTrue(provider._whisper_initialized)
         # Should still only be called once (initialize() checks _whisper_initialized)
         self.assertEqual(mock_whisper_lib.load_model.call_count, first_call_count)
+
+    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    def test_initialize_skips_openai_providers(
+        self,
+        mock_summary_model,
+        mock_select_map,
+        mock_select_reduce,
+        mock_get_ner,
+        mock_import_whisper,
+    ):
+        """Test that initialize() skips loading models when using OpenAI providers.
+
+        This test verifies the fix for issue #326: MLProvider should not load
+        models for capabilities that use OpenAI providers, even if the feature
+        flags are enabled.
+        """
+        # Hybrid config: Whisper (ML) + OpenAI summarization + OpenAI speaker detection
+        # Only Whisper should be loaded, not Transformers or spaCy
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            transcribe_missing=True,
+            transcription_provider="whisper",  # ML provider - should load
+            generate_summaries=True,
+            generate_metadata=True,  # Required when generate_summaries=True
+            summary_provider="openai",  # OpenAI provider - should NOT load Transformers
+            auto_speakers=True,
+            speaker_detector_provider="openai",  # OpenAI provider - should NOT load spaCy
+            openai_api_key="sk-test123",  # Required for OpenAI provider
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+        )
+        provider = MLProvider(cfg)
+
+        # Mock Whisper model loading
+        mock_model = Mock()
+        mock_model.device.type = "cpu"
+        mock_whisper_lib = Mock()
+        mock_whisper_lib.load_model.return_value = mock_model
+        mock_import_whisper.return_value = mock_whisper_lib
+
+        # Mock spaCy and Transformers (should not be called)
+        mock_get_ner.return_value = Mock()
+        mock_select_map.return_value = "facebook/bart-large-cnn"
+        mock_select_reduce.return_value = "allenai/led-base-16384"
+        mock_summary_model.return_value = Mock()
+
+        # Call initialize() - should only load Whisper
+        provider.initialize()
+
+        # Verify Whisper was loaded (ML provider)
+        self.assertTrue(provider._whisper_initialized)
+        mock_import_whisper.assert_called()
+        mock_whisper_lib.load_model.assert_called()
+
+        # Verify Transformers was NOT loaded (OpenAI provider)
+        self.assertFalse(provider._transformers_initialized)
+        mock_select_map.assert_not_called()
+        mock_select_reduce.assert_not_called()
+        mock_summary_model.assert_not_called()
+
+        # Verify spaCy was NOT loaded (OpenAI provider)
+        self.assertFalse(provider._spacy_initialized)
+        mock_get_ner.assert_not_called()
+
+        # Test reverse: OpenAI transcription + ML summarization + ML speaker detection
+        # Only Transformers and spaCy should be loaded, not Whisper
+        cfg2 = config.Config(
+            rss_url=self.cfg.rss_url,
+            transcribe_missing=True,
+            transcription_provider="openai",  # OpenAI provider - should NOT load Whisper
+            generate_summaries=True,
+            generate_metadata=True,  # Required when generate_summaries=True
+            summary_provider="transformers",  # ML provider - should load
+            auto_speakers=True,
+            speaker_detector_provider="spacy",  # ML provider - should load
+            openai_api_key="sk-test123",  # Required for OpenAI provider
+        )
+        provider2 = MLProvider(cfg2)
+
+        # Reset mocks
+        mock_import_whisper.reset_mock()
+        mock_whisper_lib.load_model.reset_mock()
+        mock_get_ner.reset_mock()
+        mock_select_map.reset_mock()
+        mock_select_reduce.reset_mock()
+        mock_summary_model.reset_mock()
+
+        # Call initialize() - should only load Transformers and spaCy
+        provider2.initialize()
+
+        # Verify Whisper was NOT loaded (OpenAI provider)
+        self.assertFalse(provider2._whisper_initialized)
+        mock_import_whisper.assert_not_called()
+        mock_whisper_lib.load_model.assert_not_called()
+
+        # Verify Transformers WAS loaded (ML provider)
+        self.assertTrue(provider2._transformers_initialized)
+        mock_select_map.assert_called()
+        mock_select_reduce.assert_called()
+        mock_summary_model.assert_called()
+
+        # Verify spaCy WAS loaded (ML provider)
+        self.assertTrue(provider2._spacy_initialized)
+        mock_get_ner.assert_called()

@@ -37,6 +37,33 @@ permissions:
   id-token: write
 
 jobs:
+  # Detect if only documentation files changed (used to skip ML model preloading and coverage for docs-only PRs)
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs-only: ${{ steps.filter.outputs.docs }}
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: filter
+      with:
+      filters: |
+        docs:
+          - 'docs/**'
+          - 'mkdocs.yml'
+          - '**/*.md'
+          - 'LICENSE'
+          code:
+            - '**.py'
+            - '**.j2'
+            - 'tests/**'
+            - 'pyproject.toml'
+            - 'Makefile'
+            - 'Dockerfile'
+            - '.dockerignore'
+            - '.github/workflows/**'
+
   # Fast lint checks - blocks tests to catch issues early
   lint:
     runs-on: ubuntu-latest
@@ -250,9 +277,12 @@ jobs:
   # Preload ML models - runs on all commits (main and PRs), ensures models are cached for integration and e2e tests
   # This job has no dependencies and starts immediately in parallel with lint, docs, build
   # Optimized: Check cache FIRST (no Python needed), only set up Python if cache misses
+  # Skip for docs-only changes (when only docs files changed, no code files) to avoid unnecessary model downloads
   preload-ml-models:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Conservative timeout for model preloading (usually cache hit, ~2 min)
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -719,10 +749,11 @@ jobs:
 
   # Unified coverage report - combines unit + integration + E2E coverage
   # Waits for all test jobs to complete, then combines their coverage reports
+  # Skip for docs-only changes (when only docs files changed, no code files)
   coverage-unified:
     runs-on: ubuntu-latest
-    needs: [security-quality, test-unit, test-integration, test-integration-fast, test-e2e, test-e2e-fast]  # Wait for security/quality and all test jobs
-    if: always() && !contains(github.event.pull_request.head.ref, 'docs/')
+    needs: [detect-changes, security-quality, test-unit, test-integration, test-integration-fast, test-e2e, test-e2e-fast]  # Wait for security/quality and all test jobs
+    if: always() && (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true')
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.11

@@ -14,7 +14,7 @@ For comprehensive testing information, see the dedicated testing documentation:
 
 - **[Testing Strategy](../TESTING_STRATEGY.md)** - Testing philosophy, test pyramid, decision criteria
 - **[Testing Guide](TESTING_GUIDE.md)** - Quick reference, test execution commands
-- **[Quality Evaluation](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md#evaluation-scripts-eval)** — ROUGE scoring and cleaning quality evaluation scripts
+- **[Quality Evaluation Guide](EVALUATION_GUIDE.md)** — ROUGE scoring, golden datasets, and quality metrics
 - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test guidelines
 - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models
@@ -180,7 +180,7 @@ python scripts/eval/eval_cleaning.py
 python scripts/eval/eval_summaries.py
 ```
 
-For detailed documentation on options and output formats, see the **[Scripts README](https://github.com/chipi/podcast_scraper/blob/main/scripts/README.md#evaluation-scripts-eval)**.
+For detailed methodology on quality metrics and the golden dataset, see the **[Quality Evaluation Guide](EVALUATION_GUIDE.md)**.
 
 ## Environment Setup
 

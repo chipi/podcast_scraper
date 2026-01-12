@@ -9,7 +9,7 @@ import logging
 import os
 import shutil
 import threading
-from typing import Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from .. import config, metrics
 from ..workflow.types import TranscriptionResources
@@ -147,7 +147,131 @@ def generate_pipeline_summary(
 
         summary_lines.append(f"  - Output directory: {effective_output_dir}")
 
+        # Add LLM call summary and cost estimation if any LLM provider was used
+        llm_summary = _generate_llm_call_summary(cfg, pipeline_metrics)
+        if llm_summary:
+            summary_lines.append("")
+            summary_lines.append("LLM API Usage:")
+            summary_lines.extend(llm_summary)
+
         # Join all lines
         summary = "\n".join(summary_lines)
         # Don't log here - caller (cli.py) will log the summary
         return saved, summary
+
+
+def _get_provider_pricing(
+    cfg: config.Config, provider_type: str, capability: str, model: str
+) -> Dict[str, float]:
+    """Get pricing information from the appropriate provider.
+
+    Args:
+        cfg: Configuration object
+        provider_type: Provider type ("openai", "whisper", etc.)
+        capability: Capability type ("transcription", "speaker_detection", "summarization")
+        model: Model name
+
+    Returns:
+        Dictionary with pricing information, or empty dict if not available
+    """
+    if provider_type == "openai":
+        from ..openai.openai_provider import OpenAIProvider
+
+        return OpenAIProvider.get_pricing(model, capability)
+    # Add other providers here as they're implemented
+    # elif provider_type == "anthropic":
+    #     from ..anthropic.anthropic_provider import AnthropicProvider
+    #     return AnthropicProvider.get_pricing(model, capability)
+    return {}
+
+
+def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Metrics) -> List[str]:
+    """Generate summary of LLM API calls and estimated costs.
+
+    Args:
+        cfg: Configuration object to check which providers were used
+        pipeline_metrics: Metrics object with LLM call tracking data
+
+    Returns:
+        List of summary lines, or empty list if no LLM calls were made
+    """
+    summary_lines: List[str] = []
+    metrics_dict = pipeline_metrics.finish()
+
+    # Check if any LLM provider was used
+    uses_openai_transcription = cfg.transcription_provider == "openai"
+    uses_openai_speaker = cfg.speaker_detector_provider == "openai"
+    uses_openai_summarization = cfg.summary_provider == "openai"
+
+    if not (uses_openai_transcription or uses_openai_speaker or uses_openai_summarization):
+        return summary_lines
+
+    total_cost = 0.0
+
+    # Transcription calls
+    if uses_openai_transcription:
+        transcription_calls = metrics_dict.get("llm_transcription_calls", 0)
+        audio_minutes = metrics_dict.get("llm_transcription_audio_minutes", 0.0)
+        if transcription_calls > 0:
+            model = getattr(cfg, "openai_transcription_model", "whisper-1")
+            pricing = _get_provider_pricing(cfg, "openai", "transcription", model)
+            if pricing and "cost_per_minute" in pricing:
+                transcription_cost = audio_minutes * pricing["cost_per_minute"]
+                total_cost += transcription_cost
+                summary_lines.append(
+                    f"  - Transcription: {transcription_calls} calls, "
+                    f"{audio_minutes:.1f} minutes, ${transcription_cost:.4f} "
+                    f"(model: {model})"
+                )
+
+    # Speaker detection calls
+    if uses_openai_speaker:
+        speaker_calls = metrics_dict.get("llm_speaker_detection_calls", 0)
+        speaker_input_tokens = metrics_dict.get("llm_speaker_detection_input_tokens", 0)
+        speaker_output_tokens = metrics_dict.get("llm_speaker_detection_output_tokens", 0)
+        if speaker_calls > 0:
+            model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
+            pricing = _get_provider_pricing(cfg, "openai", "speaker_detection", model)
+            if pricing and "input_cost_per_1m_tokens" in pricing:
+                input_cost = (speaker_input_tokens / 1_000_000) * pricing[
+                    "input_cost_per_1m_tokens"
+                ]
+                output_cost = (speaker_output_tokens / 1_000_000) * pricing[
+                    "output_cost_per_1m_tokens"
+                ]
+                speaker_cost = input_cost + output_cost
+                total_cost += speaker_cost
+                summary_lines.append(
+                    f"  - Speaker Detection: {speaker_calls} calls, "
+                    f"{speaker_input_tokens:,} input + {speaker_output_tokens:,} output tokens, "
+                    f"${speaker_cost:.4f} (model: {model})"
+                )
+
+    # Summarization calls
+    if uses_openai_summarization:
+        summary_calls = metrics_dict.get("llm_summarization_calls", 0)
+        summary_input_tokens = metrics_dict.get("llm_summarization_input_tokens", 0)
+        summary_output_tokens = metrics_dict.get("llm_summarization_output_tokens", 0)
+        if summary_calls > 0:
+            model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
+            pricing = _get_provider_pricing(cfg, "openai", "summarization", model)
+            if pricing and "input_cost_per_1m_tokens" in pricing:
+                input_cost = (summary_input_tokens / 1_000_000) * pricing[
+                    "input_cost_per_1m_tokens"
+                ]
+                output_cost = (summary_output_tokens / 1_000_000) * pricing[
+                    "output_cost_per_1m_tokens"
+                ]
+                summary_cost = input_cost + output_cost
+                total_cost += summary_cost
+                summary_lines.append(
+                    f"  - Summarization: {summary_calls} calls, "
+                    f"{summary_input_tokens:,} input + {summary_output_tokens:,} output tokens, "
+                    f"${summary_cost:.4f} (model: {model})"
+                )
+
+    # Add total cost if any calls were made
+    if total_cost > 0:
+        summary_lines.append(f"  - Total estimated cost: ${total_cost:.4f}")
+
+    return summary_lines

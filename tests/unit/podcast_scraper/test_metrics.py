@@ -297,6 +297,15 @@ class TestFinish(unittest.TestCase):
             "transcribe_count",
             "extract_names_count",
             "summarize_count",
+            # LLM metrics
+            "llm_transcription_calls",
+            "llm_transcription_audio_minutes",
+            "llm_speaker_detection_calls",
+            "llm_speaker_detection_input_tokens",
+            "llm_speaker_detection_output_tokens",
+            "llm_summarization_calls",
+            "llm_summarization_input_tokens",
+            "llm_summarization_output_tokens",
         }
         self.assertEqual(set(result.keys()), expected_keys)
 
@@ -390,6 +399,167 @@ class TestLogMetrics(unittest.TestCase):
         self.assertIn("Episodes Scraped Total", call_args)
         self.assertIn("Time Scraping", call_args)
         self.assertIn("Avg Download Media Seconds", call_args)
+
+
+class TestRecordLLMTranscriptionCall(unittest.TestCase):
+    """Test record_llm_transcription_call method."""
+
+    def test_record_single_transcription_call(self):
+        """Test recording a single transcription call."""
+        m = metrics.Metrics()
+        m.record_llm_transcription_call(5.5)  # 5.5 minutes
+        self.assertEqual(m.llm_transcription_calls, 1)
+        self.assertEqual(m.llm_transcription_audio_minutes, 5.5)
+
+    def test_record_multiple_transcription_calls(self):
+        """Test recording multiple transcription calls."""
+        m = metrics.Metrics()
+        m.record_llm_transcription_call(3.0)
+        m.record_llm_transcription_call(5.5)
+        m.record_llm_transcription_call(2.5)
+        self.assertEqual(m.llm_transcription_calls, 3)
+        self.assertEqual(m.llm_transcription_audio_minutes, 11.0)  # 3.0 + 5.5 + 2.5
+
+    def test_record_zero_minutes(self):
+        """Test recording zero minutes."""
+        m = metrics.Metrics()
+        m.record_llm_transcription_call(0.0)
+        self.assertEqual(m.llm_transcription_calls, 1)
+        self.assertEqual(m.llm_transcription_audio_minutes, 0.0)
+
+
+class TestRecordLLMSpeakerDetectionCall(unittest.TestCase):
+    """Test record_llm_speaker_detection_call method."""
+
+    def test_record_single_speaker_detection_call(self):
+        """Test recording a single speaker detection call."""
+        m = metrics.Metrics()
+        m.record_llm_speaker_detection_call(input_tokens=100, output_tokens=50)
+        self.assertEqual(m.llm_speaker_detection_calls, 1)
+        self.assertEqual(m.llm_speaker_detection_input_tokens, 100)
+        self.assertEqual(m.llm_speaker_detection_output_tokens, 50)
+
+    def test_record_multiple_speaker_detection_calls(self):
+        """Test recording multiple speaker detection calls."""
+        m = metrics.Metrics()
+        m.record_llm_speaker_detection_call(input_tokens=100, output_tokens=50)
+        m.record_llm_speaker_detection_call(input_tokens=200, output_tokens=75)
+        m.record_llm_speaker_detection_call(input_tokens=150, output_tokens=60)
+        self.assertEqual(m.llm_speaker_detection_calls, 3)
+        self.assertEqual(m.llm_speaker_detection_input_tokens, 450)  # 100 + 200 + 150
+        self.assertEqual(m.llm_speaker_detection_output_tokens, 185)  # 50 + 75 + 60
+
+    def test_record_zero_tokens(self):
+        """Test recording zero tokens."""
+        m = metrics.Metrics()
+        m.record_llm_speaker_detection_call(input_tokens=0, output_tokens=0)
+        self.assertEqual(m.llm_speaker_detection_calls, 1)
+        self.assertEqual(m.llm_speaker_detection_input_tokens, 0)
+        self.assertEqual(m.llm_speaker_detection_output_tokens, 0)
+
+
+class TestRecordLLMSummarizationCall(unittest.TestCase):
+    """Test record_llm_summarization_call method."""
+
+    def test_record_single_summarization_call(self):
+        """Test recording a single summarization call."""
+        m = metrics.Metrics()
+        m.record_llm_summarization_call(input_tokens=1000, output_tokens=500)
+        self.assertEqual(m.llm_summarization_calls, 1)
+        self.assertEqual(m.llm_summarization_input_tokens, 1000)
+        self.assertEqual(m.llm_summarization_output_tokens, 500)
+
+    def test_record_multiple_summarization_calls(self):
+        """Test recording multiple summarization calls."""
+        m = metrics.Metrics()
+        m.record_llm_summarization_call(input_tokens=1000, output_tokens=500)
+        m.record_llm_summarization_call(input_tokens=2000, output_tokens=800)
+        m.record_llm_summarization_call(input_tokens=1500, output_tokens=600)
+        self.assertEqual(m.llm_summarization_calls, 3)
+        self.assertEqual(m.llm_summarization_input_tokens, 4500)  # 1000 + 2000 + 1500
+        self.assertEqual(m.llm_summarization_output_tokens, 1900)  # 500 + 800 + 600
+
+    def test_record_zero_tokens(self):
+        """Test recording zero tokens."""
+        m = metrics.Metrics()
+        m.record_llm_summarization_call(input_tokens=0, output_tokens=0)
+        self.assertEqual(m.llm_summarization_calls, 1)
+        self.assertEqual(m.llm_summarization_input_tokens, 0)
+        self.assertEqual(m.llm_summarization_output_tokens, 0)
+
+
+class TestFinishIncludesLLMMetrics(unittest.TestCase):
+    """Test that finish() includes LLM metrics in the output."""
+
+    def test_finish_includes_llm_transcription_metrics(self):
+        """Test that finish includes LLM transcription metrics."""
+        m = metrics.Metrics()
+        m.record_llm_transcription_call(10.5)
+        m.record_llm_transcription_call(5.0)
+
+        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        self.assertEqual(result["llm_transcription_calls"], 2)
+        self.assertEqual(result["llm_transcription_audio_minutes"], 15.5)
+
+    def test_finish_includes_llm_speaker_detection_metrics(self):
+        """Test that finish includes LLM speaker detection metrics."""
+        m = metrics.Metrics()
+        m.record_llm_speaker_detection_call(input_tokens=100, output_tokens=50)
+        m.record_llm_speaker_detection_call(input_tokens=200, output_tokens=75)
+
+        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        self.assertEqual(result["llm_speaker_detection_calls"], 2)
+        self.assertEqual(result["llm_speaker_detection_input_tokens"], 300)
+        self.assertEqual(result["llm_speaker_detection_output_tokens"], 125)
+
+    def test_finish_includes_llm_summarization_metrics(self):
+        """Test that finish includes LLM summarization metrics."""
+        m = metrics.Metrics()
+        m.record_llm_summarization_call(input_tokens=1000, output_tokens=500)
+        m.record_llm_summarization_call(input_tokens=2000, output_tokens=800)
+
+        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        self.assertEqual(result["llm_summarization_calls"], 2)
+        self.assertEqual(result["llm_summarization_input_tokens"], 3000)
+        self.assertEqual(result["llm_summarization_output_tokens"], 1300)
+
+    def test_finish_rounds_audio_minutes(self):
+        """Test that finish rounds audio minutes to 2 decimal places."""
+        m = metrics.Metrics()
+        m.record_llm_transcription_call(10.123456)
+
+        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        self.assertEqual(result["llm_transcription_audio_minutes"], 10.12)
+
+    def test_finish_includes_all_llm_metrics_when_empty(self):
+        """Test that finish includes all LLM metrics even when zero."""
+        m = metrics.Metrics()
+
+        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        # Should include all LLM metrics with zero values
+        self.assertEqual(result["llm_transcription_calls"], 0)
+        self.assertEqual(result["llm_transcription_audio_minutes"], 0.0)
+        self.assertEqual(result["llm_speaker_detection_calls"], 0)
+        self.assertEqual(result["llm_speaker_detection_input_tokens"], 0)
+        self.assertEqual(result["llm_speaker_detection_output_tokens"], 0)
+        self.assertEqual(result["llm_summarization_calls"], 0)
+        self.assertEqual(result["llm_summarization_input_tokens"], 0)
+        self.assertEqual(result["llm_summarization_output_tokens"], 0)
 
 
 if __name__ == "__main__":

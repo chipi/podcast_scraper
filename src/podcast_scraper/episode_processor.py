@@ -444,9 +444,28 @@ def transcribe_media_to_text(
     try:
         # Stage 2: Use provider's transcribe_with_segments method for full result with segments
         # This supports both plain text and screenplay formatting
-        result, tc_elapsed = transcription_provider.transcribe_with_segments(
-            temp_media, language=cfg.language
-        )
+        # Pass pipeline_metrics and episode duration for LLM call tracking (if OpenAI provider)
+        episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
+        if hasattr(transcription_provider, "transcribe_with_segments"):
+            # Check if provider supports metrics parameter (OpenAI provider)
+            import inspect
+
+            sig = inspect.signature(transcription_provider.transcribe_with_segments)
+            if "pipeline_metrics" in sig.parameters:
+                result, tc_elapsed = transcription_provider.transcribe_with_segments(
+                    temp_media,
+                    language=cfg.language,
+                    pipeline_metrics=pipeline_metrics,
+                    episode_duration_seconds=episode_duration_seconds,
+                )
+            else:
+                result, tc_elapsed = transcription_provider.transcribe_with_segments(
+                    temp_media, language=cfg.language
+                )
+        else:
+            result, tc_elapsed = transcription_provider.transcribe_with_segments(
+                temp_media, language=cfg.language
+            )
         text = _format_transcript_if_needed(
             result, cfg, job.detected_speaker_names, transcription_provider
         )

@@ -621,6 +621,15 @@ def parallel_episode_summarization(
         return
 
     if summary_provider is None:
+        # Fail fast - summary_provider is required when generate_summaries=True
+        if cfg.generate_summaries:
+            error_msg = (
+                "Summary provider not available but generate_summaries=True. "
+                "Cannot proceed with parallel summarization without provider."
+            )
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        # If generate_summaries=False, it's okay to skip
         logger.warning("Summary provider not available, skipping parallel summarization")
         return
 

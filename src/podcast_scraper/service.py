@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import __version__, config, workflow
+from .workflow.stages import setup
 
 logger = logging.getLogger(__name__)
 
@@ -167,10 +168,8 @@ def main() -> int:
     """
     import argparse
 
-    from . import workflow
-
     # Initialize ML environment variables early (before any ML imports)
-    workflow._initialize_ml_environment()
+    setup.initialize_ml_environment()
 
     parser = argparse.ArgumentParser(
         description="Podcast Scraper Service - Run pipeline from configuration file",
