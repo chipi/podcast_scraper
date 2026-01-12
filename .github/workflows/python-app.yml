@@ -1000,7 +1000,7 @@ jobs:
         if-no-files-found: ignore
     - name: Upload coverage to Codecov
       if: always()
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         file: reports/coverage-unified.xml
         flags: unittests
