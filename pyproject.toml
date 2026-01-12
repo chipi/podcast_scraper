@@ -21,7 +21,7 @@ dependencies = [
   "python-dotenv>=1.0.0,<2.0.0",  # For .env file support (RFC-013)
   "zipp>=3.19.1,<4.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.0,<4.0.0",  # For prompt templating (RFC-017)
-  "openai>=1.0.0,<2.0.0",  # For OpenAI API providers (RFC-013)
+  "openai>=1.0.0,<3.0.0",  # For OpenAI API providers (RFC-013)
   "filelock>=3.20.1,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
 ]
 
