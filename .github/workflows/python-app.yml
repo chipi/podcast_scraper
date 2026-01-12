@@ -50,7 +50,7 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Set up Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: "20"
     - name: Install lint dependencies (no ML packages)
