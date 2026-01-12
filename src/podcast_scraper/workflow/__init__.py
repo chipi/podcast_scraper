@@ -21,31 +21,9 @@ if TYPE_CHECKING:
     _preloaded_ml_provider: Optional[Any]
     run_pipeline: Callable[..., Any]
     apply_log_level: Callable[..., Any]
-    _initialize_ml_environment: Callable[..., Any]
-    _setup_pipeline_environment: Callable[..., Any]
-    _should_preload_ml_models: Callable[..., Any]
     _preload_ml_models_if_needed: Callable[..., Any]
-    _ensure_ml_models_cached: Callable[..., Any]
-    _fetch_and_parse_feed: Callable[..., Any]
-    _extract_feed_metadata_for_generation: Callable[..., Any]
-    _prepare_episodes_from_feed: Callable[..., Any]
-    _detect_feed_hosts_and_patterns: Callable[..., Any]
-    _setup_processing_resources: Callable[..., Any]
-    _prepare_episode_download_args: Callable[..., Any]
-    _process_episodes: Callable[..., Any]
-    _process_processing_jobs_concurrent: Callable[..., Any]
-    _setup_transcription_resources: Callable[..., Any]
-    _process_transcription_jobs: Callable[..., Any]
-    _process_transcription_jobs_concurrent: Callable[..., Any]
-    _parallel_episode_summarization: Callable[..., Any]
-    _summarize_single_episode: Callable[..., Any]
     transcribe_media_to_text: Callable[..., Any]
-    _call_generate_metadata: Callable[..., Any]
-    _generate_episode_metadata: Callable[..., Any]
     create_summarization_provider: Callable[..., Any]
-    _cleanup_pipeline: Callable[..., Any]
-    _generate_pipeline_summary: Callable[..., Any]
-    _update_metric_safely: Callable[..., Any]
     create_speaker_detector: Callable[..., Any]
     create_transcription_provider: Callable[..., Any]
     extract_episode_description: Callable[..., Any]
@@ -85,39 +63,21 @@ def _re_export_workflow_functions(_workflow_module: Any) -> None:
 
     # Re-export backward compatibility wrappers for private functions
     # Only export functions that actually exist in workflow.py
+    # Note: Most stage functions have been moved to workflow/stages modules
+    # and are no longer defined in workflow.py
     _private_functions = [
-        "_initialize_ml_environment",
-        "_setup_pipeline_environment",
-        "_should_preload_ml_models",
         "_preload_ml_models_if_needed",
-        "_ensure_ml_models_cached",
-        "_fetch_and_parse_feed",
-        "_extract_feed_metadata_for_generation",
-        "_prepare_episodes_from_feed",
-        "_detect_feed_hosts_and_patterns",
-        "_setup_processing_resources",
-        "_prepare_episode_download_args",
-        "_process_episodes",
-        "_process_processing_jobs_concurrent",
-        "_setup_transcription_resources",
-        "_process_transcription_jobs",
-        "_process_transcription_jobs_concurrent",
-        "_parallel_episode_summarization",
-        "_summarize_single_episode",
     ]
     for func_name in _private_functions:
         if hasattr(_workflow_module, func_name):
             setattr(current_module, func_name, getattr(_workflow_module, func_name))
 
     # Re-export functions that tests patch
+    # Note: Helper functions (_cleanup_pipeline, _generate_pipeline_summary, _update_metric_safely)
+    # and stage functions have been moved to workflow/helpers and workflow/stages modules
     _test_functions = [
         "transcribe_media_to_text",
-        "_call_generate_metadata",
-        "_generate_episode_metadata",
         "create_summarization_provider",
-        "_cleanup_pipeline",
-        "_generate_pipeline_summary",
-        "_update_metric_safely",
         "_preloaded_ml_provider",
     ]
     for func_name in _test_functions:

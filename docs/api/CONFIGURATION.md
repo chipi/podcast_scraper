@@ -98,6 +98,8 @@ OpenAI providers support configurable model selection for dev/test vs production
 | `openai_summary_model` | `--openai-summary-model` | `gpt-4o-mini` | OpenAI model for summarization |
 | `openai_temperature` | `--openai-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
 
+**Note on Transcription Limits**: The OpenAI Whisper API has a **25 MB file size limit**. The system proactively checks file sizes via HTTP HEAD requests before downloading or attempting transcription with the OpenAI provider. Episodes exceeding this limit will be skipped to avoid API errors and unnecessary bandwidth usage.
+
 **Recommended Models by Environment**:
 
 | Purpose | Test/Dev | Production | Notes |

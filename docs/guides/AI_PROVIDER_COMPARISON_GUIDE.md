@@ -440,6 +440,8 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │  ⚡ Speed:    Fast (100 tok/s)                                  │
 │  🏆 Quality:  ████████████████████ Best                         │
 │  🔒 Privacy:  ████████████░░░░░░░░ Standard (US)                │
+│  📊 Tracking: Built-in token/audio usage metrics for cost eval  │
+  ⚠️ Limit:    25MB audio file size limit for Whisper API        │
 │                                                                 │
 │  Models:                                                        │
 │  ├── GPT-4o       $5.00/$15.00  │ Best quality                 │

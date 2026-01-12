@@ -198,20 +198,22 @@ class TestModelLoaderWorkflowIntegration(unittest.TestCase):
     @pytest.mark.critical_path
     def test_workflow_imports_model_loader(self):
         """Test that workflow module can import model_loader functions."""
-        from podcast_scraper import workflow
+        from podcast_scraper.workflow.stages import setup
 
-        # Verify workflow module exists and has _ensure_ml_models_cached
-        self.assertTrue(hasattr(workflow, "_ensure_ml_models_cached"))
-        self.assertTrue(callable(workflow._ensure_ml_models_cached))
+        # Verify setup module exists and has ensure_ml_models_cached
+        self.assertTrue(hasattr(setup, "ensure_ml_models_cached"))
+        self.assertTrue(callable(setup.ensure_ml_models_cached))
 
-        # Call _ensure_ml_models_cached to exercise the import of model_loader
+        # Call ensure_ml_models_cached to exercise the import of model_loader
         # This will skip in test environment, but still imports the module
+        from podcast_scraper.workflow.stages import setup
+
         cfg = create_test_config(
             rss_url="https://example.com/feed.xml",
             preload_models=True,
         )
         # This should return early (skips in test env), but imports model_loader
-        workflow._ensure_ml_models_cached(cfg)
+        setup.ensure_ml_models_cached(cfg)
 
     @pytest.mark.critical_path
     def test_model_loader_module_is_importable(self):
@@ -241,18 +243,19 @@ class TestModelLoaderWorkflowIntegration(unittest.TestCase):
 
     @pytest.mark.critical_path
     def test_workflow_calls_ensure_ml_models_cached(self):
-        """Test that workflow._ensure_ml_models_cached imports model_loader."""
-        from podcast_scraper import workflow
+        """Test that setup.ensure_ml_models_cached imports model_loader."""
+        from podcast_scraper.workflow.stages import setup
 
-        # Call _ensure_ml_models_cached to exercise the import of model_loader
+        # Call ensure_ml_models_cached to exercise the import of model_loader
         # This will skip in test environment, but still imports the module
+
         cfg = create_test_config(
             rss_url="https://example.com/feed.xml",
             preload_models=True,
         )
         # This should return early (skips in test env), but imports model_loader
-        # This exercises the import statement in workflow.py
-        workflow._ensure_ml_models_cached(cfg)
+        # This exercises the import statement in setup.py
+        setup.ensure_ml_models_cached(cfg)
 
     @pytest.mark.critical_path
     def test_model_loader_environment_variable_parsing(self):

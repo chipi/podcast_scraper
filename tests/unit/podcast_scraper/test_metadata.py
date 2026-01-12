@@ -1064,7 +1064,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
     @patch("podcast_scraper.metadata.time.time")
     @patch("podcast_scraper.preprocessing.clean_transcript")
     def test_generate_episode_summary_provider_returns_empty(self, mock_clean, mock_time):
-        """Test handling when provider returns empty summary."""
+        """Test that empty summary raises RuntimeError when generate_summaries=True."""
         transcript_path = os.path.join(self.temp_dir, "transcript.txt")
         with open(transcript_path, "w") as f:
             f.write("This is a long transcript that should be long enough for summarization. " * 10)
@@ -1082,20 +1082,23 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
         mock_provider.summarize.return_value = {"summary": "", "metadata": {}}
         self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
 
-        result = metadata._generate_episode_summary(
-            transcript_file_path="transcript.txt",
-            output_dir=self.temp_dir,
-            cfg=self.cfg,
-            episode_idx=1,
-            summary_provider=mock_provider,
-        )
+        # Should raise RuntimeError when summary is empty and generate_summaries=True
+        with self.assertRaises(RuntimeError) as context:
+            metadata._generate_episode_summary(
+                transcript_file_path="transcript.txt",
+                output_dir=self.temp_dir,
+                cfg=self.cfg,
+                episode_idx=1,
+                summary_provider=mock_provider,
+            )
 
-        self.assertIsNone(result)
+        self.assertIn("empty result", str(context.exception))
+        self.assertIn("generate_summaries=True", str(context.exception))
 
     @patch("podcast_scraper.metadata.time.time")
     @patch("podcast_scraper.preprocessing.clean_transcript")
     def test_generate_episode_summary_provider_exception(self, mock_clean, mock_time):
-        """Test handling when provider raises exception."""
+        """Test provider exception raises RuntimeError when generate_summaries=True (fail-fast)."""
         transcript_path = os.path.join(self.temp_dir, "transcript.txt")
         with open(transcript_path, "w") as f:
             f.write("This is a long transcript that should be long enough for summarization. " * 10)
@@ -1106,31 +1109,36 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
         mock_provider.summarize.side_effect = Exception("Provider error")
         self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
 
-        result = metadata._generate_episode_summary(
-            transcript_file_path="transcript.txt",
-            output_dir=self.temp_dir,
-            cfg=self.cfg,
-            episode_idx=1,
-            summary_provider=mock_provider,
-        )
+        # Should raise RuntimeError when provider raises exception and generate_summaries=True
+        with self.assertRaises(RuntimeError) as context:
+            metadata._generate_episode_summary(
+                transcript_file_path="transcript.txt",
+                output_dir=self.temp_dir,
+                cfg=self.cfg,
+                episode_idx=1,
+                summary_provider=mock_provider,
+            )
 
-        self.assertIsNone(result)
+        self.assertIn("Failed to generate summary", str(context.exception))
+        self.assertIn("generate_summaries=True", str(context.exception))
 
     def test_generate_episode_summary_no_provider(self):
-        """Test that summary generation returns None when no provider."""
+        """Test summary generation raises RuntimeError when no provider and generate_summaries=True."""  # noqa: E501
         transcript_path = os.path.join(self.temp_dir, "transcript.txt")
         with open(transcript_path, "w") as f:
             f.write("This is a long transcript that should be long enough for summarization. " * 10)
 
-        result = metadata._generate_episode_summary(
-            transcript_file_path="transcript.txt",
-            output_dir=self.temp_dir,
-            cfg=self.cfg,
-            episode_idx=1,
-            summary_provider=None,
-        )
+        # When generate_summaries=True but no provider, should raise RuntimeError (fail-fast)
+        with self.assertRaises(RuntimeError) as context:
+            metadata._generate_episode_summary(
+                transcript_file_path="transcript.txt",
+                output_dir=self.temp_dir,
+                cfg=self.cfg,
+                episode_idx=1,
+                summary_provider=None,
+            )
 
-        self.assertIsNone(result)
+        self.assertIn("Summary provider not available", str(context.exception))
 
 
 class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):

@@ -14,6 +14,7 @@ from concurrent.futures import as_completed, ThreadPoolExecutor
 from typing import Any, cast, Dict, List, Literal, Optional, Tuple
 
 from ... import config, metrics, models
+from ...downloader import BYTES_PER_MB, http_head, OPENAI_MAX_FILE_SIZE_BYTES
 from ...episode_processor import process_episode_download as factory_process_episode_download
 
 
@@ -65,7 +66,10 @@ logger = logging.getLogger(__name__)
 
 
 def detect_feed_hosts_and_patterns(
-    cfg: config.Config, feed: models.RssFeed, episodes: List[models.Episode]
+    cfg: config.Config,
+    feed: models.RssFeed,
+    episodes: List[models.Episode],
+    pipeline_metrics: Optional[metrics.Metrics] = None,
 ) -> HostDetectionResult:
     """Detect hosts from feed metadata and analyze episode patterns.
 
@@ -125,11 +129,23 @@ def detect_feed_hosts_and_patterns(
             first_episode_description = extract_episode_description(first_episode.item)
             # Validate hosts by checking if they appear in first episode
             # Use provider's detect_speakers to extract persons from first episode
-            first_episode_speakers, _, _ = speaker_detector.detect_speakers(
-                episode_title=first_episode.title,
-                episode_description=first_episode_description,
-                known_hosts=set(),
-            )
+            # Pass pipeline_metrics for LLM call tracking (if OpenAI provider)
+            import inspect
+
+            sig = inspect.signature(speaker_detector.detect_speakers)
+            if "pipeline_metrics" in sig.parameters:
+                first_episode_speakers, _, _ = speaker_detector.detect_speakers(
+                    episode_title=first_episode.title,
+                    episode_description=first_episode_description,
+                    known_hosts=set(),
+                    pipeline_metrics=pipeline_metrics,
+                )
+            else:
+                first_episode_speakers, _, _ = speaker_detector.detect_speakers(
+                    episode_title=first_episode.title,
+                    episode_description=first_episode_description,
+                    known_hosts=set(),
+                )
             first_episode_persons = set(first_episode_speakers)
             # Only keep hosts that also appear in first episode (validation)
             validated_hosts = feed_hosts & first_episode_persons
@@ -248,6 +264,58 @@ def prepare_episode_download_args(
             # Always log episode info
             logger.info("Episode %d: %s", episode.idx, episode.title)
 
+            # Check file size before speaker detection if using OpenAI transcription
+            # to avoid wasting API calls on episodes that will be skipped
+            skip_speaker_detection_due_to_size = False
+            if (
+                not cfg.dry_run
+                and cfg.transcribe_missing
+                and cfg.transcription_provider == "openai"
+                and episode.media_url
+            ):
+                # Check file size using HTTP HEAD request
+                resp = http_head(episode.media_url, cfg.user_agent, cfg.timeout)
+                if resp:
+                    content_length = resp.headers.get("Content-Length")
+                    if content_length:
+                        try:
+                            file_size_bytes = int(content_length)
+                            file_size_mb = file_size_bytes / BYTES_PER_MB
+                            if file_size_bytes > OPENAI_MAX_FILE_SIZE_BYTES:
+                                logger.info(
+                                    "[%d] Skipping speaker detection: Audio file size (%.1f MB) "
+                                    "exceeds OpenAI API limit (25 MB). Episode will be skipped.",
+                                    episode.idx,
+                                    file_size_mb,
+                                )
+                                skip_speaker_detection_due_to_size = True
+                            else:
+                                logger.debug(
+                                    "[%d] File size check: %.1f MB (within OpenAI limit)",
+                                    episode.idx,
+                                    file_size_mb,
+                                )
+                        except (ValueError, TypeError):
+                            # Content-Length header is invalid, proceed with speaker detection
+                            logger.debug(
+                                "[%d] Could not parse Content-Length header, "
+                                "proceeding with speaker detection",
+                                episode.idx,
+                            )
+                    else:
+                        # No Content-Length header, proceed with speaker detection
+                        logger.debug(
+                            "[%d] No Content-Length header available, "
+                            "proceeding with speaker detection",
+                            episode.idx,
+                        )
+                else:
+                    # HEAD request failed, proceed with speaker detection
+                    logger.debug(
+                        "[%d] HEAD request failed, proceeding with speaker detection",
+                        episode.idx,
+                    )
+
             # In dry-run mode, log what would be detected but skip actual detection
             if cfg.dry_run:
                 episode_description = extract_episode_description(episode.item) or ""
@@ -260,6 +328,11 @@ def prepare_episode_download_args(
                     episode.title,
                     desc_preview,
                 )
+                detected_speakers: List[str] = []
+                detected_hosts_set: set[str] = set()
+                detection_succeeded = False
+            elif skip_speaker_detection_due_to_size:
+                # Skip speaker detection because file will be too large for OpenAI
                 detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
             else:
                 # Extract episode description for NER (limited to first 20 chars)
@@ -285,13 +358,27 @@ def prepare_episode_download_args(
                     cached_hosts_for_detection = (
                         host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
                     )
-                    detected_speakers, detected_hosts_set, detection_succeeded = (
-                        speaker_detector.detect_speakers(
-                            episode_title=episode.title,
-                            episode_description=episode_description,
-                            known_hosts=cached_hosts_for_detection,
+                    # Pass pipeline_metrics for LLM call tracking (if OpenAI provider)
+                    import inspect
+
+                    sig = inspect.signature(speaker_detector.detect_speakers)
+                    if "pipeline_metrics" in sig.parameters:
+                        detected_speakers, detected_hosts_set, detection_succeeded = (
+                            speaker_detector.detect_speakers(
+                                episode_title=episode.title,
+                                episode_description=episode_description,
+                                known_hosts=cached_hosts_for_detection,
+                                pipeline_metrics=pipeline_metrics,
+                            )
                         )
-                    )
+                    else:
+                        detected_speakers, detected_hosts_set, detection_succeeded = (
+                            speaker_detector.detect_speakers(
+                                episode_title=episode.title,
+                                episode_description=episode_description,
+                                known_hosts=cached_hosts_for_detection,
+                            )
+                        )
                 else:
                     # Fallback: No provider available (should not happen in normal flow)
                     logger.warning("Speaker detector not available, skipping speaker detection")

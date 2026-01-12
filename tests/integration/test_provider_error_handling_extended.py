@@ -275,6 +275,99 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
             if original_key is not None:
                 os.environ["OPENAI_API_KEY"] = original_key
 
+    @patch("podcast_scraper.workflow.create_summarization_provider")
+    def test_pipeline_fails_when_summarization_provider_initialization_fails(
+        self, mock_create_provider
+    ):
+        """Test that pipeline fails fast when summarization provider initialization fails."""
+        from podcast_scraper import workflow
+
+        # Create config with generate_summaries=True
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            output_dir="/tmp/test_output",
+            generate_summaries=True,
+            generate_metadata=True,
+            auto_speakers=False,
+            transcribe_missing=False,
+        )
+
+        # Mock provider creation to raise exception
+        mock_create_provider.side_effect = RuntimeError("Provider initialization failed")
+
+        # Mock other pipeline components to get to summarization initialization
+        with patch("podcast_scraper.workflow.stages.setup.initialize_ml_environment"):
+            with patch("podcast_scraper.workflow._setup_pipeline_environment") as mock_setup:
+                with patch("podcast_scraper.workflow._preload_ml_models_if_needed"):
+                    with patch("podcast_scraper.workflow._fetch_and_parse_feed") as mock_fetch:
+                        with patch(
+                            "podcast_scraper.workflow._extract_feed_metadata_for_generation"
+                        ):
+                            with patch("podcast_scraper.workflow._prepare_episodes_from_feed"):
+                                with patch(
+                                    "podcast_scraper.workflow._detect_feed_hosts_and_patterns"
+                                ):
+                                    with patch(
+                                        "podcast_scraper.workflow._setup_transcription_resources"
+                                    ):
+                                        with patch(
+                                            "podcast_scraper.workflow._setup_processing_resources"
+                                        ):
+                                            mock_setup.return_value = ("/tmp/test_output", None)
+                                            mock_fetch.return_value = (Mock(), b"<rss></rss>")
+
+                                            # Should raise RuntimeError when generate_summaries=True
+                                            with self.assertRaises(RuntimeError) as context:
+                                                workflow.run_pipeline(cfg)
+
+                                            self.assertIn(
+                                                "generate_summaries=True", str(context.exception)
+                                            )
+                                            self.assertIn(
+                                                "Failed to initialize summarization provider",
+                                                str(context.exception),
+                                            )
+
+    @patch("podcast_scraper.metadata._generate_episode_summary")
+    def test_episode_summarization_failure_in_pipeline_raises_error(self, mock_generate_summary):
+        """Test that episode summarization failure raises RuntimeError in pipeline."""
+        from podcast_scraper import metadata
+
+        # Mock _generate_episode_summary to raise exception
+        mock_generate_summary.side_effect = RuntimeError("Summarization failed for episode")
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            output_dir="/tmp/test_output",
+            generate_summaries=True,
+            generate_metadata=True,
+        )
+
+        # Create a mock summary provider
+        mock_provider = Mock()
+        mock_provider.summarize.return_value = {"summary": "test summary"}
+
+        # Call _generate_episode_summary which should raise RuntimeError
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            transcript_path = Path(tmpdir) / "transcripts" / "ep01_test.txt"
+            transcript_path.parent.mkdir(parents=True, exist_ok=True)
+            transcript_path.write_text("This is a test transcript. " * 20)
+
+            with self.assertRaises(RuntimeError) as context:
+                metadata._generate_episode_summary(
+                    transcript_file_path=str(transcript_path.relative_to(tmpdir)),
+                    output_dir=tmpdir,
+                    cfg=cfg,
+                    episode_idx=1,
+                    summary_provider=mock_provider,
+                )
+
+            self.assertIn("generate_summaries=True", str(context.exception))
+            self.assertIn("Failed to generate summary", str(context.exception))
+
 
 @pytest.mark.integration
 @pytest.mark.slow

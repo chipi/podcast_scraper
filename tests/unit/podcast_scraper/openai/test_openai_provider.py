@@ -629,3 +629,48 @@ class TestOpenAIProviderSummarization(unittest.TestCase):
             provider.summarize("Text")
 
         self.assertIn("summarization failed", str(context.exception).lower())
+
+
+@pytest.mark.unit
+class TestOpenAIProviderPricing(unittest.TestCase):
+    """Tests for OpenAIProvider.get_pricing() static method."""
+
+    def test_get_pricing_whisper_transcription(self):
+        """Test pricing lookup for Whisper transcription."""
+        pricing = OpenAIProvider.get_pricing("whisper-1", "transcription")
+        self.assertEqual(pricing, {"cost_per_minute": 0.006})
+
+    def test_get_pricing_gpt4o_mini_speaker_detection(self):
+        """Test pricing lookup for GPT-4o-mini speaker detection."""
+        pricing = OpenAIProvider.get_pricing("gpt-4o-mini", "speaker_detection")
+        self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.15)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.60)
+
+    def test_get_pricing_gpt4o_mini_summarization(self):
+        """Test pricing lookup for GPT-4o-mini summarization."""
+        pricing = OpenAIProvider.get_pricing("gpt-4o-mini", "summarization")
+        self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.15)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.60)
+
+    def test_get_pricing_gpt4o_summarization(self):
+        """Test pricing lookup for GPT-4o summarization."""
+        pricing = OpenAIProvider.get_pricing("gpt-4o", "summarization")
+        self.assertEqual(pricing["input_cost_per_1m_tokens"], 2.50)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 10.00)
+
+    def test_get_pricing_unsupported_model(self):
+        """Test pricing lookup for unsupported model returns empty dict."""
+        pricing = OpenAIProvider.get_pricing("gpt-5", "summarization")
+        self.assertEqual(pricing, {})
+
+    def test_get_pricing_unsupported_capability(self):
+        """Test pricing lookup for unsupported capability returns empty dict."""
+        pricing = OpenAIProvider.get_pricing("gpt-4o-mini", "unsupported")
+        self.assertEqual(pricing, {})
+
+    def test_get_pricing_case_insensitive_model_name(self):
+        """Test that pricing lookup is case-insensitive for model names."""
+        pricing1 = OpenAIProvider.get_pricing("GPT-4O-MINI", "speaker_detection")
+        pricing2 = OpenAIProvider.get_pricing("gpt-4o-mini", "speaker_detection")
+        self.assertEqual(pricing1, pricing2)
+        self.assertEqual(pricing1["input_cost_per_1m_tokens"], 0.15)

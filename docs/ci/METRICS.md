@@ -22,6 +22,7 @@ Both data sources display the same comprehensive metrics:
 - **Test Duration** — Total runtime and tests per second
 - **Code Quality** — Complexity, maintainability index, docstring coverage, dead code, spelling errors
 - **Pipeline Metrics** — Run duration, episodes scraped, transcripts processed (when available)
+- **LLM API Usage** — API call counts, token usage (input/output), and audio minutes for cost estimation
 - **Alerts** — Automatic deviation detection from historical trends
 - **Trend Charts** — Interactive charts showing last 30 runs for:
   - Runtime trends

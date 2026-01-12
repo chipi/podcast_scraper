@@ -51,6 +51,16 @@ class Metrics:
         default_factory=list
     )  # Summary generation times per episode
 
+    # LLM API call tracking (for cost estimation)
+    llm_transcription_calls: int = 0  # Number of transcription API calls
+    llm_transcription_audio_minutes: float = 0.0  # Total audio minutes transcribed
+    llm_speaker_detection_calls: int = 0  # Number of speaker detection API calls
+    llm_speaker_detection_input_tokens: int = 0  # Total input tokens for speaker detection
+    llm_speaker_detection_output_tokens: int = 0  # Total output tokens for speaker detection
+    llm_summarization_calls: int = 0  # Number of summarization API calls
+    llm_summarization_input_tokens: int = 0  # Total input tokens for summarization
+    llm_summarization_output_tokens: int = 0  # Total output tokens for summarization
+
     _start_time: float = field(default_factory=time.time, init=False)
 
     def record_stage(self, stage: str, duration: float) -> None:
@@ -100,6 +110,37 @@ class Metrics:
             duration: Duration in seconds
         """
         self.summarize_times.append(duration)
+
+    def record_llm_transcription_call(self, audio_minutes: float) -> None:
+        """Record an LLM transcription API call.
+
+        Args:
+            audio_minutes: Audio duration in minutes
+        """
+        self.llm_transcription_calls += 1
+        self.llm_transcription_audio_minutes += audio_minutes
+
+    def record_llm_speaker_detection_call(self, input_tokens: int, output_tokens: int) -> None:
+        """Record an LLM speaker detection API call.
+
+        Args:
+            input_tokens: Number of input tokens used
+            output_tokens: Number of output tokens used
+        """
+        self.llm_speaker_detection_calls += 1
+        self.llm_speaker_detection_input_tokens += input_tokens
+        self.llm_speaker_detection_output_tokens += output_tokens
+
+    def record_llm_summarization_call(self, input_tokens: int, output_tokens: int) -> None:
+        """Record an LLM summarization API call.
+
+        Args:
+            input_tokens: Number of input tokens used
+            output_tokens: Number of output tokens used
+        """
+        self.llm_summarization_calls += 1
+        self.llm_summarization_input_tokens += input_tokens
+        self.llm_summarization_output_tokens += output_tokens
 
     def finish(self) -> Dict[str, Any]:
         """Calculate final metrics and return as dict.
@@ -155,6 +196,15 @@ class Metrics:
             "transcribe_count": len(self.transcribe_times),
             "extract_names_count": len(self.extract_names_times),
             "summarize_count": len(self.summarize_times),
+            # LLM API call tracking
+            "llm_transcription_calls": self.llm_transcription_calls,
+            "llm_transcription_audio_minutes": round(self.llm_transcription_audio_minutes, 2),
+            "llm_speaker_detection_calls": self.llm_speaker_detection_calls,
+            "llm_speaker_detection_input_tokens": self.llm_speaker_detection_input_tokens,
+            "llm_speaker_detection_output_tokens": self.llm_speaker_detection_output_tokens,
+            "llm_summarization_calls": self.llm_summarization_calls,
+            "llm_summarization_input_tokens": self.llm_summarization_input_tokens,
+            "llm_summarization_output_tokens": self.llm_summarization_output_tokens,
         }
 
     def to_json(self) -> str:

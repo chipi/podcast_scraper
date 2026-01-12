@@ -419,10 +419,10 @@ def limit_max_episodes_in_fast_mode(request, monkeypatch):
     if test_mode == "fast":
         # Fast mode: Limit max_episodes to 1
         # Patch the workflow function that prepares episodes
-        from podcast_scraper import workflow
+        from podcast_scraper.workflow.stages import scraping
 
         # Store original function
-        original_prepare_episodes = workflow._prepare_episodes_from_feed
+        original_prepare_episodes = scraping.prepare_episodes_from_feed
 
         def limited_prepare_episodes(feed, cfg):
             """Wrapper that limits max_episodes to 1 in fast mode."""
@@ -450,7 +450,7 @@ def limit_max_episodes_in_fast_mode(request, monkeypatch):
             return original_prepare_episodes(feed, limited_cfg)
 
         # Apply monkeypatch
-        monkeypatch.setattr(workflow, "_prepare_episodes_from_feed", limited_prepare_episodes)
+        monkeypatch.setattr(scraping, "prepare_episodes_from_feed", limited_prepare_episodes)
 
         yield
 

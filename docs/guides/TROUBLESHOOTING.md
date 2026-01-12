@@ -15,6 +15,7 @@ Common issues and solutions for podcast_scraper development and usage.
 | Memory errors in tests | ML models loading repeatedly | Use `@pytest.mark.serial` |
 | Import errors after pull | Dependencies changed | `pip install -e ".[dev,ml]"` |
 | Tests hang with `-s` flag | tqdm + parallel execution deadlock | Use `-v` instead, or `-n 0` |
+| OpenAI episodes skipped | Audio file size > 25MB | Use local Whisper or compress audio |
 
 ---
 
@@ -159,6 +160,18 @@ sudo apt install ffmpeg
 
 ffmpeg -version
 ```
+
+### Episodes Skipped with OpenAI Provider
+
+**Symptom:** Some episodes are skipped when using the OpenAI transcription provider, with a log message about "exceeds OpenAI API limit (25 MB)".
+
+**Cause:** The OpenAI Whisper API has a hard limit of 25MB per audio file. To avoid API errors and wasting bandwidth, the system checks the file size before downloading.
+
+**Solutions:**
+
+1. **Use Local Whisper**: The local Whisper provider does not have this file size limit (it's only limited by your system's RAM).
+2. **Compress Audio**: Use a tool like `ffmpeg` to reduce the bitrate or convert to a more efficient format (like Mono instead of Stereo) before processing if you must use the OpenAI API.
+3. **Wait for Future Feature**: Plan for automatic audio preprocessing (downsampling/mono conversion) is in the roadmap.
 
 ---
 
