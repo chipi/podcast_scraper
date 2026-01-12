@@ -48,12 +48,12 @@ jobs:
     - uses: dorny/paths-filter@v3
       id: filter
       with:
-      filters: |
-        docs:
-          - 'docs/**'
-          - 'mkdocs.yml'
-          - '**/*.md'
-          - 'LICENSE'
+        filters: |
+          docs:
+            - 'docs/**'
+            - 'mkdocs.yml'
+            - '**/*.md'
+            - 'LICENSE'
           code:
             - '**.py'
             - '**.j2'
@@ -339,7 +339,7 @@ jobs:
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
     if: |
-      github.event_name == 'push' && 
+      github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4') &&
       (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true')
     steps:
@@ -441,7 +441,7 @@ jobs:
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
     if: |
-      github.event_name == 'pull_request' && 
+      github.event_name == 'pull_request' &&
       !contains(github.event.pull_request.head.ref, 'docs/') &&
       (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true')
     steps:
@@ -536,7 +536,7 @@ jobs:
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
     if: |
-      github.event_name == 'pull_request' && 
+      github.event_name == 'pull_request' &&
       !contains(github.event.pull_request.head.ref, 'docs/') &&
       (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true')
     steps:
@@ -636,7 +636,7 @@ jobs:
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
     if: |
-      github.event_name == 'push' && 
+      github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4') &&
       (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true')
     steps:
