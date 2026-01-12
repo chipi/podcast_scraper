@@ -21,7 +21,7 @@ dependencies = [
   "python-dotenv>=1.0.0,<2.0.0",  # For .env file support (RFC-013)
   "zipp>=3.19.1,<4.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.0,<4.0.0",  # For prompt templating (RFC-017)
-  "openai>=1.0.0,<2.0.0",  # For OpenAI API providers (RFC-013)
+  "openai>=1.0.0,<3.0.0",  # For OpenAI API providers (RFC-013)
   "filelock>=3.20.1,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
 ]
 
@@ -38,7 +38,7 @@ ml = [
   "torch>=2.0.0,<3.0.0",
   "transformers>=4.30.0,<5.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
-  "accelerate>=0.20.0,<1.0.0",
+  "accelerate>=0.20.0,<2.0.0",
   "protobuf>=3.20.0,<7.0.0",
 ]
 # Development tools
@@ -62,7 +62,7 @@ dev = [
   "vulture>=2.10,<3.0.0",  # Dead code detection (RFC-031)
   "interrogate>=1.5.0,<2.0.0",  # Docstring coverage (RFC-031)
   "codespell>=2.2.0,<3.0.0",  # Spell checking (RFC-031)
-  "pydeps>=1.12.0,<2.0.0",  # Module dependency visualization (RFC-038, #170)
+  "pydeps>=1.12.0,<4.0.0",  # Module dependency visualization (RFC-038, #170)
 ]
 # Documentation - see docs/requirements.txt
 

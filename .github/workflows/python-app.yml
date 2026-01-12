@@ -77,7 +77,7 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Set up Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: "20"
     - name: Install lint dependencies (no ML packages)
@@ -292,7 +292,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: Cache ML models (check first - no Python needed, if cache hits job completes in ~6-12s)
       if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       id: cache-models
       with:
         path: |
@@ -358,7 +358,7 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Cache ML models
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       id: cache-models
       with:
         path: |
@@ -460,7 +460,7 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Cache ML models
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       id: cache-models
       with:
         path: |
@@ -555,7 +555,7 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Cache ML models
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       id: cache-models
       with:
         path: |
@@ -655,7 +655,7 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Cache ML models
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       id: cache-models
       with:
         path: |
@@ -1051,7 +1051,7 @@ jobs:
         if-no-files-found: ignore
     - name: Upload coverage to Codecov
       if: always()
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         file: reports/coverage-unified.xml
         flags: unittests
