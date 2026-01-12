@@ -81,8 +81,6 @@ updates:
         patterns:
 
 ```
-          - "isort"
-          - "flake8*"
           - "mypy"
           - "bandit"
           - "radon"
@@ -102,8 +100,6 @@ updates:
         patterns:
 
 ```
-          - "openai-whisper"
-          - "spacy"
         update-types:
 
           - "patch"
@@ -115,8 +111,6 @@ updates:
         patterns:
 
 ```
-          - "mistralai"
-          - "groq"
         update-types:
 
           - "minor"
@@ -129,8 +123,6 @@ updates:
         patterns:
 
 ```
-        update-types:
-
           - "minor"
           - "patch"
 
@@ -140,8 +132,6 @@ updates:
     ignore:
 
 ```
-
-  # =============================================================================
   # GitHub Actions
   # =============================================================================
 
@@ -159,8 +149,6 @@ updates:
     labels:
 
 ```
-      - "automated"
-    commit-message:
 
       prefix: "ci"
 
@@ -171,8 +159,6 @@ updates:
         patterns:
 
 ```
-
-          - "minor"
           - "patch"
 
   # =============================================================================
@@ -189,8 +175,6 @@ updates:
     labels:
 
 ```
-      - "automated"
-    commit-message:
 
       prefix: "docker"
 ```yaml
@@ -208,8 +192,6 @@ updates:
 ### 1.4 Expected Behavior
 
 ```
-│   ├── deps(api-clients): bump openai, anthropic
-│   └── ci(actions): bump actions/checkout
 └── PRs trigger CI pipeline for validation
 ```yaml
 
@@ -339,8 +321,6 @@ def generate_dependency_data() -> dict:
     )
 
 ```
-    # Parse pydeps output (simplified)
-    lines = result.stdout.strip().split("\n") if result.stdout else []
 
 ```
 
@@ -358,8 +338,6 @@ def analyze_imports(src_dir: Path = Path("src/podcast_scraper")) -> dict:
     import_counts = {}
 
 ```
-    for py_file in src_dir.rglob("*.py"):
-        if "__pycache__" in str(py_file):
             continue
 
 ```
@@ -398,7 +376,6 @@ def check_thresholds(import_data: dict) -> list[str]:
     issues = []
 
 ```
-```text
 
     for module, data in import_data.items():
         if data["import_count"] > MAX_IMPORTS:
@@ -408,9 +385,8 @@ def check_thresholds(import_data: dict) -> list[str]:
 
 ```
 
-    return issues
-
 ```python
+
 def main():
 
 ```text
@@ -421,18 +397,16 @@ def main():
     args = parser.parse_args()
 
 ```
-    print("=" * 60)
+
     print("Module Dependency Analysis")
     print("=" * 60)
 
 ```
-
-    # Check for cycles
     print("\n📊 Checking for circular imports...")
     has_cycles, cycle_output = run_pydeps_cycles()
 
 ```
-    if has_cycles:
+
         print("❌ Circular imports detected!")
         print(cycle_output)
     else:
@@ -446,7 +420,7 @@ def main():
     issues = check_thresholds(import_data)
 
 ```
-    if issues:
+
         print(f"\n⚠️  Found {len(issues)} threshold violations:")
         for issue in issues:
             print(f"   {issue}")
@@ -454,14 +428,12 @@ def main():
         print("✅ All modules within thresholds")
 
 ```
-
-    # Generate report
     if args.report:
         report_dir = Path("reports")
         report_dir.mkdir(exist_ok=True)
 
 ```
-            "cycle_output": cycle_output if has_cycles else None,
+
             "threshold_issues": issues,
             "module_stats": {
                 "total_modules": len(import_data),
@@ -478,16 +450,15 @@ def main():
         print(f"\n📄 Report saved to: {report_path}")
 
 ```
-    # Exit with error if check mode and issues found
+
     if args.check and (has_cycles or issues):
         print("\n❌ Dependency analysis failed!")
         sys.exit(1)
 
 ```
 
-    print("\n✅ Dependency analysis complete")
-
 ```python
+
 if __name__ == "__main__":
 
 ```text
@@ -495,6 +466,7 @@ if __name__ == "__main__":
     main()
 
 ```
+
 ### 2.5 CI Integration
 
 Add to nightly workflow (`.github/workflows/nightly.yml`):
@@ -540,9 +512,11 @@ Add to nightly workflow (`.github/workflows/nightly.yml`):
         uses: actions/upload-artifact@v4
 
 ```text
+
         with:
           name: dependency-analysis
           path: reports/
+
 ```yaml
 
 ### 2.6 Key Metrics
@@ -566,6 +540,7 @@ Automated validation before releases to ensure quality gates are met.
 Create `scripts/pre_release_check.py`:
 
 ```python
+
 #!/usr/bin/env python3
 """
 Pre-release validation checklist.
@@ -595,6 +570,7 @@ def run_command(cmd: list[str], check: bool = False) -> tuple[int, str, str]:
     return result.returncode, result.stdout, result.stderr
 
 ```python
+
 def check_tests() -> CheckResult:
 
 ```text
@@ -608,6 +584,7 @@ def check_tests() -> CheckResult:
     )
 
 ```python
+
 def check_lint() -> CheckResult:
 
 ```text
@@ -621,6 +598,7 @@ def check_lint() -> CheckResult:
     )
 
 ```python
+
 def check_type_check() -> CheckResult:
 
 ```text
@@ -634,6 +612,7 @@ def check_type_check() -> CheckResult:
     )
 
 ```python
+
 def check_docs_build() -> CheckResult:
 
 ```text
@@ -647,6 +626,7 @@ def check_docs_build() -> CheckResult:
     )
 
 ```python
+
 def check_security() -> CheckResult:
 
 ```text
@@ -660,6 +640,7 @@ def check_security() -> CheckResult:
     )
 
 ```python
+
 def check_changelog(version: str | None) -> CheckResult:
 
 ```text
@@ -674,7 +655,7 @@ def check_changelog(version: str | None) -> CheckResult:
         )
 
 ```
-    content = changelog.read_text()
+
     if version and version not in content:
         return CheckResult(
             name="Changelog",
@@ -683,14 +664,13 @@ def check_changelog(version: str | None) -> CheckResult:
         )
 
 ```
-
-    return CheckResult(
         name="Changelog",
         passed=True,
         message="Changelog exists" + (f" with {version}" if version else "")
     )
 
 ```python
+
 def check_version_consistency(version: str | None) -> CheckResult:
 
 ```text
@@ -704,7 +684,7 @@ def check_version_consistency(version: str | None) -> CheckResult:
         )
 
 ```
-    # Check pyproject.toml
+
     pyproject = Path("pyproject.toml")
     if pyproject.exists():
         content = pyproject.read_text()
@@ -716,14 +696,13 @@ def check_version_consistency(version: str | None) -> CheckResult:
             )
 
 ```
-
-    return CheckResult(
         name="Version Consistency",
         passed=True,
         message=f"Version {version} is consistent"
     )
 
 ```python
+
 def main():
 
 ```text
@@ -734,13 +713,11 @@ def main():
     args = parser.parse_args()
 
 ```
-    print("=" * 60)
+
     print("Pre-Release Validation Checklist")
     print("=" * 60)
 
 ```
-
-        check_lint,
         check_type_check,
         check_docs_build,
         lambda: check_changelog(args.version),
@@ -755,16 +732,12 @@ def main():
 
 ```
 
-    for check_fn in checks:
-
 ```text
 
         result = check_fn()
         results.append(result)
 
 ```
-
-        print(f"\n{status} {result.name}")
         print(f"   {result.message}")
 
 ```text
@@ -774,13 +747,11 @@ def main():
     total = len(results)
 
 ```
-
-    print("\n" + "=" * 60)
     print(f"Results: {passed}/{total} checks passed")
     print("=" * 60)
 
 ```
-    if passed < total:
+
         print("\n❌ Pre-release validation FAILED")
         sys.exit(1)
     else:
@@ -796,7 +767,6 @@ if __name__ == "__main__":
     main()
 
 ```
-
 ### 3.3 Makefile Target
 
 ```makefile
@@ -835,7 +805,6 @@ def process_large_transcript():
     pass
 
 ```
-
 ## 4.2 Performance Benchmarking
 
 For future implementation:

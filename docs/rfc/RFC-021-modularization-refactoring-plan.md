@@ -113,8 +113,6 @@ class SpeakerDetector(Protocol):
         """Detect speakers for an episode.
 
 ```
-        ...
-
 ```python
 
     def analyze_patterns(
@@ -300,8 +298,6 @@ class TranscriptionProvider(Protocol):
         """Transcribe media file.
 
 ```
-            resource: Provider-specific resource (model, client, etc.)
-
 ```
 
         Returns:
@@ -514,7 +510,6 @@ class SummarizationProvider(Protocol):
             max_length: Maximum summary length
             min_length: Minimum summary length
 
-```
 ```python
 
     def summarize_chunks(
@@ -525,7 +520,6 @@ class SummarizationProvider(Protocol):
     ) -> List[str]:
         """Summarize multiple text chunks (MAP phase).
 
-```
 ```python
 
     def combine_summaries(
@@ -536,7 +530,6 @@ class SummarizationProvider(Protocol):
     ) -> str:
         """Combine multiple summaries into final summary (REDUCE phase).
 
-```
 ```python
 
     def cleanup(self, resource: Any) -> None:
@@ -627,8 +620,6 @@ class SummarizationProviderFactory:
        resource = provider.initialize(cfg)
 
 ```
-
-4. **Update `metadata.py`:**
    - Refactor `generate_episode_metadata()` to use provider
    - Extract helper functions for model building
    - Use provider for summarization instead of direct model calls

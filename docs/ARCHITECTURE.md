@@ -199,9 +199,7 @@ graph TB
     SpeakerDetect --> Models
     CacheManager --> Filesystem
 
-```
-```yaml
-
+```python
 - **Typed, immutable configuration**: `Config` is a frozen Pydantic model, ensuring every module receives canonicalized values (e.g., normalized URLs, integer coercions, validated Whisper models). This centralizes validation and guards downstream logic.
 - **Resilient HTTP interactions**: A per-thread `requests.Session` with exponential backoff retry (`LoggingRetry`) handles transient network issues while logging retries for observability.
 - **Concurrent transcript pulls**: Transcript downloads are parallelized via `ThreadPoolExecutor`, guarded with locks when mutating shared counters/job queues. Whisper remains sequential to avoid GPU/CPU thrashing and to keep the UX predictable.
@@ -239,6 +237,7 @@ For detailed dependency information including rationale, alternatives considered
 ### Configuration Flow
 
 ```mermaid
+
 flowchart TD
     Input[CLI Args + Config Files] --> Merge[Merge Sources]
     Merge --> Validate[Pydantic Validation]
@@ -256,6 +255,7 @@ flowchart TD
     style Input fill:#e1f5ff
     style Config fill:#fff3cd
     style Validate fill:#f8d7da
+
 ```python
 
 - `models.Episode` encapsulates the RSS item, chosen transcript URLs, and media enclosure metadata, keeping parsing concerns separate from processing. May be extended to include detected speaker names (RFC-010).
@@ -268,6 +268,7 @@ flowchart TD
 ### Filesystem Layout (v2.4.0+)
 
 ```mermaid
+
 graph TD
     Root[output/rss_hostname_hash/] --> RunDir{Run ID?}
     RunDir -->|Yes| RunSubdir[run_id/]
@@ -286,9 +287,8 @@ graph TD
     style Subdirs fill:#fff3cd
     style TempDir fill:#f8d7da
     style MetadataDir fill:#d1ecf1
-```
 
-- RSS and HTTP failures raise `ValueError` early with descriptive messages; CLI wraps these in exit codes for scripting.
+```
 - Transcript/Media downloads log warnings rather than hard-fail the pipeline, allowing other episodes to proceed.
 - Filesystem operations sanitize user-provided paths, emit warnings when outside trusted roots, and handle I/O errors gracefully.
 - Unexpected exceptions inside worker futures are caught and logged without terminating the executor loop.

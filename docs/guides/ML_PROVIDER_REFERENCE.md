@@ -200,8 +200,8 @@ flowchart TD
     StoreInMetadata --> Complete([Summarization Complete])
 
 ```
-```mermaid
 
+```mermaid
     style CleanTranscript fill:#fff3cd
     style MapPhase fill:#ffd4a3
     style MiniMapReduce fill:#d4a3ff
@@ -209,8 +209,8 @@ flowchart TD
     style SinglePass fill:#a3ffd4
     style FinalSummary fill:#d4edda
     style Complete fill:#d4edda
-
 ```
+
 ### 5.2 Size Assessment & Model Selection
 
 - Checks if transcript fits within model's context window.
@@ -223,11 +223,11 @@ flowchart TD
 
 Individual transcript chunks are summarized in parallel (on CPU) or sequentially (on GPU).
 
-* **Chunking**: Token-based with 10% overlap.
+- **Chunking**: Token-based with 10% overlap.
   - BART models: Limited to 600 tokens per chunk.
   - LED models: Recommended 4000-8000 tokens per chunk.
-* **Parallelism**: CPU uses `ThreadPoolExecutor` (up to 4 workers). GPU/MPS is sequential to avoid OOM.
-* **Output**: Each chunk produces 80-160 tokens of bullet-style notes.
+- **Parallelism**: CPU uses `ThreadPoolExecutor` (up to 4 workers). GPU/MPS is sequential to avoid OOM.
+- **Output**: Each chunk produces 80-160 tokens of bullet-style notes.
 
 ### 5.4 REDUCE Phase (Synthesis)
 
@@ -244,12 +244,12 @@ The system dynamically selects a synthesis strategy based on the total token cou
 
 To ensure stability, only validated model aliases are supported for the `transformers` provider.
 
-* **MAP Models**:
-  * `bart-large`: `facebook/bart-large-cnn` (Production default, best quality, ~2GB)
-  * `bart-small`: `facebook/bart-base` (Test/Dev, faster, ~500MB)
-* **REDUCE Models**:
-  * `long`: `allenai/led-large-16384` (Production default, 16k context, ~2.5GB)
-  * `long-fast`: `allenai/led-base-16384` (Faster, ~1GB)
+- **MAP Models**:
+  - `bart-large`: `facebook/bart-large-cnn` (Production default, best quality, ~2GB)
+  - `bart-small`: `facebook/bart-base` (Test/Dev, faster, ~500MB)
+- **REDUCE Models**:
+  - `long`: `allenai/led-large-16384` (Production default, 16k context, ~2.5GB)
+  - `long-fast`: `allenai/led-base-16384` (Faster, ~1GB)
 
 ---
 
@@ -257,9 +257,9 @@ To ensure stability, only validated model aliases are supported for the `transfo
 
 ### 6.1 Performance Characteristics
 
-* **Direct Summarization**: <5s for transcripts ≤1024 tokens.
-* **MAP-REDUCE**: ~3s per chunk (varies by hardware).
-* **Memory**: High-quality models require 2-3GB of VRAM/RAM.
+- **Direct Summarization**: <5s for transcripts ≤1024 tokens.
+- **MAP-REDUCE**: ~3s per chunk (varies by hardware).
+- **Memory**: High-quality models require 2-3GB of VRAM/RAM.
 
 ### 6.2 Quality Validation Tuning
 
@@ -271,6 +271,7 @@ The `SUMMARY_VALIDATION_THRESHOLD` (default: 0.2) controls how strict the system
 ### 6.3 Memory Management
 
 If you experience Out-of-Memory (OOM) errors:
+
 1. Decrease `PROCESSING_PARALLELISM`.
 2. Use smaller model variants (e.g., `distilbart` instead of `bart-large`).
 3. Set `SUMMARY_DEVICE=cpu` to move summarization off the GPU.
@@ -288,6 +289,7 @@ Use the CLI to check your cache status frequently:
 python3 -m podcast_scraper.cli cache --status
 
 ```
+
 ### 7.2 Backup & Restore
 
 The cache directory can be backed up and restored for easy management:

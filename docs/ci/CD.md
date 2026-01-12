@@ -64,17 +64,14 @@ graph TB
     T1 --> DOCK1 --> DOCK2
     T1 --> SNYK1 & SNYK2
 
-```
 ```mermaid
-
     style P1 fill:#e1f5e1
     style D1 fill:#e1e5ff
     style C1 fill:#ffe1e1
     style DOCK1 fill:#fff4e1
     style SNYK1 fill:#ffe1f5
-
 ```
-**File:** `.github/workflows/python-app.yml`
+
 **Triggers:** Push and Pull Requests to `main` branch (only when relevant files change)
 
 **Path Filters:**
@@ -161,7 +158,7 @@ graph LR
     style G fill:#90EE90
 
 ```
-- **Parallel execution:** All jobs run simultaneously for maximum speed
+
 - **Critical path focus:** Fast jobs run only critical path tests
 - **Fast feedback:** Critical path tests provide early pass/fail signal
 - **No coverage job on PRs:** Coverage is handled by individual test jobs
@@ -195,7 +192,7 @@ graph LR
     style G fill:#90EE90
 
 ```
-- **Separate jobs:** Maximum parallelization for fastest overall completion
+
 - **All tests run:** Includes slow integration and slow E2E tests
 - **Complete validation:** Full test coverage before code is merged
 
@@ -250,7 +247,7 @@ if: |
   !contains(github.event.pull_request.head.ref, 'docs/')
 
 ```
-- Push to main (full integration tests run instead)
+
 - PR branch is `fix/ai-guidelines-linting`
 - PR branch name contains `docs/`
 
@@ -352,7 +349,6 @@ if: |
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
 ```
-**Steps:**
 
 1. Checkout code
 2. Free disk space
@@ -388,7 +384,6 @@ if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 needs: [preload-ml-models]
 
 ```
-**Duration:** ~10-15 minutes
 
 **What it runs:** `pytest tests/integration/ -m "integration and (slow or ml_models)"`
 
@@ -608,7 +603,6 @@ needs: [preload-ml-models]
 if: github.event_name == 'pull_request' || github.event_name == 'schedule'
 
 ```
-**Steps:**
 
 1. Checkout code
 2. Set up Python 3.11
@@ -739,10 +733,10 @@ This ensures:
 └─────────────────────────────────────────────────────────────┘
 
 ```
-1. **Fast PR feedback:** Developers get quick results during review (5-15 min)
-2. **Full validation after merge:** Slow tests (with ML models) run after code is merged
-3. **Resource efficiency:** ML model tests are expensive, so they run only on main branch
-4. **Safety net:** If slow tests fail after merge, you can fix immediately or revert
+
+1. **Full validation after merge:** Slow tests (with ML models) run after code is merged
+2. **Resource efficiency:** ML model tests are expensive, so they run only on main branch
+3. **Safety net:** If slow tests fail after merge, you can fix immediately or revert
 
 **What If Full Suite Tests Fail After Merge?**
 
@@ -798,7 +792,6 @@ Time ~15-20 min - All jobs complete (if no failures)
 └─ PR status updated
 
 ```
-If only documentation or non-code files are changed:
 
 - Only `lint`, `docs`, and `build` jobs run
 - Total time: ~5-8 minutes
@@ -936,7 +929,7 @@ graph TD
     F --> F1[python -m build]
 
 ```
-**File:** `.github/workflows/docs.yml`
+
 **Triggers:**
 
 - Push to `main` branch (when docs or related files change)

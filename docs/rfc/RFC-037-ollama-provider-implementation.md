@@ -261,8 +261,6 @@ def validate_model_available(cfg: config.Config, model: str) -> None:
         available_models = [m.get("name", "") for m in data.get("models", [])]
 
 ```
-        model_base = model.split(":")[0]
-        if not any(model_base in m for m in available_models):
             raise ValueError(MODEL_NOT_FOUND_ERROR.format(model=model))
 
 ```
@@ -316,14 +314,13 @@ class OllamaSpeakerDetector:
         logger.debug("Initializing Ollama speaker detector (model: %s)", self.model)
 
 ```
-```
-
         # Create client
         self._client = create_ollama_client(self.cfg)
         self._initialized = True
         logger.debug("Ollama speaker detector initialized")
 
 ```python
+
     def detect_hosts(
         self,
         feed_title: str,
@@ -332,13 +329,13 @@ class OllamaSpeakerDetector:
     ) -> Set[str]:
         if not self._initialized:
             self.initialize()
-```
 
-        system_prompt, user_prompt = self._build_host_detection_prompts(
+```
             feed_title, feed_description, feed_authors
         )
 
 ```text
+
         try:
             response = self._client.chat.completions.create(
                 model=self.model,
@@ -349,17 +346,18 @@ class OllamaSpeakerDetector:
                     {"role": "user", "content": user_prompt},
                 ],
             )
-```
 
-            content = response.choices[0].message.content
+```
             hosts = self._parse_hosts_from_response(content)
             logger.debug("Ollama detected hosts: %s", hosts)
             return hosts
 
 ```python
+
         except Exception as e:
             logger.error("Ollama error: %s", e)
             raise ValueError(f"Ollama host detection failed: {e}") from e
+
 ```python
 
     def detect_speakers(
@@ -372,8 +370,6 @@ class OllamaSpeakerDetector:
             self.initialize()
 
 ```
-        )
-
 ```text
 
         try:
@@ -388,7 +384,7 @@ class OllamaSpeakerDetector:
             )
 
 ```
-                content, known_hosts
+
             )
             logger.debug("Ollama detected speakers: %s", speakers)
             return speakers, detected_hosts, success
@@ -400,14 +396,17 @@ class OllamaSpeakerDetector:
             raise ValueError(f"Ollama speaker detection failed: {e}") from e
 
 ```python
+
     def analyze_patterns(self, episodes, known_hosts):
         return None
+
 ```python
 
     def cleanup(self) -> None:
         pass
 
 ```python
+
     def _build_host_detection_prompts(self, feed_title, feed_description, feed_authors):
         from ..prompt_store import render_prompt
         system_prompt = render_prompt(self.cfg.ollama_ner_system_prompt)
@@ -419,6 +418,7 @@ class OllamaSpeakerDetector:
             task="host_detection",
         )
         return system_prompt, user_prompt
+
 ```python
 
     def _build_speaker_detection_prompts(self, episode_title, episode_description, known_hosts):
@@ -434,6 +434,7 @@ class OllamaSpeakerDetector:
         return system_prompt, user_prompt
 
 ```python
+
     def _parse_hosts_from_response(self, response_text: str) -> Set[str]:
         try:
             data = json.loads(response_text)
@@ -448,6 +449,7 @@ class OllamaSpeakerDetector:
                 if name and len(name) > 1:
                     hosts.add(name)
         return hosts
+
 ```python
 
     def _parse_speakers_from_response(self, response_text: str, known_hosts: Set[str]):
@@ -471,6 +473,7 @@ class OllamaSpeakerDetector:
         return speakers, detected_hosts, len(speakers) > 0
 
 ```
+
 #### 4.3 Summarization Provider
 
 **File**: `podcast_scraper/summarization/ollama_provider.py`
@@ -516,13 +519,10 @@ class OllamaSummarizationProvider:
 
 ```
 
-```
-
         # Validate model is available
         validate_model_available(self.cfg, self.model)
 
 ```
-        self._client = create_ollama_client(self.cfg)
         self._initialized = True
         logger.debug("Ollama summarization provider initialized")
 
@@ -539,14 +539,9 @@ class OllamaSummarizationProvider:
             raise RuntimeError("Provider not initialized")
 
 ```
-        min_length = (params.get("min_length") if params else None) or self.cfg.summary_min_length
-
 ```
 
-        logger.debug("Summarizing via Ollama (model: %s)", self.model)
-
 ```
-            (
                 system_prompt,
                 user_prompt,
                 system_prompt_name,
@@ -579,8 +574,6 @@ class OllamaSummarizationProvider:
 
 ```
 
-            logger.debug("Ollama summarization completed: %d characters", len(summary))
-
 ```python
 
             from ..prompt_store import get_prompt_metadata
@@ -591,7 +584,6 @@ class OllamaSummarizationProvider:
 
 ```
 
-            return {
                 "summary": summary,
                 "summary_short": None,
                 "metadata": {

@@ -334,10 +334,10 @@ Different AI assistants load guidelines from different locations:
 
 This project supports two development workflows:
 
-1.  **Git Worktree Workflow (Recommended)**: Use multiple isolated folders for parallel development.
+1. **Git Worktree Workflow (Recommended)**: Use multiple isolated folders for parallel development.
    See the [Git Worktree Development Guide](GIT_WORKTREE_GUIDE.md) for details.
 
-2.  **Traditional Branching**: Switching branches within a single directory (not recommended for parallel tasks).
+2. **Traditional Branching**: Switching branches within a single directory (not recommended for parallel tasks).
 
 ### 🚨 Branch Creation Checklist
 
@@ -1023,7 +1023,6 @@ except ImportError:
     WHISPER_AVAILABLE = False
 
 ```
-```
 
 ## Log Level Guidelines
 
@@ -1080,9 +1079,8 @@ logger.info("Summary generated in %.1fs (length: %d chars)", elapsed, len(summar
 # Bad - INFO for technical details (should be DEBUG)
 
 logger.info("Loading summarization model: %s on %s", model_name, device)
-```
 
-**Module-Specific Guidelines:**
+```
 
 - **Workflow:** INFO for episode counts, major stages; DEBUG for cleanup
 - **Summarization:** INFO for generation start/completion; DEBUG for model loading
@@ -1106,6 +1104,7 @@ When in doubt, prefer DEBUG over INFO - it's easier to promote a log level than 
 **Use the `progress.py` abstraction:**
 
 ```python
+
 from podcast_scraper import progress
 
 # Good - uses progress abstraction
@@ -1123,6 +1122,7 @@ with progress.make_progress(
 from tqdm import tqdm
 for episode in tqdm(episodes):
     process_episode(episode)
+
 ```
 
 ## Lazy Loading Pattern
@@ -1148,6 +1148,7 @@ def load_whisper():
                 "Install with: pip install openai-whisper"
             )
     return _whisper
+
 ```
 
 ## Module Responsibilities

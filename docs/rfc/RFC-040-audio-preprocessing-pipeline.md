@@ -189,8 +189,6 @@ class AudioPreprocessor(Protocol):
             input_path: Path to audio file
 
 ```
-
-        Returns:
             Cache key (hash of audio content + preprocessing settings)
         """
         ...
@@ -235,8 +233,6 @@ class FFmpegAudioPreprocessor:
         """Preprocess audio using ffmpeg pipeline.
 
 ```
-        Pipeline stages:
-
         1. Convert to mono
         2. Resample to 16 kHz
         3. Remove silence (VAD)
@@ -255,8 +251,6 @@ class FFmpegAudioPreprocessor:
         start_time = time.time()
 
 ```
-        # Build ffmpeg command
-        # -ac 1: convert to mono
         # -ar 16000: resample to 16 kHz
         # -af silenceremove: remove silence (conservative thresholds)
         # -af loudnorm: normalize loudness to -16 LUFS
@@ -297,8 +291,6 @@ class FFmpegAudioPreprocessor:
             return True, elapsed
 
 ```
-        except subprocess.CalledProcessError as exc:
-            logger.error("FFmpeg preprocessing failed: %s", exc.stderr)
             return False, time.time() - start_time
         except subprocess.TimeoutExpired:
             logger.error("FFmpeg preprocessing timed out after 300s")
@@ -312,8 +304,6 @@ class FFmpegAudioPreprocessor:
         """Generate cache key from file content hash + preprocessing config.
 
 ```
-        Args:
-            input_path: Path to audio file
 ```
 
         Returns:
@@ -322,8 +312,6 @@ class FFmpegAudioPreprocessor:
         hasher = hashlib.sha256()
 
 ```
-        # Hash file content (first 1MB for performance)
-        try:
             with open(input_path, "rb") as f:
                 hasher.update(f.read(1024 * 1024))
         except OSError as exc:
@@ -341,8 +329,6 @@ class FFmpegAudioPreprocessor:
         )
         hasher.update(config_str.encode("utf-8"))
 
-```
-        return hasher.hexdigest()[:16]  # 16 hex chars (64 bits)
 ```
 
 ## 4. Caching Strategy
@@ -380,6 +366,7 @@ def get_cached_audio_path(
     return None
 
 ```python
+
 def save_to_cache(
     source_path: str,
     cache_key: str,
@@ -392,13 +379,11 @@ def save_to_cache(
 
 ```
 
-    Args:
         source_path: Path to preprocessed audio
         cache_key: Content-based cache key
         cache_dir: Cache directory path
 
 ```
-
     Returns:
         Path to cached audio
     """
@@ -412,10 +397,10 @@ def save_to_cache(
     shutil.copy2(source_path, cache_path)
 
 ```
-
     return cache_path
 
 ```
+
 ## 5. Integration with Transcription Pipeline
 
 Modify `episode_processor.py` to preprocess audio **before** passing to any provider:
@@ -446,12 +431,13 @@ def transcribe_media_to_text(
     media_for_transcription = temp_media
 
 ```text
+
     # NEW: Preprocess audio BEFORE passing to any provider
     # This happens at the pipeline level, not within providers
     if audio_preprocessor and cfg.preprocessing_enabled:
         cache_key = audio_preprocessor.get_cache_key(temp_media)
-```
 
+```
         # Check cache first
         cached_path = preprocessing.cache.get_cached_audio_path(cache_key)
         if cached_path:
@@ -465,12 +451,12 @@ def transcribe_media_to_text(
             )
 
 ```
-            if success:
-                # Save to cache
+
                 cached_path = preprocessing.cache.save_to_cache(
                     preprocessed_path, cache_key
                 )
                 media_for_transcription = cached_path
+
 ```python
 
                 # Log size reduction
@@ -486,15 +472,14 @@ def transcribe_media_to_text(
                 )
 
 ```
-                # Record preprocessing time
-                if pipeline_metrics:
+
                     pipeline_metrics.record_preprocessing_time(preprocess_elapsed)
             else:
                 # Preprocessing failed, use original audio
                 logger.warning("Audio preprocessing failed, using original audio")
                 media_for_transcription = temp_media
-```
 
+```
     # Pass preprocessed (or original) audio to provider
     # Provider is agnostic to whether audio was preprocessed
     try:
@@ -505,7 +490,6 @@ def transcribe_media_to_text(
         # ... rest of transcription code ...
 
 ```
-**Key Architecture Points**:
 
 1. **Preprocessing happens at pipeline level** — Not inside providers
 2. **All providers receive optimized audio** — Whisper, OpenAI, future providers all benefit
@@ -514,7 +498,6 @@ def transcribe_media_to_text(
 5. **Separation of concerns** — Preprocessing is orthogonal to transcription
 
 ```
-
 ## 6. Configuration Fields
 
 Add preprocessing configuration to `Config`:
@@ -553,7 +536,6 @@ class Config(BaseModel):
     )
 
 ```
-
 ## 7. CLI Arguments
 
 Add CLI flags for preprocessing:
@@ -742,8 +724,6 @@ def _add_preprocessing_arguments(parser: argparse.ArgumentParser) -> None:
 preprocessing_enabled: true  # Enable preprocessing
 
 ```
-```bash
-
 python3 -m podcast_scraper.cli https://feed.xml --enable-preprocessing
 
 ```

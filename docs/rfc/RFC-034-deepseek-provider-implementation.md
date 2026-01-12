@@ -262,16 +262,12 @@ def create_deepseek_client(cfg: config.Config) -> OpenAI:
     """Create DeepSeek client using OpenAI SDK with custom base_url.
 
 ```
-        cfg: Configuration object with deepseek_api_key and deepseek_api_base
-
 ```
 
     Returns:
         OpenAI client configured for DeepSeek API
 
 ```
-        ValueError: If API key is not provided
-    """
     if not cfg.deepseek_api_key:
         raise ValueError(
             "DeepSeek API key required. "
@@ -331,8 +327,6 @@ class DeepSeekSpeakerDetector:
             cfg: Configuration object with deepseek_api_key and speaker settings
 
 ```
-        """
-        self.cfg = cfg
         self.client = create_deepseek_client(cfg)
         self.model = cfg.deepseek_speaker_model
         self.temperature = cfg.deepseek_temperature
@@ -344,8 +338,6 @@ class DeepSeekSpeakerDetector:
         if self._initialized:
             return
 
-```
-        logger.debug("DeepSeek speaker detector initialized successfully")
 ```python
 
     def detect_hosts(
@@ -357,10 +349,7 @@ class DeepSeekSpeakerDetector:
         """Detect hosts from feed metadata using DeepSeek API.
 
 ```
-            feed_description: Optional description of the feed
-            feed_authors: Optional list of feed authors
 ```
-
         Returns:
             Set of detected host names
         """
@@ -368,8 +357,6 @@ class DeepSeekSpeakerDetector:
             self.initialize()
 
 ```
-        )
-
 ```text
 
         try:
@@ -384,8 +371,6 @@ class DeepSeekSpeakerDetector:
             )
 
 ```
-
-```text
 
             logger.debug("DeepSeek detected hosts: %s", hosts)
             return hosts
@@ -405,8 +390,6 @@ class DeepSeekSpeakerDetector:
         """Detect speakers for an episode using DeepSeek API.
 
 ```
-            episode_description: Optional description of the episode
-            known_hosts: Set of known host names
 ```
 
         Returns:
@@ -416,8 +399,6 @@ class DeepSeekSpeakerDetector:
             self.initialize()
 
 ```
-        )
-
 ```text
 
         try:
@@ -432,8 +413,6 @@ class DeepSeekSpeakerDetector:
             )
 
 ```
-                content, known_hosts
-            )
 
 ```text
 
@@ -470,8 +449,6 @@ class DeepSeekSpeakerDetector:
         from ..prompt_store import render_prompt
 
 ```
-            self.cfg.deepseek_ner_user_prompt,
-            feed_title=feed_title,
             feed_description=feed_description or "",
             feed_authors=", ".join(feed_authors) if feed_authors else "",
             task="host_detection",
@@ -489,8 +466,6 @@ class DeepSeekSpeakerDetector:
         from ..prompt_store import render_prompt
 
 ```
-            self.cfg.deepseek_ner_user_prompt,
-            episode_title=episode_title,
             episode_description=episode_description or "",
             known_hosts=", ".join(known_hosts) if known_hosts else "",
             task="speaker_detection",
@@ -510,8 +485,6 @@ class DeepSeekSpeakerDetector:
             pass
 
 ```
-            for name in line.split(","):
-                name = name.strip().strip("-").strip("*").strip()
                 if name and len(name) > 1:
                     hosts.add(name)
         return hosts
@@ -534,14 +507,11 @@ class DeepSeekSpeakerDetector:
 
 ```
 
-```text
-
             for name in line.split(","):
                 name = name.strip().strip("-").strip("*").strip()
                 if name and len(name) > 1:
                     speakers.append(name)
 
-```
 ```
 
 #### 5.3 Summarization Provider
@@ -549,6 +519,7 @@ class DeepSeekSpeakerDetector:
 **File**: `podcast_scraper/summarization/deepseek_provider.py`
 
 ```python
+
 """DeepSeek AI-based summarization provider.
 
 This module provides a SummarizationProvider implementation using DeepSeek's chat API
@@ -574,19 +545,13 @@ class DeepSeekSummarizationProvider:
 
     """DeepSeek AI-based summarization provider.
 
-```
-
 ```python
 
     def __init__(self, cfg: config.Config):
         """Initialize DeepSeek summarization provider.
 
 ```
-            cfg: Configuration object with deepseek_api_key and summarization settings
-
 ```
-
-        Raises:
             ValueError: If DeepSeek API key is not provided
         """
         self.cfg = cfg
@@ -607,8 +572,6 @@ class DeepSeekSummarizationProvider:
             return
 
 ```
-
-        logger.debug("Initializing DeepSeek summarization provider (model: %s)", self.model)
         self._initialized = True
         logger.debug("DeepSeek summarization provider initialized successfully")
 
@@ -624,19 +587,13 @@ class DeepSeekSummarizationProvider:
         """Summarize text using DeepSeek chat API.
 
 ```
-
-        Args:
             text: Transcript text to summarize
             episode_title: Optional episode title
             episode_description: Optional episode description
             params: Optional parameters dict
 
 ```
-            Dictionary with summary results
-
 ```
-
-        Raises:
             ValueError: If summarization fails
             RuntimeError: If provider is not initialized
         """
@@ -646,11 +603,7 @@ class DeepSeekSummarizationProvider:
             )
 
 ```
-        min_length = (params.get("min_length") if params else None) or self.cfg.summary_min_length
-
 ```
-
-            "Summarizing text via DeepSeek API (model: %s, max_length: %d)",
             self.model,
             max_length,
         )
@@ -691,15 +644,11 @@ class DeepSeekSummarizationProvider:
 
 ```
 
-            logger.debug("DeepSeek summarization completed: %d characters", len(summary))
-
 ```python
 
             from ..prompt_store import get_prompt_metadata
 
 ```
-
-            if system_prompt_name:
 
 ```text
 
@@ -713,8 +662,6 @@ class DeepSeekSummarizationProvider:
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
 ```
-
-            return {
                 "summary": summary,
                 "summary_short": None,
                 "metadata": {
@@ -746,13 +693,10 @@ class DeepSeekSummarizationProvider:
         from ..prompt_store import render_prompt
 
 ```
-```text
 
         system_prompt = render_prompt(system_prompt_name)
 
 ```
-        paragraphs_max = max(paragraphs_min, max_length // 100)
-
 ```
 
             "transcript": text,

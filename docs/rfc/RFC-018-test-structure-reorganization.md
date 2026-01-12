@@ -581,8 +581,6 @@ jobs:
           pytest tests/unit/ -n auto --cov=podcast_scraper --cov-report=term-missing
 
 ```
-          # Plugin automatically detects network calls and filesystem I/O
-
 ```
 
   test-integration:
@@ -670,8 +668,6 @@ jobs:
           pytest tests/ -m "not network" -n auto --cov=podcast_scraper --cov-report=term-missing --reruns 2 --reruns-delay 1
 
 ```
-
-  - '**.py'
   - 'tests/**'  # Already covers all test subdirectories
   - 'pyproject.toml'
   - 'Makefile'

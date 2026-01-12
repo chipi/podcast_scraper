@@ -191,8 +191,6 @@ def validate_openai_config(self) -> 'Config':
     """Validate OpenAI provider configuration."""
 
 ```
-
-        self.speaker_detector_provider == "openai" or
         self.transcription_provider == "openai" or
         self.summary_provider == "openai"
     )
@@ -208,8 +206,6 @@ def validate_openai_config(self) -> 'Config':
     return self
 
 ```
-1. **Create `.env` file** in project root (never commit to git):
-
 ```bash
 
 # .env (add to .gitignore!)
@@ -434,8 +430,6 @@ class OpenAISpeakerDetector:
 
 ```
 
-```text
-
         except Exception as e:
             logger.error(f"OpenAI API error in speaker detection: {e}")
             raise
@@ -450,12 +444,9 @@ class OpenAISpeakerDetector:
         """Analyze episode patterns using OpenAI API (optional, can use local logic)."""
 
 ```
-
         # Can use local pattern analysis or OpenAI API
 
 ```
-
-        return None
 
 ```python
 
@@ -552,7 +543,6 @@ class OpenAITranscriptionProvider:
         import time
 
 ```
-
         try:
             with open(media_path, 'rb') as audio_file:
                 transcript = self.client.audio.transcriptions.create(
@@ -561,8 +551,6 @@ class OpenAITranscriptionProvider:
                     language=getattr(cfg, 'whisper_language', None),  # Optional language hint
                     response_format="verbose_json",  # Get segments
                 )
-
-```
 
 ```json
 
@@ -651,7 +639,6 @@ class OpenAISummarizationProvider:
         max_length = max_length or getattr(cfg, 'summary_max_length', 150)
         min_length = min_length or getattr(cfg, 'summary_min_length', 30)
 
-```
 ```json
 
         try:
@@ -666,7 +653,6 @@ class OpenAISummarizationProvider:
             )
 
 ```
-```text
 
             return {
                 'summary': summary,
@@ -677,8 +663,6 @@ class OpenAISummarizationProvider:
             }
 
 ```
-            raise
-
 ```python
 
     def summarize_chunks(
@@ -690,8 +674,6 @@ class OpenAISummarizationProvider:
         """Summarize multiple text chunks (MAP phase).
 
 ```
-        one context window, we combine them and summarize once. Otherwise, we
-        summarize each chunk separately.
         """
 
 ```text
@@ -700,20 +682,13 @@ class OpenAISummarizationProvider:
 
 ```
 
-```
-
             # Can fit all chunks in one call - more efficient
 
 ```
-            # Return as single summary (workflow will handle this correctly)
-
 ```
-
             # Too long, summarize chunks separately (rare case)
 
 ```
-                summaries.append(result['summary'])
-            return summaries
 ```python
 
     def combine_summaries(
@@ -725,12 +700,8 @@ class OpenAISummarizationProvider:
         """Combine multiple summaries into final summary (REDUCE phase).
 
 ```
-        if len(summaries) == 1:
-```
 
             # Already combined in summarize_chunks() - can return directly or refine
-
-```
 
 ```json
 
@@ -746,8 +717,6 @@ class OpenAISummarizationProvider:
             )
 
 ```
-            logger.error(f"OpenAI API error in summary combination: {e}")
-            raise
 
 ```python
 
@@ -756,8 +725,7 @@ class OpenAISummarizationProvider:
         pass
 
 ```
-- **Maintain Interface Compatibility**: Still implement MAP/REDUCE methods for protocol compliance, but optimize internally
-- **Smart Chunk Handling**: If chunks are provided, check if they fit in context window and combine them
+
 - **Cost Efficiency**: Single API call for full transcript is more cost-effective than multiple chunk calls
 - **Use GPT-4o-mini**: Cost-effective default with large context window
 - **Prompt Management**: Use `prompt_store` (RFC-017) for versioned, parameterized prompts
@@ -908,14 +876,10 @@ class RateLimiter:
 
 ```
 
-```
-
                     time.sleep(sleep_time)
                     self.call_times = [t for t in self.call_times if now - t < 60]
 
 ```
-        with self.lock:
-            self.call_times.append(time.time())
 
 ```python
 
@@ -1155,8 +1119,6 @@ class SpeakerDetectorFactory:
             from .openai_detector import OpenAISpeakerDetector
             return OpenAISpeakerDetector(cfg)
 
-```
-
 ```python
 
         elif detector_type == 'custom':
@@ -1252,9 +1214,11 @@ class DeepgramTranscriptionProvider:
         return result, elapsed
 
 ```python
+
     def cleanup(self, resource: Any) -> None:
         """Cleanup resources."""
         pass
+
 ```python
 
 # In factory or plugin system
@@ -1291,7 +1255,6 @@ def test_speaker_detector_protocol():
 
     detector: SpeakerDetector = MockDetector()  # Must pass type check
 
-```
 ```
     assert hasattr(detector, 'analyze_patterns')
 
@@ -1352,13 +1315,9 @@ class TestNERSpeakerDetector:
         detector = NERSpeakerDetector(cfg)
 
 ```
-```
-        # Runtime check
 
 ```
 
-```
-- ✅ All providers must pass generic pipeline tests
 - ✅ Internal implementations must have 80%+ test coverage
 - ✅ External implementations should follow same testing standards
 - ✅ Mock providers for testing workflow without real providers
@@ -1503,8 +1462,6 @@ def test_custom_provider_protocol():
 
     # Functional tests
 
-```
-
 ```go
 
 1. **Code Organization**:
@@ -1613,7 +1570,6 @@ def test_summarization_provider_protocol_compliance():
     assert 'summary' in result
 
 ```
-
 ### 2. Provider Implementation Guide (`docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md`)
 
 **Purpose:** Enable external contributors to create custom providers
@@ -1664,7 +1620,6 @@ class MyCustomSummarizationProvider:
     def summarize(self, text: str, cfg: config.Config) -> Dict[str, Any]:
         """Summarize text using custom logic."""
 
-```
 ```python
 
     def cleanup(self) -> None:

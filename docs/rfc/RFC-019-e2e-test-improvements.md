@@ -310,8 +310,6 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
 ```
-        if path.startswith("/transcripts/"):
-            filename = path.split("/")[-1]  # Extract "p01_e01.txt"
             file_path = self.FIXTURE_ROOT / "transcripts" / filename
             self._serve_file(file_path, content_type="text/plain")
             return
@@ -320,9 +318,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         self.send_error(404, "File not found")
 
-```
-- Security tests (path traversal protection)
-
+```python
 ### Stages 4-12: E2E Test Coverage
 
 **Goal**: Create comprehensive E2E tests for all major user-facing entry points.

@@ -242,14 +242,14 @@ config = Config(**config_dict)
 # Use the config
 
 count, summary = run_pipeline(config)
-```
 ```python
+
 from podcast_scraper import Config, load_config_file
 
 # One-liner: load and create Config
 
 config = Config(**load_config_file("config.yaml"))
-```
+
 ```json
 
 {
@@ -263,13 +263,14 @@ config = Config(**load_config_file("config.yaml"))
   "log_level": "INFO"
 }
 ```
-```yaml
+
 max_episodes: 10
 transcribe_missing: true
 whisper_model: "base"
 generate_metadata: true
 generate_summaries: true
 log_level: "INFO"
+
 ```yaml
 
 - [Config](#config) - Configuration model
@@ -295,8 +296,6 @@ class ServiceResult:
     error: Optional[str] = None
 
 ```
-
-- `summary` (`str`): Human-readable summary message with processing statistics.
 - `success` (`bool`): Whether the run completed successfully. Default: `True`.
 - `error` (`Optional[str]`): Error message if `success` is `False`, `None` otherwise.
 
@@ -373,8 +372,6 @@ def run_from_config_file(config_path: str | Path) -> ServiceResult
 
 ```
 
-**Returns:**
-
 - `ServiceResult`: Structured result with processing outcomes.
 
 **Raises:**
@@ -397,15 +394,14 @@ if not result.success:
     sys.exit(1)
 
 print(f"Success: {result.summary}")
-```
 
+```
 # Command-line entry point
 
 python -m podcast_scraper.service --config config.yaml
 
 # Exit codes: 0 = success, 1 = failure
 
-```
 ```python
 
 - [load_config_file](#load_config_file) - Load configuration from file

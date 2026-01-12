@@ -325,7 +325,7 @@ class SummarizationBackend:
         # Convert experiment config to Config object
 
 ```
-```
+
         self.provider = create_summarization_provider(cfg)
 
 ```python
@@ -340,11 +340,7 @@ class SummarizationBackend:
         """Summarize transcript using configured provider."""
 
 ```
-        # Merge experiment params with method params
-
 ```
-
-            text=transcript,
             episode_title=episode_title,
             episode_description=episode_description,
             params=merged_params,
@@ -355,7 +351,6 @@ class SummarizationBackend:
     def _create_config_from_experiment(self, exp_config: Dict[str, Any]) -> config.Config:
         """Convert experiment config to Config object."""
 
-```
 ```python
 
 # scripts/eval_summaries.py (refactored)
@@ -419,8 +414,6 @@ def main():
     # Parse CLI args
 
 ```
-```
-
 ```python
 
 # scripts/experiments/utils.py
@@ -475,8 +468,6 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
 ```
 
-    # ...
-
 ```python
 
 # scripts/experiments/config_mapper.py
@@ -509,21 +500,19 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
     # Map models
 
 ```
-            config_dict["summary_provider"] = "openai"
+
             config_dict["openai_summarization_model"] = model_config["name"]
         elif model_config["type"] == "hf_local":
             config_dict["summary_provider"] = "transformers"
             config_dict["summary_model"] = model_config["name"]
 
 ```
-
-            if "reduce" in experiment_config.get("models", {}):
                 reduce_config = experiment_config["models"]["reduce"]
                 if reduce_config["type"] == "hf_local":
                     config_dict["summary_reduce_model"] = reduce_config["name"]
 
 ```
-        if "max_length" in params:
+
             config_dict["summary_max_length"] = params["max_length"]
         if "min_length" in params:
             config_dict["summary_min_length"] = params["min_length"]
@@ -538,15 +527,11 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
 
 ```
 
-        # Note: Some OpenAI params (temperature, etc.) may need to be passed
-
 ```python
 
     # Map prompts (using prompt_store from RFC-017)
 
 ```
-
-        prompts = experiment_config["prompts"]
 
 ```
 
@@ -556,8 +541,7 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
         if "params" in prompts:
             config_dict["summary_prompt_params"] = prompts["params"]
 
-```
-
+```go
 - Versioned prompt files (`.j2` templates)
 - Jinja2 parameterization
 - Caching and tracking

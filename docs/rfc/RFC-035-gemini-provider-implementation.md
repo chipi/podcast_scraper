@@ -225,8 +225,6 @@ def create_gemini_client(cfg: config.Config) -> genai.Client:
         Gemini client instance
 
 ```
-        ValueError: If API key is not provided
-    """
     if not cfg.gemini_api_key:
         raise ValueError(
             "Gemini API key required. "
@@ -296,16 +294,12 @@ class GeminiTranscriptionProvider:
             language: Optional language code
 
 ```
-        """
-        if not self._initialized:
             raise RuntimeError("Provider not initialized")
 ```
 
         logger.debug("Transcribing %s via Gemini", audio_path)
 
 ```
-            with open(audio_path, "rb") as f:
-                audio_data = f.read()
 ```
 
             # Determine MIME type
@@ -320,8 +314,6 @@ class GeminiTranscriptionProvider:
             mime_type = mime_types.get(suffix, "audio/mpeg")
 
 ```
-```
-
             prompt = "Transcribe this audio file. Return only the transcription text, no additional commentary."
             if language:
                 prompt += f" The audio is in {language}."
@@ -336,9 +328,11 @@ class GeminiTranscriptionProvider:
             return text
 
 ```python
+
         except Exception as exc:
             logger.error("Gemini API error in transcription: %s", exc)
             raise ValueError(f"Gemini transcription failed: {exc}") from exc
+
 ```python
 
     def transcribe_with_segments(
@@ -350,16 +344,18 @@ class GeminiTranscriptionProvider:
         return text, []
 
 ```python
+
     def cleanup(self) -> None:
         """Cleanup resources."""
         pass
-```
 
+```
 #### 4.3 Speaker Detection Provider
 
 **File**: `podcast_scraper/speaker_detectors/gemini_detector.py`
 
 ```python
+
 """Gemini-based speaker detection provider."""
 
 from __future__ import annotations
@@ -406,8 +402,6 @@ class GeminiSpeakerDetector:
             self.initialize()
 
 ```
-
-            feed_title, feed_description, feed_authors
         )
 
 ```text
@@ -420,8 +414,6 @@ class GeminiSpeakerDetector:
             )
 
 ```
-
-            hosts = self._parse_hosts_from_response(content)
             logger.debug("Gemini detected hosts: %s", hosts)
             return hosts
 
@@ -445,8 +437,6 @@ class GeminiSpeakerDetector:
 
 ```
 
-```text
-
         try:
             response = self.client.models.generate_content(
                 model=self.model,
@@ -455,7 +445,6 @@ class GeminiSpeakerDetector:
             )
 
 ```
-            )
             logger.debug("Gemini detected speakers: %s", speakers)
             return speakers, detected_hosts, success
 
@@ -575,6 +564,7 @@ class GeminiSummarizationProvider:
     """Gemini-based summarization provider."""
 
 ```python
+
     def __init__(self, cfg: config.Config):
         """Initialize Gemini summarization provider."""
         self.cfg = cfg
@@ -585,6 +575,7 @@ class GeminiSummarizationProvider:
         self.max_context_tokens = 2000000
         self._initialized = False
         self._requires_separate_instances = False
+
 ```python
 
     def initialize(self) -> None:
@@ -595,6 +586,7 @@ class GeminiSummarizationProvider:
         self._initialized = True
 
 ```python
+
     def summarize(
         self,
         text: str,
@@ -605,13 +597,12 @@ class GeminiSummarizationProvider:
         """Summarize text using Gemini."""
         if not self._initialized:
             raise RuntimeError("Provider not initialized")
+
 ```
 
-        max_length = (params.get("max_length") if params else None) or self.cfg.summary_max_length
         min_length = (params.get("min_length") if params else None) or self.cfg.summary_min_length
 
 ```
-
         try:
             (
                 system_prompt,
@@ -626,7 +617,6 @@ class GeminiSummarizationProvider:
 
 ```
 
-                contents=[system_prompt + "\n\n" + user_prompt],
                 config={
                     "temperature": self.temperature,
                     "max_output_tokens": self.cfg.gemini_max_tokens or max_length,
@@ -650,7 +640,6 @@ class GeminiSummarizationProvider:
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name)
 
 ```
-                "summary_short": None,
                 "metadata": {
                     "model": self.model,
                     "provider": "gemini",
@@ -659,6 +648,7 @@ class GeminiSummarizationProvider:
                     "prompts": prompt_metadata,
                 },
             }
+
 ```python
 
         except Exception as exc:
@@ -666,6 +656,7 @@ class GeminiSummarizationProvider:
             raise ValueError(f"Gemini summarization failed: {exc}") from exc
 
 ```python
+
     def _build_summarization_prompts(self, text, episode_title, episode_description, max_length, min_length):
         from ..prompt_store import render_prompt
         system_prompt_name = self.cfg.gemini_summary_system_prompt
@@ -682,6 +673,7 @@ class GeminiSummarizationProvider:
         template_params.update(self.cfg.summary_prompt_params)
         user_prompt = render_prompt(user_prompt_name, **template_params)
         return system_prompt, user_prompt, system_prompt_name, user_prompt_name, paragraphs_min, paragraphs_max
+
 ```python
 
     def cleanup(self) -> None:

@@ -46,8 +46,8 @@ episode = Episode(
 
 print(f"Episode {episode.idx}: {episode.title}")
 print(f"Transcript URL: {episode.transcript_urls[0][0]}")
-```
 ```python
+
 from podcast_scraper.models import RssFeed, Episode
 
 feed = RssFeed(
@@ -59,4 +59,5 @@ feed = RssFeed(
 
 print(f"Feed: {feed.title}")
 print(f"Episodes in feed: {len(feed.items)}")
+
 ```

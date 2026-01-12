@@ -286,8 +286,6 @@ class GroqSpeakerDetector:
             self.initialize()
 
 ```
-        )
-
 ```text
 
         try:
@@ -302,8 +300,6 @@ class GroqSpeakerDetector:
             )
 
 ```
-            logger.debug("Groq detected hosts: %s", hosts)
-            return hosts
 
 ```python
 
@@ -480,15 +476,11 @@ class GroqSummarizationProvider:
             raise RuntimeError("Provider not initialized")
 
 ```
-        min_length = (params.get("min_length") if params else None) or self.cfg.summary_min_length
-
 ```
 
         logger.debug("Summarizing via Groq (model: %s)", self.model)
 
 ```
-            (
-                system_prompt,
                 user_prompt,
                 system_prompt_name,
                 user_prompt_name,

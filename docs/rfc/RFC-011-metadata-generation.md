@@ -153,8 +153,6 @@ class EpisodeMetadataDocument(BaseModel):
     """Complete episode metadata document.
 
 ```
-    - MongoDB: Document structure matches MongoDB document model
-    - Elasticsearch: Nested objects can be indexed and queried
     - ClickHouse: JSON column type supports nested queries
 
 ```
@@ -311,8 +309,6 @@ def generate_feed_id(feed_url: str) -> str:
 
 ```
 
-```
-
     return f"sha256:{hash_digest}"
 
 ```
@@ -363,35 +359,29 @@ def generate_episode_id(
     3. Composite key as last resort
 
 ```text
+
     Returns:
         Stable unique identifier string
     """
-```
 
+```
     # Priority 1: Use RSS GUID if available
 
-```
 ```
 
     # Normalize feed URL (remove trailing slash, lowercase)
 
-```
 ```python
 
     # Build hash input from stable components
 
 ```
-    ]
-
 ```text
 
     if published_date:
         hash_components.append(published_date.isoformat())
 
 ```
-
-```
-
 ```python
 
 **Transcript ID** (`transcript_id`):

@@ -276,8 +276,6 @@ def create_anthropic_client(cfg: config.Config) -> Anthropic:
         cfg: Configuration object with anthropic_api_key and optional anthropic_api_base
 
 ```
-```
-
     Raises:
         ValueError: If API key is not provided
     """
@@ -288,11 +286,10 @@ def create_anthropic_client(cfg: config.Config) -> Anthropic:
         )
 
 ```
-    if cfg.anthropic_api_base:
+
         client_kwargs["base_url"] = cfg.anthropic_api_base
 
 ```
-
 #### 5.2 Speaker Detection Provider
 
 **File**: `podcast_scraper/speaker_detectors/anthropic_detector.py`
@@ -323,15 +320,13 @@ class AnthropicSpeakerDetector:
     """Anthropic Claude API-based speaker detection provider.
 
 ```
-    """
-
 ```python
 
     def __init__(self, cfg: config.Config):
         """Initialize Anthropic speaker detector.
 
 ```
-        Raises:
+
             ValueError: If Anthropic API key is not provided
         """
         self.cfg = cfg
@@ -348,7 +343,7 @@ class AnthropicSpeakerDetector:
             return
 
 ```
-        self._initialized = True
+
         logger.debug("Anthropic speaker detector initialized successfully")
 
 ```python
@@ -362,30 +357,26 @@ class AnthropicSpeakerDetector:
         """Detect hosts from feed metadata using Anthropic API.
 
 ```
-            feed_title: Title of the podcast feed
+
             feed_description: Optional description of the feed
             feed_authors: Optional list of feed authors
 
 ```
-
-        if not self._initialized:
             self.initialize()
 
 ```
-        system_prompt, user_prompt = self._build_host_detection_prompts(
+
             feed_title, feed_description, feed_authors
         )
 
 ```
-
-                max_tokens=self.cfg.anthropic_max_tokens or 500,
                 temperature=self.temperature,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
             )
 
 ```
-            content = response.content[0].text
+
             hosts = self._parse_hosts_from_response(content)
 
 ```python
@@ -405,18 +396,14 @@ class AnthropicSpeakerDetector:
         """Detect speakers for an episode using Anthropic API.
 
 ```
-
-            episode_description: Optional description of the episode
             known_hosts: Set of known host names
 
 ```
-        """
+
         if not self._initialized:
             self.initialize()
 
 ```
-
-        )
 
 ```text
 
@@ -430,8 +417,6 @@ class AnthropicSpeakerDetector:
             )
 
 ```
-
-                content, known_hosts
             )
 
 ```text
@@ -474,8 +459,6 @@ class AnthropicSpeakerDetector:
         from ..prompt_store import render_prompt
 
 ```
-
-            self.cfg.anthropic_ner_user_prompt,
             feed_title=feed_title,
             feed_description=feed_description or "",
             feed_authors=", ".join(feed_authors) if feed_authors else "",
@@ -495,8 +478,6 @@ class AnthropicSpeakerDetector:
         from ..prompt_store import render_prompt
 
 ```
-
-            self.cfg.anthropic_ner_user_prompt,
             episode_title=episode_title,
             episode_description=episode_description or "",
             known_hosts=", ".join(known_hosts) if known_hosts else "",
@@ -519,8 +500,6 @@ class AnthropicSpeakerDetector:
             pass
 
 ```
-
-        for line in response_text.strip().split("\n"):
             for name in line.split(","):
                 name = name.strip().strip("-").strip("*").strip()
                 if name and len(name) > 1:
@@ -546,14 +525,13 @@ class AnthropicSpeakerDetector:
             pass
 
 ```
-
-        for line in response_text.strip().split("\n"):
             for name in line.split(","):
                 name = name.strip().strip("-").strip("*").strip()
                 if name and len(name) > 1:
                     speakers.append(name)
 
 ```
+
 #### 5.3 Summarization Provider
 
 **File**: `podcast_scraper/summarization/anthropic_provider.py`
@@ -592,8 +570,6 @@ class AnthropicSummarizationProvider:
 
 ```
 
-```
-
             ValueError: If Anthropic API key is not provided
         """
         self.cfg = cfg
@@ -615,7 +591,6 @@ class AnthropicSummarizationProvider:
 
 ```
 
-        self._initialized = True
         logger.debug("Anthropic summarization provider initialized successfully")
 
 ```python
@@ -631,15 +606,11 @@ class AnthropicSummarizationProvider:
 
 ```
 
-            text: Transcript text to summarize
             episode_title: Optional episode title
             episode_description: Optional episode description
             params: Optional parameters dict
 
 ```
-
-```
-
             ValueError: If summarization fails
             RuntimeError: If provider is not initialized
         """
@@ -647,8 +618,6 @@ class AnthropicSummarizationProvider:
             raise RuntimeError(
                 "AnthropicSummarizationProvider not initialized. Call initialize() first."
             )
-
-```
 
 ```
 
@@ -673,7 +642,6 @@ class AnthropicSummarizationProvider:
 
 ```
 
-            response = self.client.messages.create(
                 model=self.model,
                 max_tokens=self.cfg.anthropic_max_tokens or max_length,
                 temperature=self.temperature,
@@ -682,7 +650,6 @@ class AnthropicSummarizationProvider:
             )
 
 ```
-                logger.warning("Anthropic API returned empty summary")
                 summary = ""
 
 ```python
@@ -691,7 +658,6 @@ class AnthropicSummarizationProvider:
             from ..prompt_store import get_prompt_metadata
 
 ```
-                prompt_metadata["system"] = get_prompt_metadata(system_prompt_name)
             user_params = {
                 "transcript": text[:100] + "..." if len(text) > 100 else text,
                 "title": episode_title or "",
@@ -702,7 +668,6 @@ class AnthropicSummarizationProvider:
 
 ```
 
-                "summary_short": None,
                 "metadata": {
                     "model": self.model,
                     "provider": "anthropic",
@@ -732,16 +697,11 @@ class AnthropicSummarizationProvider:
         from ..prompt_store import render_prompt
 
 ```
-```text
-
         system_prompt = render_prompt(system_prompt_name)
 
 ```
-        paragraphs_min = max(1, min_length // 100)
-        paragraphs_max = max(paragraphs_min, max_length // 100)
 
 ```
-
             "paragraphs_max": paragraphs_max,
         }
         template_params.update(self.cfg.summary_prompt_params)
@@ -751,7 +711,6 @@ class AnthropicSummarizationProvider:
         user_prompt = render_prompt(user_prompt_name, **template_params)
 
 ```
-
             user_prompt,
             system_prompt_name,
             user_prompt_name,
@@ -766,7 +725,6 @@ class AnthropicSummarizationProvider:
         pass
 
 ```
-
 ### 6. Factory Updates
 
 #### 6.1 Speaker Detector Factory
@@ -798,7 +756,6 @@ def create_speaker_detector(cfg: config.Config) -> Optional[SpeakerDetector]:
         )
 
 ```
-
 #### 6.2 Summarization Factory
 
 **File**: `podcast_scraper/summarization/factory.py` (update)
@@ -828,7 +785,6 @@ def create_summarization_provider(cfg: config.Config) -> Optional[SummarizationP
         )
 
 ```
-
 ### 7. Anthropic-Specific Prompt Templates
 
 #### 7.1 Summarization System Prompt
@@ -848,7 +804,6 @@ Guidelines:
 - Structure the summary with logical flow
 
 ```
-
 #### 7.2 Summarization User Prompt
 
 **File**: `prompts/anthropic/summarization/long_v1.j2`
@@ -867,7 +822,6 @@ Transcript:
 Provide a comprehensive summary covering the main topics, key insights, and important takeaways.
 
 ```
-
 #### 7.3 NER System Prompt
 
 **File**: `prompts/anthropic/ner/system_ner_v1.j2`
@@ -883,7 +837,6 @@ Guidelines:
 - Respond in JSON format with "hosts" and "guests" arrays
 
 ```
-
 #### 7.4 NER User Prompt
 
 **File**: `prompts/anthropic/ner/guest_host_v1.j2`
@@ -909,7 +862,6 @@ Return a JSON object with format: {"speakers": [...], "hosts": [...], "guests": 
 {% endif %}
 
 ```
-
 ### 8. E2E Server Mock Endpoints
 
 Add Anthropic mock endpoints to `tests/e2e/fixtures/e2e_http_server.py`:
@@ -943,13 +895,11 @@ def _handle_anthropic_messages(self):
         model = request_data.get("model", "claude-3-5-haiku-latest")
 
 ```
-        user_message = next(
-            (m.get("content", "") for m in messages if m.get("role") == "user"),
+
             ""
         )
 
 ```
-
             response_content = json.dumps({
                 "speakers": ["Host", "Guest"],
                 "hosts": ["Host"],
@@ -986,14 +936,11 @@ def _handle_anthropic_messages(self):
         }
 
 ```
-
         self.send_header("Content-Length", str(len(response_json)))
         self.end_headers()
         self.wfile.write(response_json.encode("utf-8"))
 
 ```
-        self.send_error(500, f"Error handling Anthropic messages: {e}")
-
 ```python
 
 class E2EServerURLs:
@@ -1004,6 +951,7 @@ class E2EServerURLs:
         return f"http://{self.host}:{self.port}"
 
 ```
+
 ### 9. Dependencies
 
 Add to `pyproject.toml`:
@@ -1024,6 +972,7 @@ ai = [
 ]
 
 ```
+
 # For Anthropic support
 
 pip install -e ".[anthropic]"
@@ -1061,7 +1010,6 @@ tests/
     └── test_anthropic_provider_integration_e2e.py
 
 ```
-
 ### Test Markers
 
 ```python
