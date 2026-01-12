@@ -125,9 +125,12 @@ This is the main CI pipeline that ensures code quality, runs tests, builds docum
 
 The workflow uses a **three-tier testing strategy** optimized for speed, reliability, and production validation:
 
-1.  **Tier 1: Pull Requests (Fast)**: Runs unit tests, critical path integration tests, and Tier 1 E2E tests (1 episode, small models). Target: <10 min feedback.
-2.  **Tier 2: Main Branch (Full)**: Runs all unit, integration, and E2E tests. Includes coverage collection and metrics generation.
-3.  **Tier 3: Nightly (Comprehensive)**: Full 15-episode suite with production models (BART-large, LED-large). Excludes LLM API tests to manage costs.
+1. **Tier 1: Pull Requests (Fast)**: Runs unit tests, critical path integration tests, and Tier 1 E2E tests
+   (1 episode, small models). Target: <10 min feedback.
+2. **Tier 2: Main Branch (Full)**: Runs all unit, integration, and E2E tests. Includes coverage
+   collection and metrics generation.
+3. **Tier 3: Nightly (Comprehensive)**: Full 15-episode suite with production models (BART-large,
+   LED-large). Excludes LLM API tests to manage costs.
 
 ### Pull Request Execution Flow
 

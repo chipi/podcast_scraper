@@ -296,6 +296,7 @@ class ServiceResult:
     error: Optional[str] = None
 
 ```
+
 - `success` (`bool`): Whether the run completed successfully. Default: `True`.
 - `error` (`Optional[str]`): Error message if `success` is `False`, `None` otherwise.
 
@@ -396,6 +397,7 @@ if not result.success:
 print(f"Success: {result.summary}")
 
 ```
+
 # Command-line entry point
 
 python -m podcast_scraper.service --config config.yaml

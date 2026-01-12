@@ -312,6 +312,7 @@ pip install -e .
 make ci
 
 ```
+
 ## Python API
 
 ```python

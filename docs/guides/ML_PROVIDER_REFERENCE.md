@@ -217,7 +217,8 @@ flowchart TD
 - **Model-Specific Thresholds (v2.4.0)**:
   - **BART models** (`facebook/bart-large-cnn`, `facebook/bart-base`): ~1024 tokens.
   - **LED models** (`allenai/led-large-16384`, `allenai/led-base-16384`): ~16384 tokens.
-- **Transition Zones**: Implements smooth transition zones instead of hard cutoffs to ensure consistent quality near threshold boundaries.
+- **Transition Zones**: Implements smooth transition zones instead of hard cutoffs to ensure
+  consistent quality near threshold boundaries.
 
 ### 5.3 MAP Phase (Compression)
 
