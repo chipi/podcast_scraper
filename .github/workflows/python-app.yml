@@ -277,12 +277,13 @@ jobs:
   # Preload ML models - runs on all commits (main and PRs), ensures models are cached for integration and e2e tests
   # This job has no dependencies and starts immediately in parallel with lint, docs, build
   # Optimized: Check cache FIRST (no Python needed), only set up Python if cache misses
-  # Skip for docs-only changes (when only docs files changed, no code files) to avoid unnecessary model downloads
+  # Always runs (job itself) but skips actual work for docs-only changes to avoid unnecessary model downloads
+  # This ensures dependent jobs (test-integration-fast, test-e2e-fast) can still run even when skipping model preload
   preload-ml-models:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Conservative timeout for model preloading (usually cache hit, ~2 min)
     needs: [detect-changes]
-    if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
+    if: always()  # Always run the job, but skip steps if docs-only
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -290,6 +291,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Cache ML models (check first - no Python needed, if cache hits job completes in ~6-12s)
+      if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
       uses: actions/cache@v4
       id: cache-models
       with:
@@ -302,14 +304,14 @@ jobs:
         restore-keys: |
           ml-models-${{ runner.os }}-
     - name: Set up Python 3.11 (only if cache miss - needed for model download)
-      if: steps.cache-models.outputs.cache-hit != 'true'
+      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       uses: actions/setup-python@v6
       with:
         python-version: "3.11"
         cache: "pip"
         cache-dependency-path: pyproject.toml
     - name: Free disk space (only if cache miss - need space for model download)
-      if: steps.cache-models.outputs.cache-hit != 'true'
+      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: |
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
         docker image prune -af || true
@@ -317,19 +319,19 @@ jobs:
         sudo rm -rf /var/lib/apt/lists/*
         df -h
     - name: Install full dependencies (including ML)
-      if: steps.cache-models.outputs.cache-hit != 'true'
+      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: |
         python -m pip install --upgrade pip
         pip install -e .[dev,ml]
     - name: Preload ML models (only if cache miss)
-      if: steps.cache-models.outputs.cache-hit != 'true'
+      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: make preload-ml-models
 
   # Full integration tests - all integration tests, runs on main branch only
   test-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 30  # Conservative timeout for integration tests with ML models
-    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
+    needs: [detect-changes, preload-ml-models]  # Wait for change detection and model preload
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -337,7 +339,9 @@ jobs:
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
     if: |
-      github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      github.event_name == 'push' && 
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4') &&
+      (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true')
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -429,7 +433,7 @@ jobs:
   test-integration-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 20  # Conservative timeout for fast integration tests
-    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
+    needs: [detect-changes, preload-ml-models]  # Wait for change detection and model preload
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -437,7 +441,9 @@ jobs:
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
     if: |
-      github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')
+      github.event_name == 'pull_request' && 
+      !contains(github.event.pull_request.head.ref, 'docs/') &&
+      (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true')
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -522,7 +528,7 @@ jobs:
   test-e2e-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 25  # Conservative timeout for fast E2E tests
-    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
+    needs: [detect-changes, preload-ml-models]  # Wait for change detection and model preload
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -530,7 +536,9 @@ jobs:
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
     if: |
-      github.event_name == 'pull_request' && !contains(github.event.pull_request.head.ref, 'docs/')
+      github.event_name == 'pull_request' && 
+      !contains(github.event.pull_request.head.ref, 'docs/') &&
+      (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true')
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
@@ -620,7 +628,7 @@ jobs:
   test-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 45  # Conservative timeout for E2E tests with ML models
-    needs: [preload-ml-models]  # Wait for model preload only (can run in parallel with unit tests)
+    needs: [detect-changes, preload-ml-models]  # Wait for change detection and model preload
     env:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
@@ -628,7 +636,9 @@ jobs:
       # Signal to tests that CI has validated cache - skip redundant checks
       ML_MODELS_VALIDATED: "true"
     if: |
-      github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      github.event_name == 'push' && 
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4') &&
+      (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true')
     steps:
     - uses: actions/checkout@v4
     - name: Free disk space
