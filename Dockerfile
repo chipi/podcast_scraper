@@ -23,8 +23,16 @@ ENV WHISPER_MODELS=${WHISPER_MODELS}
 ENV TRANSFORMERS_MODELS=${TRANSFORMERS_MODELS}
 ENV SKIP_TRANSFORMERS=${SKIP_TRANSFORMERS}
 
+# Install runtime and build dependencies
+# Build deps are needed for compiling numpy/spacy from source (Python 3.14 may not have pre-built wheels)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg \
+    && apt-get install -y --no-install-recommends \
+        ffmpeg \
+        gcc \
+        g++ \
+        make \
+        python3-dev \
+        libc6-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p "${XDG_CACHE_HOME}"
@@ -49,17 +57,23 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Use BuildKit cache mount for pip cache (faster rebuilds)
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir .[ml] && \
-    pip uninstall -y podcast-scraper
+    pip uninstall -y podcast-scraper && \
+    # Clean up temporary build files to save space (keep pip cache for next steps)
+    rm -rf /tmp/pip-* /tmp/build-* || true
 
 # Ensure torch CPU-only version is used (reinstall CPU version to override any CUDA version)
 # Use BuildKit cache mount for pip cache (faster rebuilds)
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu
+    pip install --no-cache-dir --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu && \
+    # Clean up temporary build files
+    rm -rf /tmp/pip-* /tmp/build-* || true
 
 # Copy all remaining files and install the podcast_scraper package itself (without reinstalling deps)
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --no-deps .
+    pip install --no-cache-dir --no-deps . && \
+    # Clean up temporary build files
+    rm -rf /tmp/pip-* /tmp/build-* || true
 
 # hadolint ignore=SC2261
 # Preload ML models using unified script
@@ -83,7 +97,17 @@ RUN mkdir -p /app
 
 WORKDIR /app
 
-# Clean up build directory (pip cache is handled by cache mounts, no need to clean)
-RUN rm -rf /tmp/build /root/.cache/torch
+# Clean up build dependencies, build directory, and caches to save space
+RUN apt-get purge -y --auto-remove \
+        gcc \
+        g++ \
+        make \
+        python3-dev \
+        libc6-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/build /root/.cache/torch /root/.cache/pip \
+    && find /usr/local -name "*.pyc" -delete \
+    && find /usr/local -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 
 ENTRYPOINT ["python", "-m", "podcast_scraper.service"]

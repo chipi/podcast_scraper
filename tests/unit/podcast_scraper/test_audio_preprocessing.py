@@ -66,7 +66,7 @@ class TestFFmpegAudioPreprocessor(unittest.TestCase):
             self.skipTest("Fixture audio file not found")
 
         preprocessor = FFmpegAudioPreprocessor()
-        output_path = os.path.join(self.temp_dir, "preprocessed.opus")
+        output_path = os.path.join(self.temp_dir, "preprocessed.mp3")
 
         success, elapsed = preprocessor.preprocess(str(self.fixture_audio), output_path)
 
@@ -90,7 +90,7 @@ class TestFFmpegAudioPreprocessor(unittest.TestCase):
             self.skipTest("Fixture audio file not found")
 
         preprocessor = FFmpegAudioPreprocessor()
-        output_path = os.path.join(self.temp_dir, "preprocessed.opus")
+        output_path = os.path.join(self.temp_dir, "preprocessed.mp3")
 
         original_size = os.path.getsize(self.fixture_audio)
         success, _ = preprocessor.preprocess(str(self.fixture_audio), output_path)
@@ -104,7 +104,7 @@ class TestFFmpegAudioPreprocessor(unittest.TestCase):
     def test_preprocess_nonexistent_file(self):
         """Test preprocessing with nonexistent input file."""
         preprocessor = FFmpegAudioPreprocessor()
-        output_path = os.path.join(self.temp_dir, "preprocessed.opus")
+        output_path = os.path.join(self.temp_dir, "preprocessed.mp3")
 
         success, _ = preprocessor.preprocess("/nonexistent/file.mp3", output_path)
 
@@ -163,7 +163,7 @@ class TestCache(unittest.TestCase):
     def test_get_cached_audio_path_hit(self):
         """Test cache hit scenario."""
         cache_key = "test_key_12345"
-        cached_file = os.path.join(self.cache_dir, f"{cache_key}.opus")
+        cached_file = os.path.join(self.cache_dir, f"{cache_key}.mp3")
         os.makedirs(self.cache_dir, exist_ok=True)
 
         # Create a dummy cached file
@@ -177,7 +177,7 @@ class TestCache(unittest.TestCase):
     def test_save_to_cache(self):
         """Test saving to cache."""
         cache_key = "test_key_12345"
-        source_file = os.path.join(self.temp_dir, "source.opus")
+        source_file = os.path.join(self.temp_dir, "source.mp3")
 
         # Create a dummy source file
         with open(source_file, "wb") as f:
@@ -186,7 +186,7 @@ class TestCache(unittest.TestCase):
         cached_path = cache.save_to_cache(source_file, cache_key, self.cache_dir)
 
         self.assertTrue(os.path.exists(cached_path))
-        self.assertEqual(cached_path, os.path.join(self.cache_dir, f"{cache_key}.opus"))
+        self.assertEqual(cached_path, os.path.join(self.cache_dir, f"{cache_key}.mp3"))
         # Verify content was copied
         with open(cached_path, "rb") as f:
             self.assertEqual(f.read(), b"dummy audio data")

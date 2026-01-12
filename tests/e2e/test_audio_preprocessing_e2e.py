@@ -102,7 +102,7 @@ class TestAudioPreprocessingWithWhisperE2E:
             if os.path.exists(cache_dir):
                 # Cache may or may not have files depending on whether preprocessing succeeded
                 # But directory should exist if preprocessing was attempted
-                _ = list(Path(cache_dir).glob("*.opus"))  # Check cache exists
+                _ = list(Path(cache_dir).glob("*.mp3"))  # Check cache exists
 
     def test_preprocessing_reduces_file_size(self, e2e_server):
         """Test that preprocessing reduces audio file size before transcription.
@@ -140,7 +140,7 @@ class TestAudioPreprocessingWithWhisperE2E:
 
             # Check if preprocessed files exist in cache
             if os.path.exists(cache_dir):
-                cache_files = list(Path(cache_dir).glob("*.opus"))
+                cache_files = list(Path(cache_dir).glob("*.mp3"))
                 if cache_files:
                     # Verify preprocessed file is smaller than typical original
                     # (We can't easily get original size in E2E test, but we can verify
@@ -189,7 +189,7 @@ class TestAudioPreprocessingWithWhisperE2E:
             # Get cache files after first run
             cache_files_after_first = []
             if os.path.exists(cache_dir):
-                cache_files_after_first = list(Path(cache_dir).glob("*.opus"))
+                cache_files_after_first = list(Path(cache_dir).glob("*.mp3"))
 
             # Second run: Should reuse cache
             # Use a different output directory to avoid skip_existing
@@ -211,7 +211,7 @@ class TestAudioPreprocessingWithWhisperE2E:
 
             # Verify cache was reused (same cache files should exist)
             if cache_files_after_first:
-                cache_files_after_second = list(Path(cache_dir).glob("*.opus"))
+                cache_files_after_second = list(Path(cache_dir).glob("*.mp3"))
                 # Cache should still have files (may have same or more)
                 assert len(cache_files_after_second) >= len(
                     cache_files_after_first
@@ -258,7 +258,7 @@ class TestAudioPreprocessingWithWhisperE2E:
             # Verify preprocessing cache was NOT used (should be empty or not exist)
             # Note: Cache directory might be created but should be empty
             if os.path.exists(cache_dir):
-                cache_files = list(Path(cache_dir).glob("*.opus"))
+                cache_files = list(Path(cache_dir).glob("*.mp3"))
                 # Cache should be empty when preprocessing is disabled
                 assert len(cache_files) == 0, "Preprocessing cache should be empty when disabled"
 
@@ -305,7 +305,7 @@ class TestAudioPreprocessingWithWhisperE2E:
             if os.path.exists(cache_dir):
                 # Cache may have 0 to N files depending on whether preprocessing succeeded
                 # and whether episodes share the same audio
-                _ = list(Path(cache_dir).glob("*.opus"))  # Check cache exists
+                _ = list(Path(cache_dir).glob("*.mp3"))  # Check cache exists
 
     def test_preprocessing_integration_with_episode_processor(self, e2e_server):
         """Test preprocessing integration with episode processor workflow.

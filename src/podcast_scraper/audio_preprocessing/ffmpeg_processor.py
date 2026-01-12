@@ -88,16 +88,18 @@ class FFmpegAudioPreprocessor:
         start_time = time.time()
 
         # Build ffmpeg command
+        # -vn: disable video (audio-only output)
         # -ac 1: convert to mono
         # -ar <sample_rate>: resample to configured sample rate
         # -af silenceremove: remove silence (conservative thresholds)
         # -af loudnorm: normalize loudness to configured target
-        # -c:a libopus: speech-optimized codec
-        # -b:a 24k: 24 kbps bitrate
+        # -c:a libmp3lame: MP3 codec (widely supported by OpenAI API)
+        # -b:a 64k: 64 kbps bitrate (good quality for speech, still compact)
         cmd = [
             "ffmpeg",
             "-i",
             input_path,
+            "-vn",  # No video (audio-only)
             "-ac",
             "1",  # Mono
             "-ar",
@@ -114,9 +116,9 @@ class FFmpegAudioPreprocessor:
                 f"loudnorm=I={self.target_loudness}:LRA=11:TP=-1.5"
             ),
             "-c:a",
-            "libopus",  # Speech-optimized codec
+            "libmp3lame",  # MP3 codec (widely supported, reliable)
             "-b:a",
-            "24k",  # 24 kbps
+            "64k",  # 64 kbps (good quality for speech)
             "-y",  # Overwrite output
             output_path,
         ]

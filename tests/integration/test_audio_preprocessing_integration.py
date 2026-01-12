@@ -89,7 +89,7 @@ class TestAudioPreprocessingIntegration(unittest.TestCase):
         preprocessor = factory.create_audio_preprocessor(self.cfg)
         self.assertIsNotNone(preprocessor)
 
-        output_path = os.path.join(self.temp_dir, "preprocessed.opus")
+        output_path = os.path.join(self.temp_dir, "preprocessed.mp3")
         success, elapsed = preprocessor.preprocess(str(self.fixture_audio), output_path)
 
         self.assertTrue(success, "Preprocessing should succeed with real audio file")
@@ -100,7 +100,7 @@ class TestAudioPreprocessingIntegration(unittest.TestCase):
     def test_preprocessing_reduces_file_size(self):
         """Test that preprocessing reduces file size for typical podcast audio."""
         preprocessor = factory.create_audio_preprocessor(self.cfg)
-        output_path = os.path.join(self.temp_dir, "preprocessed.opus")
+        output_path = os.path.join(self.temp_dir, "preprocessed.mp3")
 
         original_size = os.path.getsize(self.fixture_audio)
         success, _ = preprocessor.preprocess(str(self.fixture_audio), output_path)
@@ -124,7 +124,7 @@ class TestAudioPreprocessingIntegration(unittest.TestCase):
         cache_key = preprocessor.get_cache_key(str(self.fixture_audio))
 
         # First preprocessing - should miss cache
-        output_path1 = os.path.join(self.temp_dir, "preprocessed1.opus")
+        output_path1 = os.path.join(self.temp_dir, "preprocessed1.mp3")
         success1, elapsed1 = preprocessor.preprocess(str(self.fixture_audio), output_path1)
         self.assertTrue(success1)
 
@@ -183,7 +183,7 @@ class TestAudioPreprocessingIntegration(unittest.TestCase):
         self.assertEqual(preprocessor.silence_duration, 1.5)
         self.assertEqual(preprocessor.target_loudness, -14)
 
-        output_path = os.path.join(self.temp_dir, "preprocessed.opus")
+        output_path = os.path.join(self.temp_dir, "preprocessed.mp3")
         success, _ = preprocessor.preprocess(str(self.fixture_audio), output_path)
 
         self.assertTrue(success, "Preprocessing should succeed with custom config")
@@ -191,14 +191,14 @@ class TestAudioPreprocessingIntegration(unittest.TestCase):
     def test_preprocessing_output_format(self):
         """Test that preprocessed output is in Opus format."""
         preprocessor = factory.create_audio_preprocessor(self.cfg)
-        output_path = os.path.join(self.temp_dir, "preprocessed.opus")
+        output_path = os.path.join(self.temp_dir, "preprocessed.mp3")
 
         success, _ = preprocessor.preprocess(str(self.fixture_audio), output_path)
         self.assertTrue(success)
 
-        # Verify file exists and has .opus extension
+        # Verify file exists and has .mp3 extension
         self.assertTrue(os.path.exists(output_path))
-        self.assertTrue(output_path.endswith(".opus"))
+        self.assertTrue(output_path.endswith(".mp3"))
 
         # Verify file is not empty
         self.assertGreater(os.path.getsize(output_path), 0)
@@ -235,7 +235,7 @@ class TestAudioPreprocessingCacheIntegration(unittest.TestCase):
     def test_cache_save_and_retrieve(self):
         """Test saving to cache and retrieving."""
         cache_key = "test_key_12345"
-        source_file = os.path.join(self.temp_dir, "source.opus")
+        source_file = os.path.join(self.temp_dir, "source.mp3")
 
         # Create a dummy source file
         with open(source_file, "wb") as f:
@@ -246,7 +246,7 @@ class TestAudioPreprocessingCacheIntegration(unittest.TestCase):
 
         # Verify cache file exists
         self.assertTrue(os.path.exists(cached_path))
-        self.assertEqual(cached_path, os.path.join(self.cache_dir, f"{cache_key}.opus"))
+        self.assertEqual(cached_path, os.path.join(self.cache_dir, f"{cache_key}.mp3"))
 
         # Retrieve from cache
         retrieved_path = cache.get_cached_audio_path(cache_key, self.cache_dir)
@@ -265,7 +265,7 @@ class TestAudioPreprocessingCacheIntegration(unittest.TestCase):
         """Test that cache directory is created if it doesn't exist."""
         non_existent_cache_dir = os.path.join(self.temp_dir, "new_cache")
         cache_key = "test_key"
-        source_file = os.path.join(self.temp_dir, "source.opus")
+        source_file = os.path.join(self.temp_dir, "source.mp3")
 
         # Create source file
         with open(source_file, "wb") as f:

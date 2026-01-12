@@ -507,7 +507,7 @@ def transcribe_media_to_text(
                 )
 
                 # Preprocess audio
-                preprocessed_path = f"{temp_media}.preprocessed.opus"
+                preprocessed_path = f"{temp_media}.preprocessed.mp3"
                 success, preprocess_elapsed = audio_preprocessor.preprocess(
                     temp_media, preprocessed_path
                 )
