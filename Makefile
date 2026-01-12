@@ -1,3 +1,6 @@
+# Force bash for read -p compatibility (macOS sh doesn't support -p)
+SHELL := /bin/bash
+
 # Auto-detect venv Python if .venv exists, otherwise use python3
 ifeq ($(wildcard .venv/bin/python),)
 PYTHON ?= python3
@@ -701,3 +704,54 @@ restore-cache-dry-run:
 	fi; \
 	eval $$cmd
 
+# --- Git Worktree Targets ---
+
+.PHONY: wt-setup wt-new wt-list wt-remove wt-prune
+
+wt-setup:
+	@read -p "Issue number (e.g. 169, leave empty for none): " issue; \
+	read -p "Branch type (feat/fix/rel/docs): " type; \
+	read -p "Short name (e.g. dependabot): " name; \
+	branch_name="$$type/"; \
+	if [ -n "$$issue" ]; then branch_name="$$branch_name$$issue-"; fi; \
+	branch_name="$$branch_name$$name"; \
+	folder_name="../podcast_scraper-"; \
+	if [ -n "$$issue" ]; then folder_name="$$folder_name$$issue-"; fi; \
+	folder_name="$$folder_name$$name"; \
+	echo "Creating worktree at $$folder_name with branch $$branch_name..."; \
+	git worktree add $$folder_name -b $$branch_name origin/main; \
+	cd $$folder_name && python3 -m venv .venv && .venv/bin/python -m pip install --upgrade pip setuptools && .venv/bin/python -m pip install -e .[dev,ml] && (if [ -f docs/requirements.txt ]; then .venv/bin/python -m pip install -r docs/requirements.txt; fi); \
+	echo "✓ Worktree setup complete at $$folder_name"
+
+wt-new:
+	@read -p "Issue number (e.g. 169, leave empty for none): " issue; \
+	read -p "Branch type (feat/fix/rel/docs): " type; \
+	read -p "Short name (e.g. dependabot): " name; \
+	branch_name="$$type/"; \
+	if [ -n "$$issue" ]; then branch_name="$$branch_name$$issue-"; fi; \
+	branch_name="$$branch_name$$name"; \
+	folder_name="../podcast_scraper-"; \
+	if [ -n "$$issue" ]; then folder_name="$$folder_name$$issue-"; fi; \
+	folder_name="$$folder_name$$name"; \
+	echo "Creating worktree at $$folder_name with branch $$branch_name..."; \
+	git worktree add $$folder_name -b $$branch_name origin/main
+
+wt-list:
+	@git worktree list
+
+wt-remove:
+	@git worktree list; \
+	read -p "Enter path of worktree to remove (e.g. ../podcast_scraper-169-dependabot): " path; \
+	if [ -z "$$path" ]; then echo "No path entered, aborting."; exit 1; fi; \
+	git worktree remove $$path; \
+	read -p "Delete branch as well? (y/n): " delete_branch; \
+	if [ "$$delete_branch" = "y" ]; then \
+		read -p "Enter branch name to delete: " branch; \
+		if [ -n "$$branch" ]; then \
+			echo "Deleting branch $$branch..."; \
+			git branch -D $$branch; \
+		fi \
+	fi
+
+wt-prune:
+	@git worktree prune

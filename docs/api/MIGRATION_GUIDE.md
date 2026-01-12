@@ -81,6 +81,42 @@ episode = models.Episode(...)
 - **v1.0.0**: Monolithic `podcast_scraper.py` (~800 lines)
 - **v2.0.0**: Modular architecture (8 modules) with minimal API (4 exports) ⭐
 - **v2.3.0**: Added service API (`service.run`, `service.run_from_config_file`) and API versioning
+- **v2.4.0**: Added multi-provider support, advanced cache management, and output directory reorganization
+
+## API Migration Guide - v2.3 to v2.4
+
+### Output Directory Structure
+
+**Before (v2.3):** All output files in a single flat directory.
+**After (v2.4):** Transcripts and metadata are now separated into subdirectories.
+
+```text
+output_dir/
+├── transcripts/
+│   └── 0001 - Title.txt
+└── metadata/
+    └── 0001 - Title.metadata.json
+```
+
+### New Default Values
+
+- `transcribe_missing` now defaults to `True` (was `False`).
+- `whisper_model` now defaults to `base.en` (was `base`).
+
+### Renamed Provider Types (Deprecated aliases remain)
+
+- `speaker_detector_type` → `speaker_detector_provider`
+- `summary_provider='local'` → `summary_provider='transformers'`
+- `speaker_detector_provider='ner'` → `speaker_detector_provider='spacy'`
+
+### Cache Management
+
+New `cache` subcommand for unified management of all ML model caches (Whisper, Transformers, spaCy).
+
+```bash
+python -m podcast_scraper.cli cache --status
+python -m podcast_scraper.cli cache --clean all --yes
+```yaml
 
 ## API Versioning
 

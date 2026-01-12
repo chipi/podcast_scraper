@@ -72,11 +72,6 @@ The unified provider architecture addresses these issues by:
 ### Unified Provider Structure
 
 ```
-│
-└── OpenAI Provider (openai/openai_provider.py)
-    ├── TranscriptionProvider (Whisper API)
-    ├── SpeakerDetector (GPT API)
-    └── SummarizationProvider (GPT API)
 ```
 
 ### Factory Pattern
@@ -497,11 +492,6 @@ The naming is inconsistent:
 ### Test File Organization
 
 ```
-│       │   └── test_ml_provider_lifecycle.py    # Lifecycle & edge cases
-│       ├── openai/
-│       │   ├── test_openai_provider.py          # Core functionality
-│       │   └── test_openai_provider_lifecycle.py # Lifecycle & edge cases
-│       ├── transcription/
 │       │   └── test_transcription_provider.py   # Factory tests
 │       ├── speaker_detectors/
 │       │   └── test_speaker_detector_provider.py # Factory tests

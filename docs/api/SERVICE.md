@@ -34,13 +34,9 @@ else:
 # Option 2: From config file
 
 result = service.run_from_config_file("config.yaml")
-```text
+```
 
-    options:
-      show_root_heading: true
-      heading_level: 3
-
-::: podcast_scraper.service.run_from_config_file
+::: podcast_scraper.service.run
     options:
       show_root_heading: true
       heading_level: 3
@@ -76,8 +72,11 @@ RestartSec=30
 
 [Install]
 WantedBy=multi-user.target
-```json
+```
 
+### Supervisor Configuration
+
+```ini
 [program:podcast_scraper]
 command=/usr/bin/python3 -m podcast_scraper.service --config /etc/podcast-scraper/config.yaml
 directory=/opt/podcast-scraper
@@ -86,16 +85,18 @@ autostart=true
 autorestart=true
 redirect_stderr=true
 stdout_logfile=/var/log/podcast-scraper.log
+```
+
+### Programmatic Usage
 
 ```python
 from podcast_scraper import service
+import sys
 
 result = service.run_from_config_file("config.yaml")
 
 if not result.success:
-
     # Log error and exit with appropriate code
-
     print(f"Service failed: {result.error}", file=sys.stderr)
     sys.exit(1)
 
@@ -103,8 +104,7 @@ if not result.success:
 
 print(f"Success: {result.summary}")
 sys.exit(0)
-
-```text
+```
 
 - [Configuration](CONFIGURATION.md) - Configuration options
 - Service examples: `examples/systemd.service.example`, `examples/supervisor.conf.example`

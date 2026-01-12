@@ -15,6 +15,7 @@ Practical guides for using and developing Podcast Scraper.
 | Guide | Description |
 | ------- | ------------- |
 | [Development Guide](DEVELOPMENT_GUIDE.md) | Development environment setup and workflow |
+| [Git Worktree Guide](GIT_WORKTREE_GUIDE.md) | Parallel development with git worktrees |
 | [Dependencies Guide](DEPENDENCIES_GUIDE.md) | Third-party dependencies and rationale |
 | [Markdown Linting](MARKDOWN_LINTING_GUIDE.md) | Markdown style and linting practices |
 
@@ -41,7 +42,7 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ------------- |
-| [Summarization Guide](SUMMARIZATION_GUIDE.md) | Episode summarization details |
+| [ML Provider Reference](ML_PROVIDER_REFERENCE.md) | Technical reference and tuning for local ML models |
 
 ## AI Coding
 

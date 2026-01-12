@@ -276,11 +276,6 @@ def create_anthropic_client(cfg: config.Config) -> Anthropic:
         cfg: Configuration object with anthropic_api_key and optional anthropic_api_base
 
 ```
-    Returns:
-        Anthropic client instance
-
-```
-
     Raises:
         ValueError: If API key is not provided
     """
@@ -291,17 +286,10 @@ def create_anthropic_client(cfg: config.Config) -> Anthropic:
         )
 
 ```
-```text
 
-    # Support custom base_url for E2E testing with mock servers
-    if cfg.anthropic_api_base:
         client_kwargs["base_url"] = cfg.anthropic_api_base
 
 ```
-    return Anthropic(**client_kwargs)
-
-```
-
 #### 5.2 Speaker Detection Provider
 
 **File**: `podcast_scraper/speaker_detectors/anthropic_detector.py`
@@ -332,19 +320,13 @@ class AnthropicSpeakerDetector:
     """Anthropic Claude API-based speaker detection provider.
 
 ```
-    It implements the SpeakerDetector protocol.
-    """
-
 ```python
 
     def __init__(self, cfg: config.Config):
         """Initialize Anthropic speaker detector.
 
 ```
-            cfg: Configuration object with anthropic_api_key and speaker settings
-```
 
-        Raises:
             ValueError: If Anthropic API key is not provided
         """
         self.cfg = cfg
@@ -354,17 +336,18 @@ class AnthropicSpeakerDetector:
         self._initialized = False
 
 ```python
+
     def initialize(self) -> None:
         """Initialize provider (no local model loading needed for API)."""
         if self._initialized:
             return
+
 ```
 
-        logger.debug("Initializing Anthropic speaker detector (model: %s)", self.model)
-        self._initialized = True
         logger.debug("Anthropic speaker detector initialized successfully")
 
 ```python
+
     def detect_hosts(
         self,
         feed_title: str,
@@ -372,41 +355,30 @@ class AnthropicSpeakerDetector:
         feed_authors: Optional[List[str]],
     ) -> Set[str]:
         """Detect hosts from feed metadata using Anthropic API.
+
 ```
 
-        Args:
-            feed_title: Title of the podcast feed
             feed_description: Optional description of the feed
             feed_authors: Optional list of feed authors
 
 ```
-            Set of detected host names
-        """
-        if not self._initialized:
             self.initialize()
+
 ```
 
-        # Build prompts using prompt_store (RFC-017)
-        system_prompt, user_prompt = self._build_host_detection_prompts(
             feed_title, feed_description, feed_authors
         )
 
 ```
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=self.cfg.anthropic_max_tokens or 500,
                 temperature=self.temperature,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
             )
+
 ```
 
-            # Parse response
-            content = response.content[0].text
             hosts = self._parse_hosts_from_response(content)
 
-```
-            return hosts
 ```python
 
         except Exception as e:
@@ -414,6 +386,7 @@ class AnthropicSpeakerDetector:
             raise ValueError(f"Anthropic host detection failed: {e}") from e
 
 ```python
+
     def detect_speakers(
         self,
         episode_title: str,
@@ -421,25 +394,19 @@ class AnthropicSpeakerDetector:
         known_hosts: Set[str],
     ) -> Tuple[List[str], Set[str], bool]:
         """Detect speakers for an episode using Anthropic API.
-```
 
-        Args:
-            episode_title: Title of the episode
-            episode_description: Optional description of the episode
+```
             known_hosts: Set of known host names
 
 ```
-            Tuple of (speaker_names, detected_hosts, success)
-        """
+
         if not self._initialized:
             self.initialize()
+
 ```
 
-        system_prompt, user_prompt = self._build_speaker_detection_prompts(
-            episode_title, episode_description, known_hosts
-        )
-
 ```text
+
         try:
             response = self.client.messages.create(
                 model=self.model,
@@ -448,16 +415,15 @@ class AnthropicSpeakerDetector:
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
             )
-```
 
-            content = response.content[0].text
-            speakers, detected_hosts, success = self._parse_speakers_from_response(
-                content, known_hosts
+```
             )
 
 ```text
+
             logger.debug("Anthropic detected speakers: %s", speakers)
             return speakers, detected_hosts, success
+
 ```python
 
         except Exception as e:
@@ -465,6 +431,7 @@ class AnthropicSpeakerDetector:
             raise ValueError(f"Anthropic speaker detection failed: {e}") from e
 
 ```python
+
     def analyze_patterns(
         self,
         episodes: List[models.Episode],
@@ -473,6 +440,7 @@ class AnthropicSpeakerDetector:
         """Analyze episode patterns (optional, can use local logic)."""
         # Return None to use local pattern analysis
         return None
+
 ```python
 
     def cleanup(self) -> None:
@@ -480,6 +448,7 @@ class AnthropicSpeakerDetector:
         pass
 
 ```python
+
     def _build_host_detection_prompts(
         self,
         feed_title: str,
@@ -488,11 +457,8 @@ class AnthropicSpeakerDetector:
     ) -> Tuple[str, str]:
         """Build prompts for host detection using prompt_store."""
         from ..prompt_store import render_prompt
-```
 
-        system_prompt = render_prompt(self.cfg.anthropic_ner_system_prompt)
-        user_prompt = render_prompt(
-            self.cfg.anthropic_ner_user_prompt,
+```
             feed_title=feed_title,
             feed_description=feed_description or "",
             feed_authors=", ".join(feed_authors) if feed_authors else "",
@@ -501,6 +467,7 @@ class AnthropicSpeakerDetector:
         return system_prompt, user_prompt
 
 ```python
+
     def _build_speaker_detection_prompts(
         self,
         episode_title: str,
@@ -509,11 +476,8 @@ class AnthropicSpeakerDetector:
     ) -> Tuple[str, str]:
         """Build prompts for speaker detection using prompt_store."""
         from ..prompt_store import render_prompt
-```
 
-        system_prompt = render_prompt(self.cfg.anthropic_ner_system_prompt)
-        user_prompt = render_prompt(
-            self.cfg.anthropic_ner_user_prompt,
+```
             episode_title=episode_title,
             episode_description=episode_description or "",
             known_hosts=", ".join(known_hosts) if known_hosts else "",
@@ -522,6 +486,7 @@ class AnthropicSpeakerDetector:
         return system_prompt, user_prompt
 
 ```python
+
     def _parse_hosts_from_response(self, response_text: str) -> Set[str]:
         """Parse host names from API response."""
         try:
@@ -533,11 +498,8 @@ class AnthropicSpeakerDetector:
                 return set(data)
         except json.JSONDecodeError:
             pass
-```
 
-        # Fallback: parse as comma-separated or newline-separated
-        hosts = set()
-        for line in response_text.strip().split("\n"):
+```
             for name in line.split(","):
                 name = name.strip().strip("-").strip("*").strip()
                 if name and len(name) > 1:
@@ -545,6 +507,7 @@ class AnthropicSpeakerDetector:
         return hosts
 
 ```python
+
     def _parse_speakers_from_response(
         self, response_text: str, known_hosts: Set[str]
     ) -> Tuple[List[str], Set[str], bool]:
@@ -560,18 +523,13 @@ class AnthropicSpeakerDetector:
                 return all_speakers, hosts, True
         except json.JSONDecodeError:
             pass
-```
 
-        # Fallback parsing
-        speakers = []
-        for line in response_text.strip().split("\n"):
+```
             for name in line.split(","):
                 name = name.strip().strip("-").strip("*").strip()
                 if name and len(name) > 1:
                     speakers.append(name)
 
-```
-        return speakers, detected_hosts, len(speakers) > 0
 ```
 
 #### 5.3 Summarization Provider
@@ -579,6 +537,7 @@ class AnthropicSpeakerDetector:
 **File**: `podcast_scraper/summarization/anthropic_provider.py`
 
 ```python
+
 """Anthropic Claude API-based summarization provider.
 
 This module provides a SummarizationProvider implementation using Anthropic's Claude API
@@ -604,21 +563,13 @@ class AnthropicSummarizationProvider:
 
     """Anthropic Claude API-based summarization provider.
 
-```
-    """
-
 ```python
 
     def __init__(self, cfg: config.Config):
         """Initialize Anthropic summarization provider.
 
 ```
-        Args:
-            cfg: Configuration object with anthropic_api_key and summarization settings
 
-```
-
-        Raises:
             ValueError: If Anthropic API key is not provided
         """
         self.cfg = cfg
@@ -640,8 +591,6 @@ class AnthropicSummarizationProvider:
 
 ```
 
-        logger.debug("Initializing Anthropic summarization provider (model: %s)", self.model)
-        self._initialized = True
         logger.debug("Anthropic summarization provider initialized successfully")
 
 ```python
@@ -657,19 +606,11 @@ class AnthropicSummarizationProvider:
 
 ```
 
-        Args:
-            text: Transcript text to summarize
             episode_title: Optional episode title
             episode_description: Optional episode description
             params: Optional parameters dict
 
 ```
-        Returns:
-            Dictionary with summary results
-
-```
-
-        Raises:
             ValueError: If summarization fails
             RuntimeError: If provider is not initialized
         """
@@ -679,12 +620,7 @@ class AnthropicSummarizationProvider:
             )
 
 ```
-        max_length = (params.get("max_length") if params else None) or self.cfg.summary_max_length
-        min_length = (params.get("min_length") if params else None) or self.cfg.summary_min_length
 
-```
-
-            "Summarizing text via Anthropic API (model: %s, max_length: %d)",
             self.model,
             max_length,
         )
@@ -706,8 +642,6 @@ class AnthropicSummarizationProvider:
 
 ```
 
-            # Call Anthropic API
-            response = self.client.messages.create(
                 model=self.model,
                 max_tokens=self.cfg.anthropic_max_tokens or max_length,
                 temperature=self.temperature,
@@ -716,14 +650,7 @@ class AnthropicSummarizationProvider:
             )
 
 ```
-
-```text
-
-                logger.warning("Anthropic API returned empty summary")
                 summary = ""
-
-```
-            logger.debug("Anthropic summarization completed: %d characters", len(summary))
 
 ```python
 
@@ -731,10 +658,6 @@ class AnthropicSummarizationProvider:
             from ..prompt_store import get_prompt_metadata
 
 ```
-
-```text
-
-                prompt_metadata["system"] = get_prompt_metadata(system_prompt_name)
             user_params = {
                 "transcript": text[:100] + "..." if len(text) > 100 else text,
                 "title": episode_title or "",
@@ -744,9 +667,7 @@ class AnthropicSummarizationProvider:
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
 ```
-            return {
-                "summary": summary,
-                "summary_short": None,
+
                 "metadata": {
                     "model": self.model,
                     "provider": "anthropic",
@@ -776,22 +697,11 @@ class AnthropicSummarizationProvider:
         from ..prompt_store import render_prompt
 
 ```
-
-        user_prompt_name = self.cfg.anthropic_summary_user_prompt
-
-```text
-
         system_prompt = render_prompt(system_prompt_name)
 
 ```
 
-        # Estimate paragraphs
-        paragraphs_min = max(1, min_length // 100)
-        paragraphs_max = max(paragraphs_min, max_length // 100)
-
 ```
-            "title": episode_title or "",
-            "paragraphs_min": paragraphs_min,
             "paragraphs_max": paragraphs_max,
         }
         template_params.update(self.cfg.summary_prompt_params)
@@ -801,8 +711,6 @@ class AnthropicSummarizationProvider:
         user_prompt = render_prompt(user_prompt_name, **template_params)
 
 ```
-        return (
-            system_prompt,
             user_prompt,
             system_prompt_name,
             user_prompt_name,
@@ -981,20 +889,17 @@ def _handle_anthropic_messages(self):
         request_data = json.loads(body.decode("utf-8"))
 
 ```text
+
         messages = request_data.get("messages", [])
         system = request_data.get("system", "")
         model = request_data.get("model", "claude-3-5-haiku-latest")
+
 ```
 
-        # Get user message
-        user_message = next(
-            (m.get("content", "") for m in messages if m.get("role") == "user"),
             ""
         )
 
 ```
-        if "speaker" in system.lower() or "host" in system.lower():
-            # Speaker detection response
             response_content = json.dumps({
                 "speakers": ["Host", "Guest"],
                 "hosts": ["Host"],
@@ -1007,6 +912,7 @@ def _handle_anthropic_messages(self):
                 "The episode covers various topics discussed by the hosts and guests."
             )
             response_content = summary_text
+
 ```json
 
         # Build Anthropic response format
@@ -1030,18 +936,11 @@ def _handle_anthropic_messages(self):
         }
 
 ```
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(response_json)))
         self.end_headers()
         self.wfile.write(response_json.encode("utf-8"))
-```
-
-    except Exception as e:
-        self.send_error(500, f"Error handling Anthropic messages: {e}")
 
 ```
-
 ```python
 
 class E2EServerURLs:
@@ -1052,6 +951,7 @@ class E2EServerURLs:
         return f"http://{self.host}:{self.port}"
 
 ```
+
 ### 9. Dependencies
 
 Add to `pyproject.toml`:
@@ -1072,8 +972,6 @@ ai = [
 ]
 
 ```
-
-```bash
 
 # For Anthropic support
 

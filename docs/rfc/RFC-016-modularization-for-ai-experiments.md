@@ -170,7 +170,6 @@ class LocalSummarizationProvider:
 
         # Current summarizer.py logic, but as a provider
 
-```
 ```python
 
 # podcast_scraper/metadata.py
@@ -192,13 +191,14 @@ def generate_episode_metadata(
     if summarization_provider is None:
 
 ```python
+
         # Create default provider from config (backward compatibility)
+
 ```python
 
         from .providers.summarization.factory import create_summarization_provider
         summarization_provider = create_summarization_provider(cfg)
 
-```
 ```
 
     summary_result = summarization_provider.summarize(
@@ -234,10 +234,6 @@ def remove_sponsor_blocks(text: str) -> str:
 
     """Remove sponsor blocks (moved from summarizer.py)."""
 
-```
-    # Current remove_sponsor_blocks() implementation
-
-```
 ```python
 
 - `metadata.py` imports from `preprocessing` instead of `summarizer`
@@ -283,8 +279,6 @@ class OpenAISummarizationProvider:
 
 ```
 
-- ✅ Local providers (transformers, Whisper) don't use prompts
-- ✅ Prompt management doesn't affect protocol compliance
 - ✅ Same `prompt_store` used in both application and experiments
 
 See RFC-017 for complete prompt management design.
@@ -327,17 +321,15 @@ class SummarizationBackend:
         self.config = experiment_config
 
 ```text
+
         # Convert experiment config to Config object
-```
 
-        cfg = self._create_config_from_experiment(experiment_config)
-
-```
 ```
 
         self.provider = create_summarization_provider(cfg)
 
 ```python
+
     def summarize(
         self,
         transcript: str,
@@ -346,28 +338,18 @@ class SummarizationBackend:
         params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Summarize transcript using configured provider."""
-```
-
-        # Merge experiment params with method params
 
 ```
 ```
-
-        return self.provider.summarize(
-            text=transcript,
             episode_title=episode_title,
             episode_description=episode_description,
             params=merged_params,
         )
 
 ```python
+
     def _create_config_from_experiment(self, exp_config: Dict[str, Any]) -> config.Config:
         """Convert experiment config to Config object."""
-```
-
-        # Map experiment config to Config fields
-
-```
 
 ```python
 
@@ -419,9 +401,6 @@ def evaluate_summaries(
         }
     """
 
-```
-    # Current evaluation logic, but with standardized input/output
-
 ```python
 
     ...
@@ -435,16 +414,6 @@ def main():
     # Parse CLI args
 
 ```
-
-    # Load predictions and gold data
-
-```
-    # Call evaluate_summaries()
-
-```
-
-    # Print results
-
 ```python
 
 # scripts/experiments/utils.py
@@ -469,9 +438,6 @@ def load_predictions_from_metadata(metadata_dir: Path) -> List[Dict[str, Any]]:
 
     # Load from existing metadata.json files
 
-```
-
-```text
 ```python
 
 # podcast_scraper/workflow.py
@@ -501,9 +467,6 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         transcription_provider = create_transcription_provider(cfg)
 
 ```
-```
-
-    # ...
 
 ```python
 
@@ -537,27 +500,19 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
     # Map models
 
 ```
-    if "summarizer" in experiment_config.get("models", {}):
-        model_config = experiment_config["models"]["summarizer"]
-        if model_config["type"] == "openai":
-            config_dict["summary_provider"] = "openai"
+
             config_dict["openai_summarization_model"] = model_config["name"]
         elif model_config["type"] == "hf_local":
             config_dict["summary_provider"] = "transformers"
             config_dict["summary_model"] = model_config["name"]
 
 ```
-```
-            if "reduce" in experiment_config.get("models", {}):
                 reduce_config = experiment_config["models"]["reduce"]
                 if reduce_config["type"] == "hf_local":
                     config_dict["summary_reduce_model"] = reduce_config["name"]
 
 ```
-```
-    if "params" in experiment_config:
-        params = experiment_config["params"]
-        if "max_length" in params:
+
             config_dict["summary_max_length"] = params["max_length"]
         if "min_length" in params:
             config_dict["summary_min_length"] = params["min_length"]
@@ -571,20 +526,12 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
             config_dict["summary_device"] = params["device"]
 
 ```
-```
-        # Note: Some OpenAI params (temperature, etc.) may need to be passed
 
-```
 ```python
 
     # Map prompts (using prompt_store from RFC-017)
 
 ```
-
-        prompts = experiment_config["prompts"]
-
-```
-        # Map prompt names to config fields
 
 ```
 
@@ -594,11 +541,7 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
         if "params" in prompts:
             config_dict["summary_prompt_params"] = prompts["params"]
 
-```
-    return config.Config(**config_dict)
-
 ```go
-
 - Versioned prompt files (`.j2` templates)
 - Jinja2 parameterization
 - Caching and tracking

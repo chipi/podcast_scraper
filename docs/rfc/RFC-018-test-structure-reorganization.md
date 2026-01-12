@@ -581,13 +581,7 @@ jobs:
           pytest tests/unit/ -n auto --cov=podcast_scraper --cov-report=term-missing
 
 ```
-
-```text
-
-          # Plugin automatically detects network calls and filesystem I/O
-
 ```
-  # Integration tests - run on main branch and PRs
 
   test-integration:
     runs-on: ubuntu-latest
@@ -606,7 +600,6 @@ jobs:
 
 ```
 
-          python -m pip install --upgrade pip
           pip install -e .[dev,ml]
 
       - name: Run integration tests
@@ -618,8 +611,7 @@ jobs:
           pytest tests/integration/ -m integration -n auto --reruns 2 --reruns-delay 1
 
 ```
-  test-e2e:
-    runs-on: ubuntu-latest
+
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
 
@@ -636,7 +628,6 @@ jobs:
 
 ```
 
-          python -m pip install --upgrade pip
           pip install -e .[dev,ml]
 
       - name: Run workflow E2E tests
@@ -648,8 +639,7 @@ jobs:
           pytest tests/e2e/ -m e2e --reruns 2 --reruns-delay 1
 
 ```
-  test:
-    runs-on: ubuntu-latest
+
     steps:
 
       - uses: actions/checkout@v4
@@ -665,7 +655,6 @@ jobs:
 
 ```
 
-          python -m pip install --upgrade pip
           pip install -e .[dev,ml]
 
 ```text
@@ -679,10 +668,6 @@ jobs:
           pytest tests/ -m "not network" -n auto --cov=podcast_scraper --cov-report=term-missing --reruns 2 --reruns-delay 1
 
 ```
-
-paths:
-
-  - '**.py'
   - 'tests/**'  # Already covers all test subdirectories
   - 'pyproject.toml'
   - 'Makefile'

@@ -33,8 +33,10 @@ For comprehensive testing information, see the dedicated testing documentation:
 make test-unit            # Unit tests (parallel)
 make test-integration     # Integration tests (parallel, reruns)
 make test-e2e             # E2E tests (serial first, then parallel)
+make test-e2e-fast        # Tier 1 E2E tests (fast, no ML models)
 make test                 # All tests
 make test-fast            # Unit + critical path only
+make test-nightly         # Tier 3 E2E tests (real models, slow)
 ```python
 
 ### ML Dependencies in Tests
@@ -67,7 +69,7 @@ Modules importing ML dependencies at **module level** will fail unit tests in CI
 bash scripts/setup_venv.sh
 source .venv/bin/activate
 
-```
+```go
 
 **Note:** The `setup_venv.sh` script automatically installs the package in editable mode
 (`pip install -e .`), which is required for:
@@ -169,10 +171,13 @@ spaCy). This cache can grow large (several GB) with both dev/test and production
 To download and cache all required ML models:
 
 ```bash
+
 # Preload test models (small, fast models for local dev/testing)
+
 make preload-ml-models
 
 # Preload production models (large, quality models)
+
 make preload-ml-models-production
 ```
 
@@ -184,36 +189,45 @@ make preload-ml-models-production
 
 **See also:** `.cache/README.md` for detailed cache structure and usage.
 
-#### Backup and Restore
+## Backup and Restore
 
 The cache directory can be backed up and restored for easy management:
 
 **Backup:**
 
 ```bash
+
 # Create backup (saves to ~/podcast_scraper_cache_backups/)
+
 make backup-cache
 
 # Dry run to preview
+
 make backup-cache-dry-run
 
 # List existing backups
+
 make backup-cache-list
 
 # Clean up old backups (keep 5 most recent)
+
 make backup-cache-cleanup
 ```
 
 **Restore:**
 
 ```bash
+
 # Interactive restore (lists backups, prompts for selection)
+
 make restore-cache
 
 # Restore specific backup
+
 python scripts/restore_cache.py --backup cache_backup_20250108-120000.tar.gz
 
 # Force overwrite existing .cache
+
 python scripts/restore_cache.py --backup 20250108 --force
 ```
 
@@ -229,21 +243,47 @@ python scripts/restore_cache.py --backup 20250108 --force
 - `scripts/restore_cache.py` - Restore script documentation
 - `.cache/README.md` - Cache directory documentation
 
-#### Cleaning Cache
+## Cache Management Commands
 
-To remove cached models (useful for testing or freeing disk space):
+You can manage the ML model cache using the CLI or Makefile:
+
+**CLI Interface:**
 
 ```bash
-# Clean all ML model caches (user cache locations)
-make clean-cache
 
-# Clean build artifacts and caches
-make clean-all
+# View disk usage of all model caches
+
+python3 -m podcast_scraper.cli cache --status
+
+# Clean all caches (with confirmation)
+
+python3 -m podcast_scraper.cli cache --clean
+
+# Clean specific cache type (whisper, transformers, or spacy)
+
+python3 -m podcast_scraper.cli cache --clean whisper
+
+# Clean all caches non-interactively (for CI/CD)
+
+python3 -m podcast_scraper.cli cache --clean --yes
 ```
 
-**Note:** `make clean-cache` removes models from `~/.cache/` locations, not the project-local
-`.cache/` directory. To remove the project-local cache, manually delete `.cache/` or use the
-restore script to replace it.
+**Makefile Targets:**
+
+```bash
+
+# Clean user cache directories (e.g., ~/.cache/whisper)
+
+make clean-cache
+
+# Preload all test models
+
+make preload-ml-models
+
+# Preload all production models
+
+make preload-ml-models-production
+```
 
 ## Markdown Linting
 
@@ -290,7 +330,16 @@ Different AI assistants load guidelines from different locations:
 
 ### Critical Workflow Rules
 
-**🚨 BRANCH CREATION CHECKLIST - MANDATORY BEFORE CREATING ANY BRANCH:**
+## 🚨 Branch Creation & Worktree Workflow
+
+This project supports two development workflows:
+
+1. **Git Worktree Workflow (Recommended)**: Use multiple isolated folders for parallel development.
+   See the [Git Worktree Development Guide](GIT_WORKTREE_GUIDE.md) for details.
+
+2. **Traditional Branching**: Switching branches within a single directory (not recommended for parallel tasks).
+
+### 🚨 Branch Creation Checklist
 
 **CRITICAL: Always check for uncommitted changes before creating a new branch.**
 
@@ -796,7 +845,7 @@ nav:
 
 ## CI/CD Integration
 
-> **See also:** [`CI_CD.md`](../CI_CD.md) for complete CI/CD pipeline documentation with visualizations.
+> **See also:** [`ci/CD.md`](../ci/CD.md) for complete CI/CD pipeline documentation with visualizations.
 
 ### What Runs in CI
 
@@ -965,12 +1014,14 @@ if cfg.workers < 1:
 
 # Graceful degradation for optional features
 
+```python
+
 try:
     import whisper
     WHISPER_AVAILABLE = True
 except ImportError:
     WHISPER_AVAILABLE = False
-    logger.warning("Whisper not available, transcription disabled")
+
 ```
 
 ## Log Level Guidelines
@@ -1028,9 +1079,8 @@ logger.info("Summary generated in %.1fs (length: %d chars)", elapsed, len(summar
 # Bad - INFO for technical details (should be DEBUG)
 
 logger.info("Loading summarization model: %s on %s", model_name, device)
-```
 
-**Module-Specific Guidelines:**
+```
 
 - **Workflow:** INFO for episode counts, major stages; DEBUG for cleanup
 - **Summarization:** INFO for generation start/completion; DEBUG for model loading
@@ -1054,6 +1104,7 @@ When in doubt, prefer DEBUG over INFO - it's easier to promote a log level than 
 **Use the `progress.py` abstraction:**
 
 ```python
+
 from podcast_scraper import progress
 
 # Good - uses progress abstraction
@@ -1071,6 +1122,7 @@ with progress.make_progress(
 from tqdm import tqdm
 for episode in tqdm(episodes):
     process_episode(episode)
+
 ```
 
 ## Lazy Loading Pattern
@@ -1096,24 +1148,28 @@ def load_whisper():
                 "Install with: pip install openai-whisper"
             )
     return _whisper
+
 ```
 
 ## Module Responsibilities
 
-- **`cli.py`**: CLI only, no business logic
-- **`service.py`**: Service API, structured results for daemon use
-- **`workflow.py`**: Orchestration only, no HTTP/IO details
-- **`config.py`**: Configuration models and validation
-- **`downloader.py`**: HTTP operations only
-- **`filesystem.py`**: File system utilities only
-- **`rss_parser.py`**: RSS parsing, episode creation
-- **`episode_processor.py`**: Episode-level processing logic
-- **`whisper_integration.py`**: Whisper transcription interface
-- **`speaker_detection.py`**: NER-based speaker extraction
-- **`summarizer.py`**: Transcript summarization
-- **`metadata.py`**: Metadata document generation
-- **`progress.py`**: Progress reporting abstraction
-- **`models.py`**: Shared data models
+- **`cli.py`**: CLI entry point and argument parsing; no core business logic
+- **`service.py`**: Service API for programmatic/daemon use
+- **`workflow.py`**: Pipeline orchestration and high-level flow coordination
+- **`config.py`**: Configuration models, validation, and environment handling
+- **`downloader.py`**: HTTP operations, retries, and session management
+- **`filesystem.py`**: File system utilities, path normalization, and naming
+- **`rss_parser.py`**: RSS/XML parsing and episode model extraction
+- **`episode_processor.py`**: Episode-level processing logic and decision making
+- **`preprocessing.py`**: Audio preprocessing for transcription API compatibility
+- **`cache_manager.py`**: Management of ML model caches and disk usage
+- **`metrics.py`**: Pipeline execution metrics and statistics collection
+- **`whisper_integration.py`**: Whisper library integration and formatting
+- **`speaker_detection.py`**: NER-based host/guest detection (legacy logic)
+- **`summarizer.py`**: Local transformer-based summarization logic
+- **`metadata.py`**: Metadata document generation (JSON/YAML)
+- **`progress.py`**: Progress reporting abstraction (tqdm default)
+- **`models.py`**: Shared dataclasses (Episode, RssFeed, Job)
 
 **Keep concerns separated** - don't mix HTTP calls in CLI, don't put business logic in config, etc.
 
@@ -1154,4 +1210,4 @@ For detailed information about third-party dependencies, see the
 ## Summarization Implementation
 
 For detailed information about the summarization system, see the
-[Summarization Guide](SUMMARIZATION_GUIDE.md).
+[ML Provider Reference](ML_PROVIDER_REFERENCE.md).

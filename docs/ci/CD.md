@@ -1,10 +1,9 @@
-# CI/CD Pipeline
+# CI/CD Pipeline (v2.4.0)
 
 ## Overview
 
 The Podcast Scraper project uses GitHub Actions for continuous integration and deployment. The CI/CD
-pipeline consists of **six main workflows** that automate testing, code quality checks, security
-scanning, Docker validation, documentation deployment, and metrics collection.
+pipeline is optimized for version 2.4.0, featuring tiered testing, parallel execution, and automated metrics collection.
 
 ### Workflows Summary
 
@@ -57,23 +56,22 @@ graph TB
     end
 
 ```python
+
     T1 --> P1 & P2 & P3 & P4
     T2 --> P1 & P2 & P3 & P4
     T1 --> D1 --> D2
     T1 --> C1
     T1 --> DOCK1 --> DOCK2
     T1 --> SNYK1 & SNYK2
+
+```mermaid
+    style P1 fill:#e1f5e1
+    style D1 fill:#e1e5ff
+    style C1 fill:#ffe1e1
+    style DOCK1 fill:#fff4e1
+    style SNYK1 fill:#ffe1f5
 ```
 
-```text
-style P1 fill:#e1f5e1
-style D1 fill:#e1e5ff
-style C1 fill:#ffe1e1
-style DOCK1 fill:#fff4e1
-style SNYK1 fill:#ffe1f5
-```
-
-**File:** `.github/workflows/python-app.yml`
 **Triggers:** Push and Pull Requests to `main` branch (only when relevant files change)
 
 **Path Filters:**
@@ -123,23 +121,28 @@ Each workflow only runs when specific files are modified:
 
 This is the main CI pipeline that ensures code quality, runs tests, builds documentation, and validates the package.
 
-### Two-Tier Testing Strategy
+### Three-Tier Testing Strategy (v2.4.0)
 
-The workflow uses a **two-tier testing strategy** optimized for speed and coverage:
+The workflow uses a **three-tier testing strategy** optimized for speed, reliability, and production validation:
 
-1. **Pull Requests:** Fast critical path tests only (quick feedback, ~10-15 min)
-2. **Push to Main:** Full test suite only (complete validation, no redundant fast tests)
+1. **Tier 1: Pull Requests (Fast)**: Runs unit tests, critical path integration tests, and Tier 1 E2E tests
+   (1 episode, small models). Target: <10 min feedback.
+2. **Tier 2: Main Branch (Full)**: Runs all unit, integration, and E2E tests. Includes coverage
+   collection and metrics generation.
+3. **Tier 3: Nightly (Comprehensive)**: Full 15-episode suite with production models (BART-large,
+   LED-large). Excludes LLM API tests to manage costs.
 
 ### Pull Request Execution Flow
 
 On pull requests, jobs run in parallel for fast feedback:
 
 ```mermaid
+
 graph LR
     A[PR Opened/Updated] --> B[Lint Job]
     A --> C[test-unit Job]
     A --> D[test-integration-fast Job<br/>Critical Path]
-    A --> E[test-e2e-fast Job<br/>Critical Path]
+    A --> E[test-e2e-fast Job<br/>Tier 1]
     A --> F[Docs Job]
     A --> G[Build Job]
 
@@ -156,9 +159,9 @@ graph LR
     style E fill:#FFE4B5
     style F fill:#90EE90
     style G fill:#90EE90
+
 ```
 
-- **Parallel execution:** All jobs run simultaneously for maximum speed
 - **Critical path focus:** Fast jobs run only critical path tests
 - **Fast feedback:** Critical path tests provide early pass/fail signal
 - **No coverage job on PRs:** Coverage is handled by individual test jobs
@@ -168,6 +171,7 @@ graph LR
 On push to main branch, separate test jobs run in parallel:
 
 ```mermaid
+
 graph LR
     A[Push to Main] --> B[Lint Job]
     A --> C[test-unit Job]
@@ -189,9 +193,9 @@ graph LR
     style E fill:#FFE4B5
     style F fill:#90EE90
     style G fill:#90EE90
+
 ```
 
-- **Separate jobs:** Maximum parallelization for fastest overall completion
 - **All tests run:** Includes slow integration and slow E2E tests
 - **Complete validation:** Full test coverage before code is merged
 
@@ -239,13 +243,14 @@ graph LR
 **Conditional Execution:**
 
 ```yaml
+
 if: |
   github.event_name == 'pull_request' &&
   github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
   !contains(github.event.pull_request.head.ref, 'docs/')
+
 ```
 
-- Push to main (full integration tests run instead)
 - PR branch is `fix/ai-guidelines-linting`
 - PR branch name contains `docs/`
 
@@ -272,32 +277,32 @@ if: |
 
 #### 3. test-e2e-fast Job (Runs on PRs only, with exceptions)
 
-**Purpose:** Run critical path E2E tests for fast PR feedback
+**Purpose:** Run Tier 1 E2E tests for fast PR feedback.
 
-**When:** Pull requests only (not on push to main, with exceptions for docs-only PRs)
+**When:** Pull requests only (not on push to main, with exceptions for docs-only PRs).
 
 **Conditional Execution:**
 
 ```yaml
+
 if: |
   github.event_name == 'pull_request' &&
-  github.event.pull_request.head.ref != 'fix/ai-guidelines-linting' &&
   !contains(github.event.pull_request.head.ref, 'docs/')
-```
+
+```python
 
 - Push to main (full E2E tests run instead)
-- PR branch is `fix/ai-guidelines-linting`
 - PR branch name contains `docs/`
 
 **Duration:** ~8-12 minutes
 
-**What it runs:** `pytest tests/e2e/ -m "e2e and critical_path" --durations=20`
+**What it runs:** `make test-e2e-fast`
 
-- **Critical path E2E tests only:** Uses `critical_path` marker
+- **Tier 1 E2E tests only:** Processes 1 episode from `p01_fast.xml`.
+- **Small models:** Uses Whisper tiny.en and BART-base for speed.
 - **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
-- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
-- **Parallel execution:** Uses `-n auto` for speed
-- **Duration monitoring:** `--durations=20` shows the 20 slowest tests
+- **Re-runs enabled:** 3 retries with 1s delay for ML model variability.
+- **Parallel execution:** Uses `-n auto` for speed.
 
 **Key Features:**
 
@@ -343,10 +348,10 @@ if: |
 **Conditional Execution:**
 
 ```yaml
-if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-```
 
-**Steps:**
+if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+```
 
 1. Checkout code
 2. Free disk space
@@ -377,11 +382,11 @@ if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 **Conditional Execution:**
 
 ```yaml
+
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 needs: [preload-ml-models]
-```
 
-**Duration:** ~10-15 minutes
+```
 
 **What it runs:** `pytest tests/integration/ -m "integration and (slow or ml_models)"`
 
@@ -402,26 +407,28 @@ needs: [preload-ml-models]
 
 #### 7. test-e2e Job (Main Branch Only)
 
-**Purpose:** Run all E2E tests (full suite)
+**Purpose:** Run Tier 2 E2E tests (full suite).
 
-**When:** Push to main branch only
+**When:** Push to main branch only.
 
 **Conditional Execution:**
 
 ```yaml
+
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 needs: [preload-ml-models]
-```
+
+```python
 
 **Duration:** ~20-30 minutes
 
-**What it runs:** `pytest tests/e2e/ -m e2e`
+**What it runs:** `make test-e2e`
 
-- **All E2E tests:** Full suite (no marker filtering)
-- **Re-runs enabled:** 2 retries with 1s delay for flaky tests
+- **All Tier 2 E2E tests:** Processes 5 episodes from `p01_multi.xml`.
+- **Medium models:** Uses Whisper base.en and BART-large-cnn.
+- **Re-runs enabled:** 3 retries with 1s delay for flaky tests.
 - **Network guard:** `--disable-socket --allow-hosts=127.0.0.1,localhost`
-- **Parallel execution:** Uses `-n auto` for speed
-- **ML dependencies:** Required (includes ML packages)
+- **Parallel execution:** Uses `-n auto` for speed.
 
 **Key Features:**
 
@@ -595,10 +602,10 @@ needs: [preload-ml-models]
 **Conditional Execution:**
 
 ```yaml
-if: github.event_name == 'pull_request' || github.event_name == 'schedule'
-```
 
-**Steps:**
+if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+
+```
 
 1. Checkout code
 2. Set up Python 3.11
@@ -704,6 +711,7 @@ This ensures:
 **Timeline: PR Creation → Merge → Slow Jobs**
 
 ```text
+
 │ ❌ Full suite jobs DO NOT run:                               │
 │   - preload-ml-models                                        │
 │   - test-integration                                         │
@@ -726,12 +734,12 @@ This ensures:
 │                                                              │
 │ Purpose: Full test suite validation after merge              │
 └─────────────────────────────────────────────────────────────┘
+
 ```
 
-1. **Fast PR feedback:** Developers get quick results during review (5-15 min)
-2. **Full validation after merge:** Slow tests (with ML models) run after code is merged
-3. **Resource efficiency:** ML model tests are expensive, so they run only on main branch
-4. **Safety net:** If slow tests fail after merge, you can fix immediately or revert
+1. **Full validation after merge:** Slow tests (with ML models) run after code is merged
+2. **Resource efficiency:** ML model tests are expensive, so they run only on main branch
+3. **Safety net:** If slow tests fail after merge, you can fix immediately or revert
 
 **What If Full Suite Tests Fail After Merge?**
 
@@ -772,6 +780,7 @@ If `test-integration` or `test-e2e` fail after merging:
 **Typical PR Flow (All Jobs Run):**
 
 ```text
+
 │  ├─ build (1-2 min)
 │  ├─ docker-build (5-8 min) [if Docker files changed]
 │  ├─ snyk-dependencies (3-5 min) [if code changed]
@@ -784,9 +793,8 @@ Time ~8-12 min - All critical path jobs complete
 
 Time ~15-20 min - All jobs complete (if no failures)
 └─ PR status updated
-```
 
-If only documentation or non-code files are changed:
+```
 
 - Only `lint`, `docs`, and `build` jobs run
 - Total time: ~5-8 minutes
@@ -858,6 +866,7 @@ Some test jobs include automatic re-runs to handle flaky tests:
 ### Dependency Management
 
 ```mermaid
+
 graph TD
     A[pyproject.toml] --> B{Job Type}
 
@@ -924,7 +933,6 @@ graph TD
 
 ```
 
-**File:** `.github/workflows/docs.yml`
 **Triggers:**
 
 - Push to `main` branch (when docs or related files change)
@@ -1822,7 +1830,7 @@ make test-e2e-slow
 - `slow`: Slow tests (Whisper, ML models)
 - `ml_models`: Tests requiring ML dependencies
 
-See [E2E Testing Guide](guides/E2E_TESTING_GUIDE.md) for detailed E2E test documentation.
+See [E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md) for detailed E2E test documentation.
 
 ---
 
@@ -1878,11 +1886,13 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 
 #### nightly-tests Job
 
-**Purpose:** Run all tests with comprehensive metrics collection using production ML models
+**Purpose:** Run Tier 3 comprehensive tests using production ML models.
 
-**Duration:** ~4-5 hours (includes all tests with production models: Whisper base, BART-large-cnn, LED-large-16384)
+**Duration:** ~4-5 hours (includes 15 episodes across 5 podcasts).
 
-**Important:** OpenAI/LLM provider tests are **excluded** from nightly runs to avoid API costs (see issue #183). The nightly build uses only local ML models (Whisper, spaCy, Transformers). This excludes ~50 tests marked with `@pytest.mark.llm`.
+**Production Models:** Whisper base.en, BART-large-cnn, LED-large-16384.
+
+**Important:** OpenAI/LLM provider tests are **excluded** from nightly runs to avoid API costs (see issue #183). The nightly build uses only local ML models (Whisper, spaCy, Transformers). This excludes tests marked with `@pytest.mark.llm`.
 
 **Steps:**
 1. Checkout code (full history for trend tracking)
@@ -1960,7 +1970,7 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 **Reference timing from January 2026 (with cache hits):**
 
 | Job | Duration | Notes |
-|-----|----------|-------|
+| ----- | ---------- | ------- |
 | `preload-ml-models-nightly` | 3:30 | Fast with cache hit |
 | `nightly-lint` | 3:00 | Runs in parallel |
 | `nightly-docs` | 2:40 | Runs in parallel |
@@ -1973,9 +1983,11 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 **Critical Path:**
 
 ```text
+
 preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
                                                     ≈ 80 min total
-```
+
+```python
 
 **Key Observations:**
 
@@ -2043,8 +2055,8 @@ curl https://[username].github.io/podcast_scraper/metrics/history.jsonl | tail -
 
 ```yaml
 
-- [RFC-025: Test Metrics and Health Tracking](rfc/RFC-025-test-metrics-and-health-tracking.md) - Metrics collection strategy
-- [RFC-026: Metrics Consumption and Dashboards](rfc/RFC-026-metrics-consumption-and-dashboards.md) - Metrics consumption methods
+- [RFC-025: Test Metrics and Health Tracking](../rfc/RFC-025-test-metrics-and-health-tracking.md) - Metrics collection strategy
+- [RFC-026: Metrics Consumption and Dashboards](../rfc/RFC-026-metrics-consumption-and-dashboards.md) - Metrics consumption methods
 
 ---
 
@@ -2098,8 +2110,8 @@ After merging the path filtering optimization, validate it works correctly:
 
 # Edit a docs file
 
-echo "Test update" >> docs/CI_CD.md
-git add docs/CI_CD.md
+echo "Test update" >> docs/ci/CD.md
+git add docs/ci/CD.md
 git commit -m "docs: test path filtering"
 git push
 
@@ -2138,10 +2150,10 @@ git push
 ## Related Documentation
 
 - **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** - Development workflow
-- **[Architecture](ARCHITECTURE.md)** - System design and module boundaries
-- **[Testing Strategy](TESTING_STRATEGY.md)** - Test coverage and quality standards
-- **[Testing Guide](guides/TESTING_GUIDE.md)** - Test execution commands
-- **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** - Implementation instructions
+- **[Architecture](../ARCHITECTURE.md)** - System design and module boundaries
+- **[Testing Strategy](../TESTING_STRATEGY.md)** - Test coverage and quality standards
+- **[Testing Guide](../guides/TESTING_GUIDE.md)** - Test execution commands
+- **[Development Guide](../guides/DEVELOPMENT_GUIDE.md)** - Implementation instructions
 
 ---
 

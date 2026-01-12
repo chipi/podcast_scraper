@@ -2,7 +2,7 @@
 
 Complete reference documentation for the `podcast_scraper` public API.
 
-**API Version**: `2.3.0` (tied to module version)
+**API Version**: `2.4.0` (tied to module version)
 
 ## Table of Contents
 
@@ -97,6 +97,7 @@ class Config(BaseModel)
 - `skip_existing` (`bool`, default: `False`, alias: `"skip_existing"`): Skip episodes whose output already exists.
 - `clean_output` (`bool`, default: `False`, alias: `"clean_output"`): Remove output directory before processing.
 - `reuse_media` (`bool`, default: `False`, alias: `"reuse_media"`): Reuse existing media files instead of re-downloading (for faster testing).
+- `metrics_output` (`Optional[str]`, alias: `"metrics_output"`): Path to save pipeline metrics JSON file.
 
 #### HTTP Configuration
 
@@ -107,9 +108,12 @@ class Config(BaseModel)
 
 #### Transcription Configuration
 
-- `transcribe_missing` (`bool`, default: `True`, alias: `"transcribe_missing"`): Enable Whisper transcription for episodes without transcripts. Set to `False` to only download existing transcripts.
-- `whisper_model` (`str`, default: `"base.en"`, alias: `"whisper_model"`): Whisper model to use. Valid values: `"tiny"`, `"base"`, `"small"`, `"medium"`, `"large"`, `"large-v2"`, `"large-v3"`, or language-specific variants (e.g., `"base.en"`). For English (the default language), the default is `"base.en"` which matches the actual model used at runtime. The conversion logic still works for backward compatibility if you explicitly specify `"base"`.
+- `transcription_provider` (`Literal["whisper", "openai"]`, default: `"whisper"`, alias: `"transcription_provider"`): Transcription provider to use.
+- `transcribe_missing` (`bool`, default: `True`, alias: `"transcribe_missing"`): Enable transcription for episodes without transcripts. Set to `False` to only download existing transcripts.
+- `whisper_model` (`str`, default: `"base.en"`, alias: `"whisper_model"`): Whisper model to use. Valid values: `"tiny"`, `"base"`, `"small"`, `"medium"`, `"large"`, `"large-v2"`, `"large-v3"`, or language-specific variants (e.g., `"base.en"`).
+- `whisper_device` (`Optional[str]`, default: `None`, alias: `"whisper_device"`): Device for Whisper transcription (`"cpu"`, `"cuda"`, `"mps"`, or `None` for auto).
 - `language` (`str`, default: `"en"`, alias: `"language"`): Language code for transcription (e.g., `"en"`, `"fr"`, `"de"`).
+- `transcription_parallelism` (`int`, default: `1`, alias: `"transcription_parallelism"`): Number of episodes to transcribe in parallel. Whisper provider remains sequential, while OpenAI API can handle parallel requests.
 
 #### Screenplay Formatting
 
@@ -120,6 +124,7 @@ class Config(BaseModel)
 
 #### Speaker Detection
 
+- `speaker_detector_provider` (`Literal["spacy", "openai"]`, default: `"spacy"`, alias: `"speaker_detector_provider"`): Speaker detection provider to use.
 - `auto_speakers` (`bool`, default: `True`, alias: `"auto_speakers"`): Enable automatic speaker name detection using NER.
 - `cache_detected_hosts` (`bool`, default: `True`, alias: `"cache_detected_hosts"`): Cache detected host names across episodes.
 - `ner_model` (`Optional[str]`, default: `None`, alias: `"ner_model"`): spaCy NER model name (e.g., `"en_core_web_sm"`). If `None`, uses default.
@@ -134,14 +139,15 @@ class Config(BaseModel)
 
 - `generate_summaries` (`bool`, default: `False`, alias: `"generate_summaries"`): Generate episode summaries.
 - `summary_provider` (`Literal["transformers", "local", "openai"]`, default: `"transformers"`, alias: `"summary_provider"`): Summary generation provider. Deprecated: `"local"` is accepted as alias for `"transformers"`.
-- `summary_model` (`Optional[str]`, default: `None`, alias: `"summary_model"`): MAP-phase model identifier (e.g., `"bart-large"`, `"facebook/bart-large-cnn"`). Defaults to `"bart-large"` for fast chunk summarization.
-- `summary_reduce_model` (`Optional[str]`, default: `None`, alias: `"summary_reduce_model"`): REDUCE-phase model identifier (e.g., `"long-fast"`, `"allenai/led-base-16384"`). Defaults to `"long-fast"` (LED) for accurate, long-context final combine. If not set, uses LED instead of falling back to MAP model.
-- `summary_max_length` (`int`, default: `150`, alias: `"summary_max_length"`): Maximum summary length in tokens.
-- `summary_min_length` (`int`, default: `30`, alias: `"summary_min_length"`): Minimum summary length in tokens.
+- `summary_model` (`Optional[str]`, default: `None`, alias: `"summary_model"`): MAP-phase model identifier (e.g., `"facebook/bart-large-cnn"`).
+- `summary_reduce_model` (`Optional[str]`, default: `None`, alias: `"summary_reduce_model"`): REDUCE-phase model identifier (e.g., `"allenai/led-large-16384"`).
+- `summary_max_length` (`int`, default: `160`, alias: `"summary_max_length"`): Maximum summary length in tokens.
+- `summary_min_length` (`int`, default: `60`, alias: `"summary_min_length"`): Minimum summary length in tokens.
 - `summary_device` (`Optional[str]`, default: `None`, alias: `"summary_device"`): Device for model execution (`"cpu"`, `"cuda"`, `"mps"`, or `None` for auto-detect).
-- `summary_batch_size` (`int`, default: `1`, alias: `"summary_batch_size"`): Batch size for parallel processing (CPU only).
+- `summary_batch_size` (`int`, default: `1`, alias: `"summary_batch_size"`): Batch size for parallel processing.
 - `summary_chunk_size` (`Optional[int]`, default: `None`, alias: `"summary_chunk_size"`): Chunk size in tokens for long transcripts. If `None`, auto-detected from model.
 - `summary_cache_dir` (`Optional[str]`, default: `None`, alias: `"summary_cache_dir"`): Custom cache directory for transformer models. If `None`, uses default Hugging Face cache.
+- `save_cleaned_transcript` (`bool`, default: `True`, alias: `"save_cleaned_transcript"`): Save cleaned transcript to separate file.
 
 #### Processing Options
 
@@ -236,15 +242,13 @@ config = Config(**config_dict)
 # Use the config
 
 count, summary = run_pipeline(config)
-```
-
 ```python
+
 from podcast_scraper import Config, load_config_file
 
 # One-liner: load and create Config
 
 config = Config(**load_config_file("config.yaml"))
-```
 
 ```json
 
@@ -258,17 +262,16 @@ config = Config(**load_config_file("config.yaml"))
   "generate_summaries": true,
   "log_level": "INFO"
 }
-
 ```
 
-```yaml
 max_episodes: 10
 transcribe_missing: true
 whisper_model: "base"
 generate_metadata: true
 generate_summaries: true
 log_level: "INFO"
-```
+
+```yaml
 
 - [Config](#config) - Configuration model
 - [Examples](../../examples/) - Example configuration files
@@ -294,8 +297,6 @@ class ServiceResult:
 
 ```
 
-- `episodes_processed` (`int`): Number of episodes processed (transcripts saved/planned).
-- `summary` (`str`): Human-readable summary message with processing statistics.
 - `success` (`bool`): Whether the run completed successfully. Default: `True`.
 - `error` (`Optional[str]`): Error message if `success` is `False`, `None` otherwise.
 
@@ -315,6 +316,7 @@ else:
     sys.exit(1)
 
 ```yaml
+
 ---
 
 ### `service.run`
@@ -326,6 +328,7 @@ Run the pipeline with a Config object.
 def run(cfg: Config) -> ServiceResult
 
 ```python
+
 **Parameters:**
 
 - `cfg` (`Config`): Configuration object (can be created from `Config()` or `Config(**load_config_file())`).
@@ -355,6 +358,7 @@ else:
     print(f"Error: {result.error}")
 
 ```yaml
+
 - [Config](#config) - Configuration options
 
 ---
@@ -368,10 +372,6 @@ Run the pipeline from a configuration file.
 def run_from_config_file(config_path: str | Path) -> ServiceResult
 
 ```
-
-- `config_path` (`str | Path`): Path to configuration file (JSON or YAML).
-
-**Returns:**
 
 - `ServiceResult`: Structured result with processing outcomes.
 
@@ -398,12 +398,13 @@ print(f"Success: {result.summary}")
 
 ```
 
-```bash
 # Command-line entry point
+
 python -m podcast_scraper.service --config config.yaml
 
 # Exit codes: 0 = success, 1 = failure
-```
+
+```python
 
 - [load_config_file](#load_config_file) - Load configuration from file
 - [Examples](../../examples/) - Supervisor and systemd configuration examples
@@ -420,9 +421,9 @@ API version string following semantic versioning.
 
 import podcast_scraper
 
-api_version = podcast_scraper.__api_version__  # "2.3.0"
-
+api_version = podcast_scraper.__api_version__  # "2.4.0"
 ```javascript
+
 - **Major version (X.y.z)**: Breaking API changes (function signatures, return types, required parameters)
 - **Minor version (x.Y.z)**: New features, backward compatible (new functions, optional parameters)
 - **Patch version (x.y.Z)**: Bug fixes, backward compatible (no API changes)
@@ -447,6 +448,7 @@ else:
     pass
 
 ```yaml
+
 - [API Migration Guide](MIGRATION_GUIDE.md) - Migration between major versions
 
 ---
@@ -456,7 +458,6 @@ else:
 ### Basic Usage
 
 ```python
-
 from podcast_scraper import Config, run_pipeline
 
 # Minimal configuration
@@ -464,16 +465,15 @@ from podcast_scraper import Config, run_pipeline
 config = Config(rss_url="https://example.com/feed.xml")
 count, summary = run_pipeline(config)
 print(f"Downloaded {count} transcripts")
-
 ```
 
-### Transcription Options
+## Transcription Options
 
 ```python
 config = Config(
     rss_url="https://example.com/feed.xml",
     transcribe_missing=True,
-    whisper_model="base",
+    whisper_model="base.en",
     language="en",
 )
 count, summary = run_pipeline(config)
@@ -491,13 +491,14 @@ config = Config(
     summary_device="mps",  # Apple Silicon
 )
 count, summary = run_pipeline(config)
-
 ```
 
 ### Service API Usage
 
 ```python
+
 # Recommended for automation/daemon use
+
 result = service.run_from_config_file("config.yaml")
 
 if result.success:
@@ -508,17 +509,20 @@ else:
     sys.exit(1)
 ```
 
-### Loading Configuration
+## Loading Configuration
 
 ```python
+
 # Load configuration
+
 config = load_config_file("config.yaml")
 
 # Run pipeline
+
 count, summary = run_pipeline(config)
 ```
 
-### Error Handling
+## Error Handling
 
 ```python
 try:

@@ -240,7 +240,6 @@ def validate_mistral_config(self) -> 'Config':
     return self
 
 ```
-
 ## 4. Mistral Provider Implementations
 
 ### 4.1 Shared Mistral Utilities
@@ -271,15 +270,11 @@ def create_mistral_client(cfg: config.Config) -> Mistral:
 ```text
     """Create Mistral client with configuration.
 ```
-```text
+
     Args:
         cfg: Configuration object with mistral_api_key and optional mistral_api_base
+
 ```
-```text
-    Returns:
-        Mistral client instance
-```
-```text
     Raises:
         ValueError: If API key is not provided
     """
@@ -288,24 +283,20 @@ def create_mistral_client(cfg: config.Config) -> Mistral:
             "Mistral API key required. "
             "Set MISTRAL_API_KEY environment variable or mistral_api_key in config."
         )
+
 ```
 
-    client_kwargs: dict[str, Any] = {"api_key": cfg.mistral_api_key}
-
-```text
     # Support custom server_url for E2E testing with mock servers
     if cfg.mistral_api_base:
         client_kwargs["server_url"] = cfg.mistral_api_base
-```
-```text
-    return Mistral(**client_kwargs)
-```
 
+```
 #### 4.2 Transcription Provider
 
 **File**: `podcast_scraper/transcription/mistral_provider.py`
 
 ```python
+
 """Mistral Voxtral-based transcription provider.
 
 This module provides a TranscriptionProvider implementation using Mistral's
@@ -329,34 +320,22 @@ class MistralTranscriptionProvider:
 
     """Mistral Voxtral-based transcription provider.
 
-```
-    This provider uses Mistral's Voxtral API for cloud-based transcription.
-    It implements the TranscriptionProvider protocol.
-    """
-
 ```python
 
     def __init__(self, cfg: config.Config):
         """Initialize Mistral transcription provider.
 
 ```
-```text
-
-        Args:
             cfg: Configuration object with mistral_api_key and transcription settings
 
 ```
-```text
 
-        Raises:
-            ValueError: If Mistral API key is not provided
         """
         self.cfg = cfg
         self.client = create_mistral_client(cfg)
         self.model = cfg.mistral_transcription_model
         self._initialized = False
 
-```
 ```python
 
     def initialize(self) -> None:
@@ -365,36 +344,23 @@ class MistralTranscriptionProvider:
             return
 
 ```
-```text
 
-        logger.debug("Initializing Mistral transcription provider (model: %s)", self.model)
-        self._initialized = True
         logger.debug("Mistral transcription provider initialized successfully")
 
-```
 ```python
 
     def transcribe(self, audio_path: Path, language: Optional[str] = None) -> str:
         """Transcribe audio file using Mistral Voxtral API.
 
 ```
-```text
 
-        Args:
-            audio_path: Path to audio file
             language: Optional language code (ISO 639-1)
 
 ```
-```text
-
-        Returns:
             Transcribed text
 
 ```
-```text
 
-        Raises:
-            ValueError: If transcription fails
             RuntimeError: If provider is not initialized
         """
         if not self._initialized:
@@ -403,14 +369,6 @@ class MistralTranscriptionProvider:
             )
 
 ```
-```text
-
-        logger.debug("Transcribing %s via Mistral Voxtral API", audio_path)
-
-```
-```text
-
-        try:
             with open(audio_path, "rb") as audio_file:
                 # Mistral Voxtral API call
                 transcription_kwargs: Dict[str, Any] = {
@@ -422,31 +380,21 @@ class MistralTranscriptionProvider:
                 }
 
 ```
-```text
 
-                if language:
                     transcription_kwargs["language"] = language
 
 ```
-```text
-
-                response = self.client.audio.transcriptions.create(**transcription_kwargs)
-
 ```
-```text
 
-            text = response.text if hasattr(response, 'text') else str(response)
             logger.debug("Mistral transcription completed: %d characters", len(text))
             return text
 
-```
 ```python
 
         except Exception as exc:
             logger.error("Mistral API error in transcription: %s", exc)
             raise ValueError(f"Mistral transcription failed: {exc}") from exc
 
-```
 ```python
 
     def transcribe_with_segments(
@@ -455,16 +403,10 @@ class MistralTranscriptionProvider:
         """Transcribe audio file with timestamp segments.
 
 ```
-```text
-
-        Args:
-            audio_path: Path to audio file
             language: Optional language code
 
 ```
-```text
 
-        Returns:
             Tuple of (full_text, list of segment dictionaries)
         """
         if not self._initialized:
@@ -473,14 +415,8 @@ class MistralTranscriptionProvider:
             )
 
 ```
-```text
-
-        logger.debug("Transcribing with segments %s via Mistral Voxtral API", audio_path)
-
 ```
-```text
 
-        try:
             with open(audio_path, "rb") as audio_file:
                 transcription_kwargs: Dict[str, Any] = {
                     "model": self.model,
@@ -492,25 +428,10 @@ class MistralTranscriptionProvider:
                 }
 
 ```
-```text
-
-                if language:
-                    transcription_kwargs["language"] = language
 
 ```
-```text
-
-                response = self.client.audio.transcriptions.create(**transcription_kwargs)
 
 ```
-```text
-
-            text = response.text if hasattr(response, 'text') else str(response)
-
-```
-```text
-
-            # Extract segments if available
             segments = []
             if hasattr(response, 'segments') and response.segments:
                 for seg in response.segments:
@@ -521,9 +442,7 @@ class MistralTranscriptionProvider:
                     })
 
 ```
-            logger.debug(
-                "Mistral transcription with segments completed: %d chars, %d segments",
-                len(text),
+
                 len(segments),
             )
             return text, segments
@@ -534,7 +453,6 @@ class MistralTranscriptionProvider:
             logger.error("Mistral API error in transcription with segments: %s", exc)
             raise ValueError(f"Mistral transcription failed: {exc}") from exc
 
-```
 ```python
 
     def cleanup(self) -> None:
@@ -542,7 +460,6 @@ class MistralTranscriptionProvider:
         pass
 
 ```
-
 #### 4.3 Speaker Detection Provider
 
 **File**: `podcast_scraper/speaker_detectors/mistral_detector.py`
@@ -569,43 +486,40 @@ logger = logging.getLogger(__name__)
 class MistralSpeakerDetector:
 
 ```text
+
     """Mistral AI-based speaker detection provider.
+
 ```
 
-    This provider uses Mistral's chat API for speaker detection.
-    It implements the SpeakerDetector protocol.
     """
 
 ```python
+
     def __init__(self, cfg: config.Config):
         """Initialize Mistral speaker detector.
+
 ```
-```text
-        Args:
-            cfg: Configuration object with mistral_api_key and speaker settings
+
 ```
-```text
-        Raises:
-            ValueError: If Mistral API key is not provided
         """
         self.cfg = cfg
         self.client = create_mistral_client(cfg)
         self.model = cfg.mistral_speaker_model
         self.temperature = cfg.mistral_temperature
         self._initialized = False
-```
+
 ```python
+
     def initialize(self) -> None:
         """Initialize provider (no local model loading needed for API)."""
         if self._initialized:
             return
+
 ```
-```text
-        logger.debug("Initializing Mistral speaker detector (model: %s)", self.model)
-        self._initialized = True
         logger.debug("Mistral speaker detector initialized successfully")
-```
+
 ```python
+
     def detect_hosts(
         self,
         feed_title: str,
@@ -613,26 +527,22 @@ class MistralSpeakerDetector:
         feed_authors: Optional[List[str]],
     ) -> Set[str]:
         """Detect hosts from feed metadata using Mistral API.
+
 ```
-```text
-        Args:
-            feed_title: Title of the podcast feed
             feed_description: Optional description of the feed
             feed_authors: Optional list of feed authors
+
 ```
-```text
-        Returns:
-            Set of detected host names
+
         """
         if not self._initialized:
             self.initialize()
-```
 
-        system_prompt, user_prompt = self._build_host_detection_prompts(
-            feed_title, feed_description, feed_authors
+```
         )
 
 ```text
+
         try:
             response = self.client.chat.complete(
                 model=self.model,
@@ -643,21 +553,20 @@ class MistralSpeakerDetector:
                     {"role": "user", "content": user_prompt},
                 ],
             )
+
 ```
 
-            content = response.choices[0].message.content
-            hosts = self._parse_hosts_from_response(content)
-
-```text
             logger.debug("Mistral detected hosts: %s", hosts)
             return hosts
-```
+
 ```python
+
         except Exception as e:
             logger.error("Mistral API error in host detection: %s", e)
             raise ValueError(f"Mistral host detection failed: {e}") from e
-```
+
 ```python
+
     def detect_speakers(
         self,
         episode_title: str,
@@ -665,26 +574,23 @@ class MistralSpeakerDetector:
         known_hosts: Set[str],
     ) -> Tuple[List[str], Set[str], bool]:
         """Detect speakers for an episode using Mistral API.
+
 ```
-```text
-        Args:
-            episode_title: Title of the episode
+
             episode_description: Optional description of the episode
             known_hosts: Set of known host names
+
 ```
-```text
-        Returns:
-            Tuple of (speaker_names, detected_hosts, success)
         """
         if not self._initialized:
             self.initialize()
+
 ```
 
-        system_prompt, user_prompt = self._build_speaker_detection_prompts(
-            episode_title, episode_description, known_hosts
         )
 
 ```text
+
         try:
             response = self.client.chat.complete(
                 model=self.model,
@@ -695,23 +601,25 @@ class MistralSpeakerDetector:
                     {"role": "user", "content": user_prompt},
                 ],
             )
+
 ```
 
-            content = response.choices[0].message.content
-            speakers, detected_hosts, success = self._parse_speakers_from_response(
                 content, known_hosts
             )
 
 ```text
+
             logger.debug("Mistral detected speakers: %s", speakers)
             return speakers, detected_hosts, success
-```
+
 ```python
+
         except Exception as e:
             logger.error("Mistral API error in speaker detection: %s", e)
             raise ValueError(f"Mistral speaker detection failed: {e}") from e
-```
+
 ```python
+
     def analyze_patterns(
         self,
         episodes: List[models.Episode],
@@ -719,13 +627,15 @@ class MistralSpeakerDetector:
     ) -> Optional[Dict[str, Any]]:
         """Analyze episode patterns (optional, can use local logic)."""
         return None
-```
+
 ```python
+
     def cleanup(self) -> None:
         """Cleanup provider resources (no-op for API provider)."""
         pass
-```
+
 ```python
+
     def _build_host_detection_prompts(
         self,
         feed_title: str,
@@ -734,10 +644,9 @@ class MistralSpeakerDetector:
     ) -> Tuple[str, str]:
         """Build prompts for host detection using prompt_store."""
         from ..prompt_store import render_prompt
+
 ```
-```text
-        system_prompt = render_prompt(self.cfg.mistral_ner_system_prompt)
-        user_prompt = render_prompt(
+
             self.cfg.mistral_ner_user_prompt,
             feed_title=feed_title,
             feed_description=feed_description or "",
@@ -745,8 +654,9 @@ class MistralSpeakerDetector:
             task="host_detection",
         )
         return system_prompt, user_prompt
-```
+
 ```python
+
     def _build_speaker_detection_prompts(
         self,
         episode_title: str,
@@ -755,10 +665,9 @@ class MistralSpeakerDetector:
     ) -> Tuple[str, str]:
         """Build prompts for speaker detection using prompt_store."""
         from ..prompt_store import render_prompt
+
 ```
-```text
-        system_prompt = render_prompt(self.cfg.mistral_ner_system_prompt)
-        user_prompt = render_prompt(
+
             self.cfg.mistral_ner_user_prompt,
             episode_title=episode_title,
             episode_description=episode_description or "",
@@ -766,8 +675,9 @@ class MistralSpeakerDetector:
             task="speaker_detection",
         )
         return system_prompt, user_prompt
-```
+
 ```python
+
     def _parse_hosts_from_response(self, response_text: str) -> Set[str]:
         """Parse host names from API response."""
         try:
@@ -778,17 +688,17 @@ class MistralSpeakerDetector:
                 return set(data)
         except json.JSONDecodeError:
             pass
+
 ```
-```text
-        hosts = set()
-        for line in response_text.strip().split("\n"):
+
             for name in line.split(","):
                 name = name.strip().strip("-").strip("*").strip()
                 if name and len(name) > 1:
                     hosts.add(name)
         return hosts
-```
+
 ```python
+
     def _parse_speakers_from_response(
         self, response_text: str, known_hosts: Set[str]
     ) -> Tuple[List[str], Set[str], bool]:
@@ -803,27 +713,21 @@ class MistralSpeakerDetector:
                 return all_speakers, hosts, True
         except json.JSONDecodeError:
             pass
+
 ```
 
-        speakers = []
-        for line in response_text.strip().split("\n"):
-
-```text
             for name in line.split(","):
                 name = name.strip().strip("-").strip("*").strip()
                 if name and len(name) > 1:
                     speakers.append(name)
-```
-```text
-        detected_hosts = set(s for s in speakers if s in known_hosts)
-        return speakers, detected_hosts, len(speakers) > 0
-```
 
+```
 #### 4.4 Summarization Provider
 
 **File**: `podcast_scraper/summarization/mistral_provider.py`
 
 ```python
+
 """Mistral AI-based summarization provider.
 
 This module provides a SummarizationProvider implementation using Mistral's chat API
@@ -849,26 +753,15 @@ class MistralSummarizationProvider:
 
     """Mistral AI-based summarization provider.
 
-```
-    This provider uses Mistral's chat API for cloud-based summarization.
-    It implements the SummarizationProvider protocol.
-    """
-
 ```python
 
     def __init__(self, cfg: config.Config):
         """Initialize Mistral summarization provider.
 
 ```
-```text
-
-        Args:
-            cfg: Configuration object with mistral_api_key and summarization settings
 
 ```
-```text
 
-        Raises:
             ValueError: If Mistral API key is not provided
         """
         self.cfg = cfg
@@ -881,7 +774,6 @@ class MistralSummarizationProvider:
         # API providers are thread-safe
         self._requires_separate_instances = False
 
-```
 ```python
 
     def initialize(self) -> None:
@@ -890,13 +782,10 @@ class MistralSummarizationProvider:
             return
 
 ```
-```text
 
-        logger.debug("Initializing Mistral summarization provider (model: %s)", self.model)
         self._initialized = True
         logger.debug("Mistral summarization provider initialized successfully")
 
-```
 ```python
 
     def summarize(
@@ -909,24 +798,16 @@ class MistralSummarizationProvider:
         """Summarize text using Mistral chat API.
 
 ```
-```text
 
-        Args:
             text: Transcript text to summarize
             episode_title: Optional episode title
             episode_description: Optional episode description
             params: Optional parameters dict
 
 ```
-```text
-
-        Returns:
-            Dictionary with summary results
 
 ```
-```text
 
-        Raises:
             ValueError: If summarization fails
             RuntimeError: If provider is not initialized
         """
@@ -936,14 +817,9 @@ class MistralSummarizationProvider:
             )
 
 ```
-```text
-
-        max_length = (params.get("max_length") if params else None) or self.cfg.summary_max_length
-        min_length = (params.get("min_length") if params else None) or self.cfg.summary_min_length
 
 ```
-        logger.debug(
-            "Summarizing text via Mistral API (model: %s, max_length: %d)",
+
             self.model,
             max_length,
         )
@@ -963,6 +839,7 @@ class MistralSummarizationProvider:
             )
 
 ```json
+
             response = self.client.chat.complete(
                 model=self.model,
                 max_tokens=self.cfg.mistral_max_tokens or max_length,
@@ -982,19 +859,11 @@ class MistralSummarizationProvider:
                 summary = ""
 
 ```
-```text
-
-            logger.debug("Mistral summarization completed: %d characters", len(summary))
-
-```
 ```python
 
             from ..prompt_store import get_prompt_metadata
 
 ```
-            prompt_metadata = {}
-            if system_prompt_name:
-
 ```text
 
                 prompt_metadata["system"] = get_prompt_metadata(system_prompt_name)
@@ -1007,9 +876,7 @@ class MistralSummarizationProvider:
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
 ```
-```text
 
-            return {
                 "summary": summary,
                 "summary_short": None,
                 "metadata": {
@@ -1021,14 +888,12 @@ class MistralSummarizationProvider:
                 },
             }
 
-```
 ```python
 
         except Exception as exc:
             logger.error("Mistral API error in summarization: %s", exc)
             raise ValueError(f"Mistral summarization failed: {exc}") from exc
 
-```
 ```python
 
     def _build_summarization_prompts(
@@ -1043,23 +908,13 @@ class MistralSummarizationProvider:
         from ..prompt_store import render_prompt
 
 ```
-        system_prompt_name = self.cfg.mistral_summary_system_prompt
-        user_prompt_name = self.cfg.mistral_summary_user_prompt
-
-```text
-
         system_prompt = render_prompt(system_prompt_name)
 
 ```
-```text
 
-        paragraphs_min = max(1, min_length // 100)
         paragraphs_max = max(paragraphs_min, max_length // 100)
 
 ```
-        template_params = {
-            "transcript": text,
-            "title": episode_title or "",
             "paragraphs_min": paragraphs_min,
             "paragraphs_max": paragraphs_max,
         }
@@ -1070,10 +925,6 @@ class MistralSummarizationProvider:
         user_prompt = render_prompt(user_prompt_name, **template_params)
 
 ```
-```text
-
-        return (
-            system_prompt,
             user_prompt,
             system_prompt_name,
             user_prompt_name,
@@ -1081,7 +932,6 @@ class MistralSummarizationProvider:
             paragraphs_max,
         )
 
-```
 ```python
 
     def cleanup(self) -> None:
@@ -1089,7 +939,6 @@ class MistralSummarizationProvider:
         pass
 
 ```
-
 ### 5. Factory Updates
 
 #### 5.1 Transcription Factory
@@ -1286,17 +1135,15 @@ def do_POST(self):
 def _handle_mistral_chat_completions(self):
 
 ```text
+
     """Handle Mistral chat completions API requests."""
     try:
         content_length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_length)
         request_data = json.loads(body.decode("utf-8"))
+
 ```
-```text
-        messages = request_data.get("messages", [])
-        model = request_data.get("model", "mistral-small-latest")
-```
-```text
+
         # Get system and user messages
         system_content = next(
             (m.get("content", "") for m in messages if m.get("role") == "system"),
@@ -1306,11 +1153,8 @@ def _handle_mistral_chat_completions(self):
             (m.get("content", "") for m in messages if m.get("role") == "user"),
             ""
         )
+
 ```
-```text
-        # Determine response type
-        if "speaker" in system_content.lower() or "host" in system_content.lower():
-            response_content = json.dumps({
                 "speakers": ["Host", "Guest"],
                 "hosts": ["Host"],
                 "guests": ["Guest"],
@@ -1320,8 +1164,9 @@ def _handle_mistral_chat_completions(self):
                 "This is a test summary of the podcast episode. "
                 "The episode covers various topics discussed by the hosts and guests."
             )
-```
-```text
+
+```json
+
         # Build Mistral response format
         response_data = {
             "id": "chat-test-12345",
@@ -1344,23 +1189,22 @@ def _handle_mistral_chat_completions(self):
                 "total_tokens": 150,
             },
         }
+
 ```
-```text
-        response_json = json.dumps(response_data)
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(response_json)))
         self.end_headers()
         self.wfile.write(response_json.encode("utf-8"))
+
 ```
-```text
-    except Exception as e:
+
         self.send_error(500, f"Error handling Mistral chat: {e}")
+
 ```python
 
 def _handle_mistral_transcriptions(self):
 
 ```python
+
     """Handle Mistral Voxtral transcription API requests."""
     try:
         # Parse multipart form data for audio file
@@ -1372,29 +1216,25 @@ def _handle_mistral_transcriptions(self):
                 {"start": 5.0, "end": 10.0, "text": "from the Mistral Voxtral API."},
             ],
         }
+
 ```
-```text
-        response_json = json.dumps(response_data)
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(response_json)))
         self.end_headers()
         self.wfile.write(response_json.encode("utf-8"))
-```
-```text
-    except Exception as e:
-        self.send_error(500, f"Error handling Mistral transcription: {e}")
+
 ```
 
-Add URL helper to `E2EServerURLs`:
+        self.send_error(500, f"Error handling Mistral transcription: {e}")
 
 ```python
+
 class E2EServerURLs:
     """URL helper class for E2E server."""
 
     def mistral_api_base(self) -> str:
         """Get Mistral API base URL for E2E testing."""
         return f"http://{self.host}:{self.port}"
+
 ```
 
 ### 8. Dependencies
@@ -1402,6 +1242,7 @@ class E2EServerURLs:
 Add to `pyproject.toml`:
 
 ```toml
+
 [project.optional-dependencies]
 mistral = [
     "mistralai>=1.0.0,<2.0.0",
@@ -1415,11 +1256,8 @@ ai = [
     "mistralai>=1.0.0,<2.0.0",
     "tenacity>=8.2.0,<9.0.0",
 ]
+
 ```
-
-Installation:
-
-```bash
 
 # For Mistral support only
 
@@ -1428,6 +1266,7 @@ pip install -e ".[mistral]"
 # For all AI providers
 
 pip install -e ".[ai]"
+
 ```yaml
 
 ## Testing Strategy
@@ -1444,6 +1283,7 @@ pip install -e ".[ai]"
 ### Test Organization
 
 ```text
+
 tests/
 ├── unit/
 │   └── podcast_scraper/
@@ -1452,17 +1292,19 @@ tests/
 │   └── test_mistral_providers.py
 └── e2e/
     └── test_mistral_provider_integration_e2e.py
-```
 
+```
 ### Test Markers
 
 ```python
+
 @pytest.mark.unit           # Unit tests
 @pytest.mark.integration    # Integration tests
 @pytest.mark.e2e           # End-to-end tests
 @pytest.mark.llm           # Uses LLM APIs
 @pytest.mark.mistral       # Uses Mistral specifically
 @pytest.mark.transcription # Tests transcription
+
 ```go
 
 ## Rollout & Monitoring

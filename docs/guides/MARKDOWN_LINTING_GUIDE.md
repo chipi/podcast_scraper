@@ -499,7 +499,7 @@ descriptions). Consider:
 ## Related Documentation
 
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices
-- [CI/CD](../CI_CD.md) - Continuous integration pipeline details
+- [CI/CD](../ci/CD.md) - Continuous integration pipeline details
 - `scripts/fix_markdown.py` - Automated fixer script (see repository root)
 - `.markdownlint.json` - Linter configuration (see repository root)
 - `.prettierrc` - Prettier formatting rules (see repository root)

@@ -153,11 +153,6 @@ class EpisodeMetadataDocument(BaseModel):
     """Complete episode metadata document.
 
 ```
-    Schema designed for direct ingestion into databases:
-
-    - PostgreSQL JSONB: Nested structure works natively
-    - MongoDB: Document structure matches MongoDB document model
-    - Elasticsearch: Nested objects can be indexed and queried
     - ClickHouse: JSON column type supports nested queries
 
 ```
@@ -196,7 +191,6 @@ def generate_episode_metadata(
 
 ```text
     # Return file path
-```
 ```python
 
 - Generate metadata after episode processing completes
@@ -310,20 +304,14 @@ def generate_feed_id(feed_url: str) -> str:
     normalized = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip('/').lower()
 
 ```text
-    # Generate SHA-256 hash
-```
-```text
 
-    hash_digest = hashlib.sha256(normalized.encode('utf-8')).hexdigest()
+    # Generate SHA-256 hash
 
 ```
 
     return f"sha256:{hash_digest}"
 
 ```
-- Unique (different feeds = different IDs)
-- Database-friendly (string format)
-- Deterministic and collision-resistant
 
 #### Episode ID Generation
 
@@ -371,56 +359,29 @@ def generate_episode_id(
     3. Composite key as last resort
 
 ```text
+
     Returns:
         Stable unique identifier string
     """
-```
 
+```
     # Priority 1: Use RSS GUID if available
 
 ```
-    if episode_guid:
-        return episode_guid.strip()
 
-```
-```
     # Normalize feed URL (remove trailing slash, lowercase)
 
-```
-```
-    # Normalize title (lowercase, strip whitespace)
-
-```
 ```python
 
     # Build hash input from stable components
 
 ```
-
-        normalized_feed,
-        normalized_title,
-    ]
-
 ```text
 
     if published_date:
         hash_components.append(published_date.isoformat())
 
 ```
-
-        normalized_link = urlparse(episode_link).geturl().rstrip('/').lower()
-        hash_components.append(normalized_link)
-
-```
-    # Generate SHA-256 hash
-
-```
-
-    hash_digest = hashlib.sha256(hash_input).hexdigest()
-
-```
-    return f"sha256:{hash_digest}"
-
 ```python
 
 **Transcript ID** (`transcript_id`):
@@ -461,7 +422,7 @@ def generate_content_id(content_url: str) -> str:
     return f"sha256:{hash_digest}"
 
 ```
-- When tracking content items in separate tables/collections
+
 - When building content-level indexes or analytics
 - When linking episodes to shared content (same transcript/media used by multiple episodes)
 
