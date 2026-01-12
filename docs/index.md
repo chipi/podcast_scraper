@@ -126,6 +126,7 @@ skip_existing: true
 | Guide | Description |
 | :--- | :--- |
 | **[AI Provider Comparison Guide](guides/AI_PROVIDER_COMPARISON_GUIDE.md)** | Detailed comparison of all 8 supported AI providers |
+| **[ML Model Comparison Guide](guides/ML_MODEL_COMPARISON_GUIDE.md)** | **Compare ML models: Whisper, spaCy, Transformers (BART/LED)** |
 | **[Provider Configuration Quick Reference](guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md)** | **Quick guide for configuring providers via CLI, config files, and programmatically** |
 | **[Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** | Complete guide for implementing new providers |
 | **[Protocol Extension Guide](guides/PROTOCOL_EXTENSION_GUIDE.md)** | Extending protocols and adding new methods to providers |

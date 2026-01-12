@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import (
@@ -25,56 +26,63 @@ from pydantic import ValidationError
 from . import __version__, config, filesystem, progress, workflow
 from .workflow.stages import setup
 
-if TYPE_CHECKING:  # pragma: no cover - typing only
-    import tqdm
+if TYPE_CHECKING:
+    import rich.progress
 
 _LOGGER = logging.getLogger(__name__)
 
-# Progress bar constants
-TQDM_NCOLS = 80
-TQDM_MIN_INTERVAL = 0.5
-TQDM_MIN_ITERS = 1
 BYTES_PER_KB = 1024
 
 
-class _TqdmProgress:
-    """Simple adapter that exposes tqdm's update interface."""
+class _RichProgress:
+    """Simple adapter that exposes rich Progress update interface."""
 
-    def __init__(self, bar: "tqdm.tqdm") -> None:
-        self._bar = bar
+    def __init__(
+        self,
+        progress: "rich.progress.Progress",
+        task_id: "rich.progress.TaskID",
+    ) -> None:
+        self._progress = progress
+        self._task_id = task_id
 
     def update(self, advance: int) -> None:
-        self._bar.update(advance)
+        self._progress.update(self._task_id, advance=advance)
 
 
 @contextmanager
-def _tqdm_progress(total: Optional[int], description: str) -> Iterator[_TqdmProgress]:
-    """Create a tqdm progress context matching the shared progress API."""
-    from tqdm import tqdm
+def _rich_progress(total: Optional[int], description: str) -> Iterator[_RichProgress]:
+    """Create a rich progress context matching the shared progress API."""
+    from rich.console import Console
+    from rich.progress import (
+        BarColumn,
+        Progress,
+        TextColumn,
+        TimeElapsedColumn,
+    )
 
-    kwargs: Dict[str, Any] = {"desc": description}
+    # Use Console with force_terminal=False in tests to suppress output
+    # This keeps tests clutter-free
+    console = Console(force_terminal=os.getenv("TERM") != "dumb")
+
+    # Create clean, minimal progress bar
+    columns = [
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+    ]
+
+    # Add time elapsed for indeterminate progress
     if total is None:
-        kwargs.update(
-            total=None,
-            unit="",
-            leave=False,
-            miniters=TQDM_MIN_ITERS,
-            mininterval=TQDM_MIN_INTERVAL,
-            bar_format="{desc}: {elapsed}",
-            ncols=TQDM_NCOLS,
-            dynamic_ncols=False,
-        )
+        columns.append(TimeElapsedColumn())
     else:
-        kwargs.update(
-            total=total,
-            unit="B",
-            unit_scale=True,
-            unit_divisor=BYTES_PER_KB,
-            leave=True,
-        )
+        # For determinate progress, show bytes (rich auto-formats with units)
+        from rich.progress import DownloadColumn
 
-    with tqdm(**kwargs) as bar:
-        yield _TqdmProgress(bar)
+        columns.append(DownloadColumn())
+
+    with Progress(*columns, console=console, transient=False) as progress_bar:
+        task_id = progress_bar.add_task(description, total=total)
+        yield _RichProgress(progress_bar, task_id)
 
 
 def _validate_rss_url(rss_value: str, errors: List[str]) -> None:
@@ -439,6 +447,50 @@ def _add_speaker_detection_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_preprocessing_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add audio preprocessing arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
+    preprocessing_group = parser.add_argument_group("Audio Preprocessing")
+    preprocessing_group.add_argument(
+        "--enable-preprocessing",
+        action="store_true",
+        dest="preprocessing_enabled",
+        help="Enable audio preprocessing before transcription (experimental)",
+    )
+    preprocessing_group.add_argument(
+        "--preprocessing-cache-dir",
+        default=None,
+        help="Custom cache directory for preprocessed audio (default: .cache/preprocessing)",
+    )
+    preprocessing_group.add_argument(
+        "--preprocessing-sample-rate",
+        type=int,
+        default=16000,
+        help="Target sample rate for preprocessing in Hz (default: 16000)",
+    )
+    preprocessing_group.add_argument(
+        "--preprocessing-silence-threshold",
+        type=str,
+        default="-50dB",
+        help="Silence detection threshold (default: -50dB)",
+    )
+    preprocessing_group.add_argument(
+        "--preprocessing-silence-duration",
+        type=float,
+        default=2.0,
+        help="Minimum silence duration to remove in seconds (default: 2.0)",
+    )
+    preprocessing_group.add_argument(
+        "--preprocessing-target-loudness",
+        type=int,
+        default=-16,
+        help="Target loudness in LUFS for normalization (default: -16)",
+    )
+
+
 def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
     """Add summarization-related arguments to parser.
 
@@ -612,6 +664,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     # Add argument groups
     _add_common_arguments(parser)
     _add_transcription_arguments(parser)
+    _add_preprocessing_arguments(parser)
     _add_metadata_arguments(parser)
     _add_speaker_detection_arguments(parser)
     _add_summarization_arguments(parser)
@@ -681,6 +734,14 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "summary_cache_dir": None,  # Not exposed in CLI yet
         "summary_prompt": args.summary_prompt,
         "save_cleaned_transcript": args.save_cleaned_transcript,
+        "preprocessing_enabled": getattr(args, "preprocessing_enabled", False),
+        "preprocessing_cache_dir": getattr(args, "preprocessing_cache_dir", None),
+        "preprocessing_sample_rate": getattr(args, "preprocessing_sample_rate", 16000),
+        "preprocessing_silence_threshold": getattr(
+            args, "preprocessing_silence_threshold", "-50dB"
+        ),
+        "preprocessing_silence_duration": getattr(args, "preprocessing_silence_duration", 2.0),
+        "preprocessing_target_loudness": getattr(args, "preprocessing_target_loudness", -16),
         "openai_api_base": args.openai_api_base,
     }
     # Add OpenAI model args only if provided (fields have non-Optional types with defaults)
@@ -800,7 +861,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
     # Initialize ML environment variables early (before any ML imports)
     setup.initialize_ml_environment()
 
-    progress.set_progress_factory(_tqdm_progress)
+    progress.set_progress_factory(_rich_progress)
     log = logger or _LOGGER
     if apply_log_level_fn is None:
         apply_log_level_fn = workflow.apply_log_level

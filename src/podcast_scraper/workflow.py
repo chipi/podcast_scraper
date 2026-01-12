@@ -47,6 +47,11 @@ from .summarization.factory import (
 from .transcription.factory import (
     create_transcription_provider as _create_transcription_provider_factory,
 )
+
+# Re-export factory functions for testability
+create_summarization_provider = _create_summarization_provider_factory
+create_speaker_detector = _create_speaker_detector_factory
+create_transcription_provider = _create_transcription_provider_factory
 from .workflow import helpers as wf_helpers, stages as wf_stages
 
 

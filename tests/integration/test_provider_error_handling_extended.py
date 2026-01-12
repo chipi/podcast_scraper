@@ -297,21 +297,27 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
 
         # Mock other pipeline components to get to summarization initialization
         with patch("podcast_scraper.workflow.stages.setup.initialize_ml_environment"):
-            with patch("podcast_scraper.workflow._setup_pipeline_environment") as mock_setup:
+            with patch(
+                "podcast_scraper.workflow.stages.setup.setup_pipeline_environment"
+            ) as mock_setup:
                 with patch("podcast_scraper.workflow._preload_ml_models_if_needed"):
-                    with patch("podcast_scraper.workflow._fetch_and_parse_feed") as mock_fetch:
+                    with patch(
+                        "podcast_scraper.workflow.stages.scraping.fetch_and_parse_feed"
+                    ) as mock_fetch:
                         with patch(
-                            "podcast_scraper.workflow._extract_feed_metadata_for_generation"
+                            "podcast_scraper.workflow.stages.scraping.extract_feed_metadata_for_generation"
                         ):
-                            with patch("podcast_scraper.workflow._prepare_episodes_from_feed"):
+                            with patch(
+                                "podcast_scraper.workflow.stages.scraping.prepare_episodes_from_feed"
+                            ):
                                 with patch(
-                                    "podcast_scraper.workflow._detect_feed_hosts_and_patterns"
+                                    "podcast_scraper.workflow.stages.processing.detect_feed_hosts_and_patterns"
                                 ):
                                     with patch(
-                                        "podcast_scraper.workflow._setup_transcription_resources"
+                                        "podcast_scraper.workflow.stages.transcription.setup_transcription_resources"
                                     ):
                                         with patch(
-                                            "podcast_scraper.workflow._setup_processing_resources"
+                                            "podcast_scraper.workflow.stages.processing.setup_processing_resources"
                                         ):
                                             mock_setup.return_value = ("/tmp/test_output", None)
                                             mock_fetch.return_value = (Mock(), b"<rss></rss>")
@@ -328,13 +334,9 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
                                                 str(context.exception),
                                             )
 
-    @patch("podcast_scraper.metadata._generate_episode_summary")
-    def test_episode_summarization_failure_in_pipeline_raises_error(self, mock_generate_summary):
+    def test_episode_summarization_failure_in_pipeline_raises_error(self):
         """Test that episode summarization failure raises RuntimeError in pipeline."""
         from podcast_scraper import metadata
-
-        # Mock _generate_episode_summary to raise exception
-        mock_generate_summary.side_effect = RuntimeError("Summarization failed for episode")
 
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
@@ -343,11 +345,11 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
             generate_metadata=True,
         )
 
-        # Create a mock summary provider
+        # Create a mock summary provider that raises exception
         mock_provider = Mock()
-        mock_provider.summarize.return_value = {"summary": "test summary"}
+        mock_provider.summarize.side_effect = RuntimeError("Summarization failed for episode")
 
-        # Call _generate_episode_summary which should raise RuntimeError
+        # Call _generate_episode_summary which should catch and wrap the exception
         import tempfile
         from pathlib import Path
 
@@ -365,6 +367,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
                     summary_provider=mock_provider,
                 )
 
+            # The actual function wraps the exception with generate_summaries=True message
             self.assertIn("generate_summaries=True", str(context.exception))
             self.assertIn("Failed to generate summary", str(context.exception))
 

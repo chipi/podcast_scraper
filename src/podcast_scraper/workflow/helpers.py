@@ -144,6 +144,25 @@ def generate_pipeline_summary(
         if metrics_dict.get("avg_summarize_seconds", 0) > 0:
             avg_summarize = metrics_dict["avg_summarize_seconds"]
             summary_lines.append(f"  - Average summary time: {avg_summarize:.1f}s/episode")
+        if metrics_dict.get("avg_preprocessing_seconds", 0) > 0:
+            avg_preprocessing = metrics_dict["avg_preprocessing_seconds"]
+            preprocessing_count = metrics_dict.get("preprocessing_count", 0)
+            size_reduction = metrics_dict.get("avg_preprocessing_size_reduction_percent", 0.0)
+            cache_hits = metrics_dict.get("preprocessing_cache_hits", 0)
+            cache_misses = metrics_dict.get("preprocessing_cache_misses", 0)
+            summary_lines.append(
+                f"  - Average preprocessing time: {avg_preprocessing:.1f}s/episode "
+                f"({preprocessing_count} processed, {size_reduction:.1f}% size reduction)"
+            )
+            if cache_hits > 0 or cache_misses > 0:
+                total_cache_ops = cache_hits + cache_misses
+                cache_hit_rate = (
+                    (cache_hits / total_cache_ops * 100) if total_cache_ops > 0 else 0.0
+                )
+                summary_lines.append(
+                    f"  - Preprocessing cache: {cache_hits} hits, {cache_misses} misses "
+                    f"({cache_hit_rate:.1f}% hit rate)"
+                )
 
         summary_lines.append(f"  - Output directory: {effective_output_dir}")
 

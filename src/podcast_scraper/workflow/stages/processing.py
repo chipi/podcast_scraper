@@ -87,8 +87,21 @@ def detect_feed_hosts_and_patterns(
     if not cfg.auto_speakers or not cfg.cache_detected_hosts:
         return HostDetectionResult(cached_hosts, heuristics, None)
 
+    # In dry-run mode, still detect hosts from RSS author tags (no ML needed)
+    # but skip NER-based detection and model initialization
     if cfg.dry_run:
         logger.info("(dry-run) would initialize speaker detector")
+        # Still detect hosts from RSS author tags if available
+        if feed.authors:
+            cached_hosts = set(feed.authors)
+            if cached_hosts:
+                logger.info("=" * 60)
+                logger.info(
+                    "DETECTED HOSTS (from %s): %s",
+                    "RSS author tags",
+                    ", ".join(sorted(cached_hosts)),
+                )
+                logger.info("=" * 60)
         return HostDetectionResult(cached_hosts, heuristics, None)
 
     # Stage 3: Use provider pattern for speaker detection

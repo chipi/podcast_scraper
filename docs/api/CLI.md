@@ -65,6 +65,17 @@ python -m podcast_scraper.cli --config config.yaml
 - `--num-speakers N` - Number of speakers (default: 2)
 - `--speaker-names NAMES` - Comma-separated speaker names
 
+### Audio Preprocessing Options (RFC-040)
+
+- `--enable-preprocessing` - Enable audio preprocessing before transcription (experimental)
+- `--preprocessing-cache-dir DIR` - Custom cache directory for preprocessed audio (default: `.cache/preprocessing`)
+- `--preprocessing-sample-rate RATE` - Target sample rate in Hz (default: 16000, must be Opus-supported: 8000, 12000, 16000, 24000, 48000)
+- `--preprocessing-silence-threshold THRESHOLD` - Silence detection threshold (default: `-50dB`)
+- `--preprocessing-silence-duration DURATION` - Minimum silence duration to remove in seconds (default: `2.0`)
+- `--preprocessing-target-loudness LOUDNESS` - Target loudness in LUFS for normalization (default: `-16`)
+
+**Note**: Preprocessing requires `ffmpeg` to be installed. If `ffmpeg` is not available, preprocessing is automatically disabled with a warning.
+
 ### Metadata & Summarization
 
 - `--generate-metadata` - Generate metadata documents

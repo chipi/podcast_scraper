@@ -419,6 +419,15 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 └─────────────────────────────────────────────────────────────────┘
 ```yaml
 
+> **📖 For detailed ML model comparisons, see [ML Model Comparison Guide](ML_MODEL_COMPARISON_GUIDE.md)**
+>
+> The ML Model Comparison Guide provides comprehensive analysis of:
+> - Whisper model options (tiny, base, small, medium, large)
+> - spaCy NER model options (sm, md, lg)
+> - Transformers model options (BART, LED, PEGASUS, DistilBART)
+> - Hardware requirements and recommendations
+> - Performance benchmarks and quality comparisons
+
 **Hardware Requirements:**
 
 | Component | Minimum | Recommended |

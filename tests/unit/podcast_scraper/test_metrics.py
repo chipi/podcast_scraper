@@ -306,6 +306,12 @@ class TestFinish(unittest.TestCase):
             "llm_summarization_calls",
             "llm_summarization_input_tokens",
             "llm_summarization_output_tokens",
+            # Preprocessing metrics
+            "avg_preprocessing_seconds",
+            "preprocessing_count",
+            "avg_preprocessing_size_reduction_percent",
+            "preprocessing_cache_hits",
+            "preprocessing_cache_misses",
         }
         self.assertEqual(set(result.keys()), expected_keys)
 
@@ -339,6 +345,96 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(result["transcribe_count"], 2)
         self.assertEqual(result["extract_names_count"], 1)
         self.assertEqual(result["summarize_count"], 0)
+
+
+class TestPreprocessingMetrics(unittest.TestCase):
+    """Test preprocessing metrics recording."""
+
+    def test_record_preprocessing_time(self):
+        """Test recording preprocessing time."""
+        m = metrics.Metrics()
+        m.record_preprocessing_time(1.5)
+        self.assertEqual(m.preprocessing_times, [1.5])
+        m.record_preprocessing_time(2.0)
+        self.assertEqual(m.preprocessing_times, [1.5, 2.0])
+
+    def test_record_preprocessing_size_reduction(self):
+        """Test recording preprocessing size reduction."""
+        m = metrics.Metrics()
+        m.record_preprocessing_size_reduction(1000000, 500000)  # 1MB -> 0.5MB
+        self.assertEqual(m.preprocessing_original_sizes, [1000000])
+        self.assertEqual(m.preprocessing_preprocessed_sizes, [500000])
+        m.record_preprocessing_size_reduction(2000000, 800000)  # 2MB -> 0.8MB
+        self.assertEqual(m.preprocessing_original_sizes, [1000000, 2000000])
+        self.assertEqual(m.preprocessing_preprocessed_sizes, [500000, 800000])
+
+    def test_record_preprocessing_cache_hit(self):
+        """Test recording preprocessing cache hit."""
+        m = metrics.Metrics()
+        m.record_preprocessing_cache_hit()
+        self.assertEqual(m.preprocessing_cache_hits, 1)
+        m.record_preprocessing_cache_hit()
+        self.assertEqual(m.preprocessing_cache_hits, 2)
+
+    def test_record_preprocessing_cache_miss(self):
+        """Test recording preprocessing cache miss."""
+        m = metrics.Metrics()
+        m.record_preprocessing_cache_miss()
+        self.assertEqual(m.preprocessing_cache_misses, 1)
+        m.record_preprocessing_cache_miss()
+        self.assertEqual(m.preprocessing_cache_misses, 2)
+
+    def test_finish_includes_preprocessing_metrics(self):
+        """Test that finish includes preprocessing metrics."""
+        m = metrics.Metrics()
+        m.record_preprocessing_time(1.5)
+        m.record_preprocessing_time(2.5)
+        m.record_preprocessing_size_reduction(1000000, 500000)  # 50% reduction
+        m.record_preprocessing_size_reduction(2000000, 1000000)  # 50% reduction
+        m.record_preprocessing_cache_hit()
+        m.record_preprocessing_cache_miss()
+
+        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        # Check preprocessing metrics are included
+        self.assertEqual(result["avg_preprocessing_seconds"], 2.0)  # (1.5 + 2.5) / 2
+        self.assertEqual(result["preprocessing_count"], 2)
+        self.assertEqual(result["avg_preprocessing_size_reduction_percent"], 50.0)  # Average 50%
+        self.assertEqual(result["preprocessing_cache_hits"], 1)
+        self.assertEqual(result["preprocessing_cache_misses"], 1)
+
+    def test_finish_preprocessing_metrics_with_no_data(self):
+        """Test that finish handles preprocessing metrics with no data."""
+        m = metrics.Metrics()
+
+        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        # Check preprocessing metrics default to 0
+        self.assertEqual(result["avg_preprocessing_seconds"], 0.0)
+        self.assertEqual(result["preprocessing_count"], 0)
+        self.assertEqual(result["avg_preprocessing_size_reduction_percent"], 0.0)
+        self.assertEqual(result["preprocessing_cache_hits"], 0)
+        self.assertEqual(result["preprocessing_cache_misses"], 0)
+
+    def test_finish_updates_expected_keys_with_preprocessing(self):
+        """Test that finish includes preprocessing keys in expected keys."""
+        m = metrics.Metrics()
+        m.record_preprocessing_time(1.0)
+
+        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        # Check preprocessing keys are present
+        self.assertIn("avg_preprocessing_seconds", result)
+        self.assertIn("preprocessing_count", result)
+        self.assertIn("avg_preprocessing_size_reduction_percent", result)
+        self.assertIn("preprocessing_cache_hits", result)
+        self.assertIn("preprocessing_cache_misses", result)
 
 
 class TestLogMetrics(unittest.TestCase):

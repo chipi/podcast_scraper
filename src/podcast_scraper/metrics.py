@@ -61,6 +61,19 @@ class Metrics:
     llm_summarization_input_tokens: int = 0  # Total input tokens for summarization
     llm_summarization_output_tokens: int = 0  # Total output tokens for summarization
 
+    # Audio preprocessing metrics (RFC-040)
+    preprocessing_times: List[float] = field(
+        default_factory=list
+    )  # Preprocessing times per episode
+    preprocessing_original_sizes: List[int] = field(
+        default_factory=list
+    )  # Original audio file sizes in bytes
+    preprocessing_preprocessed_sizes: List[int] = field(
+        default_factory=list
+    )  # Preprocessed audio file sizes in bytes
+    preprocessing_cache_hits: int = 0  # Number of cache hits
+    preprocessing_cache_misses: int = 0  # Number of cache misses
+
     _start_time: float = field(default_factory=time.time, init=False)
 
     def record_stage(self, stage: str, duration: float) -> None:
@@ -142,6 +155,34 @@ class Metrics:
         self.llm_summarization_input_tokens += input_tokens
         self.llm_summarization_output_tokens += output_tokens
 
+    def record_preprocessing_time(self, duration: float) -> None:
+        """Record time spent preprocessing audio for an episode.
+
+        Args:
+            duration: Duration in seconds
+        """
+        self.preprocessing_times.append(duration)
+
+    def record_preprocessing_size_reduction(
+        self, original_size: int, preprocessed_size: int
+    ) -> None:
+        """Record audio file size reduction from preprocessing.
+
+        Args:
+            original_size: Original audio file size in bytes
+            preprocessed_size: Preprocessed audio file size in bytes
+        """
+        self.preprocessing_original_sizes.append(original_size)
+        self.preprocessing_preprocessed_sizes.append(preprocessed_size)
+
+    def record_preprocessing_cache_hit(self) -> None:
+        """Record a preprocessing cache hit."""
+        self.preprocessing_cache_hits += 1
+
+    def record_preprocessing_cache_miss(self) -> None:
+        """Record a preprocessing cache miss."""
+        self.preprocessing_cache_misses += 1
+
     def finish(self) -> Dict[str, Any]:
         """Calculate final metrics and return as dict.
 
@@ -170,6 +211,24 @@ class Metrics:
             round(sum(self.summarize_times) / len(self.summarize_times), 2)
             if self.summarize_times
             else 0.0
+        )
+        avg_preprocessing = (
+            round(sum(self.preprocessing_times) / len(self.preprocessing_times), 2)
+            if self.preprocessing_times
+            else 0.0
+        )
+
+        # Calculate average size reduction
+        total_original = (
+            sum(self.preprocessing_original_sizes) if self.preprocessing_original_sizes else 0
+        )
+        total_preprocessed = (
+            sum(self.preprocessing_preprocessed_sizes)
+            if self.preprocessing_preprocessed_sizes
+            else 0
+        )
+        avg_size_reduction_percent = (
+            round((1 - total_preprocessed / total_original) * 100, 1) if total_original > 0 else 0.0
         )
 
         return {
@@ -205,6 +264,12 @@ class Metrics:
             "llm_summarization_calls": self.llm_summarization_calls,
             "llm_summarization_input_tokens": self.llm_summarization_input_tokens,
             "llm_summarization_output_tokens": self.llm_summarization_output_tokens,
+            # Audio preprocessing metrics
+            "avg_preprocessing_seconds": avg_preprocessing,
+            "preprocessing_count": len(self.preprocessing_times),
+            "avg_preprocessing_size_reduction_percent": avg_size_reduction_percent,
+            "preprocessing_cache_hits": self.preprocessing_cache_hits,
+            "preprocessing_cache_misses": self.preprocessing_cache_misses,
         }
 
     def to_json(self) -> str:

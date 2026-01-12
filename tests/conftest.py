@@ -10,12 +10,11 @@ This module contains:
 All test files can import from this module using pytest's conftest.py mechanism.
 """
 
-# Disable tqdm progress bars in tests to prevent hangs with -s flag
-# and pytest-xdist parallel execution. Must be set BEFORE any tqdm imports.
-# See: https://github.com/chipi/podcast_scraper/issues/176
+# Suppress rich progress bars in tests to keep output clean
+# Must be set BEFORE any rich imports
 import os
 
-os.environ["TQDM_DISABLE"] = "1"
+os.environ["TERM"] = "dumb"  # Disable rich terminal features
 
 # Force Hugging Face libraries to work offline (use only cached models)
 # This prevents network access attempts that would fail with pytest-socket blocking

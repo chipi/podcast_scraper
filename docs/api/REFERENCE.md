@@ -32,9 +32,10 @@ def run_pipeline(cfg: Config) -> Tuple[int, str]
 1. Setup output directory
 2. Fetch and parse RSS feed
 3. Process episodes (download transcripts or queue for transcription)
-4. Transcribe media files using Whisper if needed
-5. Generate metadata and summaries if enabled
-6. Clean up temporary files
+4. Preprocess audio files if enabled (reduce size, remove silence, normalize)
+5. Transcribe media files using Whisper if needed
+6. Generate metadata and summaries if enabled
+7. Clean up temporary files
 
 **Parameters:**
 

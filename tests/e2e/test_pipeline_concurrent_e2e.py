@@ -119,7 +119,7 @@ They explore the challenges and opportunities presented by advanced AI systems.
         # Audio file endpoints
         elif path.startswith("/episode") and path.endswith(".mp3"):
             # Create minimal valid MP3 header (128 bytes)
-            mp3_header = b"\xFF\xFB\x90\x00" * 32
+            mp3_header = b"\xff\xfb\x90\x00" * 32
             self._send_response(200, mp3_header, "audio/mpeg")
         else:
             self._send_response(404, b"Not Found", "text/plain")
