@@ -4,7 +4,7 @@
 # See RFC-025: Test Metrics and Health Tracking (Layer 3)
 #
 # Note: Linter warnings about "Unable to resolve action" for actions/checkout@v4
-# and actions/cache@v4 are false positives - these are standard GitHub Actions
+# and actions/cache@v5 are false positives - these are standard GitHub Actions
 # that exist in the marketplace but the linter cannot resolve them offline.
 #
 # Structure mirrors python-app.yml with separate jobs for isolation:
@@ -69,7 +69,7 @@ jobs:
         df -h
 
     - name: Cache ML models (production + test models for nightly)
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       id: cache-models
       with:
         path: |
@@ -411,7 +411,7 @@ jobs:
         cache-dependency-path: pyproject.toml
 
     - name: Cache ML models
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cache/whisper
@@ -498,7 +498,7 @@ jobs:
         cache-dependency-path: pyproject.toml
 
     - name: Cache ML models
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cache/whisper
@@ -590,7 +590,7 @@ jobs:
         cache-dependency-path: pyproject.toml
 
     - name: Cache ML models
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cache/whisper
