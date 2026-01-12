@@ -1053,7 +1053,7 @@ jobs:
       if: always()
       uses: codecov/codecov-action@v5
       with:
-        file: reports/coverage-unified.xml
+        files: reports/coverage-unified.xml
         flags: unittests
         name: codecov-unified
         fail_ci_if_error: false
