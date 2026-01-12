@@ -24,7 +24,8 @@ ENV TRANSFORMERS_MODELS=${TRANSFORMERS_MODELS}
 ENV SKIP_TRANSFORMERS=${SKIP_TRANSFORMERS}
 
 # Install runtime and build dependencies
-# Build deps are needed for compiling numpy/spacy from source (Python 3.14 may not have pre-built wheels)
+# Build deps are needed for compiling some packages from source if wheels aren't available
+# Python 3.12 has good wheel support, so most packages won't need compilation
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ffmpeg \
