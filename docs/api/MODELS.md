@@ -31,34 +31,32 @@ heading_level: 3
 
 ### Working with Episodes
 
-````python
+```python
 from podcast_scraper.models import Episode
 
 episode = Episode(
-    number=1,
+    idx=0,
     title="Example Episode",
-    link="https://example.com/episode-1",
-    transcript_url="https://example.com/transcript.txt",
+    title_safe="example-episode",
+    item=xml_element,  # Original XML element from RSS
+    transcript_urls=[("https://example.com/transcript.txt", "text/plain")],
     media_url="https://example.com/audio.mp3",
     media_type="audio/mpeg"
 )
 
-print(f"Episode {episode.number}: {episode.title}")
-print(f"Transcript: {episode.transcript_url}")
+print(f"Episode {episode.idx}: {episode.title}")
+print(f"Transcript URL: {episode.transcript_urls[0][0]}")
+```
 ```python
-
 from podcast_scraper.models import RssFeed, Episode
 
 feed = RssFeed(
     title="Example Podcast",
-    description="A great podcast",
-    link="https://example.com",
-    episodes=[episode1, episode2, episode3]
+    items=[item1, item2],  # List of ET.Element
+    base_url="https://example.com/feed.xml",
+    authors=["Host Name"]
 )
 
 print(f"Feed: {feed.title}")
-print(f"Episodes: {len(feed.episodes)}")
-
-```python
-- RSS Parser: `rss_parser.py` - Constructs these models from RSS
-````
+print(f"Episodes in feed: {len(feed.items)}")
+```

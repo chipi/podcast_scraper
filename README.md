@@ -7,7 +7,7 @@
 
 Download, transcribe, and summarize podcast episodes. Fetches transcripts from RSS feeds
 (Podcasting 2.0), generates them when missing, detects speakers, and creates summaries.
-Use local models (Whisper, BART) or OpenAI API — your choice.
+Supports local models and cloud APIs (OpenAI).
 
 🎓 **Learning Project:** This is a personal project where I'm exploring AI-assisted coding
 and hands-on work with edge and cloud AI/ML technologies.
@@ -19,12 +19,14 @@ and hands-on work with edge and cloud AI/ML technologies.
 
 ## Features
 
+- **Multi-Provider Pipeline** — Use local models or cloud APIs (OpenAI)
 - **Transcript Downloads** — Automatic detection and download from RSS feeds
-- **Transcription** — Generate transcripts with Whisper or OpenAI API
-- **Speaker Detection** — Identify speakers using spaCy NER
+- **Transcription** — Generate transcripts with Whisper (local/API)
+- **Speaker Detection** — Identify speakers using spaCy NER or OpenAI
 - **Summarization** — Episode summaries with BART/LED (local) or OpenAI
 - **Metadata Generation** — JSON/YAML metadata per episode
 - **Resumable** — Skip existing files, handle interruptions gracefully
+- **Cache Management** — Robust backup/restore and cleanup of ML model caches
 - **Provider System** — Swap between local and cloud providers via config
 
 ---
@@ -34,7 +36,7 @@ and hands-on work with edge and cloud AI/ML technologies.
 ### Requirements
 
 - Python 3.10+
-- `ffmpeg` (for Whisper): `brew install ffmpeg` / `apt install ffmpeg`
+- `ffmpeg` (required for Whisper and preprocessing): `brew install ffmpeg` / `apt install ffmpeg`
 
 ### Install
 
@@ -45,7 +47,7 @@ Use the latest released version for normal usage.
 ```bash
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
-git checkout <latest-release-tag>   # e.g. v2.3.0
+git checkout v2.4.0
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[ml]"  # Install package in editable mode (required for CLI commands)
 ```
@@ -60,7 +62,7 @@ git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[ml]"  # Install package in editable mode (required for CLI commands)
-```
+```go
 
 **Note:** The `pip install -e ".[ml]"` step is **required** before running CLI commands. Without it,
 you'll get `ModuleNotFoundError: No module named 'podcast_scraper'` when trying to run
@@ -73,11 +75,14 @@ If you plan to use OpenAI providers (transcription, speaker detection, or summar
 customize logging, paths, or performance settings, set up a `.env` file:
 
 ```bash
+
 # Copy the template
+
 cp examples/.env.example .env
 
 # Edit .env and add your OpenAI API key (required for OpenAI providers)
 # OPENAI_API_KEY=sk-your-actual-api-key-here
+
 ```
 
 **Important variables:**
@@ -90,27 +95,38 @@ cp examples/.env.example .env
 
 See `examples/.env.example` for all available options and detailed documentation.
 
-### Run
+## Run
 
 **Prerequisite:** Make sure you've completed the installation steps above and activated your virtual environment.
 
 Replace `https://example.com/feed.xml` with your podcast's RSS feed URL.
 
 ```bash
+
 # Download transcripts (automatically generates missing ones with Whisper)
+
 python3 -m podcast_scraper.cli https://example.com/feed.xml
 
 # Only download existing transcripts (skip transcription)
+
 python3 -m podcast_scraper.cli https://example.com/feed.xml --no-transcribe-missing
 
 # Full processing: transcripts + metadata + summaries
+
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-metadata \
   --generate-summaries
-```
 
-Output is organized into `output/` with subdirectories: `transcripts/` for transcript files
-and `metadata/` for JSON/YAML metadata. Use `--output-dir` to customize the location (default: `./output/`).
+# With custom providers
+
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
+  --transcription-provider openai \
+  --summary-provider openai
+```yaml
+
+Output is organized into `output/rss_<hostname>_<hash>/run_<run_id>/` with subdirectories:
+`transcripts/` for transcript files and `metadata/` for JSON/YAML metadata.
+Use `--output-dir` to customize the base location (default: `./output/`).
 
 ---
 
@@ -120,6 +136,8 @@ and `metadata/` for JSON/YAML metadata. Use `--output-dir` to customize the loca
 | -------- | ----------- |
 | [CLI Reference](docs/api/CLI.md) | All command-line options |
 | [Configuration](docs/api/CONFIGURATION.md) | Config files and environment variables |
+| [AI Provider Guide](docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md) | Comparison of all 8+ providers |
+| [ML Provider Reference](docs/guides/ML_PROVIDER_REFERENCE.md) | Technical reference and tuning for local ML models |
 | [Guides](docs/guides/) | Development, testing, and usage guides |
 | [Troubleshooting](docs/guides/TROUBLESHOOTING.md) | Common issues and solutions |
 | [Full Documentation](https://chipi.github.io/podcast_scraper/) | Complete docs site |

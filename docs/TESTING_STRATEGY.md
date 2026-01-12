@@ -174,13 +174,40 @@ The decision questions above provide a quick way to determine test type. For cri
   - Language parameter propagation
   - Model selection logic (`.en` variants for English)
 
-#### Progress Reporting (`progress.py`)
+#### Cache Management (`cache_manager.py`, `cache_utils.py`)
 
-- **RFC-009**: Noop factory, `set_progress_factory` behavior
+- **RFC-027**: ML model cache management, disk usage analysis, cleanup utilities
 - **Test Cases**:
-  - Factory registration and replacement
-  - Progress update calls
-  - Context manager behavior
+  - Cache information gathering (Whisper, Transformers, spaCy)
+  - Cache cleaning (individual types, all caches)
+  - Disk usage calculations and formatting
+  - Cache directory detection and validation
+  - CLI integration (`cache --status`, `cache --clean`)
+
+#### Audio Preprocessing (`preprocessing.py`)
+
+- **RFC-040**: Audio preprocessing pipeline for API compatibility
+- **Test Cases**:
+  - FFmpeg availability detection
+  - Audio format conversion (MP3, WAV, etc.)
+  - Mono conversion from stereo/multi-channel
+  - Resampling to 16kHz target
+  - Normalization and quality adjustments
+  - File size validation (<25 MB target)
+  - Error handling (FFmpeg missing, invalid audio files)
+  - Preprocessing metrics collection
+
+#### Metrics Collection (`metrics.py`)
+
+- **RFC-025**: Pipeline metrics collection and dashboard generation
+- **Test Cases**:
+  - Metrics data structure creation and updates
+  - Processing time tracking
+  - File size calculations
+  - Provider statistics aggregation
+  - Preprocessing impact metrics (RFC-040)
+  - JSON serialization and deserialization
+  - Metrics file I/O operations
 
 #### Speaker Detection (`speaker_detection.py`) - RFC-010
 
@@ -229,24 +256,33 @@ The decision questions above provide a quick way to determine test type. For cri
 - **Test Cases**:
   - **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, all dependencies
     mocked, test provider creation, initialization, protocol method implementation, error handling,
+
     cleanup, configuration validation
+
   - **Unit Tests (Factory)**: Test factories create correct unified providers
     (MLProvider/OpenAIProvider), verify protocol compliance, test factory error handling
+
   - **Integration Tests**: Test unified providers working with other components, use real providers
     with mocked external services, test provider factory, protocol compliance, component
+
     interactions, provider switching, error handling in workflow context
+
   - **E2E Tests**: Test unified providers in full pipeline, providers work with real HTTP client
     (E2E server mock endpoints for API providers), real ML models (for local providers), multiple
+
+```text
     providers work together, error scenarios (API failures, rate limits)
+```
+
   - **E2E Server Tests**: Mock endpoint returns correct format, mock endpoint handles different
     request types, mock endpoint error handling, URL helper methods work correctly
-  - **Provider-specific tests**:
 
-- **MLProvider**: Unified provider for Whisper (transcription), spaCy (speaker detection),
-  Transformers (summarization) - test all three capabilities together
-- **OpenAIProvider**: Unified provider for OpenAI API (transcription, speaker detection,
-  summarization) - test all three capabilities together
-- **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
+  - **Provider-specific tests**:
+    - **MLProvider**: Unified provider for Whisper (transcription), spaCy (speaker detection),
+      Transformers (summarization) - test all three capabilities together
+    - **OpenAIProvider**: Unified provider for OpenAI API (transcription, speaker detection,
+      summarization) - test all three capabilities together
+  - **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
 
 #### Service API (`service.py`)
 
@@ -397,26 +433,37 @@ E2E tests are organized into three tiers to balance fast CI feedback with compre
 - **Unit Tests**: Mock all external dependencies (HTTP, ML models, file system, API clients)
 - **Integration Tests**: Mock external services (HTTP APIs, external APIs) and ML models (Whisper,
   spaCy, Transformers), use real internal implementations (real providers, real Config, real
+
   workflow logic)
+
 - **E2E Tests**: Use real implementations (HTTP client, ML models, file system) with local test
   server. For API providers, use E2E server mock endpoints instead of direct API calls. ML models
+
   (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
 
 **Provider Testing Strategy:**
 
 - **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, mock all
   dependencies (API clients, ML models). Test provider creation, initialization, protocol methods,
+
   error handling, cleanup
+
 - **Unit Tests (Factory)**: Test factories create correct unified providers, verify protocol
   compliance, test factory error handling
+
 - **Integration Tests**: Use real unified provider implementations (MLProvider/OpenAIProvider) with
   mocked external services and mocked ML models. Test provider factory, protocol compliance,
+
   component interactions, providers working together. ML models are mocked for speed.
+
 - **E2E Tests**: Use real unified providers with E2E server mock endpoints (for API providers like
   OpenAI) or real implementations (for local providers like MLProvider). Test complete workflows
+
   with providers. ML models (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
+
 - **Key Principle**: Always verify protocol compliance, not class names. Unified providers
   (MLProvider, OpenAIProvider) replace old separate provider classes
+
 - **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
 
 ### Test Organization
@@ -436,6 +483,7 @@ The test suite is organized into three main categories:
 - `@pytest.mark.serial` - Tests that must run sequentially (resource conflicts)
 - `@pytest.mark.ml_models` - Requires ML dependencies (whisper, spacy, transformers) or uses real
   ML models
+
 - `@pytest.mark.slow` - Slow-running tests
 - `@pytest.mark.network` - Tests that hit external network
 - `@pytest.mark.multi_episode` - Multi-episode tests (nightly)
@@ -479,6 +527,7 @@ parallel with `-n auto`. All tests use network isolation via
 - **PRs**: Fast feedback + full validation run in parallel (both exclude slow/ml_models tests)
 - **Main branch**: Separate test jobs for maximum parallelization (includes all tests, slow jobs
   run only on push to main)
+
 - **Unit tests**: Run on every PR and push (fast feedback, parallel execution)
 - **Fast integration tests**: Run on PRs and main (excludes slow/ml_models, parallel execution, with re-runs)
 - **Slow integration tests**: Run only on push to main (includes slow/ml_models, parallel execution, with re-runs)
@@ -488,6 +537,7 @@ parallel with `-n auto`. All tests use network isolation via
 - **Flaky test reruns**: Enabled for integration and E2E tests (`--reruns 2 --reruns-delay 1`)
 - **Nightly workflow**: Comprehensive test suite with full metrics collection, trend tracking,
   and dashboard generation (RFC-025 Layer 3). **Note:** LLM/OpenAI tests are excluded
+
   (`-m "not llm"`) to avoid API costs (see issue #183)
 
 **For detailed test execution commands, parallel execution, flaky test reruns, and coverage, see [Testing Guide](guides/TESTING_GUIDE.md).**
@@ -603,11 +653,33 @@ parallel with `-n auto`. All tests use network isolation via
 - [ ] Fallback behavior
 - [ ] Caching logic
 
-### `progress.py`
+### `cache_manager.py`, `cache_utils.py`
 
-- [ ] Factory registration
-- [ ] Progress updates
-- [ ] Context manager behavior
+- [ ] Cache information gathering (all model types)
+- [ ] Disk usage calculation and formatting
+- [ ] Cache cleaning operations
+- [ ] CLI integration
+- [ ] Error handling (missing cache directories)
+
+### `preprocessing.py`
+
+- [ ] FFmpeg availability detection
+- [ ] Audio format conversion
+- [ ] Mono conversion and resampling
+- [ ] Normalization operations
+- [ ] File size validation
+- [ ] Preprocessing metrics
+- [ ] Error handling
+
+### `metrics.py`
+
+- [ ] Metrics structure creation
+- [ ] Processing time tracking
+- [ ] File size calculations
+- [ ] Provider statistics
+- [ ] Preprocessing impact metrics
+- [ ] JSON serialization
+- [ ] File I/O operations
 
 ### `summarizer.py` (RFC-012)
 
@@ -645,6 +717,9 @@ parallel with `-n auto`. All tests use network isolation via
 > **Note**: Test distribution numbers should be verified periodically by running test collection
 > and counting tests by layer. Historical progress tracking was documented in
 > `docs/wip/TEST_PYRAMID_ANALYSIS.md` and `docs/wip/TEST_PYRAMID_PLAN.md` (now consolidated here).
+>
+> **Last Updated**: v2.4.0 (January 2026) - Updated to include new modules (`preprocessing.py`,
+> `cache_manager.py`, advanced `metrics.py`)
 
 ### Current State vs. Ideal Distribution
 
@@ -678,9 +753,9 @@ Ideal Pyramid:
 ```text
 
 1. **Too Few Unit Tests**: Core business logic is being tested at E2E level instead of unit level
-   - **Critical modules with zero unit tests**: `workflow.py`, `cli.py`, `service.py`, `episode_processor.py`, `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`
+   - **Critical modules with zero unit tests**: `workflow.py`, `cli.py`, `service.py`, `episode_processor.py`, `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`, `cache_manager.py` (v2.4.0)
    - **67 summarizer tests misclassified**: Currently at E2E level but test individual functions with mocked dependencies → should be unit tests
-   - **Missing unit test coverage**: Many core functions in `summarizer.py`, `workflow.py`, and `speaker_detection.py` have no unit tests
+   - **Missing unit test coverage**: Many core functions in `summarizer.py`, `workflow.py`, `speaker_detection.py`, `preprocessing.py` (v2.4.0), and `cache_manager.py` (v2.4.0) have no unit tests
 
 2. **Too Many E2E Tests**: Many tests are misclassified
    - Tests that use function-level entry points with mocked dependencies should be unit tests
@@ -695,8 +770,8 @@ Ideal Pyramid:
 
 **Target Distribution:**
 
-- **Unit Tests**: 70-80% (~550-650 tests)
-- **Integration Tests**: 15-20% (~120-150 tests)
+- **Unit Tests**: 70-80% (~600-700 tests, including new modules)
+- **Integration Tests**: 15-20% (~130-160 tests)
 - **E2E Tests**: 5-10% (~50-80 tests)
 
 **Success Metrics:**
@@ -721,9 +796,10 @@ Ideal Pyramid:
   - `episode_processor.py` functions (5-8 tests)
   - `summarizer.py` core functions (45-65 tests)
   - `speaker_detection.py` functions (19-31 tests)
-  - `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py` (17-28 tests)
+  - `preprocessing.py`, `cache_manager.py`, `metrics.py` (25-35 tests) — **v2.4.0 additions**
+  - `progress.py`, `filesystem.py` (10-15 tests)
   - `cli.py` and `service.py` (8-13 tests)
-- **Target**: +150-200 new unit tests
+- **Target**: +170-220 new unit tests (increased from +150-200 to account for new v2.4.0 modules)
 - **Expected Result**: Unit: ~69-83%, Integration: ~27-28%, E2E: ~22-23%
 
 **Phase 3: Optimize Integration Layer** (Medium Priority)
@@ -746,12 +822,14 @@ Ideal Pyramid:
 - `summarizer.py`: Text cleaning, chunking, validation functions (45-65 tests needed)
 - `workflow.py`: Pipeline orchestration helpers (8-10 tests needed)
 - `episode_processor.py`: Episode processing logic (5-8 tests needed)
+- `preprocessing.py`: Audio preprocessing functions (15-20 tests needed) — **v2.4.0**
+- `cache_manager.py`: Cache management utilities (10-15 tests needed) — **v2.4.0**
 
 **Medium Priority Modules:**
 
 - `speaker_detection.py`: Detection and scoring logic (19-31 tests needed)
 - `cli.py` and `service.py`: Argument parsing and service logic (8-13 tests needed)
-- `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`: Utility functions (17-28 tests needed)
+- `metrics.py`, `progress.py`, `filesystem.py`: Utility functions (15-20 tests needed)
 
 ## Future Testing Enhancements
 

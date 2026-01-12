@@ -23,7 +23,12 @@ make preload-ml-models       # Download Whisper, spaCy, transformers models
 make backup-cache            # Backup .cache directory (saves to ~/podcast_scraper_cache_backups/)
 make restore-cache           # Restore cache from backup (interactive)
 make backup-cache-list       # List available backups
-```
+
+# CLI Cache commands
+
+python3 -m podcast_scraper.cli cache --status  # View cache sizes
+python3 -m podcast_scraper.cli cache --clean   # Clean model caches
+```yaml
 
 ---
 
@@ -45,7 +50,7 @@ make quality                 # Code quality (complexity, docstrings, dead code, 
 # Before committing
 
 make ci                      # Run full CI suite locally
-```
+```yaml
 
 ---
 
@@ -77,7 +82,7 @@ pytest tests/ -v --no-header
 # Debug failing test
 
 pytest tests/path/to/test.py -x -v --tb=short
-```
+```yaml
 
 ---
 
@@ -91,7 +96,7 @@ make lint-markdown           # Check markdown style
 # Local preview
 
 mkdocs serve                 # http://localhost:8000
-```
+```yaml
 
 ---
 
@@ -119,7 +124,7 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
 # From config file
 
 python3 -m podcast_scraper.cli --config config.yaml
-```
+```yaml
 
 ---
 
@@ -143,7 +148,7 @@ git commit -m "feat: add my feature"
 # Push and create PR
 
 git push -u origin feature/my-feature
-```
+```yaml
 
 ---
 
@@ -167,7 +172,7 @@ make lint 2>&1 | head -50
 # Validate config file
 
 python -c "import yaml; yaml.safe_load(open('config.yaml'))"
-```
+```yaml
 
 ---
 

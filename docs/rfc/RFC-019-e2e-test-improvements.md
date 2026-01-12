@@ -300,22 +300,16 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self._serve_file(file_path, content_type="application/xml")
                 return
 
-```
-        # Route 2: Direct flat URLs (keep existing RSS URLs)
-
 ```python
 
         # /audio/p01_e01.mp3 -> audio/p01_e01.mp3
 
 ```
-        if path.startswith("/audio/"):
-            filename = path.split("/")[-1]  # Extract "p01_e01.mp3"
-            file_path = self.FIXTURE_ROOT / "audio" / filename
+
             self._serve_file(file_path, content_type="audio/mpeg")
             return
 
 ```
-
         if path.startswith("/transcripts/"):
             filename = path.split("/")[-1]  # Extract "p01_e01.txt"
             file_path = self.FIXTURE_ROOT / "transcripts" / filename
@@ -323,16 +317,10 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
 ```
-        # 404 if not found
-
-```
 
         self.send_error(404, "File not found")
 
 ```
-- URL mapping logic (podcast name → RSS file, episode name → flat files)
-- URL helper methods
-- Tests verifying file serving
 - Security tests (path traversal protection)
 
 ### Stages 4-12: E2E Test Coverage

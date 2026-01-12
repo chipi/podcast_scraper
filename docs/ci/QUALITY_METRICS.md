@@ -1,6 +1,7 @@
-# CI & Code Quality Metrics
+# Code Quality Metrics (v2.4.0)
 
-This project tracks comprehensive CI/CD and code quality metrics via automated dashboards.
+This project tracks comprehensive CI/CD and code quality metrics via automated dashboards to ensure
+long-term stability and performance.
 
 ## Available Dashboards
 
@@ -40,5 +41,5 @@ The dashboard automatically alerts when:
 - Test count changes >5%
 - Flaky tests increase significantly
 
-See [RFC-025: Test Metrics and Health Tracking](rfc/RFC-025-test-metrics-and-health-tracking.md)
+See [RFC-025: Test Metrics and Health Tracking](../rfc/RFC-025-test-metrics-and-health-tracking.md)
 for implementation details.

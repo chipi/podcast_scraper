@@ -42,18 +42,25 @@ restore scripts to manage your cache:
 Create a compressed backup of the cache (excludes locks, incomplete downloads, and temporary files):
 
 ```bash
+
 # Create backup in default location (~/podcast_scraper_cache_backups/)
+
 make backup-cache
+
 # or
+
 python scripts/backup_cache.py
 
 # Dry run to see what would be backed up
+
 make backup-cache-dry-run
 
 # List existing backups
+
 make backup-cache-list
 
 # Clean up old backups (keep 5 most recent)
+
 make backup-cache-cleanup
 ```
 
@@ -72,26 +79,34 @@ make backup-cache-cleanup
 - Temporary files (`.tmp`, `.temp`)
 - Hidden system files (`.DS_Store`)
 
-### Restore
+## Restore
 
 Restore a backup to the current project:
 
 ```bash
+
 # Interactive restore (lists backups, prompts for selection)
+
 make restore-cache
+
 # or
+
 python scripts/restore_cache.py
 
 # Restore specific backup by name
+
 python scripts/restore_cache.py --backup cache_backup_20250108-120000.tar.gz
 
 # Restore with partial name match
+
 python scripts/restore_cache.py --backup 20250108
 
 # Dry run to preview
+
 make restore-cache-dry-run
 
 # Force overwrite existing .cache
+
 python scripts/restore_cache.py --backup 20250108 --force
 ```
 

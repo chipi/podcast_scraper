@@ -11,6 +11,7 @@ nav:
       - guides/index.md
       - Quick Reference: guides/QUICK_REFERENCE.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
+      - Git Worktree Guide: guides/GIT_WORKTREE_GUIDE.md
       - Testing Guide: guides/TESTING_GUIDE.md
       - Unit Testing Guide: guides/UNIT_TESTING_GUIDE.md
       - Integration Testing Guide: guides/INTEGRATION_TESTING_GUIDE.md
@@ -20,7 +21,7 @@ nav:
       - Provider Configuration Quick Reference: guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md
       - Provider Implementation Guide: guides/PROVIDER_IMPLEMENTATION_GUIDE.md
       - Protocol Extension Guide: guides/PROTOCOL_EXTENSION_GUIDE.md
-      - Summarization Guide: guides/SUMMARIZATION_GUIDE.md
+      - ML Provider Reference: guides/ML_PROVIDER_REFERENCE.md
       - Dependencies: guides/DEPENDENCIES_GUIDE.md
       - Markdown Style and Linting: guides/MARKDOWN_LINTING_GUIDE.md
       - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md
@@ -29,7 +30,10 @@ nav:
       - Glossary: guides/GLOSSARY.md
   - Architecture: ARCHITECTURE.md
   - Testing Strategy: TESTING_STRATEGY.md
-  - CI/CD Pipeline: CI_CD.md
+  - CI/CD & Quality:
+      - ci/index.md
+      - CI/CD Pipeline: ci/CD.md
+      - Quality Metrics: ci/QUALITY_METRICS.md
   - Product Requirements:
       - prd/index.md
       - PRD-001 Transcript Acquisition Pipeline: prd/PRD-001-transcript-pipeline.md
@@ -109,7 +113,6 @@ nav:
       - v2.0.1 - Bug Fixes: releases/RELEASE_v2.0.1.md
       - v2.0.0 - Modular Architecture: releases/RELEASE_v2.0.0.md
       - v1.0.0 - Initial Release: releases/RELEASE_v1.0.0.md
-  - CI & Code Quality Metrics: CI_QUALITY_METRICS.md
   - Legal Notice: LEGAL.md
 theme:
   name: material

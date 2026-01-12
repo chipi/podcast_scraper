@@ -22,26 +22,43 @@ Thanks for contributing! This guide gets you from zero to your first PR.
 ## Setup
 
 ```bash
+
 # Clone and enter
+
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 
 # Create environment
+
 python3 -m venv .venv
 source .venv/bin/activate
 
 # Install everything
+
 make init
 
 # Verify setup works
+
 make ci
-```
+```yaml
 
 ---
 
 ## Development Workflow
 
-### 1. Create a Branch
+This project supports two development workflows:
+
+### Option A: Git Worktrees (Recommended)
+
+Parallelize your work using isolated folders. See the [Git Worktree Guide](docs/guides/GIT_WORKTREE_GUIDE.md).
+
+```bash
+make wt-setup   # Create new branch + isolated folder + venv
+```
+
+### Option B: Traditional Branching
+
+1. Create a Branch
 
 ```bash
 git checkout -b feature/my-feature   # or fix/bug-name, docs/update-xyz
@@ -50,12 +67,14 @@ git checkout -b feature/my-feature   # or fix/bug-name, docs/update-xyz
 ### 2. Make Changes
 
 ```bash
+
 # Format and lint as you go
+
 make format
 make lint
 ```
 
-### 3. Test
+## 3. Test
 
 ```bash
 make test-unit          # Fast feedback (~30s)
@@ -81,7 +100,7 @@ git commit -m "feat: add my feature"   # Use conventional commits
 
 ```bash
 git push -u origin feature/my-feature
-```
+```yaml
 
 Then open a PR on GitHub.
 

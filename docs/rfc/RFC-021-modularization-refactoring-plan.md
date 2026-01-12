@@ -113,9 +113,6 @@ class SpeakerDetector(Protocol):
         """Detect speakers for an episode.
 
 ```
-        Returns:
-            (speaker_names, detected_hosts, success)
-        """
         ...
 
 ```python
@@ -303,9 +300,6 @@ class TranscriptionProvider(Protocol):
         """Transcribe media file.
 
 ```
-        Args:
-            media_path: Path to media file
-            cfg: Configuration object
             resource: Provider-specific resource (model, client, etc.)
 
 ```
@@ -521,9 +515,6 @@ class SummarizationProvider(Protocol):
             min_length: Minimum summary length
 
 ```
-            Dictionary with 'summary' and optionally 'chunks', 'metadata'
-        """
-        ...
 ```python
 
     def summarize_chunks(
@@ -535,9 +526,6 @@ class SummarizationProvider(Protocol):
         """Summarize multiple text chunks (MAP phase).
 
 ```
-            List of chunk summaries
-        """
-        ...
 ```python
 
     def combine_summaries(
@@ -549,9 +537,6 @@ class SummarizationProvider(Protocol):
         """Combine multiple summaries into final summary (REDUCE phase).
 
 ```
-            Final combined summary
-        """
-        ...
 ```python
 
     def cleanup(self, resource: Any) -> None:

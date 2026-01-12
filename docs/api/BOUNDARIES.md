@@ -25,7 +25,7 @@ count, summary = run_pipeline(config)
 
 result = service.run(config)
 result = service.run_from_config_file("config.yaml")
-```yaml
+```python
 
 - `service.run(config: Config) -> ServiceResult` - Run pipeline with structured result
 - `service.run_from_config_file(path: str) -> ServiceResult` - Convenience wrapper
@@ -137,13 +137,10 @@ from podcast_scraper import service
 
 result = service.run_from_config_file("config.yaml")
 if not result.success:
-
     # Handle error
-
     pass
 
-```yaml
-
+```
 ### Versioning Policy
 
 - **Major version (X.y.z)**: Breaking API changes
@@ -170,16 +167,10 @@ import podcast_scraper
 
 # Access API version
 
-api_version = podcast_scraper.__api_version__  # "2.3.0"
-module_version = podcast_scraper.__version__   # "2.3.0"
+print(podcast_scraper.__api_version__)  # "2.4.0"
+print(podcast_scraper.__version__)      # "2.4.0"
 
-# Versions are always the same
-
-assert api_version == module_version
-
-```yaml
-- **Deprecation**: Features deprecated in minor versions are removed in next major version
-
+```
 ## Future Considerations
 
 1. **Health Checks**: Service API could expose health check endpoints

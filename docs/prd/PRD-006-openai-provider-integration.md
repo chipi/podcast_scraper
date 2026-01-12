@@ -41,6 +41,7 @@ This PRD addresses the need to add OpenAI as a provider option while maintaining
 Add to `config.py` when implementing OpenAI providers:
 
 ```python
+
 # OpenAI Model Selection
 
 openai_speaker_model: str = Field(
@@ -76,9 +77,9 @@ openai_max_tokens: Optional[int] = Field(
     default=None,
     description="Max tokens for OpenAI generation (None = model default)"
 )
-```
+```yaml
 
-### Legacy Model Pricing Reference
+## Legacy Model Pricing Reference
 
 | Model | Input Cost | Output Cost | Context Window | Best For |
 | ----- | ---------- | ----------- | -------------- | -------- |
@@ -121,9 +122,7 @@ summary_provider: openai          # $0.41/100 (high value)
 speaker_detector_provider: ner        # Free (local, private)
 transcription_provider: whisper   # Free (local, private)
 summary_provider: openai         # $0.41/100 (convenience)
-```
-
-```
+```yaml
 
 - **Temperature:** 0.3 (deterministic, factual)
 - **Max Tokens:** None (model default)
@@ -133,7 +132,7 @@ summary_provider: openai         # $0.41/100 (convenience)
 ### Current Model Pricing (per million tokens)
 
 | Model | Input | Output | Context | Notes |
-|-------|-------|--------|---------|-------|
+| ------- | ------- | -------- | --------- | ------- |
 | **GPT-5** | $1.25 | $10.00 | 256k | Best quality, 65% fewer hallucinations |
 | **GPT-5 Mini** | $0.25 | $2.00 | 128k | **Recommended for production** |
 | **GPT-5 Nano** | $0.05 | $0.40 | 64k | **Recommended for dev/test** |
@@ -147,7 +146,7 @@ summary_provider: openai         # $0.41/100 (convenience)
 ### Recommended Model Defaults
 
 | Purpose | Test Default | Production Default | Rationale |
-|---------|-------------|-------------------|-----------|
+| --------- | ------------- | ------------------- | ----------- |
 | Speaker Detection | `gpt-5-nano` | `gpt-5-mini` | Names extraction is simple |
 | Summarization | `gpt-5-nano` | `gpt-5` | Full GPT-5 for quality summaries |
 | Transcription | `whisper-1` | `whisper-1` | Only OpenAI option |
@@ -157,7 +156,7 @@ summary_provider: openai         # $0.41/100 (convenience)
 Assuming ~10,000 words per episode transcript (~13,000 tokens):
 
 | Task | Test (Nano) | Production |
-|------|-------------|------------|
+| ------ | ------------- | ------------ |
 | Speaker Detection | ~$0.001 | ~$0.004 (Mini) |
 | Summarization | ~$0.002 | ~$0.02 (GPT-5) |
 | Transcription (60 min) | $0.36 | $0.36 |
@@ -166,7 +165,7 @@ Assuming ~10,000 words per episode transcript (~13,000 tokens):
 ### Cost Comparison: Local vs OpenAI (Per 100 Episodes)
 
 | Component | Local | OpenAI (GPT-5 Mini) | OpenAI (GPT-5) |
-|-----------|-------|---------------------|----------------|
+| ----------- | ------- | --------------------- | ---------------- |
 | Speaker Detection | Free | $0.40 | $1.60 |
 | Summarization | Free | $0.80 | $4.00 |
 | Transcription | Free | $36.00 | $36.00 |
@@ -185,24 +184,28 @@ Assuming ~10,000 words per episode transcript (~13,000 tokens):
 **Cost-Optimized (GPT-5 Nano + Local Whisper):**
 
 ```yaml
+
 speaker_detector_provider: openai
 transcription_provider: whisper      # Free (local)
 summary_provider: openai
 openai_speaker_model: gpt-5-nano
 openai_summary_model: gpt-5-nano
-```
+
+```bash
 
 Cost: ~$0.003/episode (excluding transcription)
 
 **Quality-Optimized (GPT-5 + OpenAI Whisper):**
 
 ```yaml
+
 speaker_detector_provider: openai
 transcription_provider: openai
 summary_provider: openai
 openai_speaker_model: gpt-5-mini
 openai_summary_model: gpt-5
-```
+
+```bash
 
 Cost: ~$0.38/episode
 

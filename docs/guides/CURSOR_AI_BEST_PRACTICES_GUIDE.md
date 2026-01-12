@@ -74,7 +74,7 @@
 >
 > - [Development Guide](DEVELOPMENT_GUIDE.md) - Implementation instructions
 > - [Testing Guide](TESTING_GUIDE.md) - Test execution commands
-> - [CI/CD](../CI_CD.md) - CI/CD pipeline details
+> - [CI/CD](../ci/CD.md) - CI/CD pipeline details
 
 This document captures best practices for using Cursor effectively in the **podcast_scraper**
 project, which is a Python-heavy codebase with:

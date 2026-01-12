@@ -262,21 +262,14 @@ def create_deepseek_client(cfg: config.Config) -> OpenAI:
     """Create DeepSeek client using OpenAI SDK with custom base_url.
 
 ```
-```text
-
-    Args:
         cfg: Configuration object with deepseek_api_key and deepseek_api_base
 
 ```
-```text
 
     Returns:
         OpenAI client configured for DeepSeek API
 
 ```
-```text
-
-    Raises:
         ValueError: If API key is not provided
     """
     if not cfg.deepseek_api_key:
@@ -286,7 +279,6 @@ def create_deepseek_client(cfg: config.Config) -> OpenAI:
         )
 
 ```
-```text
 
     # Use OpenAI SDK with DeepSeek's base URL
     return OpenAI(
@@ -295,7 +287,6 @@ def create_deepseek_client(cfg: config.Config) -> OpenAI:
     )
 
 ```
-
 #### 5.2 Speaker Detection Provider
 
 **File**: `podcast_scraper/speaker_detectors/deepseek_detector.py`
@@ -335,32 +326,28 @@ class DeepSeekSpeakerDetector:
     def __init__(self, cfg: config.Config):
         """Initialize DeepSeek speaker detector.
 ```
-```text
+
         Args:
             cfg: Configuration object with deepseek_api_key and speaker settings
+
 ```
-```text
-        Raises:
-            ValueError: If DeepSeek API key is not provided
         """
         self.cfg = cfg
         self.client = create_deepseek_client(cfg)
         self.model = cfg.deepseek_speaker_model
         self.temperature = cfg.deepseek_temperature
         self._initialized = False
-```
 ```python
+
     def initialize(self) -> None:
         """Initialize provider (no local model loading needed for API)."""
         if self._initialized:
             return
+
 ```
-```text
-        logger.debug("Initializing DeepSeek speaker detector (model: %s)", self.model)
-        self._initialized = True
         logger.debug("DeepSeek speaker detector initialized successfully")
-```
 ```python
+
     def detect_hosts(
         self,
         feed_title: str,
@@ -368,26 +355,23 @@ class DeepSeekSpeakerDetector:
         feed_authors: Optional[List[str]],
     ) -> Set[str]:
         """Detect hosts from feed metadata using DeepSeek API.
+
 ```
-```text
-        Args:
-            feed_title: Title of the podcast feed
             feed_description: Optional description of the feed
             feed_authors: Optional list of feed authors
 ```
-```text
+
         Returns:
             Set of detected host names
         """
         if not self._initialized:
             self.initialize()
-```
 
-        system_prompt, user_prompt = self._build_host_detection_prompts(
-            feed_title, feed_description, feed_authors
+```
         )
 
 ```text
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -398,21 +382,20 @@ class DeepSeekSpeakerDetector:
                     {"role": "user", "content": user_prompt},
                 ],
             )
-```
 
-            content = response.choices[0].message.content
-            hosts = self._parse_hosts_from_response(content)
+```
 
 ```text
+
             logger.debug("DeepSeek detected hosts: %s", hosts)
             return hosts
-```
+
 ```python
         except Exception as e:
             logger.error("DeepSeek API error in host detection: %s", e)
             raise ValueError(f"DeepSeek host detection failed: {e}") from e
-```
 ```python
+
     def detect_speakers(
         self,
         episode_title: str,
@@ -420,26 +403,23 @@ class DeepSeekSpeakerDetector:
         known_hosts: Set[str],
     ) -> Tuple[List[str], Set[str], bool]:
         """Detect speakers for an episode using DeepSeek API.
+
 ```
-```text
-        Args:
-            episode_title: Title of the episode
             episode_description: Optional description of the episode
             known_hosts: Set of known host names
 ```
-```text
+
         Returns:
             Tuple of (speaker_names, detected_hosts, success)
         """
         if not self._initialized:
             self.initialize()
-```
 
-        system_prompt, user_prompt = self._build_speaker_detection_prompts(
-            episode_title, episode_description, known_hosts
+```
         )
 
 ```text
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -450,23 +430,22 @@ class DeepSeekSpeakerDetector:
                     {"role": "user", "content": user_prompt},
                 ],
             )
-```
 
-            content = response.choices[0].message.content
-            speakers, detected_hosts, success = self._parse_speakers_from_response(
+```
                 content, known_hosts
             )
 
 ```text
+
             logger.debug("DeepSeek detected speakers: %s", speakers)
             return speakers, detected_hosts, success
-```
+
 ```python
         except Exception as e:
             logger.error("DeepSeek API error in speaker detection: %s", e)
             raise ValueError(f"DeepSeek speaker detection failed: {e}") from e
-```
 ```python
+
     def analyze_patterns(
         self,
         episodes: List[models.Episode],
@@ -474,13 +453,13 @@ class DeepSeekSpeakerDetector:
     ) -> Optional[Dict[str, Any]]:
         """Analyze episode patterns (optional, can use local logic)."""
         return None
-```
+
 ```python
     def cleanup(self) -> None:
         """Cleanup provider resources (no-op for API provider)."""
         pass
-```
 ```python
+
     def _build_host_detection_prompts(
         self,
         feed_title: str,
@@ -489,10 +468,8 @@ class DeepSeekSpeakerDetector:
     ) -> Tuple[str, str]:
         """Build prompts for host detection using prompt_store."""
         from ..prompt_store import render_prompt
+
 ```
-```text
-        system_prompt = render_prompt(self.cfg.deepseek_ner_system_prompt)
-        user_prompt = render_prompt(
             self.cfg.deepseek_ner_user_prompt,
             feed_title=feed_title,
             feed_description=feed_description or "",
@@ -500,8 +477,8 @@ class DeepSeekSpeakerDetector:
             task="host_detection",
         )
         return system_prompt, user_prompt
-```
 ```python
+
     def _build_speaker_detection_prompts(
         self,
         episode_title: str,
@@ -510,10 +487,8 @@ class DeepSeekSpeakerDetector:
     ) -> Tuple[str, str]:
         """Build prompts for speaker detection using prompt_store."""
         from ..prompt_store import render_prompt
+
 ```
-```text
-        system_prompt = render_prompt(self.cfg.deepseek_ner_system_prompt)
-        user_prompt = render_prompt(
             self.cfg.deepseek_ner_user_prompt,
             episode_title=episode_title,
             episode_description=episode_description or "",
@@ -521,8 +496,8 @@ class DeepSeekSpeakerDetector:
             task="speaker_detection",
         )
         return system_prompt, user_prompt
-```
 ```python
+
     def _parse_hosts_from_response(self, response_text: str) -> Set[str]:
         """Parse host names from API response."""
         try:
@@ -533,17 +508,15 @@ class DeepSeekSpeakerDetector:
                 return set(data)
         except json.JSONDecodeError:
             pass
+
 ```
-```text
-        hosts = set()
-        for line in response_text.strip().split("\n"):
             for name in line.split(","):
                 name = name.strip().strip("-").strip("*").strip()
                 if name and len(name) > 1:
                     hosts.add(name)
         return hosts
-```
 ```python
+
     def _parse_speakers_from_response(
         self, response_text: str, known_hosts: Set[str]
     ) -> Tuple[List[str], Set[str], bool]:
@@ -558,20 +531,17 @@ class DeepSeekSpeakerDetector:
                 return all_speakers, hosts, True
         except json.JSONDecodeError:
             pass
+
 ```
 
-        speakers = []
-        for line in response_text.strip().split("\n"):
-
 ```text
+
             for name in line.split(","):
                 name = name.strip().strip("-").strip("*").strip()
                 if name and len(name) > 1:
                     speakers.append(name)
+
 ```
-```text
-        detected_hosts = set(s for s in speakers if s in known_hosts)
-        return speakers, detected_hosts, len(speakers) > 0
 ```
 
 #### 5.3 Summarization Provider
@@ -605,9 +575,6 @@ class DeepSeekSummarizationProvider:
     """DeepSeek AI-based summarization provider.
 
 ```
-    This provider uses DeepSeek's chat API for cloud-based summarization.
-    It implements the SummarizationProvider protocol.
-    """
 
 ```python
 
@@ -615,13 +582,9 @@ class DeepSeekSummarizationProvider:
         """Initialize DeepSeek summarization provider.
 
 ```
-```text
-
-        Args:
             cfg: Configuration object with deepseek_api_key and summarization settings
 
 ```
-```text
 
         Raises:
             ValueError: If DeepSeek API key is not provided
@@ -636,7 +599,6 @@ class DeepSeekSummarizationProvider:
         # API providers are thread-safe
         self._requires_separate_instances = False
 
-```
 ```python
 
     def initialize(self) -> None:
@@ -645,13 +607,11 @@ class DeepSeekSummarizationProvider:
             return
 
 ```
-```text
 
         logger.debug("Initializing DeepSeek summarization provider (model: %s)", self.model)
         self._initialized = True
         logger.debug("DeepSeek summarization provider initialized successfully")
 
-```
 ```python
 
     def summarize(
@@ -664,7 +624,6 @@ class DeepSeekSummarizationProvider:
         """Summarize text using DeepSeek chat API.
 
 ```
-```text
 
         Args:
             text: Transcript text to summarize
@@ -673,13 +632,9 @@ class DeepSeekSummarizationProvider:
             params: Optional parameters dict
 
 ```
-```text
-
-        Returns:
             Dictionary with summary results
 
 ```
-```text
 
         Raises:
             ValueError: If summarization fails
@@ -691,13 +646,10 @@ class DeepSeekSummarizationProvider:
             )
 
 ```
-```text
-
-        max_length = (params.get("max_length") if params else None) or self.cfg.summary_max_length
         min_length = (params.get("min_length") if params else None) or self.cfg.summary_min_length
 
 ```
-        logger.debug(
+
             "Summarizing text via DeepSeek API (model: %s, max_length: %d)",
             self.model,
             max_length,
@@ -718,6 +670,7 @@ class DeepSeekSummarizationProvider:
             )
 
 ```json
+
             response = self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=self.cfg.deepseek_max_tokens or max_length,
@@ -737,17 +690,15 @@ class DeepSeekSummarizationProvider:
                 summary = ""
 
 ```
-```text
 
             logger.debug("DeepSeek summarization completed: %d characters", len(summary))
 
-```
 ```python
 
             from ..prompt_store import get_prompt_metadata
 
 ```
-            prompt_metadata = {}
+
             if system_prompt_name:
 
 ```text
@@ -762,7 +713,6 @@ class DeepSeekSummarizationProvider:
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
 ```
-```text
 
             return {
                 "summary": summary,
@@ -776,14 +726,12 @@ class DeepSeekSummarizationProvider:
                 },
             }
 
-```
 ```python
 
         except Exception as exc:
             logger.error("DeepSeek API error in summarization: %s", exc)
             raise ValueError(f"DeepSeek summarization failed: {exc}") from exc
 
-```
 ```python
 
     def _build_summarization_prompts(
@@ -798,21 +746,15 @@ class DeepSeekSummarizationProvider:
         from ..prompt_store import render_prompt
 
 ```
-        system_prompt_name = self.cfg.deepseek_summary_system_prompt
-        user_prompt_name = self.cfg.deepseek_summary_user_prompt
-
 ```text
 
         system_prompt = render_prompt(system_prompt_name)
 
 ```
-```text
-
-        paragraphs_min = max(1, min_length // 100)
         paragraphs_max = max(paragraphs_min, max_length // 100)
 
 ```
-        template_params = {
+
             "transcript": text,
             "title": episode_title or "",
             "paragraphs_min": paragraphs_min,
@@ -825,7 +767,6 @@ class DeepSeekSummarizationProvider:
         user_prompt = render_prompt(user_prompt_name, **template_params)
 
 ```
-```text
 
         return (
             system_prompt,
@@ -836,7 +777,6 @@ class DeepSeekSummarizationProvider:
             paragraphs_max,
         )
 
-```
 ```python
 
     def cleanup(self) -> None:
@@ -875,6 +815,7 @@ def create_speaker_detector(cfg: config.Config) -> Optional[SpeakerDetector]:
     elif provider_type == "deepseek":
 
 ```python
+
         from .deepseek_detector import DeepSeekSpeakerDetector
         return DeepSeekSpeakerDetector(cfg)
     else:
@@ -882,13 +823,14 @@ def create_speaker_detector(cfg: config.Config) -> Optional[SpeakerDetector]:
             f"Unsupported speaker detector provider: {provider_type}. "
             "Supported providers: 'spacy', 'openai', 'anthropic', 'mistral', 'deepseek'."
         )
-```
 
+```
 #### 6.2 Summarization Factory
 
 **File**: `podcast_scraper/summarization/factory.py` (update)
 
 ```python
+
 def create_summarization_provider(cfg: config.Config) -> Optional[SummarizationProvider]:
     """Create a summarization provider based on configuration."""
     if not cfg.generate_summaries:
@@ -941,6 +883,7 @@ Guidelines:
 - Structure the summary with logical flow
 
 ```
+
 #### 7.2 Summarization User Prompt
 
 **File**: `prompts/deepseek/summarization/long_v1.j2`
@@ -959,6 +902,7 @@ Transcript:
 Provide a comprehensive summary covering the main topics, key insights, and important takeaways.
 
 ```
+
 #### 7.3 NER System Prompt
 
 **File**: `prompts/deepseek/ner/system_ner_v1.j2`
@@ -974,6 +918,7 @@ Guidelines:
 - Respond in JSON format with "hosts" and "guests" arrays
 
 ```
+
 #### 7.4 NER User Prompt
 
 **File**: `prompts/deepseek/ner/guest_host_v1.j2`
@@ -999,6 +944,7 @@ Return a JSON object with format: {"speakers": [...], "hosts": [...], "guests": 
 {% endif %}
 
 ```
+
 ### 8. E2E Server Mock Endpoints
 
 DeepSeek uses OpenAI-compatible API, so we can reuse OpenAI mock endpoints. Add URL helper:
@@ -1016,6 +962,7 @@ class E2EServerURLs:
         return f"http://{self.host}:{self.port}"
 
 ```
+
 ### 9. Dependencies
 
 No new dependencies required - DeepSeek uses OpenAI SDK:
@@ -1051,6 +998,7 @@ tests/
     └── test_deepseek_provider_integration_e2e.py
 
 ```
+
 ### Test Markers
 
 ```python

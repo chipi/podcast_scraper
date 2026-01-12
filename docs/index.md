@@ -89,7 +89,7 @@ generate_metadata: true
 generate_summaries: true
 workers: 4
 skip_existing: true
-```
+```yaml
 
 **Example configs:**
 
@@ -129,13 +129,15 @@ skip_existing: true
 | **[Architecture Overview](ARCHITECTURE.md)** | High-level system design and module responsibilities |
 | **[Testing Strategy](TESTING_STRATEGY.md)** | Test coverage, quality assurance, and testing guidelines |
 | **[Testing Guide](guides/TESTING_GUIDE.md)** | Detailed test execution, fixtures, and coverage information |
-| **[CI/CD Pipeline](CI_CD.md)** | GitHub Actions workflows, parallel execution |
+| **[CI/CD Pipeline](ci/CD.md)** | GitHub Actions workflows, parallel execution |
+| **[Quality Metrics](ci/QUALITY_METRICS.md)** | Code quality tracking and automated dashboards |
 | **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** | Development environment setup and tooling |
+| **[Git Worktree Guide](guides/GIT_WORKTREE_GUIDE.md)** | Recommended workflow for parallel feature development |
 | **[Dependencies Guide](guides/DEPENDENCIES_GUIDE.md)** | Third-party dependencies, rationale, and management |
 | **[Troubleshooting](guides/TROUBLESHOOTING.md)** | Common issues and solutions |
 | **[Glossary](guides/GLOSSARY.md)** | Key terms and concepts |
 | **[Markdown Linting](guides/MARKDOWN_LINTING_GUIDE.md)** | Markdown linting practices and workflows |
-| **[Summarization Guide](guides/SUMMARIZATION_GUIDE.md)** | Summarization implementation details |
+| **[ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md)** | Technical reference and tuning for local ML models |
 | **[API Boundaries](api/BOUNDARIES.md)** | API design principles and stability guarantees |
 | **[API Migration Guide](api/MIGRATION_GUIDE.md)** | Upgrading between versions |
 | **[API Versioning](api/VERSIONING.md)** | Versioning strategy and compatibility |
@@ -252,7 +254,7 @@ autostart=true
 autorestart=true
 stdout_logfile=/var/log/podcast_scraper/stdout.log
 stderr_logfile=/var/log/podcast_scraper/stderr.log
-```
+```yaml
 
 ---
 
@@ -273,7 +275,7 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-summaries \
   --summary-model bart-large \
   --summary-device mps
-```
+```yaml
 
 ---
 
@@ -293,7 +295,7 @@ python scripts/eval_cleaning.py --episode ep01
 # Evaluate summarization quality
 
 python scripts/eval_summaries.py --map-model bart-large --reduce-model long-fast
-```
+```yaml
 
 ---
 
@@ -308,8 +310,8 @@ pip install -e .
 ```bash
 
 make ci
-```
 
+```
 ## Python API
 
 ```python
@@ -347,8 +349,8 @@ docker run --rm \
   -v "$(pwd)/config.yaml:/app/config.yaml:ro" \
   podcast-scraper \
   --config /app/config.yaml
-```
 
+```yaml
 ---
 
 ## 👩‍💻 Contributing
@@ -370,8 +372,8 @@ make lint          # Run linting
 make type          # Type checking
 make test-unit     # Run unit tests with coverage
 make docs          # Build documentation
-```
 
+```json
 **Resources:**
 
 - **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** — Development workflow
@@ -434,7 +436,7 @@ rights to redistribute third-party podcast content.
 
 **Development:**
 [Contributing](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md) •
-[Architecture](ARCHITECTURE.md) • [Testing](guides/TESTING_GUIDE.md) • [CI/CD](CI_CD.md)
+[Architecture](ARCHITECTURE.md) • [Testing](guides/TESTING_GUIDE.md) • [CI/CD](ci/CD.md)
 
 **Provider System:**
 [Quick Reference](guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) •

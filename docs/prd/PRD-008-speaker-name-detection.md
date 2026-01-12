@@ -62,7 +62,7 @@ Users want transcripts that automatically use real speaker names without requiri
 ### Configuration
 
 | Option | Default | Description |
-|--------|---------|-------------|
+| -------- | --------- | ------------- |
 | `auto_speakers` | `true` | Enable automatic speaker detection |
 | `language` | `"en"` | Language for NER model selection |
 | `ner_model` | derived from language | Override NER model (e.g., `en_core_web_sm`) |
@@ -71,18 +71,23 @@ Users want transcripts that automatically use real speaker names without requiri
 ### CLI Flags
 
 ```bash
+
 # Enable/disable auto detection
+
 --auto-speakers / --no-auto-speakers
 
 # Set language (affects both NER and Whisper)
+
 --language en
 
 # Override NER model
+
 --ner-model en_core_web_sm
 
 # Manual fallback
+
 --speaker-names "Lenny" "Guest"
-```
+```python
 
 ## Success Criteria
 
@@ -103,4 +108,3 @@ Users want transcripts that automatically use real speaker names without requiri
 - [RFC-010: Automatic Speaker Name Detection](../rfc/RFC-010-speaker-name-detection.md) - Technical implementation
 - [PRD-002: Whisper Fallback Transcription](PRD-002-whisper-fallback.md) - Whisper integration
 - [Architecture](../ARCHITECTURE.md) - System design
-

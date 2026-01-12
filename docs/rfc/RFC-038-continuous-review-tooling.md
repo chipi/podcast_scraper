@@ -73,15 +73,14 @@ updates:
       include: "scope"
 
 ```text
+
     # Group related dependencies to reduce PR noise
     groups:
       # Development tools (can update together)
       dev-tools:
         patterns:
-```
 
-          - "pytest*"
-          - "black"
+```
           - "isort"
           - "flake8*"
           - "mypy"
@@ -97,13 +96,12 @@ updates:
           - "patch"
 
 ```text
+
       # ML dependencies (patch only - breaking changes common)
       ml-core:
         patterns:
-```
 
-          - "torch*"
-          - "transformers"
+```
           - "openai-whisper"
           - "spacy"
         update-types:
@@ -111,13 +109,12 @@ updates:
           - "patch"
 
 ```text
+
       # API clients
       api-clients:
         patterns:
-```
 
-          - "openai"
-          - "anthropic"
+```
           - "mistralai"
           - "groq"
         update-types:
@@ -126,25 +123,23 @@ updates:
           - "patch"
 
 ```text
+
       # Documentation
       docs:
         patterns:
-```
 
-          - "mkdocs*"
-          - "markdown*"
+```
         update-types:
 
           - "minor"
           - "patch"
 
 ```text
+
     # Ignore specific packages that require manual updates
     ignore:
-```
 
-      - dependency-name: "torch"
-        update-types: ["version-update:semver-major"]
+```
 
   # =============================================================================
   # GitHub Actions
@@ -154,6 +149,7 @@ updates:
     directory: "/"
 
 ```text
+
     schedule:
       interval: "weekly"
       day: "monday"
@@ -161,23 +157,20 @@ updates:
       timezone: "Europe/Amsterdam"
     open-pull-requests-limit: 3
     labels:
-```
 
-      - "dependencies"
-      - "ci/cd"
+```
       - "automated"
     commit-message:
 
       prefix: "ci"
 
 ```text
+
     groups:
       actions:
         patterns:
-```
 
-          - "actions/*"
-        update-types:
+```
 
           - "minor"
           - "patch"
@@ -190,13 +183,12 @@ updates:
     directory: "/"
 
 ```text
+
     schedule:
       interval: "monthly"
     labels:
-```
 
-      - "dependencies"
-      - "docker"
+```
       - "automated"
     commit-message:
 
@@ -216,9 +208,6 @@ updates:
 ### 1.4 Expected Behavior
 
 ```
-├── Dependabot checks for updates
-├── Creates grouped PRs:
-│   ├── deps(dev-tools): bump pytest, black, mypy
 │   ├── deps(api-clients): bump openai, anthropic
 │   └── ci(actions): bump actions/checkout
 └── PRs trigger CI pipeline for validation
@@ -324,6 +313,7 @@ from pathlib import Path
 def run_pydeps_cycles() -> tuple[bool, str]:
 
 ```text
+
     """Check for circular dependencies."""
     result = subprocess.run(
         ["python", "-m", "pydeps", "src/podcast_scraper", "--show-cycles", "--no-show"],
@@ -332,11 +322,12 @@ def run_pydeps_cycles() -> tuple[bool, str]:
     )
     has_cycles = "cycle" in result.stdout.lower() or "cycle" in result.stderr.lower()
     return has_cycles, result.stdout + result.stderr
-```
 
+```python
 def generate_dependency_data() -> dict:
 
 ```text
+
     """Generate dependency data as JSON."""
     result = subprocess.run(
         [
@@ -346,39 +337,38 @@ def generate_dependency_data() -> dict:
         capture_output=True,
         text=True,
     )
-```
 
-```text
+```
     # Parse pydeps output (simplified)
     lines = result.stdout.strip().split("\n") if result.stdout else []
+
 ```
 
-```text
     return {
         "module_count": len(lines),
         "raw_output": result.stdout,
     }
-```
 
+```python
 def analyze_imports(src_dir: Path = Path("src/podcast_scraper")) -> dict:
 
 ```python
+
     """Analyze import patterns in source files."""
     import_counts = {}
-```
 
-```text
+```
     for py_file in src_dir.rglob("*.py"):
         if "__pycache__" in str(py_file):
             continue
+
 ```
 
-```text
         module_name = str(py_file.relative_to(src_dir.parent)).replace("/", ".").replace(".py", "")
         imports = []
-```
 
 ```python
+
         try:
             with open(py_file) as f:
                 for line in f:
@@ -387,92 +377,90 @@ def analyze_imports(src_dir: Path = Path("src/podcast_scraper")) -> dict:
                         imports.append(line)
         except Exception:
             continue
+
 ```
 
-        import_counts[module_name] = {
             "import_count": len(imports),
             "imports": imports[:10],  # First 10 for brevity
         }
 
 ```text
+
     return import_counts
-```
+
+```python
 
 def check_thresholds(import_data: dict) -> list[str]:
 
 ```text
+
     """Check against architectural thresholds."""
     issues = []
+
 ```
-
-    MAX_IMPORTS = 15  # Maximum imports per module
-
 ```text
+
     for module, data in import_data.items():
         if data["import_count"] > MAX_IMPORTS:
             issues.append(
                 f"⚠️  {module}: {data['import_count']} imports (threshold: {MAX_IMPORTS})"
             )
+
 ```
 
-```text
     return issues
-```
 
+```python
 def main():
 
 ```text
+
     parser = argparse.ArgumentParser(description="Analyze module dependencies")
     parser.add_argument("--check", action="store_true", help="Check mode - exit with error if issues")
     parser.add_argument("--report", action="store_true", help="Generate JSON report")
     args = parser.parse_args()
-```
 
-```text
+```
     print("=" * 60)
     print("Module Dependency Analysis")
     print("=" * 60)
+
 ```
 
-```text
     # Check for cycles
     print("\n📊 Checking for circular imports...")
     has_cycles, cycle_output = run_pydeps_cycles()
-```
 
-```text
+```
     if has_cycles:
         print("❌ Circular imports detected!")
         print(cycle_output)
     else:
         print("✅ No circular imports found")
-```
 
 ```python
+
     # Analyze imports
     print("\n📊 Analyzing import patterns...")
     import_data = analyze_imports()
     issues = check_thresholds(import_data)
-```
 
-```text
+```
     if issues:
         print(f"\n⚠️  Found {len(issues)} threshold violations:")
         for issue in issues:
             print(f"   {issue}")
     else:
         print("✅ All modules within thresholds")
+
 ```
 
-```text
     # Generate report
     if args.report:
         report_dir = Path("reports")
         report_dir.mkdir(exist_ok=True)
-```
 
-        report = {
-            "has_cycles": has_cycles,
+```
             "cycle_output": cycle_output if has_cycles else None,
             "threshold_issues": issues,
             "module_stats": {
@@ -485,33 +473,34 @@ def main():
         with open(report_path, "w") as f:
 
 ```text
+
             json.dump(report, f, indent=2)
         print(f"\n📄 Report saved to: {report_path}")
-```
 
-```text
+```
     # Exit with error if check mode and issues found
     if args.check and (has_cycles or issues):
         print("\n❌ Dependency analysis failed!")
         sys.exit(1)
+
 ```
 
-```text
     print("\n✅ Dependency analysis complete")
-```
 
+```python
 if __name__ == "__main__":
 
 ```text
-    main()
-```
-```
 
+    main()
+
+```
 ### 2.5 CI Integration
 
 Add to nightly workflow (`.github/workflows/nightly.yml`):
 
 ```yaml
+
   dependency-analysis:
     runs-on: ubuntu-latest
     steps:
@@ -554,7 +543,6 @@ Add to nightly workflow (`.github/workflows/nightly.yml`):
         with:
           name: dependency-analysis
           path: reports/
-```
 ```yaml
 
 ### 2.6 Key Metrics
@@ -601,14 +589,16 @@ class CheckResult:
 def run_command(cmd: list[str], check: bool = False) -> tuple[int, str, str]:
 
 ```text
+
     """Run a command and return exit code, stdout, stderr."""
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result.returncode, result.stdout, result.stderr
-```
 
+```python
 def check_tests() -> CheckResult:
 
 ```text
+
     """Verify all tests pass."""
     code, stdout, stderr = run_command(["make", "test"])
     return CheckResult(
@@ -616,11 +606,12 @@ def check_tests() -> CheckResult:
         passed=code == 0,
         message="All tests passed" if code == 0 else f"Tests failed: {stderr[:200]}"
     )
-```
 
+```python
 def check_lint() -> CheckResult:
 
 ```text
+
     """Verify linting passes."""
     code, _, stderr = run_command(["make", "lint"])
     return CheckResult(
@@ -628,11 +619,12 @@ def check_lint() -> CheckResult:
         passed=code == 0,
         message="Linting passed" if code == 0 else f"Linting failed: {stderr[:200]}"
     )
-```
 
+```python
 def check_type_check() -> CheckResult:
 
 ```text
+
     """Verify type checking passes."""
     code, _, stderr = run_command(["make", "type-check"])
     return CheckResult(
@@ -640,11 +632,12 @@ def check_type_check() -> CheckResult:
         passed=code == 0,
         message="Type check passed" if code == 0 else f"Type errors: {stderr[:200]}"
     )
-```
 
+```python
 def check_docs_build() -> CheckResult:
 
 ```text
+
     """Verify documentation builds."""
     code, _, stderr = run_command(["make", "docs"])
     return CheckResult(
@@ -652,11 +645,12 @@ def check_docs_build() -> CheckResult:
         passed=code == 0,
         message="Docs build successfully" if code == 0 else f"Docs failed: {stderr[:200]}"
     )
-```
 
+```python
 def check_security() -> CheckResult:
 
 ```text
+
     """Verify no critical security issues."""
     code, _, stderr = run_command(["make", "security"])
     return CheckResult(
@@ -664,11 +658,12 @@ def check_security() -> CheckResult:
         passed=code == 0,
         message="No critical vulnerabilities" if code == 0 else f"Security issues: {stderr[:200]}"
     )
-```
 
+```python
 def check_changelog(version: str | None) -> CheckResult:
 
 ```text
+
     """Verify changelog is updated."""
     changelog = Path("CHANGELOG.md")
     if not changelog.exists():
@@ -677,9 +672,8 @@ def check_changelog(version: str | None) -> CheckResult:
             passed=False,
             message="CHANGELOG.md not found"
         )
-```
 
-```text
+```
     content = changelog.read_text()
     if version and version not in content:
         return CheckResult(
@@ -687,19 +681,20 @@ def check_changelog(version: str | None) -> CheckResult:
             passed=False,
             message=f"Version {version} not found in CHANGELOG.md"
         )
+
 ```
 
-```text
     return CheckResult(
         name="Changelog",
         passed=True,
         message="Changelog exists" + (f" with {version}" if version else "")
     )
-```
 
+```python
 def check_version_consistency(version: str | None) -> CheckResult:
 
 ```text
+
     """Verify version is consistent across files."""
     if not version:
         return CheckResult(
@@ -707,9 +702,8 @@ def check_version_consistency(version: str | None) -> CheckResult:
             passed=True,
             message="Skipped (no version specified)"
         )
-```
 
-```text
+```
     # Check pyproject.toml
     pyproject = Path("pyproject.toml")
     if pyproject.exists():
@@ -720,32 +714,32 @@ def check_version_consistency(version: str | None) -> CheckResult:
                 passed=False,
                 message=f"Version {version} not in pyproject.toml"
             )
+
 ```
 
-```text
     return CheckResult(
         name="Version Consistency",
         passed=True,
         message=f"Version {version} is consistent"
     )
-```
 
+```python
 def main():
 
 ```text
+
     parser = argparse.ArgumentParser(description="Pre-release validation")
     parser.add_argument("--version", help="Expected version number")
     parser.add_argument("--quick", action="store_true", help="Skip slow checks")
     args = parser.parse_args()
-```
 
-```text
+```
     print("=" * 60)
     print("Pre-Release Validation Checklist")
     print("=" * 60)
+
 ```
 
-    checks = [
         check_lint,
         check_type_check,
         check_docs_build,
@@ -754,49 +748,53 @@ def main():
     ]
 
 ```text
+
     if not args.quick:
         checks.insert(0, check_tests)
         checks.append(check_security)
+
 ```
 
-    results = []
     for check_fn in checks:
 
 ```text
+
         result = check_fn()
         results.append(result)
+
 ```
 
-        status = "✅" if result.passed else "❌"
         print(f"\n{status} {result.name}")
         print(f"   {result.message}")
 
 ```text
+
     # Summary
     passed = sum(1 for r in results if r.passed)
     total = len(results)
+
 ```
 
-```text
     print("\n" + "=" * 60)
     print(f"Results: {passed}/{total} checks passed")
     print("=" * 60)
-```
 
-```text
+```
     if passed < total:
         print("\n❌ Pre-release validation FAILED")
         sys.exit(1)
     else:
         print("\n✅ Pre-release validation PASSED")
         print("Ready for release!")
-```
+
+```python
 
 if __name__ == "__main__":
 
 ```text
+
     main()
-```
+
 ```
 
 ### 3.3 Makefile Target
@@ -814,6 +812,7 @@ pre-release:
 pre-release-quick:
 	@echo "=== Pre-Release Validation (Quick) ==="
 	@$(PYTHON) scripts/pre_release_check.py --quick
+
 ```yaml
 
 ---
@@ -834,6 +833,7 @@ from memory_profiler import profile
 def process_large_transcript():
     # Memory-intensive operation
     pass
+
 ```
 
 ## 4.2 Performance Benchmarking
@@ -847,6 +847,7 @@ For future implementation:
 def test_transcription_performance(benchmark):
     result = benchmark(transcribe_audio, audio_file)
     assert result is not None
+
 ```yaml
 
 ---
@@ -902,7 +903,7 @@ def test_transcription_performance(benchmark):
 - [ ] `make deps-check-cycles` detects circular imports
 - [ ] Nightly CI includes dependency analysis
 - [ ] `make pre-release` validates release readiness
-- [ ] All tools documented in CI_CD.md
+- [ ] All tools documented in ci/CD.md
 
 ## Related Documentation
 
@@ -910,4 +911,4 @@ def test_transcription_performance(benchmark):
 - Issue #169: Dependabot setup
 - Issue #170: Module coupling analysis
 - RFC-031: Code complexity tooling (related)
-- docs/CI_CD.md: CI/CD documentation
+- docs/ci/CD.md: CI/CD documentation

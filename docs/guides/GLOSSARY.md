@@ -135,7 +135,7 @@ Transformer models used for summarization.
 CI strategy where PRs run fast critical-path tests, and main branch runs full test
 suite.
 
-**See:** [CI/CD](../CI_CD.md)
+**See:** [CI/CD](../ci/CD.md)
 
 ### Path Filtering
 

@@ -24,7 +24,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 ### ⚠️ Gaps vs RFC-025
 
 | Requirement | Status | Gap |
-|------------|--------|-----|
+| ------------ | -------- | ----- |
 | Coverage by module | ✅ Implemented | None |
 | Coverage trends over time | ✅ Implemented | None |
 | Coverage in job summaries | ✅ Implemented | None |
@@ -46,7 +46,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 ### ⚠️ Gaps vs RFC-025/RFC-026
 
 | Requirement | Status | Gap |
-|------------|--------|-----|
+| ------------ | -------- | ----- |
 | Complexity metrics collection | ✅ Implemented | None |
 | Complexity in dashboard | ✅ Implemented | None |
 | Complexity trends | ✅ Implemented | None |
@@ -73,7 +73,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 ### ❌ **CRITICAL GAPS**
 
 | Requirement | Status | Gap | Impact |
-|------------|--------|-----|--------|
+| ------------ | -------- | ----- | -------- |
 | **Pipeline metrics collection in CI** | ❌ **NOT IMPLEMENTED** | No pipeline runs in CI to generate `metrics.json` | **HIGH** - Pipeline metrics never collected |
 | **Pipeline metrics passed to `generate_metrics.py`** | ❌ **NOT IMPLEMENTED** | `--pipeline-metrics` flag not used in workflows | **HIGH** - Metrics not included in dashboard |
 | **Pipeline metrics in dashboard** | ⚠️ Code exists but no data | Dashboard code ready but no metrics to display | **MEDIUM** - Dashboard section empty |
@@ -102,7 +102,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 ### ⚠️ Gaps vs RFC-025
 
 | Requirement | Status | Gap |
-|------------|--------|-----|
+| ------------ | -------- | ----- |
 | Comprehensive metrics collection | ✅ Implemented | None |
 | Trend tracking | ✅ Implemented | None |
 | Flaky test analysis | ✅ Implemented | None |
@@ -131,7 +131,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 ### ⚠️ Minor Gaps
 
 | Requirement | Status | Gap |
-|------------|--------|-----|
+| ------------ | -------- | ----- |
 | **Resource usage metrics** | ❌ Not implemented | CPU/memory usage not tracked (RFC mentions this) |
 | **Parallel execution efficiency** | ⚠️ Partial | Tests per second calculated, but no efficiency metric |
 
@@ -154,7 +154,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 ### ⚠️ Minor Gaps
 
 | Requirement | Status | Gap |
-|------------|--------|-----|
+| ------------ | -------- | ----- |
 | **Pipeline metrics in dashboard** | ⚠️ Code ready, no data | Dashboard code exists but no pipeline metrics collected |
 | **Automated PR comments** | ❌ Not implemented | RFC mentions this as Phase 4 (future) |
 | **Webhook notifications** | ❌ Not implemented | RFC mentions this as Phase 4 (future) |
@@ -168,7 +168,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 ### ⚠️ Partial Implementation
 
 | Requirement | Status | Gap |
-|------------|--------|-----|
+| ------------ | -------- | ----- |
 | **JSON export** | ✅ Implemented | None |
 | **CSV export** | ❌ Not implemented | RFC mentions CSV export - not implemented |
 | **Two-tier output (DEBUG/INFO)** | ⚠️ Partial | `log_metrics()` uses INFO, should use DEBUG per RFC |
@@ -234,20 +234,25 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 
 1. **Add Pipeline Metrics Collection to Nightly Workflow**
    ```yaml
+
    - name: Run sample pipeline for metrics collection
      run: |
+
+```text
        # Run a minimal pipeline with a test feed
        python -m podcast_scraper.cli \
          --rss http://127.0.0.1:8000/podcast1/feed.xml \
          --output-dir /tmp/pipeline-metrics \
          --max-episodes 1 \
          --metrics-output reports/pipeline_metrics.json
-   ```
+```
 
 2. **Update Metrics Generation to Include Pipeline Metrics**
    ```yaml
+
    - name: Generate metrics JSON
      run: |
+
        python scripts/generate_metrics.py \
          --reports-dir reports \
          --output metrics/latest.json \
@@ -295,4 +300,3 @@ The metrics infrastructure is **well-implemented** for test metrics (RFC-025) an
 - RFC-025: ✅ 95% compliant
 - RFC-026: ✅ 90% compliant
 - RFC-027: ⚠️ 30% compliant (acceptable - marked as draft, basic implementation done)
-

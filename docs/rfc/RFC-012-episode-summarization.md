@@ -136,30 +136,16 @@ def select_summary_model(cfg: Config) -> str:
     # For Apple Silicon (M4 Pro), prefer memory-efficient models
 
 ```
-    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-
-```
 
         # M4 Pro: Use LED-base for long documents (16k tokens, no chunking needed)
 
 ```
-        return DEFAULT_SUMMARY_MODELS["long-fast"]
-    elif torch.cuda.is_available():
-
 ```
-
         # NVIDIA GPU: Use LED-large for best quality (16k tokens, no chunking needed)
 
 ```
-        return DEFAULT_SUMMARY_MODELS["long"]
-    else:
-
 ```
-
         # CPU: Use fastest, lowest memory model
-
-```
-        return DEFAULT_SUMMARY_MODELS["fast"]
 
 ```python
 
@@ -196,9 +182,6 @@ class SummaryModel:
         """Initialize summary model.
 
 ```
-            model_name: Hugging Face model identifier
-            device: Device to use ("cuda", "cpu", or None for auto-detection)
-            cache_dir: Custom cache directory for model files
         """
         self.model_name = model_name
         self.device = self._detect_device(device)
@@ -213,21 +196,13 @@ class SummaryModel:
         """Detect and return appropriate device.
 
 ```
-        """
-        if device:
-            return device
 ```
 
         # Check for Apple Silicon MPS backend first (M4 Pro)
 
 ```
-            return "mps"
-```
-
         # Check for CUDA (NVIDIA GPUs)
 
-```
-            return "cuda"
 ```
 
         return "cpu"
@@ -242,29 +217,19 @@ class SummaryModel:
             # Load tokenizer
 
 ```
-                self.model_name,
-                cache_dir=self.cache_dir,
-            )
 
 ```text
 
             # Load model
 
 ```
-                self.model_name,
-                cache_dir=self.cache_dir,
-            )
 
 ```text
 
             # Move model to device
 
 ```
-```
 
-            # Create pipeline for easy inference
-
-```
 ```python
 
             # - "cuda" -> 0 (first CUDA device)
@@ -276,9 +241,6 @@ class SummaryModel:
             # - "cpu" -> -1 (CPU)
 
 ```
-                0 if self.device == "cuda"
-                else "mps" if self.device == "mps"
-                else -1
             )
             self.pipeline = pipeline(
                 "summarization",
@@ -291,9 +253,6 @@ class SummaryModel:
 
             logger.info(f"Successfully loaded model: {self.model_name}")
 
-```
-            logger.error(f"Failed to load summarization model: {e}")
-            raise
 ```python
 
     def summarize(
@@ -306,12 +265,10 @@ class SummaryModel:
         """Generate summary of input text.
 
 ```
-            text: Input text to summarize
-            max_length: Maximum length of summary
-            min_length: Minimum length of summary
-            do_sample: Whether to use sampling (False = deterministic)
-```
 
+            do_sample: Whether to use sampling (False = deterministic)
+
+```
         Returns:
             Generated summary text
         """
@@ -319,36 +276,30 @@ class SummaryModel:
             raise RuntimeError("Model not loaded")
 
 ```
-```
 
-        if not text or len(text.strip()) < 50:
             return text.strip()
 
 ```
-            result = self.pipeline(
                 text,
                 max_length=max_length,
                 min_length=min_length,
                 do_sample=do_sample,
                 truncation=True,
             )
-```
-
-            # Pipeline returns list of dicts with 'summary_text' key
 
 ```
-                return result[0].get("summary_text", "").strip()
+```
             elif isinstance(result, dict):
                 return result.get("summary_text", "").strip()
             else:
                 return ""
+
 ```
 
-        except Exception as e:
-            logger.error(f"Summarization failed: {e}")
             return ""
 
 ```python
+
     def generate_takeaways(
         self,
         text: str,
@@ -356,23 +307,20 @@ class SummaryModel:
         max_length_per_takeaway: int = 100,
     ) -> List[str]:
         """Generate key takeaways from text.
+
 ```
 
-        Args:
-            text: Input text
             max_takeaways: Maximum number of takeaways
             max_length_per_takeaway: Max length per takeaway
 
 ```
-            List of key takeaways
         """
+
 ```javascript
 
         # Strategy: Generate longer summary, then split into bullet points
 
 ```
-```
-
         summary = self.summarize(
             text,
             max_length=max_takeaways * max_length_per_takeaway,
@@ -380,26 +328,18 @@ class SummaryModel:
         )
 
 ```text
-        # Split summary into sentences and extract key points
-```
 
+        # Split summary into sentences and extract key points
+
+```
         # Simple heuristic: split on periods, filter short sentences
 
 ```
-```
-
-        # Limit to max_takeaways
 
 ```
-
-```text
-
         # Clean up: remove trailing periods, ensure proper formatting
 
 ```
-```
-
-        return takeaways
 
 ```
 ## Strategy 1: Chunking with Sliding Window
@@ -425,10 +365,11 @@ def chunk_text_for_summarization(
     # Tokenize to get accurate token counts
 
 ```text
+
     tokens = tokenizer.encode(text, add_special_tokens=False)
+
 ```
 
-    chunks = []
     start = 0
 
 ```text
@@ -441,14 +382,11 @@ def chunk_text_for_summarization(
 
 ```
 
-        # Move start forward with overlap
-
 ```
-```text
-
     return chunks
 
 ```python
+
 def summarize_long_text(
     model: SummaryModel,
     text: str,
@@ -461,70 +399,33 @@ def summarize_long_text(
     """Summarize long text by chunking and combining summaries.
 
 ```
-    Args:
-        model: Summary model instance
+
         text: Long input text
         chunk_size: Chunk size in tokens
         max_length: Max summary length per chunk
 
 ```
-
-    Returns:
         Combined summary
     """
 
 ```
-    # Check if text needs chunking
-
-```
-
-    tokens = tokenizer.encode(text, add_special_tokens=False)
 
 ```text
 
     if len(tokens) <= chunk_size:
 
 ```
-
-        # Text fits in one chunk
-
 ```
-        return model.summarize(text, max_length=max_length)
 
 ```
 
-    # Chunk text
-
 ```
-    chunks = chunk_text_for_summarization(text, chunk_size, overlap=200)
-
-```
-
-    # Summarize each chunk
-
-```
-
-```text
-
         summary = model.summarize(chunk, max_length=max_length // len(chunks))
         chunk_summaries.append(summary)
 
 ```
-    # Combine chunk summaries
 
 ```
-
-    combined_text = "\n\n".join(chunk_summaries)
-
-```
-    # Final summary of combined summaries
-
-```
-
-    final_summary = model.summarize(combined_text, max_length=max_length)
-
-```
-    return final_summary
 
 ```python
 
@@ -551,30 +452,16 @@ def hierarchical_summarize(
     # Split into paragraphs or sections
 
 ```
-
-    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-
 ```
-    if len(paragraphs) <= 1:
         return model.summarize(text, max_length=max_length)
 
 ```
-
-    # Summarize each paragraph
-
 ```
-
-```text
-
         para_summary = model.summarize(para, max_length=max_length // len(paragraphs))
         paragraph_summaries.append(para_summary)
 
 ```
-    # Combine and summarize again
 
-```
-
-    combined = "\n\n".join(paragraph_summaries)
     return model.summarize(combined, max_length=max_length)
 
 ```python
@@ -604,22 +491,17 @@ def hierarchical_summarize(
         return model.summarize(text, max_length=max_length)
 
 ```
-```
-
-    extracted = []
     extracted.append(sentences[0])  # First sentence
     extracted.append(sentences[-1])  # Last sentence
 
 ```text
-    # Middle sentences (every nth sentence)
-```
 
-    step = max(1, len(sentences) // 5)
+    # Middle sentences (every nth sentence)
+
+```
     for i in range(step, len(sentences) - step, step):
         extracted.append(sentences[i])
 
-```
-    return model.summarize(extracted_text, max_length=max_length)
 ```python
 
 def optimize_model_memory(model: SummaryModel) -> None:
@@ -644,20 +526,12 @@ def optimize_model_memory(model: SummaryModel) -> None:
         torch.cuda.empty_cache()
     elif model.device == "mps":
 ```
-```text
 
         # Apple Silicon MPS backend
 
 ```
-
-        # MPS supports FP16 natively, but may have different optimizations
-
-```
-        # For M4 Pro with 48GB, memory is less constrained, but still optimize
-
 ```
 
-        if hasattr(model.model, "gradient_checkpointing_enable"):
             model.model.gradient_checkpointing_enable()
 
 ```python
@@ -665,15 +539,7 @@ def optimize_model_memory(model: SummaryModel) -> None:
         # MPS may benefit from FP16, but test performance impact
 
 ```
-
-        # model.model = model.model.half()  # Test if needed
-
 ```
-        # Clear MPS cache if available
-
-```
-
-        if hasattr(torch.mps, "empty_cache"):
             torch.mps.empty_cache()
 
 ```python
@@ -701,7 +567,7 @@ def optimize_for_cpu(model: SummaryModel) -> None:
     torch.set_num_threads(os.cpu_count() or 4)
 
 ```
-    """Unload model to free memory."""
+
     if model.model:
         del model.model
     if model.tokenizer:
@@ -724,7 +590,6 @@ def optimize_for_cpu(model: SummaryModel) -> None:
 
             torch.mps.empty_cache()
 
-```
 ```python
 
 def generate_takeaways_with_prompt(
@@ -767,9 +632,6 @@ Key Takeaways:
         ).to(model.device)
 
 ```
-        outputs = model.model.generate(
-            inputs.input_ids,
-            max_length=200,
             min_length=50,
             num_beams=4,
             early_stopping=True,
@@ -784,7 +646,7 @@ Key Takeaways:
         # Parse takeaways from result
 
 ```
-```
+
         takeaways = [
             line.strip().lstrip("- ").lstrip("• ").strip()
             for line in result.split("\n")
@@ -795,10 +657,6 @@ Key Takeaways:
 
         return takeaways[:max_takeaways]
 
-```
-    # Fallback: use standard summarization
-
-```
 ```python
 
 # In metadata.py or summarizer.py
@@ -829,21 +687,15 @@ def generate_episode_summary(
     """Generate summary for episode transcript.
 
 ```
-    Args:
-        transcript_path: Path to transcript file
-        cfg: Configuration
+
         summary_model: Pre-loaded summary model (optional)
 
 ```
-
     Returns:
         Summary metadata or None if generation failed
     """
     if not cfg.generate_summaries:
         return None
-
-```
-    # Read transcript
 
 ```
 
@@ -855,9 +707,6 @@ def generate_episode_summary(
         return None
 
 ```
-    # Load model if not provided
-
-```
 
     if not summary_model and cfg.summary_provider == "local":
         summary_model = SummaryModel(
@@ -865,9 +714,6 @@ def generate_episode_summary(
             device=cfg.summary_device,
             cache_dir=cfg.summary_cache_dir,
         )
-
-```
-    # Generate summary
 
 ```
 

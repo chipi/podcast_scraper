@@ -21,9 +21,9 @@ The API version is exposed via:
 ```python
 import podcast_scraper
 
-print(podcast_scraper.__version__)      # e.g., "2.3.0"
-print(podcast_scraper.__api_version__)  # e.g., "2.3.0"
-```text
+print(podcast_scraper.__version__)      # e.g., "2.4.0"
+print(podcast_scraper.__api_version__)  # e.g., "2.4.0"
+```python
 
 The public API consists of:
 
@@ -81,6 +81,7 @@ def old_function():
     return new_function()
 ```text
 
+- **v2.4.0** (2026-01) - Multi-provider support, advanced cache management
 - **v2.3.0** (2025-11) - Episode summarization, public API refinement
 - **v2.2.0** (2025-11) - Metadata generation
 - **v2.1.0** (2025-11) - Automatic speaker detection
@@ -132,20 +133,11 @@ import podcast_scraper
 
 # Check API version
 
-required_version = "2.3.0"
+required_version = "2.4.0"
 if podcast_scraper.__api_version__ < required_version:
     raise RuntimeError(f"Requires API version {required_version}+")
-```python
+```
 
-from packaging import version
-
-min_version = version.parse("2.3.0")
-current_version = version.parse(podcast_scraper.__version__)
-
-if current_version < min_version:
-    raise RuntimeError(f"Requires version {min_version}+, got {current_version}")
-
-```text
 - Async/await support for I/O operations
 - Restructured configuration model
 - Different return types for better structured data
@@ -173,4 +165,5 @@ If you have questions about API stability or versioning:
 - [API Migration Guide](MIGRATION_GUIDE.md) - Upgrading between versions
 - [Release Notes](../releases/) - Changes per version
 - [Semantic Versioning](https://semver.org/) - Versioning standard
+
 ````

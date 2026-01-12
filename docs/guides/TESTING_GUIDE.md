@@ -37,11 +37,13 @@ make test-unit
 
 make test-integration
 
-# E2E tests (serial first, then parallel)
+# E2E tests (Tier 1: Fast, Tier 3: Nightly Full)
 
-make test-e2e
+make test-e2e-fast      # Recommended for PRs (1 ep, small models)
+make test-e2e           # Full E2E suite
+make test-nightly       # Production validation (15 eps, large models)
 
-# All tests
+# All tests (Unit + Integration + E2E Fast)
 
 make test
 ```
@@ -59,20 +61,25 @@ make test-e2e-fast          # Critical path E2E tests
 For debugging test failures, run tests sequentially using pytest directly:
 
 ```bash
+
 # Run all tests sequentially
+
 pytest tests/ -n 0
 
 # Run unit tests sequentially
+
 pytest tests/unit/ -n 0
 
 # Run integration tests sequentially
+
 pytest tests/integration/ -n 0
 
 # Run E2E tests sequentially
+
 pytest tests/e2e/ -n 0
 ```
 
-### Specific Tests
+## Specific Tests
 
 ```bash
 
@@ -134,10 +141,13 @@ Tests run in parallel by default using `pytest-xdist`:
 progress bars competing for terminal access.
 
 ```bash
+
 # DON'T DO THIS (hangs)
+
 pytest tests/e2e/ -s -n auto
 
 # DO THIS INSTEAD
+
 pytest tests/e2e/ -v -n auto     # Use -v for verbose output
 pytest tests/e2e/ -s -n 0        # Or disable parallelism
 make test-e2e-sequential         # Or use sequential target
@@ -151,7 +161,7 @@ Integration and E2E tests use reruns:
 
 ```bash
 pytest --reruns 3 --reruns-delay 1
-```
+```yaml
 
 ## Flaky Test Markers
 
@@ -230,7 +240,7 @@ tests/
 │   ├── fixtures/            # E2E server, HTTP server
 │   └── test_*.py            # Complete workflow tests
 └── conftest.py              # Shared fixtures, ML cleanup
-```
+```yaml
 
 ## Coverage Thresholds
 
@@ -243,19 +253,14 @@ Per-tier thresholds enforced in CI (prevents regression):
 | **E2E** | 40% | ~50% |
 | **Combined** | 80% | ~82% |
 
-**Note:** Local make targets now run with coverage:
+**Note:** Local make targets now run with coverage by default.
 
-```bash
-make test-unit          # includes --cov
-make test-integration   # includes --cov
-make test-e2e           # includes --cov
-```
+## Test Count Targets (v2.4.0)
 
-## Test Count Targets
-
-- **Unit tests:** 200+
-- **Integration tests:** 50+
-- **E2E tests:** 100+
+- **Unit tests:** 250+
+- **Integration tests:** 60+
+- **E2E tests:** 120+
+- **Total:** 430+
 
 ## Layer-Specific Guides
 
@@ -279,5 +284,5 @@ For detailed implementation patterns:
 
 - [Testing Strategy](../TESTING_STRATEGY.md) - Overall testing philosophy
 - [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md) - Prioritization
-- [CI/CD Documentation](../CI_CD.md) - GitHub Actions workflows
+- [CI/CD Documentation](../ci/CD.md) - GitHub Actions workflows
 - [Architecture](../ARCHITECTURE.md) - Testing Notes section

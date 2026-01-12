@@ -232,7 +232,6 @@ def create_groq_client(cfg: config.Config) -> OpenAI:
     )
 
 ```
-
 #### 5.2 Speaker Detection Provider
 
 **File**: `podcast_scraper/speaker_detectors/groq_detector.py`
@@ -260,23 +259,23 @@ class GroqSpeakerDetector:
 
 ```text
     """Groq-based speaker detection provider."""
-```
 ```python
+
     def __init__(self, cfg: config.Config):
         self.cfg = cfg
         self.client = create_groq_client(cfg)
         self.model = cfg.groq_speaker_model
         self.temperature = cfg.groq_temperature
         self._initialized = False
-```
+
 ```python
     def initialize(self) -> None:
         if self._initialized:
             return
         logger.debug("Initializing Groq speaker detector (model: %s)", self.model)
         self._initialized = True
-```
 ```python
+
     def detect_hosts(
         self,
         feed_title: str,
@@ -285,13 +284,12 @@ class GroqSpeakerDetector:
     ) -> Set[str]:
         if not self._initialized:
             self.initialize()
-```
 
-        system_prompt, user_prompt = self._build_host_detection_prompts(
-            feed_title, feed_description, feed_authors
+```
         )
 
 ```text
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -302,18 +300,17 @@ class GroqSpeakerDetector:
                     {"role": "user", "content": user_prompt},
                 ],
             )
-```
 
-            content = response.choices[0].message.content
-            hosts = self._parse_hosts_from_response(content)
+```
             logger.debug("Groq detected hosts: %s", hosts)
             return hosts
 
 ```python
+
         except Exception as e:
             logger.error("Groq API error: %s", e)
             raise ValueError(f"Groq host detection failed: {e}") from e
-```
+
 ```python
     def detect_speakers(
         self,
@@ -353,16 +350,16 @@ class GroqSpeakerDetector:
         except Exception as e:
             logger.error("Groq API error: %s", e)
             raise ValueError(f"Groq speaker detection failed: {e}") from e
-```
 ```python
+
     def analyze_patterns(self, episodes, known_hosts):
         return None
-```
+
 ```python
     def cleanup(self) -> None:
         pass
-```
 ```python
+
     def _build_host_detection_prompts(self, feed_title, feed_description, feed_authors):
         from ..prompt_store import render_prompt
         system_prompt = render_prompt(self.cfg.groq_ner_system_prompt)
@@ -374,7 +371,7 @@ class GroqSpeakerDetector:
             task="host_detection",
         )
         return system_prompt, user_prompt
-```
+
 ```python
     def _build_speaker_detection_prompts(self, episode_title, episode_description, known_hosts):
         from ..prompt_store import render_prompt
@@ -387,8 +384,8 @@ class GroqSpeakerDetector:
             task="speaker_detection",
         )
         return system_prompt, user_prompt
-```
 ```python
+
     def _parse_hosts_from_response(self, response_text: str) -> Set[str]:
         try:
             data = json.loads(response_text)
@@ -403,7 +400,7 @@ class GroqSpeakerDetector:
                 if name and len(name) > 1:
                     hosts.add(name)
         return hosts
-```
+
 ```python
     def _parse_speakers_from_response(self, response_text: str, known_hosts: Set[str]):
         try:
@@ -462,7 +459,6 @@ class GroqSummarizationProvider:
         self._initialized = False
         self._requires_separate_instances = False
 
-```
 ```python
 
     def initialize(self) -> None:
@@ -471,7 +467,6 @@ class GroqSummarizationProvider:
         logger.debug("Initializing Groq summarization provider (model: %s)", self.model)
         self._initialized = True
 
-```
 ```python
 
     def summarize(
@@ -485,20 +480,13 @@ class GroqSummarizationProvider:
             raise RuntimeError("Provider not initialized")
 
 ```
-```text
-
-        max_length = (params.get("max_length") if params else None) or self.cfg.summary_max_length
         min_length = (params.get("min_length") if params else None) or self.cfg.summary_min_length
 
 ```
-```text
 
         logger.debug("Summarizing via Groq (model: %s)", self.model)
 
 ```
-```text
-
-        try:
             (
                 system_prompt,
                 user_prompt,
@@ -511,6 +499,7 @@ class GroqSummarizationProvider:
             )
 
 ```json
+
             response = self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=self.cfg.groq_max_tokens or max_length,
@@ -530,11 +519,9 @@ class GroqSummarizationProvider:
                 summary = ""
 
 ```
-```text
 
             logger.debug("Groq summarization completed: %d characters", len(summary))
 
-```
 ```python
 
             from ..prompt_store import get_prompt_metadata
@@ -544,7 +531,6 @@ class GroqSummarizationProvider:
             prompt_metadata["user"] = get_prompt_metadata(user_prompt_name)
 
 ```
-```text
 
             return {
                 "summary": summary,
@@ -558,14 +544,12 @@ class GroqSummarizationProvider:
                 },
             }
 
-```
 ```python
 
         except Exception as exc:
             logger.error("Groq API error: %s", exc)
             raise ValueError(f"Groq summarization failed: {exc}") from exc
 
-```
 ```python
 
     def _build_summarization_prompts(self, text, episode_title, episode_description, max_length, min_length):
@@ -585,7 +569,6 @@ class GroqSummarizationProvider:
         user_prompt = render_prompt(user_prompt_name, **template_params)
         return system_prompt, user_prompt, system_prompt_name, user_prompt_name, paragraphs_min, paragraphs_max
 
-```
 ```python
 
     def cleanup(self) -> None:
@@ -603,6 +586,7 @@ No new dependencies - uses existing `openai` package:
 # Groq uses OpenAI SDK with custom base_url
 
 ```
+
 ## Testing Strategy
 
 Same pattern as DeepSeek: reuse OpenAI mock endpoints with Groq base_url.
