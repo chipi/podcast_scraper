@@ -300,7 +300,8 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
             with patch(
                 "podcast_scraper.workflow.stages.setup.setup_pipeline_environment"
             ) as mock_setup:
-                with patch("podcast_scraper.workflow._preload_ml_models_if_needed"):
+                # Patch the actual function that workflow.py calls directly
+                with patch("podcast_scraper.workflow.stages.setup.preload_ml_models_if_needed"):
                     with patch(
                         "podcast_scraper.workflow.stages.scraping.fetch_and_parse_feed"
                     ) as mock_fetch:

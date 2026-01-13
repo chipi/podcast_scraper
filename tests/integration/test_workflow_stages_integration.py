@@ -241,6 +241,11 @@ class TestSetupStage(unittest.TestCase):
 
     def test_get_preloaded_ml_provider_returns_none_initially(self):
         """Test get_preloaded_ml_provider returns None initially."""
+        # Explicitly reset _preloaded_ml_provider to ensure clean state
+        # (previous tests might have set it)
+        from podcast_scraper.workflow.stages import setup as setup_module
+
+        setup_module._preloaded_ml_provider = None
         result = setup.get_preloaded_ml_provider()
         self.assertIsNone(result)
 
