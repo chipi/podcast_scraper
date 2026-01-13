@@ -275,7 +275,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
             if original_key is not None:
                 os.environ["OPENAI_API_KEY"] = original_key
 
-    @patch("podcast_scraper.workflow.create_summarization_provider")
+    @patch("podcast_scraper.summarization.factory.create_summarization_provider")
     def test_pipeline_fails_when_summarization_provider_initialization_fails(
         self, mock_create_provider
     ):
@@ -368,6 +368,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
                 )
 
             # The actual function wraps the exception with generate_summaries=True message
+            # Error format: "[episode_idx] Failed to generate summary using provider: {e}. Summarization is required when generate_summaries=True."
             self.assertIn("generate_summaries=True", str(context.exception))
             self.assertIn("Failed to generate summary", str(context.exception))
 

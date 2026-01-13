@@ -451,6 +451,16 @@ class TestAllProvidersRealModels(unittest.TestCase):
 
     @pytest.mark.critical_path
     def test_critical_path_with_real_models(self):
+        """Test critical path with real models, skip if network unavailable."""
+        # Check if we can connect to HuggingFace (models may need to be downloaded)
+        try:
+            import requests
+
+            requests.get("https://huggingface.co", timeout=5)
+        except (requests.RequestException, OSError, ImportError):
+            import pytest
+
+            pytest.skip("Network unavailable or HuggingFace unreachable")
         """Test critical path (Full Workflow) with real cached ML models: RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files.
 
         This test validates the COMPLETE critical path with all core features using REAL cached ML models:
@@ -559,17 +569,19 @@ class TestAllProvidersRealModels(unittest.TestCase):
         summarization_provider = create_summarization_provider(self.cfg)
         try:
             summarization_provider.initialize()
-        except Exception as e:
+        except (OSError, RuntimeError, Exception) as e:
             # If initialization fails due to network access (missing tokenizer files),
             # skip the test with a helpful message
-            error_str = str(e)
+            error_str = str(e).lower()
             if (
-                "socket" in error_str.lower()
-                or "connect" in error_str.lower()
-                or "network" in error_str.lower()
+                "socket" in error_str
+                or "connect" in error_str
+                or "network" in error_str
+                or "huggingface.co" in error_str
+                or "couldn't connect" in error_str
             ):
                 pytest.skip(
-                    f"Tokenizer files not fully cached (network access blocked): {e}. "
+                    f"Network unavailable or HuggingFace unreachable: {e}. "
                     f"Run 'make preload-ml-models' to ensure all model files are cached."
                 )
             raise
