@@ -276,14 +276,21 @@ def extract_feed_metadata(
     Returns:
         Tuple of (description, image_url, last_updated) where each may be None
     """
-    root = safe_fromstring(xml_bytes)
-    channel = root.find("channel")
-    if channel is None:
-        channel = next(
-            (e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("channel")), None
-        )
+    try:
+        root = safe_fromstring(xml_bytes)
+        if root is None:
+            return None, None, None
+        channel = root.find("channel")
+        if channel is None:
+            channel = next(
+                (e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("channel")),
+                None,
+            )
 
-    if channel is None:
+        if channel is None:
+            return None, None, None
+    except Exception:
+        # If parsing fails, return None values
         return None, None, None
 
     description = None
