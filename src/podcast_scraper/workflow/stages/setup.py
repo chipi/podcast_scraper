@@ -229,13 +229,26 @@ def preload_ml_models_if_needed(cfg: config.Config) -> None:
 
     # Create MLProvider instance and preload models
     try:
-        from ..ml.ml_provider import MLProvider
+        from ...ml.ml_provider import MLProvider
 
         _preloaded_ml_provider = MLProvider(cfg)
         _preloaded_ml_provider.preload()
         logger.debug("ML models preloaded successfully, instance stored for reuse")
     except ImportError as e:
-        logger.warning("ML dependencies not available, skipping model preloading: %s", e)
+        # Log more details about the import error to help diagnose issues
+        import_error_msg = str(e)
+        if "workflow.ml" in import_error_msg:
+            logger.warning(
+                "ML dependencies import error (likely incorrect import path): %s. "
+                "This is a non-fatal warning - ML models will be loaded on-demand.",
+                e,
+            )
+        else:
+            logger.warning(
+                "ML dependencies not available, skipping model preloading: %s. "
+                "This is a non-fatal warning - ML models will be loaded on-demand.",
+                e,
+            )
         _preloaded_ml_provider = None
     except Exception as e:
         logger.error("Failed to preload ML models: %s", e)

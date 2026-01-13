@@ -35,54 +35,137 @@ BYTES_PER_KB = 1024
 
 
 class _RichProgress:
-    """Simple adapter that exposes rich Progress update interface."""
+    """Simple adapter that exposes rich Progress update interface with validation."""
 
     def __init__(
         self,
         progress: "rich.progress.Progress",
         task_id: "rich.progress.TaskID",
+        description: str,
+        total: Optional[int],
     ) -> None:
         self._progress = progress
         self._task_id = task_id
+        self._description = description
+        self._total = total
+        self._completed = 0
+        self._has_updated = False
 
     def update(self, advance: int) -> None:
-        self._progress.update(self._task_id, advance=advance)
+        """Update progress with validation to prevent showing 0% incorrectly.
+
+        Args:
+            advance: Number of units to advance (must be >= 0)
+        """
+        if advance < 0:
+            # Don't allow negative progress
+            return
+
+        self._has_updated = True
+        self._completed += advance
+
+        if self._total is not None:
+            # For determinate progress, ensure we don't exceed total
+            completed = min(self._completed, self._total)
+            self._progress.update(self._task_id, completed=completed)
+        else:
+            # For indeterminate progress, track the increment
+            # Rich handles indeterminate progress by showing elapsed time
+            self._progress.update(self._task_id, advance=advance)
+
+
+# Module-level shared Progress instance to prevent duplicate bars and conflicts
+_shared_progress: Optional["rich.progress.Progress"] = None
+_shared_progress_lock = None
+
+
+def _get_shared_progress() -> "rich.progress.Progress":
+    """Get or create shared Progress instance for all progress bars.
+
+    Using a single Progress instance prevents duplicate bars and conflicts
+    when multiple progress contexts are active simultaneously.
+    """
+    global _shared_progress, _shared_progress_lock
+
+    if _shared_progress is None:
+        import threading
+
+        from rich.console import Console
+        from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
+
+        _shared_progress_lock = threading.Lock()
+
+        # Use Console configured to handle logging better
+        # stderr=False means logs go to stderr, progress to stdout (better separation)
+        console = Console(
+            force_terminal=os.getenv("TERM") != "dumb",
+            stderr=False,  # Progress goes to stdout, logs to stderr
+        )
+
+        # Compact progress bar columns - show both percentage and elapsed time
+        # Rich will show percentage for determinate, elapsed for indeterminate
+        columns = [
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(bar_width=40),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+        ]
+
+        _shared_progress = Progress(
+            *columns,
+            console=console,
+            transient=True,  # Remove after completion
+            expand=False,  # Compact mode
+            refresh_per_second=8,
+        )
+        _shared_progress.start()
+
+    return _shared_progress
 
 
 @contextmanager
 def _rich_progress(total: Optional[int], description: str) -> Iterator[_RichProgress]:
-    """Create a rich progress context matching the shared progress API."""
-    from rich.console import Console
-    from rich.progress import (
-        BarColumn,
-        Progress,
-        TextColumn,
-        TimeElapsedColumn,
-    )
+    """Create a rich progress context matching the shared progress API.
 
-    # Use Console with force_terminal=False in tests to suppress output
-    # This keeps tests clutter-free
-    console = Console(force_terminal=os.getenv("TERM") != "dumb")
+    Uses a shared Progress instance to prevent duplicate bars and conflicts.
+    """
+    # Validate total parameter
+    if total is not None and total <= 0:
+        total = None
 
-    # Create clean, minimal progress bar
-    columns = [
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-    ]
+    # Get shared Progress instance
+    progress_bar = _get_shared_progress()
 
-    # Add time elapsed for indeterminate progress
-    if total is None:
-        columns.append(TimeElapsedColumn())
-    else:
-        # For determinate progress, show bytes (rich auto-formats with units)
-        from rich.progress import DownloadColumn
+    # Thread-safe task management
+    if _shared_progress_lock is not None:
+        _shared_progress_lock.acquire()
 
-        columns.append(DownloadColumn())
+    try:
+        # Add task to shared progress
+        # For indeterminate, use None for total and Rich will show elapsed time
+        task_id = progress_bar.add_task(
+            description,
+            total=total,
+        )
 
-    with Progress(*columns, console=console, transient=False) as progress_bar:
-        task_id = progress_bar.add_task(description, total=total)
-        yield _RichProgress(progress_bar, task_id)
+        # For determinate progress, initialize at 0
+        if total is not None and total > 0:
+            progress_bar.update(task_id, completed=0)
+    finally:
+        if _shared_progress_lock is not None:
+            _shared_progress_lock.release()
+
+    try:
+        yield _RichProgress(progress_bar, task_id, description, total)
+    finally:
+        # Remove task when done (thread-safe)
+        if _shared_progress_lock is not None:
+            _shared_progress_lock.acquire()
+        try:
+            progress_bar.remove_task(task_id)
+        finally:
+            if _shared_progress_lock is not None:
+                _shared_progress_lock.release()
 
 
 def _validate_rss_url(rss_value: str, errors: List[str]) -> None:

@@ -574,7 +574,17 @@ def process_episodes(
                     # Episode was skipped only if transcribe_missing is False
                     # If transcribe_missing is True, None/None means queued for transcription
                     if not cfg.transcribe_missing:
+                        logger.debug(
+                            "[%s] Episode skipped (no transcript, transcribe_missing=False)",
+                            episode.idx,
+                        )
                         update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
+                    else:
+                        logger.debug(
+                            "[%s] Episode queued for transcription "
+                            "(not skipped, transcribe_missing=True)",
+                            episode.idx,
+                        )
             except Exception as exc:  # pragma: no cover
                 update_metric_safely(pipeline_metrics, "errors_total", 1)
                 logger.error(
@@ -625,8 +635,18 @@ def process_episodes(
                         # Episode was skipped only if transcribe_missing is False
                         # If transcribe_missing is True, None/None means queued for transcription
                         if not cfg.transcribe_missing:
+                            logger.debug(
+                                "[%s] Episode skipped (no transcript, transcribe_missing=False)",
+                                idx,
+                            )
                             update_metric_safely(
                                 pipeline_metrics, "episodes_skipped_total", 1, saved_counter_lock
+                            )
+                        else:
+                            logger.debug(
+                                "[%s] Episode queued for transcription "
+                                "(not skipped, transcribe_missing=True)",
+                                idx,
                             )
 
                     # Queue processing job if metadata generation enabled and transcript available

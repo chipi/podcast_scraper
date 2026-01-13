@@ -242,6 +242,15 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                     f"{audio_minutes:.1f} minutes, ${transcription_cost:.4f} "
                     f"(model: {model})"
                 )
+    else:
+        # Show that transcription was done with ML (free) to make cost savings clear
+        transcripts_transcribed = metrics_dict.get("transcripts_transcribed", 0)
+        if transcripts_transcribed > 0:
+            transcription_provider = getattr(cfg, "transcription_provider", "whisper")
+            summary_lines.append(
+                f"  - Transcription: {transcripts_transcribed} episodes, $0.0000 "
+                f"(provider: {transcription_provider}, local processing)"
+            )
 
     # Speaker detection calls
     if uses_openai_speaker:
@@ -265,6 +274,15 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                     f"{speaker_input_tokens:,} input + {speaker_output_tokens:,} output tokens, "
                     f"${speaker_cost:.4f} (model: {model})"
                 )
+    else:
+        # Show that speaker detection was done with ML (free) to make cost savings clear
+        extract_names_count = metrics_dict.get("extract_names_count", 0)
+        if extract_names_count > 0:
+            speaker_provider = getattr(cfg, "speaker_detector_provider", "spacy")
+            summary_lines.append(
+                f"  - Speaker Detection: {extract_names_count} episodes, $0.0000 "
+                f"(provider: {speaker_provider}, local processing)"
+            )
 
     # Summarization calls
     if uses_openai_summarization:
@@ -288,6 +306,15 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                     f"{summary_input_tokens:,} input + {summary_output_tokens:,} output tokens, "
                     f"${summary_cost:.4f} (model: {model})"
                 )
+    else:
+        # Show that summarization was done with ML (free) to make cost savings clear
+        episodes_summarized = metrics_dict.get("episodes_summarized", 0)
+        if episodes_summarized > 0:
+            summary_provider = getattr(cfg, "summary_provider", "transformers")
+            summary_lines.append(
+                f"  - Summarization: {episodes_summarized} episodes, $0.0000 "
+                f"(provider: {summary_provider}, local processing)"
+            )
 
     # Add total cost if any calls were made
     if total_cost > 0:
