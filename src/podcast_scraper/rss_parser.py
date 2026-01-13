@@ -289,63 +289,68 @@ def extract_feed_metadata(
 
         if channel is None:
             return None, None, None
-    except Exception:
-        # If parsing fails, return None values
-        return None, None, None
 
-    description = None
-    desc_elem = channel.find("description")
-    if desc_elem is None:
-        desc_elem = next(
-            (e for e in channel.iter() if isinstance(e.tag, str) and e.tag.endswith("description")),
-            None,
-        )
-    if desc_elem is not None and desc_elem.text:
-        description = _strip_html(desc_elem.text.strip())
+        description = None
+        desc_elem = channel.find("description")
+        if desc_elem is None:
+            desc_elem = next(
+                (
+                    e
+                    for e in channel.iter()
+                    if isinstance(e.tag, str) and e.tag.endswith("description")
+                ),
+                None,
+            )
+        if desc_elem is not None and desc_elem.text:
+            description = _strip_html(desc_elem.text.strip())
 
-    image_url = None
-    # RSS 2.0 image
-    image_elem = channel.find("image")
-    if image_elem is not None:
-        url_elem = image_elem.find("url")
-        if url_elem is not None and url_elem.text:
-            image_url = urljoin(base_url, url_elem.text.strip())
-    # iTunes image
-    if not image_url:
-        itunes_image_elem = channel.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}image")
-        if itunes_image_elem is not None:
-            href = itunes_image_elem.attrib.get("href")
-            if href:
-                image_url = urljoin(base_url, href.strip())
+        image_url = None
+        # RSS 2.0 image
+        image_elem = channel.find("image")
+        if image_elem is not None:
+            url_elem = image_elem.find("url")
+            if url_elem is not None and url_elem.text:
+                image_url = urljoin(base_url, url_elem.text.strip())
+        # iTunes image
+        if not image_url:
+            itunes_image_elem = channel.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}image")
+            if itunes_image_elem is not None:
+                href = itunes_image_elem.attrib.get("href")
+                if href:
+                    image_url = urljoin(base_url, href.strip())
 
-    last_updated = None
-    # RSS 2.0 lastBuildDate
-    last_build_elem = channel.find("lastBuildDate")
-    if last_build_elem is not None and last_build_elem.text:
-        try:
-            from email.utils import parsedate_to_datetime
-
-            date_tuple = parsedate_to_datetime(last_build_elem.text.strip())
-            if date_tuple:
-                last_updated = date_tuple
-        # Intentional fallback for date parsing
-        except Exception:  # nosec B110
-            pass
-    # Atom updated
-    if not last_updated:
-        atom_updated_elem = channel.find("{http://www.w3.org/2005/Atom}updated")
-        if atom_updated_elem is not None and atom_updated_elem.text:
+        last_updated = None
+        # RSS 2.0 lastBuildDate
+        last_build_elem = channel.find("lastBuildDate")
+        if last_build_elem is not None and last_build_elem.text:
             try:
-                from datetime import datetime
+                from email.utils import parsedate_to_datetime
 
-                last_updated = datetime.fromisoformat(
-                    atom_updated_elem.text.strip().replace("Z", "+00:00")
-                )
+                date_tuple = parsedate_to_datetime(last_build_elem.text.strip())
+                if date_tuple:
+                    last_updated = date_tuple
             # Intentional fallback for date parsing
             except Exception:  # nosec B110
                 pass
+        # Atom updated
+        if not last_updated:
+            atom_updated_elem = channel.find("{http://www.w3.org/2005/Atom}updated")
+            if atom_updated_elem is not None and atom_updated_elem.text:
+                try:
+                    from datetime import datetime
 
-    return description, image_url, last_updated
+                    last_updated = datetime.fromisoformat(
+                        atom_updated_elem.text.strip().replace("Z", "+00:00")
+                    )
+                # Intentional fallback for date parsing
+                except Exception:  # nosec B110
+                    pass
+
+        return description, image_url, last_updated
+    except Exception:
+        # If any part of extraction fails, return None values
+        # This ensures the function always returns a tuple of 3 values
+        return None, None, None
 
 
 def _extract_duration_seconds(item: ET.Element) -> Optional[int]:
