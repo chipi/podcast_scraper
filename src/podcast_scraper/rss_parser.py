@@ -38,61 +38,74 @@ def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[str], List[ET.Element]]
     Returns:
         Tuple of (channel_title, list_of_authors, list_of_items)
     """
-    root = safe_fromstring(xml_bytes)
-    channel = root.find("channel")
-    if channel is None:
-        channel = next(
-            (e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("channel")), None
-        )
-    title = ""
-    authors: List[str] = []
-    if channel is not None:
-        t = channel.find("title")
-        if t is None:
-            t = next(
-                (e for e in channel.iter() if isinstance(e.tag, str) and e.tag.endswith("title")),
+    try:
+        root = safe_fromstring(xml_bytes)
+        if root is None:
+            return "", [], []
+        channel = root.find("channel")
+        if channel is None:
+            channel = next(
+                (e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("channel")),
                 None,
             )
-        if t is not None and t.text:
-            title = t.text.strip()
+        title = ""
+        authors: List[str] = []
+        if channel is not None:
+            t = channel.find("title")
+            if t is None:
+                t = next(
+                    (
+                        e
+                        for e in channel.iter()
+                        if isinstance(e.tag, str) and e.tag.endswith("title")
+                    ),
+                    None,
+                )
+            if t is not None and t.text:
+                title = t.text.strip()
 
-        # Extract author tags from channel (top-level only)
-        # RSS 2.0: <author> (should be only one at channel level)
-        # iTunes: <itunes:author> and <itunes:owner> (can help confirm host)
-        # Note: We only look at direct children of channel, not nested elements
+            # Extract author tags from channel (top-level only)
+            # RSS 2.0: <author> (should be only one at channel level)
+            # iTunes: <itunes:author> and <itunes:owner> (can help confirm host)
+            # Note: We only look at direct children of channel, not nested elements
 
-        # RSS 2.0 author (channel-level only, should be single)
-        author_elem = channel.find("author")
-        if author_elem is not None and author_elem.text:
-            author_text = author_elem.text.strip()
-            if author_text:
-                authors.append(author_text)
+            # RSS 2.0 author (channel-level only, should be single)
+            author_elem = channel.find("author")
+            if author_elem is not None and author_elem.text:
+                author_text = author_elem.text.strip()
+                if author_text:
+                    authors.append(author_text)
 
-        # iTunes author (channel-level only)
-        itunes_author_elem = channel.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}author")
-        if itunes_author_elem is not None and itunes_author_elem.text:
-            itunes_author_text = itunes_author_elem.text.strip()
-            if itunes_author_text and itunes_author_text not in authors:
-                authors.append(itunes_author_text)
+            # iTunes author (channel-level only)
+            itunes_author_elem = channel.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}author")
+            if itunes_author_elem is not None and itunes_author_elem.text:
+                itunes_author_text = itunes_author_elem.text.strip()
+                if itunes_author_text and itunes_author_text not in authors:
+                    authors.append(itunes_author_text)
 
-        # iTunes owner (channel-level only, can help confirm host)
-        # Format: <itunes:owner><itunes:name>Name</itunes:name></itunes:owner>
-        itunes_owner_elem = channel.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}owner")
-        if itunes_owner_elem is not None:
-            itunes_owner_name_elem = itunes_owner_elem.find(
-                "{http://www.itunes.com/dtds/podcast-1.0.dtd}name"
-            )
-            if itunes_owner_name_elem is not None and itunes_owner_name_elem.text:
-                itunes_owner_text = itunes_owner_name_elem.text.strip()
-                if itunes_owner_text and itunes_owner_text not in authors:
-                    authors.append(itunes_owner_text)
+            # iTunes owner (channel-level only, can help confirm host)
+            # Format: <itunes:owner><itunes:name>Name</itunes:name></itunes:owner>
+            itunes_owner_elem = channel.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}owner")
+            if itunes_owner_elem is not None:
+                itunes_owner_name_elem = itunes_owner_elem.find(
+                    "{http://www.itunes.com/dtds/podcast-1.0.dtd}name"
+                )
+                if itunes_owner_name_elem is not None and itunes_owner_name_elem.text:
+                    itunes_owner_text = itunes_owner_name_elem.text.strip()
+                    if itunes_owner_text and itunes_owner_text not in authors:
+                        authors.append(itunes_owner_text)
 
-        items = list(channel.findall("item"))
-        if not items:
-            items = [e for e in channel if isinstance(e.tag, str) and e.tag.endswith("item")]
-    else:
-        items = [e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("item")]
-    return title, authors, items
+            items = list(channel.findall("item"))
+            if not items:
+                items = [e for e in channel if isinstance(e.tag, str) and e.tag.endswith("item")]
+        else:
+            items = [e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("item")]
+        return title, authors, items
+    except Exception:
+        # If parsing fails, return empty values
+        # This ensures the function always returns a tuple of 3 values
+        logger.debug("Failed to parse RSS XML, returning empty values", exc_info=True)
+        return "", [], []
 
 
 def find_transcript_urls(item: ET.Element, base_url: str) -> List[Tuple[str, Optional[str]]]:
