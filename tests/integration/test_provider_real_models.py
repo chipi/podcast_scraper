@@ -451,16 +451,6 @@ class TestAllProvidersRealModels(unittest.TestCase):
 
     @pytest.mark.critical_path
     def test_critical_path_with_real_models(self):
-        """Test critical path with real models, skip if network unavailable."""
-        # Check if we can connect to HuggingFace (models may need to be downloaded)
-        try:
-            import requests
-
-            requests.get("https://huggingface.co", timeout=5)
-        except (requests.RequestException, OSError, ImportError):
-            import pytest
-
-            pytest.skip("Network unavailable or HuggingFace unreachable")
         """Test critical path (Full Workflow) with real cached ML models: RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files.
 
         This test validates the COMPLETE critical path with all core features using REAL cached ML models:
@@ -476,7 +466,41 @@ class TestAllProvidersRealModels(unittest.TestCase):
         - Uses cached models (checked before test runs)
         - Runs in fast test suite if models are cached (marked critical_path, not slow)
         - Skips if models are not cached (to avoid network downloads)
+        - Skips if network is blocked (pytest-socket active)
         """
+        # Check if pytest-socket is blocking network access (CI environment)
+        try:
+            # If pytest-socket is active, it will block HuggingFace connections
+            # Skip test to avoid SocketConnectBlockedError during model initialization
+            import socket
+
+            from pytest_socket import SocketConnectBlockedError
+
+            test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_sock.settimeout(0.1)
+            try:
+                # Try to connect to a non-localhost address (will be blocked by pytest-socket)
+                test_sock.connect(("8.8.8.8", 80))
+                test_sock.close()
+            except (SocketConnectBlockedError, OSError):
+                # Network is blocked - skip test (models require network for verification)
+                pytest.skip(
+                    "Network blocked by pytest-socket - test requires network access for model verification"
+                )
+            finally:
+                try:
+                    test_sock.close()
+                except Exception:
+                    pass
+        except ImportError:
+            # pytest-socket not available, check network availability normally
+            try:
+                import requests
+
+                requests.get("https://huggingface.co", timeout=5)
+            except (requests.RequestException, OSError, ImportError):
+                pytest.skip("Network unavailable or HuggingFace unreachable")
+
         import os
         from pathlib import Path
 
