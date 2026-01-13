@@ -367,6 +367,17 @@ def prepare_episode_download_args(
 
                         if isinstance(func, Mock):
                             speaker_detector = func(cfg)
+                        else:
+                            speaker_detector = create_speaker_detector(cfg)
+                    else:
+                        from ...speaker_detectors.factory import (
+                            create_speaker_detector as factory_create_speaker_detector,
+                        )
+
+                        speaker_detector = factory_create_speaker_detector(cfg)
+                    # Initialize the detector if it was just created
+                    if speaker_detector:
+                        speaker_detector.initialize()
                 if speaker_detector:
                     cached_hosts_for_detection = (
                         host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()

@@ -32,6 +32,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
+          docker image prune -af || true
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          df -h
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
         with:
@@ -43,6 +51,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .[dev,ml]
+          # Clean up pip cache after installation to save space
+          pip cache purge || true
 
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/python@master
@@ -121,6 +131,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
+          docker image prune -af || true
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          df -h
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
         with:
@@ -132,6 +150,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .[dev,ml]
+          # Clean up pip cache after installation to save space
+          pip cache purge || true
 
       - name: Run Snyk to monitor project
         uses: snyk/actions/python@master
