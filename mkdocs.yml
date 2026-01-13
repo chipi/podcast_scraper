@@ -19,6 +19,7 @@ nav:
       - E2E Testing Guide: guides/E2E_TESTING_GUIDE.md
       - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
       - AI Provider Comparison Guide: guides/AI_PROVIDER_COMPARISON_GUIDE.md
+      - ML Model Comparison Guide: guides/ML_MODEL_COMPARISON_GUIDE.md
       - Provider Configuration Quick Reference: guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md
       - Provider Implementation Guide: guides/PROVIDER_IMPLEMENTATION_GUIDE.md
       - ML Provider Reference: guides/ML_PROVIDER_REFERENCE.md

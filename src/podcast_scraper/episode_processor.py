@@ -441,10 +441,144 @@ def transcribe_media_to_text(
             # Use default value of 0 if stat fails
             pass
 
+    # Audio preprocessing (RFC-040): Preprocess audio BEFORE passing to any provider
+    # This happens at the pipeline level, not within providers
+    # All providers receive optimized audio (Whisper, OpenAI, future providers)
+    media_for_transcription = temp_media
+    if cfg.preprocessing_enabled and temp_media and os.path.exists(temp_media):
+        from podcast_scraper.audio_preprocessing import cache as preprocessing_cache
+        from podcast_scraper.audio_preprocessing.factory import create_audio_preprocessor
+
+        # Log before preprocessing
+        try:
+            original_size = os.path.getsize(temp_media)
+            original_size_mb = original_size / (1024 * 1024)
+            logger.debug(
+                "[%s] Audio preprocessing: starting with original file size: %.2f MB",
+                job.idx,
+                original_size_mb,
+            )
+        except OSError:
+            original_size = 0
+            logger.debug("[%s] Audio preprocessing: starting (size unknown)", job.idx)
+
+        audio_preprocessor = create_audio_preprocessor(cfg)
+        if audio_preprocessor:
+            cache_dir = cfg.preprocessing_cache_dir or preprocessing_cache.PREPROCESSING_CACHE_DIR
+            cache_key = audio_preprocessor.get_cache_key(temp_media)
+
+            # Check cache first
+            cached_path = preprocessing_cache.get_cached_audio_path(cache_key, cache_dir)
+            if cached_path:
+                logger.debug(
+                    "[%s] Audio preprocessing: cache hit, using cached preprocessed audio: %s",
+                    job.idx,
+                    cache_key,
+                )
+                media_for_transcription = cached_path
+                # Record cache hit
+                if pipeline_metrics is not None:
+                    pipeline_metrics.record_preprocessing_cache_hit()
+                    try:
+                        cached_size = os.path.getsize(cached_path)
+                        cached_size_mb = cached_size / (1024 * 1024)
+                        reduction = (
+                            (1 - cached_size / original_size) * 100 if original_size > 0 else 0.0
+                        )
+                        logger.debug(
+                            "[%s] Audio preprocessing: cached file size: %.2f MB "
+                            "(%.1f%% reduction from original)",
+                            job.idx,
+                            cached_size_mb,
+                            reduction,
+                        )
+                        # Record metrics for cached file
+                        pipeline_metrics.record_preprocessing_size_reduction(
+                            original_size, cached_size
+                        )
+                    except OSError:
+                        pass
+            else:
+                # Record cache miss
+                if pipeline_metrics is not None:
+                    pipeline_metrics.record_preprocessing_cache_miss()
+                logger.debug(
+                    "[%s] Audio preprocessing: cache miss, preprocessing audio file", job.idx
+                )
+
+                # Preprocess audio
+                preprocessed_path = f"{temp_media}.preprocessed.mp3"
+                success, preprocess_elapsed = audio_preprocessor.preprocess(
+                    temp_media, preprocessed_path
+                )
+
+                if success and os.path.exists(preprocessed_path):
+                    # Save to cache
+                    cached_path = preprocessing_cache.save_to_cache(
+                        preprocessed_path, cache_key, cache_dir
+                    )
+                    media_for_transcription = cached_path
+
+                    # Log after preprocessing with metrics
+                    try:
+                        preprocessed_size = os.path.getsize(cached_path)
+                        preprocessed_size_mb = preprocessed_size / (1024 * 1024)
+                        reduction = (
+                            (1 - preprocessed_size / original_size) * 100
+                            if original_size > 0
+                            else 0.0
+                        )
+                        logger.debug(
+                            "[%s] Audio preprocessing: completed in %.2fs, "
+                            "preprocessed file size: %.2f MB (%.1f%% reduction from %.2f MB)",
+                            job.idx,
+                            preprocess_elapsed,
+                            preprocessed_size_mb,
+                            reduction,
+                            original_size_mb,
+                        )
+                        logger.info(
+                            "[%s] Preprocessed audio: %.1f%% smaller "
+                            "(%.1fMB -> %.1fMB) in %.1fs",
+                            job.idx,
+                            reduction,
+                            original_size_mb,
+                            preprocessed_size_mb,
+                            preprocess_elapsed,
+                        )
+
+                        # Record metrics
+                        if pipeline_metrics is not None:
+                            pipeline_metrics.record_preprocessing_time(preprocess_elapsed)
+                            pipeline_metrics.record_preprocessing_size_reduction(
+                                original_size, preprocessed_size
+                            )
+                    except OSError:
+                        logger.debug(
+                            "[%s] Audio preprocessing: completed in %.2fs (size unknown)",
+                            job.idx,
+                            preprocess_elapsed,
+                        )
+                        # Still record time even if size is unknown
+                        if pipeline_metrics is not None:
+                            pipeline_metrics.record_preprocessing_time(preprocess_elapsed)
+                else:
+                    # Preprocessing failed, use original audio
+                    logger.warning("[%s] Audio preprocessing failed, using original audio", job.idx)
+                    media_for_transcription = temp_media
+                    # Clean up failed preprocessed file if it exists
+                    if os.path.exists(preprocessed_path):
+                        try:
+                            os.remove(preprocessed_path)
+                        except OSError:
+                            pass
+
     try:
         # Stage 2: Use provider's transcribe_with_segments method for full result with segments
         # This supports both plain text and screenplay formatting
         # Pass pipeline_metrics and episode duration for LLM call tracking (if OpenAI provider)
+        # Note: Provider receives preprocessed audio (if preprocessing was successful)
+        # Provider is agnostic to whether audio was preprocessed
         episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
         if hasattr(transcription_provider, "transcribe_with_segments"):
             # Check if provider supports metrics parameter (OpenAI provider)
@@ -453,18 +587,18 @@ def transcribe_media_to_text(
             sig = inspect.signature(transcription_provider.transcribe_with_segments)
             if "pipeline_metrics" in sig.parameters:
                 result, tc_elapsed = transcription_provider.transcribe_with_segments(
-                    temp_media,
+                    media_for_transcription,
                     language=cfg.language,
                     pipeline_metrics=pipeline_metrics,
                     episode_duration_seconds=episode_duration_seconds,
                 )
             else:
                 result, tc_elapsed = transcription_provider.transcribe_with_segments(
-                    temp_media, language=cfg.language
+                    media_for_transcription, language=cfg.language
                 )
         else:
             result, tc_elapsed = transcription_provider.transcribe_with_segments(
-                temp_media, language=cfg.language
+                media_for_transcription, language=cfg.language
             )
         text = _format_transcript_if_needed(
             result, cfg, job.detected_speaker_names, transcription_provider

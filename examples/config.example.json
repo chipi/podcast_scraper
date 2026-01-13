@@ -35,5 +35,7 @@
 
   "_comment_parallelism": "Parallelism settings (useful for both OpenAI and ML providers). Optional: transcription_parallelism (1), processing_parallelism (2), summary_batch_size (1), summary_chunk_parallelism (1)",
 
-  "_comment_advanced": "Advanced settings. Optional: save_cleaned_transcript (true)"
+  "_comment_advanced": "Advanced settings. Optional: save_cleaned_transcript (true)",
+
+  "_comment_preprocessing": "Audio preprocessing settings (RFC-040: Optimize audio for API providers with file size limits). Optional: preprocessing_enabled (false), preprocessing_cache_dir (null), preprocessing_sample_rate (16000), preprocessing_silence_threshold (-50dB), preprocessing_silence_duration (2.0), preprocessing_target_loudness (-16). Note: Requires ffmpeg installed on system. Benefits: File size reduction, API compatibility, cost savings, performance"
 }

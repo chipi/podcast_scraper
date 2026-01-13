@@ -1140,6 +1140,120 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
 
         self.assertIn("Summary provider not available", str(context.exception))
 
+    @patch("podcast_scraper.metadata.time.time")
+    @patch("podcast_scraper.preprocessing.clean_transcript")
+    def test_generate_episode_summary_mock_object_without_return_value(self, mock_clean, mock_time):
+        """Test handling of Mock object without return_value (should skip summary)."""
+        import os
+
+        transcript_path = os.path.join(self.temp_dir, "transcript.txt")
+        with open(transcript_path, "w") as f:
+            f.write("This is a long transcript that should be long enough for summarization. " * 10)
+
+        # Use a callable that returns values indefinitely (logging also calls time.time())
+        call_count = [0]
+
+        def time_side_effect():
+            call_count[0] += 1
+            return float(call_count[0] - 1)  # First call returns 0.0, second returns 1.0, etc.
+
+        mock_time.side_effect = time_side_effect
+        mock_clean.return_value = "Cleaned transcript text"
+        mock_provider = Mock()
+        # Create a Mock object that has _mock_name but no return_value
+        mock_summary = Mock()
+        mock_summary._mock_name = "mock_summary"
+        mock_provider.summarize.return_value = mock_summary
+        self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
+
+        # Should return None (skip summary) when Mock object has no proper string value
+        result = metadata._generate_episode_summary(
+            transcript_file_path="transcript.txt",
+            output_dir=self.temp_dir,
+            cfg=self.cfg,
+            episode_idx=1,
+            summary_provider=mock_provider,
+        )
+
+        self.assertIsNone(result)
+
+    @patch("podcast_scraper.metadata.time.time")
+    @patch("podcast_scraper.preprocessing.clean_transcript")
+    def test_generate_episode_summary_mock_object_string_conversion_fails(
+        self, mock_clean, mock_time
+    ):
+        """Test handling of Mock object that fails string conversion (should skip summary)."""
+        import os
+
+        transcript_path = os.path.join(self.temp_dir, "transcript.txt")
+        with open(transcript_path, "w") as f:
+            f.write("This is a long transcript that should be long enough for summarization. " * 10)
+
+        # Use a callable that returns values indefinitely (logging also calls time.time())
+        call_count = [0]
+
+        def time_side_effect():
+            call_count[0] += 1
+            return float(call_count[0] - 1)  # First call returns 0.0, second returns 1.0, etc.
+
+        mock_time.side_effect = time_side_effect
+        mock_clean.return_value = "Cleaned transcript text"
+        mock_provider = Mock()
+        # Create a Mock object that raises exception when converted to string
+        mock_summary = Mock()
+        mock_summary.__str__ = Mock(side_effect=Exception("Cannot convert to string"))
+        mock_provider.summarize.return_value = mock_summary
+        self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
+
+        # Should return None (skip summary) when string conversion fails
+        result = metadata._generate_episode_summary(
+            transcript_file_path="transcript.txt",
+            output_dir=self.temp_dir,
+            cfg=self.cfg,
+            episode_idx=1,
+            summary_provider=mock_provider,
+        )
+
+        self.assertIsNone(result)
+
+    @patch("podcast_scraper.metadata.time.time")
+    @patch("podcast_scraper.preprocessing.clean_transcript")
+    def test_generate_episode_summary_mock_object_with_return_value_string(
+        self, mock_clean, mock_time
+    ):
+        """Test handling of Mock object with return_value that is a string (should use it)."""
+        import os
+
+        transcript_path = os.path.join(self.temp_dir, "transcript.txt")
+        with open(transcript_path, "w") as f:
+            f.write("This is a long transcript that should be long enough for summarization. " * 10)
+
+        # Use a callable that returns values indefinitely (logging also calls time.time())
+        call_count = [0]
+
+        def time_side_effect():
+            call_count[0] += 1
+            return float(call_count[0] - 1)  # First call returns 0.0, second returns 1.0, etc.
+
+        mock_time.side_effect = time_side_effect
+        mock_clean.return_value = "Cleaned transcript text"
+        mock_provider = Mock()
+        # Return a dict with summary string (not a Mock)
+        mock_provider.summarize.return_value = {"summary": "This is a valid summary string"}
+        self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
+
+        # Should use the summary string from the dict
+        result = metadata._generate_episode_summary(
+            transcript_file_path="transcript.txt",
+            output_dir=self.temp_dir,
+            cfg=self.cfg,
+            episode_idx=1,
+            summary_provider=mock_provider,
+        )
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.short_summary, "This is a valid summary string")
+
 
 class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
     """Tests for generate_episode_metadata edge cases."""

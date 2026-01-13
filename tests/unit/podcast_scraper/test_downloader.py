@@ -806,3 +806,59 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self.assertEqual(mock_file.write.call_count, 2)
         mock_file.write.assert_any_call(b"chunk1")
         mock_file.write.assert_any_call(b"chunk2")
+
+
+class TestHTTPHead(unittest.TestCase):
+    """Tests for http_head function."""
+
+    @patch("podcast_scraper.downloader._get_thread_request_session")
+    @patch("podcast_scraper.downloader.normalize_url")
+    def test_http_head_success(self, mock_normalize, mock_get_session):
+        """Test successful HTTP HEAD request."""
+        mock_session = Mock()
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.headers = {"Content-Length": "1000"}
+        mock_response.raise_for_status = Mock()
+        mock_session.head.return_value = mock_response
+        mock_get_session.return_value = mock_session
+        mock_normalize.return_value = "https://example.com/test"
+
+        result = downloader.http_head("https://example.com/test", "test-agent", 10)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result, mock_response)
+        mock_session.head.assert_called_once_with(
+            "https://example.com/test",
+            headers={"User-Agent": "test-agent"},
+            timeout=10,
+        )
+        mock_response.raise_for_status.assert_called_once()
+
+    @patch("podcast_scraper.downloader._get_thread_request_session")
+    @patch("podcast_scraper.downloader.normalize_url")
+    def test_http_head_failure(self, mock_normalize, mock_get_session):
+        """Test HTTP HEAD request failure returns None."""
+        mock_session = Mock()
+        mock_session.head.side_effect = requests.RequestException("Connection error")
+        mock_get_session.return_value = mock_session
+        mock_normalize.return_value = "https://example.com/test"
+
+        result = downloader.http_head("https://example.com/test", "test-agent", 10)
+
+        self.assertIsNone(result)
+
+    @patch("podcast_scraper.downloader._get_thread_request_session")
+    @patch("podcast_scraper.downloader.normalize_url")
+    def test_http_head_http_error(self, mock_normalize, mock_get_session):
+        """Test HTTP HEAD request with HTTP error returns None."""
+        mock_session = Mock()
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
+        mock_session.head.return_value = mock_response
+        mock_get_session.return_value = mock_session
+        mock_normalize.return_value = "https://example.com/test"
+
+        result = downloader.http_head("https://example.com/test", "test-agent", 10)
+
+        self.assertIsNone(result)

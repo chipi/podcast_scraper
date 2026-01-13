@@ -20,7 +20,7 @@ if PROJECT_ROOT not in sys.path:
 
 # Try to import summarizer, skip tests if dependencies not available
 try:
-    from podcast_scraper import config, models, summarizer, workflow
+    from podcast_scraper import config, metrics, models, summarizer, workflow
 
     SUMMARIZER_AVAILABLE = True
 except ImportError:
@@ -142,10 +142,12 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
             Path(transcript_path).parent.mkdir(parents=True, exist_ok=True)
             Path(transcript_path).write_text("This is a test transcript. " * 100)
 
-        # Mock the _summarize_single_episode function
+        # Mock the summarize_single_episode function
         with patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode"):
-            # Call _parallel_episode_summarization
-            workflow._parallel_episode_summarization(
+            # Call parallel_episode_summarization (re-exported as _parallel_episode_summarization)
+            from podcast_scraper.workflow.stages import summarization_stage
+
+            summarization_stage.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -162,7 +164,7 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
                 ),
                 summary_provider=mock_provider,
                 download_args=[],  # Empty download args for test
-                pipeline_metrics=Mock(),
+                pipeline_metrics=metrics.Metrics(),
             )
 
         # Verify models were pre-loaded (0 times - sequential processing in test environment)
@@ -199,7 +201,9 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
         _create_test_transcript_files(episodes, self.temp_dir, cfg)
 
         with patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode"):
-            workflow._parallel_episode_summarization(
+            from podcast_scraper.workflow.stages import summarization_stage
+
+            summarization_stage.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -216,7 +220,7 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
                 ),
                 summary_provider=_create_mock_provider(mock_summary_model),
                 download_args=[],  # Empty download args for test
-                pipeline_metrics=Mock(),
+                pipeline_metrics=metrics.Metrics(),
             )
 
         # Verify models were created with revision parameter
@@ -289,7 +293,9 @@ class TestParallelSummarizationThreadSafety(unittest.TestCase):
             "podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode",
             side_effect=track_model_usage,
         ):
-            workflow._parallel_episode_summarization(
+            from podcast_scraper.workflow.stages import summarization_stage
+
+            summarization_stage.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -306,7 +312,7 @@ class TestParallelSummarizationThreadSafety(unittest.TestCase):
                 ),
                 summary_provider=_create_mock_provider(mock_summary_model),
                 download_args=[],  # Empty download args for test
-                pipeline_metrics=Mock(),
+                pipeline_metrics=metrics.Metrics(),
             )
 
         # Verify that models were pre-loaded (0 times - sequential processing in test environment)
@@ -315,7 +321,7 @@ class TestParallelSummarizationThreadSafety(unittest.TestCase):
         self.assertEqual(
             mock_model_class.call_count, 0, "Sequential processing doesn't pre-load models"
         )
-        # In sequential mode, _summarize_single_episode uses the provider directly (not worker models)
+        # In sequential mode, summarize_single_episode uses the provider directly (not worker models)
         # So used_models will be empty (no models passed via kwargs in sequential mode)
         # This is expected behavior - sequential processing uses the provider's models, not pre-loaded worker models
         self.assertEqual(
@@ -378,10 +384,12 @@ class TestParallelSummarizationFallback(unittest.TestCase):
 
         mock_provider = _create_mock_provider(mock_summary_model)
         with patch(
-            "podcast_scraper.workflow._summarize_single_episode",
+            "podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode",
             side_effect=track_summarize,
         ):
-            workflow._parallel_episode_summarization(
+            from podcast_scraper.workflow.stages import summarization_stage
+
+            summarization_stage.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -398,7 +406,7 @@ class TestParallelSummarizationFallback(unittest.TestCase):
                 ),
                 summary_provider=mock_provider,
                 download_args=[],  # Empty download args for test
-                pipeline_metrics=Mock(),
+                pipeline_metrics=metrics.Metrics(),
             )
 
         # Verify fallback: should use sequential processing with provider
@@ -452,7 +460,9 @@ class TestParallelSummarizationCleanup(unittest.TestCase):
         _create_test_transcript_files(episodes, self.temp_dir, cfg)
 
         with patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode"):
-            workflow._parallel_episode_summarization(
+            from podcast_scraper.workflow.stages import summarization_stage
+
+            summarization_stage.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -469,7 +479,7 @@ class TestParallelSummarizationCleanup(unittest.TestCase):
                 ),
                 summary_provider=_create_mock_provider(mock_summary_model),
                 download_args=[],  # Empty download args for test
-                pipeline_metrics=Mock(),
+                pipeline_metrics=metrics.Metrics(),
             )
 
         # Verify all worker models were unloaded
@@ -511,28 +521,30 @@ class TestParallelSummarizationCleanup(unittest.TestCase):
 
         # Should not raise exception even if unload fails
         with patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode"):
-            try:
-                workflow._parallel_episode_summarization(
-                    episodes=episodes,
-                    feed=feed,
-                    cfg=cfg,
-                    effective_output_dir=self.temp_dir,
-                    run_suffix=None,
-                    feed_metadata=workflow._FeedMetadata(
-                        description="Test feed",
-                        image_url=None,
-                        last_updated=None,
-                    ),
-                    host_detection_result=workflow._HostDetectionResult(
-                        cached_hosts=set(),
-                        heuristics=None,
-                    ),
-                    summary_provider=_create_mock_provider(mock_summary_model),
-                    download_args=[],  # Empty download args for test
-                    pipeline_metrics=Mock(),
-                )
-            except Exception:
-                self.fail("Cleanup should handle unload errors gracefully")
+            from podcast_scraper.workflow.stages import summarization_stage
+
+            summarization_stage.parallel_episode_summarization(
+                episodes=episodes,
+                feed=feed,
+                cfg=cfg,
+                effective_output_dir=self.temp_dir,
+                run_suffix=None,
+                feed_metadata=workflow._FeedMetadata(
+                    description="Test feed",
+                    image_url=None,
+                    last_updated=None,
+                ),
+                host_detection_result=workflow._HostDetectionResult(
+                    cached_hosts=set(),
+                    heuristics=None,
+                ),
+                summary_provider=_create_mock_provider(mock_summary_model),
+                download_args=[],  # Empty download args for test
+                pipeline_metrics=metrics.Metrics(),
+            )
+            # Cleanup should handle unload errors gracefully (caught and logged, not raised)
+            # If an exception is raised here, the test will fail, which is expected
+            # _unload_worker_models catches exceptions during unload, so this should not raise
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
@@ -582,10 +594,12 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
             return None
 
         with patch(
-            "podcast_scraper.workflow._summarize_single_episode",
+            "podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode",
             side_effect=track_summarize,
         ):
-            workflow._parallel_episode_summarization(
+            from podcast_scraper.workflow.stages import summarization_stage
+
+            summarization_stage.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -602,7 +616,7 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
                 ),
                 summary_provider=_create_mock_provider(mock_summary_model),
                 download_args=[],  # Empty download args for test
-                pipeline_metrics=Mock(),
+                pipeline_metrics=metrics.Metrics(),
             )
 
         # Should use sequential processing (original provider, not pre-loaded)
@@ -638,7 +652,9 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
         _create_test_transcript_files(episodes, self.temp_dir, cfg)
 
         with patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode"):
-            workflow._parallel_episode_summarization(
+            from podcast_scraper.workflow.stages import summarization_stage
+
+            summarization_stage.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -655,7 +671,7 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
                 ),
                 summary_provider=_create_mock_provider(mock_summary_model),
                 download_args=[],  # Empty download args for test
-                pipeline_metrics=Mock(),
+                pipeline_metrics=metrics.Metrics(),
             )
 
         # GPU in test environment uses 1 worker (DEFAULT_SUMMARY_MAX_WORKERS_GPU_TEST = 1)
@@ -690,7 +706,9 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
         _create_test_transcript_files(episodes, self.temp_dir, cfg)
 
         with patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode"):
-            workflow._parallel_episode_summarization(
+            from podcast_scraper.workflow.stages import summarization_stage
+
+            summarization_stage.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -707,7 +725,7 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
                 ),
                 summary_provider=_create_mock_provider(mock_summary_model),
                 download_args=[],  # Empty download args for test
-                pipeline_metrics=Mock(),
+                pipeline_metrics=metrics.Metrics(),
             )
 
         # CPU in test environment uses 1 worker (DEFAULT_SUMMARY_MAX_WORKERS_CPU_TEST = 1)

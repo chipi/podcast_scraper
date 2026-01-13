@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -23,8 +23,17 @@ ENV WHISPER_MODELS=${WHISPER_MODELS}
 ENV TRANSFORMERS_MODELS=${TRANSFORMERS_MODELS}
 ENV SKIP_TRANSFORMERS=${SKIP_TRANSFORMERS}
 
+# Install runtime and build dependencies
+# Build deps are needed for compiling some packages from source if wheels aren't available
+# Python 3.12 has good wheel support, so most packages won't need compilation
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg \
+    && apt-get install -y --no-install-recommends \
+        ffmpeg \
+        gcc \
+        g++ \
+        make \
+        python3-dev \
+        libc6-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p "${XDG_CACHE_HOME}"
@@ -47,19 +56,32 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Install all dependencies from pyproject.toml (core + ML extras)
 # All versions come from pyproject.toml - no hardcoded versions
 # Use BuildKit cache mount for pip cache (faster rebuilds)
+# Clean up aggressively after each major package to save disk space
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir .[ml] && \
-    pip uninstall -y podcast-scraper
+    pip uninstall -y podcast-scraper && \
+    # Aggressive cleanup to prevent disk space issues
+    pip cache purge || true && \
+    rm -rf /tmp/pip-* /tmp/build-* /tmp/*.whl /tmp/*.tar.gz || true && \
+    find /tmp -type f -name "*.pyc" -delete 2>/dev/null || true && \
+    find /tmp -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
 # Ensure torch CPU-only version is used (reinstall CPU version to override any CUDA version)
 # Use BuildKit cache mount for pip cache (faster rebuilds)
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu
+    pip install --no-cache-dir --force-reinstall --no-deps torch --index-url https://download.pytorch.org/whl/cpu && \
+    # Clean up temporary build files aggressively
+    rm -rf /tmp/pip-* /tmp/build-* /tmp/*.whl /tmp/*.tar.gz || true
 
 # Copy all remaining files and install the podcast_scraper package itself (without reinstalling deps)
+# Note: Dependencies are already installed in previous step, so --no-deps is safe
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --no-deps .
+    pip install --no-cache-dir --no-deps . && \
+    # Verify critical dependencies are available (yaml module)
+    python -c "import yaml; print('PyYAML available')" && \
+    # Clean up temporary build files
+    rm -rf /tmp/pip-* /tmp/build-* /tmp/*.whl /tmp/*.tar.gz || true
 
 # hadolint ignore=SC2261
 # Preload ML models using unified script
@@ -83,7 +105,21 @@ RUN mkdir -p /app
 
 WORKDIR /app
 
-# Clean up build directory (pip cache is handled by cache mounts, no need to clean)
-RUN rm -rf /tmp/build /root/.cache/torch
+# Clean up build dependencies, build directory, and caches to save space
+# Also clean pip wheel cache and any remaining temp files
+RUN apt-get purge -y --auto-remove \
+        gcc \
+        g++ \
+        make \
+        python3-dev \
+        libc6-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/build /tmp/* /root/.cache/torch /root/.cache/pip \
+    && pip cache purge || true \
+    && find /usr/local -name "*.pyc" -delete \
+    && find /usr/local -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true \
+    && find /tmp -type f -delete 2>/dev/null || true \
+    && find /tmp -type d -empty -delete 2>/dev/null || true
 
 ENTRYPOINT ["python", "-m", "podcast_scraper.service"]

@@ -1134,7 +1134,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
 </rss>""".strip()
 
         # Create minimal valid MP3 file
-        audio_bytes = b"\xFF\xFB\x90\x00" * 32
+        audio_bytes = b"\xff\xfb\x90\x00" * 32
 
         responses = {
             downloader.normalize_url(rss_url): create_rss_response(rss_xml, rss_url),
@@ -1518,7 +1518,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         responses = {}
         for i in range(1, 4):
             audio_url = f"https://example.com/ep{i}.mp3"
-            audio_bytes = b"\xFF\xFB\x90\x00" * 32
+            audio_bytes = b"\xff\xfb\x90\x00" * 32
             responses[downloader.normalize_url(audio_url)] = create_media_response(
                 audio_bytes, audio_url
             )
@@ -1677,7 +1677,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         from podcast_scraper.transcription.factory import create_transcription_provider
 
         audio_url = "https://example.com/ep1.mp3"
-        audio_bytes = b"\xFF\xFB\x90\x00" * 32
+        audio_bytes = b"\xff\xfb\x90\x00" * 32
         responses = {
             downloader.normalize_url(audio_url): create_media_response(audio_bytes, audio_url),
         }

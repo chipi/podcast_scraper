@@ -111,6 +111,28 @@ def _re_export_workflow_functions(_workflow_module: Any) -> None:
         )
 
 
+# Re-export summarization stage functions for backward compatibility
+# Tests expect these with underscore prefix
+# This is done at module level (not inside _re_export_workflow_functions) to ensure
+# it always runs, even if workflow.py doesn't exist or fails to load
+# This is critical for CI environments where import order or timing might differ
+try:
+    from .stages import summarization_stage
+
+    # Re-export with underscore names for backward compatibility
+    current_module = sys.modules[__name__]
+    current_module._parallel_episode_summarization = (  # type: ignore
+        summarization_stage.parallel_episode_summarization
+    )
+    current_module._summarize_single_episode = (  # type: ignore
+        summarization_stage.summarize_single_episode
+    )
+except ImportError:
+    # If summarization_stage is not available, skip
+    # This can happen if ML dependencies are not installed
+    pass
+
+
 if _workflow_py_path.exists():
     import importlib.util
 

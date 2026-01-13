@@ -21,6 +21,7 @@ and hands-on work with edge and cloud AI/ML technologies.
 
 - **Transcript Downloads** — Automatic detection and download from RSS feeds
 - **Transcription** — Generate transcripts with Whisper or OpenAI API
+- **Audio Preprocessing** — Optimize audio files before transcription (reduce size, remove silence, normalize loudness)
 - **Speaker Detection** — Identify speakers using spaCy NER
 - **Summarization** — Episode summaries with BART/LED (local) or OpenAI
 - **Metadata Generation** — JSON/YAML metadata per episode

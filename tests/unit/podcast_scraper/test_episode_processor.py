@@ -736,7 +736,7 @@ class TestTranscribeMediaToText(unittest.TestCase):
         job.ep_title_safe = "Episode_1"
         job.temp_media = "/tmp/ep1.mp3"
         job.detected_speaker_names = ["Host", "Guest"]
-        cfg = create_test_config(dry_run=False)
+        cfg = create_test_config(dry_run=False, preprocessing_enabled=False)
         mock_build_path.return_value = "/output/0001 - Episode_1.txt"
         mock_exists.return_value = True  # File exists for size check
         mock_getsize.return_value = 5000000  # 5MB
@@ -762,6 +762,7 @@ class TestTranscribeMediaToText(unittest.TestCase):
         self.assertTrue(success)
         self.assertEqual(transcript_path, "0001 - Episode_1.txt")
         self.assertEqual(bytes_downloaded, 5000000)
+        # When pipeline_metrics is None, should call without pipeline_metrics
         mock_provider.transcribe_with_segments.assert_called_once_with(
             "/tmp/ep1.mp3", language=cfg.language
         )
@@ -812,7 +813,7 @@ class TestTranscribeMediaToText(unittest.TestCase):
         job.ep_title_safe = "Episode_1"
         job.temp_media = "/tmp/ep1.mp3"
         job.detected_speaker_names = None
-        cfg = create_test_config(dry_run=False)
+        cfg = create_test_config(dry_run=False, preprocessing_enabled=False)
         mock_build_path.return_value = "/output/0001 - Episode_1.txt"
         mock_exists.return_value = True  # File exists for size check
         mock_getsize.return_value = 5000000
@@ -832,7 +833,67 @@ class TestTranscribeMediaToText(unittest.TestCase):
 
         self.assertFalse(success)
         self.assertIsNone(transcript_path)
-        self.assertEqual(bytes_downloaded, 5000000)  # Should still return bytes downloaded
+        # bytes_downloaded is set before transcription, so it's the file size even on error
+        self.assertEqual(bytes_downloaded, 5000000)
+        mock_cleanup.assert_called_once()
+
+    @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.getsize")
+    @patch("podcast_scraper.episode_processor._cleanup_temp_media")
+    def test_transcribe_media_to_text_provider_without_pipeline_metrics(
+        self, mock_cleanup, mock_getsize, mock_exists, mock_build_path
+    ):
+        """Test transcribe_media_to_text with provider that doesn't support pipeline_metrics."""
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_1"
+        job.temp_media = "/tmp/ep1.mp3"
+        job.detected_speaker_names = None
+        cfg = create_test_config(dry_run=False, preprocessing_enabled=False)
+        mock_build_path.return_value = "/output/0001 - Episode_1.txt"
+        mock_exists.return_value = True
+        mock_getsize.return_value = 5000000
+
+        # Create a mock provider that doesn't support pipeline_metrics parameter
+        mock_provider = Mock()
+        # Create a signature without pipeline_metrics
+        from inspect import Parameter, Signature
+
+        sig = Signature(
+            [
+                Parameter("audio_path", Parameter.POSITIONAL_OR_KEYWORD),
+                Parameter("language", Parameter.POSITIONAL_OR_KEYWORD, default=None),
+            ]
+        )
+        mock_provider.transcribe_with_segments.__signature__ = sig
+        mock_provider.transcribe_with_segments.return_value = (
+            {"text": "Hello world", "segments": []},
+            10.5,
+        )
+
+        mock_format = Mock(return_value="Hello world")
+        mock_save = Mock(return_value="0001 - Episode_1.txt")
+        with patch("podcast_scraper.episode_processor._format_transcript_if_needed", mock_format):
+            with patch("podcast_scraper.episode_processor._save_transcript_file", mock_save):
+                success, transcript_path, bytes_downloaded = (
+                    episode_processor.transcribe_media_to_text(
+                        job=job,
+                        cfg=cfg,
+                        whisper_model=None,
+                        run_suffix=None,
+                        effective_output_dir="/output",
+                        transcription_provider=mock_provider,
+                        pipeline_metrics=None,
+                    )
+                )
+
+        self.assertTrue(success)
+        self.assertEqual(transcript_path, "0001 - Episode_1.txt")
+        # Should call transcribe_with_segments without pipeline_metrics
+        mock_provider.transcribe_with_segments.assert_called_once_with(
+            "/tmp/ep1.mp3", language=cfg.language
+        )
         mock_cleanup.assert_called_once()
 
     @patch("podcast_scraper.episode_processor.filesystem.build_whisper_output_path")

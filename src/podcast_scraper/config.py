@@ -531,6 +531,40 @@ class Config(BaseModel):
         default=True, alias="save_cleaned_transcript"
     )  # Save cleaned transcript to separate file for testing (default: True)
 
+    # Audio Preprocessing (RFC-040)
+    preprocessing_enabled: bool = Field(
+        default=True,
+        alias="preprocessing_enabled",
+        description="Enable audio preprocessing before transcription (default: True). "
+        "Preprocessing optimizes audio for API providers with file size limits.",
+    )
+    preprocessing_cache_dir: Optional[str] = Field(
+        default=None,
+        alias="preprocessing_cache_dir",
+        description="Custom cache directory for preprocessed audio "
+        "(default: .cache/preprocessing).",
+    )
+    preprocessing_sample_rate: int = Field(
+        default=16000,
+        alias="preprocessing_sample_rate",
+        description="Target sample rate for preprocessing in Hz (default: 16000).",
+    )
+    preprocessing_silence_threshold: str = Field(
+        default="-50dB",
+        alias="preprocessing_silence_threshold",
+        description="Silence detection threshold (default: -50dB).",
+    )
+    preprocessing_silence_duration: float = Field(
+        default=2.0,
+        alias="preprocessing_silence_duration",
+        description="Minimum silence duration to remove in seconds (default: 2.0).",
+    )
+    preprocessing_target_loudness: int = Field(
+        default=-16,
+        alias="preprocessing_target_loudness",
+        description="Target loudness in LUFS for normalization (default: -16).",
+    )
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True, frozen=True)
 
     @field_validator("rss_url", mode="before")

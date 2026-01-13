@@ -178,7 +178,7 @@ class TestResumeBehaviorIntegration(unittest.TestCase):
                 )
 
     def test_skip_existing_regenerate_summaries(self):
-        """Test regenerating summaries on existing transcripts.
+        """Test regenerating summaries on existing transcripts, skip if network unavailable.
 
         This test verifies that when skip_existing=True and generate_summaries=True,
         transcripts are skipped but summaries are still generated.
@@ -258,7 +258,20 @@ class TestResumeBehaviorIntegration(unittest.TestCase):
                 )
 
                 # Run pipeline second time
-                count2, summary2 = workflow.run_pipeline(cfg2)
+                # Catch network errors (HuggingFace connection issues) and skip test
+                try:
+                    count2, summary2 = workflow.run_pipeline(cfg2)
+                except (OSError, RuntimeError) as e:
+                    error_msg = str(e).lower()
+                    if (
+                        "couldn't connect" in error_msg
+                        or "huggingface.co" in error_msg
+                        or "network" in error_msg
+                    ):
+                        import pytest
+
+                        pytest.skip(f"Network unavailable or HuggingFace unreachable: {e}")
+                    raise
 
                 # Verify: Transcripts still exist (not regenerated)
                 # Note: When generate_summaries=True, the workflow may process transcripts

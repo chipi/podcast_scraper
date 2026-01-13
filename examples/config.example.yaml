@@ -69,5 +69,16 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summarize in parallel. Can also be set via SUMMARY_BATCH_SIZE env var
 # summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode (CPU-bound, local providers only). Can also be set via SUMMARY_CHUNK_PARALLELISM env var
 
+# Audio preprocessing settings (RFC-040: Optimize audio for API providers with file size limits)
+# preprocessing_enabled: false  # Enable audio preprocessing before transcription (default: false)
+#   # Preprocessing optimizes audio for API providers (e.g., OpenAI Whisper 25MB limit)
+#   # Benefits: File size reduction, API compatibility, cost savings, performance
+#   # Requires: ffmpeg installed on system
+# preprocessing_cache_dir: null  # Custom cache directory for preprocessed audio (default: .cache/preprocessing)
+# preprocessing_sample_rate: 16000  # Target sample rate in Hz (default: 16000, recommended for speech)
+# preprocessing_silence_threshold: "-50dB"  # Silence detection threshold (default: -50dB)
+# preprocessing_silence_duration: 2.0  # Minimum silence duration to remove in seconds (default: 2.0)
+# preprocessing_target_loudness: -16  # Target loudness in LUFS for normalization (default: -16)
+
 # Advanced settings
 # save_cleaned_transcript: true  # Save cleaned transcript to separate file (e.g., episode.cleaned.txt) for testing

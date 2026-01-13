@@ -11,26 +11,27 @@ Intermediate audio artifacts (cached, preprocessed files) need to be small enoug
 
 ## Decision
 
-We standardize on the **Opus Codec** at **24 kbps** for all preprocessed intermediate audio.
+We standardize on the **MP3 Codec** at **64 kbps** for all preprocessed intermediate audio.
 
-- Files are saved with the `.opus` extension.
-- The bitrate is fixed at 24kbps, which is the "sweet spot" for speech clarity vs. size.
+- Files are saved with the `.mp3` extension (MP3 codec for maximum compatibility).
+- The bitrate is fixed at 64kbps, which provides good quality for speech while keeping file sizes manageable.
 
 ## Rationale
 
-- **Quality**: Opus is the most advanced speech-optimized codec available, providing higher clarity at 24kbps than MP3 does at 64kbps.
-- **Extreme Compression**: A 60-minute podcast episode in Opus 24kbps is only ~10MB, fitting comfortably under all known API limits.
-- **Modern Support**: Native support in `ffmpeg`, OpenAI Whisper API, and most local Whisper implementations.
+- **Compatibility**: MP3 is universally supported by all transcription APIs (OpenAI, local Whisper, etc.).
+- **Reliability**: MP3 format is well-tested and doesn't have container format issues that can occur with OGG/Opus.
+- **File Size**: A 60-minute podcast episode in MP3 64kbps is ~30MB, still fitting under API limits with preprocessing.
+- **Quality**: 64kbps MP3 provides sufficient quality for accurate transcription while maintaining compatibility.
 
 ## Alternatives Considered
 
-1. **MP3**: Rejected as it requires higher bitrates (and thus larger files) to achieve the same transcription accuracy.
+1. **Opus/OGG**: Initially chosen for better compression, but rejected due to format compatibility issues with OpenAI API.
 2. **WAV**: Rejected as it is uncompressed and would immediately exceed upload limits.
 
 ## Consequences
 
-- **Positive**: Maximum compatibility with cloud APIs; minimal disk usage for cache.
-- **Negative**: Opus files are not as easily "playable" in legacy desktop players without special codecs.
+- **Positive**: Maximum compatibility with all cloud APIs; reliable format detection; widely playable.
+- **Negative**: Slightly larger file sizes compared to Opus (but still acceptable with preprocessing).
 
 ## References
 

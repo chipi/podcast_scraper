@@ -84,11 +84,25 @@ def detect_feed_hosts_and_patterns(
     cached_hosts: set[str] = set()
     heuristics: Optional[Dict[str, Any]] = None
 
-    if not cfg.auto_speakers or not cfg.cache_detected_hosts:
+    # If auto_speakers is disabled, skip speaker detection entirely
+    if not cfg.auto_speakers:
         return HostDetectionResult(cached_hosts, heuristics, None)
 
+    # In dry-run mode, still detect hosts from RSS author tags (no ML needed)
+    # but skip NER-based detection and model initialization
     if cfg.dry_run:
         logger.info("(dry-run) would initialize speaker detector")
+        # Still detect hosts from RSS author tags if available
+        if feed.authors:
+            cached_hosts = set(feed.authors)
+            if cached_hosts:
+                logger.info("=" * 60)
+                logger.info(
+                    "DETECTED HOSTS (from %s): %s",
+                    "RSS author tags",
+                    ", ".join(sorted(cached_hosts)),
+                )
+                logger.info("=" * 60)
         return HostDetectionResult(cached_hosts, heuristics, None)
 
     # Stage 3: Use provider pattern for speaker detection
@@ -354,6 +368,17 @@ def prepare_episode_download_args(
 
                         if isinstance(func, Mock):
                             speaker_detector = func(cfg)
+                        else:
+                            speaker_detector = create_speaker_detector(cfg)
+                    else:
+                        from ...speaker_detectors.factory import (
+                            create_speaker_detector as factory_create_speaker_detector,
+                        )
+
+                        speaker_detector = factory_create_speaker_detector(cfg)
+                    # Initialize the detector if it was just created
+                    if speaker_detector:
+                        speaker_detector.initialize()
                 if speaker_detector:
                     cached_hosts_for_detection = (
                         host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
@@ -546,8 +571,20 @@ def process_episodes(
                             transcript_source_typed,
                         )
                 elif transcript_path is None and transcript_source is None:
-                    # Episode was skipped (skip_existing)
-                    update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
+                    # Episode was skipped only if transcribe_missing is False
+                    # If transcribe_missing is True, None/None means queued for transcription
+                    if not cfg.transcribe_missing:
+                        logger.debug(
+                            "[%s] Episode skipped (no transcript, transcribe_missing=False)",
+                            episode.idx,
+                        )
+                        update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
+                    else:
+                        logger.debug(
+                            "[%s] Episode queued for transcription "
+                            "(not skipped, transcribe_missing=True)",
+                            episode.idx,
+                        )
             except Exception as exc:  # pragma: no cover
                 update_metric_safely(pipeline_metrics, "errors_total", 1)
                 logger.error(
@@ -595,10 +632,22 @@ def process_episodes(
                             )
                         logger.debug("Episode %s yielded transcript (saved=%s)", idx, saved)
                     elif transcript_path is None and transcript_source is None:
-                        # Episode was skipped (skip_existing)
-                        update_metric_safely(
-                            pipeline_metrics, "episodes_skipped_total", 1, saved_counter_lock
-                        )
+                        # Episode was skipped only if transcribe_missing is False
+                        # If transcribe_missing is True, None/None means queued for transcription
+                        if not cfg.transcribe_missing:
+                            logger.debug(
+                                "[%s] Episode skipped (no transcript, transcribe_missing=False)",
+                                idx,
+                            )
+                            update_metric_safely(
+                                pipeline_metrics, "episodes_skipped_total", 1, saved_counter_lock
+                            )
+                        else:
+                            logger.debug(
+                                "[%s] Episode queued for transcription "
+                                "(not skipped, transcribe_missing=True)",
+                                idx,
+                            )
 
                     # Queue processing job if metadata generation enabled and transcript available
                     # Skip if transcript_source is None (Whisper pending) - queued after

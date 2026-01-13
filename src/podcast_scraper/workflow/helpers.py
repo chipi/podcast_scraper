@@ -144,6 +144,25 @@ def generate_pipeline_summary(
         if metrics_dict.get("avg_summarize_seconds", 0) > 0:
             avg_summarize = metrics_dict["avg_summarize_seconds"]
             summary_lines.append(f"  - Average summary time: {avg_summarize:.1f}s/episode")
+        if metrics_dict.get("avg_preprocessing_seconds", 0) > 0:
+            avg_preprocessing = metrics_dict["avg_preprocessing_seconds"]
+            preprocessing_count = metrics_dict.get("preprocessing_count", 0)
+            size_reduction = metrics_dict.get("avg_preprocessing_size_reduction_percent", 0.0)
+            cache_hits = metrics_dict.get("preprocessing_cache_hits", 0)
+            cache_misses = metrics_dict.get("preprocessing_cache_misses", 0)
+            summary_lines.append(
+                f"  - Average preprocessing time: {avg_preprocessing:.1f}s/episode "
+                f"({preprocessing_count} processed, {size_reduction:.1f}% size reduction)"
+            )
+            if cache_hits > 0 or cache_misses > 0:
+                total_cache_ops = cache_hits + cache_misses
+                cache_hit_rate = (
+                    (cache_hits / total_cache_ops * 100) if total_cache_ops > 0 else 0.0
+                )
+                summary_lines.append(
+                    f"  - Preprocessing cache: {cache_hits} hits, {cache_misses} misses "
+                    f"({cache_hit_rate:.1f}% hit rate)"
+                )
 
         summary_lines.append(f"  - Output directory: {effective_output_dir}")
 
@@ -223,6 +242,15 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                     f"{audio_minutes:.1f} minutes, ${transcription_cost:.4f} "
                     f"(model: {model})"
                 )
+    else:
+        # Show that transcription was done with ML (free) to make cost savings clear
+        transcripts_transcribed = metrics_dict.get("transcripts_transcribed", 0)
+        if transcripts_transcribed > 0:
+            transcription_provider = getattr(cfg, "transcription_provider", "whisper")
+            summary_lines.append(
+                f"  - Transcription: {transcripts_transcribed} episodes, $0.0000 "
+                f"(provider: {transcription_provider}, local processing)"
+            )
 
     # Speaker detection calls
     if uses_openai_speaker:
@@ -246,6 +274,15 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                     f"{speaker_input_tokens:,} input + {speaker_output_tokens:,} output tokens, "
                     f"${speaker_cost:.4f} (model: {model})"
                 )
+    else:
+        # Show that speaker detection was done with ML (free) to make cost savings clear
+        extract_names_count = metrics_dict.get("extract_names_count", 0)
+        if extract_names_count > 0:
+            speaker_provider = getattr(cfg, "speaker_detector_provider", "spacy")
+            summary_lines.append(
+                f"  - Speaker Detection: {extract_names_count} episodes, $0.0000 "
+                f"(provider: {speaker_provider}, local processing)"
+            )
 
     # Summarization calls
     if uses_openai_summarization:
@@ -269,6 +306,15 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                     f"{summary_input_tokens:,} input + {summary_output_tokens:,} output tokens, "
                     f"${summary_cost:.4f} (model: {model})"
                 )
+    else:
+        # Show that summarization was done with ML (free) to make cost savings clear
+        episodes_summarized = metrics_dict.get("episodes_summarized", 0)
+        if episodes_summarized > 0:
+            summary_provider = getattr(cfg, "summary_provider", "transformers")
+            summary_lines.append(
+                f"  - Summarization: {episodes_summarized} episodes, $0.0000 "
+                f"(provider: {summary_provider}, local processing)"
+            )
 
     # Add total cost if any calls were made
     if total_cost > 0:

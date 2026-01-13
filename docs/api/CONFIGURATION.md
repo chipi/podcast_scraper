@@ -203,6 +203,60 @@ podcast-scraper --rss https://example.com/feed.xml \
 - **Priority**: Config file → Environment variable → Default
 - **Use Cases**: Docker containers (`WHISPER_DEVICE=cpu`), CI/CD (`WHISPER_DEVICE=cpu`), NVIDIA GPU (`WHISPER_DEVICE=cuda` or auto-detect), Apple Silicon (`WHISPER_DEVICE=mps` or auto-detect)
 
+#### Audio Preprocessing Configuration (RFC-040)
+
+Audio preprocessing optimizes audio files before transcription, reducing file size and improving transcription quality. This is especially useful for API-based transcription providers with file size limits (e.g., OpenAI 25 MB limit).
+
+| Field | CLI Flag | Default | Description |
+| ------- | ---------- | --------- | ------------- |
+| `preprocessing_enabled` | `--enable-preprocessing` | `false` | Enable audio preprocessing before transcription |
+| `preprocessing_cache_dir` | `--preprocessing-cache-dir` | `.cache/preprocessing` | Custom cache directory for preprocessed audio |
+| `preprocessing_sample_rate` | `--preprocessing-sample-rate` | `16000` | Target sample rate in Hz (must be Opus-supported: 8000, 12000, 16000, 24000, 48000) |
+| `preprocessing_silence_threshold` | `--preprocessing-silence-threshold` | `-50dB` | Silence detection threshold for VAD |
+| `preprocessing_silence_duration` | `--preprocessing-silence-duration` | `2.0` | Minimum silence duration to remove in seconds |
+| `preprocessing_target_loudness` | `--preprocessing-target-loudness` | `-16` | Target loudness in LUFS for normalization |
+
+**Preprocessing Pipeline**:
+
+1. Converts audio to mono
+2. Resamples to configured sample rate (default: 16 kHz)
+3. Removes silence using Voice Activity Detection (VAD)
+4. Normalizes loudness to configured target (default: -16 LUFS)
+5. Compresses using Opus codec at 24 kbps
+
+**Benefits**:
+
+- **File Size Reduction**: Typically 10-25× smaller (50 MB → 2-5 MB)
+- **API Compatibility**: Ensures files fit within 25 MB limit for OpenAI/Groq
+- **Cost Savings**: Reduces API costs by processing less audio (30-60% reduction)
+- **Performance**: Faster transcription for both local and API providers
+- **Caching**: Preprocessed audio is cached to avoid reprocessing
+
+**Requirements**:
+
+- `ffmpeg` must be installed and available in PATH
+- If `ffmpeg` is not available, preprocessing is automatically disabled with a warning
+
+**Example** (config file):
+
+```yaml
+preprocessing_enabled: true
+preprocessing_sample_rate: 16000
+preprocessing_silence_threshold: -50dB
+preprocessing_silence_duration: 2.0
+preprocessing_target_loudness: -16
+```
+
+**Example** (CLI):
+
+```bash
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
+  --enable-preprocessing \
+  --preprocessing-sample-rate 16000
+```
+
+**Note**: Preprocessing happens at the pipeline level before any transcription provider receives the audio. All providers (Whisper, OpenAI, future providers) benefit from optimized audio.
+
 #### ML Library Configuration (Advanced)
 
 **`HF_HUB_DISABLE_PROGRESS_BARS`**
@@ -408,7 +462,9 @@ print(os.getenv("OPENAI_API_KEY"))  # Should print your key (or None)
   "generate_summaries": true,
   "summary_batch_size": 1,
   "summary_chunk_parallelism": 1,
-  "preload_models": true
+  "preload_models": true,
+  "preprocessing_enabled": true,
+  "preprocessing_sample_rate": 16000
 }
 ```
 
@@ -425,6 +481,8 @@ generate_metadata: true
 generate_summaries: true
 summary_batch_size: 1  # Episode-level parallelism
 summary_chunk_parallelism: 1  # Chunk-level parallelism
+preprocessing_enabled: true  # Enable audio preprocessing
+preprocessing_sample_rate: 16000  # Target sample rate
 ```
 
 ## Aliases and Normalization

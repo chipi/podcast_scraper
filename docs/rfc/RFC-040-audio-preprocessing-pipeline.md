@@ -350,7 +350,7 @@ def get_cached_audio_path(
     Returns:
         Path to cached audio if exists, None otherwise
     """
-    cache_path = os.path.join(cache_dir, f"{cache_key}.opus")
+    cache_path = os.path.join(cache_dir, f"{cache_key}.mp3")
     if os.path.exists(cache_path):
         return cache_path
     return None
@@ -371,7 +371,7 @@ def save_to_cache(
         Path to cached audio
     """
     os.makedirs(cache_dir, exist_ok=True)
-    cache_path = os.path.join(cache_dir, f"{cache_key}.opus")
+    cache_path = os.path.join(cache_dir, f"{cache_key}.mp3")
 
     # Copy to cache (or move if source is temp)
     import shutil
@@ -419,7 +419,7 @@ def transcribe_media_to_text(
             media_for_transcription = cached_path
         else:
             # Preprocess audio
-            preprocessed_path = f"{temp_media}.preprocessed.opus"
+            preprocessed_path = f"{temp_media}.preprocessed.mp3"
             success, preprocess_elapsed = audio_preprocessor.preprocess(
                 temp_media, preprocessed_path
             )
