@@ -275,7 +275,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
             if original_key is not None:
                 os.environ["OPENAI_API_KEY"] = original_key
 
-    @patch("podcast_scraper.summarization.factory.create_summarization_provider")
+    @patch("podcast_scraper.workflow.create_summarization_provider")
     def test_pipeline_fails_when_summarization_provider_initialization_fails(
         self, mock_create_provider
     ):
@@ -293,6 +293,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
         )
 
         # Mock provider creation to raise exception
+        # Patch the re-exported version in workflow module to ensure workflow code sees the mock
         mock_create_provider.side_effect = RuntimeError("Provider initialization failed")
 
         # Mock other pipeline components to get to summarization initialization
