@@ -63,7 +63,7 @@ jobs:
           args: --file=pyproject.toml --package-manager=pip --severity-threshold=high --sarif-file-output=snyk.sarif
 
       - name: Upload Snyk results to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: snyk.sarif
@@ -116,7 +116,7 @@ jobs:
           args: --severity-threshold=high --sarif-file-output=snyk-docker.sarif
 
       - name: Upload Snyk Docker results to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           sarif_file: snyk-docker.sarif
