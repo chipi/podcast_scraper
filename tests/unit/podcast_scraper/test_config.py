@@ -20,36 +20,6 @@ from podcast_scraper import Config, config
 class TestSummaryValidation(unittest.TestCase):
     """Test summary-related cross-field validation."""
 
-    def test_summary_max_greater_than_min(self):
-        """Test that summary_max_length must be greater than summary_min_length."""
-        with self.assertRaises(ValidationError) as context:
-            Config(
-                rss_url="https://example.com/feed.xml",
-                summary_max_length=50,
-                summary_min_length=100,
-            )
-        self.assertIn("must be greater than", str(context.exception))
-
-    def test_summary_max_equal_to_min_fails(self):
-        """Test that summary_max_length equal to summary_min_length fails."""
-        with self.assertRaises(ValidationError) as context:
-            Config(
-                rss_url="https://example.com/feed.xml",
-                summary_max_length=100,
-                summary_min_length=100,
-            )
-        self.assertIn("must be greater than", str(context.exception))
-
-    def test_summary_max_greater_than_min_succeeds(self):
-        """Test that valid max > min configuration succeeds."""
-        cfg = Config(
-            rss_url="https://example.com/feed.xml",
-            summary_max_length=200,
-            summary_min_length=50,
-        )
-        self.assertEqual(cfg.summary_max_length, 200)
-        self.assertEqual(cfg.summary_min_length, 50)
-
     def test_word_overlap_less_than_chunk_size(self):
         """Test that summary_word_overlap must be less than summary_word_chunk_size."""
         # Suppress expected warnings about values outside recommended ranges
@@ -220,15 +190,13 @@ class TestValidationEdgeCases(unittest.TestCase):
         with self.assertRaises(ValidationError) as context:
             Config(
                 rss_url="https://example.com/feed.xml",
-                summary_max_length=50,
-                summary_min_length=100,  # Error: max <= min
                 clean_output=True,
                 skip_existing=True,  # Error: contradictory flags
             )
         # Should report validation errors
         error_str = str(context.exception)
-        # At least one of the errors should be present
-        self.assertTrue("must be greater than" in error_str or "mutually exclusive" in error_str)
+        # Should report mutually exclusive error
+        self.assertIn("mutually exclusive", error_str)
 
     def test_valid_complex_configuration(self):
         """Test that a complex valid configuration succeeds."""
@@ -244,8 +212,6 @@ class TestValidationEdgeCases(unittest.TestCase):
             generate_metadata=True,
             metadata_format="yaml",
             generate_summaries=True,
-            summary_max_length=200,
-            summary_min_length=50,
             summary_word_chunk_size=900,
             summary_word_overlap=150,
             skip_existing=True,

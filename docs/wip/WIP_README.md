@@ -14,8 +14,9 @@ are not yet finalized or integrated into the main documentation.
 
 | File | Description | Status |
 | ------ | ------------- | -------- |
-| `BRANCH_CREATION_CHECKLIST.md` | Checklist for creating new branches | Active |
+| `ai-quality-implementation-plan.md` | Implementation plan for AI Quality & Experimentation Platform | Active |
 | `METRICS_GAP_ANALYSIS.md` | Gap analysis for metrics implementation | Active |
+| `REMAINING_WORK.md` | Summary of remaining implementation work | Active |
 | `TYPE_HINTS_ANALYSIS.md` | Analysis of type hints usage | Active |
 
 ## Guidelines

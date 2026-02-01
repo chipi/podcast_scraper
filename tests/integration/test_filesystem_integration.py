@@ -21,7 +21,8 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import config, filesystem
+from podcast_scraper import config
+from podcast_scraper.utils import filesystem
 
 
 @pytest.mark.integration

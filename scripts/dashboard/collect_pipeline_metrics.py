@@ -6,7 +6,7 @@ This script runs a sample pipeline with test fixtures to generate pipeline metri
 that can be included in the metrics dashboard.
 
 Usage:
-    python scripts/dashboard/collect_pipeline_metrics.py --output reports/pipeline_metrics.json
+    python scripts/dashboard/collect_pipeline_metrics.py --output reports/output/pipeline_metrics.json
 """
 
 import argparse
@@ -86,8 +86,8 @@ def main():
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("reports/pipeline_metrics.json"),
-        help="Output path for pipeline metrics JSON (default: reports/pipeline_metrics.json)",
+        default=Path("reports/output/pipeline_metrics.json"),
+        help="Output path for pipeline metrics JSON (default: reports/output/pipeline_metrics.json)",
     )
     parser.add_argument(
         "--max-episodes",

@@ -115,7 +115,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
     @patch("podcast_scraper.config._is_test_environment")
     @patch("podcast_scraper.workflow.stages.setup.should_preload_ml_models")
-    @patch("podcast_scraper.cache_utils.get_whisper_cache_dir")
+    @patch("podcast_scraper.cache.get_whisper_cache_dir")
     def test_checks_whisper_model_cache(self, mock_get_whisper, mock_should_preload, mock_is_test):
         """Test that function checks if Whisper model is cached."""
         mock_should_preload.return_value = True
@@ -144,8 +144,8 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
     @patch("podcast_scraper.config._is_test_environment")
     @patch("podcast_scraper.workflow.stages.setup.should_preload_ml_models")
-    @patch("podcast_scraper.model_loader.preload_whisper_models")
-    @patch("podcast_scraper.cache_utils.get_whisper_cache_dir")
+    @patch("podcast_scraper.providers.ml.model_loader.preload_whisper_models")
+    @patch("podcast_scraper.cache.get_whisper_cache_dir")
     def test_downloads_missing_whisper_model(
         self, mock_get_whisper, mock_preload_whisper, mock_should_preload, mock_is_test
     ):
@@ -176,10 +176,10 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
     @patch("podcast_scraper.config._is_test_environment")
     @patch("podcast_scraper.workflow.stages.setup.should_preload_ml_models")
-    @patch("podcast_scraper.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarizer.select_summary_model")
-    @patch("podcast_scraper.cache_utils.get_transformers_cache_dir")
-    @patch("podcast_scraper.cache_utils.get_whisper_cache_dir")
+    @patch("podcast_scraper.providers.ml.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.summarizer.select_summary_model")
+    @patch("podcast_scraper.cache.get_transformers_cache_dir")
+    @patch("podcast_scraper.cache.get_whisper_cache_dir")
     def test_checks_transformers_model_cache(
         self,
         mock_get_whisper,
@@ -219,11 +219,11 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
     @patch("podcast_scraper.config._is_test_environment")
     @patch("podcast_scraper.workflow.stages.setup.should_preload_ml_models")
-    @patch("podcast_scraper.model_loader.preload_transformers_models")
-    @patch("podcast_scraper.summarizer.select_reduce_model")
-    @patch("podcast_scraper.summarizer.select_summary_model")
-    @patch("podcast_scraper.cache_utils.get_transformers_cache_dir")
-    @patch("podcast_scraper.cache_utils.get_whisper_cache_dir")
+    @patch("podcast_scraper.providers.ml.model_loader.preload_transformers_models")
+    @patch("podcast_scraper.providers.ml.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.summarizer.select_summary_model")
+    @patch("podcast_scraper.cache.get_transformers_cache_dir")
+    @patch("podcast_scraper.cache.get_whisper_cache_dir")
     def test_downloads_missing_transformers_model(
         self,
         mock_get_whisper,
@@ -276,10 +276,10 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         cfg.transcribe_missing = True
         cfg.transcription_provider = "whisper"
 
-        # Patch to raise ImportError at the source module level
+        # Patch to raise ImportError when importing cache module
         with patch(
-            "podcast_scraper.cache_utils.get_whisper_cache_dir",
-            side_effect=ImportError("cache_utils not available"),
+            "podcast_scraper.cache.get_whisper_cache_dir",
+            side_effect=ImportError("cache module not available"),
         ):
             # Should not raise
             ensure_ml_models_cached(cfg)
@@ -302,7 +302,7 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
         # Patch to raise general exception at the source module level
         with patch(
-            "podcast_scraper.cache_utils.get_whisper_cache_dir",
+            "podcast_scraper.cache.get_whisper_cache_dir",
             side_effect=RuntimeError("Unexpected error"),
         ):
             # Should not raise

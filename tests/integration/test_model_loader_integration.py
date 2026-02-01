@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integration tests for podcast_scraper.model_loader module.
+"""Integration tests for podcast_scraper.providers.ml.model_loader module.
 
 These tests verify that the centralized model loader functions work correctly
 in an integration context with real dependencies (when available).
@@ -21,7 +21,7 @@ if PACKAGE_ROOT not in sys.path:
 from pathlib import Path
 
 from podcast_scraper import config
-from podcast_scraper.cache_utils import (
+from podcast_scraper.cache import (
     get_transformers_cache_dir,
     get_whisper_cache_dir,
 )
@@ -76,7 +76,7 @@ class TestModelLoaderWhisperIntegration(unittest.TestCase):
     @pytest.mark.critical_path
     def test_model_loader_imports_successfully(self):
         """Test that model_loader module can be imported."""
-        from podcast_scraper.model_loader import preload_whisper_models
+        from podcast_scraper.providers.ml.model_loader import preload_whisper_models
 
         # Module should import successfully
         self.assertIsNotNone(preload_whisper_models)
@@ -99,7 +99,7 @@ class TestModelLoaderWhisperIntegration(unittest.TestCase):
         # Require model to be cached (skip if not)
         require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-        from podcast_scraper.model_loader import preload_whisper_models
+        from podcast_scraper.providers.ml.model_loader import preload_whisper_models
 
         # Call with cached model - should succeed (loads from cache, doesn't download)
         # This exercises the function logic even though we're in test environment
@@ -138,7 +138,7 @@ class TestModelLoaderTransformersIntegration(unittest.TestCase):
     @pytest.mark.critical_path
     def test_model_loader_imports_successfully(self):
         """Test that model_loader module can be imported."""
-        from podcast_scraper.model_loader import preload_transformers_models
+        from podcast_scraper.providers.ml.model_loader import preload_transformers_models
 
         # Module should import successfully
         self.assertIsNotNone(preload_transformers_models)
@@ -163,7 +163,7 @@ class TestModelLoaderTransformersIntegration(unittest.TestCase):
         # Require model to be cached (skip if not)
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
-        from podcast_scraper.model_loader import preload_transformers_models
+        from podcast_scraper.providers.ml.model_loader import preload_transformers_models
 
         # Call with cached model - should succeed (loads from cache, doesn't download)
         # This exercises the function logic
@@ -218,7 +218,7 @@ class TestModelLoaderWorkflowIntegration(unittest.TestCase):
     @pytest.mark.critical_path
     def test_model_loader_module_is_importable(self):
         """Test that model_loader module can be imported from package."""
-        from podcast_scraper.model_loader import (
+        from podcast_scraper.providers.ml.model_loader import (
             preload_transformers_models,
             preload_whisper_models,
         )
@@ -265,7 +265,7 @@ class TestModelLoaderWorkflowIntegration(unittest.TestCase):
         # Verify functions have correct signatures (they accept optional list parameter)
         import inspect
 
-        from podcast_scraper.model_loader import (
+        from podcast_scraper.providers.ml.model_loader import (
             preload_transformers_models,
             preload_whisper_models,
         )

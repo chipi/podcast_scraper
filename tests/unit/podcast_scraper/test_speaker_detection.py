@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 # Mock ML dependencies before importing modules that require them
 # Unit tests run without ML dependencies installed
 with patch.dict("sys.modules", {"spacy": MagicMock()}):
-    from podcast_scraper import speaker_detection
+    from podcast_scraper.providers.ml import speaker_detection
 
 # Import from parent conftest explicitly to avoid conflicts
 import importlib.util

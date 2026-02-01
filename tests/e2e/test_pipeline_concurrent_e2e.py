@@ -362,7 +362,9 @@ class TestConcurrentEpisodeProcessingE2E:
             )
 
             # Mock summarization to avoid loading real models
-            with patch("podcast_scraper.ml.ml_provider.MLProvider") as mock_provider_class:
+            with patch(
+                "podcast_scraper.providers.ml.ml_provider.MLProvider"
+            ) as mock_provider_class:
                 mock_provider = unittest.mock.MagicMock()
                 mock_provider.summarize.return_value = "Mocked summary for concurrent testing."
                 # Mock detect_speakers to return expected 3-tuple (speakers, hosts, success)
@@ -397,7 +399,9 @@ class TestConcurrentEpisodeProcessingE2E:
             )
 
             # Mock summarization to avoid loading real models
-            with patch("podcast_scraper.ml.ml_provider.MLProvider") as mock_provider_class:
+            with patch(
+                "podcast_scraper.providers.ml.ml_provider.MLProvider"
+            ) as mock_provider_class:
                 mock_provider = unittest.mock.MagicMock()
                 mock_provider.summarize.return_value = "Mocked summary for cleanup testing."
                 # Mock detect_speakers to return expected 3-tuple (speakers, hosts, success)

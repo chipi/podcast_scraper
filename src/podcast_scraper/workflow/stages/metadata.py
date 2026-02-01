@@ -9,9 +9,12 @@ import logging
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from ... import config, metrics, models
-from ...metadata import generate_episode_metadata as metadata_generate_episode_metadata
-from ...rss_parser import extract_episode_metadata, extract_episode_published_date
+from ... import config, models
+from ...rss import extract_episode_metadata, extract_episode_published_date
+from .. import metrics
+from ..metadata_generation import (
+    generate_episode_metadata as metadata_generate_episode_metadata,
+)
 from ..types import FeedMetadata, HostDetectionResult
 
 logger = logging.getLogger(__name__)
@@ -51,6 +54,21 @@ def call_generate_metadata(
         summary_provider: SummarizationProvider instance (required)
         pipeline_metrics: Metrics object
     """
+    # Build detected_hosts and detected_guests lists
+    detected_hosts = (
+        list(host_detection_result.cached_hosts) if host_detection_result.cached_hosts else None
+    )
+    detected_guests = (
+        [
+            name
+            for name in detected_names
+            if not host_detection_result.cached_hosts
+            or name not in host_detection_result.cached_hosts
+        ]
+        if detected_names
+        else None
+    )
+
     # Use wrapper function if available (for testability)
     import sys
 
@@ -70,21 +88,8 @@ def call_generate_metadata(
                 transcript_file_path=transcript_path,
                 transcript_source=transcript_source,
                 whisper_model=whisper_model,
-                detected_hosts=(
-                    list(host_detection_result.cached_hosts)
-                    if host_detection_result.cached_hosts
-                    else None
-                ),
-                detected_guests=(
-                    [
-                        name
-                        for name in detected_names
-                        if not host_detection_result.cached_hosts
-                        or name not in host_detection_result.cached_hosts
-                    ]
-                    if detected_names
-                    else None
-                ),
+                detected_hosts=detected_hosts,
+                detected_guests=detected_guests,
                 feed_description=feed_metadata.description,
                 feed_image_url=feed_metadata.image_url,
                 feed_last_updated=feed_metadata.last_updated,
@@ -102,19 +107,8 @@ def call_generate_metadata(
         transcript_file_path=transcript_path,
         transcript_source=transcript_source,
         whisper_model=whisper_model,
-        detected_hosts=(
-            list(host_detection_result.cached_hosts) if host_detection_result.cached_hosts else None
-        ),
-        detected_guests=(
-            [
-                name
-                for name in detected_names
-                if not host_detection_result.cached_hosts
-                or name not in host_detection_result.cached_hosts
-            ]
-            if detected_names
-            else None
-        ),
+        detected_hosts=detected_hosts,
+        detected_guests=detected_guests,
         feed_description=feed_metadata.description,
         feed_image_url=feed_metadata.image_url,
         feed_last_updated=feed_metadata.last_updated,
@@ -138,9 +132,7 @@ def generate_episode_metadata(
     feed_description: Optional[str],
     feed_image_url: Optional[str],
     feed_last_updated: Optional[datetime],
-    summary_provider=None,  # SummarizationProvider instance (preferred)
-    summary_model=None,  # Backward compatibility - deprecated
-    reduce_model=None,  # Backward compatibility - deprecated
+    summary_provider=None,  # SummarizationProvider instance (required)
     pipeline_metrics=None,
 ) -> None:
     """Generate and save episode metadata document.
@@ -167,8 +159,6 @@ def generate_episode_metadata(
         feed_image_url: URL to podcast artwork/cover image
         feed_last_updated: Last update timestamp from feed metadata
         summary_provider: SummarizationProvider instance (preferred)
-        summary_model: Optional loaded summary model (deprecated, for backward compatibility)
-        reduce_model: Optional loaded REDUCE model (deprecated, for backward compatibility)
         pipeline_metrics: Optional metrics collector for tracking summary generation time
 
     Raises:
@@ -221,8 +211,6 @@ def generate_episode_metadata(
                 feed_image_url=feed_image_url,
                 feed_last_updated=feed_last_updated,
                 summary_provider=summary_provider,
-                summary_model=summary_model,
-                reduce_model=reduce_model,
                 pipeline_metrics=pipeline_metrics,
             )
             return
@@ -250,8 +238,6 @@ def generate_episode_metadata(
                     feed_image_url=feed_image_url,
                     feed_last_updated=feed_last_updated,
                     summary_provider=summary_provider,
-                    summary_model=summary_model,
-                    reduce_model=reduce_model,
                     pipeline_metrics=pipeline_metrics,
                 )
                 return

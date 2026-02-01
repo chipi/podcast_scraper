@@ -28,7 +28,9 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import config, downloader, metadata, models, rss_parser
+from podcast_scraper import config, models
+from podcast_scraper.rss import downloader, parser as rss_parser
+from podcast_scraper.workflow import metadata_generation as metadata
 
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent
@@ -191,11 +193,11 @@ class TestConfigToProviderWorkflow(unittest.TestCase):
             auto_speakers=False,  # Disable to avoid loading spaCy
         )
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
     def test_config_to_provider_creation(
         self,
         mock_summary_model,
@@ -352,7 +354,14 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
 
             # Verify content metadata
             self.assertEqual(data["content"]["transcript_source"], "direct_download")
-            self.assertEqual(data["content"]["detected_hosts"], feed.authors)
+            # Check speakers array instead of detected_hosts
+            self.assertIn("speakers", data["content"])
+            speakers = data["content"]["speakers"]
+            host_speakers = [s for s in speakers if s.get("role") == "host"]
+            if feed.authors:
+                self.assertEqual(len(host_speakers), len(feed.authors))
+                host_names = [s.get("name") for s in host_speakers]
+                self.assertEqual(set(host_names), set(feed.authors))
 
     @pytest.mark.critical_path
     @pytest.mark.ml_models
@@ -372,8 +381,8 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         # Require Whisper model to be cached (skip if not available)
         require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-        from podcast_scraper import episode_processor
         from podcast_scraper.transcription.factory import create_transcription_provider
+        from podcast_scraper.workflow import episode_processor
 
         rss_url = "https://example.com/feed.xml"
         audio_url = "https://example.com/ep1.mp3"
@@ -539,8 +548,8 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         # Require Whisper model to be cached (skip if not available)
         require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-        from podcast_scraper import episode_processor
         from podcast_scraper.transcription.factory import create_transcription_provider
+        from podcast_scraper.workflow import episode_processor
 
         audio_url = "https://example.com/ep1.mp3"
         # Create episode with audio but no transcript URL
@@ -676,9 +685,9 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
         require_spacy_model_cached(config.DEFAULT_NER_MODEL)
 
-        from podcast_scraper import episode_processor, metadata
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
         from podcast_scraper.transcription.factory import create_transcription_provider
+        from podcast_scraper.workflow import episode_processor, metadata_generation as metadata
 
         rss_url = "https://example.com/feed.xml"
         audio_url = "https://example.com/ep1.mp3"
@@ -851,12 +860,16 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                     with open(metadata_path, "r", encoding="utf-8") as f:
                         data = json.load(f)
 
-                    self.assertEqual(data["content"]["detected_hosts"], list(detected_hosts))
+                    # Check speakers array instead of detected_hosts/detected_guests
+                    self.assertIn("speakers", data["content"])
+                    speakers = data["content"]["speakers"]
+                    self.assertIsInstance(speakers, list, "Speakers should be a list")
+                    host_speakers = [s for s in speakers if s.get("role") == "host"]
+                    guest_speakers = [s for s in speakers if s.get("role") == "guest"]
+                    self.assertEqual(len(host_speakers), len(detected_hosts))
                     # Guests may be empty if real NER didn't detect them, which is acceptable
                     # The important thing is that the workflow completed successfully
-                    self.assertIsInstance(
-                        data["content"]["detected_guests"], list, "Guests should be a list"
-                    )
+                    self.assertIsInstance(guest_speakers, list, "Guests should be a list")
                 finally:
                     # Cleanup: unload transcription provider
                     if hasattr(transcription_provider, "cleanup"):
@@ -887,10 +900,10 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         require_spacy_model_cached(config.DEFAULT_NER_MODEL)
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
-        from podcast_scraper import episode_processor, metadata
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
         from podcast_scraper.summarization.factory import create_summarization_provider
         from podcast_scraper.transcription.factory import create_transcription_provider
+        from podcast_scraper.workflow import episode_processor, metadata_generation as metadata
 
         rss_url = "https://example.com/feed.xml"
         audio_url = "https://example.com/ep1.mp3"
@@ -1053,13 +1066,15 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                         with open(metadata_path, "r", encoding="utf-8") as f:
                             data = json.load(f)
 
-                        # Verify NER results in metadata
-                        self.assertIn("detected_hosts", data["content"])
-                        self.assertEqual(data["content"]["detected_hosts"], list(detected_hosts))
+                        # Verify NER results in metadata (check speakers array)
+                        self.assertIn("speakers", data["content"])
+                        speakers = data["content"]["speakers"]
+                        self.assertIsInstance(speakers, list, "Speakers should be a list")
+                        host_speakers = [s for s in speakers if s.get("role") == "host"]
+                        guest_speakers = [s for s in speakers if s.get("role") == "guest"]
+                        self.assertEqual(len(host_speakers), len(detected_hosts))
                         # Guests may be empty if real NER didn't detect them, which is acceptable
-                        self.assertIsInstance(
-                            data["content"]["detected_guests"], list, "Guests should be a list"
-                        )
+                        self.assertIsInstance(guest_speakers, list, "Guests should be a list")
 
                         # Verify summarization results in metadata (real Transformers summary)
                         # Summary is at top level, not in content
@@ -1091,8 +1106,8 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
     @pytest.mark.critical_path
     @pytest.mark.openai
     @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.openai.openai_provider.OpenAI")
-    @patch("podcast_scraper.prompt_store.render_prompt")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
+    @patch("podcast_scraper.prompts.store.render_prompt")
     def test_full_workflow_with_openai_providers(
         self,
         mock_render_prompt,
@@ -1111,10 +1126,10 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
 
         This is the essence of the project - the full workflow with all OpenAI features.
         """
-        from podcast_scraper import episode_processor, metadata
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
         from podcast_scraper.summarization.factory import create_summarization_provider
         from podcast_scraper.transcription.factory import create_transcription_provider
+        from podcast_scraper.workflow import episode_processor, metadata_generation as metadata
 
         rss_url = "https://example.com/feed.xml"
         audio_url = "https://example.com/ep1.mp3"
@@ -1360,12 +1375,13 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         with open(metadata_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        # Verify OpenAI speaker detection results in metadata
-        self.assertIn("detected_hosts", data["content"])
-        self.assertEqual(data["content"]["detected_hosts"], list(detected_hosts))
-        self.assertGreater(
-            len(data["content"]["detected_guests"]), 0, "Guests should be in metadata"
-        )
+        # Verify OpenAI speaker detection results in metadata (check speakers array)
+        self.assertIn("speakers", data["content"])
+        speakers = data["content"]["speakers"]
+        host_speakers = [s for s in speakers if s.get("role") == "host"]
+        guest_speakers = [s for s in speakers if s.get("role") == "guest"]
+        self.assertEqual(len(host_speakers), len(detected_hosts))
+        self.assertGreater(len(guest_speakers), 0, "Guests should be in metadata")
         self.assertIn("Bob Guest", data["content"]["detected_guests"])
 
         # Verify OpenAI summarization results in metadata
@@ -1400,8 +1416,8 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         Uses real provider with test model (facebook/bart-base) instead of mocking
         to test actual workflow integration.
         """
-        from podcast_scraper import metadata
         from podcast_scraper.summarization.factory import create_summarization_provider
+        from podcast_scraper.workflow import metadata_generation as metadata
         from tests.integration.ml_model_cache_helpers import require_transformers_model_cached
 
         # Require test model to be cached (skip if not available)
@@ -1497,8 +1513,8 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         """
         import threading
 
-        from podcast_scraper import episode_processor
         from podcast_scraper.transcription.factory import create_transcription_provider
+        from podcast_scraper.workflow import episode_processor
 
         # Create multiple episodes
         episodes = [
@@ -1542,10 +1558,10 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         with (
             patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
             patch(
-                "podcast_scraper.ml.ml_provider._import_third_party_whisper"
+                "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
             ) as mock_import_whisper,
             patch(
-                "podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper"
+                "podcast_scraper.providers.ml.ml_provider.MLProvider._transcribe_with_whisper"
             ) as mock_transcribe,
         ):
 
@@ -1614,7 +1630,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         - Partial file cleanup
         - Graceful degradation
         """
-        from podcast_scraper import episode_processor
+        from podcast_scraper.workflow import episode_processor
 
         episode = models.Episode(
             idx=1,
@@ -1673,8 +1689,8 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         - Temporary file cleanup
         - Graceful degradation
         """
-        from podcast_scraper import episode_processor
         from podcast_scraper.transcription.factory import create_transcription_provider
+        from podcast_scraper.workflow import episode_processor
 
         audio_url = "https://example.com/ep1.mp3"
         audio_bytes = b"\xff\xfb\x90\x00" * 32
@@ -1707,10 +1723,10 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         with (
             patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
             patch(
-                "podcast_scraper.ml.ml_provider._import_third_party_whisper"
+                "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
             ) as mock_import_whisper,
             patch(
-                "podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper"
+                "podcast_scraper.providers.ml.ml_provider.MLProvider._transcribe_with_whisper"
             ) as mock_transcribe,
         ):
 
@@ -1821,10 +1837,10 @@ class TestMultipleComponentsWorkflow(unittest.TestCase):
         require_spacy_model_cached(config.DEFAULT_NER_MODEL)
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
-        from podcast_scraper import metadata
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
         from podcast_scraper.summarization.factory import create_summarization_provider
         from podcast_scraper.transcription.factory import create_transcription_provider
+        from podcast_scraper.workflow import metadata_generation as metadata
 
         # Create new config with all features enabled (Config is frozen)
         cfg = create_test_config(
@@ -1962,14 +1978,15 @@ class TestMultipleComponentsWorkflow(unittest.TestCase):
                 with open(metadata_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
-                # Verify NER results in metadata
-                self.assertIn("detected_hosts", data["content"])
-                self.assertEqual(data["content"]["detected_hosts"], list(detected_hosts))
+                # Verify NER results in metadata (check speakers array)
+                self.assertIn("speakers", data["content"])
+                speakers = data["content"]["speakers"]
+                self.assertIsInstance(speakers, list, "Speakers should be a list")
+                host_speakers = [s for s in speakers if s.get("role") == "host"]
+                guest_speakers = [s for s in speakers if s.get("role") == "guest"]
+                self.assertEqual(len(host_speakers), len(detected_hosts))
                 # Guests may be empty if real NER didn't detect them, which is acceptable
-                self.assertIn("detected_guests", data["content"])
-                self.assertIsInstance(
-                    data["content"]["detected_guests"], list, "Guests should be a list"
-                )
+                self.assertIsInstance(guest_speakers, list, "Guests should be a list")
 
                 # Verify summarization results in metadata (real Transformers summary)
                 # Summary is at top level, not in content

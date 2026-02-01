@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+🟢 Phase 0-1 Complete - Dataset materialization, baseline creation, and metrics structure implemented. CI integration pending.
 
 ## RFC Number
 
@@ -15,6 +15,10 @@ Podcast Scraper Team
 ## Date
 
 2026-01-08
+
+## Updated
+
+2026-01-16
 
 ## Related ADRs
 
@@ -678,7 +682,7 @@ Based on lessons learned from RFC-015 and RFC-016, the following improvements ar
 #### Materialization Script
 
 ```bash
-# scripts/materialize_dataset.py
+# scripts/eval/materialize_dataset.py
 
 def materialize_dataset(dataset_json: Path, output_dir: Path):
     """Materialize dataset JSON into episode folders."""
@@ -904,33 +908,35 @@ regression_rules:
 
 ---
 
-## Updated Implementation Plan
+## Implementation Status
 
-Based on these improvements:
+### ✅ Phase 0: Dataset Freezing + Baseline Artifacts (Complete)
 
-### Phase 0: Dataset Freezing + Baseline Artifacts (1-2 weeks)
+1. ✅ Dataset JSON format implemented (`data/eval/datasets/` and `benchmarks/datasets/`)
+2. ✅ Dataset creation scripts (`scripts/eval/create_dataset_json.py`)
+3. ✅ Dataset materialization (`scripts/eval/materialize_dataset.py`) with hash validation
+4. ✅ Source data inventory (`scripts/eval/generate_source_index.py`, `scripts/eval/generate_episode_metadata.py`)
+5. ✅ Baseline creation (`scripts/eval/materialize_baseline.py`) with comprehensive fingerprinting
+6. ✅ Baseline storage structure (`data/eval/baselines/`) with `predictions.jsonl`, `metrics.json`, `fingerprint.json`, `baseline.json`
+7. ✅ Metrics structure (`metrics.json`) with intrinsic and vs_reference sections
+8. ✅ README governance layer for all artifact types
 
-1. ✅ Create dataset JSONs (indicator_v1, shortwave_v1, journal_v1)
-2. ✅ Collect/prepare 10-10-5 episodes respectively
-3. ✅ Generate golden summaries (expensive model, manual approval)
-4. ✅ Create initial baseline artifacts using current system
-5. ✅ Record baseline metrics including quality gates
-6. ✅ Commit datasets + baselines to git
+### ✅ Phase 1: Integration with RFC-015 (Complete)
 
-### Phase 1: Integration with RFC-015 (After RFC-015 Phase 1)
+1. ✅ Experiment runner reads dataset JSONs (`scripts/eval/run_experiment.py` supports `dataset_id`)
+2. ✅ Experiment runner references baseline_id and optional reference_ids
+3. ✅ Quality gates evaluated automatically (intrinsic metrics: gates, length, performance, cost)
+4. ✅ Regression detection via comparison deltas (`comparisons/vs_{baseline_id}.json`)
+5. ✅ Reference model implemented (baseline, silver, gold references)
+6. ✅ Promotion workflow (`scripts/eval/promote_run.py`, `make run-promote`)
 
-1. ✅ Experiment runner reads dataset JSONs (not globs)
-2. ✅ Experiment runner references baseline_id
-3. ✅ Quality gates evaluated automatically
-4. ✅ Regression detection in reports
+### 🟡 Phase 2: CI Integration (Pending)
 
-### Phase 2: CI Integration (After RFC-015 Phase 4)
+1. ⏳ Smoke tests (3 episodes from curated datasets)
+2. ⏳ Nightly full benchmarks (all datasets)
+3. ⏳ Regression alerts (Slack/email)
 
-1. ✅ Smoke tests (3 episodes from indicator_v1)
-2. ✅ Nightly full benchmarks (all datasets)
-3. ✅ Regression alerts (Slack/email)
-
-**Timeline:** 2 weeks for Phase 0, then depends on RFC-015 completion.
+**Timeline:** Phase 0-1 complete. Phase 2 depends on RFC-015 Phase 4 (CI integration).
 
 ---
 
@@ -943,12 +949,18 @@ and designed to evolve as the system grows.
 By focusing on engineering-relevant metrics (cost, latency, quality) and avoiding academic
 complexity, we can iterate quickly while maintaining confidence in our changes.
 
+**Current Status:**
+
+1. ✅ Phase 0-1 complete (dataset materialization, baseline creation, metrics structure, promotion workflow)
+2. ✅ Integration with RFC-015 complete (experiment runner uses dataset JSONs, baseline/reference support)
+3. ⏳ Phase 2 pending (CI integration - depends on RFC-015 Phase 4)
+
 **Next Steps:**
 
-1. Review and approve this RFC
-2. Kick off Phase 0 (infrastructure setup)
-3. Establish baseline metrics within 2 weeks
-4. Deploy to CI within 5 weeks
+1. Complete RFC-015 Phase 4 (CI integration)
+2. Deploy smoke tests to CI
+3. Deploy nightly benchmarks
+4. Set up regression alerts
 
 ---
 

@@ -321,7 +321,7 @@ class TestE2EServerOpenAIEndpoints:
         detector.initialize()
 
         # Mock render_prompt to avoid loading actual prompt files
-        with patch("podcast_scraper.prompt_store.render_prompt", return_value="System prompt"):
+        with patch("podcast_scraper.prompts.store.render_prompt", return_value="System prompt"):
             speakers, detected_hosts, success = detector.detect_speakers(
                 episode_title="Test Episode",
                 episode_description="Test description",
@@ -356,7 +356,7 @@ class TestE2EServerOpenAIEndpoints:
         provider.initialize()
 
         # Mock render_prompt to avoid loading actual prompt files
-        with patch("podcast_scraper.prompt_store.render_prompt", return_value="System prompt"):
+        with patch("podcast_scraper.prompts.store.render_prompt", return_value="System prompt"):
             result = provider.summarize(
                 text="This is a test transcript with some content that needs to be summarized.",
                 episode_title="Test Episode",

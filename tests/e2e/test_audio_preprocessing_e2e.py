@@ -25,7 +25,7 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper import Config, config, run_pipeline
-from podcast_scraper.audio_preprocessing.ffmpeg_processor import _check_ffmpeg_available
+from podcast_scraper.preprocessing.audio.ffmpeg_processor import _check_ffmpeg_available
 
 # Import cache helpers from integration tests
 integration_dir = Path(__file__).parent.parent / "integration"
@@ -366,19 +366,14 @@ class TestAudioPreprocessingWithWhisperE2E:
 class TestAudioPreprocessingConfigurationE2E:
     """E2E tests for audio preprocessing configuration options."""
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Fix E2E server fixture - 'podcast1' feed returns 404. "
-            "Server fixture may not be configured correctly for this test. "
-            "Need to investigate e2e_server fixture setup."
-        )
-    )
     def test_preprocessing_with_custom_sample_rate(self, e2e_server):
         """Test preprocessing with custom sample rate configuration."""
         # Require model to be cached (fail fast if not)
         require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-        rss_url = e2e_server.urls.feed("podcast1")
+        # Use podcast1_multi_episode which is available in both fast and multi_episode modes
+        # (it's in PODCAST_RSS_MAP_FAST and allowed in both test modes)
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_dir = os.path.join(tmpdir, ".cache", "preprocessing")
@@ -407,19 +402,14 @@ class TestAudioPreprocessingConfigurationE2E:
             transcript_files = list(Path(tmpdir).rglob("*.txt"))
             assert len(transcript_files) > 0, "Should create at least one transcript file"
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Fix E2E server fixture - 'podcast1' feed returns 404. "
-            "Server fixture may not be configured correctly for this test. "
-            "Need to investigate e2e_server fixture setup."
-        )
-    )
     def test_preprocessing_with_custom_silence_threshold(self, e2e_server):
         """Test preprocessing with custom silence threshold."""
         # Require model to be cached (fail fast if not)
         require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-        rss_url = e2e_server.urls.feed("podcast1")
+        # Use podcast1_multi_episode which is available in both fast and multi_episode modes
+        # (it's in PODCAST_RSS_MAP_FAST and allowed in both test modes)
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_dir = os.path.join(tmpdir, ".cache", "preprocessing")

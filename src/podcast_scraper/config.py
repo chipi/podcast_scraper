@@ -4,34 +4,88 @@ import json
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, TYPE_CHECKING
 
 import yaml
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from . import config_constants
+
+if TYPE_CHECKING:
+    from podcast_scraper.evaluation.config import GenerationParams, TokenizeConfig
+else:
+    # Lazy import to avoid circular dependency
+    GenerationParams = None
+    TokenizeConfig = None
+
 # Load .env file if it exists (RFC-013: OpenAI API key management)
 # Check for .env in project root
-# Note: config.py is now in src/podcast_scraper/, so we use parent.parent.parent
-# to get the project root directory
-env_path = Path(__file__).parent.parent.parent / ".env"
-if env_path.exists():
-    load_dotenv(env_path, override=False)
-else:
+# Use get_project_root() for robust path resolution
+try:
+    from .cache import get_project_root
+
+    env_path = get_project_root() / ".env"
+    if env_path.exists():
+        load_dotenv(env_path, override=False)
+    else:
+        # Also check current working directory (for flexibility)
+        load_dotenv(override=False)
+except ImportError:
+    # Fallback if cache module not available (shouldn't happen in normal usage)
     # Also check current working directory (for flexibility)
     load_dotenv(override=False)
 
-DEFAULT_LOG_LEVEL = "INFO"
-DEFAULT_NUM_SPEAKERS = 2
-DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
-DEFAULT_TIMEOUT_SECONDS = 20
-DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/119.0 Safari/537.36"
-)
-DEFAULT_WORKERS = max(1, min(8, os.cpu_count() or 4))
-DEFAULT_LANGUAGE = "en"
+# Import constants from config_constants.py to avoid duplication
+# These are re-exported here for backward compatibility
+DEFAULT_LOG_LEVEL = config_constants.DEFAULT_LOG_LEVEL
+DEFAULT_NUM_SPEAKERS = config_constants.DEFAULT_NUM_SPEAKERS
+DEFAULT_SCREENPLAY_GAP_SECONDS = config_constants.DEFAULT_SCREENPLAY_GAP_SECONDS
+DEFAULT_TIMEOUT_SECONDS = config_constants.DEFAULT_TIMEOUT_SECONDS
+DEFAULT_USER_AGENT = config_constants.DEFAULT_USER_AGENT
+DEFAULT_WORKERS = config_constants.DEFAULT_WORKERS
+DEFAULT_LANGUAGE = config_constants.DEFAULT_LANGUAGE
+DEFAULT_PREPROCESSING_CACHE_DIR = config_constants.DEFAULT_PREPROCESSING_CACHE_DIR
+
+# Speaker detection defaults
+DEFAULT_NER_MODEL = config_constants.DEFAULT_NER_MODEL
+DEFAULT_MAX_DETECTED_NAMES = config_constants.DEFAULT_MAX_DETECTED_NAMES
+MIN_NUM_SPEAKERS = config_constants.MIN_NUM_SPEAKERS
+MIN_TIMEOUT_SECONDS = config_constants.MIN_TIMEOUT_SECONDS
+
+# Test defaults (smaller, faster models for CI/local dev)
+TEST_DEFAULT_WHISPER_MODEL = config_constants.TEST_DEFAULT_WHISPER_MODEL
+TEST_DEFAULT_SUMMARY_MODEL = config_constants.TEST_DEFAULT_SUMMARY_MODEL
+TEST_DEFAULT_SUMMARY_REDUCE_MODEL = config_constants.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
+
+# Production defaults (quality models for production use)
+PROD_DEFAULT_WHISPER_MODEL = config_constants.PROD_DEFAULT_WHISPER_MODEL
+PROD_DEFAULT_SUMMARY_MODEL = config_constants.PROD_DEFAULT_SUMMARY_MODEL
+PROD_DEFAULT_SUMMARY_REDUCE_MODEL = config_constants.PROD_DEFAULT_SUMMARY_REDUCE_MODEL
+
+# OpenAI model defaults
+TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = config_constants.TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+TEST_DEFAULT_OPENAI_SPEAKER_MODEL = config_constants.TEST_DEFAULT_OPENAI_SPEAKER_MODEL
+TEST_DEFAULT_OPENAI_SUMMARY_MODEL = config_constants.TEST_DEFAULT_OPENAI_SUMMARY_MODEL
+PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = config_constants.PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+PROD_DEFAULT_OPENAI_SPEAKER_MODEL = config_constants.PROD_DEFAULT_OPENAI_SPEAKER_MODEL
+PROD_DEFAULT_OPENAI_SUMMARY_MODEL = config_constants.PROD_DEFAULT_OPENAI_SUMMARY_MODEL
+
+# Validation constants
+VALID_WHISPER_MODELS = config_constants.VALID_WHISPER_MODELS
+VALID_LOG_LEVELS = config_constants.VALID_LOG_LEVELS
+MAX_RUN_ID_LENGTH = config_constants.MAX_RUN_ID_LENGTH
+MAX_METADATA_SUBDIRECTORY_LENGTH = config_constants.MAX_METADATA_SUBDIRECTORY_LENGTH
+
+# Summarization defaults
+DEFAULT_SUMMARY_BATCH_SIZE = config_constants.DEFAULT_SUMMARY_BATCH_SIZE
+DEFAULT_SUMMARY_MAX_WORKERS_CPU = config_constants.DEFAULT_SUMMARY_MAX_WORKERS_CPU
+DEFAULT_SUMMARY_MAX_WORKERS_CPU_TEST = config_constants.DEFAULT_SUMMARY_MAX_WORKERS_CPU_TEST
+DEFAULT_SUMMARY_MAX_WORKERS_GPU = config_constants.DEFAULT_SUMMARY_MAX_WORKERS_GPU
+DEFAULT_SUMMARY_MAX_WORKERS_GPU_TEST = config_constants.DEFAULT_SUMMARY_MAX_WORKERS_GPU_TEST
+DEFAULT_SUMMARY_CHUNK_SIZE = config_constants.DEFAULT_SUMMARY_CHUNK_SIZE
+DEFAULT_SUMMARY_WORD_CHUNK_SIZE = config_constants.DEFAULT_SUMMARY_WORD_CHUNK_SIZE
+DEFAULT_SUMMARY_WORD_OVERLAP = config_constants.DEFAULT_SUMMARY_WORD_OVERLAP
 
 
 def _is_test_environment() -> bool:
@@ -87,90 +141,41 @@ def _get_default_openai_summary_model() -> str:
     return PROD_DEFAULT_OPENAI_SUMMARY_MODEL
 
 
-DEFAULT_NER_MODEL = "en_core_web_sm"
-DEFAULT_MAX_DETECTED_NAMES = 4
-MIN_NUM_SPEAKERS = 1
-MIN_TIMEOUT_SECONDS = 1
+# Default generation parameters (aligned with baseline_bart_small_led_long_fast.yaml)
+# Note: These are NOT in config_constants.py as they're specific to Config defaults
+# These are used as defaults when summary_map_params/summary_reduce_params are not provided
+# Map stage defaults (for chunk-level summarization)
+DEFAULT_MAP_MAX_NEW_TOKENS = 200  # Baseline: 200 tokens for map stage
+DEFAULT_MAP_MIN_NEW_TOKENS = 80  # Baseline: 80 tokens for map stage
+DEFAULT_MAP_NUM_BEAMS = 4  # Baseline: 4 beams
+DEFAULT_MAP_NO_REPEAT_NGRAM_SIZE = 3  # Baseline: 3 (prevents repetition)
+DEFAULT_MAP_LENGTH_PENALTY = 1.0  # Baseline: 1.0 (no length bias)
+DEFAULT_MAP_EARLY_STOPPING = True  # Baseline: true
+DEFAULT_MAP_REPETITION_PENALTY = 1.3  # Not in baseline, but kept for quality
 
-# Test defaults (smaller, faster models for CI/local dev)
-# These are used in tests for speed, while production uses quality models
-# See docs/guides/TESTING_GUIDE.md for details
-TEST_DEFAULT_WHISPER_MODEL = "tiny.en"  # Smallest, fastest English-only model
-TEST_DEFAULT_SUMMARY_MODEL = (
-    "facebook/bart-base"  # Small, ~500MB, fast (vs production: bart-large-cnn)
-)
-TEST_DEFAULT_SUMMARY_REDUCE_MODEL = (
-    "allenai/led-base-16384"  # Test only (fast); production uses led-large-16384
-)
-# Note: TEST_DEFAULT_NER_MODEL uses DEFAULT_NER_MODEL ("en_core_web_sm")
-# - same for tests and production
+# Reduce stage defaults (for episode-level summarization)
+DEFAULT_REDUCE_MAX_NEW_TOKENS = 650  # Baseline: 650 tokens for reduce stage
+DEFAULT_REDUCE_MIN_NEW_TOKENS = 220  # Baseline: 220 tokens for reduce stage
+DEFAULT_REDUCE_NUM_BEAMS = 4  # Baseline: 4 beams (updated from 3)
+DEFAULT_REDUCE_NO_REPEAT_NGRAM_SIZE = 3  # Baseline: 3 (updated from 5)
+DEFAULT_REDUCE_LENGTH_PENALTY = 1.0  # Baseline: 1.0 (updated from 0.9)
+DEFAULT_REDUCE_EARLY_STOPPING = True  # Baseline: true
+DEFAULT_REDUCE_REPETITION_PENALTY = 1.3  # Not in baseline, but kept for quality
 
-# Production defaults (quality models for production use)
-# These are used in production deployments and nightly-only tests
-PROD_DEFAULT_WHISPER_MODEL = "base.en"  # Better quality than tiny.en, English-only
-PROD_DEFAULT_SUMMARY_MODEL = "facebook/bart-large-cnn"  # Large, ~2GB, best quality for production
-PROD_DEFAULT_SUMMARY_REDUCE_MODEL = (
-    "allenai/led-large-16384"  # Large, ~2.5GB, production quality for long-context
-)
+# Default tokenization limits (moved from model defaults)
+DEFAULT_MAP_MAX_INPUT_TOKENS = 1024  # BART model limit
+DEFAULT_REDUCE_MAX_INPUT_TOKENS = 4096  # LED model limit
+DEFAULT_TRUNCATION = True
 
-# OpenAI model defaults (Issue #191)
-# Test defaults: cheapest models for dev/testing (minimize API costs)
-# Production defaults: best quality/cost balance
-#
-# Pricing (Jan 2026, per million tokens):
-#   gpt-5-nano:  $0.05 input / $0.40 output (cheapest)
-#   gpt-5-mini:  $0.25 input / $2.00 output (balanced)
-#   gpt-5:       $1.25 input / $10.00 output (highest quality)
-#   gpt-4o-mini: $0.15 input / $0.60 output (legacy budget)
-#   gpt-4o:      $5.00 input / $15.00 output (legacy quality)
-#
-# See: https://openai.com/pricing
-TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
-TEST_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
-TEST_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
-PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
-PROD_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cost-effective for production
-PROD_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o"  # Higher quality for production
-VALID_WHISPER_MODELS = (
-    "tiny",
-    "base",
-    "small",
-    "medium",
-    "large",
-    "large-v2",
-    "large-v3",
-    "tiny.en",
-    "base.en",
-    "small.en",
-    "medium.en",
-    "large.en",
-)
+# Default distill parameters (for final compression pass)
+DEFAULT_DISTILL_MAX_TOKENS = 200
+DEFAULT_DISTILL_MIN_TOKENS = 120
+DEFAULT_DISTILL_NUM_BEAMS = 4
+DEFAULT_DISTILL_NO_REPEAT_NGRAM_SIZE = 6
+DEFAULT_DISTILL_LENGTH_PENALTY = 0.75
 
-VALID_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
-MAX_RUN_ID_LENGTH = 100
-MAX_METADATA_SUBDIRECTORY_LENGTH = 255
-DEFAULT_SUMMARY_MAX_LENGTH = 160  # Per SUMMARY_REVIEW.md: chunk summaries should be ~160 tokens
-DEFAULT_SUMMARY_MIN_LENGTH = (
-    60  # Per SUMMARY_REVIEW.md: chunk summaries should be at least 60 tokens
-)
-DEFAULT_SUMMARY_BATCH_SIZE = 1
-# Maximum parallel workers for episode summarization (memory-bound)
-# Lower values reduce memory usage but may slow down processing
-# Production: Higher values for better throughput
-# Tests/Dev: Lower values to reduce memory footprint
-DEFAULT_SUMMARY_MAX_WORKERS_CPU = 4  # Production default for CPU
-DEFAULT_SUMMARY_MAX_WORKERS_CPU_TEST = (
-    1  # Test/dev default for CPU (reduces memory - sequential processing)
-)
-DEFAULT_SUMMARY_MAX_WORKERS_GPU = 2  # Production default for GPU
-DEFAULT_SUMMARY_MAX_WORKERS_GPU_TEST = 1  # Test/dev default for GPU (reduces memory)
-DEFAULT_SUMMARY_CHUNK_SIZE = (
-    2048  # Default token chunk size (BART models support up to 1024, but larger chunks work safely)
-)
-DEFAULT_SUMMARY_WORD_CHUNK_SIZE = (
-    900  # Per SUMMARY_REVIEW.md: 800-1200 words recommended for encoder-decoder models
-)
-DEFAULT_SUMMARY_WORD_OVERLAP = 150  # Per SUMMARY_REVIEW.md: 100-200 words recommended
+# Default token overlap for chunking
+DEFAULT_TOKEN_OVERLAP = 200
 
 
 class Config(BaseModel):
@@ -228,12 +233,9 @@ class Config(BaseModel):
         metadata_format: Metadata file format ("json" or "yaml").
         metadata_subdirectory: Optional subdirectory for metadata files.
         generate_summaries: Generate episode summaries using AI models.
-        summary_provider: Summary generation provider
-            ("transformers" or "openai", deprecated: "local").
+        summary_provider: Summary generation provider ("transformers" or "openai").
         summary_model: Model identifier for MAP-phase summarization.
         summary_reduce_model: Optional separate model for REDUCE-phase summarization.
-        summary_max_length: Maximum summary length in tokens.
-        summary_min_length: Minimum summary length in tokens.
         summary_device: Device for model execution ("cpu", "cuda", "mps", or None).
         summary_batch_size: Batch size for episode-level parallel processing (episodes in parallel).
         summary_chunk_parallelism: Number of chunks to process in parallel within a single episode
@@ -245,8 +247,7 @@ class Config(BaseModel):
         summary_prompt: Optional custom prompt for summarization.
         save_cleaned_transcript: Save cleaned transcript to separate file.
         speaker_detector_provider: Speaker detection provider type
-            ("spacy" or "openai", deprecated: "ner").
-        Deprecated: speaker_detector_type (use speaker_detector_provider instead).
+            ("spacy" or "openai").
         transcription_provider: Transcription provider type ("whisper" or "openai").
         openai_api_key: OpenAI API key (loaded from environment variable or .env file).
 
@@ -333,18 +334,10 @@ class Config(BaseModel):
     auto_speakers: bool = Field(default=True, alias="auto_speakers")
     cache_detected_hosts: bool = Field(default=True, alias="cache_detected_hosts")
     # Provider selection fields (Stage 0: Foundation)
-    speaker_detector_provider: Literal["spacy", "ner", "openai"] = Field(
+    speaker_detector_provider: Literal["spacy", "openai"] = Field(
         default="spacy",
         alias="speaker_detector_provider",
-        description="Speaker detection provider type (default: 'spacy' for spaCy NER). "
-        "Deprecated: 'ner' is accepted as alias for 'spacy' for backward compatibility. "
-        "Deprecated alias 'speaker_detector_type' is supported for backward compatibility.",
-    )
-    # Deprecated field for backward compatibility - handled in _preprocess_config_data
-    speaker_detector_type: Optional[Literal["spacy", "ner", "openai"]] = Field(
-        default=None,
-        exclude=True,
-        description="Deprecated: use speaker_detector_provider instead.",
+        description="Speaker detection provider type (default: 'spacy' for spaCy NER).",
     )
     transcription_provider: Literal["whisper", "openai"] = Field(
         default="whisper",
@@ -409,11 +402,11 @@ class Config(BaseModel):
     openai_summary_system_prompt: Optional[str] = Field(
         default=None,
         alias="openai_summary_system_prompt",
-        description="System prompt name for summarization (e.g. 'summarization/system_v1'). "
+        description="System prompt name for summarization (e.g. 'openai/summarization/system_v1'). "
         "Uses prompt_store (RFC-017) for versioned prompts.",
     )
     openai_summary_user_prompt: str = Field(
-        default="summarization/long_v1",
+        default="openai/summarization/long_v1",
         alias="openai_summary_user_prompt",
         description="User prompt name for summarization. "
         "Uses prompt_store (RFC-017) for versioned prompts.",
@@ -430,7 +423,7 @@ class Config(BaseModel):
         "Uses prompt_store (RFC-017) for versioned prompts.",
     )
     openai_speaker_user_prompt: str = Field(
-        default="ner/guest_host_v1",
+        default="openai/ner/guest_host_v1",
         alias="openai_speaker_user_prompt",
         description="User prompt name for speaker detection/NER. "
         "Uses prompt_store (RFC-017) for versioned prompts.",
@@ -452,14 +445,11 @@ class Config(BaseModel):
         "(same level as transcripts/ and metadata/ subdirectories). "
         "Set to empty string to disable metrics export.",
     )
-    summary_provider: Literal["transformers", "local", "openai"] = Field(
+    summary_provider: Literal["transformers", "openai"] = Field(
         default="transformers",
         alias="summary_provider",
         description=(
-            "Summary generation provider "
-            "(default: 'transformers' for HuggingFace Transformers). "
-            "Deprecated: 'local' is accepted as alias for 'transformers' "
-            "for backward compatibility."
+            "Summary generation provider " "(default: 'transformers' for HuggingFace Transformers)."
         ),
     )
     summary_model: Optional[str] = Field(default=None, alias="summary_model")
@@ -471,8 +461,6 @@ class Config(BaseModel):
         description="Optional separate model (or key) to use for reduce phase; "
         "falls back to summary_model when not set.",
     )
-    summary_max_length: int = Field(default=DEFAULT_SUMMARY_MAX_LENGTH, alias="summary_max_length")
-    summary_min_length: int = Field(default=DEFAULT_SUMMARY_MIN_LENGTH, alias="summary_min_length")
     summary_device: Optional[str] = Field(default=None, alias="summary_device")
     summary_batch_size: int = Field(
         default=DEFAULT_SUMMARY_BATCH_SIZE,
@@ -513,12 +501,20 @@ class Config(BaseModel):
     summary_word_chunk_size: Optional[int] = Field(
         default=DEFAULT_SUMMARY_WORD_CHUNK_SIZE,
         alias="summary_word_chunk_size",
-        description="Chunk size in words for word-based chunking (800-1200 recommended)",
+        description=(
+            f"Chunk size in words for word-based chunking "
+            f"({config_constants.RECOMMENDED_WORD_CHUNK_SIZE_MIN}-"
+            f"{config_constants.RECOMMENDED_WORD_CHUNK_SIZE_MAX} recommended)"
+        ),
     )
     summary_word_overlap: Optional[int] = Field(
         default=DEFAULT_SUMMARY_WORD_OVERLAP,
         alias="summary_word_overlap",
-        description="Overlap in words for word-based chunking (100-200 recommended)",
+        description=(
+            f"Overlap in words for word-based chunking "
+            f"({config_constants.RECOMMENDED_WORD_OVERLAP_MIN}-"
+            f"{config_constants.RECOMMENDED_WORD_OVERLAP_MAX} recommended)"
+        ),
     )
     summary_cache_dir: Optional[str] = Field(
         default=None,
@@ -530,6 +526,57 @@ class Config(BaseModel):
     save_cleaned_transcript: bool = Field(
         default=True, alias="save_cleaned_transcript"
     )  # Save cleaned transcript to separate file for testing (default: True)
+    # ML generation parameters (all defaults come from Config, no hardcoded values)
+    # These provide fine-grained control over generation parameters
+    summary_map_params: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "max_new_tokens": DEFAULT_MAP_MAX_NEW_TOKENS,
+            "min_new_tokens": DEFAULT_MAP_MIN_NEW_TOKENS,
+            "num_beams": DEFAULT_MAP_NUM_BEAMS,
+            "no_repeat_ngram_size": DEFAULT_MAP_NO_REPEAT_NGRAM_SIZE,
+            "length_penalty": DEFAULT_MAP_LENGTH_PENALTY,
+            "early_stopping": DEFAULT_MAP_EARLY_STOPPING,
+            "repetition_penalty": DEFAULT_MAP_REPETITION_PENALTY,
+        },
+        alias="summary_map_params",
+        description=(
+            "Generation parameters for map stage (hf_local backend only). "
+            "Dict with: max_new_tokens, min_new_tokens, num_beams, no_repeat_ngram_size, "
+            "length_penalty, early_stopping, repetition_penalty. "
+            "Defaults aligned with baseline_bart_small_led_long_fast.yaml."
+        ),
+    )
+    summary_reduce_params: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "max_new_tokens": DEFAULT_REDUCE_MAX_NEW_TOKENS,
+            "min_new_tokens": DEFAULT_REDUCE_MIN_NEW_TOKENS,
+            "num_beams": DEFAULT_REDUCE_NUM_BEAMS,
+            "no_repeat_ngram_size": DEFAULT_REDUCE_NO_REPEAT_NGRAM_SIZE,
+            "length_penalty": DEFAULT_REDUCE_LENGTH_PENALTY,
+            "early_stopping": DEFAULT_REDUCE_EARLY_STOPPING,
+            "repetition_penalty": DEFAULT_REDUCE_REPETITION_PENALTY,
+        },
+        alias="summary_reduce_params",
+        description=(
+            "Generation parameters for reduce stage (hf_local backend only). "
+            "Dict with: max_new_tokens, min_new_tokens, num_beams, no_repeat_ngram_size, "
+            "length_penalty, early_stopping, repetition_penalty. "
+            "Defaults aligned with baseline_bart_small_led_long_fast.yaml."
+        ),
+    )
+    summary_tokenize: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "map_max_input_tokens": DEFAULT_MAP_MAX_INPUT_TOKENS,
+            "reduce_max_input_tokens": DEFAULT_REDUCE_MAX_INPUT_TOKENS,
+            "truncation": DEFAULT_TRUNCATION,
+        },
+        alias="summary_tokenize",
+        description=(
+            "Tokenization configuration for input text (hf_local backend only). "
+            "Dict with: map_max_input_tokens, reduce_max_input_tokens, truncation. "
+            "Defaults are set in Config, no hardcoded values."
+        ),
+    )
 
     # Audio Preprocessing (RFC-040)
     preprocessing_enabled: bool = Field(
@@ -541,8 +588,8 @@ class Config(BaseModel):
     preprocessing_cache_dir: Optional[str] = Field(
         default=None,
         alias="preprocessing_cache_dir",
-        description="Custom cache directory for preprocessed audio "
-        "(default: .cache/preprocessing).",
+        description=f"Custom cache directory for preprocessed audio "
+        f"(default: {DEFAULT_PREPROCESSING_CACHE_DIR}).",
     )
     preprocessing_sample_rate: int = Field(
         default=16000,
@@ -566,6 +613,33 @@ class Config(BaseModel):
     )
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True, frozen=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _handle_deprecated_fields(cls, data: Any) -> Any:
+        """Handle deprecated field names for backward compatibility."""
+        if isinstance(data, dict):
+            # Map deprecated speaker_detector_type to speaker_detector_provider
+            if "speaker_detector_type" in data and "speaker_detector_provider" not in data:
+                import warnings
+
+                warnings.warn(
+                    "speaker_detector_type is deprecated, use speaker_detector_provider instead",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                # Map "ner" -> "spacy" for backward compatibility
+                old_value = data["speaker_detector_type"]
+                if old_value == "ner":
+                    data["speaker_detector_provider"] = "spacy"
+                elif old_value == "openai":
+                    data["speaker_detector_provider"] = "openai"
+                else:
+                    # Unknown value, pass through and let validation catch it
+                    data["speaker_detector_provider"] = old_value
+                # Remove deprecated field
+                del data["speaker_detector_type"]
+        return data
 
     @field_validator("rss_url", mode="before")
     @classmethod
@@ -641,23 +715,6 @@ class Config(BaseModel):
         if not isinstance(data, dict):
             return data
 
-        # Map deprecated speaker_detector_type to speaker_detector_provider
-        if "speaker_detector_type" in data and "speaker_detector_provider" not in data:
-            import warnings
-
-            warnings.warn(
-                "speaker_detector_type is deprecated, use speaker_detector_provider instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            # Map deprecated "ner" to "spacy" if present
-            detector_type = data["speaker_detector_type"]
-            if detector_type == "ner":
-                detector_type = "spacy"
-            data["speaker_detector_provider"] = detector_type
-            # Remove deprecated key to avoid Pydantic extra field validation error
-            del data["speaker_detector_type"]
-
         # Load configuration from environment variables
         # LOG_LEVEL: Environment variable takes precedence (special case)
         env_log_level = os.getenv("LOG_LEVEL")
@@ -703,7 +760,7 @@ class Config(BaseModel):
                 else:
                     # Check for local cache in project root
                     try:
-                        from .cache_utils import get_project_root
+                        from .cache import get_project_root
 
                         project_root = get_project_root()
                         local_cache = project_root / ".cache" / "huggingface" / "hub"
@@ -1076,21 +1133,9 @@ class Config(BaseModel):
     @classmethod
     def _validate_speaker_detector_provider(cls, value: Any) -> Literal["spacy", "ner", "openai"]:
         """Validate speaker detector provider type."""
-        import warnings
-
         if value is None or value == "":
             return "spacy"
         value_str = str(value).strip().lower()
-
-        # Handle deprecated "ner" alias
-        if value_str == "ner":
-            warnings.warn(
-                "speaker_detector_provider='ner' is deprecated, use 'spacy' instead. "
-                "'ner' will be removed in a future version.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return "spacy"  # type: ignore[return-value]
 
         if value_str not in ("spacy", "openai"):
             raise ValueError("speaker_detector_provider must be 'spacy' or 'openai'")
@@ -1109,23 +1154,11 @@ class Config(BaseModel):
 
     @field_validator("summary_provider", mode="before")
     @classmethod
-    def _validate_summary_provider(cls, value: Any) -> Literal["transformers", "local", "openai"]:
+    def _validate_summary_provider(cls, value: Any) -> Literal["transformers", "openai"]:
         """Validate summary provider."""
-        import warnings
-
         if value is None or value == "":
             return "transformers"
         value_str = str(value).strip().lower()
-
-        # Handle deprecated "local" alias
-        if value_str == "local":
-            warnings.warn(
-                "summary_provider='local' is deprecated, use 'transformers' instead. "
-                "'local' will be removed in a future version.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return "transformers"  # type: ignore[return-value]
 
         if value_str not in ("transformers", "openai"):
             raise ValueError("summary_provider must be 'transformers' or 'openai'")
@@ -1172,34 +1205,6 @@ class Config(BaseModel):
         if value is None or value == "":
             return None
         return str(value).strip() or None
-
-    @field_validator("summary_max_length", mode="before")
-    @classmethod
-    def _ensure_summary_max_length(cls, value: Any) -> int:
-        """Ensure summary max length is a positive integer."""
-        if value is None or value == "":
-            return DEFAULT_SUMMARY_MAX_LENGTH
-        try:
-            length = int(value)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("summary_max_length must be an integer") from exc
-        if length < 1:
-            raise ValueError("summary_max_length must be at least 1")
-        return length
-
-    @field_validator("summary_min_length", mode="before")
-    @classmethod
-    def _ensure_summary_min_length(cls, value: Any) -> int:
-        """Ensure summary min length is a positive integer."""
-        if value is None or value == "":
-            return DEFAULT_SUMMARY_MIN_LENGTH
-        try:
-            length = int(value)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("summary_min_length must be an integer") from exc
-        if length < 1:
-            raise ValueError("summary_min_length must be at least 1")
-        return length
 
     @field_validator("summary_device", mode="before")
     @classmethod
@@ -1347,7 +1352,6 @@ class Config(BaseModel):
         Validates logical relationships and dependencies between configuration fields:
 
         Summary Settings:
-        - summary_max_length must be greater than summary_min_length
         - summary_word_overlap must be less than summary_word_chunk_size
         - Warns if word-based chunking parameters are outside recommended ranges
         - Ensures generate_summaries requires generate_metadata
@@ -1366,36 +1370,58 @@ class Config(BaseModel):
         """
         # === Summary Settings Validation ===
 
-        # 1. summary_max_length must be greater than summary_min_length
-        if self.summary_max_length <= self.summary_min_length:
+        # 1. Validate ML params structure (always present now, with defaults from Config)
+        # Validate map_params structure
+        required_map_keys = {"max_new_tokens", "min_new_tokens"}
+        if not all(key in self.summary_map_params for key in required_map_keys):
             raise ValueError(
-                f"summary_max_length ({self.summary_max_length}) must be greater than "
-                f"summary_min_length ({self.summary_min_length})"
+                f"summary_map_params must include: {required_map_keys}. "
+                f"Got: {list(self.summary_map_params.keys())}"
             )
 
-        # 2. summary_word_chunk_size should be in recommended range (800-1200)
+        # Validate reduce_params structure
+        required_reduce_keys = {"max_new_tokens", "min_new_tokens"}
+        if not all(key in self.summary_reduce_params for key in required_reduce_keys):
+            raise ValueError(
+                f"summary_reduce_params must include: {required_reduce_keys}. "
+                f"Got: {list(self.summary_reduce_params.keys())}"
+            )
+
+        # Validate tokenize structure
+        required_tokenize_keys = {"map_max_input_tokens", "reduce_max_input_tokens"}
+        if not all(key in self.summary_tokenize for key in required_tokenize_keys):
+            raise ValueError(
+                f"summary_tokenize must include: {required_tokenize_keys}. "
+                f"Got: {list(self.summary_tokenize.keys())}"
+            )
+
+        # 2. summary_word_chunk_size should be in recommended range
         #    Warn but don't error to allow experimentation
         if self.summary_word_chunk_size is not None:
-            if self.summary_word_chunk_size < 800 or self.summary_word_chunk_size > 1200:
+            min_val = config_constants.RECOMMENDED_WORD_CHUNK_SIZE_MIN
+            max_val = config_constants.RECOMMENDED_WORD_CHUNK_SIZE_MAX
+            if self.summary_word_chunk_size < min_val or self.summary_word_chunk_size > max_val:
                 warnings.warn(
                     f"summary_word_chunk_size ({self.summary_word_chunk_size}) is outside "
-                    f"recommended range (800-1200). This may affect summary quality.",
+                    f"recommended range ({min_val}-{max_val}). This may affect summary quality.",
                     UserWarning,
                     stacklevel=2,
                 )
 
-        # 3. summary_word_overlap should be in recommended range (100-200)
+        # 4. summary_word_overlap should be in recommended range
         #    Warn but don't error to allow experimentation
         if self.summary_word_overlap is not None:
-            if self.summary_word_overlap < 100 or self.summary_word_overlap > 200:
+            min_val = config_constants.RECOMMENDED_WORD_OVERLAP_MIN
+            max_val = config_constants.RECOMMENDED_WORD_OVERLAP_MAX
+            if self.summary_word_overlap < min_val or self.summary_word_overlap > max_val:
                 warnings.warn(
                     f"summary_word_overlap ({self.summary_word_overlap}) is outside "
-                    f"recommended range (100-200). This may affect summary quality.",
+                    f"recommended range ({min_val}-{max_val}). This may affect summary quality.",
                     UserWarning,
                     stacklevel=2,
                 )
 
-        # 4. summary_word_overlap must be less than summary_word_chunk_size
+        # 5. summary_word_overlap must be less than summary_word_chunk_size
         if self.summary_word_chunk_size is not None and self.summary_word_overlap is not None:
             if self.summary_word_overlap >= self.summary_word_chunk_size:
                 raise ValueError(
@@ -1403,7 +1429,7 @@ class Config(BaseModel):
                     f"summary_word_chunk_size ({self.summary_word_chunk_size})"
                 )
 
-        # 5. generate_summaries requires generate_metadata
+        # 6. generate_summaries requires generate_metadata
         #    Summaries are stored in metadata files, so metadata generation must be enabled
         if self.generate_summaries and not self.generate_metadata:
             raise ValueError(
@@ -1413,7 +1439,7 @@ class Config(BaseModel):
 
         # === Output Control Validation ===
 
-        # 6. clean_output and skip_existing are mutually exclusive
+        # 7. clean_output and skip_existing are mutually exclusive
         #    clean_output removes all files, making skip_existing meaningless
         if self.clean_output and self.skip_existing:
             raise ValueError(
@@ -1421,7 +1447,7 @@ class Config(BaseModel):
                 "(clean_output removes all existing files, making skip_existing meaningless)"
             )
 
-        # 7. clean_output and reuse_media are mutually exclusive
+        # 8. clean_output and reuse_media are mutually exclusive
         #    clean_output removes media files that reuse_media would reuse
         if self.clean_output and self.reuse_media:
             raise ValueError(
@@ -1431,7 +1457,7 @@ class Config(BaseModel):
 
         # === Transcription Validation ===
 
-        # 8. transcribe_missing requires a valid whisper_model
+        # 9. transcribe_missing requires a valid whisper_model
         #    Can't transcribe without specifying which model to use
         if self.transcribe_missing and not self.whisper_model:
             raise ValueError(

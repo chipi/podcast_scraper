@@ -38,7 +38,7 @@ class TestTranscriptionProviderErrorHandling(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 provider.initialize()
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_before_initialization(self, mock_import_whisper):
         """Test that transcribe() fails if called before initialization."""
         mock_whisper_lib = Mock()
@@ -56,8 +56,8 @@ class TestTranscriptionProviderErrorHandling(unittest.TestCase):
         with self.assertRaises(ProviderNotInitializedError):
             provider.transcribe("test.mp3")
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider.MLProvider._transcribe_with_whisper")
     def test_transcribe_with_segments_failure(self, mock_transcribe, mock_import_whisper):
         """Test error handling when transcribe_with_segments() fails."""
         mock_whisper_lib = Mock()
@@ -209,9 +209,9 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 provider.initialize()
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
     def test_summarize_before_initialization(
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
@@ -233,9 +233,9 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
         with self.assertRaises(ProviderNotInitializedError):
             provider.summarize("test text")
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
     def test_summarize_failure_after_initialization(
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
@@ -275,7 +275,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
             if original_key is not None:
                 os.environ["OPENAI_API_KEY"] = original_key
 
-    @patch("podcast_scraper.workflow.create_summarization_provider")
+    @patch("podcast_scraper.workflow.orchestration.create_summarization_provider")
     def test_pipeline_fails_when_summarization_provider_initialization_fails(
         self, mock_create_provider
     ):
@@ -338,7 +338,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
 
     def test_episode_summarization_failure_in_pipeline_raises_error(self):
         """Test that episode summarization failure raises RuntimeError in pipeline."""
-        from podcast_scraper import metadata
+        from podcast_scraper.workflow import metadata_generation as metadata
 
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",

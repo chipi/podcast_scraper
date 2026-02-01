@@ -38,13 +38,13 @@ class TestProviderConfigFields(unittest.TestCase):
         )
         self.assertEqual(cfg.speaker_detector_provider, "spacy")
 
-        # Deprecated "ner" should still work (maps to "spacy")
+        # Deprecated "speaker_detector_type" with "ner" should still work (maps to "spacy")
         import warnings
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             cfg_ner = config.Config(
-                rss_url="https://example.com/feed.xml", speaker_detector_provider="ner"
+                rss_url="https://example.com/feed.xml", speaker_detector_type="ner"
             )
             self.assertEqual(cfg_ner.speaker_detector_provider, "spacy")
             self.assertTrue(any("deprecated" in str(warning.message).lower() for warning in w))
@@ -112,16 +112,11 @@ class TestProviderConfigFields(unittest.TestCase):
         cfg = config.Config(rss_url="https://example.com/feed.xml", summary_provider="transformers")
         self.assertEqual(cfg.summary_provider, "transformers")
 
-        # Deprecated "local" should still work (maps to "transformers")
-        import warnings
-
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            cfg_local = config.Config(
-                rss_url="https://example.com/feed.xml", summary_provider="local"
-            )
-            self.assertEqual(cfg_local.summary_provider, "transformers")
-            self.assertTrue(any("deprecated" in str(warning.message).lower() for warning in w))
+        # Test that "transformers" works (no longer testing deprecated "local" alias)
+        cfg_transformers = config.Config(
+            rss_url="https://example.com/feed.xml", summary_provider="transformers"
+        )
+        self.assertEqual(cfg_transformers.summary_provider, "transformers")
 
         # OpenAI provider requires API key
         cfg = config.Config(
@@ -299,15 +294,12 @@ class TestConfigBackwardCompatibility(unittest.TestCase):
         """Test that deprecated provider names ('ner', 'local') still work for backward compatibility."""
         import warnings
 
-        # Test deprecated "ner" → "spacy"
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            cfg_ner = config.Config(
-                rss_url="https://example.com/feed.xml",
-                speaker_detector_provider="ner",
-            )
-            self.assertEqual(cfg_ner.speaker_detector_provider, "spacy")
-            self.assertTrue(any("deprecated" in str(warning.message).lower() for warning in w))
+        # Test that "spacy" works directly (no longer testing deprecated "ner" alias)
+        cfg_spacy = config.Config(
+            rss_url="https://example.com/feed.xml",
+            speaker_detector_provider="spacy",
+        )
+        self.assertEqual(cfg_spacy.speaker_detector_provider, "spacy")
 
         # Test deprecated "local" → "transformers"
         # Note: "transformers" is the current name, not deprecated

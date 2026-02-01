@@ -1,0 +1,69 @@
+# Regression Rules Configuration
+#
+# This file defines regression rules for quality gate enforcement.
+# Rules specify thresholds for metrics that trigger regressions when violated.
+#
+# Usage:
+#   - Place this file in data/eval/configs/regression_rules.yaml
+#   - Or specify custom path when creating RegressionChecker
+#
+# Rule Structure:
+#   - metric: Metric name (supports nested paths like "intrinsic.gates.boilerplate_leak_rate")
+#   - threshold: Threshold value for the metric
+#   - direction: "decrease" (regression if metric decreases) or "increase" (regression if metric increases)
+#   - severity: "error" (blocks CI), "warning" (logs warning), "info" (logs info)
+
+rules:
+  # Quality metrics - regress if they decrease
+  - metric: rougeL_f1
+    threshold: 0.05
+    direction: decrease
+    severity: error
+
+  - metric: rouge1_f1
+    threshold: 0.05
+    direction: decrease
+    severity: error
+
+  - metric: rouge2_f1
+    threshold: 0.03
+    direction: decrease
+    severity: warning
+
+  - metric: bleu
+    threshold: 0.05
+    direction: decrease
+    severity: warning
+
+  - metric: embedding_cosine
+    threshold: 0.05
+    direction: decrease
+    severity: warning
+
+  # Quality gates - regress if they increase (zero tolerance)
+  - metric: intrinsic.gates.boilerplate_leak_rate
+    threshold: 0.0
+    direction: increase
+    severity: error
+
+  - metric: intrinsic.gates.speaker_leak_rate
+    threshold: 0.0
+    direction: increase
+    severity: error
+
+  - metric: intrinsic.gates.truncation_rate
+    threshold: 0.0
+    direction: increase
+    severity: error
+
+  # Performance - regress if latency increases significantly
+  - metric: intrinsic.performance.avg_latency_ms
+    threshold: 1000.0  # 1 second
+    direction: increase
+    severity: warning
+
+  # Cost - warn if cost increases significantly
+  - metric: intrinsic.cost.total_cost_usd
+    threshold: 0.10  # $0.10
+    direction: increase
+    severity: warning

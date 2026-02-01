@@ -12,7 +12,6 @@ nav:
       - Quick Reference: guides/QUICK_REFERENCE.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Git Worktree Guide: guides/GIT_WORKTREE_GUIDE.md
-      - Quality Evaluation Guide: guides/EVALUATION_GUIDE.md
       - Testing Guide: guides/TESTING_GUIDE.md
       - Unit Testing Guide: guides/UNIT_TESTING_GUIDE.md
       - Integration Testing Guide: guides/INTEGRATION_TESTING_GUIDE.md

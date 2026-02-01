@@ -1,0 +1,28 @@
+{
+  "metadata_version": "1.0",
+  "source_episode_id": "p04_e03",
+  "feed_name": "Frame & Light",
+  "feed_url": "http://localhost/",
+  "episode_title": "Episode 3: Lighting Decisions That Save a Shoot (with Elise Brouwer)",
+  "published_at": "2025-09-18",
+  "duration_seconds": 1995,
+  "language": "en",
+  "scraped_at": "2026-01-13T12:07:56.659256Z",
+  "speakers": [
+    {
+      "id": "host",
+      "name": "Leo",
+      "role": "host"
+    },
+    {
+      "id": "guest",
+      "name": "Elise",
+      "role": "guest"
+    }
+  ],
+  "expectations": {
+    "allow_speaker_names": false,
+    "allow_speaker_labels": false,
+    "allow_sponsor_content": false
+  }
+}

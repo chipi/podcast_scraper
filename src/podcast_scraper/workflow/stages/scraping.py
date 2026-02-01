@@ -9,7 +9,7 @@ import logging
 from typing import List
 
 from ... import config, models
-from ...rss_parser import (
+from ...rss import (
     create_episode_from_item,
     extract_feed_metadata,
 )
@@ -30,8 +30,7 @@ def fetch_and_parse_feed(cfg: config.Config) -> tuple[models.RssFeed, bytes]:
     Returns:
         Tuple of (Parsed RssFeed object, RSS XML bytes)
     """
-    from ... import downloader
-    from ...rss_parser import parse_rss_items
+    from ...rss import downloader, parse_rss_items
 
     if cfg.rss_url is None:
         raise ValueError("RSS URL is required")

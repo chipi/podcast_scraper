@@ -253,7 +253,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
          --rss http://127.0.0.1:8000/podcast1/feed.xml \
          --output-dir /tmp/pipeline-metrics \
          --max-episodes 1 \
-         --metrics-output reports/pipeline_metrics.json
+         --metrics-output reports/output/pipeline_metrics.json
 ```
 
 1. **Update Metrics Generation to Include Pipeline Metrics**
@@ -267,7 +267,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
          --reports-dir reports \
          --output metrics/latest.json \
          --history metrics/history.jsonl \
-         --pipeline-metrics reports/pipeline_metrics.json
+         --pipeline-metrics reports/output/pipeline_metrics.json
    ```
 
 ### Short-Term Enhancements (Medium Priority)

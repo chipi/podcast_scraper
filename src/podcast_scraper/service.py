@@ -36,7 +36,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from . import __version__, config, workflow
+from . import __version__, config
+from .workflow import orchestration as workflow
 from .workflow.stages import setup
 
 logger = logging.getLogger(__name__)

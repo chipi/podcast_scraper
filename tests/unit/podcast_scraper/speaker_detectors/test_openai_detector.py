@@ -67,10 +67,14 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         """Test initialization raises error when API key is missing."""
         from unittest.mock import MagicMock
 
-        mock_cfg = MagicMock()
+        from podcast_scraper import config
+
+        mock_cfg = MagicMock(spec=config.Config)
         mock_cfg.speaker_detector_provider = "openai"
         mock_cfg.openai_api_key = None
         mock_cfg.openai_api_base = None
+        # Make isinstance check pass
+        mock_cfg.__class__ = config.Config
 
         with self.assertRaises(ValueError) as context:
             create_speaker_detector(mock_cfg)
@@ -91,12 +95,16 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         """Test initialization with custom speaker model."""
         from unittest.mock import MagicMock
 
-        mock_cfg = MagicMock()
+        from podcast_scraper import config
+
+        mock_cfg = MagicMock(spec=config.Config)
         mock_cfg.speaker_detector_provider = "openai"
         mock_cfg.openai_api_key = "sk-test123"
         mock_cfg.openai_api_base = None
         type(mock_cfg).openai_speaker_model = property(lambda self: "gpt-4")
         type(mock_cfg).openai_temperature = property(lambda self: 0.5)
+        # Make isinstance check pass
+        mock_cfg.__class__ = config.Config
 
         detector = create_speaker_detector(mock_cfg)
         self.assertEqual(detector.speaker_model, "gpt-4")
@@ -118,7 +126,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         self.assertTrue(detector._speaker_detection_initialized)
 
-    @patch("podcast_scraper.prompt_store.render_prompt")
+    @patch("podcast_scraper.prompts.store.render_prompt")
     def test_detect_speakers_success(self, mock_render_prompt):
         """Test successful speaker detection."""
         # render_prompt is called twice: once for system prompt, once for user prompt
@@ -154,7 +162,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         # Verify render_prompt was called (at least for system prompt)
         self.assertGreaterEqual(mock_render_prompt.call_count, 1)
 
-    @patch("podcast_scraper.prompt_store.render_prompt")
+    @patch("podcast_scraper.prompts.store.render_prompt")
     def test_detect_speakers_auto_speakers_disabled(self, mock_render_prompt):
         """Test detect_speakers returns defaults when auto_speakers is disabled."""
         cfg = create_test_config(
@@ -187,7 +195,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         self.assertIn("not initialized", str(context.exception))
 
-    @patch("podcast_scraper.prompt_store.render_prompt")
+    @patch("podcast_scraper.prompts.store.render_prompt")
     def test_detect_speakers_empty_response(self, mock_render_prompt):
         """Test detect_speakers handles empty API response."""
         mock_render_prompt.side_effect = ["System prompt", "User prompt"]
@@ -211,7 +219,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         self.assertEqual(speakers, ["Host", "Guest"])
         self.assertFalse(success)
 
-    @patch("podcast_scraper.prompt_store.render_prompt")
+    @patch("podcast_scraper.prompts.store.render_prompt")
     def test_detect_speakers_invalid_json(self, mock_render_prompt):
         """Test detect_speakers handles invalid JSON response."""
         mock_render_prompt.side_effect = ["System prompt", "User prompt"]
@@ -236,7 +244,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         self.assertIsInstance(speakers, list)
         self.assertIsInstance(detected_hosts, set)
 
-    @patch("podcast_scraper.prompt_store.render_prompt")
+    @patch("podcast_scraper.prompts.store.render_prompt")
     def test_detect_speakers_api_error(self, mock_render_prompt):
         """Test detect_speakers handles API errors."""
         mock_render_prompt.side_effect = ["System prompt", "User prompt"]
@@ -252,7 +260,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         self.assertIn("speaker detection failed", str(context.exception))
 
-    @patch("podcast_scraper.prompt_store.render_prompt")
+    @patch("podcast_scraper.prompts.store.render_prompt")
     def test_detect_speakers_min_speakers_enforced(self, mock_render_prompt):
         """Test detect_speakers enforces minimum number of speakers."""
         mock_render_prompt.side_effect = ["System prompt", "User prompt"]
@@ -296,7 +304,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         self.assertEqual(hosts, {"Alice", "Bob"})
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAIProvider.detect_speakers")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAIProvider.detect_speakers")
     def test_detect_hosts_without_authors(self, mock_detect_speakers):
         """Test detect_hosts uses API when no feed_authors."""
         mock_detect_speakers.return_value = (["Alice", "Bob"], {"Alice"}, True)
@@ -326,7 +334,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
 
         self.assertEqual(hosts, set())
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAIProvider.detect_speakers")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAIProvider.detect_speakers")
     def test_detect_hosts_handles_exception(self, mock_detect_speakers):
         """Test detect_hosts handles exceptions gracefully."""
         mock_detect_speakers.side_effect = Exception("API error")
@@ -380,7 +388,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         # Should not raise
         detector.clear_cache()
 
-    @patch("podcast_scraper.prompt_store.render_prompt")
+    @patch("podcast_scraper.prompts.store.render_prompt")
     def test_parse_speakers_from_response_success(self, mock_render_prompt):
         """Test _parse_speakers_from_response with valid JSON."""
         mock_render_prompt.side_effect = ["System prompt", "User prompt"]
@@ -414,7 +422,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         self.assertEqual(detected_hosts, {"Alice"})
         self.assertTrue(success)
 
-    @patch("podcast_scraper.prompt_store.render_prompt")
+    @patch("podcast_scraper.prompts.store.render_prompt")
     def test_parse_speakers_from_text_fallback(self, mock_render_prompt):
         """Test _parse_speakers_from_text fallback parsing."""
         mock_render_prompt.side_effect = ["System prompt", "User prompt"]

@@ -408,8 +408,6 @@ class TestBuildConfig(unittest.TestCase):
             summary_provider=None,
             summary_model=None,
             summary_reduce_model=None,
-            summary_max_length=None,
-            summary_min_length=None,
             summary_device=None,
             summary_chunk_size=None,
             summary_prompt=None,
@@ -495,8 +493,6 @@ class TestBuildConfig(unittest.TestCase):
             summary_provider=None,
             summary_model=None,
             summary_reduce_model=None,
-            summary_max_length=None,
-            summary_min_length=None,
             summary_device=None,
             summary_chunk_size=None,
             summary_prompt=None,
@@ -556,8 +552,6 @@ class TestBuildConfig(unittest.TestCase):
             summary_provider=None,
             summary_model=None,
             summary_reduce_model=None,
-            summary_max_length=None,
-            summary_min_length=None,
             summary_device=None,
             summary_chunk_size=None,
             summary_prompt=None,
@@ -611,8 +605,6 @@ class TestBuildConfig(unittest.TestCase):
             summary_provider=None,
             summary_model=None,
             summary_reduce_model=None,
-            summary_max_length=None,
-            summary_min_length=None,
             summary_device=None,
             summary_chunk_size=None,
             summary_prompt=None,
@@ -665,8 +657,6 @@ class TestBuildConfig(unittest.TestCase):
             summary_provider=None,
             summary_model=None,
             summary_reduce_model=None,
-            summary_max_length=None,
-            summary_min_length=None,
             summary_device=None,
             summary_chunk_size=None,
             summary_prompt=None,
@@ -720,8 +710,6 @@ class TestBuildConfig(unittest.TestCase):
             summary_provider=None,
             summary_model=None,
             summary_reduce_model=None,
-            summary_max_length=None,
-            summary_min_length=None,
             summary_device=None,
             summary_chunk_size=None,
             summary_prompt=None,
@@ -776,8 +764,6 @@ class TestBuildConfig(unittest.TestCase):
             summary_provider=None,
             summary_model=None,
             summary_reduce_model=None,
-            summary_max_length=None,
-            summary_min_length=None,
             summary_device=None,
             summary_chunk_size=None,
             summary_prompt=None,
@@ -832,8 +818,6 @@ class TestBuildConfig(unittest.TestCase):
             summary_provider=None,
             summary_model=None,
             summary_reduce_model=None,
-            summary_max_length=None,
-            summary_min_length=None,
             summary_device=None,
             summary_chunk_size=None,
             summary_prompt=None,
@@ -887,8 +871,6 @@ class TestBuildConfig(unittest.TestCase):
             summary_provider=None,
             summary_model=None,
             summary_reduce_model=None,
-            summary_max_length=None,
-            summary_min_length=None,
             summary_device=None,
             summary_chunk_size=None,
             summary_prompt=None,
@@ -942,8 +924,6 @@ class TestBuildConfig(unittest.TestCase):
             summary_provider="openai",
             summary_model=None,
             summary_reduce_model=None,
-            summary_max_length=None,
-            summary_min_length=None,
             summary_device=None,
             summary_chunk_size=None,
             summary_prompt=None,
@@ -997,8 +977,6 @@ class TestBuildConfig(unittest.TestCase):
             summary_provider=None,
             summary_model=None,
             summary_reduce_model=None,
-            summary_max_length=None,
-            summary_min_length=None,
             summary_device=None,
             summary_chunk_size=None,
             summary_prompt=None,
@@ -1218,8 +1196,6 @@ class TestParseArgs(unittest.TestCase):
             summary_provider=None,
             summary_model=None,
             summary_reduce_model=None,
-            summary_max_length=None,
-            summary_min_length=None,
             summary_device=None,
             summary_chunk_size=None,
             summary_prompt=None,
@@ -1302,8 +1278,8 @@ class TestAddArgumentGroups(unittest.TestCase):
         )
         self.assertIsNotNone(speaker_detector_action)
         self.assertEqual(
-            speaker_detector_action.choices, ["spacy", "ner", "openai"]
-        )  # "ner" deprecated
+            speaker_detector_action.choices, ["spacy", "openai"]
+        )  # "ner" was deprecated and removed
         self.assertEqual(speaker_detector_action.default, "spacy")
 
     def test_add_summarization_arguments(self):

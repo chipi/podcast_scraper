@@ -12,8 +12,10 @@ import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
 from typing import List, Optional, Tuple
 
-from ... import config, filesystem, metrics, models, progress
-from ...episode_processor import transcribe_media_to_text as factory_transcribe_media_to_text
+from ... import config, models
+from ...utils import filesystem, progress
+from .. import metrics
+from ..episode_processor import transcribe_media_to_text as factory_transcribe_media_to_text
 from ..helpers import update_metric_safely
 
 

@@ -38,7 +38,7 @@ implementations, mock external dependencies.
 2. **External API Calls** (OpenAI, etc.)
 
    ```python
-   @patch("podcast_scraper.openai.openai_provider.OpenAI")
+   @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
    def test_openai_provider_integration(self, mock_client):
 
 ```text
@@ -62,7 +62,7 @@ implementations, mock external dependencies.
 
 @pytest.mark.integration
 def test_config_to_provider_creation(self):
-    with patch("podcast_scraper.ml.ml_provider._import_third_party_whisper"):
+    with patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"):
         provider = create_transcription_provider(cfg)
         # Test provider creation, not ML execution
 

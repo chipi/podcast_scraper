@@ -21,13 +21,11 @@ The podcast scraper uses a **Unified Provider** pattern where a single class imp
 
 - **`spacy`** (default): Local spaCy NER models (via `MLProvider`)
 - **`openai`**: OpenAI GPT API (via `OpenAIProvider`)
-- **Deprecated Aliases**: `ner` (alias for `spacy`)
 
 ### Summarization Providers
 
 - **`transformers`** (default): Local HuggingFace Transformers models (via `MLProvider`)
 - **`openai`**: OpenAI GPT API (via `OpenAIProvider`)
-- **Deprecated Aliases**: `local` (alias for `transformers`)
 
 ## Configuration Methods
 

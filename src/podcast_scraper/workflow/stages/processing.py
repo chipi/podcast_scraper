@@ -13,9 +13,10 @@ import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
 from typing import Any, cast, Dict, List, Literal, Optional, Tuple
 
-from ... import config, metrics, models
-from ...downloader import BYTES_PER_MB, http_head, OPENAI_MAX_FILE_SIZE_BYTES
-from ...episode_processor import process_episode_download as factory_process_episode_download
+from ... import config, models
+from ...rss import BYTES_PER_MB, http_head, OPENAI_MAX_FILE_SIZE_BYTES
+from .. import metrics
+from ..episode_processor import process_episode_download as factory_process_episode_download
 
 
 # Use wrapper function if available (for testability)
@@ -32,7 +33,7 @@ def process_episode_download(*args, **kwargs):
     return factory_process_episode_download(*args, **kwargs)
 
 
-from ...rss_parser import extract_episode_description as rss_extract_episode_description
+from ...rss import extract_episode_description as rss_extract_episode_description
 
 
 # Use wrapper function if available (for testability)
@@ -468,7 +469,7 @@ def prepare_episode_download_args(
     return download_args
 
 
-def process_episodes(
+def process_episodes(  # noqa: C901
     download_args: List[Tuple],
     episodes: List[models.Episode],
     feed: models.RssFeed,

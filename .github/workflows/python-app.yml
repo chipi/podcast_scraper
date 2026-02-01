@@ -982,7 +982,7 @@ jobs:
         pip install -e .[ml] || echo "⚠️ ML dependencies not available, skipping pipeline metrics"
         # Run minimal pipeline to collect performance metrics
         python scripts/dashboard/collect_pipeline_metrics.py \
-          --output reports/pipeline_metrics.json \
+          --output reports/output/pipeline_metrics.json \
           --max-episodes 1 || echo "⚠️ Pipeline metrics collection failed (non-blocking)"
       continue-on-error: true  # Don't fail if pipeline metrics collection fails
     - name: Generate metrics JSON from unified coverage
@@ -1015,7 +1015,7 @@ jobs:
           --reports-dir reports \
           --output metrics/latest-ci.json \
           --history metrics/history-ci.jsonl \
-          --pipeline-metrics reports/pipeline_metrics.json \
+          --pipeline-metrics reports/output/pipeline_metrics.json \
           --coverage-threshold 80 || echo "⚠️ Metrics generation failed (non-blocking)"
     - name: Update metrics history
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')

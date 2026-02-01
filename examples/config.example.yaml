@@ -57,11 +57,35 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # summary_model: bart-large  # Options: "bart-large", "bart-small", "fast", "pegasus", "long", "long-fast", or direct model ID like "facebook/bart-large-cnn"
 # summary_reduce_model: long-fast  # REDUCE model for map-reduce summarization. Options: "long-fast", "long", or direct model ID like "allenai/led-base-16384"
 # summary_device: auto  # Options: cpu, cuda, mps, auto. Can also be set via SUMMARY_DEVICE env var
-# summary_max_length: 150  # Maximum summary length in tokens
-# summary_min_length: 30  # Minimum summary length in tokens
+# Legacy fields removed: summary_max_length and summary_min_length
+# Use summary_map_params and summary_reduce_params instead (see below)
 # summary_chunk_size: 2048  # Chunk size for long transcripts in tokens (null = model max length)
 # summary_cache_dir: ~/.cache/huggingface/hub  # Custom cache directory for transformer models. Can also be set via SUMMARY_CACHE_DIR or CACHE_DIR env var
 # summary_prompt: null  # Optional: custom prompt/instruction to guide summarization
+
+# Advanced ML generation parameters (aligned with baseline_bart_small_led_long_fast.yaml)
+# These fields are always present with defaults, but you can override them for fine-grained control
+# Defaults match the baseline config values - customize as needed
+# summary_map_params:
+#   max_new_tokens: 200  # Default: 200 (from baseline config)
+#   min_new_tokens: 80   # Default: 80 (from baseline config)
+#   num_beams: 4         # Default: 4 (from baseline config)
+#   no_repeat_ngram_size: 3  # Default: 3 (from baseline config)
+#   length_penalty: 1.0  # Default: 1.0 (from baseline config)
+#   early_stopping: true # Default: true (from baseline config)
+#   repetition_penalty: 1.3  # Default: 1.3 (not in baseline, but kept for quality)
+# summary_reduce_params:
+#   max_new_tokens: 650  # Default: 650 (from baseline config)
+#   min_new_tokens: 220  # Default: 220 (from baseline config)
+#   num_beams: 4         # Default: 4 (from baseline config)
+#   no_repeat_ngram_size: 3  # Default: 3 (from baseline config)
+#   length_penalty: 1.0  # Default: 1.0 (from baseline config)
+#   early_stopping: true # Default: true (from baseline config)
+#   repetition_penalty: 1.3  # Default: 1.3 (not in baseline, but kept for quality)
+# summary_tokenize:
+#   map_max_input_tokens: 1024  # Default: 1024 (from baseline config)
+#   reduce_max_input_tokens: 4096  # Default: 4096 (from baseline config)
+#   truncation: true  # Default: true (from baseline config)
 
 # Parallelism settings (useful for both OpenAI and ML providers)
 # transcription_parallelism: 1  # Number of episodes to transcribe in parallel (Whisper ignores >1, OpenAI uses for parallel API calls). Can also be set via TRANSCRIPTION_PARALLELISM env var

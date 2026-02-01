@@ -50,10 +50,7 @@ class TestSummaryModelCacheFallback(unittest.TestCase):
 
         # Simulate the cache fallback logic directly (the except branch)
         # This is the code path when cache_utils import fails
-        if summarizer.HF_CACHE_DIR.exists() or not summarizer.HF_CACHE_DIR_LEGACY.exists():
-            model.cache_dir = str(summarizer.HF_CACHE_DIR)
-        else:
-            model.cache_dir = str(summarizer.HF_CACHE_DIR_LEGACY)
+        model.cache_dir = str(summarizer.HF_CACHE_DIR)
 
         # Verify fallback was used (should contain huggingface path)
         self.assertIn("huggingface", model.cache_dir.lower())
@@ -78,7 +75,7 @@ class TestSummaryModelCacheFallback(unittest.TestCase):
         mock_detect.return_value = "cpu"
         with tempfile.TemporaryDirectory() as tmp_dir:
             with patch(
-                "podcast_scraper.cache_utils.get_transformers_cache_dir",
+                "podcast_scraper.cache.get_transformers_cache_dir",
                 return_value=Path(tmp_dir),
             ):
                 model = summarizer.SummaryModel(model_name=config.TEST_DEFAULT_SUMMARY_MODEL)
@@ -114,7 +111,7 @@ class TestGetCacheSizeFallback(unittest.TestCase):
     def test_get_cache_size_fallback_when_cache_utils_fails(self):
         """Test get_cache_size uses fallback when cache_utils import fails."""
         # Mock sys.modules to make the import fail inside the function
-        with patch.dict(sys.modules, {"podcast_scraper.cache_utils": None}):
+        with patch.dict(sys.modules, {"podcast_scraper.cache.directories": None}):
             # This should use fallback path and return cache size
             size = summarizer.get_cache_size(cache_dir=None)
             # Size can be 0 or positive depending on whether cache exists
@@ -129,7 +126,7 @@ class TestGetCacheSizeFallback(unittest.TestCase):
             test_file.write_text("test content")
 
             with patch(
-                "podcast_scraper.cache_utils.get_transformers_cache_dir",
+                "podcast_scraper.cache.get_transformers_cache_dir",
                 return_value=Path(tmp_dir),
             ):
                 size = summarizer.get_cache_size(cache_dir=None)
@@ -175,7 +172,7 @@ class TestPruneCacheFallback(unittest.TestCase):
     def test_prune_cache_fallback_when_cache_utils_fails(self):
         """Test prune_cache uses fallback when cache_utils import fails."""
         # Mock sys.modules to make the import fail inside the function
-        with patch.dict(sys.modules, {"podcast_scraper.cache_utils": None}):
+        with patch.dict(sys.modules, {"podcast_scraper.cache.directories": None}):
             # This should use fallback path
             deleted = summarizer.prune_cache(cache_dir=None, dry_run=True)
             # Should return 0 or positive depending on cache state
@@ -189,7 +186,7 @@ class TestPruneCacheFallback(unittest.TestCase):
         test_cache_dir.mkdir(parents=True, exist_ok=True)
         try:
             with patch(
-                "podcast_scraper.cache_utils.get_transformers_cache_dir",
+                "podcast_scraper.cache.directories.get_transformers_cache_dir",
                 return_value=test_cache_dir,
             ):
                 deleted = summarizer.prune_cache(cache_dir=None, dry_run=True)
@@ -213,70 +210,27 @@ class TestCacheFallbackPaths(unittest.TestCase):
 
     def test_hf_cache_dir_exists_check(self):
         """Test HF_CACHE_DIR existence check logic."""
-        # Test the fallback logic directly
+        # Test the cache dir directly
         hf_cache_dir = summarizer.HF_CACHE_DIR
-        hf_cache_dir_legacy = summarizer.HF_CACHE_DIR_LEGACY
+        expected = str(hf_cache_dir)
 
-        # This tests the condition: HF_CACHE_DIR.exists() or not HF_CACHE_DIR_LEGACY.exists()
-        if hf_cache_dir.exists() or not hf_cache_dir_legacy.exists():
-            expected = str(hf_cache_dir)
-        else:
-            expected = str(hf_cache_dir_legacy)
-
-        # The fallback should pick one of these
+        # The cache dir should contain huggingface
         self.assertIn("huggingface", expected.lower())
 
     def test_get_cache_size_direct_fallback_path(self):
         """Test get_cache_size fallback path directly via sys.modules patch."""
         # Patch sys.modules to make the import fail
-        with patch.dict(sys.modules, {"podcast_scraper.cache_utils": None}):
+        with patch.dict(sys.modules, {"podcast_scraper.cache.directories": None}):
             # Call directly with None to trigger fallback
             size = summarizer.get_cache_size(cache_dir=None)
             self.assertIsInstance(size, int)
 
     def test_prune_cache_direct_fallback_path(self):
         """Test prune_cache fallback path directly via sys.modules patch."""
-        with patch.dict(sys.modules, {"podcast_scraper.cache_utils": None}):
+        with patch.dict(sys.modules, {"podcast_scraper.cache.directories": None}):
             # Call with None to trigger fallback path
             deleted = summarizer.prune_cache(cache_dir=None, dry_run=True)
             self.assertIsInstance(deleted, int)
-
-    def test_hf_cache_dir_legacy_fallback(self):
-        """Test fallback to HF_CACHE_DIR_LEGACY when HF_CACHE_DIR doesn't exist."""
-        # Test the fallback logic directly by simulating the condition
-        # The code in summarizer.py uses:
-        # if HF_CACHE_DIR.exists() or not HF_CACHE_DIR_LEGACY.exists():
-        #     cache_dir = str(HF_CACHE_DIR)
-        # else:
-        #     cache_dir = str(HF_CACHE_DIR_LEGACY)
-
-        # Test case: HF_CACHE_DIR doesn't exist and legacy does
-        # In this case, the condition is: False or not True = False
-        # So it should use HF_CACHE_DIR_LEGACY
-
-        # We can't easily mock Path.exists() on module-level constants,
-        # but we can verify the logic is correct by testing the condition directly
-        hf_new = False  # simulates HF_CACHE_DIR.exists() returning False
-        hf_legacy = True  # simulates HF_CACHE_DIR_LEGACY.exists() returning True
-
-        if hf_new or not hf_legacy:
-            cache_dir = "new"
-        else:
-            cache_dir = "legacy"
-
-        # Should use legacy when HF_CACHE_DIR doesn't exist and legacy does
-        self.assertEqual(cache_dir, "legacy")
-
-        # Also test the opposite case: HF_CACHE_DIR exists
-        hf_new = True
-        hf_legacy = True
-
-        if hf_new or not hf_legacy:
-            cache_dir = "new"
-        else:
-            cache_dir = "legacy"
-
-        self.assertEqual(cache_dir, "new")
 
 
 if __name__ == "__main__":

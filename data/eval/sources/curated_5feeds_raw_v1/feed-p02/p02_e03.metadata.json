@@ -1,0 +1,28 @@
+{
+  "metadata_version": "1.0",
+  "source_episode_id": "p02_e03",
+  "feed_name": "Practical Systems",
+  "feed_url": "http://localhost/",
+  "episode_title": "Episode 3: Security as Design, Not a Checklist (with Camila Ruiz)",
+  "published_at": "2025-09-16",
+  "duration_seconds": 1980,
+  "language": "en",
+  "scraped_at": "2026-01-13T12:07:56.658273Z",
+  "speakers": [
+    {
+      "id": "host",
+      "name": "Ethan",
+      "role": "host"
+    },
+    {
+      "id": "guest",
+      "name": "Camila",
+      "role": "guest"
+    }
+  ],
+  "expectations": {
+    "allow_speaker_names": false,
+    "allow_speaker_labels": false,
+    "allow_sponsor_content": false
+  }
+}

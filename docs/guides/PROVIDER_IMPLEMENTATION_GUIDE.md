@@ -74,7 +74,7 @@ class TranscriptionProvider(Protocol):
 
 Create a new file for your provider. If your provider handles multiple capabilities, consider a unified structure like `openai/` or `ml/`.
 
-**Reference Implementation**: `src/podcast_scraper/openai/openai_provider.py`
+**Reference Implementation**: `src/podcast_scraper/providers/openai/openai_provider.py`
 
 #### 1. Configuration Validation
 

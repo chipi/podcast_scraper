@@ -3,7 +3,7 @@
 This module contains all configuration constants that were previously defined
 in config.py. Extracted to reduce config.py size and improve maintainability.
 
-All constants are re-exported from config.py for backward compatibility.
+All constants are re-exported from config.py for convenience.
 """
 
 import os
@@ -20,6 +20,20 @@ DEFAULT_USER_AGENT = (
 )
 DEFAULT_WORKERS = max(1, min(8, os.cpu_count() or 4))
 DEFAULT_LANGUAGE = "en"
+
+# Cache directory defaults
+DEFAULT_PREPROCESSING_CACHE_DIR = ".cache/preprocessing"
+
+# Validation ranges (for summary word chunking)
+# These are used in Config validators and field descriptions
+RECOMMENDED_WORD_CHUNK_SIZE_MIN = 800
+RECOMMENDED_WORD_CHUNK_SIZE_MAX = 1200
+RECOMMENDED_WORD_OVERLAP_MIN = 100
+RECOMMENDED_WORD_OVERLAP_MAX = 200
+
+# Default file extensions
+DEFAULT_MEDIA_EXTENSION = ".bin"
+DEFAULT_TRANSCRIPT_EXTENSION = ".txt"
 
 # Speaker detection defaults
 DEFAULT_NER_MODEL = "en_core_web_sm"
@@ -99,10 +113,6 @@ FALLBACK_WHISPER_MODELS_MULTILINGUAL = ["tiny", "base", "small", "medium", "larg
 WHISPER_MODELS_WITH_EN_VARIANT = ("tiny", "base", "small", "medium")
 
 # Summarization defaults
-DEFAULT_SUMMARY_MAX_LENGTH = 160  # Per SUMMARY_REVIEW.md: chunk summaries should be ~160 tokens
-DEFAULT_SUMMARY_MIN_LENGTH = (
-    60  # Per SUMMARY_REVIEW.md: chunk summaries should be at least 60 tokens
-)
 DEFAULT_SUMMARY_BATCH_SIZE = 1
 # Maximum parallel workers for episode summarization (memory-bound)
 # Lower values reduce memory usage but may slow down processing

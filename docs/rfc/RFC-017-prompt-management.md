@@ -517,7 +517,7 @@ class TransformersSummarizationProvider:
 
 ## 5. Integration with Experiment Pipeline
 
-**File: `scripts/run_experiment.py`**
+**File: `scripts/eval/run_experiment.py`**
 
 ```python
 
@@ -528,13 +528,13 @@ Run a single AI experiment from a YAML config file.
 from pathlib import Path
 from typing import Any, Dict
 
-from podcast_scraper.experiment_config import (
+from podcast_scraper.evaluation.config import (
     ExperimentConfig,
     load_experiment_config,
     discover_input_files,
     episode_id_from_path,
 )
-from podcast_scraper.prompt_store import (
+from podcast_scraper.prompts.store import (
     render_prompt,
     get_prompt_metadata,
 )

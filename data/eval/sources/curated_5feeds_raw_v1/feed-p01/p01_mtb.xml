@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Singletrack Sessions</title>
+    <link>http://localhost/</link>
+    <description>Mountain biking talk: trails, technique, gear, and the people who build the ride.</description>
+    <language>en-us</language>
+
+    <itunes:author>Maya Koster</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p01_cover.jpg"/>
+
+    <item>
+      <title>Episode 1: Building Trails That Last (with Liam Verbeek)</title>
+      <guid isPermaLink="false">p01_e01</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Maya talks with trail builder Liam Verbeek about drainage, line choice, and keeping trails rideable through winter.</description>
+      <enclosure url="/audio/p01_e01.mp3" length="3800000" type="audio/mpeg"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:10:30</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Episode 2: Enduro Skills Without the Hype (with Sophie van Dalen)</title>
+      <guid isPermaLink="false">p01_e02</guid>
+      <pubDate>Mon, 08 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Coach Sophie van Dalen breaks down cornering, braking, and confidence—what to practice and what to ignore.</description>
+      <enclosure url="/audio/p01_e02.mp3" length="3500000" type="audio/mpeg"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:09:15</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Episode 3: The Mechanics of a Quiet, Fast Bike (with Noah Prins)</title>
+      <guid isPermaLink="false">p01_e03</guid>
+      <pubDate>Mon, 15 Sep 2025 07:00:00 +0000</pubDate>
+      <description>A longer shop-floor conversation: suspension setup, drivetrain wear, brake bleed myths, and diagnosing clicks that only happen on climbs.</description>
+      <enclosure url="/audio/p01_e03.mp3" length="11500000" type="audio/mpeg"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:31:45</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

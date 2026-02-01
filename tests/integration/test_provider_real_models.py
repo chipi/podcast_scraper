@@ -28,7 +28,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import config, models, whisper_integration
+from podcast_scraper import config, models
 
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent
@@ -134,8 +134,16 @@ class TestWhisperProviderRealModel(unittest.TestCase):
         # Check for "tiny.en" which is what's preloaded
         require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
-        # Load real Whisper model
-        model = whisper_integration.load_whisper_model(self.cfg)
+        from podcast_scraper.transcription.factory import create_transcription_provider
+
+        # Create provider (real factory)
+        provider = create_transcription_provider(self.cfg)
+
+        # Initialize provider (loads real model)
+        provider.initialize()  # type: ignore[attr-defined]
+
+        # Get the model from the provider
+        model = provider._whisper_model  # type: ignore[attr-defined]
 
         # Verify model was loaded
         self.assertIsNotNone(model, "Whisper model should be loaded")
@@ -187,7 +195,7 @@ class TestSpacyProviderRealModel(unittest.TestCase):
         """Test that spaCy model can be loaded."""
         # Require model to be cached (fail fast if not)
 
-        from podcast_scraper import speaker_detection
+        from podcast_scraper.providers.ml import speaker_detection
 
         # Load real spaCy model
         nlp = speaker_detection.get_ner_model(self.cfg)
@@ -252,7 +260,7 @@ class TestTransformersProviderRealModel(unittest.TestCase):
 
     def test_transformers_model_loading(self):
         """Test that Transformers model can be loaded."""
-        from podcast_scraper import summarizer
+        from podcast_scraper.providers.ml import summarizer
 
         # Load real transformer model
         model_name = summarizer.select_summary_model(self.cfg)
@@ -277,7 +285,7 @@ class TestTransformersProviderRealModel(unittest.TestCase):
 
     def test_summarization_provider_with_real_model(self):
         """Test summarization provider with real transformer model."""
-        from podcast_scraper import summarizer
+        from podcast_scraper.providers.ml import summarizer
         from podcast_scraper.summarization.factory import create_summarization_provider
 
         # Require model to be cached (fail fast if not)
@@ -365,7 +373,7 @@ class TestAllProvidersRealModels(unittest.TestCase):
 
     def test_all_providers_initialize_with_real_models(self):
         """Test that all providers can be initialized with real models."""
-        from podcast_scraper import summarizer
+        from podcast_scraper.providers.ml import summarizer
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
         from podcast_scraper.summarization.factory import create_summarization_provider
         from podcast_scraper.transcription.factory import create_transcription_provider
@@ -478,7 +486,9 @@ class TestAllProvidersRealModels(unittest.TestCase):
         import os
         from pathlib import Path
 
-        from podcast_scraper import metadata, rss_parser, summarizer
+        from podcast_scraper.providers.ml import summarizer
+        from podcast_scraper.rss import parser as rss_parser
+        from podcast_scraper.workflow import metadata_generation as metadata
 
         # Ensure offline mode is enabled (should already be set in conftest.py, but ensure it)
         # This prevents transformers from trying to connect to HuggingFace even with cached models.
@@ -652,8 +662,16 @@ class TestAllProvidersRealModels(unittest.TestCase):
         with open(metadata_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        self.assertIn("detected_hosts", data["content"])
-        self.assertIn("detected_guests", data["content"])
+        self.assertIn("speakers", data["content"])
+        speakers = data["content"]["speakers"]
+        self.assertIsInstance(speakers, list)
+        # Verify speakers array contains host and guest information
+        host_speakers = [s for s in speakers if s.get("role") == "host"]
+        guest_speakers = [s for s in speakers if s.get("role") == "guest"]
+        self.assertEqual(len(host_speakers), len(detected_hosts))
+        self.assertEqual(
+            len(guest_speakers), len([s for s in detected_speakers if s not in detected_hosts])
+        )
         # Summary is stored at top-level, not in content
         self.assertIn("summary", data)
         self.assertIsNotNone(data["summary"], "Summary should be generated")
@@ -708,8 +726,8 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAI")
-    @patch("podcast_scraper.prompt_store.render_prompt")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
+    @patch("podcast_scraper.prompts.store.render_prompt")
     def test_critical_path_with_openai_providers(
         self,
         mock_render_prompt,
@@ -719,7 +737,9 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
         import os
         from pathlib import Path
 
-        from podcast_scraper import metadata, models, rss_parser
+        from podcast_scraper import models
+        from podcast_scraper.rss import parser as rss_parser
+        from podcast_scraper.workflow import metadata_generation as metadata
 
         # Get transcript from fixtures
         fixture_root = Path(__file__).parent.parent / "fixtures"
@@ -882,8 +902,16 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
             with open(metadata_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            self.assertIn("detected_hosts", data["content"])
-            self.assertIn("detected_guests", data["content"])
+            self.assertIn("speakers", data["content"])
+            speakers = data["content"]["speakers"]
+            self.assertIsInstance(speakers, list)
+            # Verify speakers array contains host and guest information
+            host_speakers = [s for s in speakers if s.get("role") == "host"]
+            guest_speakers = [s for s in speakers if s.get("role") == "guest"]
+            self.assertEqual(len(host_speakers), len(detected_hosts))
+            self.assertEqual(
+                len(guest_speakers), len([s for s in detected_speakers if s not in detected_hosts])
+            )
             # Summary is stored in a separate "summary" field, not in "content"
             self.assertIn("summary", data)
             self.assertIsNotNone(data["summary"], "Summary should be generated")

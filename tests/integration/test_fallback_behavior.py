@@ -30,7 +30,7 @@ class TestTranscriptionProviderFallback(unittest.TestCase):
         )
 
     @patch("podcast_scraper.transcription.factory.create_transcription_provider")
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
     def test_fallback_to_direct_whisper_on_provider_failure(
         self, mock_load_whisper, mock_create_provider
     ):

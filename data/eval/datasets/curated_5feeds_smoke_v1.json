@@ -1,0 +1,50 @@
+{
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "version": "1.0",
+  "description": "Smoke test dataset: first episode per feed from curated_5feeds_raw_v1",
+  "created_at": "2026-01-13T12:22:41.258855Z",
+  "content_regime": "explainer",
+  "num_episodes": 5,
+  "episodes": [
+    {
+      "episode_id": "p01_e01",
+      "title": "Episode 1: Building Trails That Last (with Liam Verbeek)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v1/feed-p01/p01_e01.txt",
+      "transcript_hash": "a650e729cc8b7379c94fd5b29c092bcd32a8c7e4c2086f1321d6ed496718b9b4",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 10.5
+    },
+    {
+      "episode_id": "p02_e01",
+      "title": "Episode 1: On-Call That Doesn’t Break People (with Priya Nair)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v1/feed-p02/p02_e01.txt",
+      "transcript_hash": "8ce820881f8b43ceb9a04df0becf38eeff2fc86851a54a0fdf4483ebe688bfee",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 11.0
+    },
+    {
+      "episode_id": "p03_e01",
+      "title": "Episode 1: Wreck Diving Fundamentals (with Marco Silva)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v1/feed-p03/p03_e01.txt",
+      "transcript_hash": "8cdf1a18ae215eaa459dfc9295bf1730d64c9e11e3efce2f1886a5515bae16aa",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 10.2
+    },
+    {
+      "episode_id": "p04_e01",
+      "title": "Episode 1: Underwater Images That Feel Alive (with Ava Lemoine)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v1/feed-p04/p04_e01.txt",
+      "transcript_hash": "c9c44f34280ed0216736110900dc638ac4ac2d1b24148969fd8a24dd8cbd7176",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 11.3
+    },
+    {
+      "episode_id": "p05_e01",
+      "title": "Episode 1: Index Investing Without the Myths (with Daniel Cho)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v1/feed-p05/p05_e01.txt",
+      "transcript_hash": "9d79da813689672219e034fbadf1b468f5e9fb8287b55f6f596301a4d5b83c4f",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 10.8
+    }
+  ]
+}

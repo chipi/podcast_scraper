@@ -85,7 +85,9 @@ class TestUnifiedProvidersIntegration(unittest.TestCase):
             whisper_model=self.cfg.whisper_model,
         )
         transcription_provider = create_transcription_provider(cfg)
-        with patch("podcast_scraper.ml.ml_provider._import_third_party_whisper") as mock_import:
+        with patch(
+            "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
+        ) as mock_import:
             mock_model = Mock()
             mock_model.device.type = "cpu"
             mock_whisper_lib = Mock()
@@ -261,7 +263,9 @@ class TestProviderErrorHandlingIntegration(unittest.TestCase):
         provider = create_transcription_provider(cfg)
 
         # Mock initialization failure
-        with patch("podcast_scraper.ml.ml_provider._import_third_party_whisper") as mock_import:
+        with patch(
+            "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
+        ) as mock_import:
             mock_import.side_effect = ImportError("Whisper not available")
 
             # initialize() should not raise - it logs warnings and continues
@@ -282,8 +286,12 @@ class TestProviderErrorHandlingIntegration(unittest.TestCase):
 
         # Initialize provider
         with (
-            patch("podcast_scraper.ml.ml_provider._import_third_party_whisper") as mock_import,
-            patch("podcast_scraper.ml.ml_provider.progress.progress_context") as mock_progress,
+            patch(
+                "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
+            ) as mock_import,
+            patch(
+                "podcast_scraper.providers.ml.ml_provider.progress.progress_context"
+            ) as mock_progress,
         ):
 
             mock_model = Mock()

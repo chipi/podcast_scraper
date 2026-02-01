@@ -109,7 +109,7 @@ class Config(BaseModel)
 #### Transcription Configuration
 
 - `transcribe_missing` (`bool`, default: `True`, alias: `"transcribe_missing"`): Enable Whisper transcription for episodes without transcripts. Set to `False` to only download existing transcripts.
-- `whisper_model` (`str`, default: `"base.en"`, alias: `"whisper_model"`): Whisper model to use. Valid values: `"tiny"`, `"base"`, `"small"`, `"medium"`, `"large"`, `"large-v2"`, `"large-v3"`, or language-specific variants (e.g., `"base.en"`). For English (the default language), the default is `"base.en"` which matches the actual model used at runtime. The conversion logic still works for backward compatibility if you explicitly specify `"base"`.
+- `whisper_model` (`str`, default: `"base.en"`, alias: `"whisper_model"`): Whisper model to use. Valid values: `"tiny"`, `"base"`, `"small"`, `"medium"`, `"large"`, `"large-v2"`, `"large-v3"`, or language-specific variants (e.g., `"base.en"`). For English (the default language), the default is `"base.en"` which matches the actual model used at runtime. If you specify `"base"` without the language suffix, it will be automatically converted to `"base.en"` for English.
 - `language` (`str`, default: `"en"`, alias: `"language"`): Language code for transcription (e.g., `"en"`, `"fr"`, `"de"`).
 
 #### Screenplay Formatting
@@ -134,7 +134,7 @@ class Config(BaseModel)
 #### Summarization
 
 - `generate_summaries` (`bool`, default: `False`, alias: `"generate_summaries"`): Generate episode summaries.
-- `summary_provider` (`Literal["transformers", "local", "openai"]`, default: `"transformers"`, alias: `"summary_provider"`): Summary generation provider. Deprecated: `"local"` is accepted as alias for `"transformers"`.
+- `summary_provider` (`Literal["transformers", "openai"]`, default: `"transformers"`, alias: `"summary_provider"`): Summary generation provider. Use `"transformers"` for local HuggingFace models or `"openai"` for OpenAI API.
 - `summary_model` (`Optional[str]`, default: `None`, alias: `"summary_model"`): MAP-phase model identifier (e.g., `"bart-large"`, `"facebook/bart-large-cnn"`). Defaults to `"bart-large"` for fast chunk summarization.
 - `summary_reduce_model` (`Optional[str]`, default: `None`, alias: `"summary_reduce_model"`): REDUCE-phase model identifier (e.g., `"long-fast"`, `"allenai/led-base-16384"`). Defaults to `"long-fast"` (LED) for accurate, long-context final combine. If not set, uses LED instead of falling back to MAP model.
 - `summary_max_length` (`int`, default: `150`, alias: `"summary_max_length"`): Maximum summary length in tokens.
@@ -161,7 +161,7 @@ class Config(BaseModel)
 - `screenplay_num_speakers` must be at least 1
 - `log_level` must be a valid logging level
 - `metadata_format` must be `"json"` or `"yaml"`
-- `summary_provider` must be `"transformers"` or `"openai"` (deprecated: `"local"` accepted as alias)
+- `summary_provider` must be `"transformers"` or `"openai"`
 
 **Example:**
 

@@ -473,8 +473,8 @@ Beyond functional testing, the project uses objective metrics to evaluate the **
 
 | Layer | Focus | Metrics | Tools |
 | :--- | :--- | :--- | :--- |
-| **Cleaning** | Effective removal of ads/outro | Removal %, Brand detection | `eval_cleaning.py` |
-| **Summarization** | Accuracy and synthesis quality | ROUGE-1/2/L, Compression ratio | `eval_summaries.py` |
+| **Cleaning** | Effective removal of ads/outro | Removal %, Brand detection | Automatic (via experiment runner) |
+| **Summarization** | Accuracy and synthesis quality | ROUGE-1/2/L, Compression ratio | Automatic (via experiment runner) |
 
 ### Golden Datasets
 
@@ -482,7 +482,7 @@ Evaluation is performed against human-verified ground truth data stored in `data
 
 ### Continuous Improvement
 
-Quality evaluation is integrated into the **[AI Quality & Experimentation Platform](prd/PRD-007-ai-quality-experiment-platform.md)** (PRD-007), which uses these metrics to gate new model deployments and configuration changes. Detailed methodology is available in the **[Quality Evaluation Guide](guides/EVALUATION_GUIDE.md)**.
+Quality evaluation is integrated into the **[AI Quality & Experimentation Platform](prd/PRD-007-ai-quality-experiment-platform.md)** (PRD-007), which uses these metrics to gate new model deployments and configuration changes. The complete evaluation loop (runner, scorer, comparator) is documented in the **[Experiment Guide](guides/EXPERIMENT_GUIDE.md)** (Step 4: Evaluate Results).
 
 ## CI/CD Integration
 

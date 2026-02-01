@@ -41,8 +41,12 @@ class TestSummarizationProviderFactory(unittest.TestCase):
         # so we test with a mock config that bypasses validation
         from unittest.mock import MagicMock
 
-        mock_cfg = MagicMock()
+        from podcast_scraper import config
+
+        mock_cfg = MagicMock(spec=config.Config)
         mock_cfg.summary_provider = "invalid"
+        # Make isinstance check pass
+        mock_cfg.__class__ = config.Config
 
         with self.assertRaises(ValueError) as context:
             create_summarization_provider(mock_cfg)
@@ -53,12 +57,17 @@ class TestSummarizationProviderFactory(unittest.TestCase):
     def test_create_invalid_provider(self):
         """Test that factory raises ValueError for invalid provider type."""
         with self.assertRaises(ValueError) as context:
+            from unittest.mock import MagicMock
+
+            from podcast_scraper import config
             from podcast_scraper.summarization.factory import create_summarization_provider
 
-            class MockConfig:
-                summary_provider = "invalid"
+            mock_cfg = MagicMock(spec=config.Config)
+            mock_cfg.summary_provider = "invalid"
+            # Make isinstance check pass
+            mock_cfg.__class__ = config.Config
 
-            create_summarization_provider(MockConfig())  # type: ignore[arg-type]
+            create_summarization_provider(mock_cfg)
 
         self.assertIn("Unsupported summarization provider", str(context.exception))
 
@@ -108,9 +117,9 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         # Initially not initialized (generate_summaries is False)
         self.assertFalse(provider._transformers_initialized)
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_initialize_loads_models(
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
@@ -141,9 +150,9 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         self.assertEqual(provider.map_model, mock_map_model)
         self.assertEqual(provider.reduce_model, mock_reduce_model)
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_initialize_same_model(
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
@@ -171,10 +180,10 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         self.assertEqual(provider.map_model, mock_map_model)
         self.assertEqual(provider.reduce_model, mock_map_model)  # Same instance
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_summarize(
         self, mock_summary_model, mock_select_map, mock_select_reduce, mock_summarize_long
     ):
@@ -231,9 +240,9 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         self.assertIn("not initialized", str(context.exception))
         self.assertEqual(context.exception.provider, "MLProvider/Transformers")
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_cleanup(self, mock_summary_model, mock_select_map, mock_select_reduce):
         """Test that cleanup() resets state."""
         cfg = config.Config(
@@ -262,10 +271,10 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         self.assertIsNone(provider.map_model)
         self.assertIsNone(provider.reduce_model)
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_summarize_with_params(
         self, mock_summary_model, mock_select_map, mock_select_reduce, mock_summarize_long
     ):

@@ -40,12 +40,17 @@ class TestSpeakerDetectorFactory(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             # We can't actually create a config with invalid detector due to validation
             # So we'll test the factory directly with a mock config
+            from unittest.mock import MagicMock
+
+            from podcast_scraper import config
             from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 
-            class MockConfig:
-                speaker_detector_provider = "invalid"
+            mock_cfg = MagicMock(spec=config.Config)
+            mock_cfg.speaker_detector_provider = "invalid"
+            # Make isinstance check pass
+            mock_cfg.__class__ = config.Config
 
-            create_speaker_detector(MockConfig())  # type: ignore[arg-type]
+            create_speaker_detector(mock_cfg)
 
         self.assertIn("Unsupported speaker detector type", str(context.exception))
 
@@ -90,7 +95,7 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
         # Initially not initialized (needs initialize() call)
         self.assertFalse(detector._spacy_initialized)
 
-    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
     def test_detector_initialize_loads_model(self, mock_get_model):
         """Test that initialize() loads the spaCy model via factory."""
         cfg = config.Config(
@@ -106,11 +111,11 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
         detector.initialize()
 
         self.assertTrue(detector._spacy_initialized)
-        self.assertEqual(detector.nlp, mock_nlp)
+        self.assertEqual(detector._spacy_nlp, mock_nlp)
         mock_get_model.assert_called_once()
 
-    @patch("podcast_scraper.ml.ml_provider.speaker_detection.detect_speaker_names")
-    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.detect_speaker_names")
+    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
     def test_detector_detect_speakers(self, mock_get_model, mock_detect):
         """Test that detect_speakers() calls detect_speaker_names() via factory."""
         cfg = config.Config(
@@ -137,8 +142,8 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
         self.assertTrue(result[2])
         mock_detect.assert_called_once()
 
-    @patch("podcast_scraper.ml.ml_provider.speaker_detection.detect_hosts_from_feed")
-    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.detect_hosts_from_feed")
+    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
     def test_detector_detect_hosts(self, mock_get_model, mock_detect_hosts):
         """Test that detect_hosts() calls detect_hosts_from_feed()."""
         # Use factory instead of direct import
@@ -159,8 +164,8 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
         self.assertEqual(result, {"John Doe"})
         mock_detect_hosts.assert_called_once()
 
-    @patch("podcast_scraper.ml.ml_provider.speaker_detection.analyze_episode_patterns")
-    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.analyze_episode_patterns")
+    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
     def test_detector_analyze_patterns(self, mock_get_model, mock_analyze):
         """Test that analyze_patterns() calls analyze_episode_patterns()."""
         # Use factory instead of direct import

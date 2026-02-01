@@ -61,12 +61,12 @@ class TestModelSelection(unittest.TestCase):
         """Test that explicit model selection works."""
         from podcast_scraper import config
 
-        # Use test default model (already a direct model ID, not an alias)
+        # Use test default model (alias "bart-small" which maps to "facebook/bart-base")
         cfg = create_test_config(summary_model=config.TEST_DEFAULT_SUMMARY_MODEL)
         model_name = summarizer.select_summary_model(cfg)
-        # TEST_DEFAULT_SUMMARY_MODEL is "facebook/bart-base" which is a direct model ID
-        # select_summary_model returns it directly (not looked up in DEFAULT_SUMMARY_MODELS)
-        self.assertEqual(model_name, config.TEST_DEFAULT_SUMMARY_MODEL)
+        # TEST_DEFAULT_SUMMARY_MODEL is "bart-small" which is an alias
+        # select_summary_model resolves it to "facebook/bart-base"
+        self.assertEqual(model_name, "facebook/bart-base")
 
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_select_model_auto_mps(self, mock_torch):
@@ -135,9 +135,9 @@ class TestModelSelection(unittest.TestCase):
         )
         map_model_name = summarizer.select_summary_model(cfg)
         reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
-        # TEST_DEFAULT_SUMMARY_REDUCE_MODEL is "allenai/led-base-16384" which is a direct model ID
-        # select_reduce_model returns it directly (not looked up in DEFAULT_SUMMARY_MODELS)
-        self.assertEqual(reduce_model_name, config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL)
+        # TEST_DEFAULT_SUMMARY_REDUCE_MODEL is "long-fast" which is an alias
+        # select_reduce_model resolves it to "allenai/led-base-16384"
+        self.assertEqual(reduce_model_name, "allenai/led-base-16384")
 
     def test_select_summary_model_raises_when_default_missing(self):
         """Test that select_summary_model raises RuntimeError when default model missing."""
@@ -1100,7 +1100,7 @@ class TestWorkflowIntegration(unittest.TestCase):
         )
 
         # Simulate workflow model loading (same pattern as workflow.py)
-        from podcast_scraper import summarizer
+        from podcast_scraper.providers.ml import summarizer
 
         model_name = summarizer.select_summary_model(cfg)
         summary_model = summarizer.SummaryModel(
@@ -1128,7 +1128,7 @@ class TestWorkflowIntegration(unittest.TestCase):
         mock_summary_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
 
         # Simulate workflow model unloading (same pattern as workflow.py)
-        from podcast_scraper import summarizer
+        from podcast_scraper.providers.ml import summarizer
 
         summarizer.unload_model(mock_summary_model)
 

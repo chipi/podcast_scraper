@@ -29,7 +29,7 @@ if str(tests_dir) not in sys.path:
 
 # Try to import summarizer, skip tests if dependencies not available
 try:
-    from podcast_scraper import summarizer
+    from podcast_scraper.providers.ml import summarizer
 
     SUMMARIZER_AVAILABLE = True
 except ImportError:

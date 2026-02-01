@@ -139,8 +139,8 @@ class TestTransformersSummarization:
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.DEBUG)
         # Get logger for summarizer module to capture strategy selection logs
-        # (The actual implementation is in summarizer.py, not map_reduce.py)
-        logger = logging.getLogger("podcast_scraper.summarizer")
+        # (The actual implementation is in providers.ml.summarizer)
+        logger = logging.getLogger("podcast_scraper.providers.ml.summarizer")
         logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
 
@@ -302,8 +302,8 @@ class TestAllMLModelsTogether:
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.DEBUG)
         # Get logger for summarizer module to capture strategy selection logs
-        # (The actual implementation is in summarizer.py, not map_reduce.py)
-        logger = logging.getLogger("podcast_scraper.summarizer")
+        # (The actual implementation is in providers.ml.summarizer)
+        logger = logging.getLogger("podcast_scraper.providers.ml.summarizer")
         logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
 

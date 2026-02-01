@@ -22,7 +22,8 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper import downloader, workflow
+from podcast_scraper.rss import downloader
+from podcast_scraper.workflow import orchestration as workflow
 
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent

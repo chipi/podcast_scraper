@@ -37,6 +37,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | PRD-007 | Repeatable, objective ML benchmarking system |
 | [RFC-042](RFC-042-hybrid-summarization-pipeline.md) | Hybrid Podcast Summarization Pipeline | - | Hybrid MAP-REDUCE with instruction-tuned LLMs (v2.5) |
 | [RFC-043](RFC-043-automated-metrics-alerts.md) | Automated Metrics Alerts | - | Automated regression alerts and PR comments for pipeline metrics |
+| [RFC-044](RFC-044-model-registry.md) | Model Registry for Architecture Limits | - | Centralized registry to eliminate hardcoded model limits throughout codebase |
 
 ## Completed RFCs
 

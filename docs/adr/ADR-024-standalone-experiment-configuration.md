@@ -12,7 +12,7 @@ Iterating on AI models, prompts, and parameters (like chunk size or temperature)
 
 ## Decision
 
-We define **Standalone Experiment Configurations** as YAML files in a dedicated `experiments/` directory.
+We define **Standalone Experiment Configurations** as YAML files in `data/eval/configs/` directory.
 
 - Each YAML file defines a specific research goal (e.g., `summarization_gpt4_v2.yaml`).
 - The config includes model identifiers, typed parameters, prompt template references, and dataset links.

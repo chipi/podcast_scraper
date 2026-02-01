@@ -14,7 +14,7 @@ PACKAGE = podcast_scraper
 # Can be overridden: PYTEST_WORKERS=4 make test
 PYTEST_WORKERS ?= $(shell python3 -c "import os; print(min(max(1, (os.cpu_count() or 4) - 2), 8))")
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity deadcode docstrings spelling spelling-docs quality check-unit-imports deps-analyze deps-check analyze-test-memory test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run
+.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity deadcode docstrings spelling spelling-docs quality check-unit-imports deps-analyze deps-check analyze-test-memory test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark
 
 help:
 	@echo "Common developer commands:"
@@ -107,23 +107,46 @@ help:
 	@echo "  make backup-cache-cleanup   Clean up old cache backups (keeping 5 most recent)"
 	@echo "  make restore-cache   Restore .cache directory from backup (use TARGET=path BACKUP=name)"
 	@echo "  make restore-cache-dry-run  Dry run: Check what would be restored"
+	@echo ""
+	@echo "Experiment commands:"
+	@echo "  make metadata-generate   Generate episode metadata JSON files from RSS XML files"
+	@echo "                            Usage: make metadata-generate INPUT_DIR=data/eval/sources [OUTPUT_DIR=...]"
+	@echo "  make source-index        Generate source index JSON files for inventory management"
+	@echo "                            Usage: make source-index SOURCE_DIR=data/eval/sources/curated_5feeds_raw_v1 [ALL=1]"
+	@echo "  make dataset-create      Create a canonical dataset from eval data"
+	@echo "                            Usage: make dataset-create DATASET_ID=indicator_v1 [EVAL_DIR=data/eval] [OUTPUT_DIR=...]"
+	@echo "  make dataset-smoke       Create smoke test dataset (first episode per feed)"
+	@echo "                            Usage: make dataset-smoke [EVAL_DIR=data/eval] [OUTPUT_DIR=...]"
+	@echo "  make dataset-benchmark    Create benchmark dataset (first 2 episodes per feed)"
+	@echo "                            Usage: make dataset-benchmark [EVAL_DIR=data/eval] [OUTPUT_DIR=...]"
+	@echo "  make dataset-raw          Create raw dataset (all episodes)"
+	@echo "                            Usage: make dataset-raw [EVAL_DIR=data/eval] [OUTPUT_DIR=...]"
+	@echo "  make dataset-materialize  Materialize a dataset (copy transcripts, validate hashes)"
+	@echo "                            Usage: make dataset-materialize DATASET_ID=curated_5feeds_smoke_v1 [OUTPUT_DIR=...]"
+	@echo "  make run-promote         Promote a run to baseline or reference"
+	@echo "                            Usage: make run-promote RUN_ID=run_xxx --as baseline PROMOTED_ID=baseline_prod_v2 REASON=\"...\""
+	@echo "  make baseline-create     Materialize a baseline (auto-creates and promotes)"
+	@echo "                            Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1"
+	@echo "  make experiment-run      Run an experiment using a config file"
+	@echo "                            Usage: make experiment-run CONFIG=data/eval/configs/my_experiment.yaml"
 
 init:
-	$(PYTHON) -m pip install --upgrade pip setuptools
+	# Upgrade pip, setuptools, and wheel (required for PEP 660 editable installs with pyproject.toml)
+	$(PYTHON) -m pip install --upgrade pip setuptools wheel
 	$(PYTHON) -m pip install -e .[dev,ml]
 	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install -r docs/requirements.txt; fi
 
 format:
-	black .
-	isort .
+	$(PYTHON) -m black .
+	$(PYTHON) -m isort .
 
 format-check:
-	black --check .
-	isort --check-only .
+	$(PYTHON) -m black --check .
+	$(PYTHON) -m isort --check-only .
 
 lint:
-	flake8 --config .flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-	flake8 --config .flake8 . --count --exit-zero --statistics
+	$(PYTHON) -m flake8 --config .flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+	$(PYTHON) -m flake8 --config .flake8 . --count --exit-zero --statistics
 
 lint-markdown:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
@@ -142,12 +165,12 @@ fix-md:
 	@exit 1
 
 type:
-	mypy --config-file pyproject.toml .
+	$(PYTHON) -m mypy --config-file pyproject.toml .
 
 security: security-bandit security-audit
 
 security-bandit:
-	bandit -r . --exclude ./.venv --skip B113,B108,B110,B310 --severity-level medium
+	$(PYTHON) -m bandit -r . --exclude ./.venv --skip B113,B108,B110,B310 --severity-level medium
 
 security-audit:
 	$(PYTHON) -m pip install --upgrade setuptools
@@ -186,7 +209,10 @@ quality: complexity deadcode docstrings spelling
 		 $(PYTHON) -m pip install --quiet .[ml])
 	# Audit all installed packages (including ML dependencies from pyproject.toml)
 	# Ignore PYSEC-2022-42969: py package vulnerability (transitive dep of interrogate, deprecated, not exploitable here)
-	pip-audit --skip-editable --ignore-vuln PYSEC-2022-42969
+	# Ignore CVE-2026-0994: protobuf vulnerability (affects 6.33.4, fixed in later versions; transitive dep of ML packages)
+	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
+	# Ignore en-core-web-sm: installed from GitHub (not PyPI), cannot be audited by pip-audit
+	pip-audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-package en-core-web-sm
 
 docs:
 	$(PYTHON) -m mkdocs build --strict
@@ -309,15 +335,17 @@ test:
 	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
 	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
 	# Excludes nightly tests (run separately via make test-nightly)
+	# Excludes analytical tests (diagnostic tools, run separately via make test-analytical)
 	# Note: Coverage with pytest-xdist may show lower numbers due to parallel collection
 	# Use 'make test-sequential' for accurate coverage measurement
-	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/ -m "not nightly" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/ -m "not nightly and not analytical" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-sequential:
 	# All tests: sequential execution (slower but clearer output, useful for debugging)
 	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
+	# Excludes analytical tests (diagnostic tools, run separately via make test-analytical)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
-	E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
+	E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/ -m "not analytical" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-fast:
 	# Fast tests: parallel execution for speed
@@ -598,7 +626,31 @@ build:
 	$(PYTHON) -m build
 	@if [ -d dist ]; then mkdir -p .build && rm -rf .build/dist && mv dist .build/ && echo "Moved dist to .build/dist/"; fi
 
-ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling preload-ml-models test coverage-enforce docs build
+# Check if ML models are cached (used to conditionally run preload-ml-models)
+# Returns "1" if models are missing, "0" if all cached
+# This check runs at Makefile parse time, so it's fast and doesn't block
+ML_MODELS_CACHED := $(shell $(PYTHON) -c "import sys; sys.path.insert(0, 'src'); \
+	from tests.integration.ml_model_cache_helpers import _is_whisper_model_cached, _is_transformers_model_cached; \
+	from podcast_scraper import config; \
+	whisper_ok = _is_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL); \
+	transformers_ok = _is_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None); \
+	spacy_ok = False; \
+	try: \
+		import spacy; \
+		spacy.load(config.DEFAULT_NER_MODEL); \
+		spacy_ok = True; \
+	except: \
+		pass; \
+	all_cached = whisper_ok and transformers_ok and spacy_ok; \
+	print('1' if not all_cached else '0', end='')" 2>/dev/null || echo "1")
+
+ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling $(if $(filter 1,$(ML_MODELS_CACHED)),preload-ml-models,) test coverage-enforce docs build
+	# Conditional preload: Only runs preload-ml-models if models are not cached
+	# This makes ci seamless for new contributors (auto-downloads) and fast for experienced ones (skips if cached)
+	@if [ "$(ML_MODELS_CACHED)" = "0" ]; then \
+		echo ""; \
+		echo "✓ ML models already cached, skipped preload"; \
+	fi
 
 ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling test-fast docs build
 	# Note: ci-fast skips coverage-enforce because fast tests have partial coverage
@@ -707,6 +759,10 @@ clean:
 	rm -rf reports/ htmlcov/
 	# Test output directories (created during test runs)
 	rm -rf output/
+	# Temporary test directories (fingerprint validation tests)
+	find /tmp -maxdepth 1 -type d -name "fingerprint_test_*" -exec rm -rf {} + 2>/dev/null || true
+	# Temporary test config files (if any were left behind)
+	find data/eval/configs -name "*_test_*.yaml" -type f -delete 2>/dev/null || true
 
 clean-cache:
 	@echo "Cleaning ML model caches..."
@@ -789,3 +845,360 @@ restore-cache-dry-run:
 		cmd="$$cmd --backup \"$(BACKUP)\""; \
 	fi; \
 	eval $$cmd
+
+# Experiment commands (RFC-015, RFC-041)
+metadata-generate:
+	@# Generate episode metadata JSON files from RSS XML files
+	@# Usage: make metadata-generate INPUT_DIR=data/eval/sources [OUTPUT_DIR=...] [LOG_LEVEL=INFO]
+	@if [ -z "$(INPUT_DIR)" ]; then \
+		echo "❌ Error: INPUT_DIR is required"; \
+		echo ""; \
+		echo "Usage: make metadata-generate INPUT_DIR=data/eval/sources"; \
+		echo ""; \
+		echo "Optional parameters:"; \
+		echo "  OUTPUT_DIR=path/to/output    Output directory (default: same as XML file location)"; \
+		echo "  LOG_LEVEL=INFO|DEBUG|WARNING|ERROR    Logging level (default: INFO)"; \
+		exit 1; \
+	fi
+	@echo "Generating episode metadata from RSS XML files..."
+	@echo "  Input directory: $(INPUT_DIR)"
+	@cmd="$(PYTHON) scripts/eval/generate_episode_metadata.py --input-dir $(INPUT_DIR)"; \
+	if [ -n "$(OUTPUT_DIR)" ]; then \
+		echo "  Output directory: $(OUTPUT_DIR)"; \
+		cmd="$$cmd --output-dir $(OUTPUT_DIR)"; \
+	fi; \
+	if [ -n "$(LOG_LEVEL)" ]; then \
+		echo "  Log level: $(LOG_LEVEL)"; \
+		cmd="$$cmd --log-level $(LOG_LEVEL)"; \
+	fi; \
+	eval $$cmd
+	@echo ""
+	@echo "✓ Metadata generation complete"
+
+source-index:
+	@# Generate source index JSON files for inventory management
+	@# Usage: make source-index SOURCE_DIR=data/eval/sources/curated_5feeds_raw_v1 [ALL=1] [LOG_LEVEL=INFO]
+	@if [ -z "$(SOURCE_DIR)" ]; then \
+		echo "❌ Error: SOURCE_DIR is required"; \
+		echo ""; \
+		echo "Usage: make source-index SOURCE_DIR=data/eval/sources/curated_5feeds_raw_v1"; \
+		echo ""; \
+		echo "Optional parameters:"; \
+		echo "  ALL=1                    Process all source directories in the given directory"; \
+		echo "  LOG_LEVEL=INFO|DEBUG|WARNING|ERROR    Logging level (default: INFO)"; \
+		exit 1; \
+	fi
+	@echo "Generating source index..."
+	@echo "  Source directory: $(SOURCE_DIR)"
+	@cmd="$(PYTHON) scripts/eval/generate_source_index.py --source-dir $(SOURCE_DIR)"; \
+	if [ -n "$(ALL)" ] && [ "$(ALL)" = "1" ]; then \
+		echo "  Processing all source directories"; \
+		cmd="$$cmd --all"; \
+	fi; \
+	if [ -n "$(LOG_LEVEL)" ]; then \
+		echo "  Log level: $(LOG_LEVEL)"; \
+		cmd="$$cmd --log-level $(LOG_LEVEL)"; \
+	fi; \
+	eval $$cmd
+	@echo ""
+	@echo "✓ Source index generation complete"
+
+dataset-create:
+	@# Create a canonical dataset JSON from existing eval data
+	@# Usage: make dataset-create DATASET_ID=indicator_v1 [EVAL_DIR=data/eval] [OUTPUT_DIR=...] [DESCRIPTION="..."] [CONTENT_REGIME="..."] [SMOKE_TEST=1]
+	@if [ -z "$(DATASET_ID)" ]; then \
+		echo "❌ Error: DATASET_ID is required"; \
+		echo ""; \
+		echo "Usage: make dataset-create DATASET_ID=indicator_v1"; \
+		echo ""; \
+		echo "Optional parameters:"; \
+		echo "  EVAL_DIR=data/eval              Eval directory (default: data/eval)"; \
+		echo "  OUTPUT_DIR=path/to/output       Output directory (default: benchmarks/datasets)"; \
+		echo "  DESCRIPTION=\"Description text\"     Dataset description (default: auto-generated)"; \
+		echo "  CONTENT_REGIME=\"narrative\"        Content regime (narrative, interview, etc.)"; \
+		echo "  SMOKE_TEST=1                    Create smoke test dataset (first episode per feed)"; \
+		exit 1; \
+	fi
+	@EVAL_DIR=$${EVAL_DIR:-data/eval}; \
+	echo "Creating dataset: $(DATASET_ID)"; \
+	echo "  Eval directory: $$EVAL_DIR"; \
+	@# Generate default description if not provided
+	@if [ -z "$(DESCRIPTION)" ]; then \
+		DESCRIPTION="Dataset $(DATASET_ID)"; \
+		echo "  Description: $$DESCRIPTION (auto-generated)"; \
+	else \
+		echo "  Description: $(DESCRIPTION)"; \
+	fi; \
+	cmd="$(PYTHON) scripts/eval/create_dataset_json.py --dataset-id $(DATASET_ID) --eval-dir $$EVAL_DIR --description \"$$DESCRIPTION\""; \
+	if [ -n "$(OUTPUT_DIR)" ]; then \
+		echo "  Output directory: $(OUTPUT_DIR)"; \
+		cmd="$$cmd --output-dir $(OUTPUT_DIR)"; \
+	fi; \
+	if [ -n "$(CONTENT_REGIME)" ]; then \
+		echo "  Content regime: $(CONTENT_REGIME)"; \
+		cmd="$$cmd --content-regime $(CONTENT_REGIME)"; \
+	fi; \
+	if [ -n "$(SMOKE_TEST)" ] && [ "$(SMOKE_TEST)" = "1" ]; then \
+		echo "  Smoke test mode: enabled (first episode per feed)"; \
+		cmd="$$cmd --smoke-test"; \
+	fi; \
+	eval $$cmd
+	@OUTPUT_DIR=$${OUTPUT_DIR:-benchmarks/datasets}; \
+	echo ""; \
+	echo "✓ Dataset created: $$OUTPUT_DIR/$(DATASET_ID).json"
+
+dataset-smoke:
+	@# Create smoke test dataset (first episode per feed)
+	@# Usage: make dataset-smoke [EVAL_DIR=data/eval] [OUTPUT_DIR=...]
+	@EVAL_DIR=$${EVAL_DIR:-data/eval}; \
+	OUTPUT_DIR=$${OUTPUT_DIR:-data/eval/datasets}; \
+	echo "Creating smoke test dataset: curated_5feeds_smoke_v1"; \
+	echo "  Eval directory: $$EVAL_DIR"; \
+	echo "  Output directory: $$OUTPUT_DIR"; \
+	$(PYTHON) scripts/eval/create_dataset_json.py \
+		--dataset-id curated_5feeds_smoke_v1 \
+		--eval-dir $$EVAL_DIR \
+		--output-dir $$OUTPUT_DIR \
+		--description "Smoke test dataset: first episode per feed from curated_5feeds_raw_v1" \
+		--max-episodes-per-feed 1
+	@echo ""
+	@echo "✓ Smoke test dataset created: $$OUTPUT_DIR/curated_5feeds_smoke_v1.json"
+
+dataset-benchmark:
+	@# Create benchmark dataset (first 2 episodes per feed)
+	@# Usage: make dataset-benchmark [EVAL_DIR=data/eval] [OUTPUT_DIR=...]
+	@EVAL_DIR=$${EVAL_DIR:-data/eval}; \
+	OUTPUT_DIR=$${OUTPUT_DIR:-data/eval/datasets}; \
+	echo "Creating benchmark dataset: curated_5feeds_benchmark_v1"; \
+	echo "  Eval directory: $$EVAL_DIR"; \
+	echo "  Output directory: $$OUTPUT_DIR"; \
+	$(PYTHON) scripts/eval/create_dataset_json.py \
+		--dataset-id curated_5feeds_benchmark_v1 \
+		--eval-dir $$EVAL_DIR \
+		--output-dir $$OUTPUT_DIR \
+		--description "Benchmark dataset: first 2 episodes per feed from curated_5feeds_raw_v1" \
+		--max-episodes-per-feed 2
+	@echo ""
+	@echo "✓ Benchmark dataset created: $$OUTPUT_DIR/curated_5feeds_benchmark_v1.json"
+
+dataset-raw:
+	@# Create raw dataset (all episodes from all feeds)
+	@# Usage: make dataset-raw [EVAL_DIR=data/eval] [OUTPUT_DIR=...]
+	@EVAL_DIR=$${EVAL_DIR:-data/eval}; \
+	OUTPUT_DIR=$${OUTPUT_DIR:-data/eval/datasets}; \
+	echo "Creating raw dataset: curated_5feeds_raw_v1"; \
+	echo "  Eval directory: $$EVAL_DIR"; \
+	echo "  Output directory: $$OUTPUT_DIR"; \
+	$(PYTHON) scripts/eval/create_dataset_json.py \
+		--dataset-id curated_5feeds_raw_v1 \
+		--eval-dir $$EVAL_DIR \
+		--output-dir $$OUTPUT_DIR \
+		--description "Raw dataset: all episodes from all feeds in curated_5feeds_raw_v1"
+	@echo ""
+	@echo "✓ Raw dataset created: $$OUTPUT_DIR/curated_5feeds_raw_v1.json"
+
+dataset-materialize:
+	@# Materialize a dataset (copy transcripts, validate hashes)
+	@# Usage: make dataset-materialize DATASET_ID=curated_5feeds_smoke_v1 [OUTPUT_DIR=...] [DATASET_FILE=...]
+	@if [ -z "$(DATASET_ID)" ]; then \
+		echo "❌ Error: DATASET_ID is required"; \
+		echo ""; \
+		echo "Usage: make dataset-materialize DATASET_ID=curated_5feeds_smoke_v1"; \
+		echo ""; \
+		echo "Optional parameters:"; \
+		echo "  OUTPUT_DIR=path/to/output    Output directory (default: data/eval/materialized)"; \
+		echo "  DATASET_FILE=path/to/file.json    Dataset JSON file (default: data/eval/datasets/{DATASET_ID}.json)"; \
+		exit 1; \
+	fi
+	@OUTPUT_DIR=$${OUTPUT_DIR:-data/eval/materialized}; \
+	echo "Materializing dataset: $(DATASET_ID)"; \
+	echo "  Output directory: $$OUTPUT_DIR"; \
+	cmd="$(PYTHON) scripts/eval/materialize_dataset.py --dataset-id $(DATASET_ID) --output-dir $$OUTPUT_DIR"; \
+	if [ -n "$(DATASET_FILE)" ]; then \
+		echo "  Dataset file: $(DATASET_FILE)"; \
+		cmd="$$cmd --dataset-file $(DATASET_FILE)"; \
+	fi; \
+	eval $$cmd
+	@echo ""
+	@echo "✓ Dataset materialized: $$OUTPUT_DIR/$(DATASET_ID)/"
+
+
+run-promote:
+	@# Promote a run to baseline or reference
+	@# Usage: make run-promote RUN_ID=run_2026-01-16_11-52-03 --as baseline PROMOTED_ID=baseline_prod_authority_v2 REASON="New production baseline"
+	@if [ -z "$(RUN_ID)" ]; then \
+		echo "❌ Error: RUN_ID is required"; \
+		echo ""; \
+		echo "Usage: make run-promote RUN_ID=run_2026-01-16_11-52-03 --as baseline PROMOTED_ID=baseline_prod_authority_v2 REASON=\"...\""; \
+		echo ""; \
+		echo "For baselines:"; \
+		echo "  make run-promote RUN_ID=run_xxx --as baseline PROMOTED_ID=baseline_prod_v2 REASON=\"...\""; \
+		echo ""; \
+		echo "For references:"; \
+		echo "  make run-promote RUN_ID=run_xxx --as reference PROMOTED_ID=silver_gpt5_v1 DATASET_ID=curated_5feeds_benchmark_v1 REASON=\"...\" [REFERENCE_QUALITY=silver|gold]"; \
+		exit 1; \
+	fi
+	@if [ -z "$(PROMOTED_ID)" ]; then \
+		echo "❌ Error: PROMOTED_ID is required"; \
+		exit 1; \
+	fi
+	@if [ -z "$(REASON)" ]; then \
+		echo "❌ Error: REASON is required (explains why this run is being promoted)"; \
+		exit 1; \
+	fi
+	@if [ "$(AS)" != "baseline" ] && [ "$(AS)" != "reference" ]; then \
+		echo "❌ Error: --as must be 'baseline' or 'reference'"; \
+		exit 1; \
+	fi
+	@cmd="$(PYTHON) scripts/eval/promote_run.py --run-id $(RUN_ID) --as $(AS) --promoted-id $(PROMOTED_ID) --reason \"$(REASON)\""; \
+	if [ "$(AS)" = "reference" ]; then \
+		if [ -z "$(DATASET_ID)" ]; then \
+			echo "❌ Error: DATASET_ID is required when promoting to reference"; \
+			exit 1; \
+		fi; \
+		cmd="$$cmd --dataset-id $(DATASET_ID)"; \
+		if [ -n "$(REFERENCE_QUALITY)" ]; then \
+			cmd="$$cmd --reference-quality $(REFERENCE_QUALITY)"; \
+		fi; \
+	fi; \
+	eval $$cmd
+	@echo ""
+	@echo "✓ Run promoted to $(AS): $(PROMOTED_ID)"
+
+baseline-create:
+	@# Materialize a baseline from current system state (creates run then auto-promotes)
+	@# Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1 [EXPERIMENT_CONFIG=...] [PREPROCESSING_PROFILE=...]
+	@if [ -z "$(BASELINE_ID)" ]; then \
+		echo "❌ Error: BASELINE_ID is required"; \
+		echo ""; \
+		echo "Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1"; \
+		echo ""; \
+		echo "Note: This command creates a run then auto-promotes it to a baseline."; \
+		echo "      For experiments with full evaluation, use 'make experiment-run' instead."; \
+		exit 1; \
+	fi
+	@if [ -z "$(DATASET_ID)" ]; then \
+		echo "❌ Error: DATASET_ID is required"; \
+		echo ""; \
+		echo "Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1"; \
+		exit 1; \
+	fi
+	@RUN_ID=run_$$(date +%Y-%m-%d_%H-%M-%S); \
+	echo "Creating baseline: $(BASELINE_ID)"; \
+	echo "  Dataset: $(DATASET_ID)"; \
+	echo "  Run ID (temporary): $$RUN_ID"; \
+	cmd="$(PYTHON) scripts/eval/materialize_baseline.py --baseline-id $$RUN_ID --dataset-id $(DATASET_ID) --output-dir data/eval/runs"; \
+	if [ -n "$(EXPERIMENT_CONFIG)" ]; then \
+		echo "  Experiment config: $(EXPERIMENT_CONFIG)"; \
+		cmd="$$cmd --experiment-config $(EXPERIMENT_CONFIG)"; \
+	fi; \
+	if [ -n "$(PREPROCESSING_PROFILE)" ]; then \
+		echo "  Preprocessing profile: $(PREPROCESSING_PROFILE)"; \
+		cmd="$$cmd --preprocessing-profile $(PREPROCESSING_PROFILE)"; \
+	fi; \
+	eval $$cmd; \
+	echo ""; \
+	echo "Auto-promoting run to baseline..."; \
+	$(MAKE) run-promote RUN_ID=$$RUN_ID AS=baseline PROMOTED_ID=$(BASELINE_ID) REASON="baseline-create command (auto-promoted)"; \
+	echo ""; \
+	echo "✓ Baseline created: data/eval/baselines/$(BASELINE_ID)/"
+
+experiment-run:
+	@# Run an experiment using a config file (complete evaluation loop: runner + scorer + comparator)
+	@# Usage: make experiment-run CONFIG=data/eval/configs/my_experiment.yaml [BASELINE=baseline_id] [REFERENCE=ref_id1,ref_id2] [LOG_LEVEL=INFO] [DRY_RUN=1] [SCORE_ONLY=1]
+	@if [ -z "$(CONFIG)" ]; then \
+		echo "❌ Error: CONFIG is required"; \
+		echo ""; \
+		echo "Usage: make experiment-run CONFIG=data/eval/configs/my_experiment.yaml"; \
+		echo ""; \
+		echo "Optional parameters:"; \
+		echo "  BASELINE=baseline_id              Baseline ID for comparison (optional but recommended)"; \
+		echo "  REFERENCE=ref_id1,ref_id2         Reference IDs for evaluation (comma-separated, can be silver/gold)"; \
+		echo "  LOG_LEVEL=INFO|DEBUG|WARNING|ERROR    Logging level (default: INFO)"; \
+		echo "  DRY_RUN=1                         Dry run mode: generate predictions only, skip metrics/comparison"; \
+		echo "  SMOKE_INFERENCE_ONLY=1            Smoke test mode: same as DRY_RUN"; \
+		echo "  SCORE_ONLY=1                      Score-only mode: skip inference, use existing predictions.jsonl"; \
+		exit 1; \
+		fi
+	@if [ ! -f "$(CONFIG)" ]; then \
+		echo "❌ Error: Config file not found: $(CONFIG)"; \
+		exit 1; \
+	fi
+	@echo "Running experiment: $(CONFIG)"
+	@cmd="$(PYTHON) scripts/eval/run_experiment.py $(CONFIG)"; \
+	if [ -n "$(BASELINE)" ]; then \
+		echo "  Baseline: $(BASELINE)"; \
+		cmd="$$cmd --baseline $(BASELINE)"; \
+	fi; \
+	if [ -n "$(REFERENCE)" ]; then \
+		echo "  References: $(REFERENCE)"; \
+		for ref in $$(echo $(REFERENCE) | tr ',' ' '); do \
+			cmd="$$cmd --reference $$ref"; \
+		done; \
+	fi; \
+	if [ -n "$(LOG_LEVEL)" ]; then \
+		echo "  Log level: $(LOG_LEVEL)"; \
+		cmd="$$cmd --log-level $(LOG_LEVEL)"; \
+	fi; \
+	if [ "$(DRY_RUN)" = "1" ] || [ "$(SMOKE_INFERENCE_ONLY)" = "1" ]; then \
+		echo "  Mode: dry-run (predictions only, skip metrics/comparison)"; \
+		cmd="$$cmd --dry-run"; \
+	fi; \
+	eval $$cmd
+	@echo ""
+	@echo "✓ Experiment completed. Check data/eval/runs/ directory for output."
+
+runs-list:
+	@# List all experiment runs
+	@# Usage: make runs-list [DATASET_ID=dataset_id]
+	@$(PYTHON) scripts/eval/list_runs.py \
+		$(if $(DATASET_ID),--dataset-id $(DATASET_ID))
+
+baselines-list:
+	@# List all baselines
+	@# Usage: make baselines-list [DATASET_ID=dataset_id]
+	@$(PYTHON) scripts/eval/list_runs.py --baselines \
+		$(if $(DATASET_ID),--dataset-id $(DATASET_ID))
+
+runs-compare:
+	@# Compare two experiment runs
+	@# Usage: make runs-compare RUN1=run_id1 RUN2=run_id2 [DATASET_ID=dataset_id] [OUTPUT=path/to/report.md]
+	@if [ -z "$(RUN1)" ] || [ -z "$(RUN2)" ]; then \
+		echo "❌ Error: RUN1 and RUN2 are required"; \
+		echo "Usage: make runs-compare RUN1=run_id1 RUN2=run_id2"; \
+		exit 1; \
+	fi
+	@$(PYTHON) scripts/eval/compare_runs.py \
+		--run1 $(RUN1) \
+		--run2 $(RUN2) \
+		$(if $(DATASET_ID),--dataset-id $(DATASET_ID)) \
+		$(if $(OUTPUT),--output $(OUTPUT))
+
+benchmark:
+	@# Run benchmark across multiple datasets
+	@# Usage: make benchmark CONFIG=config.yaml BASELINE=baseline_id [SMOKE=1|ALL=1|DATASETS=ds1,ds2] [REFERENCE=ref1,ref2] [OUTPUT_DIR=...]
+	@if [ -z "$(CONFIG)" ] || [ -z "$(BASELINE)" ]; then \
+		echo "❌ Error: CONFIG and BASELINE are required"; \
+		echo "Usage: make benchmark CONFIG=data/eval/configs/my_experiment.yaml BASELINE=baseline_id"; \
+		echo ""; \
+		echo "Options:"; \
+		echo "  SMOKE=1              Run on smoke test datasets only"; \
+		echo "  ALL=1                Run on all available datasets"; \
+		echo "  DATASETS=ds1,ds2     Run on specific datasets (comma-separated)"; \
+		echo "  REFERENCE=ref1,ref2  Reference IDs for evaluation (comma-separated)"; \
+		echo "  OUTPUT_DIR=...       Custom output directory"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(CONFIG)" ]; then \
+		echo "❌ Error: Config file not found: $(CONFIG)"; \
+		exit 1; \
+	fi
+	@$(PYTHON) scripts/eval/run_benchmark.py \
+		--config $(CONFIG) \
+		--baseline $(BASELINE) \
+		$(if $(SMOKE),--smoke) \
+		$(if $(ALL),--all) \
+		$(if $(DATASETS),--datasets $(DATASETS)) \
+		$(if $(REFERENCE),--reference $(REFERENCE)) \
+		$(if $(OUTPUT_DIR),--output-dir $(OUTPUT_DIR)) \
+		$(if $(LOG_LEVEL),--log-level $(LOG_LEVEL))

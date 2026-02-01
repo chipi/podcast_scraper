@@ -82,14 +82,15 @@ class TestMapReduceStrategies:
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.DEBUG)
         # Get logger for summarizer module to capture strategy selection logs
-        # (The actual implementation is in summarizer.py, not map_reduce.py)
-        map_reduce_logger = logging.getLogger("podcast_scraper.summarizer")
+        # (The actual implementation is in providers.ml.summarizer)
+        map_reduce_logger = logging.getLogger("podcast_scraper.providers.ml.summarizer")
         map_reduce_logger.addHandler(handler)
         map_reduce_logger.setLevel(logging.DEBUG)
 
         try:
             with tempfile.TemporaryDirectory():
                 # Create config with small chunk size to ensure < 800 token combined summaries
+                # Use faster generation parameters for testing (num_beams=1 for greedy decoding)
                 cfg = Config(
                     generate_metadata=True,
                     generate_summaries=True,
@@ -97,6 +98,23 @@ class TestMapReduceStrategies:
                     summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
                     summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
                     language="en",
+                    # Optimize for speed: use greedy decoding (num_beams=1) instead of beam search
+                    summary_map_params={
+                        "max_new_tokens": 150,
+                        "min_new_tokens": 60,
+                        "num_beams": 1,  # Greedy decoding (much faster)
+                        "no_repeat_ngram_size": 3,
+                        "length_penalty": 1.0,
+                        "early_stopping": False,
+                    },
+                    summary_reduce_params={
+                        "max_new_tokens": 400,
+                        "min_new_tokens": 150,
+                        "num_beams": 1,  # Greedy decoding (much faster)
+                        "no_repeat_ngram_size": 3,
+                        "length_penalty": 1.0,
+                        "early_stopping": False,
+                    },
                 )
 
                 # Initialize provider
@@ -158,13 +176,14 @@ class TestMapReduceStrategies:
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.DEBUG)
         # Get logger for summarizer module to capture strategy selection logs
-        # (The actual implementation is in summarizer.py, not map_reduce.py)
-        map_reduce_logger = logging.getLogger("podcast_scraper.summarizer")
+        # (The actual implementation is in providers.ml.summarizer)
+        map_reduce_logger = logging.getLogger("podcast_scraper.providers.ml.summarizer")
         map_reduce_logger.addHandler(handler)
         map_reduce_logger.setLevel(logging.DEBUG)
 
         try:
             with tempfile.TemporaryDirectory():
+                # Use faster generation parameters for testing (num_beams=1 for greedy decoding)
                 cfg = Config(
                     generate_metadata=True,
                     generate_summaries=True,
@@ -172,6 +191,23 @@ class TestMapReduceStrategies:
                     summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
                     summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
                     language="en",
+                    # Optimize for speed: use greedy decoding (num_beams=1) instead of beam search
+                    summary_map_params={
+                        "max_new_tokens": 150,
+                        "min_new_tokens": 60,
+                        "num_beams": 1,  # Greedy decoding (much faster)
+                        "no_repeat_ngram_size": 3,
+                        "length_penalty": 1.0,
+                        "early_stopping": False,
+                    },
+                    summary_reduce_params={
+                        "max_new_tokens": 400,
+                        "min_new_tokens": 150,
+                        "num_beams": 1,  # Greedy decoding (much faster)
+                        "no_repeat_ngram_size": 3,
+                        "length_penalty": 1.0,
+                        "early_stopping": False,
+                    },
                 )
 
                 # Initialize provider
@@ -242,13 +278,16 @@ class TestMapReduceStrategies:
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.DEBUG)
         # Get logger for summarizer module to capture strategy selection logs
-        # (The actual implementation is in summarizer.py, not map_reduce.py)
-        map_reduce_logger = logging.getLogger("podcast_scraper.summarizer")
+        # (The actual implementation is in providers.ml.summarizer)
+        map_reduce_logger = logging.getLogger("podcast_scraper.providers.ml.summarizer")
         map_reduce_logger.addHandler(handler)
         map_reduce_logger.setLevel(logging.DEBUG)
 
         try:
             with tempfile.TemporaryDirectory():
+                # Use faster generation parameters for testing (num_beams=1 for greedy decoding)
+                # This significantly speeds up the test while still testing the
+                # extractive fallback path
                 cfg = Config(
                     generate_metadata=True,
                     generate_summaries=True,
@@ -256,6 +295,24 @@ class TestMapReduceStrategies:
                     summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
                     summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
                     language="en",
+                    # Optimize for speed: use greedy decoding (num_beams=1) instead of beam search
+                    # This is 3-4x faster while still testing the extractive fallback strategy
+                    summary_map_params={
+                        "max_new_tokens": 150,  # Reduced from 200 for faster generation
+                        "min_new_tokens": 60,  # Reduced from 80
+                        "num_beams": 1,  # Greedy decoding (much faster than beam search)
+                        "no_repeat_ngram_size": 3,
+                        "length_penalty": 1.0,
+                        "early_stopping": False,  # Not needed for greedy
+                    },
+                    summary_reduce_params={
+                        "max_new_tokens": 400,  # Reduced from 650 for faster generation
+                        "min_new_tokens": 150,  # Reduced from 220
+                        "num_beams": 1,  # Greedy decoding (much faster than beam search)
+                        "no_repeat_ngram_size": 3,
+                        "length_penalty": 1.0,
+                        "early_stopping": False,  # Not needed for greedy
+                    },
                 )
 
                 # Initialize provider

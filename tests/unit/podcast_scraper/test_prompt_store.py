@@ -13,7 +13,7 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from podcast_scraper.prompt_store import (
+from podcast_scraper.prompts.store import (
     clear_cache,
     get_prompt_dir,
     get_prompt_metadata,

@@ -31,7 +31,7 @@ import pytest
 
 # Set HF_HUB_CACHE BEFORE any transformers imports
 # This ensures transformers uses the local cache consistently
-from podcast_scraper.cache_utils import get_project_root
+from podcast_scraper.cache import get_project_root
 
 _project_root = get_project_root()
 _local_cache = _project_root / ".cache" / "huggingface" / "hub"
@@ -79,7 +79,7 @@ class TestLEDSummarizationThresholdAnalysis:
         # Debug: Check cache directory resolution and set explicitly
         import os
 
-        from podcast_scraper.cache_utils import get_project_root, get_transformers_cache_dir
+        from podcast_scraper.cache import get_project_root, get_transformers_cache_dir
 
         cache_dir = get_transformers_cache_dir()
         project_root = get_project_root()
@@ -98,7 +98,7 @@ class TestLEDSummarizationThresholdAnalysis:
 
         # Require models to be cached
         # Resolve model aliases to actual model IDs
-        from podcast_scraper import summarizer
+        from podcast_scraper.providers.ml import summarizer
 
         map_model = config.TEST_DEFAULT_SUMMARY_MODEL
         resolved_map = summarizer.DEFAULT_SUMMARY_MODELS.get(map_model, map_model)
@@ -122,9 +122,13 @@ class TestLEDSummarizationThresholdAnalysis:
         log_capture = StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.DEBUG)
-        logger = logging.getLogger("podcast_scraper.summarizer")
+        # Get the actual logger used in summarizer.py
+        logger = logging.getLogger("podcast_scraper.providers.ml.summarizer")
         logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
+        # Also set root logger to ensure messages propagate
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.DEBUG)
 
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -149,6 +153,10 @@ class TestLEDSummarizationThresholdAnalysis:
                 # Extract metrics from logs
                 log_output = log_capture.getvalue()
 
+                # Debug: Print log output if approach not found
+                if "approach=" not in log_output:
+                    print(f"\n=== DEBUG: Log output (first 2000 chars) ===\n{log_output[:2000]}\n")
+
                 # Extract combined_tokens from log
                 combined_tokens_match = re.search(r"combined_tokens \((\d+)\)", log_output)
                 combined_tokens = (
@@ -156,12 +164,17 @@ class TestLEDSummarizationThresholdAnalysis:
                 )
 
                 # Extract approach from log
-                approach_match = re.search(r'approach=([^,\n"]+)|approach="([^"]+)"', log_output)
-                approach = (
-                    approach_match.group(1) or approach_match.group(2) if approach_match else None
-                )
-                if approach:
-                    approach = approach.strip()
+                # Look for "approach=..." in the log output
+                # Format: "approach=abstractive (single-pass)" or "approach=hierarchical reduce" or "approach=extractive"
+                # The log format is: "[MAP-REDUCE VALIDATION] Reduce phase decision: ... approach={approach}"
+                approach_match = re.search(r"approach=([^,\n\]]+)", log_output)
+                if not approach_match:
+                    # Try alternative patterns
+                    approach_match = re.search(r'approach="([^"]+)"', log_output)
+                if not approach_match:
+                    # Try without quotes
+                    approach_match = re.search(r"approach=(\w+(?:\s+\w+)*)", log_output)
+                approach = approach_match.group(1).strip() if approach_match else None
 
                 # Verify approach is a valid strategy
                 assert approach in [
@@ -241,9 +254,13 @@ class TestLEDSummarizationThresholdAnalysis:
         log_capture = StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.DEBUG)
-        logger = logging.getLogger("podcast_scraper.summarizer")
+        # Get the actual logger used in summarizer.py
+        logger = logging.getLogger("podcast_scraper.providers.ml.summarizer")
         logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
+        # Also set root logger to ensure messages propagate
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.DEBUG)
 
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -268,6 +285,10 @@ class TestLEDSummarizationThresholdAnalysis:
                 # Extract metrics from logs
                 log_output = log_capture.getvalue()
 
+                # Debug: Print log output if approach not found
+                if "approach=" not in log_output:
+                    print(f"\n=== DEBUG: Log output (first 2000 chars) ===\n{log_output[:2000]}\n")
+
                 # Extract combined_tokens from log
                 combined_tokens_match = re.search(r"combined_tokens \((\d+)\)", log_output)
                 combined_tokens = (
@@ -275,12 +296,17 @@ class TestLEDSummarizationThresholdAnalysis:
                 )
 
                 # Extract approach from log
-                approach_match = re.search(r'approach=([^,\n"]+)|approach="([^"]+)"', log_output)
-                approach = (
-                    approach_match.group(1) or approach_match.group(2) if approach_match else None
-                )
-                if approach:
-                    approach = approach.strip()
+                # Look for "approach=..." in the log output
+                # Format: "approach=abstractive (single-pass)" or "approach=hierarchical reduce" or "approach=extractive"
+                # The log format is: "[MAP-REDUCE VALIDATION] Reduce phase decision: ... approach={approach}"
+                approach_match = re.search(r"approach=([^,\n\]]+)", log_output)
+                if not approach_match:
+                    # Try alternative patterns
+                    approach_match = re.search(r'approach="([^"]+)"', log_output)
+                if not approach_match:
+                    # Try without quotes
+                    approach_match = re.search(r"approach=(\w+(?:\s+\w+)*)", log_output)
+                approach = approach_match.group(1).strip() if approach_match else None
 
                 # Verify approach is a valid strategy
                 assert approach in [
