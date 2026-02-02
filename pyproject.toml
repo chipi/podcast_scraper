@@ -36,7 +36,7 @@ ml = [
   # See: https://spacy.io/usage/models for model version compatibility
   "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
   "torch>=2.0.0,<3.0.0",
-  "transformers>=4.30.0,<5.0.0",
+  "transformers>=4.30.0,<6.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
   "accelerate>=0.20.0,<2.0.0",
   "protobuf>=3.20.0,<7.0.0",
