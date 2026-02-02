@@ -1,0 +1,48 @@
+# Diagnostic config: keep MAP as in Option A, force REDUCE to be longer.
+# Goal: determine whether short final summaries are caused by reduce input starvation
+# or by reduce generation params not being enforced.
+
+id: "baseline_bart_large_led_long__diag_reduce_longer"
+task: "summarization"
+
+backend:
+  type: "hf_local"
+  map_model: "bart-large"     # facebook/bart-large-cnn
+  reduce_model: "long"        # allenai/led-large-16384
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v4"
+
+# Keep your Option A MAP settings (unchanged)
+map_params:
+  max_new_tokens: 280
+  min_new_tokens: 140
+  num_beams: 4
+  no_repeat_ngram_size: 2
+  length_penalty: 1.0
+  early_stopping: true
+  repetition_penalty: 1.08
+  do_sample: false
+
+# Step 1: Force REDUCE to be longer (diagnostic)
+reduce_params:
+  max_new_tokens: 900
+  min_new_tokens: 350
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  length_penalty: 1.0
+  early_stopping: true
+  repetition_penalty: 1.10
+  do_sample: false
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150

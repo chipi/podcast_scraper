@@ -1,0 +1,55 @@
+2026-02-02 18:02:10,822 INFO __main__: ================================================================================
+2026-02-02 18:02:10,822 INFO __main__: Starting experiment run: ner_entities_spacy_sm_v1
+2026-02-02 18:02:10,822 INFO __main__: Results directory: data/eval/runs/ner_entities_spacy_sm_v1
+2026-02-02 18:02:10,822 INFO __main__: Execution log: data/eval/runs/ner_entities_spacy_sm_v1/run.log
+2026-02-02 18:02:10,822 INFO __main__: Dataset: curated_5feeds_benchmark_v1
+2026-02-02 18:02:10,822 INFO __main__: ================================================================================
+2026-02-02 18:02:10,822 INFO __main__: Creating NER provider...
+2026-02-02 18:02:10,824 INFO __main__: Loading spaCy model: en_core_web_sm
+2026-02-02 18:02:12,149 INFO __main__: ✓ spaCy model loaded: en_core_web_sm
+2026-02-02 18:02:12,180 INFO __main__: Found 10 episode(s) to process
+2026-02-02 18:02:12,180 INFO __main__: Phase 1: Running inference...
+2026-02-02 18:02:12,180 INFO __main__: Processing episode: p01_e01
+2026-02-02 18:02:12,185 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 56 → 55 (1 removed), chars: 11,049 → 11,007 (42 removed, 0.4%)
+2026-02-02 18:02:12,389 INFO __main__: Episode p01_e01 completed in 0.2s, entities found=54
+2026-02-02 18:02:12,389 INFO __main__: Processing episode: p01_e02
+2026-02-02 18:02:12,392 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 57 → 56 (1 removed), chars: 11,059 → 11,024 (35 removed, 0.3%)
+2026-02-02 18:02:12,593 INFO __main__: Episode p01_e02 completed in 0.2s, entities found=54
+2026-02-02 18:02:12,593 INFO __main__: Processing episode: p02_e01
+2026-02-02 18:02:12,596 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 58 → 57 (1 removed), chars: 11,537 → 11,509 (28 removed, 0.2%)
+2026-02-02 18:02:12,798 INFO __main__: Episode p02_e01 completed in 0.2s, entities found=33
+2026-02-02 18:02:12,799 INFO __main__: Processing episode: p02_e02
+2026-02-02 18:02:12,802 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 59 → 58 (1 removed), chars: 11,265 → 11,230 (35 removed, 0.3%)
+2026-02-02 18:02:13,001 INFO __main__: Episode p02_e02 completed in 0.2s, entities found=61
+2026-02-02 18:02:13,001 INFO __main__: Processing episode: p03_e01
+2026-02-02 18:02:13,005 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 58 → 57 (1 removed), chars: 10,679 → 10,637 (42 removed, 0.4%)
+2026-02-02 18:02:13,201 INFO __main__: Episode p03_e01 completed in 0.2s, entities found=38
+2026-02-02 18:02:13,201 INFO __main__: Processing episode: p03_e02
+2026-02-02 18:02:13,204 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 62 → 61 (1 removed), chars: 11,172 → 11,130 (42 removed, 0.4%)
+2026-02-02 18:02:13,425 INFO __main__: Episode p03_e02 completed in 0.2s, entities found=39
+2026-02-02 18:02:13,425 INFO __main__: Processing episode: p04_e01
+2026-02-02 18:02:13,428 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 57 → 56 (1 removed), chars: 10,723 → 10,688 (35 removed, 0.3%)
+2026-02-02 18:02:13,620 INFO __main__: Episode p04_e01 completed in 0.2s, entities found=13
+2026-02-02 18:02:13,621 INFO __main__: Processing episode: p04_e02
+2026-02-02 18:02:13,624 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 60 → 59 (1 removed), chars: 10,913 → 10,871 (42 removed, 0.4%)
+2026-02-02 18:02:13,816 INFO __main__: Episode p04_e02 completed in 0.2s, entities found=12
+2026-02-02 18:02:13,816 INFO __main__: Processing episode: p05_e01
+2026-02-02 18:02:13,819 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 62 → 61 (1 removed), chars: 11,190 → 11,162 (28 removed, 0.3%)
+2026-02-02 18:02:14,017 INFO __main__: Episode p05_e01 completed in 0.2s, entities found=52
+2026-02-02 18:02:14,018 INFO __main__: Processing episode: p05_e02
+2026-02-02 18:02:14,021 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 66 → 65 (1 removed), chars: 11,679 → 11,637 (42 removed, 0.4%)
+2026-02-02 18:02:14,226 INFO __main__: Episode p05_e02 completed in 0.2s, entities found=34
+2026-02-02 18:02:14,226 INFO __main__: Phase 1 completed in 2.0s
+2026-02-02 18:02:14,226 INFO __main__: Total input: 110,895 chars, output: 25,800 chars
+2026-02-02 18:02:14,226 INFO __main__: Predictions: data/eval/runs/ner_entities_spacy_sm_v1/predictions.jsonl
+2026-02-02 18:02:14,226 INFO __main__: Metadata: data/eval/runs/ner_entities_spacy_sm_v1/baseline.json
+2026-02-02 18:02:14,227 INFO __main__: Fingerprint: data/eval/runs/ner_entities_spacy_sm_v1/fingerprint.json
+2026-02-02 18:02:14,227 INFO __main__: Created README.md: data/eval/runs/ner_entities_spacy_sm_v1/README.md
+2026-02-02 18:02:14,228 INFO __main__: Computing metrics...
+2026-02-02 18:02:14,229 INFO podcast_scraper.evaluation.ner_scorer: Loaded 5 gold episode(s) from data/eval/references/gold/ner_entities/ner_entities_smoke_gold_v1
+2026-02-02 18:02:14,232 INFO __main__: Metrics: data/eval/runs/ner_entities_spacy_sm_v1/metrics.json
+2026-02-02 18:02:14,232 WARNING podcast_scraper.evaluation.schema_validator: Missing required fields: ['scored_episodes', 'match_modes', 'overall', 'per_label'] (continuing anyway - structure may differ)
+2026-02-02 18:02:14,232 INFO __main__: ✓ NER metrics validation completed
+2026-02-02 18:02:14,232 INFO podcast_scraper.evaluation.reporter: Report saved to: data/eval/runs/ner_entities_spacy_sm_v1/metrics_report.md
+2026-02-02 18:02:14,232 INFO __main__: Episodes=10, avg_time=0.2s, avg_compression=4.3x
+2026-02-02 18:02:14,232 INFO __main__: ✓ Execution log saved: data/eval/runs/ner_entities_spacy_sm_v1/run.log

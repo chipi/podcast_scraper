@@ -87,8 +87,17 @@ def generate_metrics_report(metrics: Dict[str, Any]) -> str:
             lines.append("")
             boilerplate_rate = format_metric_value(gates.get("boilerplate_leak_rate"), "percentage")
             lines.append(f"- **Boilerplate Leak Rate:** {boilerplate_rate}")
-            speaker_rate = format_metric_value(gates.get("speaker_leak_rate"), "percentage")
-            lines.append(f"- **Speaker Leak Rate:** {speaker_rate}")
+            speaker_label_rate = format_metric_value(
+                gates.get("speaker_label_leak_rate"), "percentage"
+            )
+            lines.append(f"- **Speaker Label Leak Rate:** {speaker_label_rate}")
+            # Show speaker name leak as warning if available
+            warnings = intrinsic.get("warnings", {})
+            if warnings.get("speaker_name_leak_rate") is not None:
+                speaker_name_rate = format_metric_value(
+                    warnings.get("speaker_name_leak_rate"), "percentage"
+                )
+                lines.append(f"- **Speaker Name Leak Rate (WARN):** {speaker_name_rate}")
             truncation_rate = format_metric_value(gates.get("truncation_rate"), "percentage")
             lines.append(f"- **Truncation Rate:** {truncation_rate}")
             failed = gates.get("failed_episodes", [])
@@ -98,6 +107,15 @@ def generate_metrics_report(metrics: Dict[str, Any]) -> str:
                 lines.append(
                     f"- **Failed Episodes:** {len(failed)} " f"({failed_list}{failed_suffix})"
                 )
+                # Show per-episode gate breakdown if available
+                episode_failures = gates.get("episode_gate_failures", {})
+                if episode_failures:
+                    lines.append("")
+                    lines.append("**Per-Episode Gate Failures:**")
+                    for episode_id in failed:
+                        if episode_id in episode_failures:
+                            gate_list = ", ".join(episode_failures[episode_id])
+                            lines.append(f"- `{episode_id}`: {gate_list}")
             else:
                 lines.append("- **Failed Episodes:** None")
             lines.append("")

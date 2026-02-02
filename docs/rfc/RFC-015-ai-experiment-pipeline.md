@@ -38,13 +38,15 @@
 - ✅ Extrinsic metrics computation (ROUGE, embedding similarity) vs references
 - ✅ Structured `metrics.json` format (intrinsic + vs_reference sections)
 - ✅ Comparison deltas (`comparisons/vs_{baseline_id}.json`)
-- ✅ Reference validation (dataset_id matching, episode ID matching, immutability)
+- ✅ Reference validation (episode ID matching, immutability)
 
 **Phase 3: Storage & Comparison** ✅ (Complete)
 
 - ✅ Experiment results storage in `data/eval/runs/`
 - ✅ Baseline storage in `data/eval/baselines/`
-- ✅ Reference storage in `data/eval/references/{dataset_id}/`
+- ✅ Reference storage:
+  - Silver: `data/eval/references/silver/{reference_id}/`
+  - Gold: `data/eval/references/gold/{task_type}/{reference_id}/`
 - ✅ Promotion workflow (`scripts/eval/promote_run.py`, `make run-promote`)
 - ✅ Historical tracking via immutable baselines/references
 - ✅ Comparison tools (baseline deltas, reference metrics)

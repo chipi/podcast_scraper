@@ -1,0 +1,91 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "metrics_summarization_v1.json",
+    "title": "Summarization Metrics (v1)",
+    "type": "object",
+    "additionalProperties": true,
+    "required": ["task", "dataset_id", "episodes", "gates", "length", "performance"],
+    "properties": {
+      "schema": {
+        "type": "string",
+        "const": "metrics_summarization_v1"
+      },
+      "task": {
+        "type": "string",
+        "const": "summarization"
+      },
+      "dataset_id": { "type": "string", "minLength": 1 },
+
+      "episodes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["total", "processed", "failed"],
+        "properties": {
+          "total": { "type": "integer", "minimum": 0 },
+          "processed": { "type": "integer", "minimum": 0 },
+          "failed": { "type": "integer", "minimum": 0 }
+        }
+      },
+
+      "gates": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["boilerplate_leak_rate", "speaker_label_leak_rate", "speaker_name_leak_rate", "truncation_rate"],
+        "properties": {
+          "boilerplate_leak_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+          "speaker_label_leak_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+          "speaker_name_leak_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+          "truncation_rate": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      },
+
+      "length": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["avg_tokens", "min_tokens", "max_tokens"],
+        "properties": {
+          "avg_tokens": { "type": "number", "minimum": 0 },
+          "min_tokens": { "type": "number", "minimum": 0 },
+          "max_tokens": { "type": "number", "minimum": 0 },
+
+          "avg_input_chars": { "type": "number", "minimum": 0 },
+          "avg_output_chars": { "type": "number", "minimum": 0 },
+          "avg_compression_ratio": { "type": "number", "minimum": 0 }
+        }
+      },
+
+      "performance": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["avg_latency_s"],
+        "properties": {
+          "avg_latency_s": { "type": "number", "minimum": 0 },
+          "min_latency_s": { "type": "number", "minimum": 0 },
+          "max_latency_s": { "type": "number", "minimum": 0 },
+
+          "total_runtime_s": { "type": "number", "minimum": 0 }
+        }
+      },
+
+      "vs_reference": {
+        "description": "Optional: metrics comparing this run vs a reference run (e.g., silver).",
+        "type": ["object", "null"],
+        "additionalProperties": true,
+        "properties": {
+          "reference_id": { "type": "string", "minLength": 1 },
+
+          "rouge": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "rouge1_f1": { "type": "number", "minimum": 0, "maximum": 1 },
+              "rouge2_f1": { "type": "number", "minimum": 0, "maximum": 1 },
+              "rougeL_f1": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          },
+
+          "coverage_ratio": { "type": "number", "minimum": 0 }
+        }
+      }
+    }
+  }

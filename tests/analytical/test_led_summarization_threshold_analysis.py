@@ -165,8 +165,10 @@ class TestLEDSummarizationThresholdAnalysis:
 
                 # Extract approach from log
                 # Look for "approach=..." in the log output
-                # Format: "approach=abstractive (single-pass)" or "approach=hierarchical reduce" or "approach=extractive"
-                # The log format is: "[MAP-REDUCE VALIDATION] Reduce phase decision: ... approach={approach}"
+                # Format: "approach=abstractive (single-pass)" or
+                # "approach=hierarchical reduce" or "approach=extractive"
+                # The log format is: "[MAP-REDUCE VALIDATION] Reduce phase decision: "
+                # "... approach={approach}"
                 approach_match = re.search(r"approach=([^,\n\]]+)", log_output)
                 if not approach_match:
                     # Try alternative patterns
@@ -183,7 +185,8 @@ class TestLEDSummarizationThresholdAnalysis:
                     "extractive",
                 ], (
                     f"Invalid reduce strategy: {approach}. "
-                    "Expected one of: abstractive (single-pass), hierarchical reduce, extractive"
+                    "Expected one of: abstractive (single-pass), "
+                    "hierarchical reduce, extractive"
                 )
 
                 # Check for validation warning
@@ -297,8 +300,10 @@ class TestLEDSummarizationThresholdAnalysis:
 
                 # Extract approach from log
                 # Look for "approach=..." in the log output
-                # Format: "approach=abstractive (single-pass)" or "approach=hierarchical reduce" or "approach=extractive"
-                # The log format is: "[MAP-REDUCE VALIDATION] Reduce phase decision: ... approach={approach}"
+                # Format: "approach=abstractive (single-pass)" or
+                # "approach=hierarchical reduce" or "approach=extractive"
+                # The log format is: "[MAP-REDUCE VALIDATION] Reduce phase decision: "
+                # "... approach={approach}"
                 approach_match = re.search(r"approach=([^,\n\]]+)", log_output)
                 if not approach_match:
                     # Try alternative patterns
@@ -315,7 +320,8 @@ class TestLEDSummarizationThresholdAnalysis:
                     "extractive",
                 ], (
                     f"Invalid reduce strategy: {approach}. "
-                    "Expected one of: abstractive (single-pass), hierarchical reduce, extractive"
+                    "Expected one of: abstractive (single-pass), "
+                    "hierarchical reduce, extractive"
                 )
 
                 # Check for validation warning

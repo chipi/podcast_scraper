@@ -1,0 +1,52 @@
+id: "exp_pegasus_ledbase__coverage_lift_v1"
+task: "summarization"
+
+backend:
+  type: "hf_local"
+  map_model: "google/pegasus-cnn_dailymail"
+  reduce_model: "allenai/led-base-16384"
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v1"
+
+# Keep the exact same preprocessing contract as prod authority
+preprocessing_profile: "cleaning_v4"
+
+# Keep the same chunking unless you already standardized it elsewhere
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150
+
+# Keep your tokenization caps stable (adjust only if you already use different values)
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+# --- EXPERIMENT: Coverage lift knobs ---
+# Goal: increase coverage ratio vs silver without changing the model family
+
+map_params:
+  do_sample: false
+  num_beams: 4
+  early_stopping: true
+  # Make MAP outputs denser (more semantic mass for the reducer)
+  max_new_tokens: 260
+  min_new_tokens: 120
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.08
+  length_penalty: 1.05
+
+reduce_params:
+  do_sample: false
+  num_beams: 4
+  # Critical invariant: prevent reducer premature termination
+  early_stopping: false
+  # Allow reducer to be less compressive and capture more structure
+  max_new_tokens: 900
+  min_new_tokens: 380
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.08
+  # Slightly favor longer, more complete synthesis
+  length_penalty: 1.12

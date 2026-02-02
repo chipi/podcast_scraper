@@ -1,0 +1,15 @@
+{
+    "schema": "ner_entities_gold_v1",
+    "dataset_id": "string",
+    "episode_id": "string",
+    "text_fingerprint": "sha256:<hex>",
+    "labels_in_scope": ["PERSON", "ORG", "GPE", "PRODUCT", "EVENT"],
+    "entities": [
+      {
+        "start": 0,
+        "end": 0,
+        "text": "string",
+        "label": "PERSON | ORG | GPE | PRODUCT | EVENT"
+      }
+    ]
+  }

@@ -2,6 +2,13 @@
 
 This directory contains all datasets, references, baselines, and evaluation artifacts used for ML/AI quality measurement.
 
+## Supported Tasks
+
+The evaluation system supports two task types:
+
+- **summarization** - Text summarization tasks (e.g., episode summaries)
+- **ner_entities** - Named Entity Recognition tasks (e.g., extracting host/guest names, show titles)
+
 ## Structure
 
 - **sources/** - Immutable raw inputs (transcripts, RSS XML, metadata)
@@ -66,10 +73,13 @@ Frozen reference runs representing known-good system behavior. Used for:
 
 Frozen quality targets for evaluation. Can be:
 
-- **Silver** - LLM-generated, high-quality targets
-- **Gold** - Human-verified ground truth
+- **Silver** - LLM-generated, high-quality targets (used for summarization)
+- **Gold** - Human-verified ground truth (used for both summarization and NER)
 
-**Immutable** - used for ROUGE and similarity metrics.
+**Immutable** - used for quality metrics:
+
+- Summarization: ROUGE, embedding similarity, coverage ratio
+- NER: Precision, recall, F1 (entity-set and mention-level)
 
 ### Configs (`configs/`)
 
@@ -95,7 +105,7 @@ Temporary experiment outputs. Can be:
 
 Episode metadata files (`.metadata.json` and `.meta.json`) follow a JSON schema:
 
-- **Schema file:** `episode_metadata.schema.json`
+- **Schema file:** `schemas/episode_metadata.schema.json`
 - **Current version:** 1.0
 - **Key design:** Separates facts (speakers) from expectations (output quality requirements)
 
@@ -105,7 +115,7 @@ The schema defines:
 - Speaker structure: `id`, `name`, `role` (facts about who participated)
 - Expectations structure: `allow_speaker_names`, `allow_speaker_labels`, `allow_sponsor_content` (output quality requirements)
 
-See `episode_metadata.schema.json` for the complete schema definition with examples.
+See `schemas/episode_metadata.schema.json` for the complete schema definition with examples.
 
 ## Governance
 

@@ -48,7 +48,10 @@ DEFAULT_LANGUAGE = config_constants.DEFAULT_LANGUAGE
 DEFAULT_PREPROCESSING_CACHE_DIR = config_constants.DEFAULT_PREPROCESSING_CACHE_DIR
 
 # Speaker detection defaults
-DEFAULT_NER_MODEL = config_constants.DEFAULT_NER_MODEL
+# Note: DEFAULT_NER_MODEL is now set via _get_default_ner_model() function
+# to support dev/prod distinction (TEST vs PROD defaults)
+TEST_DEFAULT_NER_MODEL = config_constants.TEST_DEFAULT_NER_MODEL
+PROD_DEFAULT_NER_MODEL = config_constants.PROD_DEFAULT_NER_MODEL
 DEFAULT_MAX_DETECTED_NAMES = config_constants.DEFAULT_MAX_DETECTED_NAMES
 MIN_NUM_SPEAKERS = config_constants.MIN_NUM_SPEAKERS
 MIN_TIMEOUT_SECONDS = config_constants.MIN_TIMEOUT_SECONDS
@@ -141,26 +144,42 @@ def _get_default_openai_summary_model() -> str:
     return PROD_DEFAULT_OPENAI_SUMMARY_MODEL
 
 
-# Default generation parameters (aligned with baseline_bart_small_led_long_fast.yaml)
+def _get_default_ner_model() -> str:
+    """Get default spaCy NER model based on environment.
+
+    Returns:
+        Test default (en_core_web_sm) if in test environment,
+        production default (en_core_web_trf) otherwise.
+    """
+    if _is_test_environment():
+        return TEST_DEFAULT_NER_MODEL
+    return PROD_DEFAULT_NER_MODEL
+
+
+# Set DEFAULT_NER_MODEL to use the environment-aware function
+DEFAULT_NER_MODEL = _get_default_ner_model()
+
+
+# Default generation parameters (aligned with baseline_ml_prod_authority_v1)
 # Note: These are NOT in config_constants.py as they're specific to Config defaults
 # These are used as defaults when summary_map_params/summary_reduce_params are not provided
-# Map stage defaults (for chunk-level summarization)
-DEFAULT_MAP_MAX_NEW_TOKENS = 200  # Baseline: 200 tokens for map stage
-DEFAULT_MAP_MIN_NEW_TOKENS = 80  # Baseline: 80 tokens for map stage
-DEFAULT_MAP_NUM_BEAMS = 4  # Baseline: 4 beams
-DEFAULT_MAP_NO_REPEAT_NGRAM_SIZE = 3  # Baseline: 3 (prevents repetition)
-DEFAULT_MAP_LENGTH_PENALTY = 1.0  # Baseline: 1.0 (no length bias)
-DEFAULT_MAP_EARLY_STOPPING = True  # Baseline: true
-DEFAULT_MAP_REPETITION_PENALTY = 1.3  # Not in baseline, but kept for quality
+# Map stage defaults (for chunk-level summarization) - Pegasus-CNN settings
+DEFAULT_MAP_MAX_NEW_TOKENS = 200  # Production baseline: 200 tokens for map stage
+DEFAULT_MAP_MIN_NEW_TOKENS = 80  # Production baseline: 80 tokens for map stage
+DEFAULT_MAP_NUM_BEAMS = 6  # Production baseline: 6 beams (Pegasus-CNN optimized)
+DEFAULT_MAP_NO_REPEAT_NGRAM_SIZE = 3  # Production baseline: 3 (prevents repetition)
+DEFAULT_MAP_LENGTH_PENALTY = 1.0  # Production baseline: 1.0 (no length bias)
+DEFAULT_MAP_EARLY_STOPPING = True  # Production baseline: true
+DEFAULT_MAP_REPETITION_PENALTY = 1.1  # Production baseline: 1.1 (Pegasus-CNN optimized)
 
-# Reduce stage defaults (for episode-level summarization)
-DEFAULT_REDUCE_MAX_NEW_TOKENS = 650  # Baseline: 650 tokens for reduce stage
-DEFAULT_REDUCE_MIN_NEW_TOKENS = 220  # Baseline: 220 tokens for reduce stage
-DEFAULT_REDUCE_NUM_BEAMS = 4  # Baseline: 4 beams (updated from 3)
-DEFAULT_REDUCE_NO_REPEAT_NGRAM_SIZE = 3  # Baseline: 3 (updated from 5)
-DEFAULT_REDUCE_LENGTH_PENALTY = 1.0  # Baseline: 1.0 (updated from 0.9)
-DEFAULT_REDUCE_EARLY_STOPPING = True  # Baseline: true
-DEFAULT_REDUCE_REPETITION_PENALTY = 1.3  # Not in baseline, but kept for quality
+# Reduce stage defaults (for episode-level summarization) - LED-base settings
+DEFAULT_REDUCE_MAX_NEW_TOKENS = 650  # Production baseline: 650 tokens for reduce stage
+DEFAULT_REDUCE_MIN_NEW_TOKENS = 220  # Production baseline: 220 tokens for reduce stage
+DEFAULT_REDUCE_NUM_BEAMS = 4  # Production baseline: 4 beams
+DEFAULT_REDUCE_NO_REPEAT_NGRAM_SIZE = 3  # Production baseline: 3
+DEFAULT_REDUCE_LENGTH_PENALTY = 1.0  # Production baseline: 1.0
+DEFAULT_REDUCE_EARLY_STOPPING = False  # Production baseline: false (ensures min_new_tokens)
+DEFAULT_REDUCE_REPETITION_PENALTY = 1.12  # Production baseline: 1.12 (LED-base optimized)
 
 # Default tokenization limits (moved from model defaults)
 DEFAULT_MAP_MAX_INPUT_TOKENS = 1024  # BART model limit
@@ -173,6 +192,7 @@ DEFAULT_DISTILL_MIN_TOKENS = 120
 DEFAULT_DISTILL_NUM_BEAMS = 4
 DEFAULT_DISTILL_NO_REPEAT_NGRAM_SIZE = 6
 DEFAULT_DISTILL_LENGTH_PENALTY = 0.75
+DEFAULT_DISTILL_REPETITION_PENALTY = 1.3  # Same as map/reduce for consistency
 
 # Default token overlap for chunking
 DEFAULT_TOKEN_OVERLAP = 200
@@ -330,7 +350,14 @@ class Config(BaseModel):
         description="Preload ML models at startup if configured to use them (default: True)",
     )
     language: str = Field(default=DEFAULT_LANGUAGE, alias="language")
-    ner_model: Optional[str] = Field(default=None, alias="ner_model")
+    ner_model: Optional[str] = Field(
+        default_factory=_get_default_ner_model,
+        alias="ner_model",
+        description=(
+            "spaCy NER model name for speaker detection. "
+            "Defaults to en_core_web_sm (dev) or en_core_web_trf (prod) based on environment."
+        ),
+    )
     auto_speakers: bool = Field(default=True, alias="auto_speakers")
     cache_detected_hosts: bool = Field(default=True, alias="cache_detected_hosts")
     # Provider selection fields (Stage 0: Foundation)
@@ -543,7 +570,7 @@ class Config(BaseModel):
             "Generation parameters for map stage (hf_local backend only). "
             "Dict with: max_new_tokens, min_new_tokens, num_beams, no_repeat_ngram_size, "
             "length_penalty, early_stopping, repetition_penalty. "
-            "Defaults aligned with baseline_bart_small_led_long_fast.yaml."
+            "Defaults aligned with baseline_ml_prod_authority_v1 (Pegasus-CNN)."
         ),
     )
     summary_reduce_params: Dict[str, Any] = Field(
@@ -561,7 +588,7 @@ class Config(BaseModel):
             "Generation parameters for reduce stage (hf_local backend only). "
             "Dict with: max_new_tokens, min_new_tokens, num_beams, no_repeat_ngram_size, "
             "length_penalty, early_stopping, repetition_penalty. "
-            "Defaults aligned with baseline_bart_small_led_long_fast.yaml."
+            "Defaults aligned with baseline_ml_prod_authority_v1 (LED-base)."
         ),
     )
     summary_tokenize: Dict[str, Any] = Field(

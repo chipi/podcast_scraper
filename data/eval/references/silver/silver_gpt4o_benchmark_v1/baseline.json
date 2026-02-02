@@ -1,0 +1,34 @@
+{
+  "run_id": "silver_openai_gpt4o_benchmark_v1",
+  "dataset_id": "curated_5feeds_benchmark_v1",
+  "created_at": "2026-02-01T20:32:13.983644Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "openai",
+    "model": "gpt-4o"
+  },
+  "params": {
+    "model_name": "gpt-4o",
+    "max_length": 800,
+    "min_length": 200,
+    "chunk_parallelism": 1,
+    "word_chunk_size": 1000,
+    "word_overlap": 150,
+    "temperature": 0.0
+  },
+  "stats": {
+    "num_episodes": 10,
+    "total_time_seconds": 76.35337495803833,
+    "avg_time_seconds": 7.635337495803833,
+    "total_chars_in": 111266,
+    "total_chars_out": 20724,
+    "avg_compression": 5.368944219262691
+  },
+  "promoted_from": "silver_openai_gpt4o_benchmark_v1",
+  "promoted_at": "2026-02-01T20:33:39.959658Z",
+  "promoted_as": "reference",
+  "promoted_id": "silver_gpt4o_benchmark_v1",
+  "reference_quality": null
+}

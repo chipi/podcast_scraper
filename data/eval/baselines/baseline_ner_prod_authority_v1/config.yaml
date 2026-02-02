@@ -1,0 +1,16 @@
+id: "baseline_ner_prod_authority_v1"
+task: "ner_entities"
+
+backend:
+  type: "spacy_local"
+  model: "en_core_web_trf"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v3"
+
+params:
+  labels: ["PERSON", "ORG", "GPE", "PRODUCT", "EVENT"]
+  scoring:
+    mode: ["entity_set", "mention_exact", "mention_overlap"]

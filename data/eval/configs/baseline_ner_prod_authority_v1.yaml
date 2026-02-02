@@ -1,0 +1,16 @@
+id: "baseline_ner_prod_authority_v1"
+task: "ner_entities"
+
+backend:
+  type: "spacy_local"
+  model: "en_core_web_trf"  # Prod: Transformer-based, higher quality (~500MB, ~450ms/episode)
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v1"
+
+preprocessing_profile: "cleaning_v3"
+
+params:
+  labels: ["PERSON", "ORG", "GPE", "PRODUCT", "EVENT"]
+  scoring:
+    match: ["exact", "overlap"]

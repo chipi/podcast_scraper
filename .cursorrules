@@ -125,6 +125,37 @@
     - Example: Call `mcp_github_get_me` → use `login` field from response
     - This prevents using Mac username when GitHub username is needed
 
+### Auto-Loading Detailed Rules (.mdc Files)
+
+15. **AUTOMATICALLY load detailed rule files when encountering specific situations**
+    - `.cursor/rules/*.mdc` files contain detailed, topic-specific guidance
+    - These are NOT automatically loaded by Cursor - YOU must read them when needed
+    - Use `read_file` tool to load the appropriate `.mdc` file BEFORE proceeding
+    - Load the file, then follow its detailed workflow
+
+    **When to load which file:**
+
+    | Situation | Load This File | Why |
+    |-----------|---------------|-----|
+    | Markdown linting errors found (from `make ci`, `make lint-markdown`, or editing markdown) | `.cursor/rules/markdown-style.mdc` | Detailed markdown workflow: `make fix-md` → `make lint-markdown` → `make docs` |
+    | About to write or modify tests | `.cursor/rules/testing-strategy.mdc` | Pytest markers, mocking patterns, test structure, coverage requirements |
+    | Creating or managing git worktrees | `.cursor/rules/git-worktree.mdc` | Worktree commands, branch naming, rebase strategies, cleanup |
+    | Refactoring or checking module boundaries | `.cursor/rules/module-boundaries.mdc` | Architecture constraints, module responsibilities, common violations |
+    | About to commit or push (need detailed checklist) | `.cursor/rules/ai-guidelines.mdc` | Step-by-step commit/push workflow, validation requirements |
+
+    **Workflow:**
+    1. Detect the situation (e.g., "markdown linting errors found")
+    2. Read the appropriate `.mdc` file using `read_file` tool
+    3. Follow the detailed workflow from that file
+    4. Proceed with the task using the detailed guidance
+
+    **Example:**
+    ```
+    Situation: make ci shows markdown linting errors
+    Action: Read .cursor/rules/markdown-style.mdc
+    Then: Follow workflow: make fix-md → make lint-markdown → make docs
+    ```
+
 ## 📋 PROJECT CONTEXT
 
 ### What This Project Is
@@ -326,6 +357,13 @@ make docker-test     # ONLY if changed Dockerfile, structure, dependencies
 
 ## 🔍 CURSOR-SPECIFIC GUIDANCE
 
+### Auto-Loading Detailed Rules
+
+- **Rule 15** → Automatically load `.cursor/rules/*.mdc` files when encountering specific situations
+- Read the appropriate `.mdc` file BEFORE proceeding with the task
+- These files provide detailed workflows that supplement the basic rules in `.cursorrules`
+- See Rule 15 above for the complete mapping of situations to rule files
+
 ### Model Selection
 
 - **Auto** → Fast iteration, small/local changes, mechanical work
@@ -338,6 +376,7 @@ make docker-test     # ONLY if changed Dockerfile, structure, dependencies
 - Split planning (Chat) and execution (Inline Chat)
 - Use Composer for big tasks (multi-file changes)
 - Reference specific sections of `.ai-coding-guidelines.md` for deep dives
+- Auto-load detailed `.mdc` rules when needed (see Rule 15)
 
 ## 📖 RELATED DOCUMENTATION
 
@@ -362,6 +401,7 @@ make docker-test     # ONLY if changed Dockerfile, structure, dependencies
 8. NEVER commit secrets
 9. ALL analysis/plans → `docs/wip/` (never `docs/analysis/`)
 10. Run `make docs` before committing doc changes
+11. Auto-load detailed `.mdc` rule files when encountering specific situations (see Rule 15)
 
 When in doubt, check `.ai-coding-guidelines.md` for complete details.
 

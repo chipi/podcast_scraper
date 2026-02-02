@@ -32,9 +32,10 @@ ml = [
   "spacy>=3.7.0,<4.0.0",
   # spaCy language models are distributed via GitHub releases (not PyPI) due to size constraints.
   # This is the official and standard method recommended by spaCy.
-  # Version compatibility: spaCy 3.7.x requires en_core_web_sm 3.7.x
+  # Version compatibility: spaCy 3.7.x requires en_core_web_sm 3.7.x and en_core_web_trf 3.7.x
   # See: https://spacy.io/usage/models for model version compatibility
   "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
+  "en-core-web-trf @ https://github.com/explosion/spacy-models/releases/download/en_core_web_trf-3.7.3/en_core_web_trf-3.7.3-py3-none-any.whl",
   "torch>=2.0.0,<3.0.0",
   "transformers>=4.30.0,<5.0.0",
   "sentencepiece>=0.1.99,<1.0.0",

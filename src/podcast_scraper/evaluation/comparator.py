@@ -109,7 +109,11 @@ def compare_vs_baseline(
     exp_gates = exp_intrinsic.get("gates", {})
     baseline_gates = baseline_intrinsic.get("gates", {})
     gate_regressions = []
-    for gate_name in ["boilerplate_leak_rate", "speaker_leak_rate", "truncation_rate"]:
+    for gate_name in [
+        "boilerplate_leak_rate",
+        "speaker_label_leak_rate",
+        "truncation_rate",
+    ]:
         exp_rate = exp_gates.get(gate_name, 0.0)
         baseline_rate = baseline_gates.get(gate_name, 0.0)
         if exp_rate > baseline_rate:

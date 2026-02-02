@@ -1,0 +1,42 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "summarization_reference_v1.json",
+    "title": "Summarization Reference (v1)",
+    "type": "object",
+    "additionalProperties": true,
+    "required": ["episode_id", "summary"],
+    "properties": {
+      "schema": {
+        "type": "string",
+        "const": "summarization_reference_v1"
+      },
+      "dataset_id": { "type": "string", "minLength": 1 },
+      "episode_id": { "type": "string", "minLength": 1 },
+      "text_fingerprint": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      },
+      "model": { "type": "string" },
+      "summary": { "type": "string", "minLength": 1 },
+
+      "segments": {
+        "description": "Optional: if you store structured summaries (e.g., map chunks or sections).",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["text"],
+          "properties": {
+            "chunk_id": { "type": ["integer", "string"] },
+            "text": { "type": "string", "minLength": 1 }
+          }
+        }
+      },
+
+      "metadata": {
+        "description": "Optional: any extra fields such as prompts, decoding params, etc.",
+        "type": "object",
+        "additionalProperties": true
+      }
+    }
+  }

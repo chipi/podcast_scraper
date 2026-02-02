@@ -1,0 +1,51 @@
+2026-02-01 21:30:55,441 INFO __main__: ================================================================================
+2026-02-01 21:30:55,441 INFO __main__: Starting experiment run: silver_openai_gpt4o_benchmark_v1
+2026-02-01 21:30:55,441 INFO __main__: Results directory: data/eval/runs/silver_openai_gpt4o_benchmark_v1
+2026-02-01 21:30:55,441 INFO __main__: Execution log: data/eval/runs/silver_openai_gpt4o_benchmark_v1/run.log
+2026-02-01 21:30:55,441 INFO __main__: Dataset: curated_5feeds_benchmark_v1
+2026-02-01 21:30:55,441 INFO __main__: ================================================================================
+2026-02-01 21:30:55,441 INFO __main__: Creating summarization provider...
+2026-02-01 21:30:57,627 INFO __main__: Found 10 episode(s) to process
+2026-02-01 21:30:57,627 INFO __main__: Phase 1: Running inference...
+2026-02-01 21:30:57,628 INFO __main__: Processing episode: p01_e01
+2026-02-01 21:31:06,424 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-01 21:31:06,443 INFO __main__: Episode p01_e01 completed in 8.8s, summary length=1954 chars
+2026-02-01 21:31:06,444 INFO __main__: Processing episode: p01_e02
+2026-02-01 21:31:11,143 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-01 21:31:11,191 INFO __main__: Episode p01_e02 completed in 4.7s, summary length=1887 chars
+2026-02-01 21:31:11,192 INFO __main__: Processing episode: p02_e01
+2026-02-01 21:31:17,795 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-01 21:31:17,808 INFO __main__: Episode p02_e01 completed in 6.6s, summary length=2312 chars
+2026-02-01 21:31:17,811 INFO __main__: Processing episode: p02_e02
+2026-02-01 21:31:23,881 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-01 21:31:23,901 INFO __main__: Episode p02_e02 completed in 6.1s, summary length=1963 chars
+2026-02-01 21:31:23,914 INFO __main__: Processing episode: p03_e01
+2026-02-01 21:31:34,867 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-01 21:31:34,884 INFO __main__: Episode p03_e01 completed in 11.0s, summary length=2154 chars
+2026-02-01 21:31:34,899 INFO __main__: Processing episode: p03_e02
+2026-02-01 21:31:42,891 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-01 21:31:42,904 INFO __main__: Episode p03_e02 completed in 8.0s, summary length=2136 chars
+2026-02-01 21:31:42,909 INFO __main__: Processing episode: p04_e01
+2026-02-01 21:31:49,552 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-01 21:31:49,603 INFO __main__: Episode p04_e01 completed in 6.7s, summary length=1813 chars
+2026-02-01 21:31:49,622 INFO __main__: Processing episode: p04_e02
+2026-02-01 21:31:56,365 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-01 21:31:56,398 INFO __main__: Episode p04_e02 completed in 6.8s, summary length=2244 chars
+2026-02-01 21:31:56,415 INFO __main__: Processing episode: p05_e01
+2026-02-01 21:32:02,791 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-01 21:32:02,809 INFO __main__: Episode p05_e01 completed in 6.4s, summary length=2110 chars
+2026-02-01 21:32:02,815 INFO __main__: Processing episode: p05_e02
+2026-02-01 21:32:13,967 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-01 21:32:13,976 INFO __main__: Episode p05_e02 completed in 11.2s, summary length=2151 chars
+2026-02-01 21:32:13,991 INFO __main__: Phase 1 completed in 76.4s
+2026-02-01 21:32:13,991 INFO __main__: Total input: 111,266 chars, output: 20,724 chars
+2026-02-01 21:32:13,991 INFO __main__: Average compression: 5.4x
+2026-02-01 21:32:13,991 INFO __main__: Predictions: data/eval/runs/silver_openai_gpt4o_benchmark_v1/predictions.jsonl
+2026-02-01 21:32:13,991 INFO __main__: Metadata: data/eval/runs/silver_openai_gpt4o_benchmark_v1/baseline.json
+2026-02-01 21:32:13,991 INFO __main__: Fingerprint: data/eval/runs/silver_openai_gpt4o_benchmark_v1/fingerprint.json
+2026-02-01 21:32:14,003 INFO __main__: Created README.md: data/eval/runs/silver_openai_gpt4o_benchmark_v1/README.md
+2026-02-01 21:32:14,069 INFO __main__: Computing metrics...
+2026-02-01 21:32:14,091 INFO __main__: Metrics: data/eval/runs/silver_openai_gpt4o_benchmark_v1/metrics.json
+2026-02-01 21:32:14,095 INFO podcast_scraper.evaluation.reporter: Report saved to: data/eval/runs/silver_openai_gpt4o_benchmark_v1/metrics_report.md
+2026-02-01 21:32:14,095 INFO __main__: Episodes=10, avg_time=7.6s, avg_compression=5.4x
+2026-02-01 21:32:14,095 INFO __main__: ✓ Execution log saved: data/eval/runs/silver_openai_gpt4o_benchmark_v1/run.log

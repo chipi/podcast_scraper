@@ -124,7 +124,10 @@ class RegressionChecker:
                 "boilerplate_leak_rate", threshold=0.0, direction="increase", severity="error"
             ),
             RegressionRule(
-                "speaker_leak_rate", threshold=0.0, direction="increase", severity="error"
+                "speaker_label_leak_rate",
+                threshold=0.0,
+                direction="increase",
+                severity="error",
             ),
             RegressionRule(
                 "truncation_rate", threshold=0.0, direction="increase", severity="error"
@@ -238,6 +241,10 @@ class RegressionChecker:
         - "intrinsic.gates.boilerplate_leak_rate"
         - "vs_reference.silver_gpt4o_v1.rougeL_f1"
         - "rougeL_f1" (checks vs_reference if available)
+        - "entity_set.precision" (checks vs_reference.{ref_id}.entity_set.precision
+            for all refs)
+        - "entity_set.per_label_f1.PERSON" (checks
+            vs_reference.{ref_id}.entity_set.per_label_f1.PERSON)
 
         Args:
             metrics: Metrics dictionary
@@ -246,6 +253,28 @@ class RegressionChecker:
         Returns:
             Metric value or None if not found
         """
+        # Handle NER entity_set paths (e.g., "entity_set.precision",
+        # "entity_set.per_label_f1.PERSON")
+        if metric_name.startswith("entity_set."):
+            vs_ref = metrics.get("vs_reference")
+            if vs_ref and isinstance(vs_ref, dict):
+                # Try each reference
+                for ref_metrics in vs_ref.values():
+                    if isinstance(ref_metrics, dict) and "entity_set" in ref_metrics:
+                        # Build path: entity_set.{rest}
+                        entity_set_path = metric_name.replace("entity_set.", "")
+                        parts = ["entity_set"] + entity_set_path.split(".")
+                        value: Any = ref_metrics
+                        for part in parts:
+                            if isinstance(value, dict):
+                                value = value.get(part)
+                            else:
+                                break
+                            if value is None:
+                                break
+                        if isinstance(value, (int, float)):
+                            return float(value)
+
         # Handle simple metric names that might be in vs_reference
         if "." not in metric_name:
             # Check vs_reference first (common case for ROUGE, BLEU, etc.)
@@ -260,24 +289,85 @@ class RegressionChecker:
 
         # Handle nested paths
         parts = metric_name.split(".")
-        value = metrics
+        nested_value: Any = metrics
 
         for part in parts:
-            if isinstance(value, dict):
-                value = value.get(part)
+            if isinstance(nested_value, dict):
+                nested_value = nested_value.get(part)
             else:
                 return None
 
-            if value is None:
+            if nested_value is None:
                 return None
 
-        if isinstance(value, (int, float)):
-            return float(value)
-        elif isinstance(value, list):
+        if isinstance(nested_value, (int, float)):
+            return float(nested_value)
+        elif isinstance(nested_value, list):
             # For lists, return length (e.g., failed_episodes)
-            return float(len(value))
+            return float(len(nested_value))
 
         return None
+
+    def check_ner_invariants(
+        self, metrics: Dict[str, Any], reference_id: Optional[str] = None
+    ) -> List[str]:
+        """Check NER-specific invariants (hard guardrails, not regressions).
+
+        These are hard failures that should block before regression rules run:
+        - Task type must be "ner_entities"
+        - Reference must be present under vs_reference
+        - Dataset must match between run and reference
+        - For entity_set mode: scoring mode must be entity_set
+        - Fingerprint mismatches (handled separately in scorer)
+
+        Args:
+            metrics: Metrics dictionary
+            reference_id: Optional reference ID to check (if None, checks all references)
+
+        Returns:
+            List of invariant violation messages (empty if all pass)
+        """
+        violations = []
+
+        # Check task type
+        task_type = metrics.get("task")
+        if task_type != "ner_entities":
+            violations.append(
+                f"NER invariant violation: task type is '{task_type}', expected 'ner_entities'"
+            )
+            return violations  # Early return if task type is wrong
+
+        # Check vs_reference exists
+        vs_reference = metrics.get("vs_reference")
+        if not vs_reference or not isinstance(vs_reference, dict):
+            violations.append("NER invariant violation: vs_reference is missing or invalid")
+            return violations  # Early return if no vs_reference
+
+        # Check specific reference if provided
+        if reference_id:
+            if reference_id not in vs_reference:
+                violations.append(
+                    f"NER invariant violation: reference '{reference_id}' not found in vs_reference"
+                )
+                return violations  # Early return if reference missing
+
+            ref_metrics = vs_reference[reference_id]
+            if not isinstance(ref_metrics, dict):
+                violations.append(
+                    f"NER invariant violation: reference '{reference_id}' metrics are invalid"
+                )
+                return violations
+
+            # Check entity_set exists (required for NER gating)
+            if "entity_set" not in ref_metrics:
+                violations.append(
+                    f"NER invariant violation: reference '{reference_id}' "
+                    f"missing entity_set metrics. "
+                    "Entity-set scoring is required for NER baselines. "
+                    "Ensure scoring.mode includes 'entity_set' in experiment config."
+                )
+
+        return violations
 
     def check_gates(self, gates: Dict[str, Any]) -> List[str]:
         """Check quality gates for failures.
@@ -291,7 +381,11 @@ class RegressionChecker:
         failed = []
 
         # Check each gate rate
-        for gate_name in ["boilerplate_leak_rate", "speaker_leak_rate", "truncation_rate"]:
+        for gate_name in [
+            "boilerplate_leak_rate",
+            "speaker_label_leak_rate",
+            "truncation_rate",
+        ]:
             rate = gates.get(gate_name, 0.0)
             if rate > 0.0:
                 failed.append(gate_name)

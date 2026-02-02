@@ -70,39 +70,39 @@ class TestModelSelection(unittest.TestCase):
 
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_select_model_auto_mps(self, mock_torch):
-        """Test auto-selection for MPS (defaults to BART-large for MAP phase)."""
+        """Test auto-selection for MPS (defaults to Pegasus-CNN for MAP phase)."""
         mock_torch.backends.mps.is_available.return_value = True
         mock_torch.cuda.is_available.return_value = False
 
         cfg = create_test_config(summary_model=None)
         model_name = summarizer.select_summary_model(cfg)
-        # Default to BART-large for MAP phase (fast, efficient chunk summarization)
-        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["bart-large"])
+        # Default to Pegasus-CNN for MAP phase (production baseline)
+        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["pegasus-cnn"])
 
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_select_model_auto_cuda(self, mock_torch):
-        """Test auto-selection for CUDA (defaults to BART-large for MAP phase)."""
+        """Test auto-selection for CUDA (defaults to Pegasus-CNN for MAP phase)."""
         mock_torch.backends.mps.is_available.return_value = False
         mock_torch.cuda.is_available.return_value = True
 
         cfg = create_test_config(summary_model=None)
         model_name = summarizer.select_summary_model(cfg)
-        # Default to BART-large for MAP phase (fast, efficient chunk summarization)
-        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["bart-large"])
+        # Default to Pegasus-CNN for MAP phase (production baseline)
+        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["pegasus-cnn"])
 
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_select_model_auto_cpu(self, mock_torch):
-        """Test auto-selection for CPU fallback (defaults to BART-large for MAP phase)."""
+        """Test auto-selection for CPU fallback (defaults to Pegasus-CNN for MAP phase)."""
         mock_torch.backends.mps.is_available.return_value = False
         mock_torch.cuda.is_available.return_value = False
 
         cfg = create_test_config(summary_model=None)
         model_name = summarizer.select_summary_model(cfg)
-        # Default to BART-large for MAP phase (fast, efficient chunk summarization)
-        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["bart-large"])
+        # Default to Pegasus-CNN for MAP phase (production baseline)
+        self.assertEqual(model_name, summarizer.DEFAULT_SUMMARY_MODELS["pegasus-cnn"])
 
     def test_select_reduce_model_defaults_to_led(self):
-        """Test that reduce model defaults to LED-large when not configured."""
+        """Test that reduce model defaults to LED-base when not configured."""
         from podcast_scraper import config
 
         cfg = create_test_config(
@@ -110,9 +110,9 @@ class TestModelSelection(unittest.TestCase):
         )
         map_model_name = summarizer.select_summary_model(cfg)
         reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
-        # Should default to LED-large for reduce phase (production quality),
+        # Should default to LED-base for reduce phase (production baseline),
         # not fall back to map model
-        self.assertEqual(reduce_model_name, summarizer.DEFAULT_SUMMARY_MODELS["long"])
+        self.assertEqual(reduce_model_name, summarizer.DEFAULT_SUMMARY_MODELS["long-fast"])
 
     def test_select_reduce_model_with_explicit_model(self):
         """Test that explicit reduce model selection works."""
@@ -140,17 +140,17 @@ class TestModelSelection(unittest.TestCase):
         self.assertEqual(reduce_model_name, "allenai/led-base-16384")
 
     def test_select_summary_model_raises_when_default_missing(self):
-        """Test that select_summary_model raises RuntimeError when default model missing."""
+        """Test that select_summary_model raises ValueError when default model missing."""
         cfg = create_test_config(summary_model=None)
         # Temporarily remove the default model from DEFAULT_SUMMARY_MODELS
         original_models = summarizer.DEFAULT_SUMMARY_MODELS.copy()
         try:
-            # Remove bart-large to trigger the error
-            if "bart-large" in summarizer.DEFAULT_SUMMARY_MODELS:
-                del summarizer.DEFAULT_SUMMARY_MODELS["bart-large"]
+            # Remove pegasus-cnn to trigger the error
+            if "pegasus-cnn" in summarizer.DEFAULT_SUMMARY_MODELS:
+                del summarizer.DEFAULT_SUMMARY_MODELS["pegasus-cnn"]
             with self.assertRaises(ValueError) as context:
                 summarizer.select_summary_model(cfg)
-            self.assertIn("DEFAULT_SUMMARY_MODELS['bart-large']", str(context.exception))
+            self.assertIn("DEFAULT_SUMMARY_MODELS['pegasus-cnn']", str(context.exception))
         finally:
             # Restore original models
             summarizer.DEFAULT_SUMMARY_MODELS.clear()
@@ -297,6 +297,8 @@ class TestSummaryModel(unittest.TestCase):
         )
 
         # Manually set attributes that _load_model would set
+        # Mock tokenizer.encode() to return a list (has length)
+        self.mock_tokenizer.encode = Mock(return_value=[1, 2, 3, 4, 5])
         model.tokenizer = self.mock_tokenizer
         model.model = self.mock_model
         model.pipeline = self.mock_pipe
@@ -769,6 +771,8 @@ class TestSafeSummarize(unittest.TestCase):
         )
 
         # Manually set attributes that _load_model would set
+        # Mock tokenizer.encode() to return a list (has length)
+        mock_tokenizer.encode = Mock(return_value=[1, 2, 3, 4, 5])
         model.tokenizer = mock_tokenizer
         model.model = mock_model
         model.pipeline = mock_pipe

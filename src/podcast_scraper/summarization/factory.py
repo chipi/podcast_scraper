@@ -163,9 +163,12 @@ def create_summarization_provider(
             cfg = Config(
                 rss="",  # Dummy, not used for summarization (use alias)
                 summary_provider="openai",
+                generate_summaries=True,  # Required for OpenAI provider initialization
+                generate_metadata=True,  # Required when generate_summaries=True
                 openai_summary_model=params.model_name if params.model_name else "gpt-4o-mini",
                 openai_temperature=params.temperature if params.temperature is not None else 0.3,
                 openai_api_key=os.getenv("OPENAI_API_KEY"),  # Load from env
+                openai_max_tokens=params.max_length if params.max_length else None,
             )
             return OpenAIProvider(cfg)
         else:

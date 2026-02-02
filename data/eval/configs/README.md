@@ -6,10 +6,12 @@ This directory contains experiment configuration YAML files that define how expe
 
 Experiment configs are **inputs** to the experiment runner. They specify:
 
-- Model/provider configuration (OpenAI, HuggingFace local, etc.)
-- Prompt templates to use
+- Task type (`summarization` or `ner_entities`)
+- Model/provider configuration (OpenAI, HuggingFace local, spaCy, etc.)
+- Prompt templates to use (for OpenAI backends)
 - Dataset references
 - Generation parameters (temperature, max tokens, etc.)
+- Scoring parameters (for NER tasks: match modes, label sets)
 
 ## Structure
 
@@ -55,6 +57,26 @@ params:
   min_length: 30
 ```
 
+```yaml
+# Example: NER task with spaCy backend
+id: "ner_entities_spacy_trf_v1"
+task: "ner_entities"
+
+backend:
+  type: "spacy_local"
+  model: "en_core_web_trf"  # or "en_core_web_sm" for dev
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v3"
+
+params:
+  labels: ["PERSON", "ORG", "GPE", "PRODUCT", "EVENT"]
+  scoring:
+    mode: ["entity_set", "mention_exact", "mention_overlap"]
+```
+
 ## Usage
 
 Configs are referenced when running experiments:
@@ -79,14 +101,15 @@ This ensures:
 
 Use descriptive names that indicate:
 
-- Task (e.g., `summarization_`, `transcription_`)
-- Model/provider (e.g., `openai_`, `bart_`, `led_`)
+- Task (e.g., `summarization_`, `ner_entities_`, `transcription_`)
+- Model/provider (e.g., `openai_`, `bart_`, `led_`, `spacy_`)
 - Version (e.g., `_v1`, `_v2`)
 
 Examples:
 
 - `summarization_openai_long_v1.yaml` (with `id: "summarization_openai_long_v1"`)
 - `baseline_bart_small_led_long_fast.yaml` (with `id: "baseline_bart_small_led_long_fast"`)
+- `ner_entities_spacy_trf_v1.yaml` (with `id: "ner_entities_spacy_trf_v1"`)
 - `experiment_prompt_v4.yaml` (with `id: "experiment_prompt_v4"`)
 
 ## Backend-Specific Requirements
@@ -102,6 +125,17 @@ Examples:
   - They summarize based on training, not instructions
   - Prompts are ignored if provided
   - You can omit the `prompts` section entirely for cleaner configs
+
+### spaCy Backend (NER)
+
+- **task**: Must be `"ner_entities"`
+- **model**: spaCy model name (e.g., `"en_core_web_trf"` for prod, `"en_core_web_sm"` for dev)
+- **preprocessing_profile**: Preprocessing profile ID (e.g., `"cleaning_v3"`)
+- **params.labels**: List of entity labels to extract (e.g., `["PERSON", "ORG"]`)
+- **params.scoring.mode**: Scoring modes to compute (e.g., `["entity_set", "mention_exact", "mention_overlap"]`)
+  - `entity_set`: Position-agnostic, text-based comparison (primary for KG)
+  - `mention_exact`: Exact offset matching
+  - `mention_overlap`: Overlapping span matching
 
 ## Notes
 

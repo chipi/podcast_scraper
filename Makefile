@@ -129,6 +129,17 @@ help:
 	@echo "                            Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1"
 	@echo "  make experiment-run      Run an experiment using a config file"
 	@echo "                            Usage: make experiment-run CONFIG=data/eval/configs/my_experiment.yaml"
+	@echo "  make run-freeze          Freeze a run for baseline comparison"
+	@echo "                            Usage: make run-freeze RUN_ID=run_name [REASON=\"...\"]"
+	@echo "  make runs-delete         Delete experiment runs"
+	@echo "                            Usage: make runs-delete RUN_IDS=\"run1 run2 run3\""
+	@echo "  make configs-archive     Archive experiment configs to dated folder"
+	@echo "                            Usage: make configs-archive [NAME=param_sweeps] [DATE=2026-01-30]"
+	@echo "  make configs-clean       Remove experiment configs (use after archive)"
+	@echo "                            Usage: make configs-clean [KEEP=baseline.yaml]"
+	@echo "  make runs-archive        Archive experiment runs to named subfolder"
+	@echo "                            Usage: make runs-archive FOLDER=name PATTERN=\"pattern\""
+	@echo "                                  or: make runs-archive FOLDER=name RUNS=\"run1 run2\""
 
 init:
 	# Upgrade pip, setuptools, and wheel (required for PEP 660 editable installs with pyproject.toml)
@@ -1025,17 +1036,18 @@ dataset-materialize:
 
 run-promote:
 	@# Promote a run to baseline or reference
-	@# Usage: make run-promote RUN_ID=run_2026-01-16_11-52-03 --as baseline PROMOTED_ID=baseline_prod_authority_v2 REASON="New production baseline"
+	@# Usage: make run-promote RUN_ID=run_2026-01-16_11-52-03 --as baseline PROMOTED_ID=baseline_prod_authority_v2 REASON="New production baseline" [RENAME_TO=baseline_ml_dev_authority_smoke_v1]
 	@if [ -z "$(RUN_ID)" ]; then \
 		echo "❌ Error: RUN_ID is required"; \
 		echo ""; \
-		echo "Usage: make run-promote RUN_ID=run_2026-01-16_11-52-03 --as baseline PROMOTED_ID=baseline_prod_authority_v2 REASON=\"...\""; \
+		echo "Usage: make run-promote RUN_ID=run_2026-01-16_11-52-03 --as baseline PROMOTED_ID=baseline_prod_authority_v2 REASON=\"...\" [RENAME_TO=...]"; \
 		echo ""; \
 		echo "For baselines:"; \
-		echo "  make run-promote RUN_ID=run_xxx --as baseline PROMOTED_ID=baseline_prod_v2 REASON=\"...\""; \
+		echo "  make run-promote RUN_ID=run_xxx --as baseline PROMOTED_ID=baseline_prod_v2 REASON=\"...\" [RENAME_TO=baseline_new_name]"; \
 		echo ""; \
 		echo "For references:"; \
-		echo "  make run-promote RUN_ID=run_xxx --as reference PROMOTED_ID=silver_gpt5_v1 DATASET_ID=curated_5feeds_benchmark_v1 REASON=\"...\" [REFERENCE_QUALITY=silver|gold]"; \
+		echo "  make run-promote RUN_ID=run_xxx --as reference PROMOTED_ID=silver_gpt5_v1 REASON=\"...\" [REFERENCE_QUALITY=silver|gold] [RENAME_TO=...]"; \
+		echo "    Note: DATASET_ID no longer required. Task type auto-detected from run."; \
 		exit 1; \
 	fi
 	@if [ -z "$(PROMOTED_ID)" ]; then \
@@ -1052,22 +1064,28 @@ run-promote:
 	fi
 	@cmd="$(PYTHON) scripts/eval/promote_run.py --run-id $(RUN_ID) --as $(AS) --promoted-id $(PROMOTED_ID) --reason \"$(REASON)\""; \
 	if [ "$(AS)" = "reference" ]; then \
-		if [ -z "$(DATASET_ID)" ]; then \
-			echo "❌ Error: DATASET_ID is required when promoting to reference"; \
-			exit 1; \
+		# DATASET_ID is optional now (task type auto-detected from run) \
+		if [ -n "$(DATASET_ID)" ]; then \
+			cmd="$$cmd --dataset-id $(DATASET_ID)"; \
 		fi; \
-		cmd="$$cmd --dataset-id $(DATASET_ID)"; \
 		if [ -n "$(REFERENCE_QUALITY)" ]; then \
 			cmd="$$cmd --reference-quality $(REFERENCE_QUALITY)"; \
 		fi; \
 	fi; \
+	if [ -n "$(RENAME_TO)" ]; then \
+		cmd="$$cmd --rename-to $(RENAME_TO)"; \
+	fi; \
 	eval $$cmd
 	@echo ""
-	@echo "✓ Run promoted to $(AS): $(PROMOTED_ID)"
+	@if [ -n "$(RENAME_TO)" ]; then \
+		echo "✓ Run promoted to $(AS) and renamed: $(RENAME_TO)"; \
+	else \
+		echo "✓ Run promoted to $(AS): $(PROMOTED_ID)"; \
+	fi
 
 baseline-create:
 	@# Materialize a baseline from current system state (creates run then auto-promotes)
-	@# Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1 [EXPERIMENT_CONFIG=...] [PREPROCESSING_PROFILE=...]
+	@# Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1 [EXPERIMENT_CONFIG=...] [PREPROCESSING_PROFILE=...] [REFERENCE=ref1,ref2]
 	@if [ -z "$(BASELINE_ID)" ]; then \
 		echo "❌ Error: BASELINE_ID is required"; \
 		echo ""; \
@@ -1096,6 +1114,12 @@ baseline-create:
 		echo "  Preprocessing profile: $(PREPROCESSING_PROFILE)"; \
 		cmd="$$cmd --preprocessing-profile $(PREPROCESSING_PROFILE)"; \
 	fi; \
+	if [ -n "$(REFERENCE)" ]; then \
+		echo "  Reference(s): $(REFERENCE)"; \
+		for ref in $$(echo $(REFERENCE) | tr ',' ' '); do \
+			cmd="$$cmd --reference $$ref"; \
+		done; \
+	fi; \
 	eval $$cmd; \
 	echo ""; \
 	echo "Auto-promoting run to baseline..."; \
@@ -1118,6 +1142,7 @@ experiment-run:
 		echo "  DRY_RUN=1                         Dry run mode: generate predictions only, skip metrics/comparison"; \
 		echo "  SMOKE_INFERENCE_ONLY=1            Smoke test mode: same as DRY_RUN"; \
 		echo "  SCORE_ONLY=1                      Score-only mode: skip inference, use existing predictions.jsonl"; \
+		echo "  FORCE=1                           Delete existing run directory before starting (useful for re-runs)"; \
 		exit 1; \
 		fi
 	@if [ ! -f "$(CONFIG)" ]; then \
@@ -1144,9 +1169,132 @@ experiment-run:
 		echo "  Mode: dry-run (predictions only, skip metrics/comparison)"; \
 		cmd="$$cmd --dry-run"; \
 	fi; \
+	if [ "$(FORCE)" = "1" ]; then \
+		echo "  Force: deleting existing run directory"; \
+		cmd="$$cmd --force"; \
+	fi; \
+	if [ "$(SCORE_ONLY)" = "1" ]; then \
+		echo "  Mode: score-only (skip inference, use existing predictions)"; \
+		cmd="$$cmd --score-only"; \
+	fi; \
 	eval $$cmd
 	@echo ""
 	@echo "✓ Experiment completed. Check data/eval/runs/ directory for output."
+
+run-freeze:
+	@# Freeze a run for baseline comparison (moves to _frozen_pre_cleanup/)
+	@# Usage: make run-freeze RUN_ID=baseline_bart_small_led_long_fast [REASON="Pre-cleanup baseline"]
+	@if [ -z "$(RUN_ID)" ]; then \
+		echo "❌ Error: RUN_ID is required"; \
+		echo "Usage: make run-freeze RUN_ID=baseline_bart_small_led_long_fast"; \
+		echo ""; \
+		echo "Available runs:"; \
+		ls -d data/eval/runs/*/ 2>/dev/null | grep -v '_frozen' | xargs -I {} basename {} | sed 's/^/  /'; \
+		exit 1; \
+	fi
+	@if [ ! -d "data/eval/runs/$(RUN_ID)" ]; then \
+		echo "❌ Error: Run not found: data/eval/runs/$(RUN_ID)"; \
+		exit 1; \
+	fi
+	@frozen_dir="data/eval/runs/_frozen_pre_cleanup"; \
+	mkdir -p "$$frozen_dir"; \
+	if [ -d "$$frozen_dir/$(RUN_ID)" ]; then \
+		echo "❌ Error: Frozen run already exists: $$frozen_dir/$(RUN_ID)"; \
+		exit 1; \
+	fi; \
+	mv "data/eval/runs/$(RUN_ID)" "$$frozen_dir/$(RUN_ID)"; \
+	reason="$${REASON:-Frozen pre-cleanup baseline candidate for comparison.}"; \
+	echo "# Frozen Run: $(RUN_ID)" > "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "**Status**: Frozen" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "**Frozen Date**: $$(date +%Y-%m-%d)" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "## Purpose" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "$$reason" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "You can also just rename the folder so you don't accidentally overwrite it." >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "This run will let you quantify improvement after cleanup:" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "- repetition down" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "- garbage tokens down" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "- coherence up" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "- speaker label leakage down" >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo "- etc." >> "$$frozen_dir/$(RUN_ID)/NOTE.md"; \
+	echo ""; \
+	echo "✓ Frozen run: $(RUN_ID)"; \
+	echo "  Location: $$frozen_dir/$(RUN_ID)/"; \
+	echo "  NOTE.md created with freeze reason"
+
+runs-delete:
+	@# Delete experiment runs (use with caution!)
+	@# Usage: make runs-delete RUN_IDS="run1 run2 run3"
+	@if [ -z "$(RUN_IDS)" ]; then \
+		echo "❌ Error: RUN_IDS is required"; \
+		echo "Usage: make runs-delete RUN_IDS=\"run1 run2 run3\""; \
+		echo ""; \
+		echo "Available runs:"; \
+		ls -d data/eval/runs/*/ 2>/dev/null | grep -v '_frozen' | xargs -I {} basename {} | sed 's/^/  /'; \
+		exit 1; \
+	fi
+	@for run_id in $(RUN_IDS); do \
+		if [ -d "data/eval/runs/$$run_id" ]; then \
+			rm -rf "data/eval/runs/$$run_id"; \
+			echo "  Deleted: $$run_id"; \
+		else \
+			echo "  Skipped (not found): $$run_id"; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "✓ Deletion complete"
+
+configs-archive:
+	@# Archive all experiment configs to a dated folder
+	@# Usage: make configs-archive [NAME=param_sweeps] [DATE=2026-01-30]
+	@# Defaults: NAME=experiment_configs, DATE=today
+	@archive_name=$${NAME:-experiment_configs}; \
+	archive_date=$${DATE:-$$(date +%Y-%m-%d)}; \
+	archive_dir="data/eval/configs/_archive/$${archive_name}_$${archive_date}"; \
+	configs=$$(ls data/eval/configs/baseline_*.yaml 2>/dev/null | grep -v '_archive'); \
+	if [ -z "$$configs" ]; then \
+		echo "❌ No experiment configs found to archive (baseline_*.yaml)"; \
+		exit 1; \
+	fi; \
+	echo "Archiving configs to: $$archive_dir"; \
+	mkdir -p "$$archive_dir"; \
+	for cfg in $$configs; do \
+		cp "$$cfg" "$$archive_dir/"; \
+		echo "  Archived: $$(basename $$cfg)"; \
+	done; \
+	config_count=$$(ls "$$archive_dir"/*.yaml 2>/dev/null | wc -l | tr -d ' '); \
+	echo ""; \
+	echo "✓ Archived $$config_count config(s) to $$archive_dir"; \
+	echo ""; \
+	echo "To restore later:"; \
+	echo "  cp $$archive_dir/*.yaml data/eval/configs/"
+
+configs-clean:
+	@# Remove experiment configs from main folder (keeps README and examples)
+	@# Usage: make configs-clean [KEEP=baseline_bart_small_led_long_fast.yaml]
+	@# Use after configs-archive to clean up
+	@keep_file="$${KEEP:-}"; \
+	configs=$$(ls data/eval/configs/baseline_*.yaml 2>/dev/null); \
+	if [ -z "$$configs" ]; then \
+		echo "No experiment configs to clean"; \
+		exit 0; \
+	fi; \
+	for cfg in $$configs; do \
+		if [ -n "$$keep_file" ] && [ "$$(basename $$cfg)" = "$$keep_file" ]; then \
+			echo "  Keeping: $$(basename $$cfg)"; \
+		else \
+			rm "$$cfg"; \
+			echo "  Removed: $$(basename $$cfg)"; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "✓ Configs cleaned. Remaining:"; \
+	ls data/eval/configs/*.yaml 2>/dev/null || echo "  (none)"
 
 runs-list:
 	@# List all experiment runs

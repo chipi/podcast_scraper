@@ -46,7 +46,7 @@ rules:
     direction: increase
     severity: error
 
-  - metric: intrinsic.gates.speaker_leak_rate
+  - metric: intrinsic.gates.speaker_label_leak_rate
     threshold: 0.0
     direction: increase
     severity: error
@@ -65,5 +65,43 @@ rules:
   # Cost - warn if cost increases significantly
   - metric: intrinsic.cost.total_cost_usd
     threshold: 0.10  # $0.10
+    direction: increase
+    severity: warning
+
+  # ----------------------------
+  # NER (KG-oriented) - entity_set
+  # Reference: ner_entities_smoke_gold_v1
+  # ----------------------------
+  # For NER, we gate on entity_set metrics (product-relevant) and keep mention-level as diagnostics only
+  # Note: Do NOT gate on mention_exact.* or mention_overlap.* (diagnostic-only)
+
+  # Prod authority (TRF): precision must stay extremely high
+  - metric: vs_reference.ner_entities_smoke_gold_v1.entity_set.precision
+    threshold: 0.02  # Allow 2% drop (from 1.0 baseline)
+    direction: decrease
+    severity: error
+
+  # Overall entity_set F1 shouldn't regress materially
+  - metric: vs_reference.ner_entities_smoke_gold_v1.entity_set.f1
+    threshold: 0.05  # Allow 5% drop
+    direction: decrease
+    severity: error
+
+  # PERSON is your must-not-break signal (host/guest)
+  - metric: vs_reference.ner_entities_smoke_gold_v1.entity_set.per_label_f1.PERSON
+    threshold: 0.05  # Allow 5% drop
+    direction: decrease
+    severity: error
+
+  # ORG is typically noisier / formatting-dependent: warn only
+  - metric: vs_reference.ner_entities_smoke_gold_v1.entity_set.per_label_f1.ORG
+    threshold: 0.15  # Allow 15% drop
+    direction: decrease
+    severity: warning
+
+  # Performance regression: warn (tune to your tolerance)
+  # Note: This applies to both summarization and NER
+  - metric: intrinsic.performance.avg_latency_ms
+    threshold: 200.0  # 200ms increase (tighter for NER)
     direction: increase
     severity: warning

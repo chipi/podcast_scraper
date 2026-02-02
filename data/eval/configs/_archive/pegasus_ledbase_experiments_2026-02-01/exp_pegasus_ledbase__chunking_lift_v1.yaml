@@ -1,0 +1,52 @@
+id: "exp_pegasus_ledbase__chunking_lift_v1"
+task: "summarization"
+
+backend:
+  type: "hf_local"
+  map_model: "google/pegasus-cnn_dailymail"
+  reduce_model: "allenai/led-base-16384"
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v1"
+
+# Keep the exact same preprocessing contract as prod authority
+preprocessing_profile: "cleaning_v4"
+
+# --- EXPERIMENT: Chunking lift knobs ---
+# Goal: reduce fragmentation and preserve more semantic mass per chunk
+# while keeping reducer load stable.
+
+chunking:
+  strategy: "word_chunking"
+  # Increase chunk size so MAP summaries carry more context.
+  # (Your earlier runs were around ~900; this is a controlled bump.)
+  word_chunk_size: 1200
+  # Slightly increase overlap to preserve continuity across boundaries.
+  word_overlap: 200
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+# Keep decoding close to prod authority (don’t bias length too much here).
+map_params:
+  do_sample: false
+  num_beams: 4
+  early_stopping: true
+  max_new_tokens: 220
+  min_new_tokens: 90
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.05
+  length_penalty: 1.0
+
+reduce_params:
+  do_sample: false
+  num_beams: 4
+  # Critical invariant: never early stop reduce
+  early_stopping: false
+  max_new_tokens: 850
+  min_new_tokens: 360
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.05
+  length_penalty: 1.0

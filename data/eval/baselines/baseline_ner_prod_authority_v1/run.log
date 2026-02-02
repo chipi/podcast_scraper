@@ -1,0 +1,50 @@
+2026-02-02 18:41:31,546 INFO __main__: ================================================================================
+2026-02-02 18:41:31,546 INFO __main__: Starting experiment run: ner_entities_spacy_trf_smoke5_v1
+2026-02-02 18:41:31,546 INFO __main__: Results directory: data/eval/runs/ner_entities_spacy_trf_smoke5_v1
+2026-02-02 18:41:31,547 INFO __main__: Execution log: data/eval/runs/ner_entities_spacy_trf_smoke5_v1/run.log
+2026-02-02 18:41:31,547 INFO __main__: Dataset: curated_5feeds_smoke_v1
+2026-02-02 18:41:31,547 INFO __main__: ================================================================================
+2026-02-02 18:41:31,547 INFO __main__: Creating NER provider...
+2026-02-02 18:41:31,549 INFO __main__: Loading spaCy model: en_core_web_trf
+2026-02-02 18:41:33,396 INFO __main__: ✓ spaCy model loaded: en_core_web_trf
+2026-02-02 18:41:33,437 INFO __main__: Found 5 episode(s) to process
+2026-02-02 18:41:33,437 INFO __main__: Phase 1: Running inference...
+2026-02-02 18:41:33,437 INFO __main__: Processing episode: p01_e01
+2026-02-02 18:41:33,442 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 56 → 55 (1 removed), chars: 11,049 → 11,007 (42 removed, 0.4%)
+2026-02-02 18:41:33,921 INFO __main__: Episode p01_e01 completed in 0.5s, entities found=54
+2026-02-02 18:41:33,921 INFO __main__: Processing episode: p02_e01
+2026-02-02 18:41:33,925 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 58 → 57 (1 removed), chars: 11,537 → 11,509 (28 removed, 0.2%)
+2026-02-02 18:41:34,386 INFO __main__: Episode p02_e01 completed in 0.5s, entities found=59
+2026-02-02 18:41:34,387 INFO __main__: Processing episode: p03_e01
+2026-02-02 18:41:34,390 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 58 → 57 (1 removed), chars: 10,679 → 10,637 (42 removed, 0.4%)
+2026-02-02 18:41:34,812 INFO __main__: Episode p03_e01 completed in 0.4s, entities found=57
+2026-02-02 18:41:34,812 INFO __main__: Processing episode: p04_e01
+2026-02-02 18:41:34,816 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 57 → 56 (1 removed), chars: 10,723 → 10,688 (35 removed, 0.3%)
+2026-02-02 18:41:35,256 INFO __main__: Episode p04_e01 completed in 0.4s, entities found=57
+2026-02-02 18:41:35,257 INFO __main__: Processing episode: p05_e01
+2026-02-02 18:41:35,260 INFO __main__: [PREPROCESSING] Profile: cleaning_v3, lines: 62 → 61 (1 removed), chars: 11,190 → 11,162 (28 removed, 0.3%)
+2026-02-02 18:41:35,682 INFO __main__: Episode p05_e01 completed in 0.4s, entities found=62
+2026-02-02 18:41:35,682 INFO __main__: Phase 1 completed in 2.2s
+2026-02-02 18:41:35,682 INFO __main__: Total input: 55,003 chars, output: 18,861 chars
+2026-02-02 18:41:35,682 INFO __main__: Predictions: data/eval/runs/ner_entities_spacy_trf_smoke5_v1/predictions.jsonl
+2026-02-02 18:41:35,683 INFO __main__: Metadata: data/eval/runs/ner_entities_spacy_trf_smoke5_v1/baseline.json
+2026-02-02 18:41:35,683 INFO __main__: Fingerprint: data/eval/runs/ner_entities_spacy_trf_smoke5_v1/fingerprint.json
+2026-02-02 18:41:35,683 INFO __main__: Created README.md: data/eval/runs/ner_entities_spacy_trf_smoke5_v1/README.md
+2026-02-02 18:41:35,684 INFO __main__: Computing metrics...
+2026-02-02 18:41:35,685 INFO podcast_scraper.evaluation.ner_scorer: Loaded 5 gold episode(s) from /Users/markodragoljevic/Projects/podcast_scraper-FUTURE/data/eval/references/gold/ner_entities/ner_entities_smoke_gold_v1
+2026-02-02 18:41:35,685 INFO podcast_scraper.evaluation.ner_scorer: Episode p01_e01: 54 predicted entities → 54 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}
+2026-02-02 18:41:35,685 INFO podcast_scraper.evaluation.ner_scorer: Episode p02_e01: 59 predicted entities → 59 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}
+2026-02-02 18:41:35,685 INFO podcast_scraper.evaluation.ner_scorer: Episode p03_e01: 57 predicted entities → 57 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}
+2026-02-02 18:41:35,686 INFO podcast_scraper.evaluation.ner_scorer: Episode p04_e01: 57 predicted entities → 57 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}
+2026-02-02 18:41:35,686 INFO podcast_scraper.evaluation.ner_scorer: Episode p05_e01: 62 predicted entities → 62 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}
+2026-02-02 18:41:35,687 INFO podcast_scraper.evaluation.ner_scorer: Episode p01_e01: 54 predicted entities → 54 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}
+2026-02-02 18:41:35,687 INFO podcast_scraper.evaluation.ner_scorer: Episode p02_e01: 59 predicted entities → 59 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}
+2026-02-02 18:41:35,688 INFO podcast_scraper.evaluation.ner_scorer: Episode p03_e01: 57 predicted entities → 57 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}
+2026-02-02 18:41:35,688 INFO podcast_scraper.evaluation.ner_scorer: Episode p04_e01: 57 predicted entities → 57 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}
+2026-02-02 18:41:35,689 INFO podcast_scraper.evaluation.ner_scorer: Episode p05_e01: 62 predicted entities → 62 in scope (0 ignored). Gold scope: PERSON=2 texts, ORG=1 texts. Ignored by label: {}
+2026-02-02 18:41:35,690 INFO __main__: Metrics: data/eval/runs/ner_entities_spacy_trf_smoke5_v1/metrics.json
+2026-02-02 18:41:35,690 WARNING podcast_scraper.evaluation.schema_validator: Missing required fields: ['scored_episodes', 'match_modes', 'overall', 'per_label'] (continuing anyway - structure may differ)
+2026-02-02 18:41:35,690 INFO __main__: ✓ NER metrics validation completed
+2026-02-02 18:41:35,690 INFO podcast_scraper.evaluation.reporter: Report saved to: data/eval/runs/ner_entities_spacy_trf_smoke5_v1/metrics_report.md
+2026-02-02 18:41:35,690 INFO __main__: Episodes=5, avg_time=0.4s, avg_compression=2.9x
+2026-02-02 18:41:35,690 INFO __main__: ✓ Execution log saved: data/eval/runs/ner_entities_spacy_trf_smoke5_v1/run.log

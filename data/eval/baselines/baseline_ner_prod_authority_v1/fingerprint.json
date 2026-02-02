@@ -1,0 +1,67 @@
+{
+  "fingerprint_version": "1.0",
+  "task": "ner_entities",
+  "run_context": {
+    "run_id": "2026-02-02T17:41:33.436773Z",
+    "baseline_id": "ner_entities_spacy_trf_smoke5_v1",
+    "dataset_id": "curated_5feeds_smoke_v1",
+    "git": {
+      "commit": "8ff860952f197f8f6ea053be60308949451d0d0d",
+      "branch": "feat/data-eval-experiment-infrastructure",
+      "dirty": true
+    }
+  },
+  "provider": {
+    "provider_type": "nonetype",
+    "provider_library": "unknown",
+    "provider_library_version": "unknown"
+  },
+  "pipeline": {
+    "type": "single_stage",
+    "stages": {
+      "main": {
+        "stage_id": "main",
+        "model": {
+          "provider_type": "local_ml",
+          "framework": "transformers",
+          "model_name": "en_core_web_trf",
+          "model_revision": null,
+          "tokenizer_name": null,
+          "tokenizer_revision": null,
+          "endpoint": null
+        },
+        "generation_params": {}
+      }
+    }
+  },
+  "preprocessing": {
+    "profile_id": "cleaning_v3",
+    "profile_version": "3.0",
+    "steps": {
+      "remove_timestamps": true,
+      "normalize_speakers": true,
+      "remove_sponsor_blocks": true,
+      "collapse_blank_lines": true,
+      "remove_fillers": false,
+      "remove_garbage_lines": true,
+      "remove_credit_blocks": true,
+      "remove_outro_blocks": true,
+      "remove_artifacts": true
+    }
+  },
+  "tokenization": {},
+  "chunking": {
+    "strategy": "word_chunking",
+    "word_chunk_size": 900,
+    "word_overlap": 150,
+    "effective_token_chunk_size": 600,
+    "token_overlap": 60,
+    "boundary_heuristic": "sentence_boundary_prefer",
+    "source": "default"
+  },
+  "environment": {
+    "python_version": "3.11.8",
+    "os": "Darwin-24.6.0-arm64"
+  },
+  "runtime": {}
+}

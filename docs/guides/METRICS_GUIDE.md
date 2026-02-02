@@ -29,11 +29,18 @@ Detect common issues in generated summaries:
 
 - **`boilerplate_leak_rate`**: Fraction of episodes with promotional/sponsor content leaks
   - Patterns detected: "subscribe to our newsletter", "follow us on", "rate and review", etc.
-- **`speaker_leak_rate`**: Fraction of episodes with speaker annotations leaking through
-  - Patterns detected: "Host:", "Speaker 1:", "[laughter]", etc.
+- **`speaker_label_leak_rate`**: Fraction of episodes with speaker labels leaking through (FAIL gate)
+  - Patterns detected: "Host:", "Guest:", "Speaker 1:", "Interviewer:", etc.
+  - This is the main summarization gate - should be 0.0
 - **`truncation_rate`**: Fraction of episodes that appear truncated
   - Detected by truncation markers ("...", "[TRUNCATED]") or suspiciously short outputs
 - **`failed_episodes`**: List of episode IDs that failed quality gates
+
+### Warnings (Not Gates)
+
+- **`speaker_name_leak_rate`**: Fraction of episodes with actual speaker names leaking through (WARN only)
+  - Detects actual names from metadata (e.g., "Alice", "Bob") appearing in summaries
+  - This is tracked for monitoring but does not cause gate failures
 
 ### 2. Length Metrics
 
@@ -96,7 +103,10 @@ python scripts/eval/run_experiment.py config.yaml --reference golden_v1 --refere
 References can be:
 
 - **Baselines**: `data/eval/baselines/<baseline_id>/`
-- **References**: `data/eval/references/<dataset_id>/<reference_id>/`
+- **References**:
+  - Silver: `data/eval/references/silver/<reference_id>/`
+  - Gold NER: `data/eval/references/gold/ner_entities/<reference_id>/`
+  - Gold Summarization: `data/eval/references/gold/summarization/<reference_id>/`
 - **Legacy baselines**: `benchmarks/baselines/<baseline_id>/`
 
 Each reference must have a `predictions.jsonl` file with the same episode IDs as your run.

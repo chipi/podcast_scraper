@@ -1,0 +1,19 @@
+{
+  "schema": "ner_entities_gold_index_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "episodes": [
+    "p01_e01",
+    "p02_e01",
+    "p03_e01",
+    "p04_e01",
+    "p05_e01"
+  ],
+  "labels_in_scope": [
+    "PERSON",
+    "ORG",
+    "GPE",
+    "PRODUCT",
+    "EVENT"
+  ],
+  "notes": "Smoke gold for NER entities aligned to materialized text (preprocessing_profile=cleaning_v3)."
+}

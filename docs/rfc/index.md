@@ -38,6 +38,9 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-042](RFC-042-hybrid-summarization-pipeline.md) | Hybrid Podcast Summarization Pipeline | - | Hybrid MAP-REDUCE with instruction-tuned LLMs (v2.5) |
 | [RFC-043](RFC-043-automated-metrics-alerts.md) | Automated Metrics Alerts | - | Automated regression alerts and PR comments for pipeline metrics |
 | [RFC-044](RFC-044-model-registry.md) | Model Registry for Architecture Limits | - | Centralized registry to eliminate hardcoded model limits throughout codebase |
+| [RFC-045](RFC-045-ml-model-optimization-guide.md) | ML Model Optimization Guide | PRD-005, PRD-007 | Comprehensive guide for maximizing ML quality via preprocessing and parameter tuning |
+| [RFC-046](RFC-046-materialization-architecture.md) | Materialization Architecture | PRD-007 | Shift preprocessing from run parameter to dataset materialization for honest comparisons |
+| [RFC-047](RFC-047-run-comparison-visual-tool.md) | Lightweight Run Comparison & Diagnostics Tool | PRD-007 | Fast, one-page visual tool for comparing runs and diagnosing regressions |
 
 ## Completed RFCs
 

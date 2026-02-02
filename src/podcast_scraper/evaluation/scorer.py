@@ -14,6 +14,11 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from podcast_scraper.evaluation.ner_scorer import compute_ner_vs_reference_metrics
+from podcast_scraper.evaluation.schema_validator import (
+    validate_summarization_reference,
+)
+
 try:
     from rouge_score import rouge_scorer
 except ImportError:
@@ -105,9 +110,12 @@ def compute_intrinsic_metrics(  # noqa: C901
 
     # Quality gates - detect common issues
     boilerplate_leaks = []
-    speaker_leaks = []
+    speaker_label_leaks = []  # Labels like "Host:", "Guest:", "Speaker 1:" (FAIL gate)
+    speaker_name_leaks = []  # Actual names like "Alice", "Bob" from metadata (WARN only)
     truncated = []
     failed_episodes = []
+    # Per-episode gate breakdown (for debugging which gate failed)
+    episode_gate_failures = {}  # episode_id -> list of gate names that failed
 
     # Patterns for detection
     boilerplate_patterns = [
@@ -120,13 +128,14 @@ def compute_intrinsic_metrics(  # noqa: C901
         "thanks to our sponsor",
     ]
 
-    # Fallback regex patterns (used when metadata speakers not available)
-    speaker_leak_patterns_fallback = [
+    # Speaker label patterns (labels like "Host:", "Guest:", "Speaker 1:")
+    # These are FAIL gates - should never appear in summaries
+    speaker_label_patterns = [
         r"\bHost:\s*",
+        r"\bGuest:\s*",
         r"\bSpeaker\s+\d+:\s*",
         r"\bInterviewer:\s*",
-        r"\bGuest:\s*",
-        r"\[.*?\]",  # Bracketed annotations like [laughter]
+        r"\bInterviewee:\s*",
     ]
 
     import re
@@ -158,63 +167,73 @@ def compute_intrinsic_metrics(  # noqa: C901
             # Fallback: check for boilerplate if no expectations specified
             has_boilerplate = any(pattern in summary_lower for pattern in boilerplate_patterns)
 
+        # Track which gates failed for this episode
+        episode_failures = []
+
         if has_boilerplate:
             boilerplate_leaks.append(episode_id)
+            episode_failures.append("boilerplate_leak")
 
-        # Check for speaker leaks using metadata speakers and expectations
-        has_speaker_leak = False
+        # Check for speaker label leaks (FAIL gate: "Host:", "Guest:", "Speaker 1:")
+        has_speaker_label_leak = False
         if metadata_map and episode_id in metadata_map:
-            # Use structured speakers from metadata (flat format)
+            episode_metadata = metadata_map[episode_id]
+            expectations = episode_metadata.get("expectations", {})
+            allow_speaker_labels = expectations.get("allow_speaker_labels", False)
+
+            # Only check for label leaks if labels are not allowed
+            if not allow_speaker_labels:
+                has_speaker_label_leak = any(
+                    re.search(pattern, summary, re.IGNORECASE) for pattern in speaker_label_patterns
+                )
+        else:
+            # Fallback: check for label leaks if no expectations specified
+            has_speaker_label_leak = any(
+                re.search(pattern, summary, re.IGNORECASE) for pattern in speaker_label_patterns
+            )
+
+        if has_speaker_label_leak:
+            speaker_label_leaks.append(episode_id)
+            episode_failures.append("speaker_label_leak")
+
+        # Check for speaker name leaks (WARN only: actual names like "Alice", "Bob")
+        has_speaker_name_leak = False
+        if metadata_map and episode_id in metadata_map:
             episode_metadata = metadata_map[episode_id]
             speakers = episode_metadata.get("speakers", [])
             expectations = episode_metadata.get("expectations", {})
-
-            # Check expectations: if allow_speaker_labels is False, check for leaks
-            allow_speaker_labels = expectations.get("allow_speaker_labels", False)
             allow_speaker_names = expectations.get("allow_speaker_names", False)
 
-            # Only check for leaks if expectations prohibit speaker labels/names
-            if not allow_speaker_labels or not allow_speaker_names:
-                # Check if any speaker name appears in summary (indicating a leak)
-                # Skip placeholder names (TODO: ...)
-                if speakers:
-                    for speaker in speakers:
-                        if isinstance(speaker, dict):
-                            speaker_name = speaker.get("name", "").strip()
-                            # Skip placeholder names
-                            if not speaker_name or speaker_name.startswith("TODO:"):
-                                continue
-                        elif isinstance(speaker, str):
-                            speaker_name = speaker.strip()
-                            if not speaker_name or speaker_name.startswith("TODO:"):
-                                continue
-                        else:
+            # Only check for name leaks if names are not allowed
+            if not allow_speaker_names and speakers:
+                for speaker in speakers:
+                    if isinstance(speaker, dict):
+                        speaker_name = speaker.get("name", "").strip()
+                        # Skip placeholder names
+                        if not speaker_name or speaker_name.startswith("TODO:"):
                             continue
+                    elif isinstance(speaker, str):
+                        speaker_name = speaker.strip()
+                        if not speaker_name or speaker_name.startswith("TODO:"):
+                            continue
+                    else:
+                        continue
 
-                        # Check for speaker name followed by colon (e.g., "Alice Johnson:")
-                        # or in brackets (e.g., "[Alice Johnson: Right.]")
-                        name_pattern = re.escape(speaker_name)
-                        # Match: "Name:" or "[Name:" or "Name:" at start of line
-                        leak_patterns = [
-                            rf"\b{name_pattern}:\s*",  # "Alice Johnson:"
-                            rf"\[{name_pattern}:\s*",  # "[Alice Johnson:"
-                            rf"\[{name_pattern}\s+",  # "[Alice Johnson "
-                        ]
-                        if any(
-                            re.search(pattern, summary, re.IGNORECASE) for pattern in leak_patterns
-                        ):
-                            has_speaker_leak = True
-                            break
+                    # Check for speaker name followed by colon (e.g., "Alice Johnson:")
+                    # or in brackets (e.g., "[Alice Johnson: Right.]")
+                    name_pattern = re.escape(speaker_name)
+                    # Match: "Name:" or "[Name:" or "Name:" at start of line
+                    leak_patterns = [
+                        rf"\b{name_pattern}:\s*",  # "Alice Johnson:"
+                        rf"\[{name_pattern}:\s*",  # "[Alice Johnson:"
+                        rf"\[{name_pattern}\s+",  # "[Alice Johnson "
+                    ]
+                    if any(re.search(pattern, summary, re.IGNORECASE) for pattern in leak_patterns):
+                        has_speaker_name_leak = True
+                        break
 
-        # Fallback to regex patterns if no metadata speakers available
-        if not has_speaker_leak:
-            has_speaker_leak = any(
-                re.search(pattern, summary, re.IGNORECASE)
-                for pattern in speaker_leak_patterns_fallback
-            )
-
-        if has_speaker_leak:
-            speaker_leaks.append(episode_id)
+        if has_speaker_name_leak:
+            speaker_name_leaks.append(episode_id)
 
         # Check for truncation (output ends abruptly or with common truncation markers)
         truncation_markers = ["...", "…", "[TRUNCATED]", "[CUT OFF]"]
@@ -223,24 +242,46 @@ def compute_intrinsic_metrics(  # noqa: C901
         input_length = pred.get("metadata", {}).get("input_length_chars", 0)
         output_length = pred.get("metadata", {}).get("output_length_chars", len(summary))
         # If output is less than 1% of input, likely truncated (for summarization)
+        is_truncated = False
         if input_length > 0 and output_length > 0:
             compression_ratio = output_length / input_length
             if compression_ratio < 0.01:  # Less than 1% - suspiciously short
+                is_truncated = True
                 truncated.append(episode_id)
         elif ends_with_marker:
+            is_truncated = True
             truncated.append(episode_id)
 
-        # Collect all failed episodes
-        if has_boilerplate or has_speaker_leak or ends_with_marker:
+        # Track truncation failures
+        if is_truncated:
+            episode_failures.append("truncation")
+
+        # Collect all failed episodes (gates: boilerplate, speaker_label_leak, truncation)
+        # Note: speaker_name_leak is WARN only, not a gate
+        # Use is_truncated (not ends_with_marker) to match the truncation rate logic
+        if has_boilerplate or has_speaker_label_leak or is_truncated:
             failed_episodes.append(episode_id)
+            # Store which gates failed for this episode
+            if episode_failures:
+                episode_gate_failures[episode_id] = episode_failures
 
     gates = {
         "boilerplate_leak_rate": (
             len(boilerplate_leaks) / episode_count if episode_count > 0 else 0.0
         ),
-        "speaker_leak_rate": len(speaker_leaks) / episode_count if episode_count > 0 else 0.0,
+        "speaker_label_leak_rate": (
+            len(speaker_label_leaks) / episode_count if episode_count > 0 else 0.0
+        ),
         "truncation_rate": len(truncated) / episode_count if episode_count > 0 else 0.0,
         "failed_episodes": list(set(failed_episodes)),  # Deduplicate
+        "episode_gate_failures": episode_gate_failures,  # Per-episode breakdown
+    }
+
+    # Warnings (not gates, but tracked for monitoring)
+    warnings = {
+        "speaker_name_leak_rate": (
+            len(speaker_name_leaks) / episode_count if episode_count > 0 else 0.0
+        ),
     }
 
     # Length metrics
@@ -306,6 +347,7 @@ def compute_intrinsic_metrics(  # noqa: C901
     # Build result dict - only include cost if we have cost data (skip for ML models)
     result = {
         "gates": gates,
+        "warnings": warnings,  # Warnings (not gates, but tracked for monitoring)
         "length": length,
         "performance": performance,
     }
@@ -358,12 +400,19 @@ def compute_rouge_vs_reference(
             logger.warning(f"Episode {episode_id} not found in reference, skipping ROUGE")
             continue
 
-        pred_text = pred_by_id[episode_id].get("output", {}).get("summary_long", "") or pred_by_id[
-            episode_id
-        ].get("output", "")
-        ref_text = ref_by_id[episode_id].get("output", {}).get("summary_long", "") or ref_by_id[
-            episode_id
-        ].get("output", "")
+        # Handle both old format (summary_long) and new format (summary_final)
+        pred_output = pred_by_id[episode_id].get("output", {})
+        pred_text = (
+            pred_output.get("summary_final")
+            or pred_output.get("summary_long")
+            or (pred_output if isinstance(pred_output, str) else "")
+        )
+        ref_output = ref_by_id[episode_id].get("output", {})
+        ref_text = (
+            ref_output.get("summary_final")
+            or ref_output.get("summary_long")
+            or (ref_output if isinstance(ref_output, str) else "")
+        )
 
         if not pred_text or not ref_text:
             logger.warning(f"Empty text for episode {episode_id}, skipping ROUGE")
@@ -423,12 +472,19 @@ def compute_bleu_vs_reference(
             logger.warning(f"Episode {episode_id} not found in reference, skipping BLEU")
             continue
 
-        pred_text = pred_by_id[episode_id].get("output", {}).get("summary_long", "") or pred_by_id[
-            episode_id
-        ].get("output", "")
-        ref_text = ref_by_id[episode_id].get("output", {}).get("summary_long", "") or ref_by_id[
-            episode_id
-        ].get("output", "")
+        # Handle both old format (summary_long) and new format (summary_final)
+        pred_output = pred_by_id[episode_id].get("output", {})
+        pred_text = (
+            pred_output.get("summary_final")
+            or pred_output.get("summary_long")
+            or (pred_output if isinstance(pred_output, str) else "")
+        )
+        ref_output = ref_by_id[episode_id].get("output", {})
+        ref_text = (
+            ref_output.get("summary_final")
+            or ref_output.get("summary_long")
+            or (ref_output if isinstance(ref_output, str) else "")
+        )
 
         if not pred_text or not ref_text:
             logger.warning(f"Empty text for episode {episode_id}, skipping BLEU")
@@ -489,12 +545,19 @@ def compute_wer_vs_reference(
             logger.warning(f"Episode {episode_id} not found in reference, skipping WER")
             continue
 
-        pred_text = pred_by_id[episode_id].get("output", {}).get("summary_long", "") or pred_by_id[
-            episode_id
-        ].get("output", "")
-        ref_text = ref_by_id[episode_id].get("output", {}).get("summary_long", "") or ref_by_id[
-            episode_id
-        ].get("output", "")
+        # Handle both old format (summary_long) and new format (summary_final)
+        pred_output = pred_by_id[episode_id].get("output", {})
+        pred_text = (
+            pred_output.get("summary_final")
+            or pred_output.get("summary_long")
+            or (pred_output if isinstance(pred_output, str) else "")
+        )
+        ref_output = ref_by_id[episode_id].get("output", {})
+        ref_text = (
+            ref_output.get("summary_final")
+            or ref_output.get("summary_long")
+            or (ref_output if isinstance(ref_output, str) else "")
+        )
 
         if not pred_text or not ref_text:
             logger.warning(f"Empty text for episode {episode_id}, skipping WER")
@@ -562,12 +625,19 @@ def compute_embedding_similarity(
             )
             continue
 
-        pred_text = pred_by_id[episode_id].get("output", {}).get("summary_long", "") or pred_by_id[
-            episode_id
-        ].get("output", "")
-        ref_text = ref_by_id[episode_id].get("output", {}).get("summary_long", "") or ref_by_id[
-            episode_id
-        ].get("output", "")
+        # Handle both old format (summary_long) and new format (summary_final)
+        pred_output = pred_by_id[episode_id].get("output", {})
+        pred_text = (
+            pred_output.get("summary_final")
+            or pred_output.get("summary_long")
+            or (pred_output if isinstance(pred_output, str) else "")
+        )
+        ref_output = ref_by_id[episode_id].get("output", {})
+        ref_text = (
+            ref_output.get("summary_final")
+            or ref_output.get("summary_long")
+            or (ref_output if isinstance(ref_output, str) else "")
+        )
 
         if not pred_text or not ref_text:
             logger.warning(f"Empty text for episode {episode_id}, skipping embedding similarity")
@@ -625,6 +695,16 @@ def compute_vs_reference_metrics(
 
     reference_predictions = load_predictions(ref_predictions_path)
 
+    # Validate each reference entry against schema
+    for ref_entry in reference_predictions:
+        try:
+            validate_summarization_reference(ref_entry)
+        except ValueError as e:
+            raise ValueError(
+                f"Reference entry validation failed for episode "
+                f"{ref_entry.get('episode_id', 'unknown')}: {e}"
+            ) from e
+
     # Load reference metadata
     ref_metadata_path = reference_path / "baseline.json"
     reference_quality = None
@@ -675,6 +755,41 @@ def compute_vs_reference_metrics(
         logger.warning(f"Embedding similarity computation skipped: {e}")
         embedding_similarity = None
 
+    # Compute coverage ratio (ML tokens / silver tokens)
+    ml_token_counts = []
+    silver_token_counts = []
+    for episode_id in pred_ids:
+        pred = pred_by_id[episode_id]
+        ref = ref_by_id[episode_id]
+
+        # Extract summary text from predictions (handle both old and new formats)
+        pred_output = pred.get("output", {})
+        pred_summary = (
+            pred_output.get("summary_final")
+            or pred_output.get("summary_long")
+            or (pred_output if isinstance(pred_output, str) else "")
+        )
+        if pred_summary and isinstance(pred_summary, str):
+            ml_token_counts.append(estimate_tokens(pred_summary))
+
+        # Extract summary text from reference
+        ref_output = ref.get("output", {})
+        ref_summary = (
+            ref_output.get("summary_final")
+            or ref_output.get("summary_long")
+            or (ref_output if isinstance(ref_output, str) else "")
+        )
+        if ref_summary and isinstance(ref_summary, str):
+            silver_token_counts.append(estimate_tokens(ref_summary))
+
+    # Calculate coverage ratio (average ML tokens / average silver tokens)
+    coverage_ratio = None
+    if ml_token_counts and silver_token_counts:
+        avg_ml_tokens = sum(ml_token_counts) / len(ml_token_counts)
+        avg_silver_tokens = sum(silver_token_counts) / len(silver_token_counts)
+        if avg_silver_tokens > 0:
+            coverage_ratio = avg_ml_tokens / avg_silver_tokens
+
     return {
         "reference_quality": reference_quality,
         "rouge1_f1": rouge_scores.get("rouge1_f1"),
@@ -683,6 +798,7 @@ def compute_vs_reference_metrics(
         "bleu": bleu_score,
         "wer": wer_score,
         "embedding_cosine": embedding_similarity,
+        "coverage_ratio": coverage_ratio,
         "numbers_retained": None,  # TODO: Implement numbers retention metric
     }
 
@@ -693,6 +809,7 @@ def score_run(
     run_id: str,
     reference_paths: Optional[Dict[str, Path]] = None,
     metadata_map: Optional[Dict[str, Dict[str, Any]]] = None,
+    scoring_params: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Score a run and compute all metrics.
 
@@ -702,12 +819,23 @@ def score_run(
         run_id: Run identifier
         reference_paths: Optional dict of {reference_id: reference_path}
         metadata_map: Optional mapping of episode_id -> metadata dict (for speaker detection)
+        scoring_params: Optional scoring parameters (e.g., {"match": ["exact", "overlap"]} for NER)
 
     Returns:
         Complete metrics dictionary with intrinsic and vs_reference sections
     """
     # Load predictions
     predictions = load_predictions(predictions_path)
+
+    # Determine task type from predictions (check if entities or summary_final exists)
+    task_type = None
+    if predictions:
+        first_pred = predictions[0]
+        output = first_pred.get("output", {})
+        if "entities" in output:
+            task_type = "ner_entities"
+        elif "summary_final" in output or "summary_long" in output:
+            task_type = "summarization"
 
     # Compute intrinsic metrics (always)
     intrinsic = compute_intrinsic_metrics(
@@ -719,16 +847,39 @@ def score_run(
     if reference_paths:
         for ref_id, ref_path in reference_paths.items():
             try:
-                vs_reference[ref_id] = compute_vs_reference_metrics(predictions, ref_id, ref_path)
+                if task_type == "ner_entities":
+                    vs_reference[ref_id] = compute_ner_vs_reference_metrics(
+                        predictions,
+                        ref_id,
+                        ref_path,
+                        scoring_params=scoring_params,
+                        dataset_id=dataset_id,
+                        metadata_map=metadata_map,
+                    )
+                else:
+                    vs_reference[ref_id] = compute_vs_reference_metrics(
+                        predictions, ref_id, ref_path
+                    )
             except Exception as e:
                 logger.error(f"Failed to compute metrics vs reference '{ref_id}': {e}")
                 # Continue with other references
                 vs_reference[ref_id] = {"error": str(e)}
 
-    return {
+    # Build metrics dict with schema field
+    metrics = {
         "dataset_id": dataset_id,
         "run_id": run_id,
         "episode_count": len(predictions),
         "intrinsic": intrinsic,
         "vs_reference": vs_reference if vs_reference else None,
     }
+
+    # Add schema field based on task type
+    if task_type == "ner_entities":
+        metrics["schema"] = "metrics_ner_v1"
+        metrics["task"] = "ner_entities"
+    elif task_type == "summarization":
+        metrics["schema"] = "metrics_summarization_v1"
+        metrics["task"] = "summarization"
+
+    return metrics

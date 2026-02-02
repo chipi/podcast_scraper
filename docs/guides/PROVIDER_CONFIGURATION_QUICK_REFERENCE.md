@@ -119,12 +119,12 @@ whisper_model: base  # or "tiny", "small", "medium", "large", etc.
 # Speaker detection settings (for spacy provider)
 
 auto_speakers: true
-ner_model: en_core_web_sm  # spaCy model name
+ner_model: en_core_web_trf  # spaCy model name. Options: "en_core_web_trf" (default/prod, higher quality), "en_core_web_sm" (dev, fast). Defaults based on environment
 
 # Summarization settings (for local provider)
 
 generate_summaries: true
-summary_model: bart-large  # Transformers model alias (options: bart-large, bart-small)
+summary_model: pegasus-cnn  # Transformers model alias. Options: "pegasus-cnn" (default/prod), "bart-small" (dev), "bart-large", "fast", "pegasus", "long", "long-fast"
 summary_device: cpu  # or "cuda", "mps"
 ```
 

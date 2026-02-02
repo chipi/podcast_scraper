@@ -25,13 +25,13 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 # Add parent directory to path to import podcast_scraper modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from podcast_scraper.evaluation.config import ExperimentConfig, load_experiment_config
-from podcast_scraper.prompt_store import get_prompt_metadata
+from podcast_scraper.prompts.store import get_prompt_metadata
 from podcast_scraper.providers.params import SummarizationParams
 from podcast_scraper.summarization.factory import create_summarization_provider
 
@@ -524,6 +524,20 @@ def get_preprocessing_steps(profile_id: str) -> Dict[str, Any]:
             "remove_outro_blocks": True,  # Added in v3
             "remove_artifacts": True,  # Added in v3 (summarization artifacts)
         },
+        "cleaning_v4": {
+            "remove_timestamps": True,
+            "normalize_speakers": True,
+            "remove_sponsor_blocks": True,
+            "collapse_blank_lines": True,
+            "remove_fillers": False,
+            "remove_garbage_lines": True,
+            "remove_credit_blocks": True,
+            "remove_outro_blocks": True,
+            "remove_artifacts": True,
+            "strip_episode_header": True,  # Added in v4
+            "anonymize_speakers": True,  # Added in v4
+            "filter_junk_lines": True,  # Added in v4 (is_junk_line)
+        },
         "cleaning_none": {
             "remove_timestamps": False,
             "normalize_speakers": False,
@@ -662,9 +676,16 @@ def generate_enhanced_fingerprint(
     # This ensures reproducibility and makes comparisons meaningful
     generation_params = {}
     map_generation_params = {}
+    reduce_generation_params = {}
 
     if experiment_config:
-        if experiment_config.backend.type == "openai":
+        # Handle different task types
+        if experiment_config.task == "ner_entities":
+            # NER tasks don't have generation params
+            generation_params = {}
+            map_generation_params = {}
+            reduce_generation_params = {}
+        elif experiment_config.backend.type == "openai":
             # OpenAI API parameters (use defaults from SummarizationParams)
             generation_params = {
                 "temperature": 0.0,  # Baseline: 0.0 for deterministic
@@ -672,8 +693,12 @@ def generate_enhanced_fingerprint(
                 "max_tokens": 800,  # Default from SummarizationParams
                 "seed": 42,  # Baseline: fixed seed for reproducibility
             }
+            map_generation_params = {}
+            reduce_generation_params = {}
         else:
             # HuggingFace/Transformers models - use explicit map_params/reduce_params
+            if not experiment_config.map_params:
+                raise ValueError("map_params required for hf_local backend with summarization task")
             map_generation_params = {
                 "max_new_tokens": experiment_config.map_params.max_new_tokens,
                 "min_new_tokens": experiment_config.map_params.min_new_tokens,
@@ -681,9 +706,26 @@ def generate_enhanced_fingerprint(
                 "no_repeat_ngram_size": experiment_config.map_params.no_repeat_ngram_size,
                 "length_penalty": experiment_config.map_params.length_penalty,
                 "early_stopping": experiment_config.map_params.early_stopping,
+                "repetition_penalty": experiment_config.map_params.repetition_penalty,
                 "temperature": 0.0,  # Deterministic
                 "seed": 42,  # Fixed seed
             }
+            # Extract reduce_params separately (CRITICAL: reduce stage uses different params)
+            if experiment_config.reduce_params:
+                reduce_generation_params = {
+                    "max_new_tokens": experiment_config.reduce_params.max_new_tokens,
+                    "min_new_tokens": experiment_config.reduce_params.min_new_tokens,
+                    "num_beams": experiment_config.reduce_params.num_beams,
+                    "no_repeat_ngram_size": experiment_config.reduce_params.no_repeat_ngram_size,
+                    "length_penalty": experiment_config.reduce_params.length_penalty,
+                    "early_stopping": experiment_config.reduce_params.early_stopping,
+                    "repetition_penalty": experiment_config.reduce_params.repetition_penalty,
+                    "temperature": 0.0,  # Deterministic
+                    "seed": 42,  # Fixed seed
+                }
+            else:
+                # Fallback: use map params if reduce_params not specified
+                reduce_generation_params = map_generation_params.copy()
             generation_params = map_generation_params.copy()
 
     # Extract tokenization information from tokenize config
@@ -695,28 +737,55 @@ def generate_enhanced_fingerprint(
             "truncation": experiment_config.tokenize.truncation,
         }
 
+    # For NER tasks, extract params (currently unused but kept for future use)
+    # ner_params = {}
+    # if experiment_config and experiment_config.task == "ner_entities" and \
+    #     experiment_config.params:
+    #     ner_params = {
+    #         "labels": experiment_config.params.get("labels"),
+    #         "model": (
+    #             experiment_config.backend.model
+    #             if experiment_config.backend.type == "spacy_local"
+    #             else None
+    #         ),
+    #     }
+
     # Extract chunking information
     # Chunking is one of the most important parts of the pipeline.
     # It affects quality, cost, latency, hallucination rate, and comparability.
     # Changing chunking can change outputs as much as changing models.
     chunking = {}
     if experiment_config:
-        # Chunking params are not in the new structure - use defaults
-        # Word-based chunking defaults (for encoder-decoder models like BART)
-        word_chunk_size = 900  # Default from Config
-        word_overlap = 150  # Default from Config
+        # Use explicit chunking config if provided, otherwise use defaults
+        if experiment_config.chunking:
+            # Explicit chunking config provided
+            chunking_config = experiment_config.chunking
+            strategy = chunking_config.strategy
+            word_chunk_size = chunking_config.word_chunk_size
+            word_overlap = chunking_config.word_overlap
+            source = "explicit_config"
+        else:
+            # No explicit chunking config - use defaults (must be marked as such)
+            strategy = "word_chunking"  # Default strategy
+            word_chunk_size = 900  # Default from summarizer.DEFAULT_WORD_CHUNK_SIZE
+            word_overlap = 150  # Default from summarizer.DEFAULT_WORD_OVERLAP
+            source = "default"
+
         # Effective token chunk size is capped at 600 for encoder-decoder models
         # Overlap is calculated as 10% of effective chunk size
-        effective_token_chunk_size = min(600, word_chunk_size)  # ENCODER_DECODER_TOKEN_CHUNK_SIZE
-        token_overlap = max(1, int(effective_token_chunk_size * 0.1))  # CHUNK_OVERLAP_RATIO = 0.1
+        # ENCODER_DECODER_TOKEN_CHUNK_SIZE
+        effective_token_chunk_size = min(600, word_chunk_size)
+        # CHUNK_OVERLAP_RATIO = 0.1
+        token_overlap = max(1, int(effective_token_chunk_size * 0.1))
 
         chunking = {
-            "strategy": "word_chunking",
+            "strategy": strategy,
             "word_chunk_size": word_chunk_size,
             "word_overlap": word_overlap,
             "effective_token_chunk_size": effective_token_chunk_size,  # Actual token size used
             "token_overlap": token_overlap,  # Actual token overlap used
             "boundary_heuristic": "sentence_boundary_prefer",
+            "source": source,  # "explicit_config" or "default" - governance tracking
             # Note: word chunking is converted to token chunking internally
             # for encoder-decoder models (BART, PEGASUS)
         }
@@ -744,7 +813,9 @@ def generate_enhanced_fingerprint(
             chunking["overlap_ratio"] = 0.1
 
     # Get environment information
-    python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    python_version = (
+        f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    )
     os_info = f"{platform.system()}-{platform.release()}-{platform.machine()}"
 
     # Determine pipeline structure
@@ -792,17 +863,44 @@ def generate_enhanced_fingerprint(
                         "tokenizer_revision": reduce_model_info.get("tokenizer_revision"),
                     },
                     "generation_params": {
-                        # Reduce phase typically uses same params, but could differ
-                        "max_new_tokens": generation_params.get(
-                            "max_new_tokens", generation_params.get("max_length", 150)
+                        # Reduce phase uses reduce_params (not map params!)
+                        "max_new_tokens": reduce_generation_params.get(
+                            "max_new_tokens",
+                            generation_params.get(
+                                "max_new_tokens", generation_params.get("max_length", 150)
+                            ),
                         ),
-                        "min_new_tokens": generation_params.get(
-                            "min_new_tokens", generation_params.get("min_length", 30)
+                        "min_new_tokens": reduce_generation_params.get(
+                            "min_new_tokens",
+                            generation_params.get(
+                                "min_new_tokens", generation_params.get("min_length", 30)
+                            ),
                         ),
-                        "temperature": generation_params.get("temperature", 0.0),
-                        "top_p": generation_params.get("top_p", 1.0),
-                        "repetition_penalty": generation_params.get("repetition_penalty", 1.05),
-                        "seed": generation_params.get("seed", 42),
+                        "num_beams": reduce_generation_params.get(
+                            "num_beams", generation_params.get("num_beams", None)
+                        ),
+                        "no_repeat_ngram_size": reduce_generation_params.get(
+                            "no_repeat_ngram_size",
+                            generation_params.get("no_repeat_ngram_size", None),
+                        ),
+                        "length_penalty": reduce_generation_params.get(
+                            "length_penalty", generation_params.get("length_penalty", None)
+                        ),
+                        "early_stopping": reduce_generation_params.get(
+                            "early_stopping", generation_params.get("early_stopping", None)
+                        ),
+                        "temperature": reduce_generation_params.get(
+                            "temperature", generation_params.get("temperature", 0.0)
+                        ),
+                        "top_p": reduce_generation_params.get(
+                            "top_p", generation_params.get("top_p", 1.0)
+                        ),
+                        "repetition_penalty": reduce_generation_params.get(
+                            "repetition_penalty", generation_params.get("repetition_penalty", 1.05)
+                        ),
+                        "seed": reduce_generation_params.get(
+                            "seed", generation_params.get("seed", 42)
+                        ),
                     },
                 },
             },
@@ -1104,12 +1202,48 @@ def create_baseline_readme(
     logger.info(f"Created README.md: {readme_path}")
 
 
+def find_reference_path(reference_id: str, dataset_id: str) -> Path:
+    """Find reference path (checks baselines and references directories).
+
+    Args:
+        reference_id: Reference identifier
+        dataset_id: Dataset identifier
+
+    Returns:
+        Path to reference directory
+
+    Raises:
+        FileNotFoundError: If reference not found
+    """
+    # Check references directory first (references/{dataset_id}/{reference_id})
+    ref_path = Path("data/eval/references") / dataset_id / reference_id
+    if ref_path.exists():
+        return ref_path
+
+    # Check baselines directory (baselines/{reference_id})
+    baseline_path = Path("data/eval/baselines") / reference_id
+    if baseline_path.exists():
+        return baseline_path
+
+    # Check old benchmarks directory (fallback for older project structure)
+    old_baseline_path = Path("benchmarks/baselines") / reference_id
+    if old_baseline_path.exists():
+        return old_baseline_path
+
+    raise FileNotFoundError(
+        f"Reference '{reference_id}' not found. "
+        f"Checked: data/eval/references/{dataset_id}/{reference_id}, "
+        f"data/eval/baselines/{reference_id}, benchmarks/baselines/{reference_id}"
+    )
+
+
 def materialize_baseline(
     baseline_id: str,
     dataset_id: str,
     experiment_config_path: Optional[str] = None,
     preprocessing_profile: Optional[str] = None,
     output_dir: Optional[str] = None,
+    reference_ids: Optional[List[str]] = None,
 ) -> None:
     """Materialize a baseline from current system state.
 
@@ -1119,6 +1253,7 @@ def materialize_baseline(
         experiment_config_path: Optional path to experiment config YAML
         preprocessing_profile: Optional preprocessing profile ID
         output_dir: Optional output directory (default: benchmarks/baselines)
+        reference_ids: Optional list of reference IDs for vs_reference metrics
 
     Raises:
         ValueError: If baseline already exists
@@ -1371,6 +1506,29 @@ def materialize_baseline(
         encoding="utf-8",
     )
 
+    # Find reference paths if reference_ids provided
+    reference_paths = None
+    if reference_ids:
+        reference_paths = {}
+        for ref_id in reference_ids:
+            try:
+                ref_path = find_reference_path(ref_id, dataset_id)
+                # Validate reference has predictions.jsonl
+                ref_predictions_path = ref_path / "predictions.jsonl"
+                if not ref_predictions_path.exists():
+                    logger.warning(
+                        f"Reference '{ref_id}' missing predictions.jsonl, "
+                        "skipping vs_reference metrics"
+                    )
+                    continue
+                reference_paths[ref_id] = ref_path
+                logger.info(f"Found reference '{ref_id}' at {ref_path}")
+            except FileNotFoundError as e:
+                logger.warning(
+                    f"Reference '{ref_id}' not found, skipping vs_reference metrics: {e}"
+                )
+                continue
+
     # Compute structured metrics from predictions using scorer.py
     # Use baseline_id as run_id for metrics (for consistency with experiment runs)
     # Use scorer.py to compute metrics (includes all implemented gates, cost tracking, etc.)
@@ -1378,7 +1536,7 @@ def materialize_baseline(
         predictions_path=predictions_path,
         dataset_id=dataset_id,
         run_id=metrics_run_id,
-        reference_paths=None,  # Baselines don't compute vs_reference (they are references)
+        reference_paths=reference_paths,
     )
     metrics_path = baseline_path / "metrics.json"
     metrics_path.write_text(
@@ -1440,6 +1598,13 @@ def main() -> None:
         help="Output directory for baseline (default: benchmarks/baselines)",
     )
     parser.add_argument(
+        "--reference",
+        type=str,
+        action="append",
+        default=None,
+        help="Reference ID for vs_reference metrics (can be specified multiple times)",
+    )
+    parser.add_argument(
         "--log-level",
         type=str,
         default="INFO",
@@ -1477,6 +1642,7 @@ def main() -> None:
             experiment_config_path=args.experiment_config,
             preprocessing_profile=args.preprocessing_profile,
             output_dir=args.output_dir,
+            reference_ids=args.reference,
         )
     except Exception as e:
         logger.error(f"Baseline materialization failed: {e}", exc_info=True)

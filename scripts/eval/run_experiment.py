@@ -22,6 +22,7 @@ import hashlib
 import json
 import logging
 import os
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -48,6 +49,8 @@ from podcast_scraper.evaluation.scorer import score_run
 from podcast_scraper.providers.params import SummarizationParams
 from podcast_scraper.summarization.factory import create_summarization_provider
 
+logger = logging.getLogger(__name__)
+
 # Import enhanced fingerprint generation
 from scripts.eval.materialize_baseline import (
     generate_enhanced_fingerprint,
@@ -55,6 +58,80 @@ from scripts.eval.materialize_baseline import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def ensure_experiment_models_cached(map_model: str, reduce_model: str) -> None:
+    """Ensure required Transformers models are cached for experiment, downloading if needed.
+
+    This function checks if the MAP and REDUCE models specified in the experiment
+    config are cached, and if not, downloads them using the centralized preload
+    script logic. This is the ONLY place where models can be downloaded during
+    experiments - libraries are never allowed to download on their own.
+
+    Args:
+        map_model: MAP model identifier (may be alias like "bart-small" or full ID)
+        reduce_model: REDUCE model identifier (may be alias like "long-fast" or full ID)
+
+    Note:
+        This only downloads models if they're not already cached. It uses the same
+        preload logic as the preload script, ensuring all downloads go through our
+        centralized mechanism. Models are then loaded with local_files_only=True
+        to prevent libraries from attempting their own downloads.
+    """
+    try:
+        from podcast_scraper.cache import get_transformers_cache_dir
+        from podcast_scraper.providers.ml import summarizer
+        from podcast_scraper.providers.ml.model_loader import (
+            preload_transformers_models,
+        )
+
+        transformers_cache = get_transformers_cache_dir()
+        models_to_download = []
+
+        # Resolve MAP model alias to actual model ID
+        resolved_map = summarizer.DEFAULT_SUMMARY_MODELS.get(map_model, map_model)
+        model_cache_name = resolved_map.replace("/", "--")
+        model_cache_path = transformers_cache / f"models--{model_cache_name}"
+        if not model_cache_path.exists():
+            models_to_download.append(resolved_map)
+            logger.info(f"MAP model {map_model} ({resolved_map}) not cached, will download")
+
+        # Resolve REDUCE model alias to actual model ID
+        resolved_reduce = summarizer.DEFAULT_SUMMARY_MODELS.get(reduce_model, reduce_model)
+        # Only check REDUCE if it's different from MAP
+        if resolved_reduce != resolved_map:
+            reduce_cache_name = resolved_reduce.replace("/", "--")
+            reduce_cache_path = transformers_cache / f"models--{reduce_cache_name}"
+            if not reduce_cache_path.exists():
+                models_to_download.append(resolved_reduce)
+                logger.info(
+                    f"REDUCE model {reduce_model} ({resolved_reduce}) not cached, " "will download"
+                )
+
+        # Download missing models using centralized preload functions
+        if models_to_download:
+            logger.info(
+                f"Downloading {len(models_to_download)} missing model(s) "
+                "(this may take a few minutes)..."
+            )
+            try:
+                preload_transformers_models(models_to_download)
+                logger.info("Missing models downloaded and cached successfully")
+            except Exception as e:
+                logger.warning(
+                    f"Could not automatically download models: {e}. "
+                    "You may need to run 'make preload-ml-models' manually."
+                )
+                # Don't fail - let the normal loading process handle the error
+        else:
+            logger.debug("All required models are already cached")
+
+    except ImportError:
+        # Preload script not available - that's okay, we'll try to load anyway
+        logger.debug("Model loader module not available, skipping cache check")
+    except Exception as e:
+        # Don't fail on cache check errors - let normal loading handle it
+        logger.debug(f"Error checking model cache: {e}")
 
 
 def hash_text(text: str) -> str:
@@ -125,7 +202,7 @@ def create_run_readme(
 
 
 def find_reference_path(reference_id: str, dataset_id: str) -> Path:
-    """Find reference path (checks baselines and references directories).
+    """Find reference path (checks baselines, references, and gold directories).
 
     Args:
         reference_id: Reference identifier
@@ -137,9 +214,29 @@ def find_reference_path(reference_id: str, dataset_id: str) -> Path:
     Raises:
         FileNotFoundError: If reference not found
     """
-    # Check references directory first (references/{dataset_id}/{reference_id})
+    # Check silver references directory (references/silver/{reference_id})
+    silver_path = Path("data/eval/references/silver") / reference_id
+    if silver_path.exists():
+        return silver_path
+
+    # Check gold references directory (references/gold/{task}/{reference_id})
+    # For NER tasks, check ner_entities subdirectory
+    gold_ner_path = Path("data/eval/references/gold/ner_entities") / reference_id
+    if gold_ner_path.exists():
+        return gold_ner_path
+
+    # Check gold summarization references
+    gold_summarization_path = Path("data/eval/references/gold/summarization") / reference_id
+    if gold_summarization_path.exists():
+        return gold_summarization_path
+
+    # Check old structure (references/{dataset_id}/{reference_id}) for backward compatibility
     ref_path = Path("data/eval/references") / dataset_id / reference_id
     if ref_path.exists():
+        logger.warning(
+            f"Found reference in old location: {ref_path}. "
+            "Consider migrating to new structure: references/silver/{reference_id}/"
+        )
         return ref_path
 
     # Check baselines directory (baselines/{reference_id})
@@ -155,6 +252,8 @@ def find_reference_path(reference_id: str, dataset_id: str) -> Path:
     raise FileNotFoundError(
         f"Reference '{reference_id}' not found. "
         f"Checked: data/eval/references/{dataset_id}/{reference_id}, "
+        f"data/eval/references/gold/ner_entities/{reference_id}, "
+        f"data/eval/references/gold/{reference_id}, "
         f"data/eval/baselines/{reference_id}, benchmarks/baselines/{reference_id}"
     )
 
@@ -173,10 +272,19 @@ def validate_reference(reference_id: str, reference_path: Path, dataset_id: str)
     if not reference_path.exists():
         raise ValueError(f"Reference path does not exist: {reference_path}")
 
-    # Check for required predictions file
+    # Check if this is a gold reference (has episode JSON files) or a
+    # baseline/silver reference (has predictions.jsonl)
     predictions_path = reference_path / "predictions.jsonl"
-    if not predictions_path.exists():
-        raise ValueError(f"Reference '{reference_id}' is missing required file: {predictions_path}")
+    has_episode_jsons = any(reference_path.glob("*.json")) and not predictions_path.exists()
+    has_predictions = predictions_path.exists()
+
+    if not (has_episode_jsons or has_predictions):
+        raise ValueError(
+            f"Reference '{reference_id}' is missing required files. "
+            f"Expected either predictions.jsonl (for baselines/silver) or "
+            f"episode JSON files (for gold references). "
+            f"Found at: {reference_path}"
+        )
 
 
 def run_experiment(  # noqa: C901
@@ -186,6 +294,7 @@ def run_experiment(  # noqa: C901
     dry_run: bool = False,
     smoke_inference_only: bool = False,
     score_only: bool = False,
+    force: bool = False,
 ) -> None:
     """Run a single experiment described by ExperimentConfig.
 
@@ -205,6 +314,8 @@ def run_experiment(  # noqa: C901
             (inference only, alias for dry_run)
         score_only: If True, skip inference and use existing
             predictions.jsonl (scoring only)
+        force: If True, delete existing run directory before starting.
+            Useful for re-running experiments during development.
 
     Raises:
         ValueError: If contract validation fails
@@ -226,14 +337,41 @@ def run_experiment(  # noqa: C901
     run_id = cfg.id
     # Store runs in data/eval/runs/ for consistency with baseline/reference structure
     results_dir = Path("data/eval/runs") / run_id
+
+    # Handle existing directory
+    if results_dir.exists():
+        if force:
+            logger.info(f"Removing existing run directory (--force): {results_dir}")
+            shutil.rmtree(results_dir)
+        elif not score_only:
+            # In score_only mode, we expect the directory to exist
+            logger.warning(
+                f"Run directory already exists: {results_dir}. "
+                "Use --force to delete and re-run, or --score-only to re-score existing results."
+            )
+
     results_dir.mkdir(parents=True, exist_ok=True)
 
     predictions_path = results_dir / "predictions.jsonl"
     baseline_json_path = results_dir / "baseline.json"  # For compatibility with baseline structure
     fingerprint_path = results_dir / "fingerprint.json"
+    log_path = results_dir / "run.log"
 
+    # Set up file logging to capture execution log
+    # This complements fingerprint.json by recording what actually happened
+    file_handler = logging.FileHandler(log_path, mode="w", encoding="utf-8")
+    file_handler.setLevel(logging.DEBUG)  # Capture all levels to file
+    file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    # Add file handler to root logger (captures all module logs)
+    root_logger = logging.getLogger()
+    root_logger.addHandler(file_handler)
+
+    logger.info("=" * 80)
     logger.info(f"Starting experiment run: {run_id}")
     logger.info(f"Results directory: {results_dir}")
+    logger.info(f"Execution log: {log_path}")
+    logger.info(f"Dataset: {dataset_id}")
+    logger.info("=" * 80)
 
     # If score_only mode, verify predictions.jsonl exists and skip inference
     if score_only:
@@ -247,17 +385,27 @@ def run_experiment(  # noqa: C901
         logger.info(f"Score-only mode: Using existing predictions from {predictions_path}")
         logger.info("Skipping inference phase. Proceeding directly to scoring...")
     else:
-        # Only summarization task supported
-        if cfg.task != "summarization":
-            raise NotImplementedError(f"Only 'summarization' task is supported. Got: {cfg.task}")
+        # Support both summarization and ner_entities tasks
+        if cfg.task not in ("summarization", "ner_entities"):
+            raise NotImplementedError(
+                f"Only 'summarization' and 'ner_entities' tasks are supported. Got: {cfg.task}"
+            )
 
-        # Create provider based on backend type
-        logger.info("Creating summarization provider...")
+        # Create provider based on task and backend type
+        if cfg.task == "summarization":
+            logger.info("Creating summarization provider...")
         if cfg.backend.type == "openai":
-            # OpenAI backend doesn't use map/reduce params
-            # Use defaults from SummarizationParams
+            # OpenAI backend: use params from config if provided
+            # Extract params from config.params (if present)
+            params_dict = cfg.params or {}
+            max_length = params_dict.get("max_length", 800)
+            min_length = params_dict.get("min_length", 200)
+            temperature = params_dict.get("temperature", 0.0)
             summarization_params = SummarizationParams(
                 model_name=cfg.backend.model,
+                max_length=max_length,
+                min_length=min_length,
+                temperature=temperature,
             )
             provider = create_summarization_provider("openai", summarization_params)
             provider.initialize()
@@ -274,34 +422,16 @@ def run_experiment(  # noqa: C901
             reduce_model = cfg.backend.reduce_model or "long-fast"
             model_name = f"{map_model}+{reduce_model}"
 
+            # Ensure models are cached before initializing provider
+            # This checks cache and downloads if needed, same as app workflow
+            logger.info("Checking if required models are cached...")
+            ensure_experiment_models_cached(map_model, reduce_model)
+
             # Use explicit map_params/reduce_params/tokenize (required for hf_local)
             map_max_length = cfg.map_params.max_new_tokens
             map_min_length = cfg.map_params.min_new_tokens
             reduce_max_length = cfg.reduce_params.max_new_tokens
             reduce_min_length = cfg.reduce_params.min_new_tokens
-
-            # Log resolved params
-            logger.info("=== Resolved ML Parameters ===")
-            logger.info("Map stage:")
-            logger.info(f"  Model: {map_model}")
-            logger.info(f"  max_new_tokens: {cfg.map_params.max_new_tokens}")
-            logger.info(f"  min_new_tokens: {cfg.map_params.min_new_tokens}")
-            logger.info(f"  num_beams: {cfg.map_params.num_beams}")
-            logger.info(f"  no_repeat_ngram_size: {cfg.map_params.no_repeat_ngram_size}")
-            logger.info(f"  length_penalty: {cfg.map_params.length_penalty}")
-            logger.info(f"  early_stopping: {cfg.map_params.early_stopping}")
-            logger.info("Reduce stage:")
-            logger.info(f"  Model: {reduce_model}")
-            logger.info(f"  max_new_tokens: {cfg.reduce_params.max_new_tokens}")
-            logger.info(f"  min_new_tokens: {cfg.reduce_params.min_new_tokens}")
-            logger.info(f"  num_beams: {cfg.reduce_params.num_beams}")
-            logger.info(f"  no_repeat_ngram_size: {cfg.reduce_params.no_repeat_ngram_size}")
-            logger.info(f"  length_penalty: {cfg.reduce_params.length_penalty}")
-            logger.info(f"  early_stopping: {cfg.reduce_params.early_stopping}")
-            logger.info("Tokenization:")
-            logger.info(f"  map_max_input_tokens: {cfg.tokenize.map_max_input_tokens}")
-            logger.info(f"  reduce_max_input_tokens: {cfg.tokenize.reduce_max_input_tokens}")
-            logger.info(f"  truncation: {cfg.tokenize.truncation}")
 
             # Build params dict for fingerprint (includes all resolved params)
             params_dict = {
@@ -322,16 +452,69 @@ def run_experiment(  # noqa: C901
                 summary_map_params={
                     "max_new_tokens": map_max_length,
                     "min_new_tokens": map_min_length,
+                    "num_beams": cfg.map_params.num_beams,
+                    "no_repeat_ngram_size": cfg.map_params.no_repeat_ngram_size,
+                    "length_penalty": cfg.map_params.length_penalty,
+                    "early_stopping": cfg.map_params.early_stopping,
+                    "repetition_penalty": cfg.map_params.repetition_penalty,
                 },
                 summary_reduce_params={
                     "max_new_tokens": reduce_max_length,
                     "min_new_tokens": reduce_min_length,
+                    "num_beams": cfg.reduce_params.num_beams,
+                    "no_repeat_ngram_size": cfg.reduce_params.no_repeat_ngram_size,
+                    "length_penalty": cfg.reduce_params.length_penalty,
+                    "early_stopping": cfg.reduce_params.early_stopping,
+                    "repetition_penalty": cfg.reduce_params.repetition_penalty,
                 },
+                summary_tokenize={
+                    "map_max_input_tokens": cfg.tokenize.map_max_input_tokens,
+                    "reduce_max_input_tokens": cfg.tokenize.reduce_max_input_tokens,
+                    "truncation": cfg.tokenize.truncation,
+                },
+                summary_word_chunk_size=(cfg.chunking.word_chunk_size if cfg.chunking else None),
+                summary_word_overlap=(cfg.chunking.word_overlap if cfg.chunking else None),
                 transcribe_missing=False,  # Don't initialize Whisper
                 # for summarization-only experiments
             )
             provider = create_summarization_provider(cfg_obj)
+
+            # Initialize provider (this will load models and log model loading)
             provider.initialize()
+
+            # Log generation parameters after models are loaded (appears in first 20 lines)
+            logger.info("=" * 80)
+            logger.info("=== Generation Parameters ===")
+            logger.info("Map stage:")
+            logger.info(f"  Model: {map_model}")
+            logger.info(f"  max_new_tokens: {cfg.map_params.max_new_tokens}")
+            logger.info(f"  min_new_tokens: {cfg.map_params.min_new_tokens}")
+            logger.info(f"  num_beams: {cfg.map_params.num_beams}")
+            logger.info(f"  no_repeat_ngram_size: {cfg.map_params.no_repeat_ngram_size}")
+            logger.info(f"  length_penalty: {cfg.map_params.length_penalty}")
+            logger.info(f"  early_stopping: {cfg.map_params.early_stopping}")
+            logger.info(f"  repetition_penalty: {cfg.map_params.repetition_penalty}")
+            logger.info("Reduce stage:")
+            logger.info(f"  Model: {reduce_model}")
+            logger.info(f"  max_new_tokens: {cfg.reduce_params.max_new_tokens}")
+            logger.info(f"  min_new_tokens: {cfg.reduce_params.min_new_tokens}")
+            logger.info(f"  num_beams: {cfg.reduce_params.num_beams}")
+            logger.info(f"  no_repeat_ngram_size: {cfg.reduce_params.no_repeat_ngram_size}")
+            logger.info(f"  length_penalty: {cfg.reduce_params.length_penalty}")
+            logger.info(f"  early_stopping: {cfg.reduce_params.early_stopping}")
+            logger.info(f"  repetition_penalty: {cfg.reduce_params.repetition_penalty}")
+            logger.info("Tokenization:")
+            logger.info(f"  map_max_input_tokens: {cfg.tokenize.map_max_input_tokens}")
+            logger.info(f"  reduce_max_input_tokens: {cfg.tokenize.reduce_max_input_tokens}")
+            logger.info(f"  truncation: {cfg.tokenize.truncation}")
+            if cfg.chunking:
+                logger.info("Chunking:")
+                logger.info(f"  strategy: {cfg.chunking.strategy}")
+                logger.info(f"  word_chunk_size: {cfg.chunking.word_chunk_size}")
+                logger.info(f"  word_overlap: {cfg.chunking.word_overlap}")
+            logger.info("Preprocessing:")
+            logger.info(f"  profile: {cfg.preprocessing_profile}")
+            logger.info("=" * 80)
             # Get device from provider if available
             device = None
             map_model_obj = getattr(provider, "_map_model", None)
@@ -339,6 +522,34 @@ def run_experiment(  # noqa: C901
                 device = getattr(map_model_obj, "device", None)
                 if device:
                     device = str(device)
+        elif cfg.task == "ner_entities":
+            # NER task: load spaCy model
+            logger.info("Creating NER provider...")
+            if cfg.backend.type != "spacy_local":
+                raise ValueError(
+                    f"NER task requires 'spacy_local' backend. Got: {cfg.backend.type}"
+                )
+
+            # Load spaCy model
+            from podcast_scraper.providers.ml.speaker_detection import _load_spacy_model
+
+            model_name = cfg.backend.model
+            logger.info(f"Loading spaCy model: {model_name}")
+            nlp = _load_spacy_model(model_name)
+            if nlp is None:
+                raise RuntimeError(
+                    f"Failed to load spaCy model: {model_name}. "
+                    f"Install with: python -m spacy download {model_name}"
+                )
+            logger.info(f"✓ spaCy model loaded: {model_name}")
+
+            # Store nlp model for later use
+            provider = None  # NER doesn't use provider pattern
+            device = None  # spaCy handles device internally
+            params_dict = {
+                "model": model_name,
+                "labels": cfg.params.get("labels") if cfg.params else None,
+            }
         else:
             raise ValueError(f"Unsupported backend type: {cfg.backend.type}")
 
@@ -346,16 +557,17 @@ def run_experiment(  # noqa: C901
         # Get git info
         git_info = get_git_status()
 
-        # Get preprocessing profile (default to cleaning_v3 if not specified)
-        preprocessing_profile = "cleaning_v3"  # Default preprocessing profile
+        # Get preprocessing profile from config (defaults to cleaning_v3)
+        preprocessing_profile = cfg.preprocessing_profile
 
         # Generate enhanced fingerprint with pipeline structure
+        # For NER tasks, provider is None, so we pass model_name directly
         fingerprint = generate_enhanced_fingerprint(
             baseline_id=run_id,  # Use run_id as baseline_id for compatibility
             dataset_id=dataset_id,
             experiment_config=cfg,
             provider=provider,
-            model_name=model_name,
+            model_name=model_name if cfg.task == "summarization" else cfg.backend.model,
             preprocessing_profile=preprocessing_profile,
             git_info=git_info,
         )
@@ -390,86 +602,226 @@ def run_experiment(  # noqa: C901
                     logger.warning(f"Skipping empty transcript: {path}")
                     continue
 
+                # Apply preprocessing profile (for both summarization and NER tasks)
+                preprocessing_profile = cfg.preprocessing_profile
+                if preprocessing_profile:
+                    from podcast_scraper.preprocessing.profiles import apply_profile_with_stats
+
+                    cleaned_text, preprocess_stats = apply_profile_with_stats(
+                        text, preprocessing_profile
+                    )
+                    if cleaned_text != text:
+                        removed_chars = len(text) - len(cleaned_text)
+                        removed_pct = (removed_chars / len(text) * 100) if len(text) else 0
+                        logger.info(
+                            f"[PREPROCESSING] Profile: {preprocessing_profile}, "
+                            f"lines: {preprocess_stats['initial_lines']} → "
+                            f"{preprocess_stats['final_lines']} "
+                            f"({preprocess_stats['lines_removed']} removed), "
+                            f"chars: {len(text):,} → {len(cleaned_text):,} "
+                            f"({removed_chars:,} removed, {removed_pct:.1f}%)"
+                        )
+                        text = cleaned_text.strip()
+                    else:
+                        logger.info(
+                            f"[PREPROCESSING] Profile: {preprocessing_profile}, "
+                            f"lines: {preprocess_stats['initial_lines']} (no changes)"
+                        )
+
                 total_chars_in += len(text)
                 input_hash = hash_text(text)
 
-                # Generate summary (request intermediates for runs)
+                # Process based on task type
                 t0 = time.time()
                 try:
-                    # Build summary params based on config structure
-                    if cfg.backend.type == "hf_local" and cfg.map_params and cfg.reduce_params:
-                        # New structure: pass explicit generation params
-                        summary_params = {
-                            "return_intermediates": True,
-                            # Map stage params
-                            "map_max_new_tokens": cfg.map_params.max_new_tokens,
-                            "map_min_new_tokens": cfg.map_params.min_new_tokens,
-                            "map_num_beams": cfg.map_params.num_beams,
-                            "map_no_repeat_ngram_size": cfg.map_params.no_repeat_ngram_size,
-                            "map_length_penalty": cfg.map_params.length_penalty,
-                            "map_early_stopping": cfg.map_params.early_stopping,
-                            # Reduce stage params
-                            "reduce_max_new_tokens": cfg.reduce_params.max_new_tokens,
-                            "reduce_min_new_tokens": cfg.reduce_params.min_new_tokens,
-                            "reduce_num_beams": cfg.reduce_params.num_beams,
-                            "reduce_no_repeat_ngram_size": cfg.reduce_params.no_repeat_ngram_size,
-                            "reduce_length_penalty": cfg.reduce_params.length_penalty,
-                            "reduce_early_stopping": cfg.reduce_params.early_stopping,
-                            # Tokenization params
-                            "map_max_input_tokens": cfg.tokenize.map_max_input_tokens,
-                            "reduce_max_input_tokens": cfg.tokenize.reduce_max_input_tokens,
-                            "truncation": cfg.tokenize.truncation,
+                    if cfg.task == "summarization":
+                        # Build summary params based on config structure
+                        if cfg.backend.type == "hf_local" and cfg.map_params and cfg.reduce_params:
+                            # New structure: pass explicit generation params
+                            summary_params = {
+                                "return_intermediates": True,
+                                # Map stage params
+                                "map_max_new_tokens": cfg.map_params.max_new_tokens,
+                                "map_min_new_tokens": cfg.map_params.min_new_tokens,
+                                "map_num_beams": cfg.map_params.num_beams,
+                                "map_no_repeat_ngram_size": cfg.map_params.no_repeat_ngram_size,
+                                "map_length_penalty": cfg.map_params.length_penalty,
+                                "map_early_stopping": cfg.map_params.early_stopping,
+                                "map_repetition_penalty": cfg.map_params.repetition_penalty,
+                                "map_encoder_no_repeat_ngram_size": (
+                                    cfg.map_params.encoder_no_repeat_ngram_size
+                                ),
+                                # Reduce stage params
+                                "reduce_max_new_tokens": cfg.reduce_params.max_new_tokens,
+                                "reduce_min_new_tokens": cfg.reduce_params.min_new_tokens,
+                                "reduce_num_beams": cfg.reduce_params.num_beams,
+                                "reduce_no_repeat_ngram_size": (
+                                    cfg.reduce_params.no_repeat_ngram_size
+                                ),
+                                "reduce_length_penalty": cfg.reduce_params.length_penalty,
+                                "reduce_early_stopping": cfg.reduce_params.early_stopping,
+                                "reduce_repetition_penalty": cfg.reduce_params.repetition_penalty,
+                                "reduce_encoder_no_repeat_ngram_size": (
+                                    cfg.reduce_params.encoder_no_repeat_ngram_size
+                                ),
+                                # Tokenization params
+                                "map_max_input_tokens": cfg.tokenize.map_max_input_tokens,
+                                "reduce_max_input_tokens": cfg.tokenize.reduce_max_input_tokens,
+                                "truncation": cfg.tokenize.truncation,
+                                # Chunking params (if specified)
+                                "use_word_chunking": (
+                                    cfg.chunking.strategy == "word_chunking"
+                                    if cfg.chunking
+                                    else None
+                                ),
+                                "word_chunk_size": (
+                                    cfg.chunking.word_chunk_size if cfg.chunking else None
+                                ),
+                                "word_overlap": (
+                                    cfg.chunking.word_overlap if cfg.chunking else None
+                                ),
+                                # Preprocessing profile
+                                "preprocessing_profile": cfg.preprocessing_profile,
+                            }
+                        else:
+                            # OpenAI backend: no special params needed
+                            summary_params = {
+                                "preprocessing_profile": cfg.preprocessing_profile,
+                            }
+                        summary_result = provider.summarize(text, params=summary_params)
+                        if isinstance(summary_result, dict):
+                            summary = summary_result.get("summary", "")
+                            intermediates = summary_result.get("intermediates")
+                        else:
+                            summary = str(summary_result)
+                            intermediates = None
+
+                        dt = time.time() - t0
+                        total_chars_out += len(summary)
+                        output_hash = hash_text(summary)
+
+                        # Log map/reduce input sizes for diagnostics
+                        if intermediates and "map_summaries" in intermediates:
+                            map_summaries = intermediates["map_summaries"]
+                            map_chunks_count = len(map_summaries)
+
+                            # Calculate average map summary length
+                            if map_summaries:
+                                map_summary_texts = [
+                                    item["text"] if isinstance(item, dict) else str(item)
+                                    for item in map_summaries
+                                ]
+                                map_summary_lengths = [len(s) for s in map_summary_texts]
+                                avg_map_summary_chars = sum(map_summary_lengths) / len(
+                                    map_summary_lengths
+                                )
+                            else:
+                                avg_map_summary_chars = 0
+
+                            # Get reduce input size from intermediates
+                            # (calculated in summarize_long_text)
+                            reduce_input_chars = intermediates.get("reduce_input_chars", 0)
+
+                            logger.info(
+                                f"Episode {episode_id} map/reduce stats: "
+                                f"map_chunks={map_chunks_count}, "
+                                f"avg_map_summary={avg_map_summary_chars:.0f} chars, "
+                                f"reduce_input={reduce_input_chars:,} chars"
+                            )
+
+                        logger.info(
+                            f"Episode {episode_id} completed in {dt:.1f}s, "
+                            f"summary length={len(summary)} chars"
+                        )
+
+                        # Write prediction record for summarization
+                        record: Dict[str, Any] = {
+                            "episode_id": episode_id,
+                            "dataset_id": dataset_id,
+                            "output": {
+                                "summary_final": summary,
+                            },
+                            "fingerprint_ref": "fingerprint.json",
+                            "metadata": {
+                                "input_hash": f"sha256:{input_hash}",
+                                "output_hash": f"sha256:{output_hash}",
+                                "input_path": str(path),
+                                "input_length_chars": len(text),
+                                "output_length_chars": len(summary),
+                                "processing_time_seconds": dt,
+                            },
+                        }
+
+                        # Include intermediate outputs if available (for map/reduce pipelines)
+                        if intermediates:
+                            record["intermediate"] = intermediates
+
+                    elif cfg.task == "ner_entities":
+                        # Extract entities using spaCy
+                        from podcast_scraper.providers.ml.ner_extraction import extract_all_entities
+
+                        # Get labels filter from params if specified
+                        labels = None
+                        if cfg.params and "labels" in cfg.params:
+                            labels = cfg.params["labels"]
+
+                        entities = extract_all_entities(text, nlp, labels=labels)
+
+                        dt = time.time() - t0
+                        total_chars_out += len(str(entities))  # For compression stats
+                        output_hash = hash_text(str(entities))
+
+                        logger.info(
+                            f"Episode {episode_id} completed in {dt:.1f}s, "
+                            f"entities found={len(entities)}"
+                        )
+
+                        # Write prediction record for NER
+                        record: Dict[str, Any] = {
+                            "episode_id": episode_id,
+                            "dataset_id": dataset_id,
+                            "output": {
+                                "entities": entities,
+                            },
+                            "fingerprint_ref": "fingerprint.json",
+                            "metadata": {
+                                "input_hash": f"sha256:{input_hash}",
+                                "output_hash": f"sha256:{output_hash}",
+                                "input_path": str(path),
+                                "input_length_chars": len(text),
+                                "output_length_chars": len(str(entities)),
+                                "processing_time_seconds": dt,
+                                "entities_count": len(entities),
+                            },
                         }
                     else:
-                        # OpenAI backend: no special params needed
-                        summary_params = {}
-                    summary_result = provider.summarize(text, params=summary_params)
-                    if isinstance(summary_result, dict):
-                        summary = summary_result.get("summary", "")
-                        intermediates = summary_result.get("intermediates")
-                    else:
-                        summary = str(summary_result)
-                        intermediates = None
+                        raise ValueError(f"Unsupported task: {cfg.task}")
+
                 except Exception as e:
-                    logger.error(f"Failed to summarize episode {episode_id}: {e}")
-                    raise RuntimeError(f"Summarization failed for episode {episode_id}: {e}") from e
+                    logger.error(f"Failed to process episode {episode_id}: {e}")
+                    raise RuntimeError(f"Processing failed for episode {episode_id}: {e}") from e
 
-                dt = time.time() - t0
-                total_chars_out += len(summary)
-                output_hash = hash_text(summary)
-
-                logger.info(
-                    f"Episode {episode_id} completed in {dt:.1f}s, "
-                    f"summary length={len(summary)} chars"
-                )
-
-                # Write prediction record with intermediate outputs
-                record: Dict[str, Any] = {
-                    "episode_id": episode_id,
-                    "dataset_id": dataset_id,
-                    "output": {
-                        "summary_final": summary,  # Renamed from summary_long for clarity
-                    },
-                    "fingerprint_ref": "fingerprint.json",
-                    "metadata": {
-                        "input_hash": f"sha256:{input_hash}",
-                        "output_hash": f"sha256:{output_hash}",
-                        "input_path": str(path),
-                        "input_length_chars": len(text),
-                        "output_length_chars": len(summary),
-                        "processing_time_seconds": dt,
-                    },
-                }
-
-                # Include intermediate outputs if available (for map/reduce pipelines)
-                if intermediates:
-                    record["intermediate"] = intermediates
                 pred_f.write(json.dumps(record, ensure_ascii=False) + "\n")
                 predictions.append(record)
 
         total_time = time.time() - start_time
         avg_time = total_time / len(predictions) if predictions else 0
         avg_compression = (total_chars_in / total_chars_out) if total_chars_out > 0 else None
+
+        logger.info(f"Phase 1 completed in {total_time:.1f}s")
+        logger.info(f"Total input: {total_chars_in:,} chars, output: {total_chars_out:,} chars")
+        if cfg.task == "summarization":
+            logger.info(
+                f"Average compression: {avg_compression:.1f}x" if avg_compression else "N/A"
+            )
+        logger.info(f"Predictions: {predictions_path}")
+
+        # Cleanup provider if it exists (NER tasks don't use provider pattern)
+        if provider is not None:
+            try:
+                provider.cleanup()
+            except Exception as e:
+                logger.warning(f"Error cleaning up provider: {e}")
 
         # Save run metadata (using baseline.json format for compatibility)
         import os
@@ -516,10 +868,6 @@ def run_experiment(  # noqa: C901
             encoding="utf-8",
         )
 
-        logger.info(f"Phase 1 completed in {total_time:.1f}s")
-        logger.info(f"Total input: {total_chars_in:,} chars, output: {total_chars_out:,} chars")
-        logger.info(f"Average compression: {avg_compression:.1f}x" if avg_compression else "N/A")
-        logger.info(f"Predictions: {predictions_path}")
         logger.info(f"Metadata: {baseline_json_path}")
         logger.info(f"Fingerprint: {fingerprint_path}")
 
@@ -629,12 +977,19 @@ def run_experiment(  # noqa: C901
                     continue
 
     logger.info("Computing metrics...")
+
+    # Extract scoring params from config if present (for NER tasks)
+    scoring_params = None
+    if cfg.params and "scoring" in cfg.params:
+        scoring_params = cfg.params["scoring"]
+
     metrics = score_run(
         predictions_path=predictions_path,
         dataset_id=dataset_id,
         run_id=run_id,
         reference_paths=reference_paths if reference_paths else None,
         metadata_map=metadata_map if metadata_map else None,
+        scoring_params=scoring_params,
     )
 
     # Save metrics.json
@@ -644,6 +999,26 @@ def run_experiment(  # noqa: C901
         encoding="utf-8",
     )
     logger.info(f"Metrics: {metrics_path}")
+
+    # Validate metrics.json against schema (lenient - warns on mismatch)
+    try:
+        from podcast_scraper.evaluation.schema_validator import (
+            validate_metrics_ner,
+            validate_metrics_summarization,
+        )
+
+        task_type = metrics.get("task")
+        if task_type == "ner_entities":
+            validate_metrics_ner(metrics, strict=False)  # Lenient for now
+            logger.info("✓ NER metrics validation completed")
+        elif task_type == "summarization":
+            validate_metrics_summarization(metrics, strict=False)  # Lenient for now
+            logger.info("✓ Summarization metrics validation completed")
+    except ValueError as e:
+        # Only raise if strict validation was requested (not the case here)
+        logger.warning(f"Metrics validation issue (non-fatal): {e}")
+    except Exception as e:
+        logger.warning(f"Metrics validation skipped (schema validator unavailable): {e}")
 
     # Generate and save human-readable metrics report
     metrics_report = generate_metrics_report(metrics)
@@ -680,6 +1055,26 @@ def run_experiment(  # noqa: C901
                     encoding="utf-8",
                 )
                 logger.info(f"Comparison: {comparison_path}")
+
+                # Check NER invariants (hard guardrails) before regression rules
+                task_type = metrics.get("task")
+                if task_type == "ner_entities":
+                    checker = RegressionChecker()
+                    # Check invariants for all references in vs_reference
+                    vs_reference = metrics.get("vs_reference", {})
+                    invariant_violations = []
+                    for ref_id in vs_reference.keys():
+                        violations = checker.check_ner_invariants(metrics, reference_id=ref_id)
+                        invariant_violations.extend(violations)
+
+                    if invariant_violations:
+                        logger.error("❌ NER INVARIANT VIOLATIONS (hard guardrails):")
+                        for violation in invariant_violations:
+                            logger.error(f"  {violation}")
+                        raise ValueError(
+                            f"NER invariant violations detected: {', '.join(invariant_violations)}"
+                        )
+                    logger.info("✅ NER invariants check passed")
 
                 # Check for regressions
                 checker = RegressionChecker()
@@ -741,8 +1136,18 @@ def run_experiment(  # noqa: C901
         else f"Episodes={len(predictions)}, avg_time={avg_time:.1f}s"
     )
 
-    # Cleanup
-    provider.cleanup()
+    # Cleanup provider if it exists (NER tasks don't use provider pattern)
+    if provider is not None:
+        provider.cleanup()
+
+    # Remove file handler to close log file cleanly
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        if isinstance(handler, logging.FileHandler) and handler.baseFilename == str(log_path):
+            handler.close()
+            root_logger.removeHandler(handler)
+
+    logger.info(f"✓ Execution log saved: {log_path}")
 
 
 def main() -> None:
@@ -801,6 +1206,16 @@ def main() -> None:
             "without re-running inference."
         ),
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Force mode: delete existing run directory before starting. "
+            "Useful for re-running experiments during iterative development. "
+            "Without this flag, existing directories are reused (which may "
+            "cause stale files to persist)."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -837,6 +1252,7 @@ def main() -> None:
             dry_run=args.dry_run or args.smoke_inference_only,
             smoke_inference_only=args.smoke_inference_only,
             score_only=args.score_only,
+            force=args.force,
         )
     except Exception as e:
         logger.error(f"Experiment failed: {e}", exc_info=True)

@@ -1,0 +1,374 @@
+{
+  "schema": "ner_entities_gold_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "episode_id": "p04_e01",
+  "text_fingerprint": "sha256:c9c44f34280ed0216736110900dc638ac4ac2d1b24148969fd8a24dd8cbd7176",
+  "labels_in_scope": [
+    "PERSON",
+    "ORG",
+    "GPE",
+    "PRODUCT",
+    "EVENT"
+  ],
+  "entities": [
+    {
+      "start": 2,
+      "end": 15,
+      "text": "Frame & Light",
+      "label": "ORG"
+    },
+    {
+      "start": 69,
+      "end": 72,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 80,
+      "end": 83,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 93,
+      "end": 96,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 114,
+      "end": 127,
+      "text": "Frame & Light",
+      "label": "ORG"
+    },
+    {
+      "start": 208,
+      "end": 211,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 213,
+      "end": 216,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 241,
+      "end": 244,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 254,
+      "end": 257,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 345,
+      "end": 348,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 497,
+      "end": 500,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 793,
+      "end": 796,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 967,
+      "end": 970,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 1255,
+      "end": 1258,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 1422,
+      "end": 1425,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 1740,
+      "end": 1743,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 1923,
+      "end": 1926,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 2262,
+      "end": 2265,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 2432,
+      "end": 2435,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 2779,
+      "end": 2782,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 2928,
+      "end": 2931,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 3238,
+      "end": 3241,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 3312,
+      "end": 3315,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 3517,
+      "end": 3520,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 3697,
+      "end": 3700,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 4044,
+      "end": 4047,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 4212,
+      "end": 4215,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 4520,
+      "end": 4523,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 4690,
+      "end": 4693,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 4981,
+      "end": 4984,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 5155,
+      "end": 5158,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 5472,
+      "end": 5475,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 5627,
+      "end": 5630,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 5942,
+      "end": 5945,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 6091,
+      "end": 6094,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 6513,
+      "end": 6516,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 6665,
+      "end": 6668,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 6973,
+      "end": 6976,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 7116,
+      "end": 7119,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 7549,
+      "end": 7552,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 7689,
+      "end": 7692,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 8103,
+      "end": 8106,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 8240,
+      "end": 8243,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 8559,
+      "end": 8562,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 8720,
+      "end": 8723,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 9025,
+      "end": 9028,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 9205,
+      "end": 9208,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 9532,
+      "end": 9535,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 9606,
+      "end": 9609,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 9820,
+      "end": 9823,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 9981,
+      "end": 9984,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 10296,
+      "end": 10299,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 10382,
+      "end": 10385,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 10574,
+      "end": 10577,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 10588,
+      "end": 10591,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 10622,
+      "end": 10625,
+      "text": "Ava",
+      "label": "PERSON"
+    },
+    {
+      "start": 10635,
+      "end": 10638,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 10652,
+      "end": 10655,
+      "text": "Leo",
+      "label": "PERSON"
+    },
+    {
+      "start": 10690,
+      "end": 10703,
+      "text": "Frame & Light",
+      "label": "ORG"
+    }
+  ],
+  "annotation_policy": {
+    "persons": "Host + guest names (all occurrences)",
+    "orgs": "Show title (all occurrences)",
+    "notes": "Offsets align to materialized text files uploaded for curated_5feeds_smoke_v1."
+  }
+}

@@ -297,7 +297,7 @@ class MLProvider:
                 ) from e
 
         if needs_spacy:
-            from ...config_constants import DEFAULT_NER_MODEL
+            from ...config import DEFAULT_NER_MODEL
 
             model_name = self.cfg.ner_model or DEFAULT_NER_MODEL
             logger.info("Preloading spaCy model: %s", model_name)
@@ -698,37 +698,36 @@ class MLProvider:
 
     def _initialize_transformers(self) -> None:
         """Initialize Transformers models for summarization."""
-        logger.debug(
-            "Initializing Transformers summarization (model: %s)",
-            self.cfg.summary_model or "default",
-        )
+        logger.info("Initializing Transformers summarization models...")
 
         try:
             # Load MAP model (for chunk summarization)
             model_name = summarizer.select_summary_model(self.cfg)
+            logger.info(f"Loading MAP model: {model_name}")
             self._map_model = summarizer.SummaryModel(
                 model_name=model_name,
                 device=self.cfg.summary_device,
                 cache_dir=self.cfg.summary_cache_dir,
             )
-            logger.debug("Loaded MAP summary model: %s", model_name)
+            logger.info(f"✓ MAP model loaded: {model_name}")
 
             # Load REDUCE model if different from MAP model (for final combine)
             reduce_model_name = summarizer.select_reduce_model(self.cfg, model_name)
             if reduce_model_name != model_name:
+                logger.info(f"Loading REDUCE model: {reduce_model_name}")
                 self._reduce_model = summarizer.SummaryModel(
                     model_name=reduce_model_name,
                     device=self.cfg.summary_device,
                     cache_dir=self.cfg.summary_cache_dir,
                 )
-                logger.debug("Loaded REDUCE summary model: %s", reduce_model_name)
+                logger.info(f"✓ REDUCE model loaded: {reduce_model_name}")
             else:
                 # Use MAP model for REDUCE phase if they're the same
                 self._reduce_model = self._map_model
-                logger.debug("Using MAP model for REDUCE phase (same model)")
+                logger.info(f"✓ Using MAP model for REDUCE phase (same model: {model_name})")
 
             self._transformers_initialized = True
-            logger.debug("Transformers summarization initialized successfully")
+            logger.info("Transformers summarization initialized successfully")
         except Exception as e:
             logger.error("Failed to initialize summarization models: %s", e)
             raise
@@ -1177,6 +1176,9 @@ class MLProvider:
         )
         logger.info(f"  length_penalty: {self.cfg.summary_map_params.get('length_penalty')}")
         logger.info(f"  early_stopping: {self.cfg.summary_map_params.get('early_stopping')}")
+        logger.info(
+            f"  repetition_penalty: {self.cfg.summary_map_params.get('repetition_penalty')}"
+        )
         logger.info("Reduce stage:")
         logger.info(f"  max_new_tokens: {self.cfg.summary_reduce_params.get('max_new_tokens')}")
         logger.info(f"  min_new_tokens: {self.cfg.summary_reduce_params.get('min_new_tokens')}")
@@ -1186,6 +1188,9 @@ class MLProvider:
         )
         logger.info(f"  length_penalty: {self.cfg.summary_reduce_params.get('length_penalty')}")
         logger.info(f"  early_stopping: {self.cfg.summary_reduce_params.get('early_stopping')}")
+        logger.info(
+            f"  repetition_penalty: {self.cfg.summary_reduce_params.get('repetition_penalty')}"
+        )
         logger.info("Tokenization:")
         logger.info(
             f"  map_max_input_tokens: {self.cfg.summary_tokenize.get('map_max_input_tokens')}"
@@ -1194,6 +1199,26 @@ class MLProvider:
             f"  reduce_max_input_tokens: {self.cfg.summary_tokenize.get('reduce_max_input_tokens')}"
         )
         logger.info(f"  truncation: {self.cfg.summary_tokenize.get('truncation')}")
+        # Log chunking params if available
+        if self.cfg.summary_word_chunk_size or word_chunk_size:
+            logger.info("Chunking:")
+            effective_word_chunk_size = word_chunk_size or self.cfg.summary_word_chunk_size
+            effective_word_overlap = word_overlap or self.cfg.summary_word_overlap
+            effective_use_word_chunking = use_word_chunking
+            if effective_use_word_chunking is None:
+                # Auto-detected
+                effective_use_word_chunking = any(
+                    model_keyword
+                    in (
+                        self._map_model.model_name if hasattr(self._map_model, "model_name") else ""
+                    ).lower()
+                    for model_keyword in ["bart", "pegasus", "distilbart"]
+                )
+            strategy = "word_chunking" if effective_use_word_chunking else "token_chunking"
+            logger.info(f"  strategy: {strategy}")
+            if effective_use_word_chunking:
+                logger.info(f"  word_chunk_size: {effective_word_chunk_size}")
+                logger.info(f"  word_overlap: {effective_word_overlap}")
 
         try:
             # Extract generation params: params dict overrides Config defaults
@@ -1216,6 +1241,12 @@ class MLProvider:
             map_early_stopping = params.get("map_early_stopping") if params else None
             if map_early_stopping is None:
                 map_early_stopping = self.cfg.summary_map_params.get("early_stopping")
+            map_repetition_penalty = (
+                params.get("map_repetition_penalty") if params else None
+            ) or self.cfg.summary_map_params.get("repetition_penalty")
+            map_encoder_no_repeat_ngram_size = (
+                params.get("map_encoder_no_repeat_ngram_size") if params else None
+            ) or self.cfg.summary_map_params.get("encoder_no_repeat_ngram_size")
             map_max_input_tokens = (
                 params.get("map_max_input_tokens") if params else None
             ) or self.cfg.summary_tokenize.get("map_max_input_tokens")
@@ -1238,12 +1269,21 @@ class MLProvider:
             reduce_early_stopping = params.get("reduce_early_stopping") if params else None
             if reduce_early_stopping is None:
                 reduce_early_stopping = self.cfg.summary_reduce_params.get("early_stopping")
+            reduce_repetition_penalty = (
+                params.get("reduce_repetition_penalty") if params else None
+            ) or self.cfg.summary_reduce_params.get("repetition_penalty")
+            reduce_encoder_no_repeat_ngram_size = (
+                params.get("reduce_encoder_no_repeat_ngram_size") if params else None
+            ) or self.cfg.summary_reduce_params.get("encoder_no_repeat_ngram_size")
             reduce_max_input_tokens = (
                 params.get("reduce_max_input_tokens") if params else None
             ) or self.cfg.summary_tokenize.get("reduce_max_input_tokens")
             truncation = params.get("truncation") if params else None
             if truncation is None:
                 truncation = self.cfg.summary_tokenize.get("truncation")
+            preprocessing_profile = (
+                params.get("preprocessing_profile") if params else None
+            ) or "cleaning_v3"  # Default to cleaning_v3 if not specified
 
             result = summarizer.summarize_long_text(
                 model=self._map_model,
@@ -1265,6 +1305,8 @@ class MLProvider:
                 map_no_repeat_ngram_size=map_no_repeat_ngram_size,
                 map_length_penalty=map_length_penalty,
                 map_early_stopping=map_early_stopping,
+                map_repetition_penalty=map_repetition_penalty,
+                map_encoder_no_repeat_ngram_size=map_encoder_no_repeat_ngram_size,
                 map_max_input_tokens=map_max_input_tokens,
                 reduce_max_new_tokens=reduce_max_new_tokens,
                 reduce_min_new_tokens=reduce_min_new_tokens,
@@ -1272,8 +1314,11 @@ class MLProvider:
                 reduce_no_repeat_ngram_size=reduce_no_repeat_ngram_size,
                 reduce_length_penalty=reduce_length_penalty,
                 reduce_early_stopping=reduce_early_stopping,
+                reduce_repetition_penalty=reduce_repetition_penalty,
+                reduce_encoder_no_repeat_ngram_size=reduce_encoder_no_repeat_ngram_size,
                 reduce_max_input_tokens=reduce_max_input_tokens,
                 truncation=truncation,
+                preprocessing_profile=preprocessing_profile,
             )
 
             # Handle both return types (str or tuple)

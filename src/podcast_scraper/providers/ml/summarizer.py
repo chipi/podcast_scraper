@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 # torch/transformers installed.
 
 from ... import preprocessing
+from ...preprocessing.profiles import apply_profile_with_stats
 
 logger = logging.getLogger(__name__)
 
@@ -258,13 +259,54 @@ DEFAULT_SUMMARY_MODELS = {
     "fast": "sshleifer/distilbart-cnn-12-6",
     # PEGASUS-large (trained for summarization ~2.5GB), 1024 tokens
     "pegasus": "google/pegasus-large",
+    # PEGASUS-CNN (production baseline, trained on CNN/DailyMail ~2.5GB), 1024 tokens
+    "pegasus-cnn": "google/pegasus-cnn_dailymail",
     # PEGASUS-xsum (short summaries ~2.5GB), 1024 tokens
     "pegasus-xsum": "google/pegasus-xsum",
     # LED-large (long docs 16k tokens, ~2.5GB), NO chunking
     "long": "allenai/led-large-16384",
-    # LED-base (long docs 16k tokens, ~1GB), NO chunking
+    # LED-large alias (explicit name for clarity)
+    "long-large": "allenai/led-large-16384",
+    # LED-base (long docs 16k tokens, ~1GB), NO chunking (production baseline reduce model)
     "long-fast": "allenai/led-base-16384",
 }
+
+
+def resolve_model_name(model_id: str) -> str:
+    """Resolve model identifier to full HuggingFace model ID.
+
+    Handles both aliases (e.g., "bart-small") and raw HuggingFace IDs (e.g., "facebook/bart-base").
+    If the model_id contains "/", it's treated as a raw HF ID and passed through.
+
+    Args:
+        model_id: Model identifier (alias or raw HF ID)
+
+    Returns:
+        Full HuggingFace model ID
+
+    Examples:
+        >>> resolve_model_name("bart-small")
+        "facebook/bart-base"
+        >>> resolve_model_name("facebook/bart-base")
+        "facebook/bart-base"
+        >>> resolve_model_name("microsoft/DialoGPT-medium")
+        "microsoft/DialoGPT-medium"
+    """
+    # NEW: raw HF model id passthrough (if contains "/", treat as raw ID)
+    if "/" in model_id:
+        return model_id
+
+    # Alias-based resolution
+    if model_id in DEFAULT_SUMMARY_MODELS:
+        return DEFAULT_SUMMARY_MODELS[model_id]
+
+    # If not found and doesn't contain "/", raise error
+    raise ValueError(
+        f"Unknown model id: {model_id}. "
+        f"Available aliases: {list(DEFAULT_SUMMARY_MODELS.keys())}. "
+        f"Or use a raw HuggingFace model ID (e.g., 'facebook/bart-base')."
+    )
+
 
 # Default prompt for summarization
 # Important: Explicitly instruct model to avoid hallucinations and stick to source content
@@ -342,11 +384,12 @@ def remove_sponsor_blocks(text: str) -> str:
 def select_summary_model(cfg) -> str:
     """Select MAP-phase model based on configuration.
 
-    Defaults to BART-large for production quality chunk summarization.
-    This is the MAP model used to summarize individual chunks.
+    Defaults to Pegasus-CNN for production quality chunk summarization
+    (baseline_ml_prod_authority_v1). This is the MAP model used to summarize
+    individual chunks.
 
     Note: Tests typically use "facebook/bart-base" (smaller, faster) for speed,
-    but production defaults to "facebook/bart-large-cnn" (larger, better quality).
+    but production defaults to "google/pegasus-cnn_dailymail" (production baseline).
 
     Args:
         cfg: Configuration object with summary_model field
@@ -356,31 +399,25 @@ def select_summary_model(cfg) -> str:
     """
     if cfg.summary_model:
         model_key = cast(str, cfg.summary_model)
-        # Check if it's a key in DEFAULT_SUMMARY_MODELS
-        # (e.g., "bart-large", "bart-small", "long-fast", "pegasus")
-        if model_key in DEFAULT_SUMMARY_MODELS:
-            return DEFAULT_SUMMARY_MODELS[model_key]
-        # Otherwise, assume it's a direct model identifier (e.g., "facebook/bart-large-cnn")
-        return model_key
+        return resolve_model_name(model_key)
 
-    # Default to BART-large for MAP phase (production quality chunk summarization)
-    default_model = DEFAULT_SUMMARY_MODELS.get("bart-large")
+    # Default to Pegasus-CNN for MAP phase (production baseline: baseline_ml_prod_authority_v1)
+    default_model = DEFAULT_SUMMARY_MODELS.get("pegasus-cnn")
     if not default_model:
-        raise ValueError("DEFAULT_SUMMARY_MODELS['bart-large'] is not defined")
+        raise ValueError("DEFAULT_SUMMARY_MODELS['pegasus-cnn'] is not defined")
     return default_model
 
 
 def select_reduce_model(cfg, default_model_name: str) -> str:
     """Select reduce-phase model based on configuration.
 
-    Defaults to LED-large for accurate, long-context final summarization.
-    This hybrid approach is widely used in production:
-    - MAP with BART (fast, efficient chunk summaries)
-    - REDUCE with LED-large (slower but accurate, handles long combined
-      summaries without hallucination)
+    Defaults to LED-base for accurate, long-context final summarization
+    (baseline_ml_prod_authority_v1). This hybrid approach is the production baseline:
+    - MAP with Pegasus-CNN (production-optimized chunk summaries)
+    - REDUCE with LED-base (accurate, handles long combined summaries without hallucination)
 
-    If ``cfg.summary_reduce_model`` is not set, defaults to LED-large instead
-    of falling back to the map model. This provides the best quality by default.
+    If ``cfg.summary_reduce_model`` is not set, defaults to LED-base instead
+    of falling back to the map model. This provides the production baseline quality by default.
 
     Args:
         cfg: Configuration object with summary_reduce_model field
@@ -391,18 +428,15 @@ def select_reduce_model(cfg, default_model_name: str) -> str:
     """
     reduce_key = getattr(cfg, "summary_reduce_model", None)
     if not reduce_key:
-        # Default to LED-large for reduce phase (best quality, long-context)
-        default_model = DEFAULT_SUMMARY_MODELS.get("long")
+        # Default to LED-base for reduce phase (production baseline: baseline_ml_prod_authority_v1)
+        default_model = DEFAULT_SUMMARY_MODELS.get("long-fast")
         if not default_model:
-            raise ValueError("DEFAULT_SUMMARY_MODELS['long'] is not defined")
+            raise ValueError("DEFAULT_SUMMARY_MODELS['long-fast'] is not defined")
         return default_model
 
     reduce_key = cast(str, reduce_key)
-    # Allow using keys from DEFAULT_SUMMARY_MODELS (e.g., "long-fast", "long", "bart-large")
-    if reduce_key in DEFAULT_SUMMARY_MODELS:
-        return DEFAULT_SUMMARY_MODELS[reduce_key]
-    # Otherwise assume it's a direct model identifier
-    return reduce_key
+    # Use resolve_model_name for consistent alias resolution and raw HF ID passthrough
+    return resolve_model_name(reduce_key)
 
 
 class SummaryModel:
@@ -625,6 +659,8 @@ class SummaryModel:
         no_repeat_ngram_size: Optional[int] = None,
         length_penalty: Optional[float] = None,
         early_stopping: Optional[bool] = None,
+        repetition_penalty: Optional[float] = None,
+        encoder_no_repeat_ngram_size: Optional[int] = None,
         max_input_tokens: Optional[int] = None,
         truncation: Optional[bool] = None,
     ) -> str:
@@ -720,8 +756,21 @@ class SummaryModel:
                 else:
                     length_penalty = config_module.DEFAULT_MAP_LENGTH_PENALTY
 
-            if early_stopping is None:
-                early_stopping = config_module.DEFAULT_MAP_EARLY_STOPPING  # Same for all phases
+            # For reduce phase, ALWAYS disable early_stopping to ensure min_new_tokens is enforced
+            # early_stopping=True can cause premature termination before reaching min_new_tokens
+            # This override is critical even if config explicitly sets early_stopping=True
+            if is_reduce_phase:
+                early_stopping = False
+            elif early_stopping is None:
+                early_stopping = config_module.DEFAULT_MAP_EARLY_STOPPING
+
+            if repetition_penalty is None:
+                if is_distill_phase:
+                    repetition_penalty = config_module.DEFAULT_DISTILL_REPETITION_PENALTY
+                elif is_reduce_phase:
+                    repetition_penalty = config_module.DEFAULT_REDUCE_REPETITION_PENALTY
+                else:
+                    repetition_penalty = config_module.DEFAULT_MAP_REPETITION_PENALTY
 
             # Use max_new_tokens if provided, otherwise fall back to max_length
             # Convert max_length to max_new_tokens for clarity (max_length includes input+output)
@@ -752,14 +801,32 @@ class SummaryModel:
                             f"but truncation=False. This may cause errors."
                         )
 
+            # T5/FLAN-T5 models require "summarize: " prefix for optimal performance
+            # Without this prefix, T5 models will underperform significantly
+            # Add prefix after truncation so truncation accounts for original text length
+            if (
+                self.model
+                and hasattr(self.model, "config")
+                and hasattr(self.model.config, "model_type")
+            ):
+                if self.model.config.model_type == "t5":
+                    # Update input_text to use truncated text (if truncation occurred)
+                    input_text = text
+                    if not input_text.startswith("summarize: "):
+                        input_text = "summarize: " + input_text
+                        logger.debug("Added T5 prefix 'summarize: ' to input text")
+
             pipeline_kwargs = {
                 "max_new_tokens": effective_max_new_tokens,  # Use max_new_tokens (output-only)
                 "min_new_tokens": effective_min_new_tokens,  # Use min_new_tokens (output-only)
                 "truncation": effective_truncation,
                 # Penalize repetition to prevent hallucinations
-                "repetition_penalty": config_module.DEFAULT_MAP_REPETITION_PENALTY,
+                "repetition_penalty": repetition_penalty,
                 "no_repeat_ngram_size": no_repeat_ngram_size,
             }
+            # Add encoder_no_repeat_ngram_size if provided (prevents copying from input)
+            if encoder_no_repeat_ngram_size is not None:
+                pipeline_kwargs["encoder_no_repeat_ngram_size"] = encoder_no_repeat_ngram_size
 
             # Use beam search for better quality (LED models work better with beam search)
             # Only use do_sample if explicitly requested, otherwise use beam search
@@ -814,11 +881,44 @@ class SummaryModel:
             else:
                 return ""
 
+            # Log raw generated length before post-processing
+            raw_chars = len(summary_text)
+            raw_words = len(summary_text.split()) if summary_text else 0
+            raw_tokens = (
+                len(
+                    self.tokenizer.encode(  # type: ignore[attr-defined]
+                        summary_text, add_special_tokens=False
+                    )
+                )
+                if summary_text and self.tokenizer
+                else 0
+            )
+
             # Validate summary quality - detect instruction leaks and
             # repetitive/hallucinated content
             if summary_text:
                 summary_text = _strip_instruction_leak(summary_text)
                 validated_summary = _validate_and_fix_repetitive_summary(summary_text)
+
+                # Log post-processed length and difference
+                processed_chars = len(validated_summary)
+                processed_words = len(validated_summary.split()) if validated_summary else 0
+                chars_diff = raw_chars - processed_chars
+                words_diff = raw_words - processed_words
+
+                if chars_diff > 0 or words_diff > 0:
+                    logger.debug(
+                        f"[POST-PROCESS] Raw: {raw_chars} chars, {raw_words} words, "
+                        f"{raw_tokens} tokens → Processed: {processed_chars} chars, "
+                        f"{processed_words} words ({chars_diff} chars, {words_diff} words removed)"
+                    )
+                else:
+                    logger.debug(
+                        f"[POST-PROCESS] Raw: {raw_chars} chars, {raw_words} words, "
+                        f"{raw_tokens} tokens → Processed: {processed_chars} chars, "
+                        f"{processed_words} words (no trimming)"
+                    )
+
                 return cast(str, validated_summary)
 
             return summary_text
@@ -1163,6 +1263,8 @@ def summarize_long_text(
     map_no_repeat_ngram_size: Optional[int] = None,
     map_length_penalty: Optional[float] = None,
     map_early_stopping: Optional[bool] = None,
+    map_repetition_penalty: Optional[float] = None,
+    map_encoder_no_repeat_ngram_size: Optional[int] = None,
     map_max_input_tokens: Optional[int] = None,
     # New explicit generation params for reduce stage
     reduce_max_new_tokens: Optional[int] = None,
@@ -1171,8 +1273,11 @@ def summarize_long_text(
     reduce_no_repeat_ngram_size: Optional[int] = None,
     reduce_length_penalty: Optional[float] = None,
     reduce_early_stopping: Optional[bool] = None,
+    reduce_repetition_penalty: Optional[float] = None,
+    reduce_encoder_no_repeat_ngram_size: Optional[int] = None,
     reduce_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
+    preprocessing_profile: str = "cleaning_v3",
 ) -> str | tuple[str, Dict[str, Any]]:
     """Summarize long text by chunking and combining summaries.
 
@@ -1207,16 +1312,36 @@ def summarize_long_text(
     if reduce_model is None:
         reduce_model = model
 
-    # Use preprocessing module directly (avoid deprecation warning)
-    cleaned_text = preprocessing.clean_for_summarization(text)  # type: ignore[attr-defined]
+    # Use preprocessing profile system (wired from experiment config)
+    # Apply with statistics tracking for diagnostic logging
+    cleaned_text, preprocess_stats = apply_profile_with_stats(text, preprocessing_profile)
     if cleaned_text != text:
         removed_chars = len(text) - len(cleaned_text)
         removed_pct = (removed_chars / len(text) * 100) if len(text) else 0
-        logger.debug(
-            "[SPONSOR CLEANUP] Removed not clean segments before summarization: "
-            f"{removed_chars:,} chars ({removed_pct:.1f}%)"
+
+        # Log preprocessing profile and statistics
+        logger.info(
+            f"[PREPROCESSING] Profile: {preprocessing_profile}, "
+            f"lines: {preprocess_stats['initial_lines']} → {preprocess_stats['final_lines']} "
+            f"({preprocess_stats['lines_removed']} removed), "
+            f"chars: {len(text):,} → {len(cleaned_text):,} "
+            f"({removed_chars:,} removed, {removed_pct:.1f}%)"
         )
+
+        # Log per-step line removal (if available)
+        step_stats = [
+            f"{k}: {v}" for k, v in preprocess_stats.items() if k.startswith("step_") and v > 0
+        ]
+        if step_stats:
+            logger.info(f"[PREPROCESSING] Steps: {', '.join(step_stats)}")
+
         text = cleaned_text.strip()
+    else:
+        # Still log profile even if no changes
+        logger.info(
+            f"[PREPROCESSING] Profile: {preprocessing_profile}, "
+            f"lines: {preprocess_stats['initial_lines']} (no changes)"
+        )
 
     # === VALIDATION: Input metrics ===
     input_chars = len(text)
@@ -1338,6 +1463,8 @@ def summarize_long_text(
         map_no_repeat_ngram_size=map_no_repeat_ngram_size,
         map_length_penalty=map_length_penalty,
         map_early_stopping=map_early_stopping,
+        map_repetition_penalty=map_repetition_penalty,
+        map_encoder_no_repeat_ngram_size=map_encoder_no_repeat_ngram_size,
         map_max_input_tokens=map_max_input_tokens,
         truncation=truncation,
     )
@@ -1370,6 +1497,12 @@ def summarize_long_text(
         logger.debug("[MAP-REDUCE VALIDATION] Map phase: No chunk summaries generated!")
 
     # Step 4: Reduce - Combine summaries into final result
+    # Calculate reduce input size (for logging/diagnostics)
+    reduce_input_chars = 0
+    if chunk_summaries:
+        combined_text = _join_summaries_with_structure(chunk_summaries)
+        reduce_input_chars = len(combined_text)
+
     reduce_start_time = time.time()
     final_summary = _combine_summaries_reduce(
         reduce_model,
@@ -1384,6 +1517,8 @@ def summarize_long_text(
         reduce_no_repeat_ngram_size=reduce_no_repeat_ngram_size,
         reduce_length_penalty=reduce_length_penalty,
         reduce_early_stopping=reduce_early_stopping,
+        reduce_repetition_penalty=reduce_repetition_penalty,
+        reduce_encoder_no_repeat_ngram_size=reduce_encoder_no_repeat_ngram_size,
         reduce_max_input_tokens=reduce_max_input_tokens,
         truncation=truncation,
     )
@@ -1435,6 +1570,7 @@ def summarize_long_text(
                 if chunk_summaries
                 else []
             ),
+            "reduce_input_chars": reduce_input_chars,  # Calculated before reduce phase
         }
         return final_summary, intermediates
 
@@ -1459,6 +1595,8 @@ def _summarize_chunks_map(
     map_no_repeat_ngram_size: Optional[int] = None,
     map_length_penalty: Optional[float] = None,
     map_early_stopping: Optional[bool] = None,
+    map_repetition_penalty: Optional[float] = None,
+    map_encoder_no_repeat_ngram_size: Optional[int] = None,
     map_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
 ) -> List[str]:
@@ -1523,6 +1661,8 @@ def _summarize_chunks_map(
             map_no_repeat_ngram_size=map_no_repeat_ngram_size,
             map_length_penalty=map_length_penalty,
             map_early_stopping=map_early_stopping,
+            map_repetition_penalty=map_repetition_penalty,
+            map_encoder_no_repeat_ngram_size=map_encoder_no_repeat_ngram_size,
             map_max_input_tokens=map_max_input_tokens,
             truncation=truncation,
         )
@@ -1543,6 +1683,7 @@ def _summarize_chunks_map(
             map_no_repeat_ngram_size=map_no_repeat_ngram_size,
             map_length_penalty=map_length_penalty,
             map_early_stopping=map_early_stopping,
+            map_repetition_penalty=map_repetition_penalty,
             map_max_input_tokens=map_max_input_tokens,
             truncation=truncation,
         )
@@ -1563,6 +1704,8 @@ def _summarize_chunks_parallel(
     map_no_repeat_ngram_size: Optional[int] = None,
     map_length_penalty: Optional[float] = None,
     map_early_stopping: Optional[bool] = None,
+    map_repetition_penalty: Optional[float] = None,
+    map_encoder_no_repeat_ngram_size: Optional[int] = None,
     map_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
 ) -> List[str]:
@@ -1602,6 +1745,8 @@ def _summarize_chunks_parallel(
                     no_repeat_ngram_size=map_no_repeat_ngram_size,
                     length_penalty=map_length_penalty,
                     early_stopping=map_early_stopping,
+                    repetition_penalty=map_repetition_penalty,
+                    encoder_no_repeat_ngram_size=map_encoder_no_repeat_ngram_size,
                     max_input_tokens=map_max_input_tokens,
                     truncation=truncation,
                 ),
@@ -1655,6 +1800,8 @@ def _summarize_chunks_sequential(
     map_no_repeat_ngram_size: Optional[int] = None,
     map_length_penalty: Optional[float] = None,
     map_early_stopping: Optional[bool] = None,
+    map_repetition_penalty: Optional[float] = None,
+    map_encoder_no_repeat_ngram_size: Optional[int] = None,
     map_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
 ) -> List[str]:
@@ -1696,6 +1843,8 @@ def _summarize_chunks_sequential(
                 no_repeat_ngram_size=map_no_repeat_ngram_size,
                 length_penalty=map_length_penalty,
                 early_stopping=map_early_stopping,
+                repetition_penalty=map_repetition_penalty,
+                encoder_no_repeat_ngram_size=map_encoder_no_repeat_ngram_size,
                 max_input_tokens=map_max_input_tokens,
                 truncation=truncation,
             )
@@ -1739,6 +1888,8 @@ def _combine_summaries_reduce(
     reduce_no_repeat_ngram_size: Optional[int] = None,
     reduce_length_penalty: Optional[float] = None,
     reduce_early_stopping: Optional[bool] = None,
+    reduce_repetition_penalty: Optional[float] = None,
+    reduce_encoder_no_repeat_ngram_size: Optional[int] = None,
     reduce_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
 ) -> str:
@@ -1863,6 +2014,8 @@ def _combine_summaries_reduce(
             reduce_no_repeat_ngram_size=reduce_no_repeat_ngram_size,
             reduce_length_penalty=reduce_length_penalty,
             reduce_early_stopping=reduce_early_stopping,
+            reduce_repetition_penalty=reduce_repetition_penalty,
+            reduce_encoder_no_repeat_ngram_size=reduce_encoder_no_repeat_ngram_size,
             reduce_max_input_tokens=reduce_max_input_tokens,
             truncation=truncation,
         )
@@ -1884,6 +2037,8 @@ def _combine_summaries_reduce(
             reduce_no_repeat_ngram_size=reduce_no_repeat_ngram_size,
             reduce_length_penalty=reduce_length_penalty,
             reduce_early_stopping=reduce_early_stopping,
+            reduce_repetition_penalty=reduce_repetition_penalty,
+            reduce_encoder_no_repeat_ngram_size=reduce_encoder_no_repeat_ngram_size,
             reduce_max_input_tokens=reduce_max_input_tokens,
             truncation=truncation,
         )
@@ -1995,9 +2150,12 @@ def _join_summaries_with_structure(summaries: List[str]) -> str:
     NO instruction text, NO headers - these get copied verbatim by the model.
 
     The structure helps the model:
-    1. See clear chunk boundaries (===)
+    1. See clear chunk boundaries (--- separators with blank lines)
     2. Treat content as "notes" not "sentences to copy"
     3. Avoid extractive copying of prose
+
+    Uses "\n\n---\n\n" separators for LED models to provide better structure
+    and prevent summaries from blending together, which can cause generation collapse.
 
     Args:
         summaries: List of chunk summary strings
@@ -2045,15 +2203,18 @@ def _join_summaries_with_structure(summaries: List[str]) -> str:
             block = "\n".join(bullet_lines)
             blocks.append(block)
 
-    # Join with neutral separator that won't be echoed
-    return "\n===\n".join(blocks).strip()
+    # Join with clear separators for LED models
+    # Using "\n\n---\n\n" instead of "\n===\n" provides better structure
+    # for LED models, helping them distinguish chunk boundaries and
+    # preventing summaries from blending together
+    return "\n\n---\n\n".join(blocks).strip()
 
 
 def _postprocess_ml_summary(text: str) -> str:
     """Clean up BART/LED output artifacts.
 
     BART/LED models can produce:
-    - Leaked separators (===)
+    - Leaked separators (=== or ---)
     - Bullet prefixes we don't want in final output
     - Repetition spirals
     - Minor formatting issues
@@ -2069,8 +2230,9 @@ def _postprocess_ml_summary(text: str) -> str:
     if not text:
         return text
 
-    # Remove any leaked separators
+    # Remove any leaked separators (both old === and new ---)
     text = text.replace("===", " ")
+    text = text.replace("---", " ")
     text = re.sub(r"\s+", " ", text)
 
     # Handle inline bullets (.-) by converting to newlines first
@@ -2323,6 +2485,8 @@ def _combine_summaries_extractive(
     reduce_no_repeat_ngram_size: Optional[int] = None,
     reduce_length_penalty: Optional[float] = None,
     reduce_early_stopping: Optional[bool] = None,
+    reduce_repetition_penalty: Optional[float] = None,
+    reduce_encoder_no_repeat_ngram_size: Optional[int] = None,
     reduce_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
 ) -> str:
@@ -2360,6 +2524,7 @@ def _combine_summaries_extractive(
                 min_length=min_length,
                 do_sample=False,
                 prompt=prompt,
+                is_reduce_phase=True,  # Use REDUCE-specific generation params
                 # Pass reduce generation params
                 max_new_tokens=reduce_max_new_tokens,
                 min_new_tokens=reduce_min_new_tokens,
@@ -2405,6 +2570,8 @@ def _combine_summaries_mini_map_reduce(
     reduce_no_repeat_ngram_size: Optional[int] = None,
     reduce_length_penalty: Optional[float] = None,
     reduce_early_stopping: Optional[bool] = None,
+    reduce_repetition_penalty: Optional[float] = None,
+    reduce_encoder_no_repeat_ngram_size: Optional[int] = None,
     reduce_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
 ) -> str:
@@ -2540,6 +2707,8 @@ def _combine_summaries_mini_map_reduce(
                     no_repeat_ngram_size=reduce_no_repeat_ngram_size,
                     length_penalty=reduce_length_penalty,
                     early_stopping=reduce_early_stopping,
+                    repetition_penalty=reduce_repetition_penalty,
+                    encoder_no_repeat_ngram_size=reduce_encoder_no_repeat_ngram_size,
                     max_input_tokens=reduce_max_input_tokens,
                     truncation=truncation,
                 )
@@ -2632,6 +2801,8 @@ def _combine_summaries_mini_map_reduce(
         reduce_no_repeat_ngram_size=reduce_no_repeat_ngram_size,
         reduce_length_penalty=reduce_length_penalty,
         reduce_early_stopping=reduce_early_stopping,
+        reduce_repetition_penalty=reduce_repetition_penalty,
+        reduce_encoder_no_repeat_ngram_size=reduce_encoder_no_repeat_ngram_size,
         reduce_max_input_tokens=reduce_max_input_tokens,
         truncation=truncation,
     )
@@ -2663,6 +2834,8 @@ def _combine_summaries_abstractive(
     reduce_no_repeat_ngram_size: Optional[int] = None,
     reduce_length_penalty: Optional[float] = None,
     reduce_early_stopping: Optional[bool] = None,
+    reduce_repetition_penalty: Optional[float] = None,
+    reduce_encoder_no_repeat_ngram_size: Optional[int] = None,
     reduce_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
 ) -> str:
@@ -2728,6 +2901,8 @@ def _combine_summaries_abstractive(
             no_repeat_ngram_size=reduce_no_repeat_ngram_size,
             length_penalty=reduce_length_penalty,
             early_stopping=reduce_early_stopping,
+            repetition_penalty=reduce_repetition_penalty,
+            encoder_no_repeat_ngram_size=reduce_encoder_no_repeat_ngram_size,
             max_input_tokens=reduce_max_input_tokens,
             truncation=truncation,
         )

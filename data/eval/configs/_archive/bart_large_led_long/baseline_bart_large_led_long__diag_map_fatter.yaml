@@ -1,0 +1,48 @@
+# Diagnostic config: make MAP stage significantly less compressive.
+# Goal: increase map-summary density so reduce has enough signal.
+# Keep REDUCE at normal settings (since Step 1 proved forcing reduce longer didn't help).
+
+id: "baseline_bart_large_led_long__diag_map_fatter"
+task: "summarization"
+
+backend:
+  type: "hf_local"
+  map_model: "bart-large"     # facebook/bart-large-cnn
+  reduce_model: "long"        # allenai/led-large-16384
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v4"
+
+# Step 2: Force MAP to be "fatter"
+map_params:
+  max_new_tokens: 450
+  min_new_tokens: 220
+  num_beams: 4
+  no_repeat_ngram_size: 2
+  length_penalty: 1.0
+  early_stopping: true
+  repetition_penalty: 1.06
+  do_sample: false
+
+# Back to normal reduce settings (we already proved reduce isn't the lever)
+reduce_params:
+  max_new_tokens: 650
+  min_new_tokens: 220
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  length_penalty: 1.0
+  early_stopping: true
+  repetition_penalty: 1.12
+  do_sample: false
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150

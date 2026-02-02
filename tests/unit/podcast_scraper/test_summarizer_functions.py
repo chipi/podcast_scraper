@@ -331,7 +331,7 @@ class TestJoinSummariesWithStructure(unittest.TestCase):
         self.assertIn("This is a longer summary", result)
         self.assertIn("Another longer summary", result)
         self.assertIn("Yet another longer summary", result)
-        self.assertIn("===", result)  # Should have segment separator
+        self.assertIn("---", result)  # Should have segment separator (uses "---" not "===")
         self.assertTrue(len(result) > 0)
 
     def test_join_summaries_single(self):

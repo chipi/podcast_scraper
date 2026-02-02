@@ -68,6 +68,15 @@ class HFBackendConfig(BaseModel):
     )
 
 
+class SpacyBackendConfig(BaseModel):
+    """Config for local spaCy models (NER tasks)."""
+
+    type: Literal["spacy_local"] = "spacy_local"
+    model: str = Field(
+        description="spaCy model name, e.g. 'en_core_web_sm' or 'en_core_web_trf'.",
+    )
+
+
 class OpenAIBackendConfig(BaseModel):
     """Config for OpenAI models (summarization, NER, etc.)."""
 
@@ -77,7 +86,7 @@ class OpenAIBackendConfig(BaseModel):
     )
 
 
-BackendConfig = HFBackendConfig | OpenAIBackendConfig
+BackendConfig = HFBackendConfig | OpenAIBackendConfig | SpacyBackendConfig
 
 
 # ----- Data configuration -----
@@ -181,6 +190,23 @@ class GenerationParams(BaseModel):
         default=True,
         description="Stop generation when all beams agree (beam search only)",
     )
+    repetition_penalty: float = Field(
+        default=1.3,
+        ge=1.0,
+        le=2.0,
+        description=(
+            "Repetition penalty (1.0 = no penalty, >1.0 = penalize repetition, "
+            "prevents hallucinations)"
+        ),
+    )
+    encoder_no_repeat_ngram_size: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Prevents copying n-grams directly from input "
+            "(None = disabled, 3 = prevent 3-grams from input)"
+        ),
+    )
 
 
 class TokenizeConfig(BaseModel):
@@ -206,6 +232,37 @@ class TokenizeConfig(BaseModel):
     truncation: bool = Field(
         default=True,
         description="Whether to truncate input text that exceeds max_input_tokens",
+    )
+
+
+class ChunkingConfig(BaseModel):
+    """Chunking configuration for long text processing.
+
+    Controls how long transcripts are split into chunks for processing.
+    Chunking is critical for quality, cost, latency, and reproducibility.
+
+    Example YAML:
+      strategy: "word_chunking"
+      word_chunk_size: 900
+      word_overlap: 150
+    """
+
+    strategy: Literal["word_chunking", "token_chunking", "none"] = Field(
+        default="word_chunking",
+        description="Chunking strategy: 'word_chunking' (recommended for BART/PEGASUS), "
+        "'token_chunking' (for models with large context windows), or 'none' (no chunking)",
+    )
+    word_chunk_size: int = Field(
+        default=900,
+        ge=1,
+        description="Chunk size in words (for word_chunking strategy, 800-1200 recommended)",
+    )
+    word_overlap: int = Field(
+        default=150,
+        ge=0,
+        description=(
+            "Overlap in words between chunks " "(for word_chunking strategy, 100-200 recommended)"
+        ),
     )
 
 
@@ -249,12 +306,17 @@ class ExperimentConfig(BaseModel):
         reduce_max_input_tokens: 4096
         truncation: true
 
+      chunking:
+        strategy: "word_chunking"
+        word_chunk_size: 900
+        word_overlap: 150
+
     """
 
     id: str
-    task: Literal["summarization", "ner_guest_host", "ner_generic", "transcription"] = Field(
-        default="summarization"
-    )
+    task: Literal[
+        "summarization", "ner_entities", "ner_guest_host", "ner_generic", "transcription"
+    ] = Field(default="summarization")
     backend: BackendConfig
     prompts: Optional[PromptConfig] = Field(
         default=None,
@@ -273,6 +335,26 @@ class ExperimentConfig(BaseModel):
     tokenize: Optional[TokenizeConfig] = Field(
         default=None,
         description="Tokenization configuration for input text (required for hf_local backend)",
+    )
+    chunking: Optional[ChunkingConfig] = Field(
+        default=None,
+        description=(
+            "Chunking configuration for long text processing "
+            "(optional, uses defaults if not specified)"
+        ),
+    )
+    preprocessing_profile: str = Field(
+        default="cleaning_v3",
+        description=(
+            "Preprocessing profile ID to use for text cleaning "
+            "(e.g., 'cleaning_v3', 'cleaning_v4')"
+        ),
+    )
+    params: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Backend-specific parameters " "(e.g., max_length, min_length, temperature for OpenAI)"
+        ),
     )
 
     @field_validator("id")
@@ -392,17 +474,41 @@ def discover_input_files(data_cfg: DataConfig, base_dir: Path | None = None) -> 
         FileNotFoundError: If dataset JSON doesn't exist or transcript files are missing
     """
     if data_cfg.dataset_id:
-        # Dataset-based mode: load from JSON
+        # Dataset-based mode: load from materialized data ONLY
         dataset = load_dataset_json(data_cfg.dataset_id)
+
+        # Materialized data is required - no fallback to sources
+        materialized_dir = Path("data/eval/materialized") / data_cfg.dataset_id
+        if not materialized_dir.exists():
+            raise FileNotFoundError(
+                f"Materialized dataset not found: {materialized_dir}\n"
+                f"  Materialize the dataset first with: "
+                f"make dataset-materialize DATASET_ID={data_cfg.dataset_id}"
+            )
+
+        meta_json = materialized_dir / "meta.json"
+        if not meta_json.exists():
+            raise FileNotFoundError(
+                f"Materialized dataset metadata not found: {meta_json}\n"
+                f"  Materialize the dataset first with: "
+                f"make dataset-materialize DATASET_ID={data_cfg.dataset_id}"
+            )
+
         paths = []
         for episode in dataset.get("episodes", []):
-            transcript_path = Path(episode["transcript_path"])
-            if not transcript_path.exists():
-                episode_id = episode["episode_id"]
+            episode_id = episode["episode_id"]
+            materialized_path = materialized_dir / f"{episode_id}.txt"
+
+            if not materialized_path.exists():
                 raise FileNotFoundError(
-                    f"Transcript file not found for episode {episode_id}: " f"{transcript_path}"
+                    f"Materialized transcript not found for episode "
+                    f"{episode_id}: {materialized_path}\n"
+                    f"  Materialize the dataset first with: "
+                    f"make dataset-materialize DATASET_ID={data_cfg.dataset_id}"
                 )
-            paths.append(transcript_path)
+
+            paths.append(materialized_path)
+
         return sorted(paths)
     elif data_cfg.episodes_glob:
         # Legacy glob-based mode
@@ -419,6 +525,7 @@ def episode_id_from_path(path: Path, data_cfg: DataConfig) -> str:
 
     Supports two modes:
     1. Dataset-based: Looks up episode_id from dataset JSON by matching transcript_path
+       or extracts from materialized path (e.g., p01_e01.txt -> p01_e01)
     2. Glob-based: Uses id_from rule (legacy mode)
 
     Args:
@@ -432,7 +539,26 @@ def episode_id_from_path(path: Path, data_cfg: DataConfig) -> str:
         ValueError: If episode not found in dataset (dataset mode only)
     """
     if data_cfg.dataset_id:
-        # Dataset-based mode: look up episode_id from dataset JSON
+        # Dataset-based mode: try to extract episode_id from materialized path first
+        # Materialized paths are: data/eval/materialized/{dataset_id}/{episode_id}.txt
+        materialized_dir = Path("data/eval/materialized") / data_cfg.dataset_id
+        try:
+            # Check if path is within materialized directory
+            path_resolved = path.resolve()
+            materialized_resolved = materialized_dir.resolve()
+            if path_resolved.is_relative_to(materialized_resolved):
+                # Extract episode_id from filename (e.g., p01_e01.txt -> p01_e01)
+                episode_id = path.stem
+                # Validate it exists in dataset
+                dataset = load_dataset_json(data_cfg.dataset_id)
+                episode_ids = {ep.get("episode_id") for ep in dataset.get("episodes", [])}
+                if episode_id in episode_ids:
+                    return episode_id
+        except (ValueError, AttributeError):
+            # Path is not relative to materialized dir, continue to lookup
+            pass
+
+        # Fallback: look up episode_id from dataset JSON by matching transcript_path
         dataset = load_dataset_json(data_cfg.dataset_id)
         for episode in dataset.get("episodes", []):
             episode_path = Path(episode["transcript_path"]).resolve()

@@ -1,0 +1,49 @@
+# Hybrid ML candidate v2:
+# - MAP: keep bart-base (proven stable), but make it less compressive (fatter chunks)
+# - REDUCE: led-large-16384 for stronger synthesis
+# - Keep preprocessing + chunking unchanged for apples-to-apples comparison
+
+id: "baseline_bart_small_led_large_v2_fatter_map"
+task: "summarization"
+
+backend:
+  type: "hf_local"
+  map_model: "bart-small"     # facebook/bart-base
+  reduce_model: "long"        # allenai/led-large-16384
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v4"
+
+# Make MAP "fatter" to reduce over-compression before reduce stage
+map_params:
+  max_new_tokens: 260
+  min_new_tokens: 120
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  length_penalty: 1.0
+  early_stopping: true
+  repetition_penalty: 1.10
+  do_sample: false
+
+# Keep reduce generous; slightly raise minimum to encourage fuller final summary
+reduce_params:
+  max_new_tokens: 650
+  min_new_tokens: 260
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  length_penalty: 1.0
+  early_stopping: true
+  repetition_penalty: 1.12
+  do_sample: false
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150

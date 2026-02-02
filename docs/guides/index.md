@@ -44,6 +44,7 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ------------- |
+| [Preprocessing Profiles](PREPROCESSING_PROFILES_GUIDE.md) | Understanding and using preprocessing profiles for transcript cleaning |
 | [ML Provider Reference](ML_PROVIDER_REFERENCE.md) | Technical reference for local ML models |
 
 ## AI Coding

@@ -1,0 +1,39 @@
+id: "baseline_bart_v6_combined_best"
+task: "summarization"
+
+backend:
+  type: "hf_local"
+  map_model: "bart-small"      # facebook/bart-base
+  reduce_model: "long-fast"    # allenai/led-base-16384
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+# COMBINED: Longer output + stronger ngram blocking + balanced chunks
+map_params:
+  max_new_tokens: 280          # Allow longer map summaries
+  min_new_tokens: 100          # Force reasonable minimum
+  num_beams: 5                 # More exploration
+  no_repeat_ngram_size: 4      # Stricter repetition control
+  length_penalty: 1.1          # Slight preference for longer
+  early_stopping: true
+  repetition_penalty: 1.3
+
+reduce_params:
+  max_new_tokens: 800          # Allow longer final summary
+  min_new_tokens: 300          # Force reasonable minimum
+  num_beams: 5                 # More exploration
+  no_repeat_ngram_size: 5      # Stricter repetition control
+  length_penalty: 1.1          # Slight preference for longer
+  early_stopping: true
+  repetition_penalty: 1.3
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 800         # Balanced: not too small, not too large
+  word_overlap: 120            # Good overlap for continuity

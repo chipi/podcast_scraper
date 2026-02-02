@@ -1,0 +1,54 @@
+{
+  "run_id": "baseline_ml_prod_candidate_v1_benchmark",
+  "dataset_id": "curated_5feeds_benchmark_v1",
+  "created_at": "2026-02-01T20:19:10.493034Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "hf_local",
+    "map_model": "google/pegasus-cnn_dailymail",
+    "reduce_model": "allenai/led-base-16384"
+  },
+  "params": {
+    "map_model": "google/pegasus-cnn_dailymail",
+    "reduce_model": "allenai/led-base-16384",
+    "map_params": {
+      "max_new_tokens": 200,
+      "min_new_tokens": 80,
+      "num_beams": 6,
+      "no_repeat_ngram_size": 3,
+      "length_penalty": 1.0,
+      "early_stopping": true,
+      "repetition_penalty": 1.1,
+      "encoder_no_repeat_ngram_size": null
+    },
+    "reduce_params": {
+      "max_new_tokens": 650,
+      "min_new_tokens": 220,
+      "num_beams": 4,
+      "no_repeat_ngram_size": 3,
+      "length_penalty": 1.0,
+      "early_stopping": false,
+      "repetition_penalty": 1.12,
+      "encoder_no_repeat_ngram_size": null
+    },
+    "tokenize": {
+      "map_max_input_tokens": 1024,
+      "reduce_max_input_tokens": 4096,
+      "truncation": true
+    }
+  },
+  "stats": {
+    "num_episodes": 10,
+    "total_time_seconds": 229.64800834655762,
+    "avg_time_seconds": 22.96480083465576,
+    "total_chars_in": 111266,
+    "total_chars_out": 9167,
+    "avg_compression": 12.137667721173775
+  },
+  "promoted_from": "baseline_ml_prod_candidate_v1_benchmark",
+  "promoted_at": "2026-02-01T20:21:00.020861Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_ml_prod_authority_v1"
+}

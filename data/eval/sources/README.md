@@ -42,7 +42,7 @@ sources/
 
 ## Metadata Schema
 
-Episode metadata files (`.metadata.json`) follow a JSON schema defined in `../episode_metadata.schema.json`.
+Episode metadata files (`.metadata.json`) follow a JSON schema defined in `../schemas/episode_metadata.schema.json`.
 
 Current version: **1.0**
 
@@ -50,7 +50,7 @@ The schema separates:
 - **Facts** (`speakers`): Who participated in the episode
 - **Expectations** (`expectations`): What should/shouldn't appear in generated outputs
 
-See `../episode_metadata.schema.json` for the complete schema definition.
+See `../schemas/episode_metadata.schema.json` for the complete schema definition.
 
 ## Source Index
 

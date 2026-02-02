@@ -289,6 +289,56 @@ def remove_summarization_artifacts(text: str) -> str:
     return cleaned.strip()
 
 
+def artifact_scrub_v1(text: str) -> str:
+    """Remove transcript artifacts and render tokens that leak into summaries.
+
+    This function removes:
+    - Bullet corruption (=-, -=)
+    - Divider noise (///, \\\\)
+    - Render/style tokens (TextColor, BgColor, etc.)
+    - Spurious prefix artifacts (Subur-, Exting, etc.)
+
+    These artifacts are often copied verbatim by summarization models,
+    so removing them before chunking prevents them from echoing through
+    both map and reduce stages.
+
+    Args:
+        text: Text potentially containing transcript artifacts
+
+    Returns:
+        Text with artifacts removed and normalized
+    """
+    # Artifact removal rules (applied in order)
+    artifact_rules = [
+        # Bullet corruption -> normalize to hyphen bullet
+        (re.compile(r"\s*(?:=-|-=?=)\s*"), " - "),  # catches =- and variants
+        (re.compile(r"\s*-\=\s*"), " - "),  # catches -=
+        # Excess slashes/backslashes noise
+        (re.compile(r"/{3,}"), "\n"),  # /// or more -> newline
+        (re.compile(r"\\{3,}"), " "),  # \\\\\ -> space
+        # Render/style tokens (CamelCase UI/render properties)
+        (
+            re.compile(
+                r"\b(?:TextColor|BgColor|ForegroundColor|BackgroundColor|FontSize|FontWeight)\w*\b"
+            ),
+            "",
+        ),
+        # Spurious prefix artifacts
+        (re.compile(r"\bSubur-\s*"), ""),  # "Subur-" prefix
+        (re.compile(r"\bExting\w*\b", re.IGNORECASE), ""),  # Exting, extingacebook, etc.
+        (re.compile(r"\bDesc-\w*\b", re.IGNORECASE), ""),  # Desc-/description-like artifacts
+        # Clean up double spaces after removals
+        (re.compile(r"[ \t]{2,}"), " "),
+        (re.compile(r"\n{3,}"), "\n\n"),
+    ]
+
+    cleaned = text
+    for pattern, replacement in artifact_rules:
+        cleaned = pattern.sub(replacement, cleaned)
+
+    return cleaned.strip()
+
+
 def strip_garbage_lines(text: str) -> str:
     """Remove website boilerplate and navigation garbage from transcripts.
 
@@ -324,6 +374,112 @@ def strip_garbage_lines(text: str) -> str:
             continue
         kept.append(ln)
     return "\n".join(kept)
+
+
+def is_junk_line(line: str) -> bool:
+    """Detect lines dominated by punctuation or artifacts.
+
+    Args:
+        line: A single line of text to check
+
+    Returns:
+        True if the line is considered junk (mostly punctuation or known artifacts)
+
+    Examples:
+        >>> is_junk_line("////")
+        True
+        >>> is_junk_line("=-=-=-=-=-")
+        True
+        >>> is_junk_line("(Pause)")
+        True
+        >>> is_junk_line("Hello world")
+        False
+        >>> is_junk_line("")
+        False
+    """
+    stripped = line.strip()
+    if not stripped:
+        return False
+    # Lines that are mostly punctuation
+    punct_ratio = sum(1 for c in stripped if c in "=/\\-_|") / len(stripped)
+    if punct_ratio > 0.5:
+        return True
+    # Known artifacts
+    artifacts = ["Desc-", "(Pause)", "[music]", "subscribe", "////"]
+    return any(art.lower() in stripped.lower() for art in artifacts)
+
+
+def strip_episode_header(text: str) -> str:
+    """Remove episode title/metadata header block.
+
+    Args:
+        text: Transcript text possibly containing header metadata
+
+    Returns:
+        Text with header lines removed
+
+    Examples:
+        >>> text = "# My Podcast\\n## Episode 1\\nHost: Maya\\n\\nMaya: Welcome!"
+        >>> result = strip_episode_header(text)
+        >>> "# My Podcast" not in result
+        True
+        >>> "Host: Maya" not in result
+        True
+        >>> "Maya: Welcome!" in result
+        True
+    """
+    patterns = [
+        r"^#\s+.*?\n",  # Markdown H1: "# Title"
+        r"^##\s+.*?\n",  # Markdown H2: "## Subtitle"
+        r"^Host:\s*\w+.*?\n",  # "Host: Maya"
+        r"^Guest:\s*\w+.*?\n",  # "Guest: Liam"
+        r"^Guests?:\s*.*?\n",  # "Guests: A, B, C"
+    ]
+    cleaned = text
+    for pattern in patterns:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.MULTILINE)
+    return cleaned.strip()
+
+
+def anonymize_speakers(text: str) -> str:
+    """Replace speaker names with anonymous labels (A:, B:, C:...).
+
+    Args:
+        text: Transcript text with speaker labels like "Maya: Hello"
+
+    Returns:
+        Text with anonymized labels like "A: Hello"
+
+    Examples:
+        >>> text = "Maya: Hi there\\nLiam: Hello\\nMaya: How are you?"
+        >>> result = anonymize_speakers(text)
+        >>> "A: Hi there" in result
+        True
+        >>> "B: Hello" in result
+        True
+        >>> "A: How are you?" in result
+        True
+        >>> "Maya" not in result
+        True
+        >>> "Liam" not in result
+        True
+    """
+    speaker_pattern = r"^([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)(?:\s*\([^)]+\))?\s*:"
+    speakers_seen: dict[str, str] = {}
+    lines = text.splitlines()
+    result = []
+
+    for line in lines:
+        match = re.match(speaker_pattern, line)
+        if match:
+            name = match.group(1)
+            if name not in speakers_seen:
+                speakers_seen[name] = chr(ord("A") + len(speakers_seen))
+            anon = speakers_seen[name]
+            line = re.sub(speaker_pattern, f"{anon}:", line)
+        result.append(line)
+
+    return "\n".join(result)
 
 
 def strip_credits(text: str) -> str:

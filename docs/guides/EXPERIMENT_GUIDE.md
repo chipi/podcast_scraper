@@ -420,7 +420,7 @@ You can also create dataset JSONs manually. Each episode must have:
 Optional fields:
 
 - `title`: Episode title
-- `preprocessing_profile`: Profile used for cleaning
+- `preprocessing_profile`: Profile used for cleaning (see [Preprocessing Profiles Guide](PREPROCESSING_PROFILES_GUIDE.md))
 - `transcript_raw_path`: Path to raw transcript
 - `golden_summary_long_path`: Path to long golden summary
 - `golden_summary_short_path`: Path to short golden summary
@@ -616,7 +616,7 @@ The `metadata.json` includes:
 - `git_is_dirty`: Whether repo had uncommitted changes
 - `provider_type`: Provider used (e.g., "OpenAIProvider")
 - `model_name`: Model name
-- `preprocessing_profile`: Preprocessing profile ID
+- `preprocessing_profile`: Preprocessing profile ID (see [Preprocessing Profiles Guide](PREPROCESSING_PROFILES_GUIDE.md))
 - `stats`: Processing statistics (num_episodes, avg_time, compression, etc.)
 
 ---
@@ -817,11 +817,18 @@ Detect common issues in generated summaries:
 
 - **`boilerplate_leak_rate`**: Fraction of episodes with promotional/sponsor content leaks
   - Patterns detected: "subscribe to our newsletter", "follow us on", "rate and review", etc.
-- **`speaker_leak_rate`**: Fraction of episodes with speaker annotations leaking through
-  - Patterns detected: "Host:", "Speaker 1:", "[laughter]", etc.
+- **`speaker_label_leak_rate`**: Fraction of episodes with speaker labels leaking through (FAIL gate)
+  - Patterns detected: "Host:", "Guest:", "Speaker 1:", "Interviewer:", etc.
+  - This is the main summarization gate - should be 0.0
 - **`truncation_rate`**: Fraction of episodes that appear truncated
   - Detected by truncation markers ("...", "[TRUNCATED]") or suspiciously short outputs
 - **`failed_episodes`**: List of episode IDs that failed quality gates
+
+**Warnings (Not Gates):**
+
+- **`speaker_name_leak_rate`**: Fraction of episodes with actual speaker names leaking through (WARN only)
+  - Detects actual names from metadata (e.g., "Alice", "Bob") appearing in summaries
+  - This is tracked for monitoring but does not cause gate failures
 
 **2. Length Metrics**
 
@@ -906,7 +913,10 @@ python scripts/eval/run_experiment.py config.yaml --reference golden_v1 --refere
 References can be:
 
 - **Baselines**: `data/eval/baselines/<baseline_id>/`
-- **References**: `data/eval/references/<dataset_id>/<reference_id>/`
+- **References**:
+  - Silver: `data/eval/references/silver/<reference_id>/`
+  - Gold NER: `data/eval/references/gold/ner_entities/<reference_id>/`
+  - Gold Summarization: `data/eval/references/gold/summarization/<reference_id>/`
 - **Legacy baselines**: `benchmarks/baselines/<baseline_id>/`
 
 Each reference must have a `predictions.jsonl` file with the same episode IDs as your run.
@@ -987,7 +997,7 @@ The scorer generates a `metrics.json` file with the following structure:
 
   "intrinsic": {
     "gates": {
-      "speaker_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
       "boilerplate_leak_rate": 0.0,
       "truncation_rate": 0.0,
       "failed_episodes": []
@@ -1048,7 +1058,7 @@ The comparator generates comparison files with deltas:
 
 For every reference (baseline/silver/gold), the system enforces:
 
-1. **Dataset ID match**: `reference.dataset_id == run.dataset_id`
+1. **Episode ID match**: Episode IDs match exactly (no missing/extra)
 2. **Episode ID match**: Episode IDs match exactly (no missing/extra)
 3. **Immutable**: Reference is write-once (cannot be overwritten)
 
@@ -1059,11 +1069,23 @@ If any of these fail → scoring refuses to run.
 A reference pack should contain at minimum:
 
 ```text
-references/{dataset_id}/{reference_id}/
+# Silver references
+references/silver/{reference_id}/
 ├── predictions.jsonl      # Reference text per episode
 ├── fingerprint.json        # How reference was generated
-├── baseline.json           # Reference metadata (dataset_id, reference_quality)
+├── baseline.json           # Reference metadata (reference_quality)
 └── config.yaml             # Config used (optional)
+
+# Gold NER references
+references/gold/ner_entities/{reference_id}/
+├── index.json              # Index of episodes
+├── {episode_id}.json       # Gold entities per episode
+└── README.md               # Reference documentation
+
+# Gold summarization references
+references/gold/summarization/{reference_id}/
+├── predictions.jsonl      # Gold summaries per episode
+└── README.md              # Reference documentation
 ```
 
 **Note:** A baseline can be promoted to a reference pack if you want. That's fine.
@@ -1205,6 +1227,180 @@ cat results/summarization_openai_long_v2/comparisons/vs_bart_led_baseline_v1.jso
 4. **Create baseline** → `make baseline-create BASELINE_ID=... DATASET_ID=...`
 5. **Run experiment** → `make experiment-run CONFIG=...`
 6. **Run experiment with evaluation** → `make experiment-run CONFIG=... BASELINE=... REFERENCE=...` (evaluation is automatic)
+
+---
+
+## Experiment Lifecycle Management
+
+When iterating on ML models and preprocessing, you'll make many small changes. Having a clear strategy for what to keep and what to delete prevents clutter while preserving important reference points.
+
+### The General Strategy
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    EXPERIMENT LIFECYCLE                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   KEEP                              DELETE                              │
+│   ────                              ──────                              │
+│   • Configs you might reuse         • Most intermediate runs            │
+│   • One "before" run per major      • Most exploratory configs          │
+│     change (frozen)                 • Failed experiment attempts        │
+│   • All promoted baselines          • Superseded parameter sweeps       │
+│   • Committed references                                                │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### What to Keep
+
+#### 1. Configs You Might Reuse
+
+Archive useful configurations before deleting them:
+
+```bash
+# Archive all current configs with today's date
+make configs-archive
+
+# Creates: data/eval/configs/_archive/configs_YYYY-MM-DD/
+```
+
+This preserves your parameter sweep configurations for reference without cluttering the active configs directory.
+
+#### 2. One "Before" Run Per Major Change (Frozen)
+
+Before implementing a significant change (new preprocessing profile, model switch, etc.), freeze one representative run:
+
+```bash
+# Freeze a run as a baseline comparison point
+make run-freeze RUN_ID=baseline_bart_v1 REASON="Pre-cleanup baseline for comparison"
+
+# Creates: data/eval/runs/_frozen_pre_cleanup/<run_id>/
+# Adds: NOTE.md with reason and date
+```
+
+**Why freeze runs?**
+
+- Quantify improvement after the change
+- Track metrics like: repetition rate, garbage tokens, coherence, speaker label leakage
+- Provides rollback reference if the change regresses quality
+
+#### 3. All Promoted Baselines/References
+
+Baselines that become app defaults and reference summaries (gold/silver) should be:
+
+- Committed to version control
+- Never deleted (they're immutable)
+- Located in `benchmarks/baselines/` (promoted) or `data/eval/references/` (gold/silver)
+
+### What to Delete
+
+#### 1. Most Intermediate Runs
+
+During parameter sweeps, you'll generate many runs. Delete all except the best performer:
+
+```bash
+# Delete multiple runs at once
+make runs-delete RUN_IDS="run_v2 run_v3 run_v4 run_v5"
+
+# Keep only the winning configuration
+```
+
+#### 2. Most Exploratory Configs
+
+After a parameter sweep, archive then clean:
+
+```bash
+# First archive for reference
+make configs-archive
+
+# Then clean, optionally keeping one
+make configs-clean KEEP=baseline_bart_best.yaml
+```
+
+### Makefile Commands Reference
+
+| Command | Purpose | Example |
+| --- | --- | --- |
+| `make configs-archive` | Archive all `baseline_*.yaml` configs | `make configs-archive` |
+| `make configs-clean` | Delete `baseline_*.yaml` configs | `make configs-clean KEEP=best.yaml` |
+| `make run-freeze` | Freeze a run for baseline comparison | `make run-freeze RUN_ID=my_run REASON="Pre-X baseline"` |
+| `make runs-delete` | Delete multiple runs | `make runs-delete RUN_IDS="run1 run2 run3"` |
+| `make experiment-run FORCE=1` | Re-run experiment, deleting existing results | `make experiment-run CONFIG=... FORCE=1` |
+
+### Typical Workflow: Parameter Sweep
+
+```bash
+# 1. Create multiple experiment configs
+# baseline_bart_v1.yaml, baseline_bart_v2.yaml, ...
+
+# 2. Run experiments
+make experiment-run CONFIG=data/eval/configs/baseline_bart_v1.yaml
+make experiment-run CONFIG=data/eval/configs/baseline_bart_v2.yaml
+# ...
+
+# 3. Compare results, pick winner (e.g., v3)
+
+# 4. Archive configs before cleanup
+make configs-archive
+
+# 5. Clean configs, keeping winner
+make configs-clean KEEP=baseline_bart_v3.yaml
+
+# 6. Delete non-winning runs
+make runs-delete RUN_IDS="baseline_bart_v1 baseline_bart_v2 baseline_bart_v4"
+
+# 7. Optionally freeze winning run if it's a major milestone
+make run-freeze RUN_ID=baseline_bart_v3 REASON="Best params before preprocessing change"
+```
+
+### Typical Workflow: Major Change
+
+```bash
+# 1. Freeze current best run as "before"
+make run-freeze RUN_ID=baseline_bart_current REASON="Pre-cleaning_v4 baseline"
+
+# 2. Implement the change (e.g., new preprocessing profile)
+
+# 3. Run new experiment
+make experiment-run CONFIG=data/eval/configs/baseline_bart_cleaning_v4.yaml
+
+# 4. Compare frozen "before" vs new "after"
+# - Check metrics.json for improvements
+# - Verify no regressions in gates
+
+# 5. If improved: promote new run, delete old intermediates
+# If regressed: investigate, iterate, compare against frozen baseline
+```
+
+### Directory Structure After Cleanup
+
+```text
+data/eval/
+├── configs/
+│   ├── _archive/
+│   │   └── configs_2026-01-30/        # Archived parameter sweeps
+│   │       ├── baseline_bart_v1.yaml
+│   │       └── ...
+│   └── baseline_bart_best.yaml        # Current best config
+├── runs/
+│   ├── _frozen_pre_cleanup/           # Frozen baseline runs
+│   │   └── baseline_bart_v1/
+│   │       ├── NOTE.md                # Why it was frozen
+│   │       ├── metrics.json
+│   │       └── ...
+│   ├── baseline_bart_best/            # Current best run
+│   └── README.md
+└── ...
+```
+
+### Key Principles
+
+1. **Always archive before delete** - You may need to reference old configs
+2. **Freeze before major changes** - Enables quantitative comparison
+3. **Keep promoted baselines forever** - They're your quality contracts
+4. **Delete aggressively otherwise** - Clutter obscures signal
+5. **Document frozen runs** - The `NOTE.md` explains why they matter
 
 ---
 

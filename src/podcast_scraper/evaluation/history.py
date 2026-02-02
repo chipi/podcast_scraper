@@ -200,7 +200,11 @@ def compare_experiments(
     gates1 = intrinsic1.get("gates", {})
     gates2 = intrinsic2.get("gates", {})
     gate_regressions = []
-    for gate_name in ["boilerplate_leak_rate", "speaker_leak_rate", "truncation_rate"]:
+    for gate_name in [
+        "boilerplate_leak_rate",
+        "speaker_label_leak_rate",
+        "truncation_rate",
+    ]:
         rate1 = gates1.get(gate_name, 0.0)
         rate2 = gates2.get(gate_name, 0.0)
         if rate1 > rate2:

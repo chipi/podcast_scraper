@@ -394,9 +394,51 @@ chunk_size = (
 )
 ```
 
+### 3. Promotion Script Implementation
+
+**Script Location:** `scripts/registry/promote_baseline.py`
+
+**Responsibilities:**
+1. Read baseline config from `data/eval/baselines/{baseline_id}/config.yaml`
+2. Read baseline metrics from `data/eval/baselines/{baseline_id}/metrics.json` (optional, for summary)
+3. Validate config completeness and correctness
+4. Generate `ModeConfiguration` dataclass instance
+5. Update `model_registry.py` by adding to `_mode_registry` dict
+6. Preserve existing registry entries (append-only)
+7. Log promotion details
+
+**Validation Checks:**
+- Config file exists and is valid YAML
+- Required fields present (map_model, reduce_model, map_params, reduce_params)
+- Models exist in model registry (or can be resolved)
+- Preprocessing profile exists
+- Metrics meet acceptance criteria (if provided)
+
+**Example Usage:**
+```bash
+# Promote baseline to registry
+make registry-promote \
+  BASELINE_ID=baseline_ml_dev_authority_smoke_v1 \
+  MODE_ID=ml_small_authority
+
+# Verify promotion
+python -c "from podcast_scraper.providers.ml.model_registry import ModelRegistry; print(ModelRegistry.get_mode_configuration('ml_small_authority'))"
+```
+
+**Make Task:**
+```makefile
+registry-promote:
+	@echo "Promoting baseline $(BASELINE_ID) to mode $(MODE_ID)..."
+	@$(PYTHON) scripts/registry/promote_baseline.py \
+		--baseline-id $(BASELINE_ID) \
+		--mode-id $(MODE_ID) \
+		--baseline-dir data/eval/baselines/$(BASELINE_ID)
+	@echo "✓ Promotion complete. Review changes to model_registry.py before committing."
+```
+
 ### 4. Migration Strategy
 
-**Phase 1: Create Registry**
+**Phase 1: Create Registry (Model Capabilities)**
 - Create `model_registry.py` with all current models
 - Populate `default_chunk_size` and `default_overlap` from current hardcoded values
 - Add comprehensive tests
@@ -407,22 +449,43 @@ chunk_size = (
 - Update dynamic detection logic
 - Run tests to verify behavior unchanged
 
-**Phase 3: Update `config.py`**
-- Document that defaults are model-specific
-- Add comments referencing ModelRegistry for model-specific limits
-- Keep Config defaults as fallbacks for unknown models
+**Phase 3: Add Mode Configuration Support**
+- Extend registry with `ModeConfiguration` dataclass
+- Add `_mode_registry` dict to `ModelRegistry`
+- Implement `get_mode_configuration()` method
+- Create promotion script `scripts/registry/promote_baseline.py`
+- Add Make task `registry-promote`
 
-**Phase 4: Remove Old Constants**
+**Phase 4: Promote First Baseline**
+- Run promotion for proven baseline (e.g., `baseline_ml_dev_authority_smoke_v1`)
+- Verify registry update
+- Test app code can use mode configuration
+
+**Phase 5: Update App Code to Use Modes**
+- Replace `PROD_DEFAULT_*` constants with mode lookups
+- Update `Config` class to support mode-based initialization
+- Add runtime fingerprint logging
+- Update factory methods to use registry modes
+
+**Phase 6: Update `config.py`**
+- Document that defaults come from registry modes
+- Add comments referencing ModelRegistry for model-specific limits
+- Keep Config defaults as fallbacks for unknown models/modes
+
+**Phase 7: Remove Old Constants**
 - Remove `BART_MAX_POSITION_EMBEDDINGS` and `LED_MAX_CONTEXT_WINDOW` from `summarizer.py`
 - Remove `ENCODER_DECODER_TOKEN_CHUNK_SIZE` (replaced by registry)
+- Remove `PROD_DEFAULT_*` constants (replaced by mode registry)
 - Update any remaining references
 
-**Phase 5: Add Tests**
+**Phase 8: Add Tests**
 - Test registry completeness (all models in `DEFAULT_SUMMARY_MODELS` are registered)
 - Test default chunk size/overlap values match current behavior
 - Test dynamic detection fallback
 - Test pattern-based fallbacks
 - Test extensibility (register_model)
+- Test promotion script (read baseline, update registry)
+- Test mode configuration lookup and usage
 
 ## Key Decisions
 
@@ -537,6 +600,194 @@ Together, these RFCs provide a complete, extensible model system.
 4. **Phase 4**: Verify all tests pass, update documentation
 5. **Phase 5**: (Future) Extend registry with additional metadata (memory, device, quality ratings)
 
+## Promotion Mechanism: Baseline → Registry
+
+**Key Design Decision:** Code must never depend on `data/eval/` directly. Instead, proven baseline configurations are "promoted" into the registry via Make tasks, making them available as app defaults.
+
+### Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    data/eval/ (experimentation)              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │  configs/    │  │  baselines/  │  │    runs/     │     │
+│  │  *.yaml      │  │  */config.yaml│  │  (temporary) │     │
+│  └──────────────┘  └──────────────┘  └──────────────┘     │
+│         │                  │                               │
+│         └──────────────────┘                               │
+│                  │                                          │
+│         [Promotion via Make]                                │
+│                  │                                          │
+└──────────────────┼──────────────────────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Model Registry (code)                         │
+│  ┌──────────────────────────────────────────────────────┐ │
+│  │  ModelCapabilities (architecture limits)              │ │
+│  │  ModeConfigurations (runtime params from baselines)   │ │
+│  └──────────────────────────────────────────────────────┘ │
+│                                                             │
+│  App code uses registry → never touches data/eval/         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Mode Configuration Structure
+
+Extend the registry to include **Mode Configurations** that store complete runtime parameters:
+
+```python
+@dataclass(frozen=True)
+class ModeConfiguration:
+    """Complete runtime configuration for a summarization mode.
+
+    Promoted from proven baseline configurations. These become
+    the app defaults, ensuring baseline == app behavior.
+    """
+    mode_id: str  # e.g., "ml_small_authority", "ml_large_authority"
+    map_model: str  # Model identifier (resolved alias or full ID)
+    reduce_model: str  # Model identifier
+    preprocessing_profile: str  # e.g., "cleaning_v4"
+    map_params: Dict[str, Any]  # max_new_tokens, repetition_penalty, etc.
+    reduce_params: Dict[str, Any]
+    tokenize: Dict[str, Any]  # map_max_input_tokens, reduce_max_input_tokens
+    chunking: Optional[Dict[str, Any]]  # strategy, word_chunk_size, etc.
+    promoted_from: str  # Baseline ID that this was promoted from
+    promoted_at: str  # ISO timestamp
+    metrics_summary: Optional[Dict[str, Any]]  # Key metrics from baseline
+```
+
+### Promotion Workflow
+
+**1. Make Task for Promotion:**
+
+```makefile
+# Promote baseline config to registry
+registry-promote:
+	@echo "Promoting baseline $(BASELINE_ID) to mode $(MODE_ID)..."
+	@$(PYTHON) scripts/registry/promote_baseline.py \
+		--baseline-id $(BASELINE_ID) \
+		--mode-id $(MODE_ID) \
+		--baseline-dir data/eval/baselines/$(BASELINE_ID)
+
+# Example usage:
+# make registry-promote BASELINE_ID=baseline_ml_dev_authority_smoke_v1 MODE_ID=ml_small_authority
+```
+
+**2. Promotion Script (`scripts/registry/promote_baseline.py`):**
+
+```python
+"""Promote baseline configuration to Model Registry.
+
+This script reads a baseline's config.yaml and metrics.json,
+extracts the proven configuration, and updates the registry
+with a new mode configuration.
+
+The registry becomes the single source of truth for app defaults,
+completely decoupled from data/eval/ experimentation space.
+"""
+```
+
+**3. Registry Update:**
+
+The promotion script:
+1. Reads `data/eval/baselines/{baseline_id}/config.yaml`
+2. Reads `data/eval/baselines/{baseline_id}/metrics.json` (for metrics summary)
+3. Validates the config (models exist, params are valid)
+4. Updates `src/podcast_scraper/providers/ml/model_registry.py`:
+   - Adds new `ModeConfiguration` to `_mode_registry`
+   - Preserves existing entries
+5. Logs promotion details (baseline_id, mode_id, timestamp)
+
+**4. App Code Usage:**
+
+```python
+from podcast_scraper.providers.ml.model_registry import ModelRegistry
+
+# Get mode configuration (replaces hardcoded PROD_DEFAULT_* constants)
+mode_config = ModelRegistry.get_mode_configuration("ml_small_authority")
+
+# Use in provider initialization
+cfg = Config(
+    summary_model=mode_config.map_model,
+    summary_reduce_model=mode_config.reduce_model,
+    # ... other fields from mode_config
+)
+```
+
+### Benefits
+
+1. **Complete Decoupling**: Code never imports or references `data/eval/`
+2. **Single Source of Truth**: Registry is the only place app code reads defaults
+3. **Explicit Promotion**: Make task makes promotion intentional and traceable
+4. **Version Control**: Registry changes are committed, baseline stays in `data/eval/`
+5. **No Silent Drift**: App behavior is explicitly tied to promoted baselines
+
+### Promotion Criteria
+
+Before promoting, validate:
+- Baseline metrics meet acceptance criteria (gates pass, quality thresholds)
+- Config is complete and valid
+- Models are available (cached or downloadable)
+- Preprocessing profile exists
+
+### Registry Structure (Extended)
+
+```python
+class ModelRegistry:
+    """Centralized registry of model capabilities and mode configurations."""
+
+    # Model capabilities (architecture limits)
+    _registry: Dict[str, ModelCapabilities] = { ... }
+
+    # Mode configurations (runtime params from baselines)
+    _mode_registry: Dict[str, ModeConfiguration] = {
+        "ml_small_authority": ModeConfiguration(
+            mode_id="ml_small_authority",
+            map_model="bart-small",
+            reduce_model="long-fast",
+            preprocessing_profile="cleaning_v4",
+            map_params={
+                "max_new_tokens": 200,
+                "min_new_tokens": 80,
+                "repetition_penalty": 1.3,
+                # ... full params from baseline
+            },
+            reduce_params={ ... },
+            tokenize={ ... },
+            chunking={ ... },
+            promoted_from="baseline_ml_dev_authority_smoke_v1",
+            promoted_at="2026-02-01T15:00:00Z",
+            metrics_summary={
+                "speaker_label_leak_rate": 0.0,
+                "avg_tokens": 470,
+            }
+        ),
+    }
+
+    @classmethod
+    def get_mode_configuration(cls, mode_id: str) -> ModeConfiguration:
+        """Get mode configuration by ID."""
+        if mode_id not in cls._mode_registry:
+            raise ValueError(f"Mode {mode_id} not found in registry")
+        return cls._mode_registry[mode_id]
+```
+
+### Runtime Fingerprint Logging
+
+When provider initializes with a mode, log fingerprint:
+
+```python
+logger.info("=== Runtime Configuration Fingerprint ===")
+logger.info(f"Mode ID: {mode_id}")
+logger.info(f"MAP Model: {mode_config.map_model}")
+logger.info(f"REDUCE Model: {mode_config.reduce_model}")
+logger.info(f"Preprocessing Profile: {mode_config.preprocessing_profile}")
+logger.info(f"MAP Params: max_tokens={mode_config.map_params['max_new_tokens']}, ...")
+logger.info(f"REDUCE Params: max_tokens={mode_config.reduce_params['max_new_tokens']}, ...")
+logger.info(f"Promoted From: {mode_config.promoted_from}")
+```
+
 ## Open Questions
 
 1. Should registry include memory requirements for models?
@@ -545,6 +796,7 @@ Together, these RFCs provide a complete, extensible model system.
 4. Should registry support model versioning (different limits per version)?
 5. **Config File Integration**: Should registry auto-populate `summary_tokenize` limits in user configs based on selected models?
 6. **Config Validation**: Should registry validate that user-specified token limits in config files don't exceed model capabilities?
+7. **Mode Versioning**: Should modes be versioned (e.g., `ml_small_authority_v1`, `ml_small_authority_v2`) or replaced in place?
 
 ## References
 
