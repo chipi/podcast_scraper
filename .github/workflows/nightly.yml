@@ -3,7 +3,7 @@
 # Generates comprehensive metrics, reports, and trend tracking
 # See RFC-025: Test Metrics and Health Tracking (Layer 3)
 #
-# Note: Linter warnings about "Unable to resolve action" for actions/checkout@v4
+# Note: Linter warnings about "Unable to resolve action" for actions/checkout@v6
 # and actions/cache@v5 are false positives - these are standard GitHub Actions
 # that exist in the marketplace but the linter cannot resolve them offline.
 #
@@ -58,7 +58,7 @@ jobs:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Free disk space
       run: |
@@ -181,7 +181,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10  # Fast checks: format, lint, markdown, type
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
@@ -217,7 +217,7 @@ jobs:
     timeout-minutes: 20  # Slower checks: security, complexity, deadcode, docstrings, spelling
     needs: [nightly-lint, nightly-build]  # Wait for lint, build to pass (docs removed - doesn't gate security)
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
@@ -251,7 +251,7 @@ jobs:
     timeout-minutes: 15
     needs: [nightly-metrics]  # Very last step - validates docs after all tests and metrics pass
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Free disk space
       run: |
@@ -289,7 +289,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
@@ -314,7 +314,7 @@ jobs:
     timeout-minutes: 15
     needs: [nightly-lint, nightly-build]  # Wait for lint, build to pass (docs removed - doesn't gate unit tests)
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Free disk space
       run: |
@@ -393,7 +393,7 @@ jobs:
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
       ML_MODELS_VALIDATED: "true"
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Free disk space
       run: |
@@ -480,7 +480,7 @@ jobs:
       # E2E test mode - matches regular CI (python-app.yml)
       E2E_TEST_MODE: "multi_episode"
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Free disk space
       run: |
@@ -572,7 +572,7 @@ jobs:
       # Nightly mode uses p01-p05 podcasts with production models
       E2E_TEST_MODE: "nightly"
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Free disk space
       run: |
@@ -638,7 +638,7 @@ jobs:
     needs: [nightly-lint, nightly-security-quality, nightly-build, nightly-test-unit, nightly-test-integration, nightly-test-e2e, nightly-only-tests]  # Wait for all jobs to complete before generating summary (docs runs after metrics)
     if: always()
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
