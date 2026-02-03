@@ -107,12 +107,15 @@ def _load_pegasus_without_fake_warning(
     }
 
     # Prepare kwargs for from_pretrained
+    # Security: trust_remote_code=False by default (Issue #379)
     tokenizer_kwargs = {
         "local_files_only": local_files_only,
+        "trust_remote_code": False,  # Security: don't execute remote code
     }
     model_kwargs = {
         "local_files_only": local_files_only,
         "output_loading_info": True,  # Get loading info to validate
+        "trust_remote_code": False,  # Security: don't execute remote code
     }
     if cache_dir:
         tokenizer_kwargs["cache_dir"] = cache_dir  # type: ignore[assignment]
@@ -450,7 +453,34 @@ DEFAULT_SUMMARY_PROMPT = (
 
 
 def _validate_model_source(model_name: str) -> None:
-    """Validate model source and warn if not from trusted sources.
+    """Validate model source against allowlist (Issue #379).
+
+    Security: This function enforces an allowlist of approved models to prevent
+    config injection and supply chain attacks. Only models in the allowlist can be loaded.
+
+    Args:
+        model_name: HuggingFace model identifier
+
+    Raises:
+        ValueError: If model is not in the allowlist
+    """
+    from ...config_constants import ALLOWED_HUGGINGFACE_MODELS
+
+    # Resolve alias to full model ID if needed
+    resolved_name = resolve_model_name(model_name)
+
+    if resolved_name not in ALLOWED_HUGGINGFACE_MODELS:
+        raise ValueError(
+            f"Model '{resolved_name}' (from '{model_name}') is not in the allowlist. "
+            f"Allowed models: {sorted(ALLOWED_HUGGINGFACE_MODELS)}. "
+            "This prevents config injection and supply chain attacks. "
+            "To add a new model, update ALLOWED_HUGGINGFACE_MODELS in config_constants.py."
+        )
+    logger.debug(f"Model '{resolved_name}' validated against allowlist")
+
+
+def _validate_model_source_legacy(model_name: str) -> None:
+    """Legacy validation function (deprecated, kept for reference).
 
     Security: This function checks if a model comes from a known trusted source
     to mitigate supply chain risks. Custom models from unknown sources will
@@ -594,35 +624,57 @@ class SummaryModel:
             raise ValueError("model_name cannot be None or empty")
         self.model_name = model_name
 
-        # Force pinned revision for Pegasus models to avoid PR refs and ensure consistency
-        # Use commit SHA from config_constants for reproducibility
+        # Force pinned revision for models to avoid PR refs and ensure consistency
+        # Use commit SHA from config_constants for reproducibility (Issue #379)
         model_lower = model_name.lower()
+        pinned_revision = None
+        model_type = None
+
         if "pegasus" in model_lower:
             from ...config_constants import PEGASUS_CNN_DAILYMAIL_REVISION
 
-            # Use pinned revision from config (should be a commit SHA, not "main")
             pinned_revision = PEGASUS_CNN_DAILYMAIL_REVISION
+            model_type = "PEGASUS"
+        elif "led-base-16384" in model_lower or model_name == "allenai/led-base-16384":
+            from ...config_constants import LED_BASE_16384_REVISION
+
+            pinned_revision = LED_BASE_16384_REVISION
+            model_type = "LED-BASE"
+        elif "led-large-16384" in model_lower or model_name == "allenai/led-large-16384":
+            from ...config_constants import LED_LARGE_16384_REVISION
+
+            pinned_revision = LED_LARGE_16384_REVISION
+            model_type = "LED-LARGE"
+
+        if pinned_revision:
             if revision and revision != pinned_revision:
                 logger.warning(
-                    f"[PEGASUS] Overriding revision '{revision}' with pinned revision "
-                    f"'{pinned_revision}' for Pegasus model to ensure consistent, "
+                    f"[{model_type}] Overriding revision '{revision}' with pinned revision "
+                    f"'{pinned_revision}' for {model_type} model to ensure consistent, "
                     f"stable weights (avoiding PR refs)"
                 )
             self.revision = pinned_revision
             if pinned_revision == "main":
                 logger.warning(
-                    "[PEGASUS] Using 'main' branch - this is not a pinned commit SHA. "
-                    "For production use, update PEGASUS_CNN_DAILYMAIL_REVISION in "
+                    f"[{model_type}] Using 'main' branch - this is not a pinned commit SHA. "
+                    f"For production use, update {model_type}_REVISION in "
                     "config_constants.py with a specific commit hash to ensure "
-                    "reproducibility."
+                    "reproducibility (Issue #379)."
                 )
         else:
             self.revision = revision  # type: ignore[assignment]
 
         self.device = self._detect_device(device)
 
-        # Security: Validate model source before loading
+        # Security: Validate model source and sanitize inputs (Issue #379)
         _validate_model_source(model_name)
+        from ...utils.path_validation import sanitize_model_name
+
+        sanitized_model_name = sanitize_model_name(self.model_name)
+        if sanitized_model_name != self.model_name:
+            logger.warning(f"Model name sanitized: '{self.model_name}' -> '{sanitized_model_name}'")
+            self.model_name = sanitized_model_name
+
         # Use provided cache_dir or get from cache_utils (consistent with preload script)
         # cache_utils.get_transformers_cache_dir() handles all priority logic:
         # 1. HF_HUB_CACHE env var (CI sets this explicitly)
@@ -630,7 +682,15 @@ class SummaryModel:
         # 3. huggingface_hub.constants.HF_HUB_CACHE
         # 4. Default fallback (~/.cache/huggingface/hub/)
         if cache_dir:
-            self.cache_dir = cache_dir
+            # Validate cache path to prevent path traversal (Issue #379)
+            from ...utils.path_validation import validate_cache_path
+
+            try:
+                validated_path = validate_cache_path(cache_dir)
+                self.cache_dir = str(validated_path)
+            except ValueError as e:
+                logger.error(f"Invalid cache directory: {e}")
+                raise
         else:
             try:
                 from ...cache import get_transformers_cache_dir
@@ -714,11 +774,57 @@ class SummaryModel:
                 # (less secure but more convenient).
                 # ALWAYS use local_files_only=True - we never allow libraries to download.
                 # All downloads must go through our centralized preload script logic.
+                # Helper function for model-load fallback (Issue #379)
+                def _load_with_fallback(load_func, model_type: str = "model"):
+                    """Load model/tokenizer with fallback to cache clearing on failure."""
+                    try:
+                        return load_func()
+                    except Exception as e:
+                        # First attempt failed - try clearing cache and retrying
+                        logger.warning(
+                            f"{model_type.capitalize()} loading failed for "
+                            f"{self.model_name}: {e}. Clearing cache and retrying once..."
+                        )
+                        try:
+                            from ...cache.manager import delete_transformers_model_cache
+
+                            deleted, freed_bytes = delete_transformers_model_cache(
+                                self.model_name, confirm=False, force=True
+                            )
+                            if deleted:
+                                logger.info(
+                                    f"Cleared cache for {self.model_name} "
+                                    f"({freed_bytes / (1024 * 1024):.1f} MB freed)"
+                                )
+                            else:
+                                logger.debug(
+                                    f"Cache for {self.model_name} was already empty or not found"
+                                )
+                        except Exception as cache_error:
+                            logger.warning(
+                                f"Failed to clear cache for {self.model_name}: {cache_error}"
+                            )
+
+                        # Retry once (will still fail if cache was cleared, but we tried)
+                        logger.info(
+                            f"Retrying {model_type} load for {self.model_name} after cache clear..."
+                        )
+                        try:
+                            return load_func()
+                        except Exception as retry_error:
+                            logger.error(
+                                f"{model_type.capitalize()} load failed again after cache clear: "
+                                f"{retry_error}. Please run 'make preload-ml-models' to "
+                                f"re-download the model."
+                            )
+                            raise
+
                 logger.debug("Loading tokenizer from cache...")
                 tokenizer_kwargs = {
                     "cache_dir": self.cache_dir,
                     # Always use cache only - downloads via preload script
                     "local_files_only": True,
+                    "trust_remote_code": False,  # Security: don't execute remote code (Issue #379)
                 }
                 # For Pegasus, tokenizer is loaded by _load_pegasus_without_fake_warning
                 # Skip tokenizer loading here if it's Pegasus (will be loaded below)
@@ -728,9 +834,12 @@ class SummaryModel:
                     if self.revision:
                         tokenizer_kwargs["revision"] = self.revision
                         logger.debug(f"Using pinned revision: {self.revision}")
-                    self.tokenizer = AutoTokenizer.from_pretrained(  # nosec B615
-                        self.model_name,
-                        **tokenizer_kwargs,
+                    self.tokenizer = _load_with_fallback(
+                        lambda: AutoTokenizer.from_pretrained(  # nosec B615
+                            self.model_name,
+                            **tokenizer_kwargs,
+                        ),
+                        "tokenizer",
                     )
 
                 # Load model
@@ -744,6 +853,7 @@ class SummaryModel:
                     "cache_dir": self.cache_dir,
                     # Always use cache only - downloads via preload script
                     "local_files_only": True,
+                    "trust_remote_code": False,  # Security: don't execute remote code (Issue #379)
                 }
                 if self.revision:
                     model_kwargs["revision"] = self.revision
@@ -787,12 +897,16 @@ class SummaryModel:
                     # Load using specialized function that validates and silences warnings
                     # Note: Tokenizer is already loaded above, but we'll reload it in the function
                     # to ensure consistency. The function returns both tokenizer and model.
-                    self.tokenizer, self.model = _load_pegasus_without_fake_warning(
-                        model_id=self.model_name,
-                        device=self.device,
-                        cache_dir=self.cache_dir,
-                        revision=self.revision,
-                        local_files_only=True,
+                    # Wrap with fallback for cache clearing on failure (Issue #379)
+                    self.tokenizer, self.model = _load_with_fallback(
+                        lambda: _load_pegasus_without_fake_warning(
+                            model_id=self.model_name,
+                            device=self.device,
+                            cache_dir=self.cache_dir,
+                            revision=self.revision,
+                            local_files_only=True,
+                        ),
+                        "Pegasus model",
                     )
 
                     # Structured health check: verify model is working correctly
@@ -847,26 +961,35 @@ class SummaryModel:
                     from transformers import LEDForConditionalGeneration
 
                     logger.debug("Using LEDForConditionalGeneration for LED model")
-                    self.model = LEDForConditionalGeneration.from_pretrained(  # nosec B615
-                        self.model_name,
-                        **model_kwargs,
+                    self.model = _load_with_fallback(
+                        lambda: LEDForConditionalGeneration.from_pretrained(  # nosec B615
+                            self.model_name,
+                            **model_kwargs,
+                        ),
+                        "LED model",
                     )
                 elif "bart" in model_lower:
                     # Use BartForConditionalGeneration for BART models
                     from transformers import BartForConditionalGeneration
 
                     logger.debug("Using BartForConditionalGeneration for BART model")
-                    self.model = BartForConditionalGeneration.from_pretrained(  # nosec B615
-                        self.model_name,
-                        **model_kwargs,
+                    self.model = _load_with_fallback(
+                        lambda: BartForConditionalGeneration.from_pretrained(  # nosec B615
+                            self.model_name,
+                            **model_kwargs,
+                        ),
+                        "BART model",
                     )
                 else:
                     # Fallback to AutoModelForSeq2SeqLM for other models
                     logger.debug("Using AutoModelForSeq2SeqLM (auto-detection)")
-                self.model = AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
-                    self.model_name,
-                    **model_kwargs,
-                )
+                    self.model = _load_with_fallback(
+                        lambda: AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
+                            self.model_name,
+                            **model_kwargs,
+                        ),
+                        "AutoModel",
+                    )
                 logger.debug("Model loaded successfully (cached for future runs)")
             finally:
                 # Restore original environment variable
@@ -875,13 +998,37 @@ class SummaryModel:
                 else:
                     os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = original_hf_disable
 
-            # Move model to device
+            # Move model to device with fallback to CPU on MPS OOM/unsupported op (Issue #379)
             # Suppress PyTorch's "Device set to use mps" stdout message
             import contextlib
             import io
 
+            original_device = self.device
             with contextlib.redirect_stdout(io.StringIO()):
-                self.model = self.model.to(self.device)  # type: ignore[union-attr]
+                try:
+                    self.model = self.model.to(self.device)  # type: ignore[union-attr]
+                except (RuntimeError, Exception) as e:
+                    error_msg = str(e).lower()
+                    # Check for MPS OOM or unsupported operation errors
+                    if self.device in ("mps", "cuda") and (
+                        "out of memory" in error_msg
+                        or "invalid buffer size" in error_msg
+                        or "not implemented" in error_msg
+                        or "unsupported" in error_msg
+                    ):
+                        logger.warning(
+                            f"Device fallback: {self.device} failed ({e}). "
+                            "Falling back to CPU and continuing..."
+                        )
+                        self.device = "cpu"
+                        # Move model to CPU
+                        self.model = self.model.to("cpu")  # type: ignore[union-attr]
+                        logger.info(
+                            f"Device fallback successful: model moved from {original_device} to CPU"
+                        )
+                    else:
+                        # Re-raise if not a device-related error
+                        raise
 
             # Create pipeline for easy inference
             # Map device to pipeline device parameter:
@@ -1276,13 +1423,52 @@ class SummaryModel:
 
         except RuntimeError as e:
             error_msg = str(e).lower()
-            # Handle MPS buffer size errors and CUDA OOM errors
+            # Handle MPS buffer size errors and CUDA OOM errors with device fallback (Issue #379)
             if "invalid buffer size" in error_msg or "out of memory" in error_msg:
-                logger.error(
-                    f"Buffer size error during summarization ({self.device}): {e}. "
-                    "Text is too long - use chunking with summarize_long_text() instead."
-                )
-                return ""
+                # Try device fallback if on MPS/CUDA
+                if self.device in ("mps", "cuda"):
+                    logger.warning(
+                        f"Device fallback: {self.device} OOM during summarization ({e}). "
+                        "Falling back to CPU and retrying..."
+                    )
+                    try:
+                        # Move model to CPU
+                        self.model = self.model.to("cpu")  # type: ignore[union-attr]
+                        self.device = "cpu"
+                        original_device_for_retry = self.device
+                        logger.info(
+                            f"Device fallback successful: model moved from "
+                            f"{original_device_for_retry} to CPU. Retrying summarization..."
+                        )
+                        # Update pipeline device
+                        from transformers import pipeline
+
+                        pipeline_device = -1  # CPU
+                        self.pipeline = pipeline(  # type: ignore[call-overload]
+                            "summarization",
+                            model=self.model,
+                            tokenizer=self.tokenizer,
+                            device=pipeline_device,
+                        )
+                        # Retry summarization on CPU
+                        result = self.pipeline(
+                            text, max_length=max_length, min_length=min_length
+                        )  # type: ignore[call-overload]
+                        return result["summary_text"]  # type: ignore[index]
+                    except Exception as fallback_error:
+                        logger.error(
+                            f"Device fallback to CPU also failed: {fallback_error}. "
+                            "Text may be too long - use chunking with "
+                            "summarize_long_text() instead."
+                        )
+                        return ""
+                else:
+                    # Already on CPU or other error
+                    logger.error(
+                        f"Buffer size error during summarization ({self.device}): {e}. "
+                        "Text is too long - use chunking with summarize_long_text() instead."
+                    )
+                    return ""
             # Handle "Already borrowed" error from Rust tokenizer in parallel execution
             if "already borrowed" in error_msg:
                 logger.error(
@@ -2385,15 +2571,17 @@ def _combine_summaries_reduce(
     reduce_encoder_no_repeat_ngram_size: Optional[int] = None,
     reduce_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
+    map_model: Optional[SummaryModel] = None,  # MAP model for routing short inputs
 ) -> str:
     """Reduce step: Combine chunk summaries into final summary.
 
     Args:
-        model: Summary model instance
+        model: Summary model instance (REDUCE model, typically LED)
         chunk_summaries: List of chunk summaries to combine
         max_length: Max summary length
         min_length: Min summary length
         prompt: Optional prompt
+        map_model: Optional MAP model (for routing short inputs to avoid LED padding overhead)
 
     Returns:
         Final combined summary
