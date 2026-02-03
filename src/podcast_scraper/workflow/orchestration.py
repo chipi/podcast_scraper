@@ -398,8 +398,10 @@ def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool 
         from ..utils.json_logging import JSONFormatter
 
         formatter = JSONFormatter()
+        log_format = None  # Not used with JSON formatter
     else:
         formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+        log_format = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 
     # Remove existing handlers if we're setting up fresh
     if not root_logger.handlers:

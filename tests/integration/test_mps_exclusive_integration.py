@@ -122,6 +122,7 @@ class TestMPSExclusiveMode(unittest.TestCase):
             transcription_provider="openai",
             summary_device="mps",
             generate_summaries=True,
+            openai_api_key="sk-test123",  # Dummy key for config validation (not used)
         )
 
         # Mock OpenAI transcription provider

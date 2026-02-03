@@ -114,13 +114,13 @@ def _load_pegasus_without_fake_warning(
     tokenizer_kwargs = {
         "local_files_only": local_files_only,
         "trust_remote_code": False,  # Security: don't execute remote code
-        "use_safetensors": False,  # Pegasus models don't have safetensors files
+        "use_safetensors": True,  # Prefer safetensors format (Issue #379)
     }
     model_kwargs = {
         "local_files_only": local_files_only,
         "output_loading_info": True,  # Get loading info to validate
         "trust_remote_code": False,  # Security: don't execute remote code
-        "use_safetensors": False,  # Pegasus models don't have safetensors files
+        "use_safetensors": True,  # Prefer safetensors format (Issue #379)
     }
     if cache_dir:
         tokenizer_kwargs["cache_dir"] = cache_dir  # type: ignore[assignment]
@@ -782,14 +782,9 @@ class SummaryModel:
                 # (less secure but more convenient).
                 # ALWAYS use local_files_only=True - we never allow libraries to download.
                 # All downloads must go through our centralized preload script logic.
-                # Helper function for model-load retry (Issue #379)
+                # Helper function for model-load retry with fallback (Issue #379)
                 def _load_with_retry(load_func, model_type: str = "model"):
-                    """Load model/tokenizer with retry for transient network errors.
-
-                    Note: This code path always uses local_files_only=True, so we can never
-                    re-download. Cache deletion is not performed here - if cache is corrupted,
-                    users should manually run 'make preload-ml-models' or use CLI --delete-model.
-                    """
+                    """Load model/tokenizer with retry and fallback to cache clearing on failure."""
                     from requests.exceptions import (
                         ConnectionError,
                         HTTPError,
@@ -808,8 +803,7 @@ class SummaryModel:
                         OSError,  # Network/IO errors
                     )
 
-                    # Retry for transient errors (though with local_files_only=True,
-                    # network errors shouldn't occur - this is defensive)
+                    # First, try with retry for transient errors
                     try:
                         return retry_with_exponential_backoff(
                             load_func,
@@ -819,14 +813,44 @@ class SummaryModel:
                             retryable_exceptions=retryable_exceptions,
                         )
                     except Exception as e:
-                        # This code path always uses local_files_only=True, so we can't re-download
-                        # Just raise with helpful error message
-                        logger.error(
-                            f"{model_type.capitalize()} loading failed for {self.model_name}: {e}. "
-                            f"Using local_files_only=True, cannot re-download. "
-                            f"If cache is corrupted, run 'make preload-ml-models' to re-download."
+                        # Retry failed - try clearing cache and retrying once
+                        logger.warning(
+                            f"{model_type.capitalize()} loading failed for "
+                            f"{self.model_name}: {e}. Clearing cache and retrying once..."
                         )
-                        raise
+                        try:
+                            from ...cache.manager import delete_transformers_model_cache
+
+                            deleted, freed_bytes = delete_transformers_model_cache(
+                                self.model_name, confirm=False, force=True
+                            )
+                            if deleted:
+                                logger.info(
+                                    f"Cleared cache for {self.model_name} "
+                                    f"({freed_bytes / (1024 * 1024):.1f} MB freed)"
+                                )
+                            else:
+                                logger.debug(
+                                    f"Cache for {self.model_name} was already empty or not found"
+                                )
+                        except Exception as cache_error:
+                            logger.warning(
+                                f"Failed to clear cache for {self.model_name}: {cache_error}"
+                            )
+
+                        # Retry once after cache clear (will still fail if cache was cleared, but we tried)
+                        logger.info(
+                            f"Retrying {model_type} load for {self.model_name} after cache clear..."
+                        )
+                        try:
+                            return load_func()
+                        except Exception as retry_error:
+                            logger.error(
+                                f"{model_type.capitalize()} load failed again after cache clear: "
+                                f"{retry_error}. Please run 'make preload-ml-models' to "
+                                f"re-download the model."
+                            )
+                            raise
 
                 logger.debug("Loading tokenizer from cache...")
                 tokenizer_kwargs = {
