@@ -777,14 +777,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install coverage[toml]  # Only coverage tool needed for combining reports
     - name: Download coverage artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         pattern: coverage-*
         merge-multiple: false
         path: coverage-artifacts
       continue-on-error: true  # Some jobs may not have run (conditional)
     - name: Download pytest JSON artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         pattern: pytest-*
         merge-multiple: false
@@ -1060,7 +1060,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
     - name: Upload metrics as artifact
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: metrics
         path: metrics/
