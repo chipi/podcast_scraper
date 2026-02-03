@@ -364,8 +364,14 @@ jobs:
             else
               echo "    snapshots/ does NOT exist"
             fi
+            if [ -d "$MODEL_PATH/blobs" ]; then
+              echo "    blobs/ exists, file count: $(find "$MODEL_PATH/blobs" -type f 2>/dev/null | wc -l)"
+            fi
+            TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
+            echo "    Total files in MODEL_PATH: $TOTAL_FILES"
           fi
-          if [ ! -d "$MODEL_PATH/snapshots" ]; then
+          # Model is valid if it has files (in snapshots, blobs, or anywhere in the directory)
+          if [ ! -d "$MODEL_PATH" ] || [ "$(find "$MODEL_PATH" -type f 2>/dev/null | head -1)" = "" ]; then
             MISSING="$MISSING hf:$model"
           fi
         done
@@ -446,11 +452,14 @@ jobs:
         for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
-          if [ -d "$MODEL_PATH/snapshots" ] && [ "$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | head -1)" ]; then
+          # Check if model has files anywhere (blobs, snapshots, or root)
+          # HuggingFace cache structure: files in blobs/, symlinks in snapshots/
+          TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
+          if [ -d "$MODEL_PATH" ] && [ "$TOTAL_FILES" -gt 0 ]; then
             SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE)"
+            echo "  ✅ $model ($SIZE, $TOTAL_FILES files)"
           else
-            echo "  ❌ $model - MISSING or incomplete"
+            echo "  ❌ $model - MISSING or incomplete (0 files found)"
             MISSING_MODELS="$MISSING_MODELS hf:$model"
             MODELS_COMPLETE=false
           fi
@@ -610,23 +619,37 @@ jobs:
           if [ -d "$MODEL_PATH" ]; then
             echo "    Contents of MODEL_PATH:"
             ls -la "$MODEL_PATH" | head -10
-            if [ -d "$MODEL_PATH/snapshots" ]; then
-              echo "    snapshots/ exists, contents:"
-              ls -la "$MODEL_PATH/snapshots" | head -5
-              FILE_COUNT=$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | wc -l)
-              echo "    File count in snapshots/: $FILE_COUNT"
-            else
-              echo "    snapshots/ does NOT exist"
-            fi
-          fi
-          if [ -d "$MODEL_PATH/snapshots" ] && [ "$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | head -1)" ]; then
-            SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE)"
+          if [ -d "$MODEL_PATH/snapshots" ]; then
+            echo "    snapshots/ exists, contents:"
+            ls -la "$MODEL_PATH/snapshots" | head -5
+            FILE_COUNT_SNAPSHOTS=$(find "$MODEL_PATH/snapshots" -type f -o -type l 2>/dev/null | wc -l)
+            echo "    File/symlink count in snapshots/: $FILE_COUNT_SNAPSHOTS"
           else
-            echo "  ❌ $model - MISSING or incomplete"
-            MISSING_MODELS="$MISSING_MODELS hf:$model"
-            MODELS_COMPLETE=false
+            echo "    snapshots/ does NOT exist"
           fi
+          if [ -d "$MODEL_PATH/blobs" ]; then
+            echo "    blobs/ exists, contents:"
+            ls -la "$MODEL_PATH/blobs" | head -5
+            FILE_COUNT_BLOBS=$(find "$MODEL_PATH/blobs" -type f 2>/dev/null | wc -l)
+            echo "    File count in blobs/: $FILE_COUNT_BLOBS"
+          else
+            echo "    blobs/ does NOT exist"
+          fi
+          # Check if model is complete: either files in snapshots (following symlinks) or files in blobs
+          TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
+          echo "    Total files in MODEL_PATH: $TOTAL_FILES"
+        fi
+        # Model is valid if it has files anywhere (blobs, snapshots, or root)
+        # HuggingFace cache structure: files in blobs/, symlinks in snapshots/
+        TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
+        if [ -d "$MODEL_PATH" ] && [ "$TOTAL_FILES" -gt 0 ]; then
+          SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
+          echo "  ✅ $model ($SIZE, $TOTAL_FILES files)"
+        else
+          echo "  ❌ $model - MISSING or incomplete (0 files found)"
+          MISSING_MODELS="$MISSING_MODELS hf:$model"
+          MODELS_COMPLETE=false
+        fi
         done
 
         echo ""
@@ -762,11 +785,14 @@ jobs:
         for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
-          if [ -d "$MODEL_PATH/snapshots" ] && [ "$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | head -1)" ]; then
+          # Check if model has files anywhere (blobs, snapshots, or root)
+          # HuggingFace cache structure: files in blobs/, symlinks in snapshots/
+          TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
+          if [ -d "$MODEL_PATH" ] && [ "$TOTAL_FILES" -gt 0 ]; then
             SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
-            echo "  ✅ $model ($SIZE)"
+            echo "  ✅ $model ($SIZE, $TOTAL_FILES files)"
           else
-            echo "  ❌ $model - MISSING or incomplete"
+            echo "  ❌ $model - MISSING or incomplete (0 files found)"
             MISSING_MODELS="$MISSING_MODELS hf:$model"
             MODELS_COMPLETE=false
           fi
