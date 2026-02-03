@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -201,6 +202,25 @@ class ExpectationsMetadata(BaseModel):
     )
 
 
+class EntityAlias(BaseModel):
+    """Entity normalization with canonical form and aliases (Issue #387).
+
+    Stores the canonical form of an entity name along with its aliases
+    (full name, last name, normalized variants) for fuzzy matching.
+    """
+
+    canonical: str = Field(description="Canonical form of the entity name")
+    aliases: List[str] = Field(
+        default_factory=list,
+        description="List of aliases (full name, last name, normalized variants)",
+    )
+    original: str = Field(description="Original entity text as extracted")
+    provenance: Literal["transcript", "summary", "both"] = Field(
+        default="transcript",
+        description="Source of entity: transcript, summary, or both (Issue #387)",
+    )
+
+
 class EntityCorrection(BaseModel):
     """Information about an entity correction made to summary text (Issue #380)."""
 
@@ -238,6 +258,20 @@ class QAFlags(BaseModel):
         default=False,
         description="Whether summary contains any named entities (PERSON, ORG, etc.)",
     )
+    summary_entity_out_of_source: bool = Field(
+        default=False,
+        description=(
+            "Whether summary contains entities not found in source (transcript/description). "
+            "Indicates potential hallucinations (Issue #387)."
+        ),
+    )
+    summary_out_of_source_entities: List[str] = Field(
+        default_factory=list,
+        description=(
+            "List of entity names found in summary but not in source (transcript/description). "
+            "These are potential hallucinations (Issue #387)."
+        ),
+    )
     corrected_entities: List[EntityCorrection] = Field(
         default_factory=list,
         description="List of entity corrections applied to summary text",
@@ -257,6 +291,10 @@ class ContentMetadata(BaseModel):
     speakers: List[SpeakerInfo] = Field(
         default_factory=list
     )  # Structured speaker information (facts)
+    normalized_entities: List[EntityAlias] = Field(
+        default_factory=list,
+        description="Normalized entity forms with aliases for fuzzy matching (Issue #387)",
+    )
     expectations: Optional[ExpectationsMetadata] = Field(
         default=None,
         description="Expectations about output quality (not facts about the episode)",
@@ -449,8 +487,151 @@ def _build_speakers_from_detected_names(
     return speakers
 
 
+def _normalize_entity(name: str) -> EntityAlias:
+    """Normalize entity name and create aliases for fuzzy matching (Issue #387).
+
+    Normalization steps:
+    - Lowercase, strip whitespace and punctuation
+    - Extract full name and last name
+    - Create aliases (full name, last name, normalized variants)
+
+    Args:
+        name: Entity name to normalize
+
+    Returns:
+        EntityAlias object with canonical form and aliases
+    """
+    if not name:
+        return EntityAlias(canonical="", aliases=[], original=name or "", provenance="transcript")
+
+    original = name.strip()
+    # Basic normalization: lowercase, strip punctuation
+    normalized = original.lower().strip()
+    # Remove common punctuation (keep spaces for multi-word names)
+    normalized = re.sub(r"[^\w\s]", "", normalized)
+    # Normalize whitespace
+    normalized = " ".join(normalized.split())
+
+    # Extract name parts
+    name_parts = normalized.split()
+    full_name = normalized
+    last_name = name_parts[-1] if name_parts else ""
+    first_name = name_parts[0] if len(name_parts) > 1 else ""
+
+    # Build aliases list
+    aliases = [full_name]
+    if last_name and last_name != full_name:
+        aliases.append(last_name)
+    if first_name and first_name != full_name and first_name != last_name:
+        aliases.append(first_name)
+    # Add original (normalized) for exact matching
+    if normalized not in aliases:
+        aliases.append(normalized)
+
+    # Canonical form: use full normalized name, or last name if single word
+    canonical = full_name if len(name_parts) > 1 else (last_name or normalized)
+
+    return EntityAlias(
+        canonical=canonical, aliases=aliases, original=original, provenance="transcript"
+    )
+
+
+# Common words that should not be matched as entities (Issue #387)
+# These are common English words that could be false positives in fuzzy matching
+COMMON_WORD_REJECTION_LIST = {
+    "the",
+    "and",
+    "for",
+    "are",
+    "but",
+    "not",
+    "you",
+    "all",
+    "can",
+    "her",
+    "was",
+    "one",
+    "our",
+    "out",
+    "day",
+    "get",
+    "has",
+    "him",
+    "his",
+    "how",
+    "its",
+    "may",
+    "new",
+    "now",
+    "old",
+    "see",
+    "two",
+    "way",
+    "who",
+    "boy",
+    "did",
+    "its",
+    "let",
+    "put",
+    "say",
+    "she",
+    "too",
+    "use",
+}
+
+
+def _is_rare_last_name(name: str) -> bool:
+    """Check if a name is likely a rare last name (not a common word) (Issue #387).
+
+    Args:
+        name: Name to check (should be normalized, lowercase)
+
+    Returns:
+        True if name is likely rare (not in common word list), False otherwise
+    """
+    if not name or len(name) < 3:
+        return False
+    return name not in COMMON_WORD_REJECTION_LIST
+
+
+def _has_paired_first_name(
+    last_name: str, extracted_entities: List[str], entity_aliases: Dict[str, EntityAlias]
+) -> bool:
+    """Check if a last name is paired with a first name in extracted entities (Issue #387).
+
+    This helps validate that a last name match is legitimate - if we see "Kevin Warsh"
+    in extracted entities and "Walsh" in summary, we can check if "Warsh" appears
+    with "Kevin" elsewhere to confirm it's the same person.
+
+    Args:
+        last_name: Last name to check (normalized)
+        extracted_entities: List of extracted entity names
+        entity_aliases: Dict mapping canonical forms to EntityAlias objects
+
+    Returns:
+        True if last name appears with a first name in extracted entities
+    """
+    # Check if any extracted entity has this last name and a first name
+    for entity in extracted_entities:
+        if not entity:
+            continue
+        entity_alias = entity_aliases.get(_normalize_entity(entity).canonical)
+        if not entity_alias:
+            continue
+        # Check if entity has multiple parts (first + last name)
+        name_parts = entity_alias.canonical.split()
+        if len(name_parts) > 1:
+            # Check if last name matches
+            entity_last_name = name_parts[-1]
+            if entity_last_name == last_name:
+                return True
+    return False
+
+
 def _calculate_levenshtein_distance(s1: str, s2: str) -> int:
-    """Calculate Levenshtein edit distance between two strings (Issue #380).
+    """Calculate Levenshtein edit distance between two strings (Issue #380, #387).
+
+    Enhanced for fuzzy matching with better handling of edge cases.
 
     Args:
         s1: First string
@@ -464,6 +645,10 @@ def _calculate_levenshtein_distance(s1: str, s2: str) -> int:
 
     if len(s2) == 0:
         return len(s1)
+
+    # Optimize for very short strings
+    if len(s1) <= 2:
+        return 0 if s1 == s2 else 1
 
     previous_row = list(range(len(s2) + 1))
     for i, c1 in enumerate(s1):
@@ -481,7 +666,11 @@ def _calculate_levenshtein_distance(s1: str, s2: str) -> int:
 def _check_entity_consistency(
     extracted_entities: List[str], summary_text: Optional[str], nlp: Optional[Any] = None
 ) -> Tuple[bool, bool]:
-    """Check entity consistency between extracted entities and summary (Issue #380).
+    """Check entity consistency between extracted entities and summary (Issue #380, #387).
+
+    Updated to use normalization and fuzzy matching with constraints.
+    Only flags zero-evidence entities (entities with no match at all) as high severity.
+    Normalization issues (like "Warsh" vs "Walsh") are not flagged as mismatches.
 
     Args:
         extracted_entities: List of extracted entity names (from speaker detection)
@@ -490,7 +679,7 @@ def _check_entity_consistency(
 
     Returns:
         Tuple of (summary_entity_mismatch, summary_has_named_entities)
-        - summary_entity_mismatch: True if summary contains entities that don't match
+        - summary_entity_mismatch: True if summary contains entities with zero evidence (no match)
         - summary_has_named_entities: True if summary contains any named entities
     """
     if not summary_text:
@@ -514,38 +703,108 @@ def _check_entity_consistency(
         if not extracted_entities or not summary_entities:
             return False, summary_has_named_entities
 
-        # Normalize extracted entities (lowercase, strip)
-        extracted_normalized = {e.lower().strip() for e in extracted_entities if e}
+        # Normalize extracted entities using comprehensive normalization (Issue #387)
+        extracted_map: Dict[str, str] = {}
+        extracted_aliases: Dict[str, EntityAlias] = {}
+        for entity in extracted_entities:
+            if entity:
+                entity_alias = _normalize_entity(entity)
+                extracted_map[entity_alias.canonical] = entity_alias.original
+                extracted_aliases[entity_alias.canonical] = entity_alias
+                # Also map aliases
+                for alias in entity_alias.aliases:
+                    if alias not in extracted_map:
+                        extracted_map[alias] = entity_alias.original
 
         # Check each summary entity against extracted entities
+        edit_distance_threshold = 2
         for summary_ent in summary_entities:
             summary_name = summary_ent.get("text", "").strip()
             if not summary_name:
                 continue
 
-            summary_normalized = summary_name.lower().strip()
+            # Normalize summary entity
+            summary_alias = _normalize_entity(summary_name)
 
-            # Check for exact match
-            if summary_normalized in extracted_normalized:
+            # Check for exact match using aliases
+            if summary_alias.canonical in extracted_map:
+                continue
+            found_exact_match = False
+            for alias in summary_alias.aliases:
+                if alias in extracted_map:
+                    found_exact_match = True
+                    break
+            if found_exact_match:
                 continue
 
-            # Check for close match (edit distance <= 2)
-            # This catches cases like "Warsh" vs "Walsh"
+            # Check for fuzzy match with constraints (Issue #387)
             found_match = False
-            for extracted_name in extracted_normalized:
-                distance = _calculate_levenshtein_distance(summary_normalized, extracted_name)
-                if distance <= 2 and len(summary_normalized) > 3 and len(extracted_name) > 3:
-                    # Close match found - this is likely the same person
+            for extracted_canonical, extracted_original in extracted_map.items():
+                # Only consider if both names are long enough
+                if len(summary_alias.canonical) <= 3 or len(extracted_canonical) <= 3:
+                    continue
+
+                # Check distance
+                distance = _calculate_levenshtein_distance(
+                    summary_alias.canonical, extracted_canonical
+                )
+                # Check against aliases too
+                if distance > edit_distance_threshold and extracted_canonical in extracted_aliases:
+                    entity_alias = extracted_aliases[extracted_canonical]
+                    for alias in entity_alias.aliases:
+                        alias_distance = _calculate_levenshtein_distance(
+                            summary_alias.canonical, alias
+                        )
+                        if alias_distance < distance:
+                            distance = alias_distance
+
+                # Apply constraints for fuzzy matching
+                if distance <= edit_distance_threshold:
+                    # Constraint 1: Check if names are common words
+                    summary_parts = summary_alias.canonical.split()
+                    extracted_parts = extracted_canonical.split()
+
+                    if len(summary_parts) == 1 and len(extracted_parts) == 1:
+                        if not _is_rare_last_name(
+                            summary_alias.canonical
+                        ) or not _is_rare_last_name(extracted_canonical):
+                            continue
+
+                    # Constraint 2: For last name matches, check pairing
+                    summary_last = summary_parts[-1] if summary_parts else ""
+                    extracted_last = extracted_parts[-1] if extracted_parts else ""
+
+                    if summary_last and extracted_last:
+                        last_name_distance = _calculate_levenshtein_distance(
+                            summary_last, extracted_last
+                        )
+                        if last_name_distance <= 1:
+                            if not _is_rare_last_name(summary_last):
+                                continue
+                            if len(summary_parts) == 1 and len(extracted_parts) > 1:
+                                if not _has_paired_first_name(
+                                    summary_last, extracted_entities, extracted_aliases
+                                ):
+                                    continue
+
+                    # Match found with constraints - not a mismatch
                     found_match = True
+                    logger.debug(
+                        "Entity fuzzy match: summary '%s' matches extracted '%s' (distance: %d)",
+                        summary_name,
+                        extracted_original,
+                        distance,
+                    )
                     break
 
             if not found_match:
-                # Mismatch found: summary has entity that doesn't match extracted
+                # Zero-evidence entity: no match found even with fuzzy matching
                 summary_entity_mismatch = True
                 logger.debug(
-                    "Entity mismatch detected: summary has '%s' but extracted entities are: %s",
+                    "Zero-evidence entity detected: summary has '%s' "
+                    "with no match in extracted entities: %s",
                     summary_name,
-                    list(extracted_normalized),
+                    list(extracted_map.values()),
                 )
                 break
 
@@ -597,13 +856,20 @@ def _reconcile_entities(
         if not summary_entities:
             return summary_text, []
 
-        # Normalize extracted entities (keep original for replacement)
-        # Map normalized -> original for lookup
+        # Normalize extracted entities using comprehensive normalization (Issue #387)
+        # Map normalized canonical -> original for lookup
         extracted_map: Dict[str, str] = {}
+        extracted_aliases: Dict[str, EntityAlias] = {}  # Store full normalization info
         for entity in extracted_entities:
             if entity:
-                normalized = entity.lower().strip()
-                extracted_map[normalized] = entity.strip()
+                entity_alias = _normalize_entity(entity)
+                # Use canonical form as key
+                extracted_map[entity_alias.canonical] = entity_alias.original
+                extracted_aliases[entity_alias.canonical] = entity_alias
+                # Also map aliases to original for better matching
+                for alias in entity_alias.aliases:
+                    if alias not in extracted_map:
+                        extracted_map[alias] = entity_alias.original
 
         corrected_text = summary_text
         # Process entities in reverse order (end to start) to preserve positions
@@ -612,23 +878,85 @@ def _reconcile_entities(
             if not summary_name:
                 continue
 
-            summary_normalized = summary_name.lower().strip()
+            # Normalize summary entity for matching
+            summary_alias = _normalize_entity(summary_name)
 
-            # Check for exact match (case-insensitive)
-            if summary_normalized in extracted_map:
+            # Check for exact match using aliases (case-insensitive, normalized)
+            if summary_alias.canonical in extracted_map:
                 # Exact match - no correction needed
                 continue
+            # Check aliases too
+            found_exact_match = False
+            for alias in summary_alias.aliases:
+                if alias in extracted_map:
+                    found_exact_match = True
+                    break
+            if found_exact_match:
+                continue
 
-            # Check for close match (edit distance <= threshold)
+            # Check for close match with constraints (Issue #387)
             best_match = None
             best_distance = edit_distance_threshold + 1
 
-            for extracted_normalized, extracted_original in extracted_map.items():
+            for extracted_canonical, extracted_original in extracted_map.items():
                 # Only consider if both names are long enough (avoid false positives)
-                if len(summary_normalized) <= 3 or len(extracted_normalized) <= 3:
+                if len(summary_alias.canonical) <= 3 or len(extracted_canonical) <= 3:
                     continue
 
-                distance = _calculate_levenshtein_distance(summary_normalized, extracted_normalized)
+                # Check distance against canonical forms and aliases
+                distance = _calculate_levenshtein_distance(
+                    summary_alias.canonical, extracted_canonical
+                )
+                # Also check against aliases for better matching
+                if distance > edit_distance_threshold and extracted_canonical in extracted_aliases:
+                    entity_alias = extracted_aliases[extracted_canonical]
+                    for alias in entity_alias.aliases:
+                        alias_distance = _calculate_levenshtein_distance(
+                            summary_alias.canonical, alias
+                        )
+                        if alias_distance < distance:
+                            distance = alias_distance
+
+                # Apply constraints for fuzzy matching (Issue #387)
+                if distance <= edit_distance_threshold:
+                    # Constraint 1: Check if names are common words (reject if so)
+                    summary_parts = summary_alias.canonical.split()
+                    extracted_parts = extracted_canonical.split()
+
+                    # If both are single words, check if they're common words
+                    if len(summary_parts) == 1 and len(extracted_parts) == 1:
+                        if not _is_rare_last_name(
+                            summary_alias.canonical
+                        ) or not _is_rare_last_name(extracted_canonical):
+                            # At least one is a common word - reject match
+                            continue
+
+                    # Constraint 2: For last name matches, check if paired with first name
+                    # Extract last names
+                    summary_last = summary_parts[-1] if summary_parts else ""
+                    extracted_last = extracted_parts[-1] if extracted_parts else ""
+
+                    # If last names match (or are close), check if they're paired with first names
+                    if summary_last and extracted_last:
+                        last_name_distance = _calculate_levenshtein_distance(
+                            summary_last, extracted_last
+                        )
+                        # If last names are close (distance <= 1) and one is a single word
+                        if last_name_distance <= 1:
+                            # Check if the last name is rare and paired with first name
+                            if not _is_rare_last_name(summary_last):
+                                continue
+                            # If extracted entity has first+last, that's good
+                            # If summary entity is just last name, check if it's paired elsewhere
+                            if len(summary_parts) == 1 and len(extracted_parts) > 1:
+                                # Summary has just last name, extracted has full name
+                                # Check if this last name appears with a first name
+                                if not _has_paired_first_name(
+                                    summary_last, extracted_entities, extracted_aliases
+                                ):
+                                    # Last name not paired - might be false positive
+                                    continue
+
                 if distance <= edit_distance_threshold and distance < best_distance:
                     best_match = extracted_original
                     best_distance = distance
@@ -684,6 +1012,188 @@ def _reconcile_entities(
     return corrected_text, corrections
 
 
+def _check_summary_faithfulness(
+    transcript_text: Optional[str],
+    episode_description: Optional[str],
+    summary_text: Optional[str],
+    nlp: Optional[Any] = None,
+    top_n_entities: int = 20,
+) -> Tuple[bool, List[str]]:
+    """Check summary faithfulness by comparing entities with source (Issue #387).
+
+    Extracts entities from transcript (top N by frequency), episode description,
+    and summary, then flags entities in summary that aren't in the source.
+
+    Args:
+        transcript_text: Transcript text (source)
+        episode_description: Episode description (source)
+        summary_text: Summary text to check
+        nlp: Optional spaCy NLP model for entity extraction
+        top_n_entities: Number of top entities to extract from transcript (default: 20)
+
+    Returns:
+        Tuple of (has_out_of_source_entities, list_of_out_of_source_entity_names)
+        - has_out_of_source_entities: True if summary contains entities not in source
+        - list_of_out_of_source_entity_names: List of entity names not found in source
+    """
+    if not summary_text or not nlp:
+        return False, []
+
+    try:
+        from ..providers.ml.ner_extraction import extract_all_entities
+
+        # Build source entity set from transcript and description
+        source_entity_names: List[str] = []
+
+        # Extract entities from transcript (top N by frequency)
+        if transcript_text:
+            transcript_entities = extract_all_entities(transcript_text, nlp, labels=["PERSON"])
+            # Count entity frequencies
+            entity_frequencies: Dict[str, int] = {}
+            for ent in transcript_entities:
+                entity_name = ent.get("text", "").strip()
+                if entity_name:
+                    entity_frequencies[entity_name] = entity_frequencies.get(entity_name, 0) + 1
+
+            # Get top N entities by frequency
+            sorted_entities = sorted(entity_frequencies.items(), key=lambda x: x[1], reverse=True)
+            top_entities = [name for name, _ in sorted_entities[:top_n_entities]]
+            source_entity_names.extend(top_entities)
+
+        # Extract entities from episode description
+        if episode_description:
+            description_entities = extract_all_entities(episode_description, nlp, labels=["PERSON"])
+            description_entity_names = [
+                ent.get("text", "").strip()
+                for ent in description_entities
+                if ent.get("text", "").strip()
+            ]
+            source_entity_names.extend(description_entity_names)
+
+        if not source_entity_names:
+            # No source entities - can't check faithfulness
+            return False, []
+
+        # Normalize source entities for matching
+        source_entity_map: Dict[str, str] = {}
+        source_aliases: Dict[str, EntityAlias] = {}
+        for entity in source_entity_names:
+            if entity:
+                entity_alias = _normalize_entity(entity)
+                source_entity_map[entity_alias.canonical] = entity_alias.original
+                source_aliases[entity_alias.canonical] = entity_alias
+                # Also map aliases
+                for alias in entity_alias.aliases:
+                    if alias not in source_entity_map:
+                        source_entity_map[alias] = entity_alias.original
+
+        # Extract entities from summary
+        summary_entities = extract_all_entities(summary_text, nlp, labels=["PERSON"])
+        if not summary_entities:
+            return False, []
+
+        # Check each summary entity against source entities
+        out_of_source_entities: List[str] = []
+        edit_distance_threshold = 2
+
+        for summary_ent in summary_entities:
+            summary_name = summary_ent.get("text", "").strip()
+            if not summary_name:
+                continue
+
+            # Normalize summary entity
+            summary_alias = _normalize_entity(summary_name)
+
+            # Check for exact match using aliases
+            if summary_alias.canonical in source_entity_map:
+                continue
+            found_exact_match = False
+            for alias in summary_alias.aliases:
+                if alias in source_entity_map:
+                    found_exact_match = True
+                    break
+            if found_exact_match:
+                continue
+
+            # Check for fuzzy match with constraints
+            found_match = False
+            for source_canonical, source_original in source_entity_map.items():
+                # Only consider if both names are long enough
+                if len(summary_alias.canonical) <= 3 or len(source_canonical) <= 3:
+                    continue
+
+                # Check distance
+                distance = _calculate_levenshtein_distance(
+                    summary_alias.canonical, source_canonical
+                )
+                # Check against aliases too
+                if distance > edit_distance_threshold and source_canonical in source_aliases:
+                    entity_alias = source_aliases[source_canonical]
+                    for alias in entity_alias.aliases:
+                        alias_distance = _calculate_levenshtein_distance(
+                            summary_alias.canonical, alias
+                        )
+                        if alias_distance < distance:
+                            distance = alias_distance
+
+                # Apply constraints for fuzzy matching
+                if distance <= edit_distance_threshold:
+                    # Constraint 1: Check if names are common words
+                    summary_parts = summary_alias.canonical.split()
+                    source_parts = source_canonical.split()
+
+                    if len(summary_parts) == 1 and len(source_parts) == 1:
+                        if not _is_rare_last_name(
+                            summary_alias.canonical
+                        ) or not _is_rare_last_name(source_canonical):
+                            continue
+
+                    # Constraint 2: For last name matches, check pairing
+                    summary_last = summary_parts[-1] if summary_parts else ""
+                    source_last = source_parts[-1] if source_parts else ""
+
+                    if summary_last and source_last:
+                        last_name_distance = _calculate_levenshtein_distance(
+                            summary_last, source_last
+                        )
+                        if last_name_distance <= 1:
+                            if not _is_rare_last_name(summary_last):
+                                continue
+                            if len(summary_parts) == 1 and len(source_parts) > 1:
+                                if not _has_paired_first_name(
+                                    summary_last, source_entity_names, source_aliases
+                                ):
+                                    continue
+
+                    # Match found - entity is in source
+                    found_match = True
+                    break
+
+            if not found_match:
+                # Entity not found in source - potential hallucination
+                out_of_source_entities.append(summary_name)
+                logger.debug(
+                    "Out-of-source entity detected in summary: '%s' "
+                    "(not found in transcript/description)",
+                    summary_name,
+                )
+
+        has_out_of_source = len(out_of_source_entities) > 0
+        if has_out_of_source:
+            logger.info(
+                "Summary faithfulness check: %d out-of-source entity(ies) detected: %s",
+                len(out_of_source_entities),
+                ", ".join(out_of_source_entities),
+            )
+
+        return has_out_of_source, out_of_source_entities
+
+    except Exception as exc:
+        logger.debug("Error checking summary faithfulness: %s", exc, exc_info=True)
+        # On error, don't flag (conservative approach)
+        return False, []
+
+
 def _build_qa_flags(
     speakers: List[SpeakerInfo],
     detected_hosts: Optional[List[str]],
@@ -691,6 +1201,8 @@ def _build_qa_flags(
     summary_text: Optional[str] = None,
     nlp: Optional[Any] = None,
     corrected_entities: Optional[List[EntityCorrection]] = None,
+    transcript_text: Optional[str] = None,
+    episode_description: Optional[str] = None,
 ) -> QAFlags:
     """Build QA flags from speaker detection and summary information (Issue #380).
 
@@ -741,6 +1253,17 @@ def _build_qa_flags(
             extracted_entities, summary_text, nlp
         )
 
+    # Check summary faithfulness (Issue #387)
+    summary_entity_out_of_source = False
+    summary_out_of_source_entities: List[str] = []
+    if summary_text and nlp:
+        summary_entity_out_of_source, summary_out_of_source_entities = _check_summary_faithfulness(
+            transcript_text=transcript_text,
+            episode_description=episode_description,
+            summary_text=summary_text,
+            nlp=nlp,
+        )
+
     # Use provided corrected_entities or empty list
     corrections = corrected_entities if corrected_entities is not None else []
 
@@ -756,6 +1279,8 @@ def _build_qa_flags(
         defaults_injected=defaults_injected,
         summary_entity_mismatch=summary_entity_mismatch,
         summary_has_named_entities=summary_has_named_entities,
+        summary_entity_out_of_source=summary_entity_out_of_source,
+        summary_out_of_source_entities=summary_out_of_source_entities,
         corrected_entities=corrections,
     )
 
@@ -773,6 +1298,8 @@ def _build_content_metadata(
     summary_text: Optional[str] = None,
     nlp: Optional[Any] = None,
     corrected_entities: Optional[List[EntityCorrection]] = None,
+    episode_description: Optional[str] = None,
+    output_dir: Optional[str] = None,
 ) -> ContentMetadata:
     """Build ContentMetadata object.
 
@@ -800,6 +1327,17 @@ def _build_content_metadata(
         allow_sponsor_content=False,
     )
 
+    # Read transcript text for faithfulness check (Issue #387)
+    transcript_text: Optional[str] = None
+    if transcript_file_path and output_dir:
+        try:
+            full_transcript_path = os.path.join(output_dir, transcript_file_path)
+            if os.path.exists(full_transcript_path):
+                with open(full_transcript_path, "r", encoding="utf-8") as f:
+                    transcript_text = f.read()
+        except Exception as exc:
+            logger.debug("Error reading transcript for faithfulness check: %s", exc)
+
     # Build QA flags
     qa_flags = _build_qa_flags(
         speakers=speakers,
@@ -808,7 +1346,61 @@ def _build_content_metadata(
         summary_text=summary_text,
         nlp=nlp,
         corrected_entities=corrected_entities,
+        transcript_text=transcript_text,
+        episode_description=episode_description,
     )
+
+    # Normalize entities for fuzzy matching (Issue #387)
+    # Extract entities from transcript (hosts/guests) and summary
+    normalized_entities: List[EntityAlias] = []
+
+    # Entities from transcript (hosts and guests)
+    transcript_entities: List[str] = []
+    if detected_hosts:
+        transcript_entities.extend(detected_hosts)
+    if detected_guests:
+        transcript_entities.extend(detected_guests)
+
+    # Normalize transcript entities
+    transcript_entity_map: Dict[str, EntityAlias] = {}
+    for entity in transcript_entities:
+        if entity:
+            entity_alias = _normalize_entity(entity)
+            entity_alias.provenance = "transcript"
+            transcript_entity_map[entity_alias.canonical] = entity_alias
+
+    # Extract entities from summary if available (Issue #387)
+    summary_entity_names: List[str] = []
+    if summary_text and nlp:
+        try:
+            from ..providers.ml.ner_extraction import extract_all_entities
+
+            summary_entities = extract_all_entities(summary_text, nlp, labels=["PERSON"])
+            summary_entity_names = [
+                ent.get("text", "").strip()
+                for ent in summary_entities
+                if ent.get("text", "").strip()
+            ]
+        except Exception as exc:
+            logger.debug("Error extracting entities from summary: %s", exc)
+
+    # Normalize summary entities and union with transcript entities
+    for entity_name in summary_entity_names:
+        if not entity_name:
+            continue
+        entity_alias = _normalize_entity(entity_name)
+        canonical = entity_alias.canonical
+
+        if canonical in transcript_entity_map:
+            # Entity appears in both transcript and summary
+            transcript_entity_map[canonical].provenance = "both"
+        else:
+            # Entity only in summary
+            entity_alias.provenance = "summary"
+            transcript_entity_map[canonical] = entity_alias
+
+    # Convert map to list
+    normalized_entities = list(transcript_entity_map.values())
 
     return ContentMetadata(
         transcript_urls=transcript_infos,
@@ -819,6 +1411,7 @@ def _build_content_metadata(
         transcript_source=transcript_source,
         whisper_model=whisper_model,
         speakers=speakers,
+        normalized_entities=normalized_entities,
         expectations=expectations,
         qa_flags=qa_flags,
     )
@@ -1388,6 +1981,7 @@ def generate_episode_metadata(
     episode_image_url: Optional[str] = None,
     summary_provider=None,  # SummarizationProvider instance (required)
     pipeline_metrics=None,
+    nlp: Optional[Any] = None,  # spaCy NLP model (for reuse, Issue #387)
 ) -> Optional[str]:
     """Generate metadata document for an episode.
 
@@ -1475,17 +2069,45 @@ def generate_episode_metadata(
     summary_elapsed = 0.0
     summary_text = None
     corrected_entities: List[EntityCorrection] = []
-    nlp = None
 
     # Get NLP model for entity reconciliation and consistency checking (if needed)
-    # Skip in dry-run mode to avoid loading models
-    if not cfg.dry_run and cfg.auto_speakers and cfg.generate_summaries and transcript_file_path:
-        try:
-            from ..providers.ml.speaker_detection import get_ner_model
+    # Reuse provided model if available, otherwise try to get from provider (Issue #387)
+    if (
+        nlp is None
+        and not cfg.dry_run
+        and cfg.auto_speakers
+        and cfg.generate_summaries
+        and transcript_file_path
+    ):
+        # Try to get spaCy model from summary_provider if it's an MLProvider
+        if summary_provider is not None:
+            try:
+                # Check if provider has spaCy model (MLProvider pattern)
+                if (
+                    hasattr(summary_provider, "_spacy_nlp")
+                    and summary_provider._spacy_nlp is not None
+                ):
+                    nlp = summary_provider._spacy_nlp
+                    logger.debug(
+                        "[%s] Reusing spaCy model from summary_provider (Issue #387)", episode.idx
+                    )
+            except Exception as exc:
+                logger.debug("Could not get spaCy model from provider: %s", exc)
 
-            nlp = get_ner_model(cfg)
-        except Exception as exc:
-            logger.debug("Could not load NLP model for entity reconciliation: %s", exc)
+        # Fallback: load model if not available from provider (should be rare)
+        if nlp is None:
+            try:
+                from ..providers.ml.speaker_detection import get_ner_model
+
+                nlp = get_ner_model(cfg)
+                if nlp is not None:
+                    logger.warning(
+                        "[%s] Loaded spaCy model for entity reconciliation (fallback - "
+                        "model should be reused from provider, Issue #387)",
+                        episode.idx,
+                    )
+            except Exception as exc:
+                logger.debug("Could not load NLP model for entity reconciliation: %s", exc)
 
     if cfg.generate_summaries and transcript_file_path:
         summary_start = time.time()
@@ -1561,6 +2183,8 @@ def generate_episode_metadata(
         summary_text=summary_text,
         nlp=nlp,
         corrected_entities=corrected_entities,
+        episode_description=episode_description,
+        output_dir=output_dir,
     )
 
     # Build complete metadata document

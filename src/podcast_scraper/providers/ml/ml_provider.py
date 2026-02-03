@@ -503,12 +503,21 @@ class MLProvider:
             self._initialize_transformers()
 
     def _detect_whisper_device(self) -> str:
-        """Detect the best device for Whisper transcription.
+        """Detect the best device for Whisper transcription (Issue #387).
+
+        Updated to check stage-level device config (transcription_device) first,
+        which overrides provider-specific device (whisper_device).
 
         Returns:
             Device string: 'mps', 'cuda', or 'cpu'
         """
-        # Use explicit config if set
+        # Stage-level device config takes precedence (Issue #387)
+        if self.cfg.transcription_device:
+            logger.debug(
+                "Using stage-level transcription_device: %s", self.cfg.transcription_device
+            )
+            return self.cfg.transcription_device.lower()
+        # Fallback to provider-specific device config
         if self.cfg.whisper_device:
             logger.debug("Using configured whisper_device: %s", self.cfg.whisper_device)
             return self.cfg.whisper_device
@@ -731,9 +740,15 @@ class MLProvider:
             # Load MAP model (for chunk summarization)
             model_name = summarizer.select_summary_model(self.cfg)
             logger.info(f"Loading MAP model: {model_name}")
+            # Stage-level device config takes precedence (Issue #387)
+            device_to_use = (
+                self.cfg.summarization_device
+                if self.cfg.summarization_device
+                else self.cfg.summary_device
+            )
             self._map_model = summarizer.SummaryModel(
                 model_name=model_name,
-                device=self.cfg.summary_device,
+                device=device_to_use,
                 cache_dir=self.cfg.summary_cache_dir,
             )
             logger.info(f"✓ MAP model loaded: {model_name}")
@@ -742,9 +757,15 @@ class MLProvider:
             reduce_model_name = summarizer.select_reduce_model(self.cfg, model_name)
             if reduce_model_name != model_name:
                 logger.info(f"Loading REDUCE model: {reduce_model_name}")
+                # Stage-level device config takes precedence (Issue #387)
+                device_to_use = (
+                    self.cfg.summarization_device
+                    if self.cfg.summarization_device
+                    else self.cfg.summary_device
+                )
                 self._reduce_model = summarizer.SummaryModel(
                     model_name=reduce_model_name,
-                    device=self.cfg.summary_device,
+                    device=device_to_use,
                     cache_dir=self.cfg.summary_cache_dir,
                 )
                 logger.info(f"✓ REDUCE model loaded: {reduce_model_name}")
@@ -1346,6 +1367,10 @@ class MLProvider:
                 reduce_max_input_tokens=reduce_max_input_tokens,
                 truncation=truncation,
                 preprocessing_profile=preprocessing_profile,
+                # Optional 2nd-pass distill parameters (Issue #387)
+                enable_2nd_pass_distill=getattr(self.cfg, "summary_2nd_pass_distill", False),
+                transcript_text=text,  # Use original transcript text
+                episode_description=episode_description,
             )
 
             # Handle both return types (str or tuple)

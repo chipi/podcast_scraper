@@ -142,6 +142,55 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md#memory-issues-with-ml-models) for de
 > fixtures in `conftest.py` reset shared state between tests, allowing most tests to run
 > in parallel safely. Only use `serial` for tests with genuine resource conflicts.
 
+### Memory Cleanup Best Practices
+
+**Automatic Cleanup:**
+
+The test suite includes an automatic cleanup fixture (`cleanup_ml_resources_after_test`) that:
+
+- Limits PyTorch thread pools to prevent excessive thread spawning
+- Cleans up the global preloaded ML provider
+- **Finds and cleans up ALL SummaryModel and provider instances** created during tests (Issue #351)
+- Forces garbage collection after integration/E2E tests
+
+**Explicit Cleanup (Recommended):**
+
+While automatic cleanup handles most cases, explicit cleanup is recommended for clarity and immediate memory release:
+
+```python
+from tests.conftest import cleanup_model, cleanup_provider
+
+def test_something():
+    # Create model directly
+    model = summarizer.SummaryModel(...)
+    try:
+        # test code
+    finally:
+        cleanup_model(model)  # Explicit cleanup
+
+def test_with_provider():
+    # Create provider directly
+    provider = create_summarization_provider(cfg)
+    try:
+        # test code
+    finally:
+        cleanup_provider(provider)  # Explicit cleanup
+```
+
+**Why Explicit Cleanup?**
+
+1. **Immediate memory release** - Models are unloaded as soon as the test completes
+2. **Clarity** - Makes it obvious that cleanup is happening
+3. **Defensive** - Works even if automatic cleanup has issues
+4. **Best practice** - Matches the pattern of resource management (try/finally)
+
+**Helper Functions:**
+
+- `cleanup_model(model)` - Unloads a SummaryModel instance
+- `cleanup_provider(provider)` - Cleans up a provider instance (MLProvider, etc.)
+
+Both functions are idempotent (safe to call multiple times) and handle None gracefully.
+
 ### ⚠️ Warning: `-s` Flag and Parallel Execution
 
 **Do not use `-s` (no capture) with parallel tests** — it causes hangs due to tqdm

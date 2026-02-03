@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Tests for metadata generation functionality."""
 
+# Note: Entity normalization tests added for Issue #387
+
 import os
 import sys
 
@@ -1414,3 +1416,595 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
 
         self.assertEqual(result, metadata_path)
         self.assertEqual(mock_metrics.metadata_files_generated, 1)
+
+
+class TestEntityNormalization(unittest.TestCase):
+    """Tests for entity normalization functionality (Issue #387)."""
+
+    def test_normalize_entity_full_name(self):
+        """Test normalization of full names."""
+        result = metadata._normalize_entity("John Doe")
+        self.assertEqual(result.canonical, "john doe")
+        self.assertEqual(result.original, "John Doe")
+        self.assertIn("john doe", result.aliases)
+        self.assertIn("doe", result.aliases)
+        self.assertIn("john", result.aliases)
+        # Default provenance is "transcript"
+        self.assertEqual(result.provenance, "transcript")
+
+    def test_normalize_entity_single_name(self):
+        """Test normalization of single names."""
+        result = metadata._normalize_entity("Madonna")
+        self.assertEqual(result.canonical, "madonna")
+        self.assertEqual(result.original, "Madonna")
+        self.assertIn("madonna", result.aliases)
+
+    def test_normalize_entity_with_punctuation(self):
+        """Test normalization removes punctuation."""
+        result = metadata._normalize_entity("John O'Brien")
+        self.assertEqual(result.canonical, "john obrien")
+        self.assertEqual(result.original, "John O'Brien")
+        # Punctuation should be removed
+        self.assertNotIn("o'brien", result.aliases)
+        self.assertIn("obrien", result.aliases)
+
+    def test_normalize_entity_whitespace(self):
+        """Test normalization handles whitespace."""
+        result = metadata._normalize_entity("  John   Doe  ")
+        self.assertEqual(result.canonical, "john doe")
+        # Original is stripped (strip() is called first)
+        self.assertEqual(result.original, "John   Doe")
+        self.assertIn("john doe", result.aliases)
+
+    def test_normalize_entity_empty(self):
+        """Test normalization of empty string."""
+        result = metadata._normalize_entity("")
+        self.assertEqual(result.canonical, "")
+        self.assertEqual(result.original, "")
+        self.assertEqual(result.aliases, [])
+
+    def test_normalize_entity_three_part_name(self):
+        """Test normalization of three-part names."""
+        result = metadata._normalize_entity("Mary Jane Watson")
+        self.assertEqual(result.canonical, "mary jane watson")
+        self.assertEqual(result.original, "Mary Jane Watson")
+        self.assertIn("mary jane watson", result.aliases)
+        self.assertIn("watson", result.aliases)  # Last name
+        self.assertIn("mary", result.aliases)  # First name
+
+    def test_normalize_entity_in_content_metadata(self):
+        """Test that normalized entities are stored in ContentMetadata."""
+        speakers = []
+        detected_hosts = ["John Doe"]
+        detected_guests = ["Jane Smith"]
+
+        content = metadata._build_content_metadata(
+            episode=create_test_episode(),
+            transcript_infos=[],
+            media_id=None,
+            transcript_file_path=None,
+            transcript_source=None,
+            whisper_model=None,
+            speakers=speakers,
+            detected_hosts=detected_hosts,
+            detected_guests=detected_guests,
+        )
+
+        self.assertEqual(len(content.normalized_entities), 2)
+        # Check that entities are normalized
+        entity_names = [e.original for e in content.normalized_entities]
+        self.assertIn("John Doe", entity_names)
+        self.assertIn("Jane Smith", entity_names)
+        # Check aliases are populated
+        for entity in content.normalized_entities:
+            self.assertGreater(len(entity.aliases), 0)
+            self.assertEqual(entity.canonical, entity.aliases[0])
+
+
+class TestEntityExtractionFromSummary(unittest.TestCase):
+    """Tests for entity extraction from summary (Issue #387)."""
+
+    def test_extract_entities_from_summary(self):
+        """Test that entities are extracted from summary text."""
+        speakers = []
+        detected_hosts = ["John Doe"]
+        detected_guests = ["Jane Smith"]
+        summary_text = "This episode features Alice Johnson and Bob Williams."
+
+        # Mock NLP model
+        mock_nlp = MagicMock()
+        mock_doc = MagicMock()
+        mock_ent1 = MagicMock()
+        mock_ent1.text = "Alice Johnson"
+        mock_ent1.label_ = "PERSON"
+        mock_ent2 = MagicMock()
+        mock_ent2.text = "Bob Williams"
+        mock_ent2.label_ = "PERSON"
+        mock_doc.ents = [mock_ent1, mock_ent2]
+        mock_nlp.return_value = mock_doc
+
+        # Mock extract_all_entities
+        with patch(
+            "podcast_scraper.providers.ml.ner_extraction.extract_all_entities"
+        ) as mock_extract:
+            mock_extract.return_value = [
+                {"text": "Alice Johnson", "start": 0, "end": 13, "label": "PERSON"},
+                {"text": "Bob Williams", "start": 30, "end": 42, "label": "PERSON"},
+            ]
+
+            content = metadata._build_content_metadata(
+                episode=create_test_episode(),
+                transcript_infos=[],
+                media_id=None,
+                transcript_file_path=None,
+                transcript_source=None,
+                whisper_model=None,
+                speakers=speakers,
+                detected_hosts=detected_hosts,
+                detected_guests=detected_guests,
+                summary_text=summary_text,
+                nlp=mock_nlp,
+            )
+
+            # Should have entities from transcript (John Doe, Jane Smith)
+            # and from summary (Alice Johnson, Bob Williams)
+            entity_names = {e.original for e in content.normalized_entities}
+            self.assertIn("John Doe", entity_names)
+            self.assertIn("Jane Smith", entity_names)
+            self.assertIn("Alice Johnson", entity_names)
+            self.assertIn("Bob Williams", entity_names)
+
+    def test_entity_provenance_tracking(self):
+        """Test that entity provenance is tracked correctly."""
+        speakers = []
+        detected_hosts = ["John Doe"]
+        detected_guests = ["Jane Smith"]
+        summary_text = "This episode features Jane Smith and Alice Johnson."
+
+        # Mock NLP model
+        mock_nlp = MagicMock()
+        with patch(
+            "podcast_scraper.providers.ml.ner_extraction.extract_all_entities"
+        ) as mock_extract:
+            # Jane Smith appears in both transcript and summary
+            # Alice Johnson only in summary
+            mock_extract.return_value = [
+                {"text": "Jane Smith", "start": 0, "end": 10, "label": "PERSON"},
+                {"text": "Alice Johnson", "start": 30, "end": 43, "label": "PERSON"},
+            ]
+
+            content = metadata._build_content_metadata(
+                episode=create_test_episode(),
+                transcript_infos=[],
+                media_id=None,
+                transcript_file_path=None,
+                transcript_source=None,
+                whisper_model=None,
+                speakers=speakers,
+                detected_hosts=detected_hosts,
+                detected_guests=detected_guests,
+                summary_text=summary_text,
+                nlp=mock_nlp,
+            )
+
+            # Find entities by original name
+            entity_map = {e.original: e for e in content.normalized_entities}
+
+            # John Doe: only in transcript
+            self.assertEqual(entity_map["John Doe"].provenance, "transcript")
+
+            # Jane Smith: in both transcript and summary
+            self.assertEqual(entity_map["Jane Smith"].provenance, "both")
+
+            # Alice Johnson: only in summary
+            self.assertEqual(entity_map["Alice Johnson"].provenance, "summary")
+
+    def test_entity_extraction_no_summary(self):
+        """Test that entity extraction works without summary."""
+        speakers = []
+        detected_hosts = ["John Doe"]
+        detected_guests = ["Jane Smith"]
+
+        content = metadata._build_content_metadata(
+            episode=create_test_episode(),
+            transcript_infos=[],
+            media_id=None,
+            transcript_file_path=None,
+            transcript_source=None,
+            whisper_model=None,
+            speakers=speakers,
+            detected_hosts=detected_hosts,
+            detected_guests=detected_guests,
+            summary_text=None,  # No summary
+            nlp=None,
+        )
+
+        # Should only have transcript entities
+        entity_names = {e.original for e in content.normalized_entities}
+        self.assertIn("John Doe", entity_names)
+        self.assertIn("Jane Smith", entity_names)
+        self.assertEqual(len(entity_names), 2)
+
+        # All should have transcript provenance
+        for entity in content.normalized_entities:
+            self.assertEqual(entity.provenance, "transcript")
+
+
+class TestQABackfillAndMismatchSeverity(unittest.TestCase):
+    """Tests for QA backfill and mismatch severity logic (Issue #387)."""
+
+    def test_entity_consistency_with_fuzzy_matching(self):
+        """Test entity consistency uses fuzzy matching, doesn't flag normalization."""
+        # "Kevin Warsh" in extracted, "Kevin Walsh" in summary
+        # Should NOT flag as mismatch (fuzzy match with constraints)
+        extracted_entities = ["Kevin Warsh"]
+        summary_text = "Kevin Walsh discusses monetary policy."
+
+        mock_nlp = MagicMock()
+        with patch(
+            "podcast_scraper.providers.ml.ner_extraction.extract_all_entities"
+        ) as mock_extract:
+            mock_extract.return_value = [
+                {"text": "Kevin Walsh", "start": 0, "end": 12, "label": "PERSON"}
+            ]
+
+            mismatch, has_entities = metadata._check_entity_consistency(
+                extracted_entities, summary_text, nlp=mock_nlp
+            )
+
+            # Should NOT flag as mismatch (fuzzy match found)
+            self.assertFalse(mismatch, "Should not flag fuzzy matches as mismatches")
+            self.assertTrue(has_entities, "Summary has named entities")
+
+    def test_entity_consistency_flags_zero_evidence(self):
+        """Test that entity consistency flags zero-evidence entities."""
+        # "John Doe" in extracted, "Alice Johnson" in summary (completely different)
+        # Should flag as mismatch (zero evidence)
+        extracted_entities = ["John Doe"]
+        summary_text = "Alice Johnson discusses the topic."
+
+        mock_nlp = MagicMock()
+        with patch(
+            "podcast_scraper.providers.ml.ner_extraction.extract_all_entities"
+        ) as mock_extract:
+            mock_extract.return_value = [
+                {"text": "Alice Johnson", "start": 0, "end": 13, "label": "PERSON"}
+            ]
+
+            mismatch, has_entities = metadata._check_entity_consistency(
+                extracted_entities, summary_text, nlp=mock_nlp
+            )
+
+            # Should flag as mismatch (zero evidence)
+            self.assertTrue(mismatch, "Should flag zero-evidence entities as mismatches")
+            self.assertTrue(has_entities, "Summary has named entities")
+
+    def test_entity_consistency_rejects_common_words(self):
+        """Test that entity consistency rejects common words from matching."""
+        # "John Doe" in extracted, "The" in summary (common word)
+        # Common words are rejected from matching, so "The" won't match "John Doe"
+        # But if NER extracts it, it will be flagged as zero-evidence
+        extracted_entities = ["John Doe"]
+        summary_text = "The host discusses the topic."
+
+        mock_nlp = MagicMock()
+        with patch(
+            "podcast_scraper.providers.ml.ner_extraction.extract_all_entities"
+        ) as mock_extract:
+            # Even if NER incorrectly extracts "The" as a person
+            mock_extract.return_value = [{"text": "The", "start": 0, "end": 3, "label": "PERSON"}]
+
+            mismatch, has_entities = metadata._check_entity_consistency(
+                extracted_entities, summary_text, nlp=mock_nlp
+            )
+
+            # Common words are rejected from matching (constraints prevent match)
+            # But if NER extracts them, they're still flagged as zero-evidence
+            # This is correct - "The" doesn't match "John Doe" and is zero evidence
+            self.assertTrue(mismatch, "Common words that don't match are zero-evidence")
+            self.assertTrue(has_entities, "Summary has named entities (even if incorrect)")
+
+    def test_qa_backfill_detects_missing_entities(self):
+        """Test that QA backfill detects entities missing from summary."""
+        # "John Doe" in transcript, but not in summary
+        # Should be included with "transcript" provenance (backfilled)
+        speakers = []
+        detected_hosts = ["John Doe"]
+        detected_guests = ["Jane Smith"]
+        summary_text = "This episode features Alice Johnson."  # Missing John Doe and Jane Smith
+
+        mock_nlp = MagicMock()
+        with patch(
+            "podcast_scraper.providers.ml.ner_extraction.extract_all_entities"
+        ) as mock_extract:
+            mock_extract.return_value = [
+                {"text": "Alice Johnson", "start": 0, "end": 13, "label": "PERSON"}
+            ]
+
+            content = metadata._build_content_metadata(
+                episode=create_test_episode(),
+                transcript_infos=[],
+                media_id=None,
+                transcript_file_path=None,
+                transcript_source=None,
+                whisper_model=None,
+                speakers=speakers,
+                detected_hosts=detected_hosts,
+                detected_guests=detected_guests,
+                summary_text=summary_text,
+                nlp=mock_nlp,
+            )
+
+            # Should have all entities: John Doe, Jane Smith (transcript), Alice Johnson (summary)
+            entity_map = {e.original: e for e in content.normalized_entities}
+            self.assertIn("John Doe", entity_map)
+            self.assertIn("Jane Smith", entity_map)
+            self.assertIn("Alice Johnson", entity_map)
+
+            # John Doe and Jane Smith should have "transcript" provenance (backfilled)
+            self.assertEqual(entity_map["John Doe"].provenance, "transcript")
+            self.assertEqual(entity_map["Jane Smith"].provenance, "transcript")
+            # Alice Johnson should have "summary" provenance
+            self.assertEqual(entity_map["Alice Johnson"].provenance, "summary")
+
+
+class TestSummaryFaithfulnessCheck(unittest.TestCase):
+    """Tests for summary faithfulness check (Issue #387)."""
+
+    def test_faithfulness_check_detects_hallucinations(self):
+        """Test that faithfulness check detects entities not in source."""
+        # "John Doe" in transcript, "Alice Johnson" in summary (hallucination)
+        transcript_text = "John Doe discusses the topic with the host."
+        episode_description = "Episode featuring John Doe"
+        summary_text = "Alice Johnson discusses the topic."
+
+        mock_nlp = MagicMock()
+        with patch(
+            "podcast_scraper.providers.ml.ner_extraction.extract_all_entities"
+        ) as mock_extract:
+            # Mock transcript entities
+            mock_extract.side_effect = [
+                [{"text": "John Doe", "start": 0, "end": 8, "label": "PERSON"}],  # transcript
+                [{"text": "John Doe", "start": 0, "end": 8, "label": "PERSON"}],  # description
+                [{"text": "Alice Johnson", "start": 0, "end": 13, "label": "PERSON"}],  # summary
+            ]
+
+            has_out_of_source, out_of_source_entities = metadata._check_summary_faithfulness(
+                transcript_text=transcript_text,
+                episode_description=episode_description,
+                summary_text=summary_text,
+                nlp=mock_nlp,
+            )
+
+            # Should detect "Alice Johnson" as out-of-source
+            self.assertTrue(has_out_of_source, "Should detect out-of-source entities")
+            self.assertIn("Alice Johnson", out_of_source_entities)
+
+    def test_faithfulness_check_allows_valid_entities(self):
+        """Test that faithfulness check allows entities that are in source."""
+        # "John Doe" in both transcript and summary
+        transcript_text = "John Doe discusses the topic with the host."
+        episode_description = "Episode featuring John Doe"
+        summary_text = "John Doe discusses the topic."
+
+        mock_nlp = MagicMock()
+        with patch(
+            "podcast_scraper.providers.ml.ner_extraction.extract_all_entities"
+        ) as mock_extract:
+            # Mock entities - all have "John Doe"
+            mock_extract.side_effect = [
+                [{"text": "John Doe", "start": 0, "end": 8, "label": "PERSON"}],  # transcript
+                [{"text": "John Doe", "start": 0, "end": 8, "label": "PERSON"}],  # description
+                [{"text": "John Doe", "start": 0, "end": 8, "label": "PERSON"}],  # summary
+            ]
+
+            has_out_of_source, out_of_source_entities = metadata._check_summary_faithfulness(
+                transcript_text=transcript_text,
+                episode_description=episode_description,
+                summary_text=summary_text,
+                nlp=mock_nlp,
+            )
+
+            # Should NOT detect out-of-source entities
+            self.assertFalse(has_out_of_source, "Should not flag valid entities")
+            self.assertEqual(len(out_of_source_entities), 0)
+
+    def test_faithfulness_check_uses_top_n_entities(self):
+        """Test that faithfulness check uses top N entities from transcript."""
+        # Create transcript with multiple entities
+        transcript_text = "John Doe and Jane Smith discuss. John Doe mentions Bob Williams."
+        # "John Doe" appears twice, "Jane Smith" once, "Bob Williams" once
+        summary_text = "Alice Johnson discusses the topic."  # Hallucination
+
+        mock_nlp = MagicMock()
+
+        def extract_side_effect(text, nlp, labels=None):
+            # Return different results based on text content
+            if "John Doe" in text and "Jane Smith" in text:
+                # Transcript
+                return [
+                    {"text": "John Doe", "start": 0, "end": 8, "label": "PERSON"},
+                    {"text": "Jane Smith", "start": 13, "end": 23, "label": "PERSON"},
+                    {"text": "John Doe", "start": 30, "end": 38, "label": "PERSON"},
+                    {"text": "Bob Williams", "start": 50, "end": 62, "label": "PERSON"},
+                ]
+            elif "Alice Johnson" in text:
+                # Summary
+                return [{"text": "Alice Johnson", "start": 0, "end": 13, "label": "PERSON"}]
+            else:
+                # Description or other
+                return []
+
+        with patch(
+            "podcast_scraper.providers.ml.ner_extraction.extract_all_entities"
+        ) as mock_extract:
+            mock_extract.side_effect = extract_side_effect
+
+            has_out_of_source, out_of_source_entities = metadata._check_summary_faithfulness(
+                transcript_text=transcript_text,
+                episode_description=None,
+                summary_text=summary_text,
+                nlp=mock_nlp,
+                top_n_entities=20,
+            )
+
+            # Should detect "Alice Johnson" as out-of-source
+            self.assertTrue(has_out_of_source)
+            self.assertIn("Alice Johnson", out_of_source_entities)
+
+    def test_faithfulness_check_in_qa_flags(self):
+        """Test that faithfulness check is integrated into QA flags."""
+        speakers = []
+        detected_hosts = ["John Doe"]
+        detected_guests = []
+        summary_text = "Alice Johnson discusses the topic."  # Hallucination
+        transcript_text = "John Doe discusses the topic."
+        episode_description = "Episode with John Doe"
+
+        mock_nlp = MagicMock()
+
+        def extract_side_effect(text, nlp, labels=None):
+            # Return different results based on text content
+            if "John Doe" in text and "discusses" in text:
+                # Transcript
+                return [{"text": "John Doe", "start": 0, "end": 8, "label": "PERSON"}]
+            elif "Episode" in text:
+                # Description
+                return [{"text": "John Doe", "start": 0, "end": 8, "label": "PERSON"}]
+            elif "Alice Johnson" in text:
+                # Summary
+                return [{"text": "Alice Johnson", "start": 0, "end": 13, "label": "PERSON"}]
+            else:
+                return []
+
+        with patch(
+            "podcast_scraper.providers.ml.ner_extraction.extract_all_entities"
+        ) as mock_extract:
+            mock_extract.side_effect = extract_side_effect
+
+            qa_flags = metadata._build_qa_flags(
+                speakers=speakers,
+                detected_hosts=detected_hosts,
+                detected_guests=detected_guests,
+                summary_text=summary_text,
+                nlp=mock_nlp,
+                transcript_text=transcript_text,
+                episode_description=episode_description,
+            )
+
+            # Should flag out-of-source entities
+            self.assertTrue(
+                qa_flags.summary_entity_out_of_source,
+                "Should flag out-of-source entities in QA flags",
+            )
+            self.assertIn("Alice Johnson", qa_flags.summary_out_of_source_entities)
+
+
+class TestFuzzyMatchingConstraints(unittest.TestCase):
+    """Tests for fuzzy matching with constraints (Issue #387)."""
+
+    def test_is_rare_last_name(self):
+        """Test rare last name detection."""
+        # Rare names should return True
+        self.assertTrue(metadata._is_rare_last_name("warsh"))
+        self.assertTrue(metadata._is_rare_last_name("walsh"))
+        self.assertTrue(metadata._is_rare_last_name("smith"))
+        self.assertTrue(metadata._is_rare_last_name("johnson"))
+
+        # Common words should return False
+        self.assertFalse(metadata._is_rare_last_name("the"))
+        self.assertFalse(metadata._is_rare_last_name("and"))
+        self.assertFalse(metadata._is_rare_last_name("for"))
+        self.assertFalse(metadata._is_rare_last_name("but"))
+
+        # Short names should return False
+        self.assertFalse(metadata._is_rare_last_name(""))
+        self.assertFalse(metadata._is_rare_last_name("a"))
+        self.assertFalse(metadata._is_rare_last_name("ab"))
+
+    def test_has_paired_first_name(self):
+        """Test paired first name detection."""
+        # Test with full name in extracted entities
+        extracted = ["Kevin Warsh"]
+        aliases = {}
+        for entity in extracted:
+            alias = metadata._normalize_entity(entity)
+            aliases[alias.canonical] = alias
+
+        # "Warsh" should be paired with "Kevin"
+        self.assertTrue(
+            metadata._has_paired_first_name("warsh", extracted, aliases),
+            "Warsh should be paired with Kevin",
+        )
+
+        # "Walsh" should not be paired (not in extracted)
+        self.assertFalse(
+            metadata._has_paired_first_name("walsh", extracted, aliases),
+            "Walsh should not be paired",
+        )
+
+        # Test with multiple entities
+        extracted2 = ["Kevin Warsh", "John Smith"]
+        aliases2 = {}
+        for entity in extracted2:
+            alias = metadata._normalize_entity(entity)
+            aliases2[alias.canonical] = alias
+
+        self.assertTrue(metadata._has_paired_first_name("warsh", extracted2, aliases2))
+        self.assertTrue(metadata._has_paired_first_name("smith", extracted2, aliases2))
+
+    def test_fuzzy_matching_warsh_vs_walsh_constraints(self):
+        """Test fuzzy matching constraints for Warsh vs Walsh scenario (Issue #387)."""
+        # Test the constraint functions directly
+        # "Kevin Warsh" in extracted, "Kevin Walsh" in summary
+        # Should match because:
+        # 1. Edit distance is 1 (Warsh vs Walsh)
+        # 2. Both are rare last names
+        # 3. Last name is paired with first name "Kevin"
+
+        extracted_entities = ["Kevin Warsh"]
+        aliases = {}
+        for entity in extracted_entities:
+            alias = metadata._normalize_entity(entity)
+            aliases[alias.canonical] = alias
+
+        # Test that "warsh" is rare
+        self.assertTrue(metadata._is_rare_last_name("warsh"))
+        # Test that "walsh" is rare
+        self.assertTrue(metadata._is_rare_last_name("walsh"))
+        # Test that "warsh" is paired with first name
+        self.assertTrue(metadata._has_paired_first_name("warsh", extracted_entities, aliases))
+
+        # Test edit distance
+        distance = metadata._calculate_levenshtein_distance("warsh", "walsh")
+        self.assertEqual(distance, 1, "Warsh and Walsh should have edit distance 1")
+
+    def test_fuzzy_matching_rejects_common_words(self):
+        """Test that fuzzy matching rejects common words."""
+        # Common words should be rejected
+        self.assertFalse(metadata._is_rare_last_name("the"))
+        self.assertFalse(metadata._is_rare_last_name("and"))
+        self.assertFalse(metadata._is_rare_last_name("for"))
+        self.assertFalse(metadata._is_rare_last_name("but"))
+
+    def test_fuzzy_matching_requires_paired_first_name(self):
+        """Test that fuzzy matching requires paired first name for last-name-only matches."""
+        # Test with full name
+        extracted_entities = ["Kevin Warsh"]
+        aliases = {}
+        for entity in extracted_entities:
+            alias = metadata._normalize_entity(entity)
+            aliases[alias.canonical] = alias
+
+        # "Warsh" should be paired with "Kevin"
+        self.assertTrue(metadata._has_paired_first_name("warsh", extracted_entities, aliases))
+
+        # Test with just last name (no pairing)
+        extracted_entities2 = ["Warsh"]  # Just last name, no first name
+        aliases2 = {}
+        for entity in extracted_entities2:
+            alias = metadata._normalize_entity(entity)
+            aliases2[alias.canonical] = alias
+
+        # "Warsh" should not be paired (no first name)
+        self.assertFalse(metadata._has_paired_first_name("warsh", extracted_entities2, aliases2))

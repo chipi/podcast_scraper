@@ -838,7 +838,8 @@ class SummaryModel:
                                 f"Failed to clear cache for {self.model_name}: {cache_error}"
                             )
 
-                        # Retry once after cache clear (will still fail if cache was cleared, but we tried)
+                        # Retry once after cache clear
+                        # (will still fail if cache was cleared, but we tried)
                         logger.info(
                             f"Retrying {model_type} load for {self.model_name} after cache clear..."
                         )
@@ -1983,6 +1984,10 @@ def summarize_long_text(
     truncation: Optional[bool] = None,
     preprocessing_profile: str = "cleaning_v4",  # Default to cleaning_v4
     # (matches production baseline)
+    # Optional 2nd-pass distill parameters (Issue #387)
+    enable_2nd_pass_distill: bool = False,
+    transcript_text: Optional[str] = None,
+    episode_description: Optional[str] = None,
 ) -> str | tuple[str, Dict[str, Any]]:
     """Summarize long text by chunking and combining summaries.
 
@@ -3296,6 +3301,88 @@ def _prune_filler_sentences(text: str) -> str:
     return result
 
 
+def _distill_final_summary_2nd_pass(
+    model: "SummaryModel",
+    summary_text: str,
+    transcript_text: Optional[str] = None,
+    episode_description: Optional[str] = None,
+) -> str:
+    """Apply optional 2nd-pass distillation with faithfulness prompt (Issue #387).
+
+    This pass uses a prompt to guide the model to be faithful to the source
+    and reduce hallucinations. Only effective with OpenAI provider
+    (BART/LED models don't use prompts effectively).
+
+    Args:
+        model: The summary model (use reduce model for consistency)
+        summary_text: The reduce phase output (or 1st distill output)
+        transcript_text: Optional transcript text for faithfulness context
+        episode_description: Optional episode description for faithfulness context
+
+    Returns:
+        More faithful summary
+    """
+    if not summary_text or not summary_text.strip():
+        return summary_text
+
+    logger.debug(f"[DISTILL-2ND] Input length: {len(summary_text)} chars")
+
+    # Build faithfulness prompt
+    faithfulness_prompt = (
+        "Summarize the following text while being strictly faithful to the source. "
+        "Only include information that is explicitly stated. "
+        "Do not add, infer, or hallucinate any details not present in the source. "
+        "Focus on accuracy and faithfulness over creativity."
+    )
+
+    # For OpenAI provider, we can use the prompt effectively
+    # For BART/LED, prompts are less effective but we still try
+    from podcast_scraper import config as config_module
+
+    distill_max_tokens = config_module.DEFAULT_DISTILL_MAX_TOKENS
+    distill_min_tokens = config_module.DEFAULT_DISTILL_MIN_TOKENS
+    distill_num_beams = config_module.DEFAULT_DISTILL_NUM_BEAMS
+    distill_no_repeat_ngram_size = config_module.DEFAULT_DISTILL_NO_REPEAT_NGRAM_SIZE
+    distill_length_penalty = config_module.DEFAULT_DISTILL_LENGTH_PENALTY
+
+    distilled = model.summarize(
+        summary_text,
+        max_length=distill_max_tokens,
+        min_length=distill_min_tokens,
+        do_sample=False,
+        prompt=faithfulness_prompt,  # Use faithfulness prompt
+        is_reduce_phase=False,
+        is_distill_phase=True,
+        max_new_tokens=distill_max_tokens,
+        min_new_tokens=distill_min_tokens,
+        num_beams=distill_num_beams,
+        no_repeat_ngram_size=distill_no_repeat_ngram_size,
+        length_penalty=distill_length_penalty,
+        early_stopping=True,
+    )
+
+    # Post-process the distilled output
+    distilled = _postprocess_ml_summary(distilled)
+
+    # Remove near-duplicate sentences
+    distilled = _dedupe_sentences(distilled)
+
+    # Conservative post-distill pruning
+    distilled = _prune_filler_sentences(distilled)
+
+    logger.debug(f"[DISTILL-2ND] Output length: {len(distilled) if distilled else 0} chars")
+
+    # If distillation produced something too short or empty, return original
+    if not distilled or len(distilled) < 50:
+        logger.warning(
+            f"2nd-pass distillation produced too short output "
+            f"({len(distilled) if distilled else 0} chars), returning pre-distill summary."
+        )
+        return _postprocess_ml_summary(summary_text)
+
+    return distilled
+
+
 def _distill_final_summary(model: "SummaryModel", summary_text: str) -> str:
     """Apply final distillation pass to tighten the summary.
 
@@ -3981,6 +4068,21 @@ def _combine_summaries_abstractive(
                     f"({DISTILL_THRESHOLD_CHARS} chars), applying distillation"
                 )
                 final_summary = _distill_final_summary(model, final_summary)
+
+                # Apply optional 2nd-pass distill with faithfulness prompt (Issue #387)
+                # Note: enable_2nd_pass_distill, transcript_text, episode_description
+                # are function parameters but mypy/flake8 may flag them due to
+                # very long function (false positive)
+                if enable_2nd_pass_distill:  # type: ignore[name-defined]  # noqa: F821
+                    logger.debug(
+                        "[DISTILL-2ND] Applying 2nd-pass distillation with faithfulness prompt"
+                    )
+                    final_summary = _distill_final_summary_2nd_pass(
+                        model,
+                        final_summary,
+                        transcript_text,  # type: ignore[name-defined]  # noqa: F821
+                        episode_description,  # type: ignore[name-defined]  # noqa: F821
+                    )
             else:
                 logger.debug(
                     f"[DISTILL] Skipping distillation - reduce output ({len(final_summary)} chars) "

@@ -1454,3 +1454,330 @@ class TestGenerateLLMCallSummary(unittest.TestCase):
 
         # Should not include transcription in summary when pricing is missing
         self.assertEqual(summary, [])
+
+
+@pytest.mark.unit
+class TestDryRunCostProjection(unittest.TestCase):
+    """Tests for _generate_dry_run_cost_projection function (Issue #253)."""
+
+    def test_dry_run_cost_projection_no_openai_providers(self):
+        """Test that cost projection is empty when no OpenAI providers are configured."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            transcription_provider="whisper",  # Local, not OpenAI
+            speaker_detector_provider="spacy",  # Local, not OpenAI
+            summary_provider="transformers",  # Local, not OpenAI
+        )
+
+        projection = helpers._generate_dry_run_cost_projection(cfg, None, 5)
+        self.assertEqual(projection, [])
+
+    def test_dry_run_cost_projection_transcription_only(self):
+        """Test cost projection with OpenAI transcription only."""
+        import xml.etree.ElementTree as ET
+
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            transcription_provider="openai",
+            openai_transcription_model="whisper-1",
+            openai_api_key="sk-test123",
+        )
+
+        # Create episodes with duration metadata (30 minutes each)
+        episodes = []
+        for i in range(3):
+            item = ET.Element("item")
+            ET.SubElement(item, "title").text = f"Episode {i+1}"
+            # Add iTunes duration: 30 minutes = 30:00
+            duration_elem = ET.SubElement(
+                item, "{http://www.itunes.com/dtds/podcast-1.0.dtd}duration"
+            )
+            duration_elem.text = "30:00"
+            episode = models.Episode(
+                idx=i + 1,
+                title=f"Episode {i+1}",
+                title_safe=f"episode-{i+1}",
+                item=item,
+                transcript_urls=[],
+            )
+            episodes.append(episode)
+
+        projection = helpers._generate_dry_run_cost_projection(cfg, episodes, 3)
+
+        self.assertGreater(len(projection), 0)
+        projection_text = "\n".join(projection)
+        self.assertIn("Transcription (whisper-1):", projection_text)
+        self.assertIn("Episodes: 3", projection_text)
+        self.assertIn("Estimated audio: 90.0 minutes", projection_text)
+        self.assertIn("Estimated cost: $0.5400", projection_text)  # 90 * 0.006 = 0.54
+        self.assertIn("Total Estimated Cost", projection_text)
+
+    def test_dry_run_cost_projection_speaker_detection_only(self):
+        """Test cost projection with OpenAI speaker detection only."""
+        import xml.etree.ElementTree as ET
+
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            speaker_detector_provider="openai",
+            openai_speaker_model="gpt-4o-mini",
+            openai_api_key="sk-test123",
+        )
+
+        # Create episodes with duration (30 minutes each)
+        episodes = []
+        for i in range(2):
+            item = ET.Element("item")
+            ET.SubElement(item, "title").text = f"Episode {i+1}"
+            duration_elem = ET.SubElement(
+                item, "{http://www.itunes.com/dtds/podcast-1.0.dtd}duration"
+            )
+            duration_elem.text = "30:00"
+            episode = models.Episode(
+                idx=i + 1,
+                title=f"Episode {i+1}",
+                title_safe=f"episode-{i+1}",
+                item=item,
+                transcript_urls=[],
+            )
+            episodes.append(episode)
+
+        projection = helpers._generate_dry_run_cost_projection(cfg, episodes, 2)
+
+        self.assertGreater(len(projection), 0)
+        projection_text = "\n".join(projection)
+        self.assertIn("Speaker Detection (gpt-4o-mini):", projection_text)
+        self.assertIn("Episodes: 2", projection_text)
+        self.assertIn("Estimated tokens:", projection_text)
+        self.assertIn("Estimated cost:", projection_text)
+
+    def test_dry_run_cost_projection_summarization_only(self):
+        """Test cost projection with OpenAI summarization only."""
+        import xml.etree.ElementTree as ET
+
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            summary_provider="openai",
+            openai_summary_model="gpt-4o",
+            openai_api_key="sk-test123",
+        )
+
+        # Create episodes with duration (45 minutes each)
+        episodes = []
+        for i in range(2):
+            item = ET.Element("item")
+            ET.SubElement(item, "title").text = f"Episode {i+1}"
+            duration_elem = ET.SubElement(
+                item, "{http://www.itunes.com/dtds/podcast-1.0.dtd}duration"
+            )
+            duration_elem.text = "45:00"
+            episode = models.Episode(
+                idx=i + 1,
+                title=f"Episode {i+1}",
+                title_safe=f"episode-{i+1}",
+                item=item,
+                transcript_urls=[],
+            )
+            episodes.append(episode)
+
+        projection = helpers._generate_dry_run_cost_projection(cfg, episodes, 2)
+
+        self.assertGreater(len(projection), 0)
+        projection_text = "\n".join(projection)
+        self.assertIn("Summarization (gpt-4o):", projection_text)
+        self.assertIn("Episodes: 2", projection_text)
+        self.assertIn("Estimated tokens:", projection_text)
+        self.assertIn("Estimated cost:", projection_text)
+
+    def test_dry_run_cost_projection_all_capabilities(self):
+        """Test cost projection with all OpenAI capabilities."""
+        import xml.etree.ElementTree as ET
+
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            transcription_provider="openai",
+            speaker_detector_provider="openai",
+            summary_provider="openai",
+            openai_transcription_model="whisper-1",
+            openai_speaker_model="gpt-4o-mini",
+            openai_summary_model="gpt-4o",
+            openai_api_key="sk-test123",
+        )
+
+        # Create episodes with duration (30 minutes each)
+        episodes = []
+        for i in range(2):
+            item = ET.Element("item")
+            ET.SubElement(item, "title").text = f"Episode {i+1}"
+            duration_elem = ET.SubElement(
+                item, "{http://www.itunes.com/dtds/podcast-1.0.dtd}duration"
+            )
+            duration_elem.text = "30:00"
+            episode = models.Episode(
+                idx=i + 1,
+                title=f"Episode {i+1}",
+                title_safe=f"episode-{i+1}",
+                item=item,
+                transcript_urls=[],
+            )
+            episodes.append(episode)
+
+        projection = helpers._generate_dry_run_cost_projection(cfg, episodes, 2)
+
+        # Should include all three capabilities
+        projection_text = "\n".join(projection)
+        self.assertIn("Transcription (whisper-1):", projection_text)
+        self.assertIn("Speaker Detection (gpt-4o-mini):", projection_text)
+        self.assertIn("Summarization (gpt-4o):", projection_text)
+        self.assertIn("Total Estimated Cost", projection_text)
+
+    def test_dry_run_cost_projection_no_duration_fallback(self):
+        """Test cost projection falls back to 30-minute average when no duration available."""
+        import xml.etree.ElementTree as ET
+
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            transcription_provider="openai",
+            openai_transcription_model="whisper-1",
+            openai_api_key="sk-test123",
+        )
+
+        # Create episodes without duration metadata
+        episodes = []
+        for i in range(3):
+            item = ET.Element("item")
+            ET.SubElement(item, "title").text = f"Episode {i+1}"
+            # No duration element
+            episode = models.Episode(
+                idx=i + 1,
+                title=f"Episode {i+1}",
+                title_safe=f"episode-{i+1}",
+                item=item,
+                transcript_urls=[],
+            )
+            episodes.append(episode)
+
+        projection = helpers._generate_dry_run_cost_projection(cfg, episodes, 3)
+
+        # Should use 30-minute fallback: 3 episodes * 30 min = 90 minutes
+        projection_text = "\n".join(projection)
+        self.assertIn("Estimated audio: 90.0 minutes", projection_text)
+        self.assertIn("Estimated cost: $0.5400", projection_text)  # 90 * 0.006 = 0.54
+
+    def test_dry_run_cost_projection_no_episodes_uses_fallback(self):
+        """Test cost projection uses fallback when episodes list is None."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            transcription_provider="openai",
+            openai_transcription_model="whisper-1",
+            openai_api_key="sk-test123",
+        )
+
+        # Pass None for episodes
+        projection = helpers._generate_dry_run_cost_projection(cfg, None, 5)
+
+        # Should use 30-minute fallback: 5 episodes * 30 min = 150 minutes
+        projection_text = "\n".join(projection)
+        self.assertIn("Estimated audio: 150.0 minutes", projection_text)
+        self.assertIn("Estimated cost: $0.9000", projection_text)  # 150 * 0.006 = 0.90
+
+    def test_dry_run_cost_projection_mixed_durations(self):
+        """Test cost projection with episodes having different durations."""
+        import xml.etree.ElementTree as ET
+
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            transcription_provider="openai",
+            openai_transcription_model="whisper-1",
+            openai_api_key="sk-test123",
+        )
+
+        # Create episodes with different durations
+        episodes = []
+        durations = ["20:00", "30:00", "45:00"]  # 20, 30, 45 minutes
+        for i, duration_str in enumerate(durations):
+            item = ET.Element("item")
+            ET.SubElement(item, "title").text = f"Episode {i+1}"
+            duration_elem = ET.SubElement(
+                item, "{http://www.itunes.com/dtds/podcast-1.0.dtd}duration"
+            )
+            duration_elem.text = duration_str
+            episode = models.Episode(
+                idx=i + 1,
+                title=f"Episode {i+1}",
+                title_safe=f"episode-{i+1}",
+                item=item,
+                transcript_urls=[],
+            )
+            episodes.append(episode)
+
+        projection = helpers._generate_dry_run_cost_projection(cfg, episodes, 3)
+
+        # Average: (20 + 30 + 45) / 3 = 31.67 minutes
+        # Total: 3 * 31.67 = 95 minutes
+        projection_text = "\n".join(projection)
+        self.assertIn("Estimated audio:", projection_text)
+        # Should calculate based on average duration
+
+    def test_generate_pipeline_summary_includes_cost_projection_in_dry_run(self):
+        """Test that generate_pipeline_summary includes cost projection in dry-run mode."""
+        import xml.etree.ElementTree as ET
+
+        from podcast_scraper.workflow import helpers
+        from podcast_scraper.workflow.types import TranscriptionResources
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            dry_run=True,
+            transcription_provider="openai",
+            openai_transcription_model="whisper-1",
+            openai_api_key="sk-test123",
+        )
+        transcription_resources = TranscriptionResources(
+            transcription_provider=None,
+            temp_dir=None,
+            transcription_jobs=[],
+            transcription_jobs_lock=None,
+            saved_counter_lock=None,
+        )
+        pipeline_metrics = metrics.Metrics()
+        effective_output_dir = "/tmp/test"
+
+        # Create episodes with duration
+        episodes = []
+        for i in range(2):
+            item = ET.Element("item")
+            ET.SubElement(item, "title").text = f"Episode {i+1}"
+            duration_elem = ET.SubElement(
+                item, "{http://www.itunes.com/dtds/podcast-1.0.dtd}duration"
+            )
+            duration_elem.text = "30:00"
+            episode = models.Episode(
+                idx=i + 1,
+                title=f"Episode {i+1}",
+                title_safe=f"episode-{i+1}",
+                item=item,
+                transcript_urls=[],
+            )
+            episodes.append(episode)
+
+        count, summary = helpers.generate_pipeline_summary(
+            cfg,
+            saved=2,
+            transcription_resources=transcription_resources,
+            effective_output_dir=effective_output_dir,
+            pipeline_metrics=pipeline_metrics,
+            episodes=episodes,
+        )
+
+        # Should include cost projection section
+        self.assertIn("Cost Projection (Dry Run):", summary)
+        self.assertIn("Transcription (whisper-1):", summary)
+        self.assertIn("Total Estimated Cost", summary)

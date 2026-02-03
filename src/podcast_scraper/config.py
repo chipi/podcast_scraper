@@ -423,6 +423,16 @@ class Config(BaseModel):
             "(default: 1 for sequential. Whisper ignores >1, OpenAI uses for parallel API calls)"
         ),
     )
+    transcription_device: Optional[str] = Field(
+        default=None,
+        alias="transcription_device",
+        description=(
+            "Device for transcription stage (CPU, CUDA, MPS, or None for auto-detection). "
+            "Overrides provider-specific device (e.g., whisper_device) if set. "
+            "Allows CPU/GPU mix to regain overlap (Issue #387). "
+            "Valid values: 'cpu', 'cuda', 'mps', or None/empty for auto-detect."
+        ),
+    )
     processing_parallelism: int = Field(
         default=2,
         alias="processing_parallelism",
@@ -523,6 +533,17 @@ class Config(BaseModel):
             "Summary generation provider " "(default: 'transformers' for HuggingFace Transformers)."
         ),
     )
+    summary_2nd_pass_distill: bool = Field(
+        default=False,
+        alias="summary_2nd_pass_distill",
+        description=(
+            "Enable optional 2nd-pass distillation with faithfulness prompt (Issue #387). "
+            "When enabled, applies an additional distillation pass with a prompt that guides "
+            "the model to be faithful to the source and reduce hallucinations. "
+            "Useful for hallucination-prone summaries. Only effective with OpenAI provider "
+            "(BART/LED models don't use prompts effectively)."
+        ),
+    )
     summary_model: Optional[str] = Field(default=None, alias="summary_model")
     # Optional separate model for reduce phase (e.g., BART for map, LED for reduce).
     # If not set, the same model is used for both map and reduce.
@@ -533,6 +554,16 @@ class Config(BaseModel):
         "falls back to summary_model when not set.",
     )
     summary_device: Optional[str] = Field(default=None, alias="summary_device")
+    summarization_device: Optional[str] = Field(
+        default=None,
+        alias="summarization_device",
+        description=(
+            "Device for summarization stage (CPU, CUDA, MPS, or None for auto-detection). "
+            "Overrides provider-specific device (e.g., summary_device) if set. "
+            "Allows CPU/GPU mix to regain overlap (Issue #387). "
+            "Valid values: 'cpu', 'cuda', 'mps', or None/empty for auto-detect."
+        ),
+    )
     mps_exclusive: bool = Field(
         default=True,
         alias="mps_exclusive",

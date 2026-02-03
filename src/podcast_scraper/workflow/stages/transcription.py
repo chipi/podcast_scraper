@@ -193,6 +193,19 @@ def process_transcription_jobs(
                                 if args[0].idx == job.idx:
                                     detected_names_for_ep = args[7]
                                     break
+                            # Extract spaCy model from summary_provider if available (Issue #387)
+                            nlp = None
+                            if summary_provider is not None:
+                                try:
+                                    # Check if provider has spaCy model (MLProvider pattern)
+                                    if (
+                                        hasattr(summary_provider, "_spacy_nlp")
+                                        and summary_provider._spacy_nlp is not None
+                                    ):
+                                        nlp = summary_provider._spacy_nlp
+                                except Exception:
+                                    pass  # Ignore errors when accessing provider attributes
+
                             metadata_stage.call_generate_metadata(
                                 episode=episode_obj,
                                 feed=feed,
@@ -207,6 +220,7 @@ def process_transcription_jobs(
                                 detected_names=detected_names_for_ep,
                                 summary_provider=summary_provider,
                                 pipeline_metrics=pipeline_metrics,
+                                nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
                             )
             except Exception as exc:  # pragma: no cover
                 update_metric_safely(pipeline_metrics, "errors_total", 1)
@@ -414,11 +428,17 @@ def process_transcription_jobs_concurrent(  # noqa: C901
                     break
 
             # Wait a bit before checking again (avoid busy-waiting)
+            # Track queue wait time (Issue #387)
+            queue_wait_start = time.time()
             if not (downloads_complete_event and downloads_complete_event.is_set()):
                 time.sleep(0.1)
+                queue_wait_duration = time.time() - queue_wait_start
             else:
                 # Downloads complete but might have more jobs - check more frequently
                 time.sleep(0.05)
+                queue_wait_duration = time.time() - queue_wait_start
+            if pipeline_metrics is not None:
+                pipeline_metrics.record_queue_wait_time(queue_wait_duration)
     else:
         # Parallel processing (OpenAI provider)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:

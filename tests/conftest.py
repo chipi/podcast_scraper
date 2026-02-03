@@ -336,6 +336,70 @@ def create_mock_spacy_model(entities=None):
     return mock_nlp
 
 
+def cleanup_model(model):
+    """Helper function to ensure a SummaryModel is properly cleaned up.
+
+    This is a convenience function for tests that create SummaryModel instances
+    directly. The automatic cleanup fixture will also clean up models, but
+    explicit cleanup in tests is recommended for clarity and immediate memory
+    release.
+
+    Args:
+        model: SummaryModel instance to clean up, or None (no-op if None)
+
+    Example:
+        def test_something():
+            model = summarizer.SummaryModel(...)
+            try:
+                # test code
+            finally:
+                cleanup_model(model)  # Explicit cleanup
+    """
+    if model is None:
+        return
+
+    try:
+        from podcast_scraper.providers.ml import summarizer
+
+        summarizer.unload_model(model)
+    except (ImportError, AttributeError):
+        # ML modules not available (e.g., in unit tests without ML dependencies)
+        pass
+    except Exception:
+        # Ignore cleanup errors (model may already be cleaned up)
+        pass
+
+
+def cleanup_provider(provider):
+    """Helper function to ensure a provider is properly cleaned up.
+
+    This is a convenience function for tests that create provider instances
+    directly. The automatic cleanup fixture will also clean up providers, but
+    explicit cleanup in tests is recommended for clarity and immediate memory
+    release.
+
+    Args:
+        provider: Provider instance (MLProvider, etc.) to clean up, or None (no-op if None)
+
+    Example:
+        def test_something():
+            provider = create_summarization_provider(cfg)
+            try:
+                # test code
+            finally:
+                cleanup_provider(provider)  # Explicit cleanup
+    """
+    if provider is None:
+        return
+
+    try:
+        if hasattr(provider, "cleanup"):
+            provider.cleanup()
+    except Exception:
+        # Ignore cleanup errors (provider may already be cleaned up)
+        pass
+
+
 class MockHTTPResponse:
     """Simple mock for HTTP responses used in integration-style tests."""
 
@@ -354,6 +418,73 @@ class MockHTTPResponse:
 
     def close(self):
         return None
+
+
+def _cleanup_leftover_processes():
+    """Clean up leftover Python/test processes from previous runs.
+
+    This function kills any leftover pytest or Python processes that may have
+    been left running from previous test runs. This prevents resource conflicts
+    and memory issues.
+
+    Safe to call multiple times - only kills processes matching specific patterns.
+    """
+    import subprocess
+
+    try:
+        # Kill pytest processes (including pytest-xdist workers)
+        subprocess.run(
+            ["pkill", "-f", "pytest"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+
+        # Kill Python processes related to podcast_scraper tests
+        subprocess.run(
+            ["pkill", "-f", "python.*podcast_scraper.*test"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+
+        # Kill pytest-xdist worker processes (gw0, gw1, etc.)
+        subprocess.run(
+            ["pkill", "-f", "gw[0-9]"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+
+        # Wait a moment for processes to terminate
+        import time
+
+        time.sleep(0.5)
+    except Exception:
+        # Ignore any errors (pkill may fail if no processes found, which is fine)
+        pass
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_processes_before_tests():
+    """Automatically clean up leftover processes before test session starts.
+
+    This fixture runs once per test session (before any tests) to ensure
+    a clean state. It kills any leftover pytest or Python processes from
+    previous test runs.
+
+    This prevents:
+    - Resource conflicts from leftover processes
+    - Memory issues from accumulated processes
+    - Port conflicts from leftover servers
+    - Test failures due to stale state
+
+    Issue #351: Automatic cleanup of leftover test processes.
+    """
+    _cleanup_leftover_processes()
+    yield
+    # Also clean up after session (in case tests were interrupted)
+    _cleanup_leftover_processes()
 
 
 def pytest_collection_modifyitems(config, items):
@@ -531,6 +662,51 @@ def cleanup_ml_resources_after_test(request):
             workflow._preloaded_ml_provider = None
     except ImportError:
         pass  # workflow module not available
+
+    # Enhanced cleanup: Find and clean up ALL model and provider instances created during test
+    # This addresses issue #351: tests creating models directly (not via global provider)
+    # may not be cleaned up, causing memory issues
+    if not is_unit_test:
+        try:
+            # Find all SummaryModel instances created during test
+            # Use gc.get_objects() to find all instances, then filter by type
+            # This is more aggressive than just cleaning the global provider
+            from podcast_scraper.providers.ml import summarizer
+            from podcast_scraper.providers.ml.ml_provider import MLProvider
+
+            # Get all objects and filter for SummaryModel and MLProvider instances
+            all_objects = gc.get_objects()
+            summary_models = [
+                obj
+                for obj in all_objects
+                if isinstance(obj, summarizer.SummaryModel)
+                and obj.model is not None  # Only clean up loaded models
+            ]
+            providers = [
+                obj for obj in all_objects if isinstance(obj, MLProvider) and obj.is_initialized
+            ]
+
+            # Clean up all SummaryModel instances
+            for model in summary_models:
+                try:
+                    summarizer.unload_model(model)
+                except Exception:
+                    pass  # Ignore cleanup errors (model may already be cleaned up)
+
+            # Clean up all provider instances (except the global one, already handled)
+            for provider in providers:
+                try:
+                    # Skip the global provider (already cleaned up above)
+                    from podcast_scraper import workflow
+
+                    if provider is not workflow._preloaded_ml_provider:
+                        provider.cleanup()
+                except Exception:
+                    pass  # Ignore cleanup errors
+
+        except (ImportError, AttributeError):
+            # ML modules not available (e.g., in unit tests without ML dependencies)
+            pass
 
     # After test completes, force garbage collection
     # This helps clean up any ML models that weren't explicitly cleaned up

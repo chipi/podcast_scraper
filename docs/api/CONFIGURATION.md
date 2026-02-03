@@ -206,6 +206,28 @@ podcast-scraper --rss https://example.com/feed.xml \
 - **Priority**: Config file → Environment variable → Default
 - **Use Cases**: Docker containers (`WHISPER_DEVICE=cpu`), CI/CD (`WHISPER_DEVICE=cpu`), NVIDIA GPU (`WHISPER_DEVICE=cuda` or auto-detect), Apple Silicon (`WHISPER_DEVICE=mps` or auto-detect)
 
+**`TRANSCRIPTION_DEVICE`** (Issue #387)
+
+- **Description**: Device for transcription stage (overrides provider-specific device like `WHISPER_DEVICE`)
+- **Required**: No (defaults to None for auto-detection)
+- **Valid Values**: `cpu`, `cuda`, `mps`, or empty string (for None/auto-detect)
+- **Priority**: Config file → Environment variable → Default
+- **Use Cases**:
+  - CPU/GPU mix to regain overlap: `TRANSCRIPTION_DEVICE=cpu` with `SUMMARIZATION_DEVICE=mps` allows concurrent processing
+  - Force CPU for transcription: `TRANSCRIPTION_DEVICE=cpu` (useful when GPU memory is limited)
+- **Behavior**: Stage-level device config takes precedence over provider-specific device config. Allows independent device selection per stage.
+
+**`SUMMARIZATION_DEVICE`** (Issue #387)
+
+- **Description**: Device for summarization stage (overrides provider-specific device like `SUMMARY_DEVICE`)
+- **Required**: No (defaults to None for auto-detection)
+- **Valid Values**: `cpu`, `cuda`, `mps`, or empty string (for None/auto-detect)
+- **Priority**: Config file → Environment variable → Default
+- **Use Cases**:
+  - CPU/GPU mix to regain overlap: `SUMMARIZATION_DEVICE=mps` with `TRANSCRIPTION_DEVICE=cpu` allows concurrent processing
+  - Force CPU for summarization: `SUMMARIZATION_DEVICE=cpu` (useful when GPU memory is limited)
+- **Behavior**: Stage-level device config takes precedence over provider-specific device config. Allows independent device selection per stage.
+
 **`MPS_EXCLUSIVE`**
 
 - **Description**: Serialize GPU work on MPS to prevent memory contention between Whisper transcription and summarization
@@ -215,7 +237,7 @@ podcast-scraper --rss https://example.com/feed.xml \
 - **Use Cases**:
   - Apple Silicon with limited GPU memory: `MPS_EXCLUSIVE=1` (default) prevents both models from competing for GPU memory
   - Systems with sufficient GPU memory: `MPS_EXCLUSIVE=0` allows concurrent GPU operations for better throughput
-- **Behavior**: When enabled and both Whisper and summarization use MPS, transcription completes before summarization starts. I/O operations (downloads, parsing) remain parallel.
+- **Behavior**: When enabled and both transcription and summarization stages use MPS (checked via stage-level device config), transcription completes before summarization starts. I/O operations (downloads, parsing) remain parallel. With CPU/GPU mix (e.g., `TRANSCRIPTION_DEVICE=cpu`, `SUMMARIZATION_DEVICE=mps`), serialization is not needed and overlap is regained (Issue #387).
 - **Related**: See [Segfault Mitigation Guide](../guides/SEGFAULT_MITIGATION.md) for MPS stability issues
 
 #### Audio Preprocessing Configuration (RFC-040)
@@ -354,6 +376,28 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
 
   ```yaml
   summarization_timeout: 1800  # 30 minutes
+  ```
+
+**`summary_2nd_pass_distill`**
+
+- **Description**: Enable optional 2nd-pass distillation with faithfulness prompt (Issue #387). When enabled, applies an additional distillation pass with a prompt that guides the model to be faithful to the source and reduce hallucinations. Only effective with OpenAI provider (BART/LED models don't use prompts effectively).
+- **CLI Flag**: `--summary-2nd-pass-distill`
+- **Default**: `false`
+- **Type**: `bool`
+- **Use Cases**:
+  - Hallucination-prone summaries that need additional faithfulness checking
+  - Production environments where summary quality is critical
+  - Episodes with complex entity relationships that may cause model confusion
+- **Note**: This is an optional enhancement that adds processing time. Use when the regular distill phase and faithfulness checks (Segment 4.1) indicate potential hallucinations.
+
+- **Example**:
+
+  ```yaml
+  summary_2nd_pass_distill: true
+  ```
+
+  ```bash
+  python3 -m podcast_scraper.cli https://example.com/feed.xml --summary-2nd-pass-distill
   ```
 
 #### ML Library Configuration (Advanced)

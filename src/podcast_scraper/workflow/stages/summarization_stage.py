@@ -288,6 +288,16 @@ def summarize_single_episode(
                     pipeline_metrics=pipeline_metrics,
                 )
                 return
+    # Extract spaCy model from summary_provider if available (Issue #387)
+    nlp = None
+    if summary_provider is not None:
+        try:
+            # Check if provider has spaCy model (MLProvider pattern)
+            if hasattr(summary_provider, "_spacy_nlp") and summary_provider._spacy_nlp is not None:
+                nlp = summary_provider._spacy_nlp
+        except Exception:
+            pass  # Ignore errors when accessing provider attributes
+
     metadata_generate_episode_metadata(
         feed=feed,
         episode=episode,
@@ -314,6 +324,7 @@ def summarize_single_episode(
         episode_number=episode_number,
         episode_image_url=episode_image_url,
         pipeline_metrics=pipeline_metrics,
+        nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
     )
 
 

@@ -55,7 +55,14 @@ class Metrics:
     time_io_and_waiting: float = (
         0.0  # Renamed from time_writing_storage - includes downloads,
         # transcription waiting, thread sync, and actual I/O
+        # This is the sum of all sub-buckets for backward compatibility (Issue #387)
     )
+    # Sub-buckets for io_and_waiting (Issue #387)
+    time_download_wait_seconds: float = 0.0  # Time waiting for downloads to complete
+    time_transcription_wait_seconds: float = 0.0  # Time waiting for transcription jobs
+    time_summarization_wait_seconds: float = 0.0  # Time waiting for summarization
+    time_thread_sync_seconds: float = 0.0  # Time spent in thread synchronization (join() calls)
+    time_queue_wait_seconds: float = 0.0  # Time waiting in queues
     time_writing_storage: float = (
         0.0  # Actual file write time only (open/write/flush) - should be tiny
     )
@@ -83,22 +90,44 @@ class Metrics:
     llm_summarization_input_tokens: int = 0  # Total input tokens for summarization
     llm_summarization_output_tokens: int = 0  # Total output tokens for summarization
 
-    # Audio preprocessing metrics (RFC-040)
+    # Audio preprocessing metrics (RFC-040, Issue #387)
     preprocessing_times: List[float] = field(
         default_factory=list
-    )  # Preprocessing times per episode
+    )  # Preprocessing times per episode (actual processing time, not wall time)
+    preprocessing_wall_times: List[float] = field(
+        default_factory=list
+    )  # Wall time for preprocessing per episode (includes cache checks, even for hits)
+    preprocessing_cache_hit_times: List[float] = field(
+        default_factory=list
+    )  # Time spent on cache hits per episode
+    preprocessing_cache_miss_times: List[float] = field(
+        default_factory=list
+    )  # Time spent on cache misses (actual preprocessing) per episode
+    preprocessing_cache_hit_flags: List[bool] = field(
+        default_factory=list
+    )  # Boolean flag per episode indicating cache hit (True) or miss (False)
     preprocessing_original_sizes: List[int] = field(
         default_factory=list
     )  # Original audio file sizes in bytes
     preprocessing_preprocessed_sizes: List[int] = field(
         default_factory=list
     )  # Preprocessed audio file sizes in bytes
+    preprocessing_saved_bytes: List[int] = field(
+        default_factory=list
+    )  # Bytes saved per episode (original - preprocessed)
+    preprocessing_audio_metadata: List[Dict[str, Any]] = field(
+        default_factory=list
+    )  # Audio metadata per episode (bitrate, sample_rate, codec, channels)
     preprocessing_attempts: int = 0  # Total preprocessing attempts (cache hits + misses)
     preprocessing_cache_hits: int = 0  # Number of cache hits
     preprocessing_cache_misses: int = 0  # Number of cache misses
 
     # Per-episode status tracking (Issue #379)
     episode_statuses: List[EpisodeStatus] = field(default_factory=list)
+
+    # Device usage tracking per stage (Issue #387)
+    transcription_device: Optional[str] = None  # Device used for transcription stage
+    summarization_device: Optional[str] = None  # Device used for summarization stage
 
     _start_time: float = field(default_factory=time.time, init=False)
 
@@ -120,6 +149,72 @@ class Metrics:
         elif stage == "writing_storage":
             # Actual file write time only (should be tiny)
             self.time_writing_storage += duration
+
+    def record_download_wait_time(self, duration: float) -> None:
+        """Record time waiting for downloads to complete (Issue #387).
+
+        Args:
+            duration: Duration in seconds
+        """
+        self.time_download_wait_seconds += duration
+        # Also add to io_and_waiting for backward compatibility
+        self.time_io_and_waiting += duration
+
+    def record_transcription_wait_time(self, duration: float) -> None:
+        """Record time waiting for transcription jobs (Issue #387).
+
+        Args:
+            duration: Duration in seconds
+        """
+        self.time_transcription_wait_seconds += duration
+        # Also add to io_and_waiting for backward compatibility
+        self.time_io_and_waiting += duration
+
+    def record_summarization_wait_time(self, duration: float) -> None:
+        """Record time waiting for summarization (Issue #387).
+
+        Args:
+            duration: Duration in seconds
+        """
+        self.time_summarization_wait_seconds += duration
+        # Also add to io_and_waiting for backward compatibility
+        self.time_io_and_waiting += duration
+
+    def record_thread_sync_time(self, duration: float) -> None:
+        """Record time spent in thread synchronization (join() calls) (Issue #387).
+
+        Args:
+            duration: Duration in seconds
+        """
+        self.time_thread_sync_seconds += duration
+        # Also add to io_and_waiting for backward compatibility
+        self.time_io_and_waiting += duration
+
+    def record_queue_wait_time(self, duration: float) -> None:
+        """Record time waiting in queues (Issue #387).
+
+        Args:
+            duration: Duration in seconds
+        """
+        self.time_queue_wait_seconds += duration
+        # Also add to io_and_waiting for backward compatibility
+        self.time_io_and_waiting += duration
+
+    def record_transcription_device(self, device: str) -> None:
+        """Record device used for transcription stage (Issue #387).
+
+        Args:
+            device: Device string (e.g., 'cpu', 'cuda', 'mps')
+        """
+        self.transcription_device = device
+
+    def record_summarization_device(self, device: str) -> None:
+        """Record device used for summarization stage (Issue #387).
+
+        Args:
+            device: Device string (e.g., 'cpu', 'cuda', 'mps')
+        """
+        self.summarization_device = device
 
     def record_download_media_attempt(self) -> None:
         """Record a media download attempt (called regardless of cache/reuse)."""
@@ -196,6 +291,38 @@ class Metrics:
         """
         self.preprocessing_times.append(duration)
 
+    def record_preprocessing_wall_time(self, duration: float) -> None:
+        """Record wall time for preprocessing (includes cache checks, even for hits) (Issue #387).
+
+        Args:
+            duration: Wall time in seconds
+        """
+        self.preprocessing_wall_times.append(duration)
+
+    def record_preprocessing_cache_hit_time(self, duration: float) -> None:
+        """Record time spent on cache hit (Issue #387).
+
+        Args:
+            duration: Time in seconds
+        """
+        self.preprocessing_cache_hit_times.append(duration)
+
+    def record_preprocessing_cache_miss_time(self, duration: float) -> None:
+        """Record time spent on cache miss (actual preprocessing) (Issue #387).
+
+        Args:
+            duration: Time in seconds
+        """
+        self.preprocessing_cache_miss_times.append(duration)
+
+    def record_preprocessing_cache_hit_flag(self, is_hit: bool) -> None:
+        """Record cache hit/miss flag per episode (Issue #387).
+
+        Args:
+            is_hit: True if cache hit, False if cache miss
+        """
+        self.preprocessing_cache_hit_flags.append(is_hit)
+
     def record_preprocessing_size_reduction(
         self, original_size: int, preprocessed_size: int
     ) -> None:
@@ -207,6 +334,34 @@ class Metrics:
         """
         self.preprocessing_original_sizes.append(original_size)
         self.preprocessing_preprocessed_sizes.append(preprocessed_size)
+        saved_bytes = original_size - preprocessed_size
+        self.preprocessing_saved_bytes.append(saved_bytes)
+
+    def record_preprocessing_audio_metadata(
+        self,
+        bitrate: Optional[int] = None,
+        sample_rate: Optional[int] = None,
+        codec: Optional[str] = None,
+        channels: Optional[int] = None,
+    ) -> None:
+        """Record audio metadata for an episode (Issue #387).
+
+        Args:
+            bitrate: Audio bitrate in bps
+            sample_rate: Sample rate in Hz
+            codec: Audio codec name
+            channels: Number of audio channels
+        """
+        metadata: Dict[str, Any] = {}
+        if bitrate is not None:
+            metadata["bitrate"] = bitrate
+        if sample_rate is not None:
+            metadata["sample_rate"] = sample_rate
+        if codec is not None:
+            metadata["codec"] = codec
+        if channels is not None:
+            metadata["channels"] = channels
+        self.preprocessing_audio_metadata.append(metadata)
 
     def record_preprocessing_attempt(self) -> None:
         """Record a preprocessing attempt (called for both cache hits and misses)."""
@@ -315,6 +470,12 @@ class Metrics:
             "time_parsing": round(self.time_parsing, 2),
             "time_normalizing": round(self.time_normalizing, 2),
             "time_io_and_waiting": round(self.time_io_and_waiting, 2),
+            # Sub-buckets for io_and_waiting (Issue #387)
+            "time_download_wait_seconds": round(self.time_download_wait_seconds, 2),
+            "time_transcription_wait_seconds": round(self.time_transcription_wait_seconds, 2),
+            "time_summarization_wait_seconds": round(self.time_summarization_wait_seconds, 2),
+            "time_thread_sync_seconds": round(self.time_thread_sync_seconds, 2),
+            "time_queue_wait_seconds": round(self.time_queue_wait_seconds, 2),
             "time_writing_storage": round(
                 self.time_writing_storage, 2
             ),  # Actual file write time only
@@ -341,15 +502,56 @@ class Metrics:
             "llm_summarization_calls": self.llm_summarization_calls,
             "llm_summarization_input_tokens": self.llm_summarization_input_tokens,
             "llm_summarization_output_tokens": self.llm_summarization_output_tokens,
-            # Audio preprocessing metrics
+            # Audio preprocessing metrics (Issue #387)
             "avg_preprocessing_seconds": avg_preprocessing,
             "preprocessing_count": len(self.preprocessing_times),
             "preprocessing_attempts": self.preprocessing_attempts,  # Total attempts (hits + misses)
             "avg_preprocessing_size_reduction_percent": avg_size_reduction_percent,
             "preprocessing_cache_hits": self.preprocessing_cache_hits,
             "preprocessing_cache_misses": self.preprocessing_cache_misses,
+            # New preprocessing metrics (Issue #387)
+            "avg_preprocessing_wall_ms": (
+                round(
+                    sum(self.preprocessing_wall_times) * 1000 / len(self.preprocessing_wall_times),
+                    2,
+                )
+                if self.preprocessing_wall_times
+                else 0.0
+            ),
+            "avg_preprocessing_cache_hit_ms": (
+                round(
+                    sum(self.preprocessing_cache_hit_times)
+                    * 1000
+                    / len(self.preprocessing_cache_hit_times),
+                    2,
+                )
+                if self.preprocessing_cache_hit_times
+                else 0.0
+            ),
+            "avg_preprocessing_cache_miss_ms": (
+                round(
+                    sum(self.preprocessing_cache_miss_times)
+                    * 1000
+                    / len(self.preprocessing_cache_miss_times),
+                    2,
+                )
+                if self.preprocessing_cache_miss_times
+                else 0.0
+            ),
+            "total_preprocessing_saved_bytes": (
+                sum(self.preprocessing_saved_bytes) if self.preprocessing_saved_bytes else 0
+            ),
+            "avg_preprocessing_saved_bytes": (
+                round(sum(self.preprocessing_saved_bytes) / len(self.preprocessing_saved_bytes), 2)
+                if self.preprocessing_saved_bytes
+                else 0.0
+            ),
+            "preprocessing_audio_metadata": self.preprocessing_audio_metadata,
             # Episode statuses
             "episode_statuses": [asdict(status) for status in self.episode_statuses],
+            # Device usage per stage (Issue #387)
+            "transcription_device": self.transcription_device,
+            "summarization_device": self.summarization_device,
         }
 
     def to_json(self) -> str:
@@ -362,17 +564,116 @@ class Metrics:
         return json.dumps(metrics_dict, indent=2)
 
     def save_to_file(self, filepath: str | Path) -> None:
-        """Save metrics to JSON file.
+        """Save metrics to JSON file with validation and atomic write (Issue #387).
+
+        This method ensures:
+        - Metrics are complete (all required fields present)
+        - Atomic write (write to temp file, then rename)
+        - Schema validation (all expected keys are present)
 
         Args:
             filepath: Path to output JSON file
+
+        Raises:
+            ValueError: If metrics validation fails
+            OSError: If file writing fails
         """
         filepath = Path(filepath)
         filepath.parent.mkdir(parents=True, exist_ok=True)
 
-        metrics_json = self.to_json()
-        filepath.write_text(metrics_json, encoding="utf-8")
-        logger.info(f"Pipeline metrics saved to: {filepath}")
+        # Get complete metrics dict
+        metrics_dict = self.finish()
+
+        # Validate metrics before writing (Issue #387)
+        self._validate_metrics(metrics_dict)
+
+        # Serialize to JSON
+        metrics_json = json.dumps(metrics_dict, indent=2)
+
+        # Atomic write: write to temp file, then rename (Issue #387)
+        temp_filepath = filepath.with_suffix(filepath.suffix + ".tmp")
+        try:
+            temp_filepath.write_text(metrics_json, encoding="utf-8")
+            temp_filepath.replace(filepath)  # Atomic rename
+            logger.info(f"Pipeline metrics saved to: {filepath}")
+        except Exception as e:
+            # Clean up temp file on error
+            if temp_filepath.exists():
+                try:
+                    temp_filepath.unlink()
+                except Exception:
+                    pass
+            raise OSError(f"Failed to save metrics to {filepath}: {e}") from e
+
+    def _validate_metrics(self, metrics_dict: Dict[str, Any]) -> None:
+        """Validate metrics dict to ensure completeness (Issue #387).
+
+        Checks that all expected keys are present and have valid values.
+
+        Args:
+            metrics_dict: Metrics dictionary to validate
+
+        Raises:
+            ValueError: If validation fails
+        """
+        # Required top-level keys (core metrics)
+        required_keys = {
+            "run_duration_seconds",
+            "episodes_scraped_total",
+            "episodes_skipped_total",
+            "errors_total",
+            "time_scraping",
+            "time_parsing",
+            "time_normalizing",
+            "time_io_and_waiting",
+            "time_writing_storage",
+            # Sub-buckets for io_and_waiting (Issue #387)
+            "time_download_wait_seconds",
+            "time_transcription_wait_seconds",
+            "time_summarization_wait_seconds",
+            "time_thread_sync_seconds",
+            "time_queue_wait_seconds",
+            "schema_version",
+        }
+
+        missing_keys = required_keys - set(metrics_dict.keys())
+        if missing_keys:
+            raise ValueError(
+                f"Metrics validation failed: missing required keys: {sorted(missing_keys)}"
+            )
+
+        # Validate schema version is present and valid
+        schema_version = metrics_dict.get("schema_version")
+        if schema_version is None:
+            raise ValueError("Metrics validation failed: schema_version is missing")
+        if not isinstance(schema_version, str):
+            raise ValueError(
+                f"Metrics validation failed: schema_version must be string, "
+                f"got {type(schema_version)}"
+            )
+
+        # Validate numeric fields are not None (they can be 0, but not None)
+        numeric_fields = [
+            "run_duration_seconds",
+            "episodes_scraped_total",
+            "episodes_skipped_total",
+            "errors_total",
+            "time_scraping",
+            "time_parsing",
+            "time_normalizing",
+            "time_io_and_waiting",
+            "time_writing_storage",
+            "time_download_wait_seconds",
+            "time_transcription_wait_seconds",
+            "time_summarization_wait_seconds",
+            "time_thread_sync_seconds",
+            "time_queue_wait_seconds",
+        ]
+        for field_name in numeric_fields:
+            if metrics_dict.get(field_name) is None:
+                raise ValueError(
+                    f"Metrics validation failed: {field_name} is None (must be numeric)"
+                )
 
     def log_metrics(self) -> None:
         """Log metrics with each metric on its own line for better readability.

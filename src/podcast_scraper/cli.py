@@ -453,6 +453,13 @@ def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
         help="Device for Whisper transcription (cuda/mps/cpu/auto, default: auto-detect)",
     )
     parser.add_argument(
+        "--transcription-device",
+        choices=["cuda", "mps", "cpu", "auto"],
+        default=None,
+        help="Device for transcription stage (overrides whisper_device, Issue #387). "
+        "Allows CPU/GPU mix to regain overlap (e.g., transcription on CPU, summarization on MPS).",
+    )
+    parser.add_argument(
         "--screenplay", action="store_true", help="Format Whisper transcript as screenplay"
     )
     parser.add_argument(
@@ -631,6 +638,13 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         choices=["cuda", "mps", "cpu", "auto"],
         default=None,
         help="Device for summarization (cuda/mps/cpu/auto, default: auto-detect)",
+    )
+    parser.add_argument(
+        "--summarization-device",
+        choices=["cuda", "mps", "cpu", "auto"],
+        default=None,
+        help="Device for summarization stage (overrides summary_device, Issue #387). "
+        "Allows CPU/GPU mix to regain overlap (e.g., transcription on CPU, summarization on MPS).",
     )
     parser.add_argument(
         "--mps-exclusive",

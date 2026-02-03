@@ -61,6 +61,22 @@ file_exists() {
     [ -f "$1" ] && [ -r "$1" ]
 }
 
+# Detect Python and tool paths (prefer venv, fallback to system)
+# This matches the Makefile behavior: use .venv/bin/python if available
+if [ -f ".venv/bin/python3" ]; then
+    PYTHON_CMD=".venv/bin/python3"
+    BLACK_CMD=".venv/bin/black"
+    ISORT_CMD=".venv/bin/isort"
+    FLAKE8_CMD=".venv/bin/flake8"
+    MYPY_CMD=".venv/bin/mypy"
+else
+    PYTHON_CMD="python3"
+    BLACK_CMD="black"
+    ISORT_CMD="isort"
+    FLAKE8_CMD="flake8"
+    MYPY_CMD="mypy"
+fi
+
 echo "🔍 Running pre-commit checks on staged files..."
 echo ""
 
@@ -132,46 +148,46 @@ if [ -n "$STAGED_PYTHON" ]; then
     done
 
     if [ -n "$PYTHON_FILES" ]; then
-        # Check if required tools are available
-        if ! command_exists python3; then
-            echo -e "${RED}✗${NC} python3 not found in PATH"
+        # Check if required tools are available (use venv tools if available)
+        if ! command_exists "$PYTHON_CMD"; then
+            echo -e "${RED}✗${NC} python3 not found (checked: $PYTHON_CMD)"
             ERRORS=$((ERRORS + 1))
         else
             # Check formatting on staged Python files
-            if command_exists black; then
-                run_check "Black formatting" "black --check $PYTHON_FILES"
+            if [ -f "$BLACK_CMD" ] || command_exists "$BLACK_CMD"; then
+                run_check "Black formatting" "$BLACK_CMD --check $PYTHON_FILES"
             else
-                echo -e "${YELLOW}⚠${NC} black not found, skipping Black formatting check"
+                echo -e "${YELLOW}⚠${NC} black not found (checked: $BLACK_CMD), skipping Black formatting check"
                 echo ""
             fi
 
-            if command_exists isort; then
-                run_check "isort import sorting" "isort --check-only $PYTHON_FILES"
+            if [ -f "$ISORT_CMD" ] || command_exists "$ISORT_CMD"; then
+                run_check "isort import sorting" "$ISORT_CMD --check-only $PYTHON_FILES"
             else
-                echo -e "${YELLOW}⚠${NC} isort not found, skipping isort check"
+                echo -e "${YELLOW}⚠${NC} isort not found (checked: $ISORT_CMD), skipping isort check"
                 echo ""
             fi
 
             # Check linting on staged Python files
-            if command_exists flake8; then
+            if [ -f "$FLAKE8_CMD" ] || command_exists "$FLAKE8_CMD"; then
                 if file_exists ".flake8"; then
-                    run_check "flake8 linting" "flake8 --config .flake8 $PYTHON_FILES --count --show-source --statistics"
+                    run_check "flake8 linting" "$FLAKE8_CMD --config .flake8 $PYTHON_FILES --count --show-source --statistics"
                 else
-                    run_check "flake8 linting" "flake8 $PYTHON_FILES --count --show-source --statistics"
+                    run_check "flake8 linting" "$FLAKE8_CMD $PYTHON_FILES --count --show-source --statistics"
                 fi
             else
-                echo -e "${YELLOW}⚠${NC} flake8 not found, skipping flake8 check"
+                echo -e "${YELLOW}⚠${NC} flake8 not found (checked: $FLAKE8_CMD), skipping flake8 check"
                 echo ""
             fi
 
             # Check types on staged Python files
-            if command_exists mypy; then
+            if [ -f "$MYPY_CMD" ] || command_exists "$MYPY_CMD"; then
                 echo "→ Running mypy type checking..."
                 MYPY_LOG="${LOG_PREFIX}_mypy.log"
                 if file_exists "pyproject.toml"; then
-                    mypy --config-file pyproject.toml . > "$MYPY_LOG" 2>&1
+                    "$MYPY_CMD" --config-file pyproject.toml . > "$MYPY_LOG" 2>&1
                 else
-                    mypy . > "$MYPY_LOG" 2>&1
+                    "$MYPY_CMD" . > "$MYPY_LOG" 2>&1
                 fi
                 MYPY_EXIT=$?
 
@@ -270,16 +286,16 @@ fi
 
 # Check JSON syntax validation (required when JSON files are staged)
 if [ -n "$STAGED_JSON" ]; then
-    if command_exists python3; then
+    if [ -f "$PYTHON_CMD" ] || command_exists "$PYTHON_CMD"; then
         echo "→ Running JSON syntax validation..."
         JSON_ERRORS=0
         for json_file in $STAGED_JSON; do
             if file_exists "$json_file"; then
-                if python3 -m json.tool "$json_file" > /dev/null 2>&1; then
+                if "$PYTHON_CMD" -m json.tool "$json_file" > /dev/null 2>&1; then
                     echo -e "  ${GREEN}✓${NC} $json_file"
                 else
                     echo -e "  ${RED}✗${NC} $json_file"
-                    python3 -m json.tool "$json_file" 2>&1 | head -5
+                    "$PYTHON_CMD" -m json.tool "$json_file" 2>&1 | head -5
                     JSON_ERRORS=$((JSON_ERRORS + 1))
                 fi
             fi
@@ -306,13 +322,21 @@ STAGED_PYPROJECT=$(echo "$STAGED_FILES" | grep -E '(pyproject\.toml|Makefile|\.g
 STAGED_TEST_FILES=$(echo "$STAGED_FILES" | grep -E 'tests/.*\.py$' || true)
 
 if [ -n "$STAGED_PYPROJECT" ] || [ -n "$STAGED_TEST_FILES" ]; then
-    if command_exists python3 && command_exists pytest; then
+    if ([ -f "$PYTHON_CMD" ] || command_exists "$PYTHON_CMD") && ([ -f ".venv/bin/pytest" ] || command_exists pytest); then
         echo "→ Validating test infrastructure..."
         # Check that integration marker works
         # Note: grep -c outputs "0" on no matches but returns exit code 1, so we use || true to suppress the exit code
         # Disable xdist and rerunfailures plugins during collection (they try to bind sockets which may fail in sandboxed environments)
         INTEGRATION_LOG="${LOG_PREFIX}_integration.log"
-        python3 -m pytest tests/integration/ -m integration --collect-only -q -p no:rerunfailures -p no:xdist > "$INTEGRATION_LOG" 2>&1
+        PYTEST_CMD=""
+        if [ -f ".venv/bin/pytest" ]; then
+            PYTEST_CMD=".venv/bin/pytest"
+        elif command_exists pytest; then
+            PYTEST_CMD="pytest"
+        else
+            PYTEST_CMD="$PYTHON_CMD -m pytest"
+        fi
+        "$PYTHON_CMD" -m pytest tests/integration/ -m integration --collect-only -q -p no:rerunfailures -p no:xdist > "$INTEGRATION_LOG" 2>&1
         INTEGRATION_COUNT=$(grep -c "^tests/" "$INTEGRATION_LOG" 2>/dev/null || echo "0")
         # Strip any newlines and ensure we have a valid number (default to 0 if empty)
         INTEGRATION_COUNT=${INTEGRATION_COUNT//$'\n'/}
@@ -336,7 +360,7 @@ if [ -n "$STAGED_PYPROJECT" ] || [ -n "$STAGED_TEST_FILES" ]; then
 
         # Check that E2E marker works
         E2E_LOG="${LOG_PREFIX}_e2e.log"
-        python3 -m pytest tests/e2e/ -m e2e --collect-only -q -p no:rerunfailures -p no:xdist > "$E2E_LOG" 2>&1
+        "$PYTHON_CMD" -m pytest tests/e2e/ -m e2e --collect-only -q -p no:rerunfailures -p no:xdist > "$E2E_LOG" 2>&1
         E2E_COUNT=$(grep -c "^tests/" "$E2E_LOG" 2>/dev/null || echo "0")
         # Strip any newlines and ensure we have a valid number (default to 0 if empty)
         E2E_COUNT=${E2E_COUNT//$'\n'/}
@@ -384,10 +408,10 @@ if [ -n "$STAGED_YAML" ]; then
                     YAML_ERRORS=$((YAML_ERRORS + 1))
                 fi
                 rm -f "$YAML_LOG"
-            elif command_exists python3; then
+            elif [ -f "$PYTHON_CMD" ] || command_exists "$PYTHON_CMD"; then
                 # Fallback to Python yaml module - check basic syntax (ignore custom tags)
                 YAML_LOG="${LOG_PREFIX}_yaml_${yaml_file//\//_}.log"
-                python3 -c "
+                "$PYTHON_CMD" -c "
 import yaml
 import sys
 try:

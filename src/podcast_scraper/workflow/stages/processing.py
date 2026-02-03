@@ -959,10 +959,16 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     break
 
                 # Wait a bit before checking again
+                # Track queue wait time (Issue #387)
+                queue_wait_start = time.time()
                 if not (transcription_complete_event and transcription_complete_event.is_set()):
                     time.sleep(0.1)
+                    queue_wait_duration = time.time() - queue_wait_start
                 else:
                     time.sleep(0.05)
+                    queue_wait_duration = time.time() - queue_wait_start
+                if pipeline_metrics is not None:
+                    pipeline_metrics.record_queue_wait_time(queue_wait_duration)
 
         return (jobs_processed_ok[0], jobs_processed_failed[0])
 
@@ -1042,6 +1048,19 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     )
                     return False
 
+            # Extract spaCy model from summary_provider if available (Issue #387)
+            nlp = None
+            if summary_provider is not None:
+                try:
+                    # Check if provider has spaCy model (MLProvider pattern)
+                    if (
+                        hasattr(summary_provider, "_spacy_nlp")
+                        and summary_provider._spacy_nlp is not None
+                    ):
+                        nlp = summary_provider._spacy_nlp
+                except Exception:
+                    pass  # Ignore errors when accessing provider attributes
+
             metadata_stage.call_generate_metadata(
                 episode=job.episode,
                 feed=feed,
@@ -1056,6 +1075,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 detected_names=job.detected_names,
                 summary_provider=summary_provider,
                 pipeline_metrics=pipeline_metrics,
+                nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
             )
             return True
         except Exception as exc:  # pragma: no cover

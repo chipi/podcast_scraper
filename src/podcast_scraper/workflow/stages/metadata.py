@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from ... import config, models
 from ...rss import extract_episode_metadata, extract_episode_published_date
@@ -34,6 +34,7 @@ def call_generate_metadata(
     detected_names: Optional[List[str]],
     summary_provider=None,  # SummarizationProvider instance (required)
     pipeline_metrics: Optional[metrics.Metrics] = None,
+    nlp: Optional[Any] = None,  # spaCy NLP model (for reuse, Issue #387)
 ) -> None:
     """Call generate_episode_metadata with common parameters.
 
@@ -95,9 +96,10 @@ def call_generate_metadata(
                 feed_last_updated=feed_metadata.last_updated,
                 summary_provider=summary_provider,
                 pipeline_metrics=pipeline_metrics,
+                nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
             )
             return
-    generate_episode_metadata(
+    generate_episode_metadata(  # type: ignore[call-arg]
         feed=feed,
         episode=episode,
         feed_url=cfg.rss_url or "",
@@ -114,6 +116,7 @@ def call_generate_metadata(
         feed_last_updated=feed_metadata.last_updated,
         summary_provider=summary_provider,
         pipeline_metrics=pipeline_metrics,
+        nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
     )
 
 

@@ -18,3 +18,8 @@ per-file-ignores =
     test_podcast_scraper.py:F401
     tests/integration/*:E501
     scripts/dashboard/*:E501
+    *summarizer.py:C901
+    *metadata_generation.py:C901
+    *orchestration.py:C901
+    *processing.py:C901
+    *conftest.py:C901

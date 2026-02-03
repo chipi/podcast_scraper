@@ -1121,5 +1121,71 @@ class TestSummarizerRetryLogic(unittest.TestCase):
             )
 
 
+@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+class Test2ndPassDistill(unittest.TestCase):
+    """Tests for optional 2nd-pass distillation with faithfulness prompt (Issue #387)."""
+
+    def test_2nd_pass_distill_applies_faithfulness_prompt(self):
+        """Test that 2nd-pass distill uses faithfulness prompt."""
+        from unittest.mock import MagicMock
+
+        # Create a mock model
+        mock_model = MagicMock()
+        mock_model.summarize.return_value = "Distilled summary with faithfulness"
+
+        with (
+            patch(
+                "podcast_scraper.providers.ml.summarizer._postprocess_ml_summary"
+            ) as mock_postprocess,
+            patch("podcast_scraper.providers.ml.summarizer._dedupe_sentences") as mock_dedupe,
+            patch("podcast_scraper.providers.ml.summarizer._prune_filler_sentences") as mock_prune,
+        ):
+            mock_postprocess.return_value = "Distilled summary with faithfulness"
+            mock_dedupe.return_value = "Distilled summary with faithfulness"
+            mock_prune.return_value = "Distilled summary with faithfulness"
+
+            # Test 2nd-pass distill function
+            result = summarizer._distill_final_summary_2nd_pass(
+                model=mock_model,
+                summary_text="Original summary text",
+                transcript_text="Transcript text",
+                episode_description="Episode description",
+            )
+
+            # Verify summarize was called with faithfulness prompt
+            mock_model.summarize.assert_called_once()
+            call_args = mock_model.summarize.call_args
+            self.assertIsNotNone(call_args.kwargs.get("prompt"))
+            self.assertIn("faithful", call_args.kwargs["prompt"].lower())
+            self.assertEqual(result, "Distilled summary with faithfulness")
+
+    def test_2nd_pass_distill_handles_short_output(self):
+        """Test that 2nd-pass distill returns original if output too short."""
+        from unittest.mock import MagicMock
+
+        # Create a mock model that returns short output
+        mock_model = MagicMock()
+        mock_model.summarize.return_value = "Short"  # Too short (< 50 chars)
+
+        with (
+            patch(
+                "podcast_scraper.providers.ml.summarizer._postprocess_ml_summary"
+            ) as mock_postprocess,
+            patch("podcast_scraper.providers.ml.summarizer._dedupe_sentences") as mock_dedupe,
+            patch("podcast_scraper.providers.ml.summarizer._prune_filler_sentences") as mock_prune,
+        ):
+            mock_postprocess.return_value = "Postprocessed original"
+            mock_dedupe.return_value = "Short"
+            mock_prune.return_value = "Short"
+
+            result = summarizer._distill_final_summary_2nd_pass(
+                model=mock_model,
+                summary_text="Original summary text that is long enough",
+            )
+
+            # Should return postprocessed original
+            self.assertEqual(result, "Postprocessed original")
+
+
 if __name__ == "__main__":
     unittest.main()
