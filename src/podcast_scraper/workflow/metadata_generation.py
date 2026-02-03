@@ -8,12 +8,13 @@ episode information for search, analytics, integration, and archival use cases.
 from __future__ import annotations
 
 import hashlib
+import io
 import logging
 import os
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple
 from urllib.parse import urlparse
 
 import yaml
@@ -22,6 +23,7 @@ from pydantic import BaseModel, computed_field, Field, field_serializer
 from .. import config, models
 from ..exceptions import ProviderRuntimeError
 from ..utils import filesystem
+from ..utils.timeout import TimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +202,49 @@ class ExpectationsMetadata(BaseModel):
     )
 
 
+class EntityCorrection(BaseModel):
+    """Information about an entity correction made to summary text."""
+
+    original: str = Field(description="Original entity text from summary")
+    corrected: str = Field(description="Corrected entity text (from extracted entities)")
+    edit_distance: int = Field(description="Edit distance between original and corrected")
+
+
+class QAFlags(BaseModel):
+    """Quality assurance flags for detecting silent failures and quality issues.
+
+    These flags make quality regressions explicit so downstream systems can
+    filter or flag low-quality outputs.
+    """
+
+    speaker_detection: Literal["none", "partial", "ok"] = Field(
+        default="none",
+        description=(
+            "Speaker detection quality: 'none' (no speakers detected), "
+            "'partial' (some speakers detected), 'ok' (all speakers detected)"
+        ),
+    )
+    defaults_injected: bool = Field(
+        default=False,
+        description="Whether default speaker names (Host/Guest) were injected",
+    )
+    summary_entity_mismatch: bool = Field(
+        default=False,
+        description=(
+            "Whether summary contains entity names that don't match extracted entities "
+            "(e.g., 'Kevin Walsh' in summary vs 'Kevin Warsh' in metadata)"
+        ),
+    )
+    summary_has_named_entities: bool = Field(
+        default=False,
+        description="Whether summary contains any named entities (PERSON, ORG, etc.)",
+    )
+    corrected_entities: List[EntityCorrection] = Field(
+        default_factory=list,
+        description="List of entity corrections applied to summary text",
+    )
+
+
 class ContentMetadata(BaseModel):
     """Content-related metadata."""
 
@@ -216,6 +261,10 @@ class ContentMetadata(BaseModel):
     expectations: Optional[ExpectationsMetadata] = Field(
         default=None,
         description="Expectations about output quality (not facts about the episode)",
+    )
+    qa_flags: Optional[QAFlags] = Field(
+        default=None,
+        description="Quality assurance flags for detecting silent failures",
     )
 
     @computed_field
@@ -246,6 +295,17 @@ class SummaryMetadata(BaseModel):
         return value.isoformat()
 
 
+class EpisodeStageTimings(BaseModel):
+    """Per-episode stage timings (Issue #379)."""
+
+    download_seconds: Optional[float] = None
+    transcription_seconds: Optional[float] = None
+    speaker_detection_seconds: Optional[float] = None
+    summarization_seconds: Optional[float] = None
+    metadata_generation_seconds: Optional[float] = None
+    total_processing_seconds: Optional[float] = None
+
+
 class ProcessingMetadata(BaseModel):
     """Processing-related metadata."""
 
@@ -254,6 +314,10 @@ class ProcessingMetadata(BaseModel):
     run_id: Optional[str] = None
     config_snapshot: Dict[str, Any] = Field(default_factory=dict)
     schema_version: str = SCHEMA_VERSION
+    stage_timings: Optional[EpisodeStageTimings] = Field(
+        default=None,
+        description="Per-episode stage timings for performance analysis (Issue #379)",
+    )
 
     @field_serializer("processing_timestamp")
     def serialize_processing_timestamp(self, value: datetime) -> str:
@@ -389,6 +453,309 @@ def _build_speakers_from_detected_names(
     return speakers
 
 
+def _calculate_levenshtein_distance(s1: str, s2: str) -> int:
+    """Calculate Levenshtein edit distance between two strings.
+
+    Args:
+        s1: First string
+        s2: Second string
+
+    Returns:
+        Edit distance (number of character changes needed)
+    """
+    if len(s1) < len(s2):
+        return _calculate_levenshtein_distance(s2, s1)
+
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]
+
+
+def _check_entity_consistency(
+    extracted_entities: List[str], summary_text: Optional[str], nlp: Optional[Any] = None
+) -> Tuple[bool, bool]:
+    """Check entity consistency between extracted entities and summary.
+
+    Args:
+        extracted_entities: List of extracted entity names (from speaker detection)
+        summary_text: Summary text to check
+        nlp: Optional spaCy NLP model for entity extraction from summary
+
+    Returns:
+        Tuple of (summary_entity_mismatch, summary_has_named_entities)
+        - summary_entity_mismatch: True if summary contains entities that don't match
+        - summary_has_named_entities: True if summary contains any named entities
+    """
+    if not summary_text:
+        return False, False
+
+    summary_has_named_entities = False
+    summary_entity_mismatch = False
+
+    # If no NLP model available, skip entity extraction (can't check)
+    if not nlp:
+        logger.debug("No NLP model available for entity consistency check, skipping")
+        return False, False
+
+    try:
+        # Extract PERSON entities from summary
+        from ..providers.ml.ner_extraction import extract_all_entities
+
+        summary_entities = extract_all_entities(summary_text, nlp, labels=["PERSON"])
+        summary_has_named_entities = len(summary_entities) > 0
+
+        if not extracted_entities or not summary_entities:
+            return False, summary_has_named_entities
+
+        # Normalize extracted entities (lowercase, strip)
+        extracted_normalized = {e.lower().strip() for e in extracted_entities if e}
+
+        # Check each summary entity against extracted entities
+        for summary_ent in summary_entities:
+            summary_name = summary_ent.get("text", "").strip()
+            if not summary_name:
+                continue
+
+            summary_normalized = summary_name.lower().strip()
+
+            # Check for exact match
+            if summary_normalized in extracted_normalized:
+                continue
+
+            # Check for close match (edit distance <= 2)
+            # This catches cases like "Warsh" vs "Walsh"
+            found_match = False
+            for extracted_name in extracted_normalized:
+                distance = _calculate_levenshtein_distance(summary_normalized, extracted_name)
+                if distance <= 2 and len(summary_normalized) > 3 and len(extracted_name) > 3:
+                    # Close match found - this is likely the same person
+                    found_match = True
+                    break
+
+            if not found_match:
+                # Mismatch found: summary has entity that doesn't match extracted
+                summary_entity_mismatch = True
+                logger.debug(
+                    "Entity mismatch detected: summary has '%s' but extracted entities are: %s",
+                    summary_name,
+                    list(extracted_normalized),
+                )
+                break
+
+    except Exception as exc:
+        logger.debug("Error checking entity consistency: %s", exc, exc_info=True)
+        # On error, don't flag mismatch (conservative approach)
+        return False, summary_has_named_entities
+
+    return summary_entity_mismatch, summary_has_named_entities
+
+
+def _reconcile_entities(
+    extracted_entities: List[str],
+    summary_text: str,
+    nlp: Optional[Any] = None,
+    edit_distance_threshold: int = 2,
+) -> Tuple[str, List[EntityCorrection]]:
+    """Reconcile entity names in summary with extracted entities.
+
+    Auto-corrects summary text when entity names are close matches (edit distance ≤ threshold)
+    to extracted entities. Prefers extracted entity spelling.
+
+    Args:
+        extracted_entities: List of extracted entity names (from speaker detection)
+        summary_text: Summary text to correct
+        nlp: Optional spaCy NLP model for entity extraction from summary
+        edit_distance_threshold: Maximum edit distance for corrections (default: 2)
+
+    Returns:
+        Tuple of (corrected_summary_text, list_of_corrections)
+        - corrected_summary_text: Summary text with entity names corrected
+        - list_of_corrections: List of EntityCorrection objects describing changes made
+    """
+    if not summary_text or not extracted_entities:
+        return summary_text, []
+
+    corrections: List[EntityCorrection] = []
+
+    # If no NLP model available, skip reconciliation (can't extract entities)
+    if not nlp:
+        logger.debug("No NLP model available for entity reconciliation, skipping")
+        return summary_text, []
+
+    try:
+        # Extract PERSON entities from summary
+        from ..providers.ml.ner_extraction import extract_all_entities
+
+        summary_entities = extract_all_entities(summary_text, nlp, labels=["PERSON"])
+        if not summary_entities:
+            return summary_text, []
+
+        # Normalize extracted entities (keep original for replacement)
+        # Map normalized -> original for lookup
+        extracted_map: Dict[str, str] = {}
+        for entity in extracted_entities:
+            if entity:
+                normalized = entity.lower().strip()
+                extracted_map[normalized] = entity.strip()
+
+        corrected_text = summary_text
+        # Process entities in reverse order (end to start) to preserve positions
+        for summary_ent in reversed(summary_entities):
+            summary_name = summary_ent.get("text", "").strip()
+            if not summary_name:
+                continue
+
+            summary_normalized = summary_name.lower().strip()
+
+            # Check for exact match (case-insensitive)
+            if summary_normalized in extracted_map:
+                # Exact match - no correction needed
+                continue
+
+            # Check for close match (edit distance <= threshold)
+            best_match = None
+            best_distance = edit_distance_threshold + 1
+
+            for extracted_normalized, extracted_original in extracted_map.items():
+                # Only consider if both names are long enough (avoid false positives)
+                if len(summary_normalized) <= 3 or len(extracted_normalized) <= 3:
+                    continue
+
+                distance = _calculate_levenshtein_distance(summary_normalized, extracted_normalized)
+                if distance <= edit_distance_threshold and distance < best_distance:
+                    best_match = extracted_original
+                    best_distance = distance
+
+            if best_match:
+                # Found close match - correct the summary text
+                start_pos = summary_ent.get("start", 0)
+                end_pos = summary_ent.get("end", len(summary_text))
+
+                # Replace the entity in the summary text
+                # Preserve original capitalization if possible
+                original_in_text = summary_text[start_pos:end_pos]
+                corrected_in_text = best_match
+
+                # Try to preserve capitalization pattern
+                if original_in_text and corrected_in_text:
+                    if original_in_text[0].isupper():
+                        corrected_in_text = corrected_in_text[0].upper() + corrected_in_text[1:]
+                    if len(original_in_text) > 1 and original_in_text[1:].isupper():
+                        # All caps
+                        corrected_in_text = corrected_in_text.upper()
+                    elif len(original_in_text) > 1 and original_in_text[1:].islower():
+                        # Title case
+                        if len(corrected_in_text) > 1:
+                            corrected_in_text = (
+                                corrected_in_text[0].upper() + corrected_in_text[1:].lower()
+                            )
+
+                corrected_text = (
+                    corrected_text[:start_pos] + corrected_in_text + corrected_text[end_pos:]
+                )
+
+                corrections.append(
+                    EntityCorrection(
+                        original=summary_name,
+                        corrected=best_match,
+                        edit_distance=best_distance,
+                    )
+                )
+
+                logger.debug(
+                    "Entity reconciliation: corrected '%s' -> '%s' (edit distance: %d)",
+                    summary_name,
+                    best_match,
+                    best_distance,
+                )
+
+    except Exception as exc:
+        logger.debug("Error reconciling entities: %s", exc, exc_info=True)
+        # On error, return original text (conservative approach)
+        return summary_text, []
+
+    return corrected_text, corrections
+
+
+def _build_qa_flags(
+    speakers: List[SpeakerInfo],
+    detected_hosts: Optional[List[str]],
+    detected_guests: Optional[List[str]],
+    summary_text: Optional[str] = None,
+    nlp: Optional[Any] = None,
+    corrected_entities: Optional[List[EntityCorrection]] = None,
+) -> QAFlags:
+    """Build QA flags from speaker detection and summary information.
+
+    Args:
+        speakers: List of detected speakers
+        detected_hosts: List of detected host names (may be None)
+        detected_guests: List of detected guest names (may be None)
+        summary_text: Optional summary text for entity consistency checking
+        nlp: Optional spaCy NLP model for entity extraction
+
+    Returns:
+        QAFlags object with quality assurance information
+    """
+    # Import DEFAULT_SPEAKER_NAMES here to avoid circular imports
+    from ..providers.ml.speaker_detection import DEFAULT_SPEAKER_NAMES
+
+    # Check if defaults were injected
+    defaults_injected = False
+    if speakers:
+        speaker_names = {s.name for s in speakers}
+        defaults_injected = any(name in DEFAULT_SPEAKER_NAMES for name in speaker_names)
+
+    # Determine speaker detection status
+    has_hosts = bool(detected_hosts)
+    has_guests = bool(detected_guests)
+
+    if has_hosts and has_guests:
+        speaker_detection = "ok"
+    elif has_hosts or has_guests:
+        speaker_detection = "partial"
+    else:
+        speaker_detection = "none"
+
+    # Check entity consistency if summary is available
+    summary_entity_mismatch = False
+    summary_has_named_entities = False
+
+    if summary_text:
+        # Combine all extracted entities for consistency check
+        extracted_entities = []
+        if detected_hosts:
+            extracted_entities.extend(detected_hosts)
+        if detected_guests:
+            extracted_entities.extend(detected_guests)
+
+        summary_entity_mismatch, summary_has_named_entities = _check_entity_consistency(
+            extracted_entities, summary_text, nlp
+        )
+
+    # Use provided corrected_entities or empty list
+    corrections = corrected_entities if corrected_entities is not None else []
+
+    return QAFlags(
+        speaker_detection=speaker_detection,
+        defaults_injected=defaults_injected,
+        summary_entity_mismatch=summary_entity_mismatch,
+        summary_has_named_entities=summary_has_named_entities,
+        corrected_entities=corrections,
+    )
+
+
 def _build_content_metadata(
     episode: models.Episode,
     transcript_infos: List[TranscriptInfo],
@@ -397,6 +764,11 @@ def _build_content_metadata(
     transcript_source: Optional[Literal["direct_download", "whisper_transcription"]],
     whisper_model: Optional[str],
     speakers: List[SpeakerInfo],
+    detected_hosts: Optional[List[str]] = None,
+    detected_guests: Optional[List[str]] = None,
+    summary_text: Optional[str] = None,
+    nlp: Optional[Any] = None,
+    corrected_entities: Optional[List[EntityCorrection]] = None,
 ) -> ContentMetadata:
     """Build ContentMetadata object.
 
@@ -408,6 +780,11 @@ def _build_content_metadata(
         transcript_source: Source of transcript
         whisper_model: Whisper model used
         speakers: List of detected speakers with structured information
+        detected_hosts: Optional list of detected host names for QA flags
+        detected_guests: Optional list of detected guest names for QA flags
+        summary_text: Optional summary text for entity consistency checking
+        nlp: Optional spaCy NLP model for entity extraction
+        corrected_entities: Optional list of entity corrections applied to summary
 
     Returns:
         ContentMetadata object
@@ -417,6 +794,16 @@ def _build_content_metadata(
         allow_speaker_names=False,
         allow_speaker_labels=False,
         allow_sponsor_content=False,
+    )
+
+    # Build QA flags
+    qa_flags = _build_qa_flags(
+        speakers=speakers,
+        detected_hosts=detected_hosts,
+        detected_guests=detected_guests,
+        summary_text=summary_text,
+        nlp=nlp,
+        corrected_entities=corrected_entities,
     )
 
     return ContentMetadata(
@@ -429,10 +816,15 @@ def _build_content_metadata(
         whisper_model=whisper_model,
         speakers=speakers,
         expectations=expectations,
+        qa_flags=qa_flags,
     )
 
 
-def _build_processing_metadata(cfg: config.Config, output_dir: str) -> ProcessingMetadata:
+def _build_processing_metadata(
+    cfg: config.Config,
+    output_dir: str,
+    stage_timings: Optional[EpisodeStageTimings] = None,
+) -> ProcessingMetadata:
     """Build ProcessingMetadata object.
 
     Args:
@@ -624,8 +1016,12 @@ def _generate_episode_summary(  # noqa: C901
                     cleaned_path = transcript_path_obj.parent / (
                         transcript_path_obj.stem + ".cleaned" + transcript_path_obj.suffix
                     )
-                    with open(cleaned_path, "w", encoding="utf-8") as f:
-                        f.write(cleaned_text)
+                    # Use write_file() for consistent metrics tracking
+                    from ..utils import filesystem
+
+                    filesystem.write_file(
+                        str(cleaned_path), cleaned_text.encode("utf-8"), pipeline_metrics
+                    )
                     logger.debug(
                         "[%s] Saved cleaned transcript to: %s",
                         episode_idx,
@@ -658,22 +1054,32 @@ def _generate_episode_summary(  # noqa: C901
             # Pass pipeline_metrics for LLM call tracking (if OpenAI provider)
             import inspect
 
-            sig = inspect.signature(summary_provider.summarize)
-            if "pipeline_metrics" in sig.parameters:
-                result = summary_provider.summarize(
-                    text=cleaned_text,
-                    episode_title=None,  # Not available in this context
-                    episode_description=None,  # Not available in this context
-                    params=params,
-                    pipeline_metrics=pipeline_metrics,
-                )
-            else:
-                result = summary_provider.summarize(
-                    text=cleaned_text,
-                    episode_title=None,  # Not available in this context
-                    episode_description=None,  # Not available in this context
-                    params=params,
-                )
+            from ...utils.timeout import with_timeout
+
+            def _summarize():
+                sig = inspect.signature(summary_provider.summarize)
+                if "pipeline_metrics" in sig.parameters:
+                    return summary_provider.summarize(
+                        text=cleaned_text,
+                        episode_title=None,  # Not available in this context
+                        episode_description=None,  # Not available in this context
+                        params=params,
+                        pipeline_metrics=pipeline_metrics,
+                    )
+                else:
+                    return summary_provider.summarize(
+                        text=cleaned_text,
+                        episode_title=None,  # Not available in this context
+                        episode_description=None,  # Not available in this context
+                        params=params,
+                    )
+
+            # Apply summarization timeout (Issue #379)
+            result = with_timeout(
+                _summarize,
+                cfg.summarization_timeout,
+                f"summarization for episode {episode_idx}",
+            )
 
             summary_elapsed = time.time() - summary_start
             short_summary = result.get("summary")
@@ -751,6 +1157,20 @@ def _generate_episode_summary(  # noqa: C901
                 generated_at=datetime.now(),
                 word_count=word_count,
             )
+        except TimeoutError as e:
+            # Handle timeout errors gracefully (Issue #379)
+            error_msg = f"[{episode_idx}] Summarization timeout: {e}"
+            logger.error(error_msg)
+            if pipeline_metrics:
+                pipeline_metrics.record_episode_status(
+                    episode_id=str(episode_idx),
+                    status="failed",
+                    error_type="TimeoutError",
+                    error_message=str(e),
+                    stage="summarization",
+                )
+            # Return None to indicate summarization failed
+            return None
         except ProviderRuntimeError as e:
             error_msg = str(e).lower()
             # Handle "Already borrowed" error from Rust tokenizer in parallel execution
@@ -841,7 +1261,8 @@ def _serialize_metadata(
     import time
 
     serialize_start = time.time()
-    os.makedirs(os.path.dirname(metadata_path) or ".", exist_ok=True)
+    # Directory creation is handled by write_file() or cached, so we don't need to create it here
+    # This avoids redundant os.makedirs() calls
 
     if cfg.metadata_format == "json":
         # Time serialization separately from I/O
@@ -849,10 +1270,13 @@ def _serialize_metadata(
         content_str = metadata_doc.model_dump_json(indent=2, exclude_none=False)
         json_elapsed = time.time() - json_start
 
-        # Time actual file write
+        # Time actual file write (use write_file for consistent metrics and directory caching)
         write_start = time.time()
-        with open(metadata_path, "w", encoding="utf-8") as f:
-            f.write(content_str)
+        from ..utils import filesystem
+
+        filesystem.write_file(
+            metadata_path, content_str.encode("utf-8"), pipeline_metrics=pipeline_metrics
+        )
         write_elapsed = time.time() - write_start
         bytes_written = len(content_str.encode("utf-8"))
 
@@ -864,24 +1288,32 @@ def _serialize_metadata(
             write_elapsed,
             time.time() - serialize_start,
         )
-        # Record actual file write time in metrics
-        if pipeline_metrics is not None:
-            pipeline_metrics.record_stage("writing_storage", write_elapsed)
+        # Note: write_file() already records metrics, so we don't need to record again here
     else:  # yaml
         # Time serialization separately from I/O
         yaml_start = time.time()
         content_dict = metadata_doc.model_dump(exclude_none=False)
         yaml_serialize_elapsed = time.time() - yaml_start
 
-        # Time actual file write
+        # Time actual file write (serialize YAML to string first, then use write_file)
         write_start = time.time()
-        with open(metadata_path, "w", encoding="utf-8") as f:
-            yaml.dump(
-                content_dict, f, default_flow_style=False, sort_keys=False, allow_unicode=True
-            )
+        yaml_buffer = io.StringIO()
+        yaml.dump(
+            content_dict,
+            yaml_buffer,
+            default_flow_style=False,
+            sort_keys=False,
+            allow_unicode=True,
+        )
+        yaml_content = yaml_buffer.getvalue()
+        from ..utils import filesystem
+
+        filesystem.write_file(
+            metadata_path, yaml_content.encode("utf-8"), pipeline_metrics=pipeline_metrics
+        )
         write_elapsed = time.time() - write_start
         # Estimate bytes (YAML dump doesn't return size directly)
-        bytes_written = len(str(content_dict).encode("utf-8"))
+        bytes_written = len(yaml_content.encode("utf-8"))
 
         logger.debug(
             "[STORAGE I/O] file=%s bytes=%d serialize=%.3fs write=%.3fs total=%.3fs",
@@ -891,9 +1323,7 @@ def _serialize_metadata(
             write_elapsed,
             time.time() - serialize_start,
         )
-        # Record actual file write time in metrics
-        if pipeline_metrics is not None:
-            pipeline_metrics.record_stage("writing_storage", write_elapsed)
+        # Note: write_file() already records metrics, so we don't need to record again here
 
 
 def generate_episode_metadata(
@@ -998,20 +1428,74 @@ def generate_episode_metadata(
     # Build speakers array from detected_hosts and detected_guests
     speakers = _build_speakers_from_detected_names(detected_hosts, detected_guests)
 
-    content_metadata = _build_content_metadata(
-        episode,
-        transcript_infos,
-        media_id,
-        transcript_file_path,
-        transcript_source,
-        whisper_model,
-        speakers,
-    )
-    processing_metadata = _build_processing_metadata(cfg, output_dir)
+    # Build per-episode stage timings from pipeline metrics (Issue #379)
+    stage_timings = None
+    if pipeline_metrics:
+        episode_idx_str = str(episode.idx)
+        # Get timings for this episode from metrics
+        # Note: Metrics stores lists, so we need episode index
+        download_time = None
+        transcribe_time = None
+        extract_names_time = None
+        summarize_time = None
+
+        # Get episode index in lists (if available)
+        if (
+            hasattr(pipeline_metrics, "download_media_times")
+            and episode.idx < len(pipeline_metrics.download_media_times)
+        ):
+            download_time = pipeline_metrics.download_media_times[episode.idx]
+
+        if (
+            hasattr(pipeline_metrics, "transcribe_times")
+            and episode.idx < len(pipeline_metrics.transcribe_times)
+        ):
+            transcribe_time = pipeline_metrics.transcribe_times[episode.idx]
+
+        if (
+            hasattr(pipeline_metrics, "extract_names_times")
+            and episode.idx < len(pipeline_metrics.extract_names_times)
+        ):
+            extract_names_time = pipeline_metrics.extract_names_times[episode.idx]
+
+        if (
+            hasattr(pipeline_metrics, "summarize_times")
+            and episode.idx < len(pipeline_metrics.summarize_times)
+        ):
+            summarize_time = pipeline_metrics.summarize_times[episode.idx]
+
+        # Calculate total if any timings available
+        total_time = None
+        if any(t is not None for t in [download_time, transcribe_time, extract_names_time, summarize_time]):
+            total_time = sum(t for t in [download_time, transcribe_time, extract_names_time, summarize_time] if t is not None)
+
+        if any(t is not None for t in [download_time, transcribe_time, extract_names_time, summarize_time, total_time]):
+            stage_timings = EpisodeStageTimings(
+                download_seconds=download_time,
+                transcription_seconds=transcribe_time,
+                speaker_detection_seconds=extract_names_time,
+                summarization_seconds=summarize_time,
+                total_processing_seconds=total_time,
+            )
+
+    processing_metadata = _build_processing_metadata(cfg, output_dir, stage_timings=stage_timings)
 
     # Generate summary if enabled and transcript is available
     summary_metadata = None
     summary_elapsed = 0.0
+    summary_text = None
+    corrected_entities: List[EntityCorrection] = []
+    nlp = None
+
+    # Get NLP model for entity reconciliation and consistency checking (if needed)
+    if cfg.auto_speakers and cfg.generate_summaries and transcript_file_path:
+        try:
+            from ..providers.ml.speaker_detection import get_ner_model
+
+            nlp = get_ner_model(cfg)
+        except Exception as exc:
+            logger.debug("Could not load NLP model for entity reconciliation: %s", exc)
+
     if cfg.generate_summaries and transcript_file_path:
         summary_start = time.time()
         summary_metadata = _generate_episode_summary(
@@ -1027,6 +1511,57 @@ def generate_episode_metadata(
         # Record summary generation time if metrics available
         if pipeline_metrics is not None and summary_elapsed > 0:
             pipeline_metrics.record_summarize_time(summary_elapsed)
+        # Validate that summary was generated when required
+        if cfg.generate_summaries and summary_metadata is None:
+            error_msg = (
+                f"[{episode.idx}] Summary generation failed but generate_summaries=True. "
+                "Summarization is required when generate_summaries is enabled."
+            )
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        # Extract summary text for QA flags and entity reconciliation
+        if summary_metadata:
+            summary_text = summary_metadata.short_summary
+
+            # Reconcile entities in summary if NLP model and extracted entities available
+            if nlp and summary_text:
+                # Combine all extracted entities for reconciliation
+                extracted_entities = []
+                if detected_hosts:
+                    extracted_entities.extend(detected_hosts)
+                if detected_guests:
+                    extracted_entities.extend(detected_guests)
+
+                if extracted_entities:
+                    corrected_summary_text, corrections = _reconcile_entities(
+                        extracted_entities, summary_text, nlp
+                    )
+                    if corrections:
+                        # Update summary metadata with corrected text
+                        summary_metadata.short_summary = corrected_summary_text
+                        summary_text = corrected_summary_text
+                        corrected_entities = corrections
+                        logger.info(
+                            "[%s] Entity reconciliation: corrected %d entity name(s) in summary",
+                            episode.idx,
+                            len(corrections),
+                        )
+
+    # Build content metadata after summary is generated (so QA flags can use summary)
+    content_metadata = _build_content_metadata(
+        episode,
+        transcript_infos,
+        media_id,
+        transcript_file_path,
+        transcript_source,
+        whisper_model,
+        speakers,
+        detected_hosts=detected_hosts,
+        detected_guests=detected_guests,
+        summary_text=summary_text,
+        nlp=nlp,
+        corrected_entities=corrected_entities,
+    )
 
     # Build complete metadata document
     metadata_doc = EpisodeMetadataDocument(
