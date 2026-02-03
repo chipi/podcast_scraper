@@ -878,15 +878,17 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 pipeline_metrics.record_thread_sync_time(processing_sync_time)
             logger.debug("Concurrent processing completed")
 
-        # Log io_and_waiting breakdown (Issue #387)
-        # Note: time_io_and_waiting is now the sum of sub-buckets (backward compatibility)
-        # Sub-buckets are recorded individually and automatically add to time_io_and_waiting
+        # Log io_and_waiting breakdown (Issue #387, #391)
+        # Note: io_and_waiting_thread_sum_seconds is the sum of sub-buckets
+        # (aggregate across threads). Sub-buckets are recorded individually and
+        # automatically add to io_and_waiting_thread_sum_seconds
         if pipeline_metrics is not None:
             logger.debug(
-                "[IO METRIC] io_and_waiting stage total: %.2fs "
+                "[IO METRIC] io_and_waiting thread_sum: %.2fs, wall_clock: %.2fs "
                 "(sum of sub-buckets: download_wait=%.2fs, transcription_wait=%.2fs, "
                 "thread_sync=%.2fs, queue_wait=%.2fs, summarization_wait=%.2fs)",
-                pipeline_metrics.time_io_and_waiting,
+                pipeline_metrics.io_and_waiting_thread_sum_seconds,
+                pipeline_metrics.io_and_waiting_wall_seconds,
                 pipeline_metrics.time_download_wait_seconds,
                 pipeline_metrics.time_transcription_wait_seconds,
                 pipeline_metrics.time_thread_sync_seconds,
@@ -1005,6 +1007,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 episodes=episodes,
                 effective_output_dir=effective_output_dir,
                 episode_statuses=episode_statuses,
+                run_suffix=run_suffix,
             )
             index_path = os.path.join(effective_output_dir, "index.json")
             run_index.save_to_file(index_path)
@@ -1026,6 +1029,53 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             save_run_summary(run_summary, effective_output_dir)
         except Exception as e:
             logger.warning(f"Failed to generate run summary: {e}")
+
+    # Step 15: Aggressive cleanup before exit (Issue #390 - prevent bus error on macOS)
+    # Clean up ML providers and PyTorch/MPS resources before interpreter shutdown
+    try:
+        # Cleanup summary provider if available
+        if summary_provider is not None:
+            logger.debug("Cleaning up summary provider before exit")
+            summary_provider.cleanup()
+
+        # Cleanup transcription provider if available
+        if transcription_provider is not None and transcription_provider != summary_provider:
+            logger.debug("Cleaning up transcription provider before exit")
+            transcription_provider.cleanup()
+
+        # Aggressive PyTorch/MPS cleanup to prevent bus errors during interpreter shutdown
+        try:
+            import gc
+
+            import torch
+
+            # Move any remaining models to CPU before deletion (avoid teardown hazards)
+            # This is a best-effort cleanup - models should already be cleaned up by providers
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                if hasattr(torch.mps, "empty_cache"):
+                    torch.mps.empty_cache()
+                    logger.debug("Cleared MPS cache before exit")
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                logger.debug("Cleared CUDA cache before exit")
+
+            # Force garbage collection to clean up any remaining references
+            # This helps release memory and clean up threads that might be holding references
+            # Note: Skip in test environments to avoid hangs
+            import os
+
+            if os.environ.get("PYTEST_CURRENT_TEST") is None:
+                gc.collect()
+                logger.debug("Ran garbage collection before exit")
+        except ImportError:
+            # torch not available (e.g., in unit tests without ML dependencies)
+            pass
+        except Exception as exc:
+            # Ignore any errors during cleanup - we're about to exit anyway
+            logger.debug(f"Error during final cleanup (non-fatal): {exc}")
+    except Exception as exc:
+        # Ignore any errors during cleanup - we're about to exit anyway
+        logger.debug(f"Error during provider cleanup (non-fatal): {exc}")
 
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes

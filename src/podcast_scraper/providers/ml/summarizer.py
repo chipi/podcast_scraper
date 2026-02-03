@@ -4223,24 +4223,22 @@ def unload_model(model: Optional[SummaryModel]) -> None:
     if model is None:
         return
 
-    # Delete model components to release memory
-    if model.model:
-        del model.model
-    if model.tokenizer:
-        del model.tokenizer
-    if model.pipeline:
-        del model.pipeline
-
-    model.model = None
-    model.tokenizer = None
-    model.pipeline = None
-
-    # Lazy import torch for cache clearing (only if available)
+    # Lazy import torch for model cleanup and cache clearing (only if available)
     # Unit tests run without ML dependencies, so torch may not be installed
     import gc  # noqa: F401
 
     try:
         import torch  # noqa: F401
+
+        # Move model to CPU before deletion to avoid teardown hazards (Issue #390)
+        # This prevents bus errors on macOS during interpreter shutdown
+        if model.model is not None:
+            # Move model to CPU before deletion
+            try:
+                model.model = model.model.to("cpu")  # type: ignore[assignment,attr-defined]
+            except Exception:
+                # Ignore errors (model might already be on CPU or in unexpected state)
+                pass
 
         # Clear device-specific cache (wrap in try-except to handle any torch errors)
         try:
@@ -4257,6 +4255,18 @@ def unload_model(model: Optional[SummaryModel]) -> None:
         # torch not available (e.g., in unit tests without ML dependencies)
         # This is fine - we'll just do basic garbage collection
         pass
+
+    # Delete model components to release memory
+    if model.model:
+        del model.model
+    if model.tokenizer:
+        del model.tokenizer
+    if model.pipeline:
+        del model.pipeline
+
+    model.model = None
+    model.tokenizer = None
+    model.pipeline = None
 
     # Force garbage collection to clean up any remaining references
     # This helps release memory and clean up threads that might be holding references

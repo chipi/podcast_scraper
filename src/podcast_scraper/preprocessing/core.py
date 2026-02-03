@@ -565,3 +565,61 @@ def clean_for_summarization(text: str) -> str:
     # Light pruning should only happen AFTER DISTILL, not before MAP.
 
     return text.strip()
+
+
+# Post-summary sanitization patterns - patterns that may appear in summaries
+# even after transcript cleaning (e.g., from chunk joins, model hallucinations)
+POST_SUMMARY_SANITIZATION_PATTERNS = [
+    # Page furniture that may leak into summaries
+    r"\bContinue Reading\b[^.]*\.?",
+    r"\bContinue Reading Below\b[^.]*\.?",
+    r"\bRead more\b[^.]*\.?",
+    r"\bRead more about\b[^.]*\.?",
+    r"\bMore from\b[^.]*\.?",
+    r"\bAdvertisement\b[^.]*\.?",
+    r"\bSponsored content\b[^.]*\.?",
+    r"\bSign up for\b[^.]*\.?",
+    r"\bSubscribe to\b[^.]*\.?",
+    r"\bNewsletter\b[^.]*\.?",
+    r"\bTranscript\b[^.]*\.?",
+    # Patterns that create weird token adjacency (e.g., "BelowWalsh", "BelowIt")
+    r"\bBelow[A-Z][a-z]+\b",  # "Below" + capitalized word (likely artifact)
+    r"\bBelow\s+[A-Z][a-z]+\b",  # "Below " + capitalized word
+]
+
+
+def sanitize_summary(text: str) -> str:
+    """Remove page furniture and artifacts from generated summaries.
+
+    This function removes patterns that may appear in summaries even after
+    transcript cleaning, such as:
+    - Page furniture ("Continue Reading", "Read more", etc.)
+    - Artifacts from chunk joins (e.g., "BelowWalsh", "BelowIt")
+    - Advertisement/sponsor text
+
+    Args:
+        text: Summary text to sanitize
+
+    Returns:
+        Sanitized summary text with patterns removed
+
+    Examples:
+        >>> sanitize_summary("Summary text. Continue Reading BelowWalsh")
+        'Summary text.'
+        >>> sanitize_summary("Content. Read more about this topic.")
+        'Content.'
+    """
+    if not text:
+        return text
+
+    cleaned = text
+    for pattern in POST_SUMMARY_SANITIZATION_PATTERNS:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+
+    # Clean up multiple spaces and periods
+    cleaned = re.sub(r"\s+", " ", cleaned)  # Multiple spaces -> single space
+    cleaned = re.sub(r"\.\s*\.+", ".", cleaned)  # Multiple periods -> single period
+    cleaned = re.sub(r"\s+\.", ".", cleaned)  # Space before period -> period
+    cleaned = cleaned.strip()
+
+    return cleaned

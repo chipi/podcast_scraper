@@ -1194,6 +1194,59 @@ def _check_summary_faithfulness(
         return False, []
 
 
+def _auto_repair_summary(summary_text: str, out_of_source_entities: List[str], nlp: Any) -> str:
+    """Auto-repair summary by removing sentences containing out-of-source entities.
+
+    When faithfulness check detects hallucinations (entities not in source),
+    this function attempts to remove the offending sentences to create a
+    cleaner summary.
+
+    Args:
+        summary_text: Summary text to repair
+        out_of_source_entities: List of entity names not found in source
+        nlp: spaCy NLP model for sentence segmentation
+
+    Returns:
+        Repaired summary text with sentences containing out-of-source entities removed
+    """
+    if not summary_text or not out_of_source_entities or not nlp:
+        return summary_text
+
+    try:
+        # Use spaCy to segment sentences
+        doc = nlp(summary_text)
+        sentences = [sent.text.strip() for sent in doc.sents]
+
+        # Filter out sentences that contain any out-of-source entity
+        kept_sentences = []
+        for sentence in sentences:
+            # Check if sentence contains any out-of-source entity (case-insensitive)
+            contains_bad_entity = False
+            sentence_lower = sentence.lower()
+            for entity in out_of_source_entities:
+                if entity.lower() in sentence_lower:
+                    contains_bad_entity = True
+                    break
+
+            if not contains_bad_entity:
+                kept_sentences.append(sentence)
+
+        # Rejoin sentences
+        repaired = " ".join(kept_sentences).strip()
+
+        # If repair removed everything, return original (better than empty)
+        if not repaired:
+            logger.warning("Auto-repair would remove all sentences, keeping original summary")
+            return summary_text
+
+        return repaired
+
+    except Exception as exc:
+        logger.debug("Error in auto-repair: %s", exc, exc_info=True)
+        # On error, return original (conservative approach)
+        return summary_text
+
+
 def _build_qa_flags(
     speakers: List[SpeakerInfo],
     detected_hosts: Optional[List[str]],
@@ -1734,6 +1787,16 @@ def _generate_episode_summary(  # noqa: C901
             summary_elapsed = time.time() - summary_start
             short_summary = result.get("summary")
 
+            # Sanitize summary to remove page furniture and artifacts (Issue #389)
+            if short_summary:
+                from ..preprocessing.core import sanitize_summary
+
+                short_summary = sanitize_summary(short_summary)
+                logger.debug(
+                    "[%s] Applied post-summary sanitization to remove page furniture",
+                    episode_idx,
+                )
+
             # Handle Mock objects in tests - convert to string if needed
             if short_summary is not None:
                 # Check if it's a Mock object (common in tests)
@@ -2147,7 +2210,54 @@ def generate_episode_metadata(
 
             # Reconcile entities in summary if NLP model and extracted entities available
             if nlp and summary_text:
-                # Combine all extracted entities for reconciliation
+                # First, check faithfulness and auto-repair if needed (Issue #389)
+                # Read transcript text for faithfulness check if available
+                transcript_text_for_check = None
+                if transcript_file_path:
+                    try:
+                        full_transcript_path = os.path.join(output_dir, transcript_file_path)
+                        with open(full_transcript_path, "r", encoding="utf-8") as f:
+                            transcript_text_for_check = f.read()
+                    except Exception as exc:
+                        logger.debug(
+                            "[%s] Error reading transcript for faithfulness check: %s",
+                            episode.idx,
+                            exc,
+                        )
+
+                (
+                    has_out_of_source,
+                    out_of_source_entities,
+                ) = _check_summary_faithfulness(
+                    transcript_text=transcript_text_for_check,
+                    episode_description=episode_description,
+                    summary_text=summary_text,
+                    nlp=nlp,
+                )
+
+                # Auto-repair: remove sentences containing out-of-source entities
+                if has_out_of_source and out_of_source_entities:
+                    repaired_summary = _auto_repair_summary(
+                        summary_text, out_of_source_entities, nlp
+                    )
+                    if repaired_summary != summary_text:
+                        summary_metadata.short_summary = repaired_summary
+                        summary_text = repaired_summary
+                        logger.info(
+                            "[%s] Auto-repaired summary: removed sentences containing "
+                            "out-of-source entities: %s",
+                            episode.idx,
+                            ", ".join(out_of_source_entities),
+                        )
+                    else:
+                        logger.warning(
+                            "[%s] Summary contains out-of-source entities but "
+                            "auto-repair did not remove them: %s",
+                            episode.idx,
+                            ", ".join(out_of_source_entities),
+                        )
+
+                # Then, reconcile entities (correct entity name spellings)
                 extracted_entities = []
                 if detected_hosts:
                     extracted_entities.extend(detected_hosts)

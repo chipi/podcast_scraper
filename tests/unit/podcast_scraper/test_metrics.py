@@ -328,6 +328,10 @@ class TestFinish(unittest.TestCase):
             "total_preprocessing_saved_bytes",
             "avg_preprocessing_saved_bytes",
             "preprocessing_audio_metadata",
+            # IO/waiting metrics (Issue #391)
+            "io_and_waiting_thread_sum_seconds",
+            "io_and_waiting_wall_seconds",
+            "time_io_and_waiting",  # Backward compatibility (deprecated)
             # Sub-buckets for io_and_waiting (Issue #387)
             "time_download_wait_seconds",
             "time_transcription_wait_seconds",
@@ -747,6 +751,9 @@ class TestMetricsHygiene(unittest.TestCase):
             "time_normalizing": 0.0,
             "time_io_and_waiting": 0.0,
             "time_writing_storage": 0.0,
+            "io_and_waiting_thread_sum_seconds": 0.0,
+            "io_and_waiting_wall_seconds": 0.0,
+            "time_io_and_waiting": 0.0,  # Backward compatibility (deprecated)
             "time_download_wait_seconds": 0.0,
             "time_transcription_wait_seconds": 0.0,
             "time_summarization_wait_seconds": 0.0,
@@ -754,8 +761,11 @@ class TestMetricsHygiene(unittest.TestCase):
             "time_queue_wait_seconds": 0.0,
             "schema_version": "1.0",
         }
+        # Create a metrics dict with a None value to test validation
+        invalid_metrics_with_none = invalid_metrics.copy()
+        invalid_metrics_with_none["time_scraping"] = None
         with self.assertRaises(ValueError) as cm:
-            m._validate_metrics(invalid_metrics)
+            m._validate_metrics(invalid_metrics_with_none)
         self.assertIn("is None", str(cm.exception))
 
     def test_validate_metrics_valid_metrics(self):

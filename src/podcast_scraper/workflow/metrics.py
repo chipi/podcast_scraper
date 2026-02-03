@@ -52,10 +52,15 @@ class Metrics:
     time_scraping: float = 0.0
     time_parsing: float = 0.0
     time_normalizing: float = 0.0
-    time_io_and_waiting: float = (
-        0.0  # Renamed from time_writing_storage - includes downloads,
-        # transcription waiting, thread sync, and actual I/O
-        # This is the sum of all sub-buckets for backward compatibility (Issue #387)
+    io_and_waiting_thread_sum_seconds: float = (
+        0.0  # Sum of IO/waiting time across all threads (aggregate waiting time).
+        # This is the sum of all sub-buckets and can exceed run_duration_seconds
+        # because it represents total thread-time, not wall-clock time (Issue #391).
+        # For wall-clock time, see io_and_waiting_wall_seconds.
+    )
+    io_and_waiting_wall_seconds: float = (
+        0.0  # Wall-clock time spent in IO/waiting stages (measured by wall-clock spans).
+        # This represents actual elapsed time, not sum across threads (Issue #391).
     )
     # Sub-buckets for io_and_waiting (Issue #387)
     time_download_wait_seconds: float = 0.0  # Time waiting for downloads to complete
@@ -130,6 +135,17 @@ class Metrics:
     summarization_device: Optional[str] = None  # Device used for summarization stage
 
     _start_time: float = field(default_factory=time.time, init=False)
+    _io_waiting_wall_start: Optional[float] = field(default=None, init=False, repr=False)
+    _io_waiting_wall_end: Optional[float] = field(default=None, init=False, repr=False)
+
+    @property
+    def time_io_and_waiting(self) -> float:
+        """Backward compatibility property (deprecated, use io_and_waiting_thread_sum_seconds).
+
+        Returns:
+            Sum of IO/waiting time across all threads (same as io_and_waiting_thread_sum_seconds)
+        """
+        return self.io_and_waiting_thread_sum_seconds
 
     def record_stage(self, stage: str, duration: float) -> None:
         """Record time spent in a stage.
@@ -145,7 +161,17 @@ class Metrics:
         elif stage == "normalizing":
             self.time_normalizing += duration
         elif stage == "io_and_waiting":
-            self.time_io_and_waiting += duration
+            self.io_and_waiting_thread_sum_seconds += duration
+            # Track wall-clock time for IO/waiting stage (Issue #391)
+            # This represents the actual elapsed time, not sum across threads
+            if self._io_waiting_wall_start is None:
+                self._io_waiting_wall_start = time.time()
+            self._io_waiting_wall_end = time.time()
+            # Update wall-clock seconds (will be finalized in finish())
+            if self._io_waiting_wall_start is not None and self._io_waiting_wall_end is not None:
+                self.io_and_waiting_wall_seconds = (
+                    self._io_waiting_wall_end - self._io_waiting_wall_start
+                )
         elif stage == "writing_storage":
             # Actual file write time only (should be tiny)
             self.time_writing_storage += duration
@@ -157,8 +183,8 @@ class Metrics:
             duration: Duration in seconds
         """
         self.time_download_wait_seconds += duration
-        # Also add to io_and_waiting for backward compatibility
-        self.time_io_and_waiting += duration
+        # Also add to io_and_waiting_thread_sum for backward compatibility
+        self.io_and_waiting_thread_sum_seconds += duration
 
     def record_transcription_wait_time(self, duration: float) -> None:
         """Record time waiting for transcription jobs (Issue #387).
@@ -167,8 +193,8 @@ class Metrics:
             duration: Duration in seconds
         """
         self.time_transcription_wait_seconds += duration
-        # Also add to io_and_waiting for backward compatibility
-        self.time_io_and_waiting += duration
+        # Also add to io_and_waiting_thread_sum for backward compatibility
+        self.io_and_waiting_thread_sum_seconds += duration
 
     def record_summarization_wait_time(self, duration: float) -> None:
         """Record time waiting for summarization (Issue #387).
@@ -177,8 +203,8 @@ class Metrics:
             duration: Duration in seconds
         """
         self.time_summarization_wait_seconds += duration
-        # Also add to io_and_waiting for backward compatibility
-        self.time_io_and_waiting += duration
+        # Also add to io_and_waiting_thread_sum for backward compatibility
+        self.io_and_waiting_thread_sum_seconds += duration
 
     def record_thread_sync_time(self, duration: float) -> None:
         """Record time spent in thread synchronization (join() calls) (Issue #387).
@@ -187,8 +213,8 @@ class Metrics:
             duration: Duration in seconds
         """
         self.time_thread_sync_seconds += duration
-        # Also add to io_and_waiting for backward compatibility
-        self.time_io_and_waiting += duration
+        # Also add to io_and_waiting_thread_sum for backward compatibility
+        self.io_and_waiting_thread_sum_seconds += duration
 
     def record_queue_wait_time(self, duration: float) -> None:
         """Record time waiting in queues (Issue #387).
@@ -197,8 +223,8 @@ class Metrics:
             duration: Duration in seconds
         """
         self.time_queue_wait_seconds += duration
-        # Also add to io_and_waiting for backward compatibility
-        self.time_io_and_waiting += duration
+        # Also add to io_and_waiting_thread_sum for backward compatibility
+        self.io_and_waiting_thread_sum_seconds += duration
 
     def record_transcription_device(self, device: str) -> None:
         """Record device used for transcription stage (Issue #387).
@@ -469,7 +495,10 @@ class Metrics:
             "time_scraping": round(self.time_scraping, 2),
             "time_parsing": round(self.time_parsing, 2),
             "time_normalizing": round(self.time_normalizing, 2),
-            "time_io_and_waiting": round(self.time_io_and_waiting, 2),
+            "io_and_waiting_thread_sum_seconds": round(self.io_and_waiting_thread_sum_seconds, 2),
+            "io_and_waiting_wall_seconds": round(self.io_and_waiting_wall_seconds, 2),
+            # Backward compatibility (deprecated)
+            "time_io_and_waiting": round(self.io_and_waiting_thread_sum_seconds, 2),
             # Sub-buckets for io_and_waiting (Issue #387)
             "time_download_wait_seconds": round(self.time_download_wait_seconds, 2),
             "time_transcription_wait_seconds": round(self.time_transcription_wait_seconds, 2),
@@ -625,7 +654,9 @@ class Metrics:
             "time_scraping",
             "time_parsing",
             "time_normalizing",
-            "time_io_and_waiting",
+            "io_and_waiting_thread_sum_seconds",
+            "io_and_waiting_wall_seconds",
+            "time_io_and_waiting",  # Backward compatibility (deprecated)
             "time_writing_storage",
             # Sub-buckets for io_and_waiting (Issue #387)
             "time_download_wait_seconds",
@@ -661,7 +692,9 @@ class Metrics:
             "time_scraping",
             "time_parsing",
             "time_normalizing",
-            "time_io_and_waiting",
+            "io_and_waiting_thread_sum_seconds",
+            "io_and_waiting_wall_seconds",
+            "time_io_and_waiting",  # Backward compatibility (deprecated)
             "time_writing_storage",
             "time_download_wait_seconds",
             "time_transcription_wait_seconds",

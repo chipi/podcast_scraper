@@ -19,6 +19,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from ..utils.redaction import redact_secrets
+
 logger = logging.getLogger(__name__)
 
 
@@ -142,9 +144,11 @@ def _get_config_hash(cfg: Any) -> tuple[Optional[str], Optional[str], Optional[s
         Tuple of (config_sha256, config_path, full_config_string)
     """
     try:
-        # Get config as dict and serialize to JSON
+        # Get config as dict and redact secrets before serialization
         config_dict = cfg.model_dump() if hasattr(cfg, "model_dump") else cfg.dict()
-        config_json = json.dumps(config_dict, sort_keys=True, default=str)
+        # Redact secrets recursively (key-based and pattern-based detection)
+        config_dict_redacted = redact_secrets(config_dict, redact_patterns=True)
+        config_json = json.dumps(config_dict_redacted, sort_keys=True, default=str)
         config_sha256 = hashlib.sha256(config_json.encode("utf-8")).hexdigest()
 
         # Get config path if available

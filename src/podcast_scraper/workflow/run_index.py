@@ -85,6 +85,7 @@ def create_run_index(
     episodes: List[Any],  # models.Episode
     effective_output_dir: str,
     episode_statuses: Optional[List[Any]] = None,
+    run_suffix: Optional[str] = None,
 ) -> RunIndex:
     """Create a run index from processed episodes.
 
@@ -116,8 +117,10 @@ def create_run_index(
                 }
 
     # Scan output directory for actual files
-    transcripts_dir = os.path.join(effective_output_dir, "transcripts")
-    metadata_dir = os.path.join(effective_output_dir, "metadata")
+    from ..utils import filesystem
+
+    transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
+    metadata_dir = os.path.join(effective_output_dir, filesystem.METADATA_SUBDIR)
 
     index_entries: List[EpisodeIndexEntry] = []
     episodes_processed = 0
@@ -157,9 +160,119 @@ def create_run_index(
             episode_number=episode_number,
         )
 
-        # Determine status
+        # Get status from status_map if available (supplemental info)
         status_info = status_map.get(episode_id, {})
-        status = status_info.get("status", "ok")
+        status_from_map = status_info.get("status")
+
+        # Find transcript and metadata files (check multiple patterns including run_suffix)
+        episode_title_safe = getattr(episode, "title_safe", episode.title)
+
+        # Build base pattern (with or without run_suffix)
+        if run_suffix:
+            base_pattern = f"{episode.idx:04d} - {episode_title_safe}_{run_suffix}"
+        else:
+            base_pattern = f"{episode.idx:04d} - {episode_title_safe}"
+
+        # Find transcript file
+        transcript_path = None
+        if os.path.exists(transcripts_dir):
+            # Try exact match first (with run_suffix if provided)
+            for ext in [".txt", ".md", ".html", ".vtt", ".srt"]:
+                potential_path = os.path.join(transcripts_dir, f"{base_pattern}{ext}")
+                if os.path.exists(potential_path):
+                    transcript_path = os.path.relpath(potential_path, effective_output_dir)
+                    break
+
+            # If not found, try glob search (handles run_suffix variations)
+            if transcript_path is None:
+                from pathlib import Path
+
+                pattern_without_suffix = f"{episode.idx:04d} - {episode_title_safe}"
+                for candidate in Path(transcripts_dir).glob(f"{pattern_without_suffix}*"):
+                    if candidate.is_file() and candidate.suffix in [
+                        ".txt",
+                        ".md",
+                        ".html",
+                        ".vtt",
+                        ".srt",
+                    ]:
+                        transcript_path = os.path.relpath(str(candidate), effective_output_dir)
+                        break
+
+        # Find metadata file (check standard location and custom metadata_subdirectory)
+        metadata_path = None
+
+        # Check standard metadata directory
+        if os.path.exists(metadata_dir):
+            from pathlib import Path
+
+            # Try exact match first (with run_suffix if provided)
+            for ext in [".json", ".yaml", ".yml"]:
+                potential_path = os.path.join(metadata_dir, f"{base_pattern}.metadata{ext}")
+                if os.path.exists(potential_path):
+                    metadata_path = os.path.relpath(potential_path, effective_output_dir)
+                    break
+
+            # If not found, try glob search (handles run_suffix variations)
+            if metadata_path is None:
+                pattern_without_suffix = f"{episode.idx:04d} - {episode_title_safe}"
+                for candidate in Path(metadata_dir).glob(f"{pattern_without_suffix}*.metadata.*"):
+                    if candidate.is_file():
+                        metadata_path = os.path.relpath(str(candidate), effective_output_dir)
+                        break
+
+        # Also check for custom metadata_subdirectory (if it exists)
+        if metadata_path is None:
+            # Check if there's a custom metadata subdirectory
+            try:
+                for subdir_name in os.listdir(effective_output_dir):
+                    subdir_path = os.path.join(effective_output_dir, subdir_name)
+                    if (
+                        os.path.isdir(subdir_path)
+                        and subdir_name != filesystem.TRANSCRIPTS_SUBDIR
+                        and subdir_name != filesystem.METADATA_SUBDIR
+                    ):
+                        # Could be a custom metadata subdirectory
+                        from pathlib import Path
+
+                        pattern_without_suffix = f"{episode.idx:04d} - {episode_title_safe}"
+                        for candidate in Path(subdir_path).glob(
+                            f"{pattern_without_suffix}*.metadata.*"
+                        ):
+                            if candidate.is_file():
+                                metadata_path = os.path.relpath(
+                                    str(candidate), effective_output_dir
+                                )
+                                break
+                        if metadata_path:
+                            break
+            except Exception:
+                # Ignore errors when scanning directories
+                pass
+
+        # Determine status from filesystem (primary source of truth)
+        # Rule: metadata exists → processed, transcript exists → partially processed,
+        # neither → skipped/failed
+        if metadata_path:
+            # Metadata exists → episode was fully processed
+            status = "ok"
+        elif transcript_path:
+            # Transcript exists but no metadata → partially processed
+            # (transcribed but not summarized/metadata generated)
+            # This could be "ok" if metadata generation was disabled, or "failed" if enabled
+            # For now, treat as "ok" since transcript was successfully created
+            status = "ok"
+        else:
+            # Neither exists → determine if skipped or failed
+            # Use status_map if available, otherwise infer from episode properties
+            if status_from_map:
+                status = status_from_map
+            elif not hasattr(episode, "transcript_url") or not episode.transcript_url:
+                # No transcript URL → episode was skipped
+                status = "skipped"
+            else:
+                # Has transcript URL but no file → failed
+                status = "failed"
 
         # Count by status
         if status == "ok":
@@ -168,45 +281,6 @@ def create_run_index(
             episodes_failed += 1
         elif status == "skipped":
             episodes_skipped += 1
-
-        # Find transcript file
-        transcript_path = None
-        if os.path.exists(transcripts_dir):
-            # Look for transcript file matching episode
-            episode_title_safe = getattr(episode, "title_safe", episode.title)
-            # Try to find transcript file
-            for ext in [".txt", ".md", ".html"]:
-                potential_path = os.path.join(
-                    transcripts_dir, f"{episode.idx:04d} - {episode_title_safe}{ext}"
-                )
-                if os.path.exists(potential_path):
-                    transcript_path = os.path.relpath(potential_path, effective_output_dir)
-                    break
-
-        # Find metadata file
-        metadata_path = None
-        if os.path.exists(metadata_dir):
-            episode_title_safe = getattr(episode, "title_safe", episode.title)
-            for ext in [".json", ".yaml", ".yml"]:
-                potential_path = os.path.join(
-                    metadata_dir, f"{episode.idx:04d} - {episode_title_safe}{ext}"
-                )
-                if os.path.exists(potential_path):
-                    metadata_path = os.path.relpath(potential_path, effective_output_dir)
-                    break
-
-        # If no transcript found, mark as failed or skipped
-        if transcript_path is None and status == "ok":
-            # Check if episode was skipped (no transcript but not failed)
-            if not hasattr(episode, "transcript_url") or not episode.transcript_url:
-                status = "skipped"
-                episodes_skipped += 1
-                episodes_processed -= 1
-            else:
-                # Transcript should exist but doesn't - mark as failed
-                status = "failed"
-                episodes_failed += 1
-                episodes_processed -= 1
 
         # Create index entry
         entry = EpisodeIndexEntry(

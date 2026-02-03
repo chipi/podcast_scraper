@@ -71,8 +71,19 @@ def create_run_summary(
             metrics_summary["time_parsing_seconds"] = pipeline_metrics.time_parsing
         if hasattr(pipeline_metrics, "time_normalizing"):
             metrics_summary["time_normalizing_seconds"] = pipeline_metrics.time_normalizing
+        if hasattr(pipeline_metrics, "io_and_waiting_thread_sum_seconds"):
+            metrics_summary["io_and_waiting_thread_sum_seconds"] = (
+                pipeline_metrics.io_and_waiting_thread_sum_seconds
+            )
+        if hasattr(pipeline_metrics, "io_and_waiting_wall_seconds"):
+            metrics_summary["io_and_waiting_wall_seconds"] = (
+                pipeline_metrics.io_and_waiting_wall_seconds
+            )
+        # Backward compatibility (deprecated)
         if hasattr(pipeline_metrics, "time_io_and_waiting"):
-            metrics_summary["time_io_and_waiting_seconds"] = pipeline_metrics.time_io_and_waiting
+            metrics_summary["time_io_and_waiting_seconds"] = (
+                pipeline_metrics.io_and_waiting_thread_sum_seconds
+            )
 
         # Model loading times
         if hasattr(pipeline_metrics, "whisper_model_loading_time"):
