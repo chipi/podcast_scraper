@@ -342,9 +342,30 @@ jobs:
         done
         # Check Hugging Face models (preload downloads bart-base and led-base-16384 by default)
         HF_CACHE="$HOME/.cache/huggingface/hub"
+        echo "🔍 Debug: Checking HuggingFace cache structure..."
+        echo "  HF_CACHE: $HF_CACHE"
+        echo "  HF_CACHE exists: $([ -d "$HF_CACHE" ] && echo 'yes' || echo 'no')"
+        if [ -d "$HF_CACHE" ]; then
+          echo "  Contents of HF_CACHE:"
+          ls -la "$HF_CACHE" | head -20
+        fi
         for model in "facebook/bart-base" "allenai/led-base-16384"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
-          if [ ! -d "$HF_CACHE/$MODEL_DIR/snapshots" ]; then
+          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
+          echo "  Checking $model:"
+          echo "    MODEL_PATH: $MODEL_PATH"
+          echo "    MODEL_PATH exists: $([ -d "$MODEL_PATH" ] && echo 'yes' || echo 'no')"
+          if [ -d "$MODEL_PATH" ]; then
+            echo "    Contents of MODEL_PATH:"
+            ls -la "$MODEL_PATH" | head -10
+            if [ -d "$MODEL_PATH/snapshots" ]; then
+              echo "    snapshots/ exists, contents:"
+              ls -la "$MODEL_PATH/snapshots" | head -5
+            else
+              echo "    snapshots/ does NOT exist"
+            fi
+          fi
+          if [ ! -d "$MODEL_PATH/snapshots" ]; then
             MISSING="$MISSING hf:$model"
           fi
         done
@@ -354,6 +375,9 @@ jobs:
         fi
         echo "✅ All required models downloaded successfully"
         echo "📦 Cache will be saved at end of job for test jobs to use"
+        echo "🔍 Debug: Cache sizes before save:"
+        du -sh "$HOME/.cache/whisper" 2>/dev/null || echo "  Whisper cache not found"
+        du -sh "$HOME/.cache/huggingface" 2>/dev/null || echo "  HuggingFace cache not found"
 
   # Full integration tests - all integration tests, runs on main branch only
   test-integration:
@@ -569,9 +593,32 @@ jobs:
         echo ""
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
+        echo "🔍 Debug: Checking HuggingFace cache after restore..."
+        echo "  HF_CACHE: $HF_CACHE"
+        echo "  HF_CACHE exists: $([ -d "$HF_CACHE" ] && echo 'yes' || echo 'no')"
+        if [ -d "$HF_CACHE" ]; then
+          echo "  Contents of HF_CACHE:"
+          ls -la "$HF_CACHE" | head -20
+          echo "  Total size: $(du -sh "$HF_CACHE" 2>/dev/null | cut -f1)"
+        fi
         for model in "facebook/bart-base" "allenai/led-base-16384"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
+          echo "  Checking $model:"
+          echo "    MODEL_PATH: $MODEL_PATH"
+          echo "    MODEL_PATH exists: $([ -d "$MODEL_PATH" ] && echo 'yes' || echo 'no')"
+          if [ -d "$MODEL_PATH" ]; then
+            echo "    Contents of MODEL_PATH:"
+            ls -la "$MODEL_PATH" | head -10
+            if [ -d "$MODEL_PATH/snapshots" ]; then
+              echo "    snapshots/ exists, contents:"
+              ls -la "$MODEL_PATH/snapshots" | head -5
+              FILE_COUNT=$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | wc -l)
+              echo "    File count in snapshots/: $FILE_COUNT"
+            else
+              echo "    snapshots/ does NOT exist"
+            fi
+          fi
           if [ -d "$MODEL_PATH/snapshots" ] && [ "$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | head -1)" ]; then
             SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
             echo "  ✅ $model ($SIZE)"
