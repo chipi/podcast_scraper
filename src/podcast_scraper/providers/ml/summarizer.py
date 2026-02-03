@@ -114,13 +114,13 @@ def _load_pegasus_without_fake_warning(
     tokenizer_kwargs = {
         "local_files_only": local_files_only,
         "trust_remote_code": False,  # Security: don't execute remote code
-        "use_safetensors": True,  # Prefer safetensors format (Issue #379)
+        "use_safetensors": False,  # Pegasus doesn't have safetensors files
     }
     model_kwargs = {
         "local_files_only": local_files_only,
         "output_loading_info": True,  # Get loading info to validate
         "trust_remote_code": False,  # Security: don't execute remote code
-        "use_safetensors": True,  # Prefer safetensors format (Issue #379)
+        "use_safetensors": False,  # Pegasus doesn't have safetensors files
     }
     if cache_dir:
         tokenizer_kwargs["cache_dir"] = cache_dir  # type: ignore[assignment]
@@ -884,16 +884,20 @@ class SummaryModel:
                 # ALWAYS use local_files_only=True - we never allow libraries to download.
                 # All downloads must go through our centralized preload script logic.
                 logger.debug("Loading model from cache...")
+                model_lower = self.model_name.lower()
+                # Pegasus models don't have safetensors files, so disable safetensors
+                use_safetensors = "pegasus" not in model_lower
                 model_kwargs = {
                     "cache_dir": self.cache_dir,
                     # Always use cache only - downloads via preload script
                     "local_files_only": True,
                     "trust_remote_code": False,  # Security: don't execute remote code (Issue #379)
-                    "use_safetensors": True,  # Prefer safetensors format (Issue #379)
+                    # Disable safetensors for Pegasus (no safetensors files)
+                    "use_safetensors": use_safetensors,
                 }
                 if self.revision:
                     model_kwargs["revision"] = self.revision
-                    if "pegasus" in self.model_name.lower():
+                    if "pegasus" in model_lower:
                         logger.info(
                             f"[PEGASUS LOAD] Using pinned revision for model: {self.revision}"
                         )
@@ -902,7 +906,7 @@ class SummaryModel:
                 else:
                     # This should not happen for Pegasus (we force revision="main" above)
                     # but log a warning if it does
-                    if "pegasus" in self.model_name.lower():
+                    if "pegasus" in model_lower:
                         logger.warning(
                             "[PEGASUS LOAD] No revision specified - this should not happen. "
                             "Forcing revision='main' to avoid PR refs."
@@ -913,7 +917,6 @@ class SummaryModel:
                 # Use model-specific classes for better compatibility
                 # This prevents "weights not initialized" warnings that can occur
                 # when using AutoModel with certain model architectures
-                model_lower = self.model_name.lower()
                 if "pegasus" in model_lower:
                     # Use specialized Pegasus loader that:
                     # - Silences misleading "newly initialized" warnings

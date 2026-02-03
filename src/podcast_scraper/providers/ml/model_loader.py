@@ -160,12 +160,16 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             )
 
             # Retry wrapper for tokenizer loading
+            # Pegasus models don't have safetensors files, so disable for them
+            model_lower = model_name.lower()
+            use_safetensors = "pegasus" not in model_lower
+
             def _load_tokenizer():
                 return AutoTokenizer.from_pretrained(
                     model_name,
                     cache_dir=str(cache_dir),
                     local_files_only=False,  # nosec B615
-                    use_safetensors=True,  # Prefer safetensors format (Issue #379)
+                    use_safetensors=use_safetensors,  # Disable for Pegasus (no safetensors files)
                 )
 
             # Retry wrapper for model loading
@@ -174,7 +178,7 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                     model_name,
                     cache_dir=str(cache_dir),
                     local_files_only=False,  # nosec B615
-                    use_safetensors=True,  # Prefer safetensors format (Issue #379)
+                    use_safetensors=use_safetensors,  # Disable for Pegasus (no safetensors files)
                 )
 
             # This is the ONLY place where transformers downloads models
