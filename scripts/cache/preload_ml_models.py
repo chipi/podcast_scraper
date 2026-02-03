@@ -449,7 +449,9 @@ def main() -> None:
         print("")
         print("Production models (for nightly-only tests):")
         print("  - Whisper: base.en")
-        print(f"  - Transformers: {config.PROD_DEFAULT_SUMMARY_MODEL}, {config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL}")
+        print(
+            f"  - Transformers: {config.PROD_DEFAULT_SUMMARY_MODEL}, {config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL}"
+        )
         print("")
         print("Common: en_core_web_sm (spaCy)")
         print("")
