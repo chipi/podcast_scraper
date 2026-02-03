@@ -27,23 +27,9 @@ on:
   pull_request:
     branches: [ "main", "release/2.4" ]
     # PRs can still be tested against both branches, but only main deploys
-    paths:
-      # Only files that are part of the MkDocs site (see mkdocs.yml nav)
-      - 'docs/index.md'
-      - 'docs/ARCHITECTURE.md'
-      - 'docs/TESTING_STRATEGY.md'
-      - 'docs/CI_CD.md'
-      - 'docs/legal.md'
-      - 'docs/api/**'
-      - 'docs/guides/**'
-      - 'docs/prd/**'
-      - 'docs/rfc/**'
-      - 'docs/releases/**'
-      - 'docs/wip/**'
-      - 'docs/javascripts/**'
-      - 'mkdocs.yml'
-      - '**.py'  # Python files for API docs (mkdocstrings)
-      - 'README.md'
+    # NOTE: Path filters removed for pull_request events due to unreliability with merge commits.
+    # GitHub Actions path filters can fail to trigger when PRs contain merge commits (see PR #384).
+    # The workflow now always runs on PRs to prevent silent failures.
   workflow_dispatch:
 
 permissions:

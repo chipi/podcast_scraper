@@ -10,11 +10,9 @@ on:
       - '.dockerignore'
   pull_request:
     branches: [ "main", "release/2.4" ]
-    paths:
-      - '**.py'
-      - 'pyproject.toml'
-      - 'Dockerfile'
-      - '.dockerignore'
+    # NOTE: Path filters removed for pull_request events due to unreliability with merge commits.
+    # GitHub Actions path filters can fail to trigger when PRs contain merge commits (see PR #384).
+    # The workflow now always runs on PRs to prevent silent failures.
   schedule:
     # Run weekly on Mondays at 00:00 UTC
     - cron: '0 0 * * 1'

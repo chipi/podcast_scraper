@@ -22,14 +22,11 @@ on:
       - '.dockerignore'
   pull_request:
     branches: [ "main", "release/2.4" ]
-    paths:
-      - '**.py'
-      - '**.j2'
-      - 'tests/**'
-      - 'pyproject.toml'
-      - 'Makefile'
-      - 'Dockerfile'
-      - '.dockerignore'
+    # NOTE: Path filters removed for pull_request events due to unreliability with merge commits.
+    # GitHub Actions path filters can fail to trigger when PRs contain merge commits (see PR #384).
+    # The workflow now always runs on PRs, and the detect-changes job filters what actually runs.
+    # This ensures CI always runs on PRs, preventing silent failures.
+  workflow_dispatch:  # Allow manual triggering when path filters fail (e.g., PRs with merge commits)
 
 permissions:
   contents: read

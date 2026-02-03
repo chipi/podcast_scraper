@@ -12,11 +12,10 @@ on:
   # Full Docker validation still runs on merge to main
   pull_request:
     branches: [ "main", "release/2.4" ]
-    paths:
-      - 'Dockerfile'
-      - '.dockerignore'
-      - 'pyproject.toml'
-      - '**.py'
+    # NOTE: Path filters removed for pull_request events due to unreliability with merge commits.
+    # GitHub Actions path filters can fail to trigger when PRs contain merge commits (see PR #384).
+    # The workflow now always runs on PRs to prevent silent failures.
+  workflow_dispatch:  # Allow manual triggering when needed
 
 permissions:
   contents: read

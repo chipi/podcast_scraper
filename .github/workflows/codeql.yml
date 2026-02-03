@@ -19,9 +19,9 @@ on:
       - '.github/workflows/**'
   pull_request:
     branches: [ "main", "release/2.4" ]
-    paths:
-      - '**.py'
-      - '.github/workflows/**'
+    # NOTE: Path filters removed for pull_request events due to unreliability with merge commits.
+    # GitHub Actions path filters can fail to trigger when PRs contain merge commits (see PR #384).
+    # The workflow now always runs on PRs to prevent silent failures.
   schedule:
     - cron: '17 13 * * 4'
 
