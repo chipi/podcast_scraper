@@ -137,6 +137,7 @@ def generate_episode_metadata(
     feed_last_updated: Optional[datetime],
     summary_provider=None,  # SummarizationProvider instance (required)
     pipeline_metrics=None,
+    nlp: Optional[Any] = None,  # spaCy NLP model (for reuse, Issue #387)
 ) -> None:
     """Generate and save episode metadata document.
 
@@ -215,6 +216,7 @@ def generate_episode_metadata(
                 feed_last_updated=feed_last_updated,
                 summary_provider=summary_provider,
                 pipeline_metrics=pipeline_metrics,
+                nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
             )
             return
     # Check for metadata module patch (tests patch workflow.metadata.generate_episode_metadata)
@@ -242,6 +244,7 @@ def generate_episode_metadata(
                     feed_last_updated=feed_last_updated,
                     summary_provider=summary_provider,
                     pipeline_metrics=pipeline_metrics,
+                    nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
                 )
                 return
     metadata_generate_episode_metadata(
@@ -265,6 +268,7 @@ def generate_episode_metadata(
         episode_guid=episode_guid,
         episode_link=episode_link,
         episode_duration_seconds=episode_duration_seconds,
+        nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
         episode_number=episode_number,
         episode_image_url=episode_image_url,
         pipeline_metrics=pipeline_metrics,
