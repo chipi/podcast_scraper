@@ -21,6 +21,29 @@
    - NEVER assume approval
    - Get commit message from user OR ask for one
 
+2a. **ALWAYS stage only files changed for current task (CRITICAL: never use `git add -A`)**
+   - **NEVER use `git add -A` or `git add .`** - this stages ALL changes including unrelated work
+   - **ALWAYS check what files are already modified** before staging: `git status --porcelain`
+   - **ONLY stage files you actually changed** for the current task/feature
+   - **Selective staging**: Use `git add <specific-file>` for each file you changed
+   - **Verify before committing**: Run `git status` after staging to confirm only intended files are staged
+   - **Why**: Mixing unrelated changes in a commit breaks atomic commits, makes reviews harder, and can cause merge conflicts
+   - **Example workflow**:
+     ```bash
+     # 1. Check what's already modified
+     git status --porcelain
+
+     # 2. Only stage files you changed for THIS task
+     git add pyproject.toml Makefile scripts/tools/new_script.py
+
+     # 3. Verify only intended files are staged
+     git status
+
+     # 4. Then commit
+     git commit -m "..."
+     ```
+   - **If unsure**: Ask user which files should be committed, don't guess
+
 3. **NEVER push to PR without explicit user approval**
    - MUST run: `git status` → `git diff` → show changes → wait for "yes"/"push"/"go ahead" → THEN push
    - NEVER push without showing what you're pushing
