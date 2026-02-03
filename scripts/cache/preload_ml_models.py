@@ -449,7 +449,7 @@ def main() -> None:
         print("")
         print("Production models (for nightly-only tests):")
         print("  - Whisper: base.en")
-        print("  - Transformers: facebook/bart-large-cnn, allenai/led-large-16384")
+        print(f"  - Transformers: {config.PROD_DEFAULT_SUMMARY_MODEL}, {config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL}")
         print("")
         print("Common: en_core_web_sm (spaCy)")
         print("")
@@ -465,9 +465,9 @@ def main() -> None:
             # Test models
             config.TEST_DEFAULT_SUMMARY_MODEL,  # facebook/bart-base
             config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # allenai/led-base-16384
-            # Production models
-            "facebook/bart-large-cnn",  # Production MAP model
-            "allenai/led-large-16384",  # Production REDUCE model (from issue #175)
+            # Production models (from config_constants.py)
+            config.PROD_DEFAULT_SUMMARY_MODEL,  # google/pegasus-cnn_dailymail (Production MAP model)
+            config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL,  # allenai/led-base-16384 (Production REDUCE model)
         ]
         spacy_models = ["en_core_web_sm"]  # Same for both
 

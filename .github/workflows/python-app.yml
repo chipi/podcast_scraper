@@ -328,19 +328,19 @@ jobs:
         pip install -e .[dev,ml]
     - name: Preload ML models (only if cache miss)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
-      run: make preload-ml-models
+      run: make preload-ml-models-production
     - name: Verify models were downloaded (only if cache miss)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: |
         echo "🔍 Verifying models were downloaded..."
         MISSING=""
-        # Check Whisper models (preload downloads tiny.en by default)
-        for model in "tiny.en"; do
+        # Check Whisper models (preload-production downloads both tiny.en and base.en)
+        for model in "tiny.en" "base.en"; do
           if [ ! -f "$HOME/.cache/whisper/${model}.pt" ]; then
             MISSING="$MISSING whisper:$model"
           fi
         done
-        # Check Hugging Face models (preload downloads bart-base and led-base-16384 by default)
+        # Check Hugging Face models (preload-production downloads all: bart-base, led-base-16384, bart-large-cnn, led-large-16384)
         HF_CACHE="$HOME/.cache/huggingface/hub"
         echo "🔍 Debug: Checking HuggingFace cache structure..."
         echo "  HF_CACHE: $HF_CACHE"
@@ -349,7 +349,7 @@ jobs:
           echo "  Contents of HF_CACHE:"
           ls -la "$HF_CACHE" | head -20
         fi
-        for model in "facebook/bart-base" "allenai/led-base-16384"; do
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           echo "  Checking $model:"
@@ -449,7 +449,7 @@ jobs:
         echo ""
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           # Check if model has files anywhere (blobs, snapshots, or root)
@@ -782,7 +782,7 @@ jobs:
         echo ""
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           # Check if model has files anywhere (blobs, snapshots, or root)
