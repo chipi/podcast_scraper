@@ -340,6 +340,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
                                             mock_setup.return_value = (
                                                 "/tmp/test_output",
                                                 None,
+                                                None,  # full_config_string
                                             )
                                             mock_fetch.return_value = (Mock(), b"<rss></rss>")
                                             # Return empty episodes list to avoid processing

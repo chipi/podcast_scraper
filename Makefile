@@ -6,13 +6,15 @@ PYTHON ?= .venv/bin/python
 endif
 PACKAGE = podcast_scraper
 
-# Test parallelism: Smart default that adapts to CPU count
-# Formula: min(max(1, cpu_count - 2), 8)
+# Test parallelism: Memory-aware calculation that adapts to available RAM and CPU
+# - Considers available memory and memory per worker (varies by test type)
 # - Reserves 2 cores for system operations
 # - Caps at 8 to prevent excessive memory usage
-# - Falls back to 2 if CPU detection fails
+# - More conservative on macOS (reduces workers by 1)
+# - Falls back to 2 if calculation fails
 # Can be overridden: PYTEST_WORKERS=4 make test
-PYTEST_WORKERS ?= $(shell python3 -c "import os; print(min(max(1, (os.cpu_count() or 4) - 2), 8))")
+# Uses memory-aware calculation script (defaults to integration test estimates)
+PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default 2>/dev/null || echo 2)
 
 .PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity deadcode docstrings spelling spelling-docs quality check-unit-imports deps-analyze deps-check analyze-test-memory test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark
 
@@ -244,7 +246,7 @@ docs-check: lint-markdown-docs spelling-docs docs
 COVERAGE_THRESHOLD_UNIT := 70          # Current: ~74% local, ~70% CI
 COVERAGE_THRESHOLD_INTEGRATION := 40   # Current: ~54% local, ~42% CI
 COVERAGE_THRESHOLD_E2E := 40           # Current: ~53% local, ~50% CI
-COVERAGE_THRESHOLD_COMBINED := 80      # Current: ~82% local
+COVERAGE_THRESHOLD_COMBINED := 80      # Target: 80% (Current: ~54% - needs improvement)
 
 check-unit-imports:
 	# Verify that unit tests can import modules without ML dependencies
@@ -254,13 +256,13 @@ check-unit-imports:
 
 test-unit:
 	# Unit tests: parallel execution for faster feedback
-	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
+	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration:
 	# Integration tests: parallel execution (3.4x faster, significant benefit)
-	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
+	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)
 	# Integration tests load ML models which consume ~1-2 GB per worker
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
@@ -269,7 +271,7 @@ test-integration:
 
 test-integration-fast:
 	# Fast integration tests: critical path tests only (excludes ml_models for speed)
-	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
+	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Excludes ml_models marker - use test-integration for ML workflow tests
 	# Use --durations=20 to monitor slow tests and optimize them separately
@@ -293,10 +295,11 @@ test-ci-fast:
 
 test-e2e:
 	# E2E tests: parallel execution for speed
+	# Uses E2E-specific worker calculation (more conservative to prevent system freezes)
 	# Excludes analysis/diagnostic tests - these are slow diagnostic tools, not regular tests
 	# Includes reruns for flaky tests (matches CI behavior) - 3 retries for ML model variability
 	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
-	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not analysis" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 test-e2e-sequential:
 	# E2E tests: sequential execution (slower but clearer output, useful for debugging)
@@ -313,7 +316,7 @@ test-e2e-fast:
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Coverage: measured independently but no threshold (fast tests are a subset, full suite enforces threshold)
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
 
 test-e2e-data-quality:
 	# Data quality E2E tests: full pipeline validation with multiple episodes
@@ -321,7 +324,7 @@ test-e2e-data-quality:
 	# Uses all original mock data (not fast fixtures)
 	# Runs with 3-5 episodes per test to validate data quality and consistency
 	# For nightly builds only - not part of regular CI/CD code quality checks
-	@E2E_TEST_MODE=data_quality pytest tests/e2e/ -m "e2e and data_quality and not analysis" -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	@E2E_TEST_MODE=data_quality pytest tests/e2e/ -m "e2e and data_quality and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e 2>/dev/null || echo 2) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 test-analytical:
 	# Analytical/diagnostic tests: tools for investigating specific behaviors and thresholds
@@ -350,7 +353,7 @@ test-nightly:
 test:
 	# All tests: parallel execution for speed
 	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
-	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
+	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)
 	# Excludes nightly tests (run separately via make test-nightly)
 	# Excludes analytical tests (diagnostic tools, run separately via make test-analytical)
 	# Note: Coverage with pytest-xdist may show lower numbers due to parallel collection
@@ -632,7 +635,7 @@ coverage-check-integration:
 coverage-check-e2e:
 	# Check E2E test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_E2E)%)
 	@echo "Checking E2E test coverage (minimum $(COVERAGE_THRESHOLD_E2E)%)..."
-	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e 2>/dev/null || echo 2) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
 
 coverage-check-combined:
 	# Check combined coverage meets threshold ($(COVERAGE_THRESHOLD_COMBINED)%)
@@ -642,17 +645,26 @@ coverage-check-combined:
 
 coverage-report:
 	# Generate coverage report without running tests (uses existing .coverage file)
-	@coverage report --show-missing
-	@coverage html -d .build/coverage-html
+	@$(PYTHON) -m coverage report --show-missing
+	@$(PYTHON) -m coverage html -d .build/coverage-html
 	@echo "HTML report: .build/coverage-html/index.html"
 
 coverage-enforce:
 	# Enforce combined coverage threshold on existing .coverage file (fast, no re-run)
 	# Use this after 'make test' to verify coverage meets threshold
+	# Combines parallel coverage files (.coverage.*) created by pytest-xdist when using -n flag
 	@echo "Checking combined coverage threshold ($(COVERAGE_THRESHOLD_COMBINED)%)..."
-	@coverage report --fail-under=$(COVERAGE_THRESHOLD_COMBINED) > /dev/null && \
+	@if [ -f .coverage ] || ls .coverage.* 1> /dev/null 2>&1; then \
+		echo "Combining parallel coverage files (if any)..."; \
+		$(PYTHON) -m coverage combine 2>/dev/null || true; \
+		$(PYTHON) -m coverage report --fail-under=$(COVERAGE_THRESHOLD_COMBINED) > /dev/null && \
 		echo "✅ Coverage meets $(COVERAGE_THRESHOLD_COMBINED)% threshold" || \
-		(echo "❌ Coverage below $(COVERAGE_THRESHOLD_COMBINED)% threshold" && exit 1)
+		(echo "❌ Coverage below $(COVERAGE_THRESHOLD_COMBINED)% threshold" && exit 1); \
+	else \
+		echo "⚠️ No coverage files found (.coverage or .coverage.*)"; \
+		echo "Run 'make test' first to generate coverage data"; \
+		exit 1; \
+	fi
 
 build:
 	$(PYTHON) -m pip install --quiet build

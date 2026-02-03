@@ -7,6 +7,15 @@ For architecture overview, see [Overview](OVERVIEW.md).
 
 ---
 
+## Exit Codes in CI
+
+The CLI returns standard exit codes that CI/CD pipelines can use:
+
+- **Exit code 0**: Success (pipeline completed successfully)
+- **Exit code 1**: Error (validation, configuration, or pipeline failure)
+
+GitHub Actions workflows automatically handle exit codes - a non-zero exit code will fail the job. For detailed exit code semantics and usage examples, see the [CLI Reference - Exit Codes](../api/CLI.md#exit-codes).
+
 ## Local Development
 
 ### Automatic Pre-commit Checks
@@ -35,11 +44,13 @@ make install-hooks
 
 ```bash
 
-# Skip pre-commit checks for a specific commit
+# Skip pre-commit checks for a specific commit (not recommended)
 
 git commit --no-verify -m "your message"
 
 ```bash
+
+# If hook fails, auto-fix formatting issues
 
 make format
 

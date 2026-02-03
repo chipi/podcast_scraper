@@ -5,11 +5,26 @@ from __future__ import annotations
 import json
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal, Optional
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class EpisodeStatus:
+    """Status tracking for a single episode."""
+
+    episode_id: str
+    episode_number: int
+    status: Literal["ok", "failed", "skipped"]
+    error_type: Optional[str] = None
+    error_message: Optional[str] = None
+    stage: Optional[str] = (
+        None  # Stage where error occurred (download, transcribe, summarize, etc.)
+    )
+    retry_count: int = 0
 
 
 @dataclass
@@ -81,6 +96,9 @@ class Metrics:
     preprocessing_attempts: int = 0  # Total preprocessing attempts (cache hits + misses)
     preprocessing_cache_hits: int = 0  # Number of cache hits
     preprocessing_cache_misses: int = 0  # Number of cache misses
+
+    # Per-episode status tracking (Issue #379)
+    episode_statuses: List[EpisodeStatus] = field(default_factory=list)
 
     _start_time: float = field(default_factory=time.time, init=False)
 
@@ -202,6 +220,38 @@ class Metrics:
         """Record a preprocessing cache miss."""
         self.preprocessing_cache_misses += 1
 
+    def record_episode_status(
+        self,
+        episode_id: str,
+        episode_number: int,
+        status: Literal["ok", "failed", "skipped"],
+        error_type: Optional[str] = None,
+        error_message: Optional[str] = None,
+        stage: Optional[str] = None,
+        retry_count: int = 0,
+    ) -> None:
+        """Record status for an episode.
+
+        Args:
+            episode_id: Unique episode identifier
+            episode_number: Episode number/index
+            status: Episode status (ok, failed, skipped)
+            error_type: Type of error if status is "failed"
+            error_message: Error message if status is "failed"
+            stage: Stage where error occurred
+            retry_count: Number of retry attempts
+        """
+        episode_status = EpisodeStatus(
+            episode_id=episode_id,
+            episode_number=episode_number,
+            status=status,
+            error_type=error_type,
+            error_message=error_message,
+            stage=stage,
+            retry_count=retry_count,
+        )
+        self.episode_statuses.append(episode_status)
+
     def finish(self) -> Dict[str, Any]:
         """Calculate final metrics and return as dict.
 
@@ -251,6 +301,7 @@ class Metrics:
         )
 
         return {
+            "schema_version": "1.0.0",  # Versioned schema for metrics (Issue #379)
             "run_duration_seconds": round(self.run_duration_seconds, 2),
             "episodes_scraped_total": self.episodes_scraped_total,
             "episodes_skipped_total": self.episodes_skipped_total,
@@ -297,6 +348,8 @@ class Metrics:
             "avg_preprocessing_size_reduction_percent": avg_size_reduction_percent,
             "preprocessing_cache_hits": self.preprocessing_cache_hits,
             "preprocessing_cache_misses": self.preprocessing_cache_misses,
+            # Episode statuses
+            "episode_statuses": [asdict(status) for status in self.episode_statuses],
         }
 
     def to_json(self) -> str:

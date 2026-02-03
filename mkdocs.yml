@@ -10,6 +10,7 @@ nav:
   - Guides:
       - guides/index.md
       - Quick Reference: guides/QUICK_REFERENCE.md
+      - Installation Guide: guides/INSTALLATION_GUIDE.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Git Worktree Guide: guides/GIT_WORKTREE_GUIDE.md
       - Testing Guide: guides/TESTING_GUIDE.md

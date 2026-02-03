@@ -127,7 +127,16 @@ All tests use network isolation:
 Tests run in parallel by default using `pytest-xdist`:
 
 1. Tests marked `@pytest.mark.serial` run sequentially first (if any)
-2. Remaining tests run in parallel with `-n auto`
+2. Remaining tests run in parallel with memory-aware worker calculation
+
+The Makefile automatically calculates the optimal number of workers based on:
+
+- Available system memory
+- CPU core count
+- Test type (unit/integration/e2e have different memory requirements)
+- Platform (more conservative on macOS)
+
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md#memory-issues-with-ml-models) for details on memory-aware worker calculation.
 
 > **Note:** The `@pytest.mark.serial` marker is rarely needed now. Global state cleanup
 > fixtures in `conftest.py` reset shared state between tests, allowing most tests to run

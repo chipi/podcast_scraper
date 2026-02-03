@@ -39,6 +39,7 @@ class TestEnvironmentVariables(unittest.TestCase):
             "SUMMARY_CHUNK_PARALLELISM",
             "TIMEOUT",
             "SUMMARY_DEVICE",
+            "MPS_EXCLUSIVE",
         ]
         for var in self.env_vars_to_clear:
             os.environ.pop(var, None)
@@ -224,3 +225,38 @@ class TestEnvironmentVariables(unittest.TestCase):
         self.assertEqual(cfg.log_level, "ERROR")  # Env takes precedence for LOG_LEVEL
         self.assertEqual(cfg.workers, 4)  # Config takes precedence
         self.assertEqual(cfg.timeout, 30)  # Config takes precedence
+
+    def test_mps_exclusive_default(self):
+        """Test that mps_exclusive defaults to True."""
+        cfg = config.Config(rss_url="https://test.com")
+        self.assertTrue(cfg.mps_exclusive)
+
+    def test_mps_exclusive_from_env_true(self):
+        """Test MPS_EXCLUSIVE=1 environment variable loading."""
+        os.environ["MPS_EXCLUSIVE"] = "1"
+        cfg = config.Config(rss_url="https://test.com")
+        self.assertTrue(cfg.mps_exclusive)
+
+    def test_mps_exclusive_from_env_false(self):
+        """Test MPS_EXCLUSIVE=0 environment variable loading."""
+        os.environ["MPS_EXCLUSIVE"] = "0"
+        cfg = config.Config(rss_url="https://test.com")
+        self.assertFalse(cfg.mps_exclusive)
+
+    def test_mps_exclusive_from_env_true_string(self):
+        """Test MPS_EXCLUSIVE=true environment variable loading."""
+        os.environ["MPS_EXCLUSIVE"] = "true"
+        cfg = config.Config(rss_url="https://test.com")
+        self.assertTrue(cfg.mps_exclusive)
+
+    def test_mps_exclusive_from_env_false_string(self):
+        """Test MPS_EXCLUSIVE=false environment variable loading."""
+        os.environ["MPS_EXCLUSIVE"] = "false"
+        cfg = config.Config(rss_url="https://test.com")
+        self.assertFalse(cfg.mps_exclusive)
+
+    def test_mps_exclusive_config_overrides_env(self):
+        """Test that config file value overrides environment variable."""
+        os.environ["MPS_EXCLUSIVE"] = "0"
+        cfg = config.Config(rss_url="https://test.com", mps_exclusive=True)
+        self.assertTrue(cfg.mps_exclusive)  # Config takes precedence

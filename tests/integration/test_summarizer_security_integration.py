@@ -561,23 +561,24 @@ class TestModelLoadingFailures(unittest.TestCase):
             )
         self.assertIn("Network timeout", str(context.exception))
 
+    @patch("transformers.BartForConditionalGeneration")
     @patch("transformers.AutoTokenizer")
     @patch("transformers.AutoModelForSeq2SeqLM")
+    @patch("transformers.pipeline")
     @patch("podcast_scraper.summarizer.torch", create=True)
-    def test_model_loading_failure(self, mock_torch, mock_model_class, mock_tokenizer_class):
+    def test_model_loading_failure(
+        self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class, mock_bart_class
+    ):
         """Test that model loading failure raises appropriate error."""
         mock_torch.backends.mps.is_available.return_value = False
         mock_torch.cuda.is_available.return_value = False
 
-        mock_tokenizer = Mock()
-        mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
-
-        # Simulate model loading failure
-        mock_model_class.from_pretrained.side_effect = OSError("Model not found")
+        # Make tokenizer loading fail to trigger OSError early, before pipeline creation
+        mock_tokenizer_class.from_pretrained.side_effect = OSError("Model not found")
 
         with self.assertRaises(OSError) as context:
             summarizer.SummaryModel(
-                model_name="invalid/model-name",
+                model_name=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use valid model name
                 device=None,
                 cache_dir=self.temp_dir,
             )

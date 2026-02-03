@@ -59,6 +59,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # summary_reduce_model: long-fast  # REDUCE model for map-reduce summarization. Options: "long-fast" (default), "long", or direct model ID like "allenai/led-base-16384"
 # ner_model: en_core_web_trf  # spaCy NER model for speaker detection. Options: "en_core_web_trf" (default/prod, higher quality), "en_core_web_sm" (dev, fast). Defaults based on environment
 # summary_device: auto  # Options: cpu, cuda, mps, auto. Can also be set via SUMMARY_DEVICE env var
+# mps_exclusive: true  # Serialize GPU work on MPS to prevent memory contention (default: true). Can also be set via MPS_EXCLUSIVE env var. When enabled and both Whisper and summarization use MPS, transcription completes before summarization starts. I/O operations remain parallel.
 # Legacy fields removed: summary_max_length and summary_min_length
 # Use summary_map_params and summary_reduce_params instead (see below)
 # summary_chunk_size: 2048  # Chunk size for long transcripts in tokens (null = model max length)

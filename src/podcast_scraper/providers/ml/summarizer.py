@@ -111,11 +111,13 @@ def _load_pegasus_without_fake_warning(
     tokenizer_kwargs = {
         "local_files_only": local_files_only,
         "trust_remote_code": False,  # Security: don't execute remote code
+        "use_safetensors": True,  # Prefer safetensors format (Issue #379)
     }
     model_kwargs = {
         "local_files_only": local_files_only,
         "output_loading_info": True,  # Get loading info to validate
         "trust_remote_code": False,  # Security: don't execute remote code
+        "use_safetensors": True,  # Prefer safetensors format (Issue #379)
     }
     if cache_dir:
         tokenizer_kwargs["cache_dir"] = cache_dir  # type: ignore[assignment]
@@ -774,50 +776,51 @@ class SummaryModel:
                 # (less secure but more convenient).
                 # ALWAYS use local_files_only=True - we never allow libraries to download.
                 # All downloads must go through our centralized preload script logic.
-                # Helper function for model-load fallback (Issue #379)
-                def _load_with_fallback(load_func, model_type: str = "model"):
-                    """Load model/tokenizer with fallback to cache clearing on failure."""
+                # Helper function for model-load retry (Issue #379)
+                def _load_with_retry(load_func, model_type: str = "model"):
+                    """Load model/tokenizer with retry for transient network errors.
+
+                    Note: This code path always uses local_files_only=True, so we can never
+                    re-download. Cache deletion is not performed here - if cache is corrupted,
+                    users should manually run 'make preload-ml-models' or use CLI --delete-model.
+                    """
+                    from requests.exceptions import (
+                        ConnectionError,
+                        HTTPError,
+                        RequestException,
+                        Timeout,
+                    )
+
+                    from ...utils.retry import retry_with_exponential_backoff
+
+                    # Define retryable exceptions for model loading
+                    retryable_exceptions = (
+                        ConnectionError,
+                        HTTPError,
+                        Timeout,
+                        RequestException,
+                        OSError,  # Network/IO errors
+                    )
+
+                    # Retry for transient errors (though with local_files_only=True,
+                    # network errors shouldn't occur - this is defensive)
                     try:
-                        return load_func()
+                        return retry_with_exponential_backoff(
+                            load_func,
+                            max_retries=3,
+                            initial_delay=1.0,
+                            max_delay=30.0,
+                            retryable_exceptions=retryable_exceptions,
+                        )
                     except Exception as e:
-                        # First attempt failed - try clearing cache and retrying
-                        logger.warning(
-                            f"{model_type.capitalize()} loading failed for "
-                            f"{self.model_name}: {e}. Clearing cache and retrying once..."
+                        # This code path always uses local_files_only=True, so we can't re-download
+                        # Just raise with helpful error message
+                        logger.error(
+                            f"{model_type.capitalize()} loading failed for {self.model_name}: {e}. "
+                            f"Using local_files_only=True, cannot re-download. "
+                            f"If cache is corrupted, run 'make preload-ml-models' to re-download."
                         )
-                        try:
-                            from ...cache.manager import delete_transformers_model_cache
-
-                            deleted, freed_bytes = delete_transformers_model_cache(
-                                self.model_name, confirm=False, force=True
-                            )
-                            if deleted:
-                                logger.info(
-                                    f"Cleared cache for {self.model_name} "
-                                    f"({freed_bytes / (1024 * 1024):.1f} MB freed)"
-                                )
-                            else:
-                                logger.debug(
-                                    f"Cache for {self.model_name} was already empty or not found"
-                                )
-                        except Exception as cache_error:
-                            logger.warning(
-                                f"Failed to clear cache for {self.model_name}: {cache_error}"
-                            )
-
-                        # Retry once (will still fail if cache was cleared, but we tried)
-                        logger.info(
-                            f"Retrying {model_type} load for {self.model_name} after cache clear..."
-                        )
-                        try:
-                            return load_func()
-                        except Exception as retry_error:
-                            logger.error(
-                                f"{model_type.capitalize()} load failed again after cache clear: "
-                                f"{retry_error}. Please run 'make preload-ml-models' to "
-                                f"re-download the model."
-                            )
-                            raise
+                        raise
 
                 logger.debug("Loading tokenizer from cache...")
                 tokenizer_kwargs = {
@@ -825,6 +828,7 @@ class SummaryModel:
                     # Always use cache only - downloads via preload script
                     "local_files_only": True,
                     "trust_remote_code": False,  # Security: don't execute remote code (Issue #379)
+                    "use_safetensors": True,  # Prefer safetensors format (Issue #379)
                 }
                 # For Pegasus, tokenizer is loaded by _load_pegasus_without_fake_warning
                 # Skip tokenizer loading here if it's Pegasus (will be loaded below)
@@ -834,7 +838,7 @@ class SummaryModel:
                     if self.revision:
                         tokenizer_kwargs["revision"] = self.revision
                         logger.debug(f"Using pinned revision: {self.revision}")
-                    self.tokenizer = _load_with_fallback(
+                    self.tokenizer = _load_with_retry(
                         lambda: AutoTokenizer.from_pretrained(  # nosec B615
                             self.model_name,
                             **tokenizer_kwargs,
@@ -854,6 +858,7 @@ class SummaryModel:
                     # Always use cache only - downloads via preload script
                     "local_files_only": True,
                     "trust_remote_code": False,  # Security: don't execute remote code (Issue #379)
+                    "use_safetensors": True,  # Prefer safetensors format (Issue #379)
                 }
                 if self.revision:
                     model_kwargs["revision"] = self.revision
@@ -897,8 +902,8 @@ class SummaryModel:
                     # Load using specialized function that validates and silences warnings
                     # Note: Tokenizer is already loaded above, but we'll reload it in the function
                     # to ensure consistency. The function returns both tokenizer and model.
-                    # Wrap with fallback for cache clearing on failure (Issue #379)
-                    self.tokenizer, self.model = _load_with_fallback(
+                    # Wrap with retry for transient errors (Issue #379)
+                    self.tokenizer, self.model = _load_with_retry(
                         lambda: _load_pegasus_without_fake_warning(
                             model_id=self.model_name,
                             device=self.device,
@@ -961,10 +966,18 @@ class SummaryModel:
                     from transformers import LEDForConditionalGeneration
 
                     logger.debug("Using LEDForConditionalGeneration for LED model")
-                    self.model = _load_with_fallback(
+                    # Workaround: LED models with safetensors trigger API calls even with
+                    # local_files_only=True. Disable safetensors for LED models to avoid this.
+                    led_model_kwargs = model_kwargs.copy()
+                    led_model_kwargs["use_safetensors"] = False
+                    logger.debug(
+                        "Disabling safetensors for LED model to avoid API calls "
+                        "during model loading"
+                    )
+                    self.model = _load_with_retry(
                         lambda: LEDForConditionalGeneration.from_pretrained(  # nosec B615
                             self.model_name,
-                            **model_kwargs,
+                            **led_model_kwargs,
                         ),
                         "LED model",
                     )
@@ -973,7 +986,7 @@ class SummaryModel:
                     from transformers import BartForConditionalGeneration
 
                     logger.debug("Using BartForConditionalGeneration for BART model")
-                    self.model = _load_with_fallback(
+                    self.model = _load_with_retry(
                         lambda: BartForConditionalGeneration.from_pretrained(  # nosec B615
                             self.model_name,
                             **model_kwargs,
@@ -983,7 +996,7 @@ class SummaryModel:
                 else:
                     # Fallback to AutoModelForSeq2SeqLM for other models
                     logger.debug("Using AutoModelForSeq2SeqLM (auto-detection)")
-                    self.model = _load_with_fallback(
+                    self.model = _load_with_retry(
                         lambda: AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
                             self.model_name,
                             **model_kwargs,
@@ -1454,7 +1467,7 @@ class SummaryModel:
                         result = self.pipeline(
                             text, max_length=max_length, min_length=min_length
                         )  # type: ignore[call-overload]
-                        return result["summary_text"]  # type: ignore[index]
+                        return cast(str, result["summary_text"])  # type: ignore[index]
                     except Exception as fallback_error:
                         logger.error(
                             f"Device fallback to CPU also failed: {fallback_error}. "
@@ -2115,6 +2128,7 @@ def summarize_long_text(
         max_length,
         min_length,
         prompt,
+        map_model=model,  # Pass MAP model for routing short inputs (Issue #380)
         # Pass reduce generation params
         reduce_max_new_tokens=reduce_max_new_tokens,
         reduce_min_new_tokens=reduce_min_new_tokens,
@@ -2605,10 +2619,45 @@ def _combine_summaries_reduce(
     else:
         combined_tokens = combined_chars // CHARS_PER_TOKEN_ESTIMATE
 
-    # Get model max length for decision making
-    model_max = (
+    # Performance optimization: Route short reduce inputs to MAP model to avoid
+    # LED padding overhead (Issue #380)
+    # LED models have attention_window=1024, so short inputs (e.g., 472 tokens)
+    # get padded to 1024. This causes unnecessary overhead. For short inputs,
+    # use MAP model (Pegasus) instead.
+    LED_ATTENTION_WINDOW = 1024  # LED models pad to this window size
+    SHORT_INPUT_THRESHOLD = LED_ATTENTION_WINDOW  # Route inputs < 1024 tokens to MAP model
+
+    # Check if reduce model is LED (long-context model) and input is short
+    reduce_model_max = (
         getattr(model.model.config, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS)
         if model.model and hasattr(model.model, "config")
+        else BART_MAX_POSITION_EMBEDDINGS
+    )
+    is_led_model = reduce_model_max >= LONG_CONTEXT_THRESHOLD
+    is_short_input = combined_tokens < SHORT_INPUT_THRESHOLD
+
+    # Route short inputs to MAP model if available and reduce model is LED
+    effective_model = model
+    if is_led_model and is_short_input and map_model is not None:
+        logger.debug(
+            f"[MAP-REDUCE PERFORMANCE] Routing short reduce input ({combined_tokens} tokens) "
+            f"to MAP model ({map_model.model_name}) to avoid LED padding overhead "
+            f"(reduce model {model.model_name} would pad to {LED_ATTENTION_WINDOW} tokens)"
+        )
+        effective_model = map_model
+    elif is_led_model and is_short_input:
+        logger.debug(
+            f"[MAP-REDUCE PERFORMANCE] Short reduce input ({combined_tokens} tokens) "
+            f"with LED model ({model.model_name}) will be padded to "
+            f"{LED_ATTENTION_WINDOW} tokens (MAP model not available for routing)"
+        )
+
+    # Get model max length for decision making (use effective model)
+    model_max = (
+        getattr(
+            effective_model.model.config, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS
+        )
+        if effective_model.model and hasattr(effective_model.model, "config")
         else BART_MAX_POSITION_EMBEDDINGS
     )
 
@@ -2684,7 +2733,7 @@ def _combine_summaries_reduce(
         )
 
         return _combine_summaries_extractive(
-            model,
+            effective_model,
             selected,
             final_reduce_max_length,
             final_reduce_min_length,
@@ -2705,7 +2754,7 @@ def _combine_summaries_reduce(
 
     if combined_tokens > single_pass_limit:
         return _combine_summaries_mini_map_reduce(
-            model,
+            effective_model,
             combined_text,
             chunk_summaries,
             final_reduce_max_length,
@@ -2734,7 +2783,7 @@ def _combine_summaries_reduce(
     )
     try:
         return _combine_summaries_abstractive(
-            model,
+            effective_model,
             combined_text,
             chunk_summaries,
             final_reduce_max_length,

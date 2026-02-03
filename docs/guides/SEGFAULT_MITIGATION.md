@@ -44,6 +44,25 @@ If a crash occurs, check for `crash_dump_<pid>.log` in the current directory for
 
 ## Mitigation Strategies (Try in Order)
 
+### Option 0: Enable MPS Exclusive Mode (Prevent Memory Contention)
+
+If both Whisper and summarization use MPS, enable exclusive mode to serialize GPU work and prevent memory contention:
+
+```yaml
+# config.yaml
+mps_exclusive: true  # Default: true
+```
+
+Or via environment variable:
+
+```bash
+export MPS_EXCLUSIVE=1
+```
+
+This ensures transcription completes before summarization starts on MPS, preventing both models from competing for GPU memory. I/O operations (downloads, parsing) remain parallel. This is enabled by default and can help prevent crashes from memory pressure.
+
+**When to use**: Always enabled by default. Disable (`mps_exclusive: false`) only if you have sufficient GPU memory and want maximum throughput with concurrent GPU operations.
+
 ### Option 1: Disable MPS for Summarization (Most Common Fix)
 
 Keep Whisper on MPS if stable, but move Transformers summarization to CPU:

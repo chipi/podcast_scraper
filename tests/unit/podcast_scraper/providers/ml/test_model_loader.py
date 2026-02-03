@@ -265,11 +265,13 @@ class TestModelLoaderTransformers(unittest.TestCase):
             "facebook/bart-base",
             cache_dir=str(self.transformers_cache),
             local_files_only=False,
+            use_safetensors=True,
         )
         mock_model_class.from_pretrained.assert_called_once_with(
             "facebook/bart-base",
             cache_dir=str(self.transformers_cache),
             local_files_only=False,
+            use_safetensors=True,
         )
 
     @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")

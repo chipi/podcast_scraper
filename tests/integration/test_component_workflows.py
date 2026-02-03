@@ -948,6 +948,19 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             summary_device="cpu",
         )
 
+        # Also check for REDUCE model if it might be used for long transcripts
+        from podcast_scraper.providers.ml import summarizer
+        from tests.integration.ml_model_cache_helpers import _is_transformers_model_cached
+
+        map_model_name = summarizer.select_summary_model(cfg)
+        reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
+        if reduce_model_name != map_model_name:  # Only check if different from MAP model
+            if not _is_transformers_model_cached(reduce_model_name, None):
+                pytest.skip(
+                    f"REDUCE model '{reduce_model_name}' is not cached. "
+                    f"Run 'make preload-ml-models' to pre-cache all required models."
+                )
+
         # Mock only HTTP (external dependency), use real ML models
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             # Step 1: Fetch and parse RSS
@@ -1451,6 +1464,19 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             summary_device="cpu",  # Use CPU to avoid GPU requirements
         )
 
+        # Also check for REDUCE model if it might be used for long transcripts
+        from podcast_scraper.providers.ml import summarizer
+        from tests.integration.ml_model_cache_helpers import _is_transformers_model_cached
+
+        map_model_name = summarizer.select_summary_model(cfg)
+        reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
+        if reduce_model_name != map_model_name:  # Only check if different from MAP model
+            if not _is_transformers_model_cached(reduce_model_name, None):
+                pytest.skip(
+                    f"REDUCE model '{reduce_model_name}' is not cached. "
+                    f"Run 'make preload-ml-models' to pre-cache all required models."
+                )
+
         # Step 1: Create summarization provider (real, not mocked)
         summary_provider = create_summarization_provider(cfg)
         summary_provider.initialize()
@@ -1855,6 +1881,19 @@ class TestMultipleComponentsWorkflow(unittest.TestCase):
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             summary_device="cpu",
         )
+
+        # Also check for REDUCE model if it might be used for long transcripts
+        from podcast_scraper.providers.ml import summarizer
+        from tests.integration.ml_model_cache_helpers import _is_transformers_model_cached
+
+        map_model_name = summarizer.select_summary_model(cfg)
+        reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
+        if reduce_model_name != map_model_name:  # Only check if different from MAP model
+            if not _is_transformers_model_cached(reduce_model_name, None):
+                pytest.skip(
+                    f"REDUCE model '{reduce_model_name}' is not cached. "
+                    f"Run 'make preload-ml-models' to pre-cache all required models."
+                )
 
         rss_url = "https://example.com/feed.xml"
         transcript_url = "https://example.com/ep1.txt"

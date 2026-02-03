@@ -154,8 +154,11 @@ podcast-scraper --rss https://example.com/feed.xml \
 - **Description**: Number of episodes to transcribe in parallel (episode-level parallelism)
 - **Required**: No (defaults to 1 for sequential processing)
 - **Priority**: Config file → Environment variable → Default
-- **Note**: Local Whisper ignores values > 1 (sequential only). OpenAI provider uses this for parallel API calls.
+- **Note**:
+  - **Local Whisper**: Always uses sequential processing (parallelism=1) regardless of configured value. The pipeline logs a debug message when configured parallelism is ignored.
+  - **OpenAI provider**: Uses configured parallelism for parallel API calls.
 - **Use Cases**: OpenAI provider (`TRANSCRIPTION_PARALLELISM=3` for parallel API calls), Rate limit tuning
+- **Logging**: When using Whisper, debug logs will show `"Whisper provider: Using sequential processing (parallelism=X ignored)"` to indicate that the configured parallelism was ignored due to provider limitations.
 
 **`PROCESSING_PARALLELISM`**
 
@@ -202,6 +205,18 @@ podcast-scraper --rss https://example.com/feed.xml \
 - **Valid Values**: `cpu`, `cuda`, `mps`, or empty string (for None/auto-detect)
 - **Priority**: Config file → Environment variable → Default
 - **Use Cases**: Docker containers (`WHISPER_DEVICE=cpu`), CI/CD (`WHISPER_DEVICE=cpu`), NVIDIA GPU (`WHISPER_DEVICE=cuda` or auto-detect), Apple Silicon (`WHISPER_DEVICE=mps` or auto-detect)
+
+**`MPS_EXCLUSIVE`**
+
+- **Description**: Serialize GPU work on MPS to prevent memory contention between Whisper transcription and summarization
+- **Required**: No (defaults to `true` for safer behavior)
+- **Valid Values**: `1`, `true`, `yes`, `on` (enable) or `0`, `false`, `no`, `off` (disable)
+- **Priority**: Config file → Environment variable → Default
+- **Use Cases**:
+  - Apple Silicon with limited GPU memory: `MPS_EXCLUSIVE=1` (default) prevents both models from competing for GPU memory
+  - Systems with sufficient GPU memory: `MPS_EXCLUSIVE=0` allows concurrent GPU operations for better throughput
+- **Behavior**: When enabled and both Whisper and summarization use MPS, transcription completes before summarization starts. I/O operations (downloads, parsing) remain parallel.
+- **Related**: See [Segfault Mitigation Guide](../guides/SEGFAULT_MITIGATION.md) for MPS stability issues
 
 #### Audio Preprocessing Configuration (RFC-040)
 
@@ -256,6 +271,90 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
 ```
 
 **Note**: Preprocessing happens at the pipeline level before any transcription provider receives the audio. All providers (Whisper, OpenAI, future providers) benefit from optimized audio.
+
+#### Logging & Operational Configuration (Issue #379)
+
+**`json_logs`**
+
+- **Description**: Output structured JSON logs for monitoring/alerting systems (ELK, Splunk, CloudWatch)
+- **CLI Flag**: `--json-logs`
+- **Default**: `false`
+- **Type**: `bool`
+- **Use Cases**: Production logging with log aggregation, Monitoring and alerting systems, Structured log analysis
+
+- **Example**:
+
+  ```yaml
+  json_logs: true
+  ```
+
+  ```bash
+  python3 -m podcast_scraper.cli https://example.com/feed.xml --json-logs
+  ```
+
+**`fail_fast`**
+
+- **Description**: Stop pipeline on first episode failure (Issue #379)
+- **CLI Flag**: `--fail-fast`
+- **Default**: `false`
+- **Type**: `bool`
+- **Use Cases**: Development/debugging, CI/CD pipelines where early failure is preferred, Testing failure scenarios
+
+- **Example**:
+
+  ```yaml
+  fail_fast: true
+  ```
+
+  ```bash
+  python3 -m podcast_scraper.cli https://example.com/feed.xml --fail-fast
+  ```
+
+**`max_failures`**
+
+- **Description**: Stop pipeline after N episode failures (Issue #379). `None` means no limit.
+- **CLI Flag**: `--max-failures N`
+- **Default**: `None` (no limit)
+- **Type**: `Optional[int]`
+- **Use Cases**: Production runs with failure tolerance, Batch processing with quality gates, Preventing cascading failures
+
+- **Example**:
+
+  ```yaml
+  max_failures: 5
+  ```
+
+  ```bash
+  python3 -m podcast_scraper.cli https://example.com/feed.xml --max-failures 5
+  ```
+
+**`transcription_timeout`**
+
+- **Description**: Timeout in seconds for transcription operations (Issue #379). `None` means no timeout.
+- **CLI Flag**: Not available (config file only)
+- **Default**: `None` (no timeout)
+- **Type**: `Optional[int]`
+- **Use Cases**: Preventing hung transcription operations, Production reliability, Long-running episode handling
+
+- **Example**:
+
+  ```yaml
+  transcription_timeout: 3600  # 1 hour
+  ```
+
+**`summarization_timeout`**
+
+- **Description**: Timeout in seconds for summarization operations (Issue #379). `None` means no timeout.
+- **CLI Flag**: Not available (config file only)
+- **Default**: `None` (no timeout)
+- **Type**: `Optional[int]`
+- **Use Cases**: Preventing hung summarization operations, Production reliability, Long transcript handling
+
+- **Example**:
+
+  ```yaml
+  summarization_timeout: 1800  # 30 minutes
+  ```
 
 #### ML Library Configuration (Advanced)
 
@@ -400,6 +499,7 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 # Device Configuration
 # SUMMARY_DEVICE=cpu
 # WHISPER_DEVICE=mps  # For Apple Silicon GPU acceleration
+# MPS_EXCLUSIVE=1  # Serialize GPU work to prevent memory contention (default: true)
 
 # ML Library Configuration (Advanced)
 # HF_HUB_DISABLE_PROGRESS_BARS=1  # Disable progress bars (default: 1)

@@ -140,16 +140,59 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             logger.info("    Status: Not cached, downloading...")
 
         try:
-            # This is the ONLY place where transformers downloads models
-            # Use local_files_only=False to allow download (only here!)
-            AutoTokenizer.from_pretrained(
-                model_name, cache_dir=str(cache_dir), local_files_only=False  # nosec B615
+            # Apply retry policy for transient errors (Issue #379)
+            from requests.exceptions import (
+                ConnectionError,
+                HTTPError,
+                RequestException,
+                Timeout,
             )
 
-            # Use AutoModelForSeq2SeqLM for all models (as recommended)
-            # This ensures proper weight initialization without class mismatch
-            AutoModelForSeq2SeqLM.from_pretrained(
-                model_name, cache_dir=str(cache_dir), local_files_only=False  # nosec B615
+            from ...utils.retry import retry_with_exponential_backoff
+
+            # Define retryable exceptions for model loading
+            retryable_exceptions = (
+                ConnectionError,
+                HTTPError,
+                Timeout,
+                RequestException,
+                OSError,  # Network/IO errors
+            )
+
+            # Retry wrapper for tokenizer loading
+            def _load_tokenizer():
+                return AutoTokenizer.from_pretrained(
+                    model_name,
+                    cache_dir=str(cache_dir),
+                    local_files_only=False,  # nosec B615
+                    use_safetensors=True,  # Prefer safetensors format (Issue #379)
+                )
+
+            # Retry wrapper for model loading
+            def _load_model():
+                return AutoModelForSeq2SeqLM.from_pretrained(
+                    model_name,
+                    cache_dir=str(cache_dir),
+                    local_files_only=False,  # nosec B615
+                    use_safetensors=True,  # Prefer safetensors format (Issue #379)
+                )
+
+            # This is the ONLY place where transformers downloads models
+            # Use retry with exponential backoff for transient errors
+            retry_with_exponential_backoff(
+                _load_tokenizer,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=retryable_exceptions,
+            )
+
+            retry_with_exponential_backoff(
+                _load_model,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=retryable_exceptions,
             )
 
             # Calculate final size after download

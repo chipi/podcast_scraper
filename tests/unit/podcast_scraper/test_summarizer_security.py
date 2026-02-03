@@ -53,48 +53,58 @@ class TestValidateModelSource(unittest.TestCase):
     def test_trusted_source_facebook(self):
         """Test that facebook models are recognized as trusted."""
         summarizer._validate_model_source("facebook/bart-large-cnn")
-        self.mock_logger.debug.assert_called_once_with("Loading model from verified trusted source")
+        self.mock_logger.debug.assert_called_once_with(
+            "Model 'facebook/bart-large-cnn' validated against allowlist"
+        )
         self.mock_logger.warning.assert_not_called()
 
     def test_trusted_source_google(self):
         """Test that google models are recognized as trusted."""
         summarizer._validate_model_source("google/pegasus-large")
-        self.mock_logger.debug.assert_called_once_with("Loading model from verified trusted source")
+        self.mock_logger.debug.assert_called_once_with(
+            "Model 'google/pegasus-large' validated against allowlist"
+        )
         self.mock_logger.warning.assert_not_called()
 
     def test_trusted_source_sshleifer(self):
         """Test that sshleifer models are recognized as trusted."""
         summarizer._validate_model_source("sshleifer/distilbart-cnn-12-6")
-        self.mock_logger.debug.assert_called_once_with("Loading model from verified trusted source")
+        self.mock_logger.debug.assert_called_once_with(
+            "Model 'sshleifer/distilbart-cnn-12-6' validated against allowlist"
+        )
         self.mock_logger.warning.assert_not_called()
 
     def test_trusted_source_allenai(self):
         """Test that allenai models are recognized as trusted."""
         summarizer._validate_model_source("allenai/led-large-16384")
-        self.mock_logger.debug.assert_called_once_with("Loading model from verified trusted source")
+        self.mock_logger.debug.assert_called_once_with(
+            "Model 'allenai/led-large-16384' validated against allowlist"
+        )
         self.mock_logger.warning.assert_not_called()
 
     def test_untrusted_source_warns(self):
-        """Test that untrusted sources trigger security warning."""
-        summarizer._validate_model_source("malicious-user/suspicious-model")
+        """Test that untrusted sources raise ValueError."""
+        with self.assertRaises(ValueError) as cm:
+            summarizer._validate_model_source("malicious-user/suspicious-model")
+        self.assertIn("not in the allowlist", str(cm.exception))
+        self.assertIn("malicious-user/suspicious-model", str(cm.exception))
         self.mock_logger.debug.assert_not_called()
-        self.mock_logger.warning.assert_called_once()
-        warning_message = str(self.mock_logger.warning.call_args[0][0])
-        self.assertIn("SECURITY NOTICE", warning_message)
-        self.assertIn("custom (untrusted) source", warning_message)
+        self.mock_logger.warning.assert_not_called()
 
     def test_local_model_warns(self):
-        """Test that local/non-standard model identifiers trigger warning."""
-        summarizer._validate_model_source("local-model")
+        """Test that local/non-standard model identifiers raise ValueError."""
+        with self.assertRaises(ValueError) as cm:
+            summarizer._validate_model_source("local-model")
+        self.assertIn("Unknown model id", str(cm.exception))
+        self.assertIn("local-model", str(cm.exception))
         self.mock_logger.debug.assert_not_called()
-        self.mock_logger.warning.assert_called_once()
-        warning_message = str(self.mock_logger.warning.call_args[0][0])
-        self.assertIn("SECURITY NOTICE", warning_message)
+        self.mock_logger.warning.assert_not_called()
 
     def test_no_sensitive_info_logged(self):
         """Test that model names are not logged in clear text."""
         model_name = "malicious-user/suspicious-model"
-        summarizer._validate_model_source(model_name)
+        with self.assertRaises(ValueError):
+            summarizer._validate_model_source(model_name)
         # Check that model name is not in any log calls
         all_logs = []
         for call in self.mock_logger.debug.call_args_list:

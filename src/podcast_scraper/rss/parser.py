@@ -495,6 +495,40 @@ def extract_episode_metadata(
     return description, guid, link, duration_seconds, episode_number, image_url
 
 
+def extract_episode_authors(item: ET.Element) -> List[str]:
+    """Extract episode-level author/creator information from RSS item (Issue #380).
+
+    Checks multiple RSS fields for episode-level author information:
+    - RSS 2.0 `<author>` tag
+    - iTunes `<itunes:author>` tag
+    - Dublin Core `<dc:creator>` tag
+
+    Args:
+        item: RSS item element
+
+    Returns:
+        List of author names (deduplicated, cleaned)
+    """
+    authors: List[str] = []
+    author_elem = item.find("author")
+    if author_elem is not None and author_elem.text:
+        authors.append(author_elem.text.strip())
+    itunes_author_elem = item.find("{http://www.itunes.com/dtds/podcast-1.0.dtd}author")
+    if itunes_author_elem is not None and itunes_author_elem.text:
+        authors.append(itunes_author_elem.text.strip())
+    dc_creator_elem = item.find("{http://purl.org/dc/elements/1.1/}creator")
+    if dc_creator_elem is not None and dc_creator_elem.text:
+        authors.append(dc_creator_elem.text.strip())
+    cleaned_authors = []
+    for author in authors:
+        author_clean = author.strip()
+        if "<" in author_clean and ">" in author_clean:
+            author_clean = author_clean.split("<")[0].strip()
+        if author_clean and author_clean not in cleaned_authors:
+            cleaned_authors.append(author_clean)
+    return cleaned_authors
+
+
 def extract_episode_published_date(item: ET.Element) -> Optional[datetime]:
     """Extract published date from RSS item.
 

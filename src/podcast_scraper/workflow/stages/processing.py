@@ -11,7 +11,7 @@ import os
 import threading
 import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from typing import Any, cast, Dict, List, Literal, Optional, Tuple
+from typing import Any, cast, Dict, List, Literal, Optional, Set, Tuple
 
 from ... import config, models
 from ...rss import BYTES_PER_MB, http_head, OPENAI_MAX_FILE_SIZE_BYTES
@@ -225,13 +225,49 @@ def detect_feed_hosts_and_patterns(
         # If hosts came from author tags, use them directly (no validation needed)
         cached_hosts = feed_hosts
 
+    # Fallback to episode-level authors if no feed-level hosts found (Issue #380)
+    # Initialize episode_authors before the if block to avoid UnboundLocalError
+    episode_authors: Set[str] = set()
+    if not cached_hosts and cfg.auto_speakers and episodes:
+        from ...rss import parser as rss_parser
+
+        # Check first 3 episodes for episode-level authors
+        for episode in episodes[:3]:
+            episode_author_list = rss_parser.extract_episode_authors(episode.item)
+            for author in episode_author_list:
+                # Filter out organization names (same logic as feed-level)
+                # Organization names are typically all caps, short, and have no spaces
+                author_stripped = author.strip()
+                is_likely_org = (
+                    len(author_stripped) <= 10
+                    and author_stripped.isupper()
+                    and " " not in author_stripped
+                )
+                if not is_likely_org:
+                    episode_authors.add(author)
+
+    if episode_authors:
+        cached_hosts = episode_authors
+        logger.info("=" * 60)
+        logger.info(
+            "DETECTED HOSTS (from episode-level authors): %s",
+            ", ".join(sorted(cached_hosts)),
+        )
+        logger.info("=" * 60)
+
     if cached_hosts:
-        source = "RSS author tags" if feed.authors else "feed metadata (NER)"
+        # Determine source for logging
+        if feed.authors:
+            source = "RSS author tags"
+        elif episode_authors and cached_hosts == episode_authors:
+            source = "episode-level authors"
+        else:
+            source = "feed metadata (NER)"
         logger.info("=" * 60)
         logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
         logger.info("=" * 60)
     elif cfg.auto_speakers:
-        logger.debug("No hosts detected from feed metadata")
+        logger.debug("No hosts detected from feed metadata or episode-level authors")
 
     # Analyze patterns from first few episodes to extract heuristics
     if cfg.auto_speakers and episodes:
@@ -760,6 +796,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
     pipeline_metrics: metrics.Metrics,
     summary_provider=None,  # SummarizationProvider instance (required)
     transcription_complete_event: Optional[threading.Event] = None,
+    should_serialize_mps: bool = False,
 ) -> None:
     """Process metadata/summarization jobs concurrently as they become available.
 
@@ -777,9 +814,26 @@ def process_processing_jobs_concurrent(  # noqa: C901
         pipeline_metrics: Metrics collector
         summary_provider: SummarizationProvider instance (required)
         transcription_complete_event: Event to signal when transcription is complete
+        should_serialize_mps: If True, wait for transcription before starting summarization
+            (prevents MPS memory contention when both Whisper and summarization use MPS)
     """
     max_workers = cfg.processing_parallelism
-    logger.debug("Concurrent processing processor started (max_workers=%d)", max_workers)
+    logger.info(
+        "Processing workers: configured=%d, effective=%d",
+        cfg.processing_parallelism,
+        max_workers,
+    )
+
+    # If MPS exclusive mode is enabled, wait for transcription to complete before
+    # starting any summarization work (prevents GPU memory contention)
+    if should_serialize_mps and cfg.generate_summaries:
+        if transcription_complete_event:
+            logger.info(
+                "MPS exclusive mode: Waiting for transcription to complete before "
+                "starting summarization"
+            )
+            transcription_complete_event.wait()
+            logger.info("Transcription complete, starting summarization")
 
     jobs_processed = 0
     processed_job_indices = set()  # Track which jobs we've processed

@@ -278,15 +278,17 @@ def process_transcription_jobs_concurrent(  # noqa: C901
     if cfg.transcription_provider == "whisper":
         # Whisper is memory/CPU bound - always sequential
         max_workers = 1
-        logger.debug(
-            "Whisper provider: Using sequential processing (parallelism=%d ignored)",
+        logger.warning(
+            "Whisper provider: Using sequential processing (parallelism=%d ignored, "
+            "effective=1 - Whisper provider limitation)",
             cfg.transcription_parallelism,
         )
     else:
         # Other providers (OpenAI) can use parallelism
-        logger.debug(
-            "Transcription provider '%s': Using parallelism=%d",
+        logger.info(
+            "Transcription provider '%s': configured=%d, effective=%d",
             cfg.transcription_provider,
+            cfg.transcription_parallelism,
             max_workers,
         )
 

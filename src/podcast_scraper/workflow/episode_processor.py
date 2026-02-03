@@ -634,26 +634,36 @@ def transcribe_media_to_text(
         # Note: Provider receives preprocessed audio (if preprocessing was successful)
         # Provider is agnostic to whether audio was preprocessed
         episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
-        if hasattr(transcription_provider, "transcribe_with_segments"):
-            # Check if provider supports metrics parameter (OpenAI provider)
-            import inspect
+        # Apply timeout enforcement for transcription (Issue #379)
+        from ..utils.timeout import timeout_context, TimeoutError
 
-            sig = inspect.signature(transcription_provider.transcribe_with_segments)
-            if "pipeline_metrics" in sig.parameters:
-                result, tc_elapsed = transcription_provider.transcribe_with_segments(
-                    media_for_transcription,
-                    language=cfg.language,
-                    pipeline_metrics=pipeline_metrics,
-                    episode_duration_seconds=episode_duration_seconds,
-                )
-            else:
-                result, tc_elapsed = transcription_provider.transcribe_with_segments(
-                    media_for_transcription, language=cfg.language
-                )
-        else:
-            result, tc_elapsed = transcription_provider.transcribe_with_segments(
-                media_for_transcription, language=cfg.language
+        try:
+            with timeout_context(cfg.transcription_timeout, f"transcription for episode {job.idx}"):
+                if hasattr(transcription_provider, "transcribe_with_segments"):
+                    # Check if provider supports metrics parameter (OpenAI provider)
+                    import inspect
+
+                    sig = inspect.signature(transcription_provider.transcribe_with_segments)
+                    if "pipeline_metrics" in sig.parameters:
+                        result, tc_elapsed = transcription_provider.transcribe_with_segments(
+                            media_for_transcription,
+                            language=cfg.language,
+                            pipeline_metrics=pipeline_metrics,
+                            episode_duration_seconds=episode_duration_seconds,
+                        )
+                    else:
+                        result, tc_elapsed = transcription_provider.transcribe_with_segments(
+                            media_for_transcription, language=cfg.language
+                        )
+                else:
+                    result, tc_elapsed = transcription_provider.transcribe_with_segments(
+                        media_for_transcription, language=cfg.language
+                    )
+        except TimeoutError as e:
+            logger.error(
+                f"[{job.idx}] Transcription timeout after {cfg.transcription_timeout}s: {e}"
             )
+            raise
         text = _format_transcript_if_needed(
             result, cfg, job.detected_speaker_names, transcription_provider
         )

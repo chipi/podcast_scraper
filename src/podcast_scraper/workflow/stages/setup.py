@@ -274,7 +274,7 @@ def preload_ml_models_if_needed(cfg: config.Config) -> None:
         raise
 
 
-def setup_pipeline_environment(cfg: config.Config) -> Tuple[str, Optional[str]]:
+def setup_pipeline_environment(cfg: config.Config) -> Tuple[str, Optional[str], Optional[str]]:
     """Setup output directory and handle cleanup if needed.
 
     Creates the output directory structure based on configuration, optionally
@@ -286,11 +286,12 @@ def setup_pipeline_environment(cfg: config.Config) -> Tuple[str, Optional[str]]:
             and dry_run settings
 
     Returns:
-        Tuple[str, Optional[str]]: A tuple containing:
+        Tuple[str, Optional[str], Optional[str]]: A tuple containing:
             - effective_output_dir (str): Full path to output directory
               (may include run_id subdirectory)
-            - run_suffix (Optional[str]): Run ID suffix if run_id was provided,
-              None otherwise
+            - run_suffix (Optional[str]): Short hash-based run suffix
+            - full_config_string (Optional[str]): Full provider/model config string
+              (for storing in run manifest)
 
     Raises:
         RuntimeError: If output directory cleanup fails when clean_output=True
@@ -302,7 +303,7 @@ def setup_pipeline_environment(cfg: config.Config) -> Tuple[str, Optional[str]]:
         >>> print(output_dir)  # "./out/test_run"
         >>> print(run_suffix)  # "test_run"
     """
-    effective_output_dir, run_suffix = filesystem.setup_output_directory(cfg)
+    effective_output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
     logger.debug("Effective output dir=%s (run_suffix=%s)", effective_output_dir, run_suffix)
 
     if cfg.clean_output and cfg.dry_run:
@@ -335,7 +336,7 @@ def setup_pipeline_environment(cfg: config.Config) -> Tuple[str, Optional[str]]:
         os.makedirs(transcripts_dir, exist_ok=True)
         os.makedirs(metadata_dir, exist_ok=True)
 
-    return effective_output_dir, run_suffix
+    return effective_output_dir, run_suffix, full_config_string
 
 
 def get_preloaded_ml_provider() -> Optional[Any]:

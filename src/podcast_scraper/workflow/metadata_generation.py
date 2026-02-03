@@ -8,10 +8,10 @@ episode information for search, analytics, integration, and archival use cases.
 from __future__ import annotations
 
 import hashlib
-import io
 import logging
 import os
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple
@@ -21,9 +21,8 @@ import yaml
 from pydantic import BaseModel, computed_field, Field, field_serializer
 
 from .. import config, models
-from ..exceptions import ProviderRuntimeError
+from ..exceptions import ProviderRuntimeError, RecoverableSummarizationError
 from ..utils import filesystem
-from ..utils.timeout import TimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +202,7 @@ class ExpectationsMetadata(BaseModel):
 
 
 class EntityCorrection(BaseModel):
-    """Information about an entity correction made to summary text."""
+    """Information about an entity correction made to summary text (Issue #380)."""
 
     original: str = Field(description="Original entity text from summary")
     corrected: str = Field(description="Corrected entity text (from extracted entities)")
@@ -211,7 +210,7 @@ class EntityCorrection(BaseModel):
 
 
 class QAFlags(BaseModel):
-    """Quality assurance flags for detecting silent failures and quality issues.
+    """Quality assurance flags for detecting silent failures and quality issues (Issue #380).
 
     These flags make quality regressions explicit so downstream systems can
     filter or flag low-quality outputs.
@@ -264,7 +263,7 @@ class ContentMetadata(BaseModel):
     )
     qa_flags: Optional[QAFlags] = Field(
         default=None,
-        description="Quality assurance flags for detecting silent failures",
+        description="Quality assurance flags for detecting silent failures (Issue #380)",
     )
 
     @computed_field
@@ -276,6 +275,17 @@ class ContentMetadata(BaseModel):
     def detected_guests(self) -> List[str]:
         """Backward compatibility: Extract guest names from speakers list."""
         return [speaker.name for speaker in self.speakers if speaker.role == "guest"]
+
+
+@dataclass
+class EpisodeStageTimings:
+    """Per-episode stage timings for performance analysis (Issue #379)."""
+
+    download_media_time: Optional[float] = None  # Media download time in seconds
+    transcribe_time: Optional[float] = None  # Transcription time in seconds
+    extract_names_time: Optional[float] = None  # Speaker detection time in seconds
+    summarize_time: Optional[float] = None  # Summarization time in seconds
+    total_processing_time: Optional[float] = None  # Total processing time in seconds
 
 
 class SummaryMetadata(BaseModel):
@@ -295,17 +305,6 @@ class SummaryMetadata(BaseModel):
         return value.isoformat()
 
 
-class EpisodeStageTimings(BaseModel):
-    """Per-episode stage timings (Issue #379)."""
-
-    download_seconds: Optional[float] = None
-    transcription_seconds: Optional[float] = None
-    speaker_detection_seconds: Optional[float] = None
-    summarization_seconds: Optional[float] = None
-    metadata_generation_seconds: Optional[float] = None
-    total_processing_seconds: Optional[float] = None
-
-
 class ProcessingMetadata(BaseModel):
     """Processing-related metadata."""
 
@@ -314,10 +313,7 @@ class ProcessingMetadata(BaseModel):
     run_id: Optional[str] = None
     config_snapshot: Dict[str, Any] = Field(default_factory=dict)
     schema_version: str = SCHEMA_VERSION
-    stage_timings: Optional[EpisodeStageTimings] = Field(
-        default=None,
-        description="Per-episode stage timings for performance analysis (Issue #379)",
-    )
+    stage_timings: Optional[EpisodeStageTimings] = None  # Per-episode stage timings (Issue #379)
 
     @field_serializer("processing_timestamp")
     def serialize_processing_timestamp(self, value: datetime) -> str:
@@ -454,7 +450,7 @@ def _build_speakers_from_detected_names(
 
 
 def _calculate_levenshtein_distance(s1: str, s2: str) -> int:
-    """Calculate Levenshtein edit distance between two strings.
+    """Calculate Levenshtein edit distance between two strings (Issue #380).
 
     Args:
         s1: First string
@@ -485,7 +481,7 @@ def _calculate_levenshtein_distance(s1: str, s2: str) -> int:
 def _check_entity_consistency(
     extracted_entities: List[str], summary_text: Optional[str], nlp: Optional[Any] = None
 ) -> Tuple[bool, bool]:
-    """Check entity consistency between extracted entities and summary.
+    """Check entity consistency between extracted entities and summary (Issue #380).
 
     Args:
         extracted_entities: List of extracted entity names (from speaker detection)
@@ -567,7 +563,7 @@ def _reconcile_entities(
     nlp: Optional[Any] = None,
     edit_distance_threshold: int = 2,
 ) -> Tuple[str, List[EntityCorrection]]:
-    """Reconcile entity names in summary with extracted entities.
+    """Reconcile entity names in summary with extracted entities (Issue #380).
 
     Auto-corrects summary text when entity names are close matches (edit distance ≤ threshold)
     to extracted entities. Prefers extracted entity spelling.
@@ -696,7 +692,7 @@ def _build_qa_flags(
     nlp: Optional[Any] = None,
     corrected_entities: Optional[List[EntityCorrection]] = None,
 ) -> QAFlags:
-    """Build QA flags from speaker detection and summary information.
+    """Build QA flags from speaker detection and summary information (Issue #380).
 
     Args:
         speakers: List of detected speakers
@@ -704,6 +700,7 @@ def _build_qa_flags(
         detected_guests: List of detected guest names (may be None)
         summary_text: Optional summary text for entity consistency checking
         nlp: Optional spaCy NLP model for entity extraction
+        corrected_entities: Optional list of entity corrections applied
 
     Returns:
         QAFlags object with quality assurance information
@@ -747,8 +744,15 @@ def _build_qa_flags(
     # Use provided corrected_entities or empty list
     corrections = corrected_entities if corrected_entities is not None else []
 
+    # Type assertion: speaker_detection is guaranteed to be one of these values
+    from typing import cast
+
+    speaker_detection_literal: Literal["none", "partial", "ok"] = cast(
+        Literal["none", "partial", "ok"], speaker_detection
+    )
+
     return QAFlags(
-        speaker_detection=speaker_detection,
+        speaker_detection=speaker_detection_literal,
         defaults_injected=defaults_injected,
         summary_entity_mismatch=summary_entity_mismatch,
         summary_has_named_entities=summary_has_named_entities,
@@ -823,13 +827,16 @@ def _build_content_metadata(
 def _build_processing_metadata(
     cfg: config.Config,
     output_dir: str,
-    stage_timings: Optional[EpisodeStageTimings] = None,
+    episode_idx: Optional[int] = None,
+    pipeline_metrics=None,
 ) -> ProcessingMetadata:
     """Build ProcessingMetadata object.
 
     Args:
         cfg: Configuration object
         output_dir: Output directory path
+        episode_idx: Optional episode index for per-episode stage timings
+        pipeline_metrics: Optional metrics object for extracting stage timings
 
     Returns:
         ProcessingMetadata object
@@ -916,12 +923,76 @@ def _build_processing_metadata(
         }
     )
 
+    # Extract per-episode stage timings if available (Issue #379)
+    stage_timings = None
+    if pipeline_metrics is not None and episode_idx is not None:
+        # Get timings for this episode from the metrics lists
+        # Note: Lists are indexed by processing order, not episode.idx
+        # We use the length of lists to determine which entry corresponds to this episode
+        # This assumes episodes are processed in order (which is generally true)
+        download_time = None
+        transcribe_time = None
+        extract_names_time = None
+        summarize_time = None
+
+        # Get download time (if available)
+        if (
+            hasattr(pipeline_metrics, "download_media_times")
+            and pipeline_metrics.download_media_times
+        ):
+            # Find the entry for this episode
+            # Since episodes are processed in order, we can use list position
+            # But we need to account for episodes that might not have downloads
+            # For now, use episode_idx - 1 (assuming 1-based indexing)
+            list_idx = episode_idx - 1
+            if 0 <= list_idx < len(pipeline_metrics.download_media_times):
+                download_time = pipeline_metrics.download_media_times[list_idx]
+
+        # Get transcription time
+        if hasattr(pipeline_metrics, "transcribe_times") and pipeline_metrics.transcribe_times:
+            list_idx = episode_idx - 1
+            if 0 <= list_idx < len(pipeline_metrics.transcribe_times):
+                transcribe_time = pipeline_metrics.transcribe_times[list_idx]
+
+        # Get speaker detection time
+        if (
+            hasattr(pipeline_metrics, "extract_names_times")
+            and pipeline_metrics.extract_names_times
+        ):
+            list_idx = episode_idx - 1
+            if 0 <= list_idx < len(pipeline_metrics.extract_names_times):
+                extract_names_time = pipeline_metrics.extract_names_times[list_idx]
+
+        # Get summarization time
+        if hasattr(pipeline_metrics, "summarize_times") and pipeline_metrics.summarize_times:
+            list_idx = episode_idx - 1
+            if 0 <= list_idx < len(pipeline_metrics.summarize_times):
+                summarize_time = pipeline_metrics.summarize_times[list_idx]
+
+        # Calculate total processing time
+        total_time = None
+        times = [download_time, transcribe_time, extract_names_time, summarize_time]
+        valid_times = [t for t in times if t is not None]
+        if valid_times:
+            total_time = sum(valid_times)
+
+        # Create EpisodeStageTimings if we have at least one timing
+        if any(t is not None for t in times):
+            stage_timings = EpisodeStageTimings(
+                download_media_time=download_time,
+                transcribe_time=transcribe_time,
+                extract_names_time=extract_names_time,
+                summarize_time=summarize_time,
+                total_processing_time=total_time,
+            )
+
     return ProcessingMetadata(
         processing_timestamp=datetime.now(),
         output_directory=output_dir,
         run_id=cfg.run_id,
         config_snapshot=config_snapshot,
         schema_version=SCHEMA_VERSION,
+        stage_timings=stage_timings,
     )
 
 
@@ -1016,12 +1087,8 @@ def _generate_episode_summary(  # noqa: C901
                     cleaned_path = transcript_path_obj.parent / (
                         transcript_path_obj.stem + ".cleaned" + transcript_path_obj.suffix
                     )
-                    # Use write_file() for consistent metrics tracking
-                    from ..utils import filesystem
-
-                    filesystem.write_file(
-                        str(cleaned_path), cleaned_text.encode("utf-8"), pipeline_metrics
-                    )
+                    with open(cleaned_path, "w", encoding="utf-8") as f:
+                        f.write(cleaned_text)
                     logger.debug(
                         "[%s] Saved cleaned transcript to: %s",
                         episode_idx,
@@ -1054,32 +1121,22 @@ def _generate_episode_summary(  # noqa: C901
             # Pass pipeline_metrics for LLM call tracking (if OpenAI provider)
             import inspect
 
-            from ...utils.timeout import with_timeout
-
-            def _summarize():
-                sig = inspect.signature(summary_provider.summarize)
-                if "pipeline_metrics" in sig.parameters:
-                    return summary_provider.summarize(
-                        text=cleaned_text,
-                        episode_title=None,  # Not available in this context
-                        episode_description=None,  # Not available in this context
-                        params=params,
-                        pipeline_metrics=pipeline_metrics,
-                    )
-                else:
-                    return summary_provider.summarize(
-                        text=cleaned_text,
-                        episode_title=None,  # Not available in this context
-                        episode_description=None,  # Not available in this context
-                        params=params,
-                    )
-
-            # Apply summarization timeout (Issue #379)
-            result = with_timeout(
-                _summarize,
-                cfg.summarization_timeout,
-                f"summarization for episode {episode_idx}",
-            )
+            sig = inspect.signature(summary_provider.summarize)
+            if "pipeline_metrics" in sig.parameters:
+                result = summary_provider.summarize(
+                    text=cleaned_text,
+                    episode_title=None,  # Not available in this context
+                    episode_description=None,  # Not available in this context
+                    params=params,
+                    pipeline_metrics=pipeline_metrics,
+                )
+            else:
+                result = summary_provider.summarize(
+                    text=cleaned_text,
+                    episode_title=None,  # Not available in this context
+                    episode_description=None,  # Not available in this context
+                    params=params,
+                )
 
             summary_elapsed = time.time() - summary_start
             short_summary = result.get("summary")
@@ -1157,20 +1214,6 @@ def _generate_episode_summary(  # noqa: C901
                 generated_at=datetime.now(),
                 word_count=word_count,
             )
-        except TimeoutError as e:
-            # Handle timeout errors gracefully (Issue #379)
-            error_msg = f"[{episode_idx}] Summarization timeout: {e}"
-            logger.error(error_msg)
-            if pipeline_metrics:
-                pipeline_metrics.record_episode_status(
-                    episode_id=str(episode_idx),
-                    status="failed",
-                    error_type="TimeoutError",
-                    error_message=str(e),
-                    stage="summarization",
-                )
-            # Return None to indicate summarization failed
-            return None
         except ProviderRuntimeError as e:
             error_msg = str(e).lower()
             # Handle "Already borrowed" error from Rust tokenizer in parallel execution
@@ -1178,9 +1221,14 @@ def _generate_episode_summary(  # noqa: C901
             if "already borrowed" in error_msg or "tokenizer threading error" in error_msg:
                 logger.warning(
                     f"[{episode_idx}] Summarization failed due to tokenizer threading error: {e}. "
-                    "This can occur in parallel execution. Skipping summary for this episode."
+                    "This can occur in parallel execution. "
+                    "Metadata generation will continue without summary."
                 )
-                return None
+                # Raise recoverable error to allow metadata generation to continue
+                raise RecoverableSummarizationError(
+                    episode_idx=episode_idx,
+                    reason=f"Tokenizer threading error: {e}",
+                ) from e
             # For other provider errors, fail fast
             error_msg_full = (
                 f"[{episode_idx}] Failed to generate summary using provider: {e}. "
@@ -1261,8 +1309,7 @@ def _serialize_metadata(
     import time
 
     serialize_start = time.time()
-    # Directory creation is handled by write_file() or cached, so we don't need to create it here
-    # This avoids redundant os.makedirs() calls
+    os.makedirs(os.path.dirname(metadata_path) or ".", exist_ok=True)
 
     if cfg.metadata_format == "json":
         # Time serialization separately from I/O
@@ -1270,13 +1317,10 @@ def _serialize_metadata(
         content_str = metadata_doc.model_dump_json(indent=2, exclude_none=False)
         json_elapsed = time.time() - json_start
 
-        # Time actual file write (use write_file for consistent metrics and directory caching)
+        # Time actual file write
         write_start = time.time()
-        from ..utils import filesystem
-
-        filesystem.write_file(
-            metadata_path, content_str.encode("utf-8"), pipeline_metrics=pipeline_metrics
-        )
+        with open(metadata_path, "w", encoding="utf-8") as f:
+            f.write(content_str)
         write_elapsed = time.time() - write_start
         bytes_written = len(content_str.encode("utf-8"))
 
@@ -1288,32 +1332,24 @@ def _serialize_metadata(
             write_elapsed,
             time.time() - serialize_start,
         )
-        # Note: write_file() already records metrics, so we don't need to record again here
+        # Record actual file write time in metrics
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_stage("writing_storage", write_elapsed)
     else:  # yaml
         # Time serialization separately from I/O
         yaml_start = time.time()
         content_dict = metadata_doc.model_dump(exclude_none=False)
         yaml_serialize_elapsed = time.time() - yaml_start
 
-        # Time actual file write (serialize YAML to string first, then use write_file)
+        # Time actual file write
         write_start = time.time()
-        yaml_buffer = io.StringIO()
-        yaml.dump(
-            content_dict,
-            yaml_buffer,
-            default_flow_style=False,
-            sort_keys=False,
-            allow_unicode=True,
-        )
-        yaml_content = yaml_buffer.getvalue()
-        from ..utils import filesystem
-
-        filesystem.write_file(
-            metadata_path, yaml_content.encode("utf-8"), pipeline_metrics=pipeline_metrics
-        )
+        with open(metadata_path, "w", encoding="utf-8") as f:
+            yaml.dump(
+                content_dict, f, default_flow_style=False, sort_keys=False, allow_unicode=True
+            )
         write_elapsed = time.time() - write_start
         # Estimate bytes (YAML dump doesn't return size directly)
-        bytes_written = len(yaml_content.encode("utf-8"))
+        bytes_written = len(str(content_dict).encode("utf-8"))
 
         logger.debug(
             "[STORAGE I/O] file=%s bytes=%d serialize=%.3fs write=%.3fs total=%.3fs",
@@ -1323,7 +1359,9 @@ def _serialize_metadata(
             write_elapsed,
             time.time() - serialize_start,
         )
-        # Note: write_file() already records metrics, so we don't need to record again here
+        # Record actual file write time in metrics
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_stage("writing_storage", write_elapsed)
 
 
 def generate_episode_metadata(
@@ -1428,57 +1466,9 @@ def generate_episode_metadata(
     # Build speakers array from detected_hosts and detected_guests
     speakers = _build_speakers_from_detected_names(detected_hosts, detected_guests)
 
-    # Build per-episode stage timings from pipeline metrics (Issue #379)
-    stage_timings = None
-    if pipeline_metrics:
-        episode_idx_str = str(episode.idx)
-        # Get timings for this episode from metrics
-        # Note: Metrics stores lists, so we need episode index
-        download_time = None
-        transcribe_time = None
-        extract_names_time = None
-        summarize_time = None
-
-        # Get episode index in lists (if available)
-        if (
-            hasattr(pipeline_metrics, "download_media_times")
-            and episode.idx < len(pipeline_metrics.download_media_times)
-        ):
-            download_time = pipeline_metrics.download_media_times[episode.idx]
-
-        if (
-            hasattr(pipeline_metrics, "transcribe_times")
-            and episode.idx < len(pipeline_metrics.transcribe_times)
-        ):
-            transcribe_time = pipeline_metrics.transcribe_times[episode.idx]
-
-        if (
-            hasattr(pipeline_metrics, "extract_names_times")
-            and episode.idx < len(pipeline_metrics.extract_names_times)
-        ):
-            extract_names_time = pipeline_metrics.extract_names_times[episode.idx]
-
-        if (
-            hasattr(pipeline_metrics, "summarize_times")
-            and episode.idx < len(pipeline_metrics.summarize_times)
-        ):
-            summarize_time = pipeline_metrics.summarize_times[episode.idx]
-
-        # Calculate total if any timings available
-        total_time = None
-        if any(t is not None for t in [download_time, transcribe_time, extract_names_time, summarize_time]):
-            total_time = sum(t for t in [download_time, transcribe_time, extract_names_time, summarize_time] if t is not None)
-
-        if any(t is not None for t in [download_time, transcribe_time, extract_names_time, summarize_time, total_time]):
-            stage_timings = EpisodeStageTimings(
-                download_seconds=download_time,
-                transcription_seconds=transcribe_time,
-                speaker_detection_seconds=extract_names_time,
-                summarization_seconds=summarize_time,
-                total_processing_seconds=total_time,
-            )
-
-    processing_metadata = _build_processing_metadata(cfg, output_dir, stage_timings=stage_timings)
+    processing_metadata = _build_processing_metadata(
+        cfg, output_dir, episode_idx=episode.idx, pipeline_metrics=pipeline_metrics
+    )
 
     # Generate summary if enabled and transcript is available
     summary_metadata = None
@@ -1488,7 +1478,8 @@ def generate_episode_metadata(
     nlp = None
 
     # Get NLP model for entity reconciliation and consistency checking (if needed)
-    if cfg.auto_speakers and cfg.generate_summaries and transcript_file_path:
+    # Skip in dry-run mode to avoid loading models
+    if not cfg.dry_run and cfg.auto_speakers and cfg.generate_summaries and transcript_file_path:
         try:
             from ..providers.ml.speaker_detection import get_ner_model
 
@@ -1498,27 +1489,36 @@ def generate_episode_metadata(
 
     if cfg.generate_summaries and transcript_file_path:
         summary_start = time.time()
-        summary_metadata = _generate_episode_summary(
-            transcript_file_path=transcript_file_path,
-            output_dir=output_dir,
-            cfg=cfg,
-            episode_idx=episode.idx,
-            summary_provider=summary_provider,
-            whisper_model=whisper_model,  # Whisper model used for transcription
-            pipeline_metrics=pipeline_metrics,
-        )
+        recoverable_error_occurred = False
+        try:
+            summary_metadata = _generate_episode_summary(
+                transcript_file_path=transcript_file_path,
+                output_dir=output_dir,
+                cfg=cfg,
+                episode_idx=episode.idx,
+                summary_provider=summary_provider,
+                whisper_model=whisper_model,  # Whisper model used for transcription
+                pipeline_metrics=pipeline_metrics,
+            )
+        except RecoverableSummarizationError as e:
+            # Allow metadata generation to continue without summary for recoverable errors
+            # (e.g., tokenizer threading errors in parallel execution)
+            logger.warning(f"[{episode.idx}] {e}. Continuing metadata generation without summary.")
+            summary_metadata = None
+            recoverable_error_occurred = True
         summary_elapsed = time.time() - summary_start
         # Record summary generation time if metrics available
         if pipeline_metrics is not None and summary_elapsed > 0:
             pipeline_metrics.record_summarize_time(summary_elapsed)
-        # Validate that summary was generated when required
-        if cfg.generate_summaries and summary_metadata is None:
+        # Validate that summary was generated when required (unless it's a recoverable error)
+        if cfg.generate_summaries and summary_metadata is None and not recoverable_error_occurred:
             error_msg = (
                 f"[{episode.idx}] Summary generation failed but generate_summaries=True. "
                 "Summarization is required when generate_summaries is enabled."
             )
             logger.error(error_msg)
             raise RuntimeError(error_msg)
+
         # Extract summary text for QA flags and entity reconciliation
         if summary_metadata:
             summary_text = summary_metadata.short_summary

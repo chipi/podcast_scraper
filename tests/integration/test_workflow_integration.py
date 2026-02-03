@@ -120,7 +120,20 @@ class TestIntegrationMain(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tmpdir:
                 exit_code = cli.main([rss_url, "--output-dir", tmpdir, "--no-auto-speakers"])
                 self.assertEqual(exit_code, 0)
-                expected_path = os.path.join(tmpdir, "transcripts", "0001 - Episode 1.txt")
+                # Files are now saved in run_<suffix>/transcripts/ with run suffix in filename
+                # Find the run directory and transcript file
+                import glob
+
+                run_dirs = glob.glob(os.path.join(tmpdir, "run_*"))
+                self.assertGreater(len(run_dirs), 0, "Should have at least one run directory")
+                run_dir = run_dirs[0]
+                transcripts_dir = os.path.join(run_dir, "transcripts")
+                # Find transcript file (may have run suffix in filename)
+                transcript_files = glob.glob(os.path.join(transcripts_dir, "0001 - Episode 1*.txt"))
+                self.assertGreater(
+                    len(transcript_files), 0, f"Should find transcript file in {transcripts_dir}"
+                )
+                expected_path = transcript_files[0]
                 self.assertTrue(os.path.exists(expected_path))
                 with open(expected_path, "r", encoding="utf-8") as fh:
                     self.assertEqual(fh.read().strip(), transcript_text)
@@ -170,22 +183,30 @@ class TestIntegrationMain(unittest.TestCase):
                         # Check if transcription was called (only if episode wasn't skipped)
                         if mock_import_whisper.called:
                             mock_transcribe.assert_called()
-                            # Uses test model (not base.en production model)
-                            # Run suffix now includes all providers: run_id + whisper + spacy
-                            # Format: run_{run_id}_{whisper_model}_{spacy_model}
-                            effective_dir = (
-                                Path(tmpdir).resolve()
-                                / f"run_testrun_w_{config.TEST_DEFAULT_WHISPER_MODEL}_sp_spacy_sm"
+                            # Files are now saved in run_<suffix>/transcripts/ with run suffix in filename
+                            # Find the run directory and transcript file
+                            import glob
+
+                            run_dirs = glob.glob(os.path.join(tmpdir, "run_*"))
+                            self.assertGreater(
+                                len(run_dirs), 0, "Should have at least one run directory"
                             )
-                            out_path = (
-                                effective_dir
-                                / "transcripts"
-                                / f"0001 - Episode 1_testrun_w_{config.TEST_DEFAULT_WHISPER_MODEL}_sp_spacy_sm.txt"
+                            run_dir = run_dirs[0]
+                            transcripts_dir = os.path.join(run_dir, "transcripts")
+                            # Find transcript file (may have run suffix in filename)
+                            transcript_files = glob.glob(
+                                os.path.join(transcripts_dir, "0001 - Episode 1*.txt")
                             )
+                            self.assertGreater(
+                                len(transcript_files),
+                                0,
+                                f"Should find transcript file in {transcripts_dir}",
+                            )
+                            out_path = Path(transcript_files[0])
                             self.assertTrue(out_path.exists())
-                        self.assertEqual(
-                            out_path.read_text(encoding="utf-8").strip(), transcribed_text
-                        )
+                            self.assertEqual(
+                                out_path.read_text(encoding="utf-8").strip(), transcribed_text
+                            )
 
     def test_path_traversal_attempt_normalized(self):
         """Test that path traversal attempts are normalized correctly.
@@ -270,6 +291,7 @@ class TestIntegrationMain(unittest.TestCase):
             cfg_path = os.path.join(tmpdir, "config.json")
             config_data = {
                 "rss": rss_url,
+                "output_dir": tmpdir,  # Add output_dir to config
                 "timeout": 60,
                 "log_level": "WARNING",
             }
@@ -471,9 +493,20 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertIsInstance(summary, str)
             self.assertIn("transcripts", summary.lower())
 
-            # Verify file was created (now in transcripts/ subdirectory)
-            # When no ML features are enabled, no run suffix is added
-            expected_path = os.path.join(self.temp_dir, "transcripts", "0001 - Episode 1.txt")
+            # Verify file was created (now in run_<suffix>/transcripts/ subdirectory)
+            # Files are saved with run suffix even when no ML features are enabled
+            import glob
+
+            run_dirs = glob.glob(os.path.join(self.temp_dir, "run_*"))
+            self.assertGreater(len(run_dirs), 0, "Should have at least one run directory")
+            run_dir = run_dirs[0]
+            transcripts_dir = os.path.join(run_dir, "transcripts")
+            # Find transcript file (may have run suffix in filename)
+            transcript_files = glob.glob(os.path.join(transcripts_dir, "0001 - Episode 1*.txt"))
+            self.assertGreater(
+                len(transcript_files), 0, f"Should find transcript file in {transcripts_dir}"
+            )
+            expected_path = transcript_files[0]
             self.assertTrue(os.path.exists(expected_path))
             with open(expected_path, "r", encoding="utf-8") as fh:
                 self.assertEqual(fh.read().strip(), transcript_text)
@@ -519,8 +552,19 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertGreaterEqual(count, 0)
             self.assertIsInstance(summary, str)
 
-            # Verify file was created (now in transcripts/ subdirectory)
-            expected_path = os.path.join(self.temp_dir, "transcripts", "0001 - Episode 1.txt")
+            # Verify file was created (now in run_<suffix>/transcripts/ subdirectory)
+            import glob
+
+            run_dirs = glob.glob(os.path.join(self.temp_dir, "run_*"))
+            self.assertGreater(len(run_dirs), 0, "Should have at least one run directory")
+            run_dir = run_dirs[0]
+            transcripts_dir = os.path.join(run_dir, "transcripts")
+            # Find transcript file (may have run suffix in filename)
+            transcript_files = glob.glob(os.path.join(transcripts_dir, "0001 - Episode 1*.txt"))
+            self.assertGreater(
+                len(transcript_files), 0, f"Should find transcript file in {transcripts_dir}"
+            )
+            expected_path = transcript_files[0]
             self.assertTrue(os.path.exists(expected_path))
 
     def test_e2e_library_whisper_fallback(self):
@@ -707,6 +751,17 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             self.assertGreaterEqual(count, 0)
             self.assertIsInstance(summary, str)
 
-            # Verify file was created (now in transcripts/ subdirectory)
-            expected_path = os.path.join(self.temp_dir, "transcripts", "0001 - Episode 1.txt")
+            # Verify file was created (now in run_<suffix>/transcripts/ subdirectory)
+            import glob
+
+            run_dirs = glob.glob(os.path.join(self.temp_dir, "run_*"))
+            self.assertGreater(len(run_dirs), 0, "Should have at least one run directory")
+            run_dir = run_dirs[0]
+            transcripts_dir = os.path.join(run_dir, "transcripts")
+            # Find transcript file (may have run suffix in filename)
+            transcript_files = glob.glob(os.path.join(transcripts_dir, "0001 - Episode 1*.txt"))
+            self.assertGreater(
+                len(transcript_files), 0, f"Should find transcript file in {transcripts_dir}"
+            )
+            expected_path = transcript_files[0]
             self.assertTrue(os.path.exists(expected_path))

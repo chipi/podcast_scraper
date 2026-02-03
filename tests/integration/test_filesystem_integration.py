@@ -111,7 +111,7 @@ class TestFilesystemOperations(unittest.TestCase):
 
     def test_output_directory_setup(self):
         """Test output directory setup and validation."""
-        # Basic output directory (no ML features, so no run suffix)
+        # Basic output directory (no ML features, but still gets timestamp-based run suffix)
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             output_dir=self.temp_dir,
@@ -119,9 +119,16 @@ class TestFilesystemOperations(unittest.TestCase):
             auto_speakers=False,  # Disable to avoid run suffix
             generate_summaries=False,  # Disable to avoid run suffix
         )
-        effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        self.assertEqual(effective_dir, self.temp_dir)
-        self.assertIsNone(run_suffix)
+        effective_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        # Even without ML features, a timestamp-based run suffix is created
+        # The effective directory includes the run suffix
+
+        self.assertIsNotNone(run_suffix)
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}")
+        # Effective directory should be output_dir/run_<timestamp>
+        self.assertIn("run_", effective_dir)
+        self.assertTrue(effective_dir.startswith(self.temp_dir))
+        self.assertIsNone(full_config_string)  # No ML features = no config string
 
         # With run_id (disable ML features to test run_id only)
         cfg = config.Config(
@@ -132,9 +139,12 @@ class TestFilesystemOperations(unittest.TestCase):
             auto_speakers=False,  # Disable to avoid adding spacy to run suffix
             generate_summaries=False,  # Disable to avoid adding transformers to run suffix
         )
-        effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        self.assertIn("test_run", effective_dir)
-        self.assertEqual(run_suffix, "test_run")
+        effective_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+
+        # Format: run_<run_id>_<timestamp>_<hash> or run_<run_id>_<timestamp> (if no ML features)
+        self.assertRegex(effective_dir, r"run_test_run_\d{8}-\d{6}(_[a-f0-9]{8})?")
+        self.assertIsNotNone(run_suffix)
+        self.assertIn("test_run", run_suffix or "")
 
         # With transcribe_missing (should add whisper model to run_suffix)
         cfg = config.Config(
@@ -143,9 +153,13 @@ class TestFilesystemOperations(unittest.TestCase):
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
-        effective_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        # Run suffix format: w_{model}_sp_{spacy_model} (shortened prefixes)
-        self.assertIn("w_tiny.en", run_suffix or "")
+        effective_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        # Run suffix format: <timestamp>_<hash> (hash from full config string)
+
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}_[a-f0-9]{8}")
+        # Verify full_config_string contains whisper model info
+        self.assertIsNotNone(full_config_string)
+        self.assertIn("w_tiny.en", full_config_string or "")
 
     def test_output_directory_validation(self):
         """Test output directory validation."""

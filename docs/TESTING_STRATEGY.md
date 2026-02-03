@@ -274,6 +274,17 @@ The decision questions above provide a quick way to determine test type. For cri
   - ServiceResult equality and string representation
   - Integration with public API (`Config`, `load_config_file`, `run_pipeline`)
 
+#### Reproducibility & Operational Hardening (Issue #379)
+
+- **Determinism**: Seed-based reproducibility for `torch`, `numpy`, and `transformers`. Test that seeds are set correctly and outputs are consistent across runs.
+- **Run Tracking**: Test run manifest creation (system state capture), run summary generation (manifest + metrics), and episode index generation (episode status tracking).
+- **Failure Handling**: Test `--fail-fast` and `--max-failures` flags, episode failure tracking in metrics, and exit code behavior.
+- **Retry Policies**: Test exponential backoff retry for transient errors (network failures, model loading errors), retry counts and delays, and fallback to cache clearing.
+- **Timeout Enforcement**: Test transcription and summarization timeout enforcement, timeout error handling, and timeout configuration.
+- **Security**: Test path validation (directory traversal prevention), model allowlist validation, safetensors format preference, and `trust_remote_code=False` enforcement.
+- **Structured Logging**: Test JSON log formatting, log aggregation compatibility, and structured log fields.
+- **Diagnostics**: Test `doctor` command checks (Python version, ffmpeg, write permissions, model cache, network connectivity).
+
 **For detailed unit test execution commands, test file descriptions, fixtures, requirements, and coverage, see [Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md).**
 
 ### 2. Integration Tests

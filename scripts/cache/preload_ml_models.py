@@ -256,6 +256,14 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
     # Locally, it falls back to local project cache or user cache
     cache_dir = get_transformers_cache_dir()
 
+    # CRITICAL: Set HF_HUB_CACHE env var to ensure transformers uses the same cache
+    # This prevents cache location mismatches where models download to default cache
+    # but tests check project cache. Setting this ensures consistency.
+    cache_dir_str = str(cache_dir.resolve())
+    if os.environ.get("HF_HUB_CACHE") != cache_dir_str:
+        os.environ["HF_HUB_CACHE"] = cache_dir_str
+        print(f"  Set HF_HUB_CACHE={cache_dir_str}")
+
     # Ensure cache directory exists
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -265,6 +273,7 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
     print(f"  Cache directory: {cache_dir}")
     print(f"  Using local cache: {cache_dir == local_cache}")
     print(f"  Cache directory exists: {cache_dir.exists()}")
+    print(f"  HF_HUB_CACHE env: {os.environ.get('HF_HUB_CACHE', 'NOT SET')}")
     print(f"  User: {os.environ.get('USER', 'unknown')}")
     print(f"  Home: {Path.home()}")
 
@@ -312,6 +321,29 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                 size_mb = total_size / (1024 * 1024)
                 print(f"    ✓ Downloaded and cached: {size_mb:.1f} MB")
                 print(f"    ✓ Cache path: {model_cache_path}")
+            else:
+                # CRITICAL: Model was downloaded but not in expected cache location
+                # This indicates a cache location mismatch - transformers used a different cache
+                default_cache = Path.home() / ".cache" / "huggingface" / "hub"
+                default_model_path = default_cache / f"models--{resolved_model.replace('/', '--')}"
+                if default_model_path.exists():
+                    print("    ⚠️  WARNING: Model downloaded to default cache, not project cache!")
+                    print(f"       Expected: {model_cache_path}")
+                    print(f"       Actual:   {default_model_path}")
+                    print("       This will cause test failures. Copying to project cache...")
+                    # Copy to project cache
+                    import shutil
+
+                    shutil.copytree(default_model_path, model_cache_path, dirs_exist_ok=True)
+                    print("       ✓ Copied to project cache")
+                else:
+                    raise RuntimeError(
+                        f"Model {resolved_model} was downloaded but not found in "
+                        f"expected cache location.\n"
+                        f"  Expected: {model_cache_path}\n"
+                        f"  Default cache: {default_model_path}\n"
+                        f"  This indicates a cache location mismatch."
+                    )
 
             # Try to download any optional files that might be needed
             # Some models have optional files like tokenizer_config.json that might
@@ -394,6 +426,30 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                 gc.collect()
                 print(f"  ✓ {model_name} cached and verified (loadable from disk)")
                 print(f"    Location: {model_cache_path}")
+
+                # Final validation: Ensure model is in the cache directory we expect
+                # This catches cases where transformers might use a different cache
+                # despite cache_dir param
+                if not model_cache_path.exists():
+                    default_cache = Path.home() / ".cache" / "huggingface" / "hub"
+                    default_model_path = (
+                        default_cache / f"models--{resolved_model.replace('/', '--')}"
+                    )
+                    if default_model_path.exists():
+                        print("    ⚠️  WARNING: Model verified but in wrong cache location!")
+                        print(f"       Expected: {model_cache_path}")
+                        print(f"       Found in: {default_model_path}")
+                        print("       Copying to expected location...")
+                        import shutil
+
+                        shutil.copytree(default_model_path, model_cache_path, dirs_exist_ok=True)
+                        print("       ✓ Copied to expected cache location")
+                    else:
+                        raise RuntimeError(
+                            f"Model {model_name} verified but not in expected cache location.\n"
+                            f"  Expected: {model_cache_path}\n"
+                            f"  This will cause test failures."
+                        )
             except Exception as e:
                 # Model can't be loaded from disk - this is a problem
                 # Check if files exist for better error message
@@ -450,7 +506,8 @@ def main() -> None:
         print("Production models (for nightly-only tests):")
         print("  - Whisper: base.en")
         print(
-            f"  - Transformers: {config.PROD_DEFAULT_SUMMARY_MODEL}, {config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL}"
+            f"  - Transformers: {config.PROD_DEFAULT_SUMMARY_MODEL}, "
+            f"{config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL}"
         )
         print("")
         print("Common: en_core_web_sm (spaCy)")
@@ -468,8 +525,10 @@ def main() -> None:
             config.TEST_DEFAULT_SUMMARY_MODEL,  # facebook/bart-base
             config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # allenai/led-base-16384
             # Production models (from config_constants.py)
-            config.PROD_DEFAULT_SUMMARY_MODEL,  # google/pegasus-cnn_dailymail (Production MAP model)
-            config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL,  # allenai/led-base-16384 (Production REDUCE model)
+            # google/pegasus-cnn_dailymail (Production MAP model)
+            config.PROD_DEFAULT_SUMMARY_MODEL,
+            # allenai/led-base-16384 (Production REDUCE model)
+            config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL,
         ]
         spacy_models = ["en_core_web_sm"]  # Same for both
 

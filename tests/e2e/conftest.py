@@ -378,9 +378,13 @@ def configure_e2e_feed_limiting(request):
         # Default/Multi-episode mode: Use multi-episode feed (5 short episodes for
         # multi-episode testing), edgecases feed (for edge case tests), and
         # podcast7_sustainability/podcast8_solar (Issue #283 threshold testing)
+        # Also include podcast1_with_transcript for config file tests and other tests
+        # that need a feed with transcript URLs
         E2EHTTPRequestHandler.set_allowed_podcasts(
             {
                 "podcast1_multi_episode",
+                # For config file tests and tests needing transcript URLs
+                "podcast1_with_transcript",
                 "edgecases",
                 "podcast7_sustainability",  # Issue #283: threshold testing
                 "podcast8_solar",  # Issue #283: threshold testing

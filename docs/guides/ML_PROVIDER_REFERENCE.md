@@ -275,6 +275,24 @@ The system automatically detects and utilizes hardware accelerators:
 2. **NVIDIA (CUDA)**: The gold standard for high-throughput server processing.
 3. **CPU**: Fallback mode. Uses FP32 for stability. Parallelism is achieved via `ThreadPoolExecutor` for map-phase chunks.
 
+### 9.1.1 MPS Exclusive Mode (Apple Silicon)
+
+When both Whisper transcription and summarization use MPS on Apple Silicon, the system can serialize GPU work to prevent memory contention. This is enabled by default (`mps_exclusive: true`) and ensures:
+
+* **Transcription completes first**: All Whisper transcriptions finish before summarization starts
+* **I/O remains parallel**: Downloads, RSS parsing, and file I/O continue in parallel
+* **Memory safety**: Prevents both models from competing for the same GPU memory pool
+
+**When to disable**: If you have sufficient GPU memory (e.g., M4 Pro with 48GB+ unified memory) and want maximum throughput, you can disable exclusive mode (`mps_exclusive: false` or `--no-mps-exclusive`) to allow concurrent GPU operations.
+
+**Configuration**:
+
+* Config file: `mps_exclusive: true/false`
+* CLI: `--mps-exclusive` (default) or `--no-mps-exclusive`
+* Environment: `MPS_EXCLUSIVE=1` (enable) or `MPS_EXCLUSIVE=0` (disable)
+
+See [Segfault Mitigation Guide](../guides/SEGFAULT_MITIGATION.md) for more details on MPS stability.
+
 ### 9.2 Scaling for Long Content (30k-40k Tokens)
 
 Even on high-end hardware (e.g., Mac Studio or MBP M4 Pro with 48GB+ RAM), attempting to process 40,000 tokens in a single context window is often counterproductive due to quadratic attention complexity and quality degradation ("lost in the middle").
