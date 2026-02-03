@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -129,14 +130,15 @@ class Metrics:
 
     # Per-episode status tracking (Issue #379)
     episode_statuses: List[EpisodeStatus] = field(default_factory=list)
+    _episode_statuses_lock: threading.Lock = field(
+        default_factory=threading.Lock, init=False, repr=False
+    )  # Thread-safe access to episode_statuses
 
     # Device usage tracking per stage (Issue #387)
     transcription_device: Optional[str] = None  # Device used for transcription stage
     summarization_device: Optional[str] = None  # Device used for summarization stage
 
     _start_time: float = field(default_factory=time.time, init=False)
-    _io_waiting_wall_start: Optional[float] = field(default=None, init=False, repr=False)
-    _io_waiting_wall_end: Optional[float] = field(default=None, init=False, repr=False)
 
     @property
     def time_io_and_waiting(self) -> float:
@@ -162,16 +164,6 @@ class Metrics:
             self.time_normalizing += duration
         elif stage == "io_and_waiting":
             self.io_and_waiting_thread_sum_seconds += duration
-            # Track wall-clock time for IO/waiting stage (Issue #391)
-            # This represents the actual elapsed time, not sum across threads
-            if self._io_waiting_wall_start is None:
-                self._io_waiting_wall_start = time.time()
-            self._io_waiting_wall_end = time.time()
-            # Update wall-clock seconds (will be finalized in finish())
-            if self._io_waiting_wall_start is not None and self._io_waiting_wall_end is not None:
-                self.io_and_waiting_wall_seconds = (
-                    self._io_waiting_wall_end - self._io_waiting_wall_start
-                )
         elif stage == "writing_storage":
             # Actual file write time only (should be tiny)
             self.time_writing_storage += duration
@@ -225,6 +217,17 @@ class Metrics:
         self.time_queue_wait_seconds += duration
         # Also add to io_and_waiting_thread_sum for backward compatibility
         self.io_and_waiting_thread_sum_seconds += duration
+
+    def record_io_waiting_wall_time(self, duration: float) -> None:
+        """Record wall-clock time spent in IO/waiting (Issue #391).
+
+        This measures actual elapsed time (not sum across threads) for waiting operations
+        like thread joins, queue waits, etc. at the orchestration level.
+
+        Args:
+            duration: Wall-clock duration in seconds
+        """
+        self.io_and_waiting_wall_seconds += duration
 
     def record_transcription_device(self, device: str) -> None:
         """Record device used for transcription stage (Issue #387).
@@ -411,7 +414,7 @@ class Metrics:
         stage: Optional[str] = None,
         retry_count: int = 0,
     ) -> None:
-        """Record status for an episode.
+        """Record status for an episode (thread-safe).
 
         Args:
             episode_id: Unique episode identifier
@@ -431,7 +434,74 @@ class Metrics:
             stage=stage,
             retry_count=retry_count,
         )
-        self.episode_statuses.append(episode_status)
+        with self._episode_statuses_lock:
+            self.episode_statuses.append(episode_status)
+
+    def get_or_create_episode_status(self, episode_id: str, episode_number: int) -> EpisodeStatus:
+        """Get existing episode status or create new one with 'queued' status (thread-safe).
+
+        Args:
+            episode_id: Unique episode identifier
+            episode_number: Episode number/index
+
+        Returns:
+            EpisodeStatus object (existing or newly created)
+        """
+        with self._episode_statuses_lock:
+            # Find existing status
+            for status in self.episode_statuses:
+                if status.episode_id == episode_id:
+                    return status
+            # Create new status with 'queued'
+            episode_status = EpisodeStatus(
+                episode_id=episode_id,
+                episode_number=episode_number,
+                status="ok",  # Start as 'ok' (will be updated as stages complete)
+                stage="queued",
+            )
+            self.episode_statuses.append(episode_status)
+            return episode_status
+
+    def update_episode_status(
+        self,
+        episode_id: str,
+        status: Optional[Literal["ok", "failed", "skipped"]] = None,
+        stage: Optional[str] = None,
+        error_type: Optional[str] = None,
+        error_message: Optional[str] = None,
+    ) -> None:
+        """Update existing episode status (thread-safe).
+
+        Args:
+            episode_id: Unique episode identifier
+            status: New status (ok, failed, skipped) - optional, only updates if provided
+            stage: Stage name (e.g., 'downloaded', 'transcribed', 'summarized', 'metadata_written')
+            error_type: Type of error if status is "failed"
+            error_message: Error message if status is "failed"
+        """
+        with self._episode_statuses_lock:
+            for episode_status in self.episode_statuses:
+                if episode_status.episode_id == episode_id:
+                    if status is not None:
+                        episode_status.status = status
+                    if stage is not None:
+                        episode_status.stage = stage
+                    if error_type is not None:
+                        episode_status.error_type = error_type
+                    if error_message is not None:
+                        episode_status.error_message = error_message
+                    return
+            # If not found, create new status (shouldn't happen, but be safe)
+            logger.warning(f"Episode status not found for {episode_id}, creating new entry")
+            episode_status = EpisodeStatus(
+                episode_id=episode_id,
+                episode_number=0,  # Unknown number
+                status=status or "ok",
+                stage=stage,
+                error_type=error_type,
+                error_message=error_message,
+            )
+            self.episode_statuses.append(episode_status)
 
     def finish(self) -> Dict[str, Any]:
         """Calculate final metrics and return as dict.

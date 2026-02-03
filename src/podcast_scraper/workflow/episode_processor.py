@@ -457,6 +457,12 @@ def transcribe_media_to_text(
             job.idx,
             rel_path,
         )
+        # Update episode status: transcribed (reused existing) (Issue #391)
+        if pipeline_metrics is not None and hasattr(job, "episode"):
+            from ..workflow.helpers import get_episode_id_from_episode
+
+            episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+            pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
         return True, rel_path, 0
 
     # Log detected speaker names (hosts + guests) before transcription
@@ -715,6 +721,12 @@ def transcribe_media_to_text(
         # Record transcription time if metrics available
         if pipeline_metrics is not None:
             pipeline_metrics.record_transcribe_time(tc_elapsed)
+            # Update episode status: transcribed (Issue #391)
+            if hasattr(job, "episode"):
+                from ..workflow.helpers import get_episode_id_from_episode
+
+                episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+                pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
 
         return True, rel_path, bytes_downloaded
     except (ValueError, ProviderRuntimeError) as exc:

@@ -44,6 +44,52 @@ def update_metric_safely(
         setattr(pipeline_metrics, metric_name, current_value + value)
 
 
+def get_episode_id_from_episode(
+    episode: "models.Episode", feed_url: str
+) -> Tuple[str, Optional[int]]:
+    """Generate episode ID from episode object (helper for status tracking).
+
+    Args:
+        episode: Episode object
+        feed_url: RSS feed URL
+
+    Returns:
+        Tuple of (episode_id, episode_number)
+    """
+    from ..rss.parser import extract_episode_published_date
+    from .metadata_generation import generate_episode_id
+
+    # Extract episode metadata for ID generation
+    episode_guid = None
+    episode_link = None
+    episode_published_date = None
+    episode_number = getattr(episode, "number", None)
+
+    if hasattr(episode, "item") and episode.item is not None:
+        # Extract GUID from RSS item
+        guid_elem = episode.item.find("guid")
+        if guid_elem is not None and guid_elem.text:
+            episode_guid = guid_elem.text.strip()
+        # Extract link
+        link_elem = episode.item.find("link")
+        if link_elem is not None and link_elem.text:
+            episode_link = link_elem.text.strip()
+        # Extract published date
+        episode_published_date = extract_episode_published_date(episode.item)
+
+    # Generate stable episode ID
+    episode_id = generate_episode_id(
+        feed_url=feed_url,
+        episode_title=episode.title,
+        episode_guid=episode_guid,
+        published_date=episode_published_date,
+        episode_link=episode_link,
+        episode_number=episode_number,
+    )
+
+    return episode_id, episode.idx
+
+
 def cleanup_pipeline(temp_dir: Optional[str]) -> None:
     """Cleanup temporary files and directories.
 

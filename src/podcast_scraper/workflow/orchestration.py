@@ -704,6 +704,45 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     pipeline_metrics.episodes_scraped_total = len(episodes)
     pipeline_metrics.record_stage("parsing", time.time() - parsing_start)
 
+    # Initialize episode statuses (Issue #391)
+    if pipeline_metrics is not None:
+        from ..rss.parser import extract_episode_published_date
+        from .metadata_generation import generate_episode_id
+
+        for episode in episodes:
+            # Extract episode metadata for ID generation
+            episode_guid = None
+            episode_link = None
+            episode_published_date = None
+            episode_number = getattr(episode, "number", None)
+
+            if hasattr(episode, "item") and episode.item is not None:
+                # Extract GUID from RSS item
+                guid_elem = episode.item.find("guid")
+                if guid_elem is not None and guid_elem.text:
+                    episode_guid = guid_elem.text.strip()
+                # Extract link
+                link_elem = episode.item.find("link")
+                if link_elem is not None and link_elem.text:
+                    episode_link = link_elem.text.strip()
+                # Extract published date
+                episode_published_date = extract_episode_published_date(episode.item)
+
+            # Generate stable episode ID
+            episode_id = generate_episode_id(
+                feed_url=cfg.rss_url or "",
+                episode_title=episode.title,
+                episode_guid=episode_guid,
+                published_date=episode_published_date,
+                episode_link=episode_link,
+                episode_number=episode_number,
+            )
+
+            # Create initial status entry (queued)
+            pipeline_metrics.get_or_create_episode_status(
+                episode_id=episode_id, episode_number=episode.idx
+            )
+
     # Step 5: Detect hosts and analyze patterns (if auto_speakers enabled)
     # This is part of normalizing stage
     normalizing_start = time.time()
@@ -809,7 +848,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             transcription_thread.start()
             logger.debug("Started concurrent transcription processing thread")
 
-        # Track download wait time (Issue #387)
+        # Track download wait time (Issue #387, #391)
         download_start = time.time()
         saved = wf_stages.processing.process_episodes(
             download_args,
@@ -828,6 +867,8 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         download_wait_time = time.time() - download_start
         if pipeline_metrics is not None:
             pipeline_metrics.record_download_wait_time(download_wait_time)
+            # Track wall-clock time for downloads (Issue #391)
+            pipeline_metrics.record_io_waiting_wall_time(download_wait_time)
 
         # Signal that downloads are complete (so transcription thread can exit when queue is empty)
         if cfg.transcribe_missing and not cfg.dry_run:
@@ -869,13 +910,15 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         if processing_thread is not None:
             # Signal that transcription is complete (processing waits for this)
             transcription_complete_event.set()
-            # Track thread sync time for processing (Issue #387)
+            # Track thread sync time for processing (Issue #387, #391)
             processing_sync_start = time.time()
             # Wait for processing thread to finish
             processing_thread.join()
             processing_sync_time = time.time() - processing_sync_start
             if pipeline_metrics is not None:
                 pipeline_metrics.record_thread_sync_time(processing_sync_time)
+                # Track wall-clock time for processing thread sync (Issue #391)
+                pipeline_metrics.record_io_waiting_wall_time(processing_sync_time)
             logger.debug("Concurrent processing completed")
 
         # Log io_and_waiting breakdown (Issue #387, #391)
@@ -928,6 +971,8 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             summarization_wait_time = time.time() - summarization_start
             if pipeline_metrics is not None:
                 pipeline_metrics.record_summarization_wait_time(summarization_wait_time)
+                # Track wall-clock time for summarization wait (Issue #391)
+                pipeline_metrics.record_io_waiting_wall_time(summarization_wait_time)
 
     finally:
         # Step 9.5: Unload models to free memory

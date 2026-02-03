@@ -2195,6 +2195,12 @@ def generate_episode_metadata(
         # Record summary generation time if metrics available
         if pipeline_metrics is not None and summary_elapsed > 0:
             pipeline_metrics.record_summarize_time(summary_elapsed)
+            # Update episode status: summarized (Issue #391)
+            if summary_metadata is not None:
+                from .helpers import get_episode_id_from_episode
+
+                episode_id, _ = get_episode_id_from_episode(episode, feed_url)
+                pipeline_metrics.update_episode_status(episode_id=episode_id, stage="summarized")
         # Validate that summary was generated when required (unless it's a recoverable error)
         if cfg.generate_summaries and summary_metadata is None and not recoverable_error_occurred:
             error_msg = (
@@ -2356,6 +2362,14 @@ def generate_episode_metadata(
             pipeline_metrics.metadata_files_generated += 1
             if summary_metadata is not None:
                 pipeline_metrics.episodes_summarized += 1
+
+            # Update episode status: summarized and metadata_written (Issue #391)
+            from .helpers import get_episode_id_from_episode
+
+            episode_id, _ = get_episode_id_from_episode(episode, feed_url)
+            if summary_metadata is not None:
+                pipeline_metrics.update_episode_status(episode_id=episode_id, stage="summarized")
+            pipeline_metrics.update_episode_status(episode_id=episode_id, stage="metadata_written")
 
         return metadata_path
 

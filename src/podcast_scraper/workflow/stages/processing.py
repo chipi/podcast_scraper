@@ -639,6 +639,17 @@ def process_episodes(  # noqa: C901
                         update_metric_safely(pipeline_metrics, "transcripts_downloaded", 1)
                     logger.debug("Episode %s yielded transcript (saved=%s)", episode.idx, saved)
 
+                    # Update episode status: downloaded (Issue #391)
+                    if pipeline_metrics is not None:
+                        from ..helpers import get_episode_id_from_episode
+
+                        episode_id, episode_number = get_episode_id_from_episode(
+                            episode, cfg.rss_url or ""
+                        )
+                        pipeline_metrics.update_episode_status(
+                            episode_id=episode_id, stage="downloaded"
+                        )
+
                     # Queue processing job if metadata generation enabled and transcript available
                     # Skip if transcript_source is None (Whisper pending) - queued after
                     if cfg.generate_metadata and transcript_source is not None:
