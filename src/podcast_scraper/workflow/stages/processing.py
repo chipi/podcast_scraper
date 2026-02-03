@@ -835,7 +835,9 @@ def process_processing_jobs_concurrent(  # noqa: C901
             transcription_complete_event.wait()
             logger.info("Transcription complete, starting summarization")
 
-    jobs_processed = 0
+    # Track successful vs failed jobs separately
+    jobs_processed_ok = 0
+    jobs_processed_failed = 0
     processed_job_indices = set()  # Track which jobs we've processed
     processed_job_indices_lock = threading.Lock()  # Lock for thread-safe access
 
@@ -881,13 +883,14 @@ def process_processing_jobs_concurrent(  # noqa: C901
         process_job_func: Any,
         transcription_complete_event: Optional[threading.Event],
         max_workers: int,
-    ) -> int:
+    ) -> tuple[int, int]:
         """Run parallel processing loop with ThreadPoolExecutor.
 
         Returns:
-            Number of jobs processed
+            Tuple of (jobs_processed_ok, jobs_processed_failed)
         """
-        jobs_processed = [0]  # Use list for nonlocal access
+        jobs_processed_ok = [0]  # Use list for nonlocal access
+        jobs_processed_failed = [0]  # Use list for nonlocal access
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {}
@@ -922,14 +925,20 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     for future in as_completed(list(futures.keys()), timeout=1.0):
                         episode_idx = futures.pop(future)
                         try:
-                            future.result()
-                            jobs_processed[0] += 1
+                            success = future.result()
+                            if success:
+                                jobs_processed_ok[0] += 1
+                            else:
+                                jobs_processed_failed[0] += 1
                             logger.debug(
-                                "Processed processing job idx=%s (processed=%s)",
+                                "Processed processing job idx=%s (ok=%s, failed=%s, total=%s)",
                                 episode_idx,
-                                jobs_processed[0],
+                                jobs_processed_ok[0],
+                                jobs_processed_failed[0],
+                                jobs_processed_ok[0] + jobs_processed_failed[0],
                             )
                         except Exception as exc:  # pragma: no cover
+                            jobs_processed_failed[0] += 1
                             logger.error(f"[{episode_idx}] processing future raised error: {exc}")
                 except TimeoutError:
                     # Some futures are still pending - continue loop to check again
@@ -955,7 +964,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 else:
                     time.sleep(0.05)
 
-        return jobs_processed[0]
+        return (jobs_processed_ok[0], jobs_processed_failed[0])
 
     def _wait_for_transcript_file(
         transcript_path: str, episode_idx: int, max_wait: float = 5.0
@@ -1010,8 +1019,12 @@ def process_processing_jobs_concurrent(  # noqa: C901
         )
         return False
 
-    def _process_single_processing_job(job: ProcessingJob) -> None:
-        """Process a single processing job (metadata/summarization)."""
+    def _process_single_processing_job(job: ProcessingJob) -> bool:
+        """Process a single processing job (metadata/summarization).
+
+        Returns:
+            True if job succeeded, False if it failed
+        """
         try:
             # Wait for transcript file to exist if transcript_path is provided
             # This is a defensive measure to prevent potential race conditions where
@@ -1027,7 +1040,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
                         job.episode.idx,
                         job.transcript_path,
                     )
-                    return
+                    return False
 
             metadata_stage.call_generate_metadata(
                 episode=job.episode,
@@ -1044,9 +1057,11 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 summary_provider=summary_provider,
                 pipeline_metrics=pipeline_metrics,
             )
+            return True
         except Exception as exc:  # pragma: no cover
             update_metric_safely(pipeline_metrics, "errors_total", 1)
             logger.error(f"[{job.episode.idx}] processing raised an unexpected error: {exc}")
+            return False
 
     # Process jobs as they become available
     if max_workers <= 1:
@@ -1054,11 +1069,17 @@ def process_processing_jobs_concurrent(  # noqa: C901
         while True:
             current_job = _find_next_unprocessed_job()
             if current_job:
-                _process_single_processing_job(current_job)
-                jobs_processed += 1
+                success = _process_single_processing_job(current_job)
+                if success:
+                    jobs_processed_ok += 1
+                else:
+                    jobs_processed_failed += 1
+                jobs_processed = jobs_processed_ok + jobs_processed_failed
                 logger.debug(
-                    "Processed processing job idx=%s (processed=%s)",
+                    "Processed processing job idx=%s (ok=%s, failed=%s, total=%s)",
                     current_job.episode.idx,
+                    jobs_processed_ok,
+                    jobs_processed_failed,
                     jobs_processed,
                 )
                 continue
@@ -1076,7 +1097,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 time.sleep(0.05)
     else:
         # Parallel processing
-        parallel_jobs_processed = _run_parallel_processing_loop(
+        parallel_jobs_ok, parallel_jobs_failed = _run_parallel_processing_loop(
             processing_resources,
             processed_job_indices,
             processed_job_indices_lock,
@@ -1084,12 +1105,21 @@ def process_processing_jobs_concurrent(  # noqa: C901
             transcription_complete_event,
             max_workers,
         )
-        jobs_processed = parallel_jobs_processed
+        jobs_processed_ok = parallel_jobs_ok
+        jobs_processed_failed = parallel_jobs_failed
+        jobs_processed = jobs_processed_ok + jobs_processed_failed
 
     total_jobs = (
         len(processing_resources.processing_jobs) if processing_resources.processing_jobs else 0
     )
-    logger.info(
-        f"Concurrent processing completed: {jobs_processed}/{total_jobs} "
-        f"jobs processed (parallelism={max_workers})"
-    )
+    if jobs_processed_failed > 0:
+        logger.info(
+            f"Concurrent processing completed: {jobs_processed_ok} succeeded, "
+            f"{jobs_processed_failed} failed ({jobs_processed}/{total_jobs} total, "
+            f"parallelism={max_workers})"
+        )
+    else:
+        logger.info(
+            f"Concurrent processing completed: {jobs_processed_ok}/{total_jobs} "
+            f"jobs processed (parallelism={max_workers})"
+        )

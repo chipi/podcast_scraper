@@ -80,7 +80,36 @@ def _log_effective_parallelism(cfg: config.Config, summary_provider: Optional[An
     processing_effective = processing_configured
     logger.info(f"  Processing workers: {processing_effective}")
     if cfg.generate_summaries:
-        model_device = getattr(summary_provider, "device", "cpu") if summary_provider else "cpu"
+        # Get actual device from summary provider
+        model_device = "cpu"  # Default
+        if summary_provider:
+            # Try to get device from actual model instances
+            if hasattr(summary_provider, "_map_model") and summary_provider._map_model:
+                if hasattr(summary_provider._map_model, "device"):
+                    model_device = summary_provider._map_model.device
+            elif hasattr(summary_provider, "_reduce_model") and summary_provider._reduce_model:
+                if hasattr(summary_provider._reduce_model, "device"):
+                    model_device = summary_provider._reduce_model.device
+            # Fallback to config if model not loaded yet
+            elif cfg.summary_device:
+                model_device = cfg.summary_device
+            # Fallback to provider attribute
+            elif hasattr(summary_provider, "device"):
+                model_device = summary_provider.device
+
+        # Determine serialization status
+        serialization_reasons = []
+        if model_device in ("mps", "cuda"):
+            if cfg.mps_exclusive:
+                serialization_reasons.append("mps_exclusive")
+            # Check if tokenizer serialization is enabled (lock exists)
+            if summary_provider and hasattr(summary_provider, "_map_model"):
+                if hasattr(summary_provider._map_model, "_summarize_lock"):
+                    serialization_reasons.append("tokenizer_lock")
+        serialization_status = (
+            f", serialized ({', '.join(serialization_reasons)})" if serialization_reasons else ""
+        )
+
         if model_device == "cpu":
             max_workers_limit = (
                 cfg.summary_max_workers_cpu if cfg.summary_max_workers_cpu is not None else 4
@@ -94,8 +123,8 @@ def _log_effective_parallelism(cfg: config.Config, summary_provider: Optional[An
         else:
             estimated_workers = 1
         logger.info(
-            f"  Summarization workers: ~{estimated_workers} (device={model_device}, "
-            "actual determined at runtime)"
+            f"  Summarization workers: {estimated_workers} (device={model_device}"
+            f"{serialization_status})"
         )
     else:
         logger.info("  Summarization workers: N/A (summarization disabled)")

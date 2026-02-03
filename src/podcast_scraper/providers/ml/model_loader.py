@@ -159,13 +159,18 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                 OSError,  # Network/IO errors
             )
 
+            # Determine if model supports safetensors
+            # Known models without safetensors: Pegasus, LED (LED disabled for different reason)
+            model_lower = model_name.lower()
+            use_safetensors = "pegasus" not in model_lower
+
             # Retry wrapper for tokenizer loading
             def _load_tokenizer():
                 return AutoTokenizer.from_pretrained(
                     model_name,
                     cache_dir=str(cache_dir),
                     local_files_only=False,  # nosec B615
-                    use_safetensors=True,  # Prefer safetensors format (Issue #379)
+                    use_safetensors=use_safetensors,
                 )
 
             # Retry wrapper for model loading
@@ -174,7 +179,7 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                     model_name,
                     cache_dir=str(cache_dir),
                     local_files_only=False,  # nosec B615
-                    use_safetensors=True,  # Prefer safetensors format (Issue #379)
+                    use_safetensors=use_safetensors,
                 )
 
             # This is the ONLY place where transformers downloads models

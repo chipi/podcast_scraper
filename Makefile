@@ -356,9 +356,11 @@ test:
 	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)
 	# Excludes nightly tests (run separately via make test-nightly)
 	# Excludes analytical tests (diagnostic tools, run separately via make test-analytical)
-	# Note: Coverage with pytest-xdist may show lower numbers due to parallel collection
-	# Use 'make test-sequential' for accurate coverage measurement
+	# Note: Coverage with pytest-xdist creates separate files that need combining
+	# Coverage is automatically combined by pytest-cov, but coverage-enforce ensures proper combination
 	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/ -m "not nightly and not analytical" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
+	@# Combine any remaining parallel coverage files (pytest-cov should handle this, but ensure it's done)
+	@$(PYTHON) -m coverage combine 2>/dev/null || true
 
 test-sequential:
 	# All tests: sequential execution (slower but clearer output, useful for debugging)
@@ -653,8 +655,9 @@ coverage-enforce:
 	# Enforce combined coverage threshold on existing .coverage file (fast, no re-run)
 	# Use this after 'make test' to verify coverage meets threshold
 	# Combines parallel coverage files (.coverage.*) created by pytest-xdist when using -n flag
+	# Note: pytest-cov creates files like .coverage.Mac.pid* which need to be combined
 	@echo "Checking combined coverage threshold ($(COVERAGE_THRESHOLD_COMBINED)%)..."
-	@if [ -f .coverage ] || ls .coverage.* 1> /dev/null 2>&1; then \
+	@if [ -f .coverage ] || find . -maxdepth 1 -name ".coverage*" -type f 2>/dev/null | grep -q .; then \
 		echo "Combining parallel coverage files (if any)..."; \
 		$(PYTHON) -m coverage combine 2>/dev/null || true; \
 		$(PYTHON) -m coverage report --fail-under=$(COVERAGE_THRESHOLD_COMBINED) > /dev/null && \

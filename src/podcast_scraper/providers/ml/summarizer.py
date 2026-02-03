@@ -25,6 +25,8 @@ import contextlib
 import logging
 import os
 import re
+import threading
+import time
 from pathlib import Path
 from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
@@ -108,16 +110,17 @@ def _load_pegasus_without_fake_warning(
 
     # Prepare kwargs for from_pretrained
     # Security: trust_remote_code=False by default (Issue #379)
+    # Pegasus models don't have safetensors files, so disable safetensors (like LED models)
     tokenizer_kwargs = {
         "local_files_only": local_files_only,
         "trust_remote_code": False,  # Security: don't execute remote code
-        "use_safetensors": True,  # Prefer safetensors format (Issue #379)
+        "use_safetensors": False,  # Pegasus models don't have safetensors files
     }
     model_kwargs = {
         "local_files_only": local_files_only,
         "output_loading_info": True,  # Get loading info to validate
         "trust_remote_code": False,  # Security: don't execute remote code
-        "use_safetensors": True,  # Prefer safetensors format (Issue #379)
+        "use_safetensors": False,  # Pegasus models don't have safetensors files
     }
     if cache_dir:
         tokenizer_kwargs["cache_dir"] = cache_dir  # type: ignore[assignment]
@@ -707,6 +710,9 @@ class SummaryModel:
         self.model: Optional["AutoModelForSeq2SeqLM"] = None
         self.pipeline: Optional["Pipeline"] = None
         self._batch_size: Optional[int] = None  # For parallel chunk processing (CPU only)
+        # Threading lock to serialize tokenizer/model access (tokenizers are not thread-safe)
+        # This prevents "Already borrowed" errors when multiple episodes process concurrently
+        self._summarize_lock = threading.Lock()
         self._load_model()
 
     def _detect_device(self, device: Optional[str]) -> str:
@@ -1273,26 +1279,28 @@ class SummaryModel:
             # Handle input truncation if max_input_tokens is specified
             effective_truncation = truncation if truncation is not None else True
             if max_input_tokens is not None and self.tokenizer:
-                # Tokenize and truncate input if needed
-                input_tokens = self.tokenizer.encode(  # type: ignore[attr-defined]
-                    text, add_special_tokens=False
-                )
-                if len(input_tokens) > max_input_tokens:
-                    if effective_truncation:
-                        # Truncate to max_input_tokens
-                        truncated_tokens = input_tokens[:max_input_tokens]
-                        text = self.tokenizer.decode(  # type: ignore[attr-defined]
-                            truncated_tokens, skip_special_tokens=True
-                        )
-                        logger.debug(
-                            f"Truncated input from {len(input_tokens)} to {max_input_tokens} tokens"
-                        )
-                    else:
-                        logger.warning(
-                            f"Input exceeds max_input_tokens "
-                            f"({len(input_tokens)} > {max_input_tokens}) "
-                            f"but truncation=False. This may cause errors."
-                        )
+                # Tokenize and truncate input if needed (with lock for thread safety)
+                with self._summarize_lock:
+                    input_tokens = self.tokenizer.encode(  # type: ignore[attr-defined]
+                        text, add_special_tokens=False
+                    )
+                    if len(input_tokens) > max_input_tokens:
+                        if effective_truncation:
+                            # Truncate to max_input_tokens
+                            truncated_tokens = input_tokens[:max_input_tokens]
+                            text = self.tokenizer.decode(  # type: ignore[attr-defined]
+                                truncated_tokens, skip_special_tokens=True
+                            )
+                            logger.debug(
+                                f"Truncated input from {len(input_tokens)} to "
+                                f"{max_input_tokens} tokens"
+                            )
+                        else:
+                            logger.warning(
+                                f"Input exceeds max_input_tokens "
+                                f"({len(input_tokens)} > {max_input_tokens}) "
+                                f"but truncation=False. This may cause errors."
+                            )
 
             # T5/FLAN-T5 models require "summarize: " prefix for optimal performance
             # Without this prefix, T5 models will underperform significantly
@@ -1380,7 +1388,10 @@ class SummaryModel:
                     message=r".*no maximum length.*Default to no truncation.*",
                     category=UserWarning,
                 )
-                result = self.pipeline(input_text, **pipeline_kwargs)
+                # Serialize pipeline calls to prevent tokenizer "Already borrowed" errors
+                # when multiple episodes process concurrently
+                with self._summarize_lock:
+                    result = self.pipeline(input_text, **pipeline_kwargs)
 
             # Pipeline returns list of dicts with 'summary_text' key
             if isinstance(result, list) and len(result) > 0:
@@ -1392,18 +1403,20 @@ class SummaryModel:
             else:
                 return ""
 
-            # Log raw generated length before post-processing
+            # Log raw generated length before post-processing (with lock for thread safety)
             raw_chars = len(summary_text)
             raw_words = len(summary_text.split()) if summary_text else 0
-            raw_tokens = (
-                len(
-                    self.tokenizer.encode(  # type: ignore[attr-defined]
-                        summary_text, add_special_tokens=False, truncation=True, max_length=100000
+            raw_tokens = 0
+            if summary_text and self.tokenizer:
+                with self._summarize_lock:
+                    raw_tokens = len(
+                        self.tokenizer.encode(  # type: ignore[attr-defined]
+                            summary_text,
+                            add_special_tokens=False,
+                            truncation=True,
+                            max_length=100000,
+                        )
                     )
-                )
-                if summary_text and self.tokenizer
-                else 0
-            )
 
             # Validate summary quality - detect instruction leaks and
             # repetitive/hallucinated content
@@ -1483,11 +1496,58 @@ class SummaryModel:
                     )
                     return ""
             # Handle "Already borrowed" error from Rust tokenizer in parallel execution
+            # This should not happen with the lock, but retry with lock and backoff if it does
             if "already borrowed" in error_msg:
-                logger.error(
+                logger.warning(
                     f"Tokenizer threading error during summarization: {e}. "
-                    "This can occur in parallel execution. Retrying with empty result."
+                    "Retrying with lock and exponential backoff..."
                 )
+                # Retry with lock and exponential backoff (max 3 retries)
+                max_retries = 3
+                for attempt in range(max_retries):
+                    wait_time = 0.1 * (2**attempt)  # Exponential backoff: 0.1s, 0.2s, 0.4s
+                    time.sleep(wait_time)
+                    try:
+                        with self._summarize_lock:
+                            # Rebuild pipeline kwargs (may have been modified)
+                            retry_result = self.pipeline(input_text, **pipeline_kwargs)
+                            if isinstance(retry_result, list) and len(retry_result) > 0:
+                                summary_text = retry_result[0].get("summary_text", "")
+                                return cast(str, summary_text).strip()
+                            elif isinstance(retry_result, dict):
+                                summary_text = retry_result.get("summary_text", "")
+                                return cast(str, summary_text).strip()
+                            else:
+                                logger.error(
+                                    f"Retry {attempt + 1}/{max_retries} returned invalid result"
+                                )
+                                if attempt == max_retries - 1:
+                                    return ""
+                    except RuntimeError as retry_error:
+                        retry_error_msg = str(retry_error).lower()
+                        if "already borrowed" in retry_error_msg and attempt < max_retries - 1:
+                            logger.warning(
+                                f"Retry {attempt + 1}/{max_retries} still got 'already borrowed', "
+                                f"waiting {wait_time * 2:.2f}s before next retry..."
+                            )
+                            continue
+                        else:
+                            logger.error(f"Retry {attempt + 1}/{max_retries} failed: {retry_error}")
+                            if attempt == max_retries - 1:
+                                logger.error(
+                                    "All retries exhausted. This should not happen with proper "
+                                    "locking - there may be a deeper concurrency issue."
+                                )
+                                return ""
+                    except Exception as retry_error:
+                        logger.error(
+                            f"Retry {attempt + 1}/{max_retries} raised unexpected error: "
+                            f"{retry_error}"
+                        )
+                        if attempt == max_retries - 1:
+                            return ""
+                # If we get here, all retries failed
+                logger.error("All retry attempts exhausted for tokenizer threading error")
                 return ""
             raise
         except Exception as e:
@@ -1501,6 +1561,7 @@ def chunk_text_for_summarization(
     chunk_size: int,
     # Default token overlap (will be adjusted based on chunk_size)
     overlap: int = DEFAULT_TOKEN_OVERLAP,
+    lock: Optional[threading.Lock] = None,
 ) -> List[str]:
     """Split long text into overlapping chunks.
 
@@ -1509,6 +1570,7 @@ def chunk_text_for_summarization(
         tokenizer: Tokenizer instance for accurate token counting
         chunk_size: Target chunk size in tokens
         overlap: Overlap between chunks in tokens
+        lock: Optional threading lock to serialize tokenizer access (for thread safety)
 
     Returns:
         List of text chunks
@@ -1516,9 +1578,16 @@ def chunk_text_for_summarization(
     # Tokenize to get accurate token counts
     # Use truncation=True to prevent warnings when text exceeds model max
     # (We're chunking anyway, so truncation here is just to avoid warnings)
-    tokens = tokenizer.encode(  # type: ignore[attr-defined]
-        text, add_special_tokens=False, truncation=True, max_length=100000
-    )
+    # Serialize tokenizer access if lock is provided (prevents "Already borrowed" errors)
+    if lock:
+        with lock:
+            tokens = tokenizer.encode(  # type: ignore[attr-defined]
+                text, add_special_tokens=False, truncation=True, max_length=100000
+            )
+    else:
+        tokens = tokenizer.encode(  # type: ignore[attr-defined]
+            text, add_special_tokens=False, truncation=True, max_length=100000
+        )
 
     chunks = []
     start = 0
@@ -1529,10 +1598,16 @@ def chunk_text_for_summarization(
         end = min(start + chunk_size, total_tokens)
         chunk_tokens = tokens[start:end]
 
-        # Decode chunk tokens back to text
-        chunk_text = tokenizer.decode(  # type: ignore[attr-defined]
-            chunk_tokens, skip_special_tokens=True
-        )
+        # Decode chunk tokens back to text (with lock if provided)
+        if lock:
+            with lock:
+                chunk_text = tokenizer.decode(  # type: ignore[attr-defined]
+                    chunk_tokens, skip_special_tokens=True
+                )
+        else:
+            chunk_text = tokenizer.decode(  # type: ignore[attr-defined]
+                chunk_tokens, skip_special_tokens=True
+            )
         chunks.append(chunk_text)
 
         # Move start forward: advance by (chunk_size - overlap) tokens
@@ -1552,7 +1627,12 @@ def chunk_text_for_summarization(
     return chunks
 
 
-def _chunk_by_tokens(text: str, tokenizer: "AutoTokenizer", max_tokens: int = 600) -> List[str]:
+def _chunk_by_tokens(
+    text: str,
+    tokenizer: "AutoTokenizer",
+    max_tokens: int = 600,
+    lock: Optional[threading.Lock] = None,
+) -> List[str]:
     """Simple token-based chunking without overlap (for mini map-reduce).
 
     This function ensures chunks never exceed max_tokens, preventing truncation.
@@ -1568,13 +1648,28 @@ def _chunk_by_tokens(text: str, tokenizer: "AutoTokenizer", max_tokens: int = 60
     """
     # Use truncation=True to prevent warnings when text exceeds model max
     # (We're chunking anyway, so truncation here is just to avoid warnings)
-    ids = tokenizer.encode(  # type: ignore[attr-defined]
-        text, add_special_tokens=False, truncation=True, max_length=100000
-    )
+    # Serialize tokenizer access for thread safety
+    if lock:
+        with lock:
+            ids = tokenizer.encode(  # type: ignore[attr-defined]
+                text, add_special_tokens=False, truncation=True, max_length=100000
+            )
+    else:
+        ids = tokenizer.encode(  # type: ignore[attr-defined]
+            text, add_special_tokens=False, truncation=True, max_length=100000
+        )
     chunks = []
     for i in range(0, len(ids), max_tokens):
         cs = ids[i : i + max_tokens]
-        chunks.append(tokenizer.decode(cs, skip_special_tokens=True))  # type: ignore[attr-defined]
+        if lock:
+            with lock:
+                chunks.append(
+                    tokenizer.decode(cs, skip_special_tokens=True)  # type: ignore[attr-defined]
+                )
+        else:
+            chunks.append(
+                tokenizer.decode(cs, skip_special_tokens=True)  # type: ignore[attr-defined]
+            )
     return chunks
 
 
@@ -1742,9 +1837,11 @@ def _check_if_needs_chunking(
     # Check if text fits in configured chunk_size
     # Use truncation=True to prevent warnings when text exceeds model max
     # (This is just for counting, actual processing will chunk if needed)
-    tokens = model.tokenizer.encode(  # type: ignore[attr-defined]
-        text, add_special_tokens=False, truncation=True, max_length=100000
-    )
+    # Serialize tokenizer access for thread safety
+    with model._summarize_lock:
+        tokens = model.tokenizer.encode(  # type: ignore[attr-defined]
+            text, add_special_tokens=False, truncation=True, max_length=100000
+        )
     total_tokens = len(tokens)
 
     if total_tokens <= chunk_size:
@@ -1791,16 +1888,19 @@ def _prepare_chunks(
         model.tokenizer,
         chunk_size=chunk_size,
         overlap=overlap,
+        lock=model._summarize_lock,  # Serialize tokenizer access for thread safety
     )
 
     total_words = len(text.split())
     # Use truncation=True to prevent warnings when text exceeds model max
     # (This is just for counting/logging, actual chunks are already created)
-    total_tokens = len(
-        model.tokenizer.encode(  # type: ignore[attr-defined]
-            text, add_special_tokens=False, truncation=True, max_length=100000
+    # Serialize tokenizer access for thread safety
+    with model._summarize_lock:
+        total_tokens = len(
+            model.tokenizer.encode(  # type: ignore[attr-defined]
+                text, add_special_tokens=False, truncation=True, max_length=100000
+            )
         )
-    )
 
     if use_word_chunking:
         logger.debug(
@@ -1930,11 +2030,13 @@ def summarize_long_text(
     if model.tokenizer:
         # Use truncation=True to prevent warnings when text exceeds model max
         # (This is just for counting/logging, actual processing will chunk if needed)
-        input_tokens = len(
-            model.tokenizer.encode(  # type: ignore[attr-defined]
-                text, add_special_tokens=False, truncation=True, max_length=100000
+        # Serialize tokenizer access for thread safety
+        with model._summarize_lock:
+            input_tokens = len(
+                model.tokenizer.encode(  # type: ignore[attr-defined]
+                    text, add_special_tokens=False, truncation=True, max_length=100000
+                )
             )
-        )
     else:
         input_tokens = input_chars // CHARS_PER_TOKEN_ESTIMATE
 
@@ -2005,14 +2107,16 @@ def summarize_long_text(
     chunk_sizes_words = [len(chunk.split()) for chunk in chunks]
     if model.tokenizer:
         # Chunks are already within limits, but add truncation to prevent any warnings
-        chunk_sizes_tokens = [
-            len(
-                model.tokenizer.encode(  # type: ignore[attr-defined]
-                    chunk, add_special_tokens=False, truncation=True, max_length=100000
+        # Serialize tokenizer access for thread safety
+        with model._summarize_lock:
+            chunk_sizes_tokens = [
+                len(
+                    model.tokenizer.encode(  # type: ignore[attr-defined]
+                        chunk, add_special_tokens=False, truncation=True, max_length=100000
+                    )
                 )
-            )
-            for chunk in chunks
-        ]
+                for chunk in chunks
+            ]
     else:
         chunk_sizes_tokens = [c // CHARS_PER_TOKEN_ESTIMATE for c in chunk_sizes_chars]
 
@@ -2148,11 +2252,13 @@ def summarize_long_text(
     final_words = len(final_summary.split())
     if model.tokenizer:
         # Final summary is already generated, but add truncation to prevent any warnings
-        final_tokens = len(
-            model.tokenizer.encode(  # type: ignore[attr-defined]
-                final_summary, add_special_tokens=False, truncation=True, max_length=100000
+        # Serialize tokenizer access for thread safety
+        with model._summarize_lock:
+            final_tokens = len(
+                model.tokenizer.encode(  # type: ignore[attr-defined]
+                    final_summary, add_special_tokens=False, truncation=True, max_length=100000
+                )
             )
-        )
     else:
         final_tokens = final_chars // CHARS_PER_TOKEN_ESTIMATE
 
@@ -2388,11 +2494,13 @@ def _summarize_chunks_parallel(
             # Robust rule: max_length = min(configured_max, max(20, int(0.7 * in_len)))
             # This prevents the model from trying to generate longer-than-input outputs
             if model.tokenizer:
-                chunk_tokens = len(
-                    model.tokenizer.encode(  # type: ignore[attr-defined]
-                        chunk_text, add_special_tokens=False, truncation=True, max_length=100000
+                # Serialize tokenizer access for thread safety
+                with model._summarize_lock:
+                    chunk_tokens = len(
+                        model.tokenizer.encode(  # type: ignore[attr-defined]
+                            chunk_text, add_special_tokens=False, truncation=True, max_length=100000
+                        )
                     )
-                )
                 # Cap max_length based on input: min(configured_max, max(20, 0.7 * input))
                 dynamic_max_length = min(chunk_max_length, max(20, int(0.7 * chunk_tokens)))
                 # Cap min_length based on input: min(configured_min, max(10, 0.3 * input))
@@ -2506,11 +2614,13 @@ def _summarize_chunks_sequential(
             # Robust rule: max_length = min(configured_max, max(20, int(0.7 * in_len)))
             # This prevents the model from trying to generate longer-than-input outputs
             if model.tokenizer:
-                chunk_tokens = len(
-                    model.tokenizer.encode(  # type: ignore[attr-defined]
-                        chunk, add_special_tokens=False, truncation=True, max_length=100000
+                # Serialize tokenizer access for thread safety
+                with model._summarize_lock:
+                    chunk_tokens = len(
+                        model.tokenizer.encode(  # type: ignore[attr-defined]
+                            chunk, add_special_tokens=False, truncation=True, max_length=100000
+                        )
                     )
-                )
                 # Cap max_length based on input: min(configured_max, max(20, 0.7 * input))
                 dynamic_max_length = min(chunk_max_length, max(20, int(0.7 * chunk_tokens)))
                 # Cap min_length based on input: min(configured_min, max(10, 0.3 * input))
@@ -2611,11 +2721,13 @@ def _combine_summaries_reduce(
     if model.tokenizer:
         # Combined text is from chunk summaries, but add truncation to prevent warnings
         # (This is just for counting/logging, actual processing will handle truncation)
-        combined_tokens = len(
-            model.tokenizer.encode(  # type: ignore[attr-defined]
-                combined_text, add_special_tokens=False, truncation=True, max_length=100000
+        # Serialize tokenizer access for thread safety
+        with model._summarize_lock:
+            combined_tokens = len(
+                model.tokenizer.encode(  # type: ignore[attr-defined]
+                    combined_text, add_special_tokens=False, truncation=True, max_length=100000
+                )
             )
-        )
     else:
         combined_tokens = combined_chars // CHARS_PER_TOKEN_ESTIMATE
 
@@ -3410,18 +3522,23 @@ def _combine_summaries_mini_map_reduce(
 
         # Step 1: Re-chunk current text into smaller chunks using token-based chunking
         mini_chunks = _chunk_by_tokens(
-            current_text, model.tokenizer, max_tokens=mini_chunk_size_tokens
+            current_text,
+            model.tokenizer,
+            max_tokens=mini_chunk_size_tokens,
+            lock=model._summarize_lock,
         )
 
         # Validate chunk sizes to ensure they don't exceed model limit
         max_chunk_tokens = 0
-        for i, chunk in enumerate(mini_chunks, 1):
-            # Chunks are already within limits, but add truncation to prevent any warnings
-            chunk_tokens = len(
-                model.tokenizer.encode(  # type: ignore[attr-defined]
-                    chunk, add_special_tokens=False, truncation=True, max_length=100000
+        # Serialize tokenizer access for thread safety
+        with model._summarize_lock:
+            for i, chunk in enumerate(mini_chunks, 1):
+                # Chunks are already within limits, but add truncation to prevent any warnings
+                chunk_tokens = len(
+                    model.tokenizer.encode(  # type: ignore[attr-defined]
+                        chunk, add_special_tokens=False, truncation=True, max_length=100000
+                    )
                 )
-            )
             max_chunk_tokens = max(max_chunk_tokens, chunk_tokens)
             if chunk_tokens > model_max:
                 logger.error(
@@ -3512,11 +3629,13 @@ def _combine_summaries_mini_map_reduce(
         current_words = len(current_text.split())
         if model.tokenizer:
             # Current text is from section summaries, but add truncation to prevent warnings
-            current_tokens = len(
-                model.tokenizer.encode(  # type: ignore[attr-defined]
-                    current_text, add_special_tokens=False, truncation=True, max_length=100000
+            # Serialize tokenizer access for thread safety
+            with model._summarize_lock:
+                current_tokens = len(
+                    model.tokenizer.encode(  # type: ignore[attr-defined]
+                        current_text, add_special_tokens=False, truncation=True, max_length=100000
+                    )
                 )
-            )
         else:
             current_tokens = current_chars // CHARS_PER_TOKEN_ESTIMATE
 

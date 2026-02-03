@@ -14,7 +14,7 @@ The CLI returns standard exit codes that CI/CD pipelines can use:
 - **Exit code 0**: Success (pipeline completed successfully)
 - **Exit code 1**: Error (validation, configuration, or pipeline failure)
 
-GitHub Actions workflows automatically handle exit codes - a non-zero exit code will fail the job. For detailed exit code semantics and usage examples, see the [CLI Reference - Exit Codes](../api/CLI.md#exit-codes).
+GitHub Actions workflows automatically handle exit codes - a non-zero exit code will fail the job. For detailed exit code semantics and usage examples, see the [CLI Reference - Exit Codes](../api/CLI.md#exit-codes-issue-379).
 
 ## Local Development
 
