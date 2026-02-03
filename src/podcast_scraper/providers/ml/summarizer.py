@@ -2276,6 +2276,10 @@ def summarize_long_text(
         reduce_encoder_no_repeat_ngram_size=reduce_encoder_no_repeat_ngram_size,
         reduce_max_input_tokens=reduce_max_input_tokens,
         truncation=truncation,
+        # Pass 2nd-pass distill parameters
+        enable_2nd_pass_distill=enable_2nd_pass_distill,
+        transcript_text=transcript_text,
+        episode_description=episode_description,
     )
     reduce_time = time.time() - reduce_start_time
 
@@ -2728,6 +2732,10 @@ def _combine_summaries_reduce(
     reduce_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
     map_model: Optional[SummaryModel] = None,  # MAP model for routing short inputs
+    # Optional 2nd-pass distill parameters (Issue #387)
+    enable_2nd_pass_distill: bool = False,
+    transcript_text: Optional[str] = None,
+    episode_description: Optional[str] = None,
 ) -> str:
     """Reduce step: Combine chunk summaries into final summary.
 
@@ -2944,6 +2952,10 @@ def _combine_summaries_reduce(
             reduce_early_stopping=reduce_early_stopping,
             reduce_max_input_tokens=reduce_max_input_tokens,
             truncation=truncation,
+            # Pass 2nd-pass distill parameters
+            enable_2nd_pass_distill=enable_2nd_pass_distill,
+            transcript_text=transcript_text,
+            episode_description=episode_description,
         )
     except RuntimeError as e:
         error_msg = str(e).lower()
@@ -3837,6 +3849,10 @@ def _combine_summaries_abstractive(
     reduce_encoder_no_repeat_ngram_size: Optional[int] = None,
     reduce_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
+    # Optional 2nd-pass distill parameters (Issue #387)
+    enable_2nd_pass_distill: bool = False,
+    transcript_text: Optional[str] = None,
+    episode_description: Optional[str] = None,
 ) -> str:
     """Combine summaries using abstractive approach (final summarization pass).
 
@@ -4073,18 +4089,15 @@ def _combine_summaries_abstractive(
                 final_summary = _distill_final_summary(model, final_summary)
 
                 # Apply optional 2nd-pass distill with faithfulness prompt (Issue #387)
-                # Note: enable_2nd_pass_distill, transcript_text, episode_description
-                # are function parameters but mypy/flake8 may flag them due to
-                # very long function (false positive)
-                if enable_2nd_pass_distill:  # type: ignore[name-defined]  # noqa: F821
+                if enable_2nd_pass_distill:
                     logger.debug(
                         "[DISTILL-2ND] Applying 2nd-pass distillation with faithfulness prompt"
                     )
                     final_summary = _distill_final_summary_2nd_pass(
                         model,
                         final_summary,
-                        transcript_text,  # type: ignore[name-defined]  # noqa: F821
-                        episode_description,  # type: ignore[name-defined]  # noqa: F821
+                        transcript_text,
+                        episode_description,
                     )
             else:
                 logger.debug(
