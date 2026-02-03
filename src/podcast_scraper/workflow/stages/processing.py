@@ -255,19 +255,35 @@ def detect_feed_hosts_and_patterns(
         )
         logger.info("=" * 60)
 
+    # Fallback to known_hosts from config if no hosts detected (show-level override)
+    # This is useful when RSS metadata doesn't provide clean host names
+    # (e.g., "NPR" instead of actual hosts)
+    if not cached_hosts and cfg.known_hosts:
+        cached_hosts = set(cfg.known_hosts)
+        logger.info("=" * 60)
+        logger.info(
+            "DETECTED HOSTS (from config known_hosts fallback): %s",
+            ", ".join(sorted(cached_hosts)),
+        )
+        logger.info("=" * 60)
+
     if cached_hosts:
         # Determine source for logging
         if feed.authors:
             source = "RSS author tags"
         elif episode_authors and cached_hosts == episode_authors:
             source = "episode-level authors"
+        elif cfg.known_hosts and cached_hosts == set(cfg.known_hosts):
+            source = "config known_hosts (fallback)"
         else:
             source = "feed metadata (NER)"
         logger.info("=" * 60)
         logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
         logger.info("=" * 60)
     elif cfg.auto_speakers:
-        logger.debug("No hosts detected from feed metadata or episode-level authors")
+        logger.debug(
+            "No hosts detected from feed metadata, episode-level authors, or config known_hosts"
+        )
 
     # Analyze patterns from first few episodes to extract heuristics
     if cfg.auto_speakers and episodes:

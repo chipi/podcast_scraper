@@ -91,14 +91,16 @@ PEGASUS_CNN_DAILYMAIL_REVISION = (
     "40d588fdab0cc077b80d950b300bf66ad3c75b92"  # Pinned commit SHA for reproducibility
 )
 # LED model revisions (Issue #379)
-# TODO: Update with actual commit SHAs from HuggingFace
-# To find:
+# Pinned commit SHAs for reproducibility (updated 2026-01-XX)
+# To find latest commit SHA:
 #   from huggingface_hub import HfApi
 #   api = HfApi()
 #   model_info = api.model_info("allenai/led-base-16384", revision="main")
 #   commit_hash = model_info.sha
-LED_BASE_16384_REVISION = "main"  # Placeholder - update with actual commit SHA
-LED_LARGE_16384_REVISION = "main"  # Placeholder - update with actual commit SHA
+LED_BASE_16384_REVISION = (
+    "38335783885b338d93791936c54bb4be46bebed9"  # Pinned commit SHA for reproducibility
+)
+LED_LARGE_16384_REVISION = "main"  # Placeholder - update with actual commit SHA when needed
 
 # OpenAI model defaults (Issue #191)
 # Test defaults: cheapest models for dev/testing (minimize API costs)
