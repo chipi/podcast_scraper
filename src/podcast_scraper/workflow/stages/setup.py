@@ -11,7 +11,8 @@ import os
 import shutil
 from typing import Any, Optional, Tuple
 
-from ... import config, filesystem
+from ... import config
+from ...utils import filesystem
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +121,7 @@ def ensure_ml_models_cached(cfg: config.Config) -> None:
         return
 
     try:
-        from ...cache_utils import (
+        from ...cache import (
             get_transformers_cache_dir,
             get_whisper_cache_dir,
         )
@@ -137,7 +138,7 @@ def ensure_ml_models_cached(cfg: config.Config) -> None:
 
         # Check Transformers models
         if cfg.generate_summaries and cfg.summary_provider == "transformers":
-            from ... import summarizer
+            from ...providers.ml import summarizer
 
             transformers_cache = get_transformers_cache_dir()
             # Get MAP model
@@ -166,7 +167,7 @@ def ensure_ml_models_cached(cfg: config.Config) -> None:
             try:
                 # Import preload functions from internal package module
                 # This is the ONLY place where models can be downloaded
-                from ...model_loader import (
+                from ...providers.ml.model_loader import (
                     preload_transformers_models,
                     preload_whisper_models,
                 )
@@ -229,10 +230,26 @@ def preload_ml_models_if_needed(cfg: config.Config) -> None:
 
     # Create MLProvider instance and preload models
     try:
-        from ...ml.ml_provider import MLProvider
+        from ...providers.ml.ml_provider import MLProvider
 
         _preloaded_ml_provider = MLProvider(cfg)
         _preloaded_ml_provider.preload()
+
+        # Also store in orchestration module so factories can find it
+        from .. import orchestration
+
+        orchestration._preloaded_ml_provider = _preloaded_ml_provider
+
+        # Also update workflow module's reference (for factories that import from workflow)
+        # This ensures the __getattr__ in workflow/__init__.py returns the current value
+        import sys
+
+        workflow_module = sys.modules.get("podcast_scraper.workflow")
+        if workflow_module:
+            # Update the orchestration module reference (which __getattr__ reads from)
+            # The orchestration module is already updated above, so this is just for clarity
+            pass
+
         logger.debug("ML models preloaded successfully, instance stored for reuse")
     except ImportError as e:
         # Log more details about the import error to help diagnose issues

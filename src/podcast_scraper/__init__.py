@@ -38,7 +38,7 @@ Service Mode (for supervisor/systemd):
 from __future__ import annotations
 
 from .config import Config, load_config_file
-from .workflow import run_pipeline
+from .workflow.orchestration import run_pipeline
 
 __all__ = [
     "Config",
@@ -82,7 +82,37 @@ def __getattr__(name: str):
     if name == "cache_manager":
         import importlib
 
-        _cache_manager = importlib.import_module(f"{__name__}.cache_manager")
+        _cache_manager = importlib.import_module(f"{__name__}.cache.manager")
         _import_cache[name] = _cache_manager
         return _cache_manager
+    if name == "summarizer":
+        import importlib
+
+        _summarizer = importlib.import_module(f"{__name__}.providers.ml.summarizer")
+        _import_cache[name] = _summarizer
+        return _summarizer
+    if name == "downloader":
+        import importlib
+
+        _downloader = importlib.import_module(f"{__name__}.rss.downloader")
+        _import_cache[name] = _downloader
+        return _downloader
+    if name == "rss_parser":
+        import importlib
+
+        _rss_parser = importlib.import_module(f"{__name__}.rss.parser")
+        _import_cache[name] = _rss_parser
+        return _rss_parser
+    if name == "speaker_detection":
+        import importlib
+
+        _speaker_detection = importlib.import_module(f"{__name__}.providers.ml.speaker_detection")
+        _import_cache[name] = _speaker_detection
+        return _speaker_detection
+    if name == "metrics":
+        import importlib
+
+        _metrics = importlib.import_module(f"{__name__}.workflow.metrics")
+        _import_cache[name] = _metrics
+        return _metrics
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

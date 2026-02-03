@@ -1,7 +1,8 @@
 # ADR-027: Deep Provider Fingerprinting
 
-- **Status**: Accepted
+- **Status**: Accepted ✅ Implemented
 - **Date**: 2026-01-11
+- **Updated**: 2026-01-16
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**: [RFC-016](../rfc/RFC-016-modularization-for-ai-experiments.md)
 
@@ -13,10 +14,17 @@ AI outputs are highly sensitive to environment variables (PyTorch version, GPU m
 
 We implement **Deep Provider Fingerprinting**. Every AI-generated output (transcript, summary) must include a fingerprint containing:
 
-- **Model Details**: Names and SHA256 hashes of local model weights.
-- **Hardware**: Device name (`M1 Max`, `RTX 4090`), precision (`fp16`, `int8`).
-- **Software**: Versions of `transformers`, `torch`, and the `podcast_scraper` package.
-- **Git State**: Commit hash and "dirty" status of the source code.
+- **Run Context**: Run ID, baseline/reference ID, dataset ID, git commit/branch/dirty status
+- **Provider**: Provider type, library, library version
+- **Model**: Task, model name, model version/revision, endpoint, tokenizer details
+- **Generation Params**: Temperature, top_p, max_new_tokens, min_new_tokens, repetition_penalty, seed
+- **Preprocessing**: Profile ID, profile version, detailed steps (remove_timestamps, normalize_speakers, etc.)
+- **Chunking**: Strategy, token/word chunk sizes, overlap, boundary heuristics
+- **Prompts**: Template ID, template SHA256, parameters
+- **Environment**: Python version, OS, dependencies
+- **Runtime**: Device (MPS/CUDA/CPU), backend, torch version, dtype, inference backend, compile settings
+
+**Implementation**: The fingerprint is stored as `fingerprint.json` in baseline/reference/run directories, with a reference from `predictions.jsonl` entries via `fingerprint_ref`.
 
 ## Rationale
 

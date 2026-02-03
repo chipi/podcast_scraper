@@ -1,0 +1,42 @@
+id: "baseline_map_distilbart12-6__reduce_led-base"
+task: "summarization"
+
+backend:
+  type: "hf_local"
+  map_model: "sshleifer/distilbart-cnn-12-6"
+  reduce_model: "allenai/led-base-16384"
+
+map_params:
+  do_sample: false
+  num_beams: 4
+  max_new_tokens: 220
+  min_new_tokens: 90
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.10
+  length_penalty: 1.0
+  early_stopping: true
+
+reduce_params:
+  do_sample: false
+  num_beams: 4
+  max_new_tokens: 650
+  min_new_tokens: 220
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.12
+  length_penalty: 1.0
+  early_stopping: true
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v4"
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150

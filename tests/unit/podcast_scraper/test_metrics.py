@@ -16,7 +16,7 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from podcast_scraper import metrics
+from podcast_scraper.workflow import metrics
 
 
 class TestMetricsInitialization(unittest.TestCase):
@@ -187,7 +187,7 @@ class TestRecordSummarizeTime(unittest.TestCase):
 class TestFinish(unittest.TestCase):
     """Test finish method."""
 
-    @patch("podcast_scraper.metrics.time.time")
+    @patch("podcast_scraper.workflow.metrics.time.time")
     def test_finish_calculates_run_duration(self, mock_time):
         """Test that finish calculates run duration."""
         # Mock start time and end time
@@ -199,7 +199,7 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(result["run_duration_seconds"], 5.5)
         self.assertEqual(m.run_duration_seconds, 5.5)
 
-    @patch("podcast_scraper.metrics.time.time")
+    @patch("podcast_scraper.workflow.metrics.time.time")
     def test_finish_rounds_duration(self, mock_time):
         """Test that finish rounds duration to 2 decimal places."""
         mock_time.return_value = 105.123456
@@ -216,7 +216,7 @@ class TestFinish(unittest.TestCase):
         m.extract_names_times = [0.5, 1.0, 1.5]
         m.summarize_times = [3.0, 5.0, 4.0, 6.0]
 
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 
@@ -228,7 +228,7 @@ class TestFinish(unittest.TestCase):
     def test_finish_handles_empty_lists(self):
         """Test that finish handles empty time lists."""
         m = metrics.Metrics()
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 
@@ -245,7 +245,7 @@ class TestFinish(unittest.TestCase):
         m.extract_names_times = [0.333, 0.666]  # Average = 0.4995 -> 0.5
         m.summarize_times = [1.111, 2.222]  # Average = 1.6665 -> 1.67
 
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 
@@ -270,7 +270,7 @@ class TestFinish(unittest.TestCase):
         m.record_stage("normalizing", 2.0)
         m.record_stage("writing_storage", 0.5)
 
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 
@@ -288,12 +288,14 @@ class TestFinish(unittest.TestCase):
             "time_scraping",
             "time_parsing",
             "time_normalizing",
+            "time_io_and_waiting",
             "time_writing_storage",
             "avg_download_media_seconds",
             "avg_transcribe_seconds",
             "avg_extract_names_seconds",
             "avg_summarize_seconds",
             "download_media_count",
+            "download_media_attempts",
             "transcribe_count",
             "extract_names_count",
             "summarize_count",
@@ -309,6 +311,7 @@ class TestFinish(unittest.TestCase):
             # Preprocessing metrics
             "avg_preprocessing_seconds",
             "preprocessing_count",
+            "preprocessing_attempts",
             "avg_preprocessing_size_reduction_percent",
             "preprocessing_cache_hits",
             "preprocessing_cache_misses",
@@ -337,7 +340,7 @@ class TestFinish(unittest.TestCase):
         m.extract_names_times = [0.5]
         m.summarize_times = []
 
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 
@@ -394,7 +397,7 @@ class TestPreprocessingMetrics(unittest.TestCase):
         m.record_preprocessing_cache_hit()
         m.record_preprocessing_cache_miss()
 
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 
@@ -409,7 +412,7 @@ class TestPreprocessingMetrics(unittest.TestCase):
         """Test that finish handles preprocessing metrics with no data."""
         m = metrics.Metrics()
 
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 
@@ -425,7 +428,7 @@ class TestPreprocessingMetrics(unittest.TestCase):
         m = metrics.Metrics()
         m.record_preprocessing_time(1.0)
 
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 
@@ -440,8 +443,8 @@ class TestPreprocessingMetrics(unittest.TestCase):
 class TestLogMetrics(unittest.TestCase):
     """Test log_metrics method."""
 
-    @patch("podcast_scraper.metrics.logger.debug")
-    @patch("podcast_scraper.metrics.time.time")
+    @patch("podcast_scraper.workflow.metrics.logger.debug")
+    @patch("podcast_scraper.workflow.metrics.time.time")
     def test_log_metrics_calls_finish(self, mock_time, mock_log):
         """Test that log_metrics calls finish and logs the result."""
         mock_time.return_value = 100.0
@@ -457,8 +460,8 @@ class TestLogMetrics(unittest.TestCase):
         self.assertIn("Pipeline finished", call_args)
         self.assertIn("Episodes Scraped Total: 10", call_args)
 
-    @patch("podcast_scraper.metrics.logger.debug")
-    @patch("podcast_scraper.metrics.time.time")
+    @patch("podcast_scraper.workflow.metrics.logger.debug")
+    @patch("podcast_scraper.workflow.metrics.time.time")
     def test_log_metrics_format(self, mock_time, mock_log):
         """Test that log_metrics formats output correctly."""
         mock_time.return_value = 100.0
@@ -479,8 +482,8 @@ class TestLogMetrics(unittest.TestCase):
         self.assertIn(": 5", call_args)
         self.assertIn(": 3", call_args)
 
-    @patch("podcast_scraper.metrics.logger.debug")
-    @patch("podcast_scraper.metrics.time.time")
+    @patch("podcast_scraper.workflow.metrics.logger.debug")
+    @patch("podcast_scraper.workflow.metrics.time.time")
     def test_log_metrics_includes_all_metrics(self, mock_time, mock_log):
         """Test that log_metrics includes all metrics from finish()."""
         mock_time.return_value = 100.0
@@ -593,7 +596,7 @@ class TestFinishIncludesLLMMetrics(unittest.TestCase):
         m.record_llm_transcription_call(10.5)
         m.record_llm_transcription_call(5.0)
 
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 
@@ -606,7 +609,7 @@ class TestFinishIncludesLLMMetrics(unittest.TestCase):
         m.record_llm_speaker_detection_call(input_tokens=100, output_tokens=50)
         m.record_llm_speaker_detection_call(input_tokens=200, output_tokens=75)
 
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 
@@ -620,7 +623,7 @@ class TestFinishIncludesLLMMetrics(unittest.TestCase):
         m.record_llm_summarization_call(input_tokens=1000, output_tokens=500)
         m.record_llm_summarization_call(input_tokens=2000, output_tokens=800)
 
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 
@@ -633,7 +636,7 @@ class TestFinishIncludesLLMMetrics(unittest.TestCase):
         m = metrics.Metrics()
         m.record_llm_transcription_call(10.123456)
 
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 
@@ -643,7 +646,7 @@ class TestFinishIncludesLLMMetrics(unittest.TestCase):
         """Test that finish includes all LLM metrics even when zero."""
         m = metrics.Metrics()
 
-        with patch("podcast_scraper.metrics.time.time", return_value=100.0):
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
             result = m.finish()
 

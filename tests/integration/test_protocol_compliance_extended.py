@@ -70,7 +70,7 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
         self.assertTrue(hasattr(provider, "cleanup"))
         self.assertTrue(callable(getattr(provider, "cleanup")))
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
     def test_transcription_provider_initialize_cleanup_cycle(self, mock_import_whisper):
         """Test that transcription provider can be initialized and cleaned up."""
         mock_whisper_lib = Mock()
@@ -117,9 +117,9 @@ class TestProtocolLifecycleMethods(unittest.TestCase):
         if hasattr(detector, "is_initialized"):
             self.assertFalse(detector.is_initialized)
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
     def test_summarization_provider_initialize_cleanup_cycle(
         self, mock_summary_model, mock_select_map, mock_select_reduce
     ):
@@ -252,8 +252,8 @@ class TestTranscriptionProviderTranscribeWithSegments(unittest.TestCase):
         # Should return a tuple
         self.assertIn("tuple", return_annotation.lower())
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider.MLProvider._transcribe_with_whisper")
     def test_transcribe_with_segments_returns_expected_structure(
         self, mock_transcribe, mock_import_whisper
     ):

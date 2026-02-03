@@ -1,9 +1,10 @@
-"""Summarization utilities.
+"""Summarization provider protocol and factory.
 
-This package contains modules for text chunking, prompts, and map-reduce
-summarization workflows extracted from summarizer.py.
+This package contains:
+- base.py: SummarizationProvider protocol definition
+- factory.py: Factory function for creating summarization providers
 """
 
-from . import chunking, map_reduce, prompts
+from . import base, factory
 
-__all__ = ["chunking", "map_reduce", "prompts"]
+__all__ = ["base", "factory"]

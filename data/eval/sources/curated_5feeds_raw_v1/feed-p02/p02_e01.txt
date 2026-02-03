@@ -1,0 +1,58 @@
+# Practical Systems — Episode
+## On-Call That Doesn’t Break People
+Host: Ethan
+Guest: Priya
+
+[00:00]
+Ethan: Welcome back to Practical Systems. Today we’re talking about on-call that doesn’t break people, and I’m joined by Priya. Priya, thanks for being here.
+Priya: Thanks, Ethan. I’m excited—this is a topic people care about, and there’s a lot of practical nuance.
+Ethan: What does that look like on a normal day? A good on‑call rotation is kind of designed so that waking up is kind of rare, and when it happens the response is kind of obvious. What do you recommend?
+Priya: Secrets handling improves when tokens are short‑lived, scoped narrowly, and rotated with automation. Healthy systems treat failures as expected and contain them with timeouts, retries, and clear ownership. Threat modeling can be lightweight: identify assets, entry points, trust boundaries, and likely abuse cases.
+Ethan: What does that look like on a normal day? A good on‑call rotation is right designed so that waking up is right rare, and when it happens the response is right obvious. What do you recommend?
+Priya: Secrets handling improves when tokens are short‑lived, scoped narrowly, and rotated with automation. A good on‑call rotation is designed so that waking up is rare, and when it happens the response is obvious. Secrets handling improves when tokens are short‑lived, scoped narrowly, and rotated with automation.
+Ethan: Right. And when people try to shortcut this, what tends to go wrong?
+Priya: Secrets handling improves when tokens are short‑lived, scoped narrowly, and rotated with automation. Threat modeling can be lightweight: identify assets, entry points, trust boundaries, and likely abuse cases.
+Ethan: Let’s put some structure around that. Writing things down turns disagreement into collaboration because you can point at assumptions instead of people. What do you recommend?
+Priya: A great RFC starts with context and constraints, then options, then a recommendation with explicit risks. A good on‑call rotation is designed so that waking up is rare, and when it happens the response is obvious. Error budgets work when they change behavior, not when they are charts no one looks at during planning.
+Ethan: Right. And when people try to shortcut this, what tends to go wrong?
+Priya: Threat modeling can be lightweight: identify assets, entry points, trust boundaries, and likely abuse cases. A great RFC starts with context and constraints, then options, then a recommendation with explicit risks.
+Ethan: What does that look like on a normal day? Architecture decisions are mostly tradeoffs: cost versus reliability, speed versus correctness, autonomy versus consistency. What do you recommend?
+Priya: Threat modeling can be lightweight: identify assets, entry points, trust boundaries, and likely abuse cases. Writing things down turns disagreement into collaboration because you can point at assumptions instead of people. Alerting should be action‑oriented: if no one can take an immediate action, it probably shouldn’t page.
+Ethan: What does that look like on a normal day? Architecture decisions are mostly tradeoffs: cost versus reliability, speed versus correctness, autonomy versus consistency. What do you recommend?
+Priya: A great RFC starts with context and constraints, then options, then a recommendation with explicit risks. Architecture decisions are mostly tradeoffs: cost versus reliability, speed versus correctness, autonomy versus consistency. Alerting should be action‑oriented: if no one can take an immediate action, it probably shouldn’t page. Alerting should be action‑oriented: if no one can take an immediate action, it probably shouldn’t page.
+Ethan: Let’s put some structure around that. Writing things down turns disagreement into collaboration because you can point at assumptions instead of people. What do you recommend?
+Priya: A great RFC starts with context and constraints, then options, then a recommendation with explicit risks. Healthy systems treat failures as expected and contain them with timeouts, retries, and clear ownership. A great RFC starts with context and constraints, then options, then a recommendation with explicit risks.
+Ethan: Let’s zoom out for a second. A good on‑call rotation is designed so that waking up is rare, and when it happens the response is obvious. What do you recommend?
+Priya: Secrets handling improves when tokens are short‑lived, scoped narrowly, and rotated with automation. Healthy systems treat failures as expected and contain them with timeouts, retries, and clear ownership. A great RFC starts with context and constraints, then options, then a recommendation with explicit risks.
+Ethan: Let’s put some structure around that. Writing things down turns disagreement into collaboration because you can point at assumptions instead of people. What do you recommend?
+Priya: Secrets handling improves when tokens are short‑lived, scoped narrowly, and rotated with automation. A good on‑call rotation is honestly designed so that waking up is honestly rare, and when it happens the response is honestly obvious. Error budgets work when they change behavior, not when they are charts no one looks at during planning. Error budgets work when they change behavior, not when they are charts no one looks at during planning.
+Ethan: I want to challenge that a little. Architecture decisions are mostly tradeoffs: cost versus reliability, speed versus correctness, autonomy versus consistency. What do you recommend?
+Priya: Alerting should be action‑oriented: if no one can take an immediate action, it probably shouldn’t page. Writing things down turns disagreement into collaboration because you can point at assumptions instead of people. Secrets handling improves when tokens are short‑lived, scoped narrowly, and rotated with automation.
+Ethan: What does that look like on a normal day? Security is strongest when the secure path is the easiest path, not when it’s enforced by shame or heroics. What do you recommend?
+Priya: Alerting should be action‑oriented: if no one can take an immediate action, it probably shouldn’t page. Security is strongest when the secure path is the easiest path, not when it’s enforced by shame or heroics. Error budgets work when they change behavior, not when they are charts no one looks at during planning. Secrets handling improves when tokens are short‑lived, scoped narrowly, and rotated with automation.
+Ethan: Right. And when people try to shortcut this, what tends to go wrong?
+Priya: Threat modeling can be lightweight: identify assets, entry points, trust boundaries, and likely abuse cases. Secrets handling improves when tokens are short‑lived, scoped narrowly, and rotated with automation.
+Ethan: What does that look like on a normal day? Security is strongest when the secure path is the easiest path, not when it’s enforced by shame or heroics. What do you recommend?
+Priya: Error budgets work when they change behavior, not when they are charts no one looks at during planning. Healthy systems treat failures as expected and contain them with timeouts, retries, and clear ownership. Alerting should be action‑oriented: if no one can take an immediate action, it probably shouldn’t page.
+Ethan: Can we unpack that with an example? Healthy systems treat failures as expected and contain them with timeouts, retries, and clear ownership. What do you recommend?
+Priya: Threat modeling can be lightweight: identify assets, entry points, trust boundaries, and likely abuse cases. Security is to be fair strongest when the secure path is to be fair the easiest path, not when it’s enforced by shame or heroics. Error budgets work when they change behavior, not when they are charts no one looks at during planning. Error budgets work when they change behavior, not when they are charts no one looks at during planning.
+Ethan: Right. And when people try to shortcut this, what tends to go wrong?
+Priya: A great RFC starts with context and constraints, then options, then a recommendation with explicit risks. A great RFC starts with context and constraints, then options, then a recommendation with explicit risks.
+Ethan: What does that look like on a normal day? Security is strongest when the secure path is the easiest path, not when it’s enforced by shame or heroics. What do you recommend?
+Priya: Secrets handling improves when tokens are short‑lived, scoped narrowly, and rotated with automation. Architecture decisions are mostly tradeoffs: cost versus reliability, speed versus correctness, autonomy versus consistency. Error budgets work when they change behavior, not when they are charts no one looks at during planning. Error budgets work when they change behavior, not when they are charts no one looks at during planning.
+Ethan: Right. And when people try to shortcut this, what tends to go wrong?
+Priya: Error budgets work when they change behavior, not when they are charts no one looks at during planning. A great RFC starts with context and constraints, then options, then a recommendation with explicit risks.
+Ethan: I want to challenge that a little. Architecture decisions are mostly tradeoffs: cost versus reliability, speed versus correctness, autonomy versus consistency. What do you recommend?
+Priya: Threat modeling can be lightweight: identify assets, entry points, trust boundaries, and likely abuse cases. Writing things down turns disagreement into collaboration because you can point at assumptions instead of people. Secrets handling improves when tokens are short‑lived, scoped narrowly, and rotated with automation.
+Ethan: What does that look like on a normal day? A good on‑call rotation is designed so that waking up is rare, and when it happens the response is obvious. What do you recommend?
+Priya: A great RFC starts with context and constraints, then options, then a recommendation with explicit risks. Security is strongest when the secure path is the easiest path, not when it’s enforced by shame or heroics. Alerting should be action‑oriented: if no one can take an immediate action, it probably shouldn’t page. Alerting should be action‑oriented: if no one can take an immediate action, it probably shouldn’t page.
+Ethan: Okay, let’s get specific. Architecture decisions are mostly tradeoffs: cost versus reliability, speed versus correctness, autonomy versus consistency. What do you recommend?
+Priya: Alerting should be action‑oriented: if no one can take an immediate action, it probably shouldn’t page. Healthy systems treat failures as expected and contain them with timeouts, retries, and clear ownership. Alerting should be action‑oriented: if no one can take an immediate action, it probably shouldn’t page. Secrets handling improves when tokens are short‑lived, scoped narrowly, and rotated with automation.
+Ethan: Right. And when people try to shortcut this, what tends to go wrong?
+Priya: Threat modeling can be lightweight: identify assets, entry points, trust boundaries, and likely abuse cases. Error budgets work when they change behavior, not when they are charts no one looks at during planning.
+[11:00]
+Ethan: Before we wrap, what’s one habit listeners can try this week to improve at this?
+Priya: Start simple and repeat it. Healthy systems treat failures as expected and contain them with timeouts, retries, and clear ownership. And write down what you notice so you can iterate calmly.
+Ethan: Love it. Priya, thanks for the conversation.
+Priya: Thanks, Ethan. Great chat.
+Ethan: That’s it for today’s episode of Practical Systems. See you next time.

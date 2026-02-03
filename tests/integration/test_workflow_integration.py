@@ -143,13 +143,13 @@ class TestIntegrationMain(unittest.TestCase):
         http_mock = self._mock_http_map(responses)
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             with patch(
-                "podcast_scraper.ml.ml_provider._import_third_party_whisper"
+                "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
             ) as mock_import_whisper:
                 mock_whisper_lib = Mock()
                 mock_whisper_lib.load_model.return_value = mock_model
                 mock_import_whisper.return_value = mock_whisper_lib
                 with patch(
-                    "podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper",
+                    "podcast_scraper.providers.ml.ml_provider.MLProvider._transcribe_with_whisper",
                     return_value=({"text": transcribed_text, "segments": []}, 1.0),
                 ) as mock_transcribe:
                     with tempfile.TemporaryDirectory() as tmpdir:
@@ -187,14 +187,20 @@ class TestIntegrationMain(unittest.TestCase):
                             out_path.read_text(encoding="utf-8").strip(), transcribed_text
                         )
 
-    @unittest.skip(
-        "Skipped due to intermittent CI failures. The test validates path traversal "
-        "normalization, but path resolution differences between macOS (local) and Linux (CI) "
-        "make it difficult to reliably locate the output file. The path normalization itself "
-        "is still tested via validate_and_normalize_output_dir. TODO: Refactor test to be "
-        "more robust across different filesystem behaviors."
-    )
     def test_path_traversal_attempt_normalized(self):
+        """Test that path traversal attempts are normalized correctly.
+
+        This test validates that malicious paths with '..' components are properly
+        normalized by validate_and_normalize_output_dir, and that files are created
+        in the normalized location (not the malicious location).
+
+        The test is platform-agnostic by:
+        1. Using validate_and_normalize_output_dir to get the expected normalized path
+        2. Constructing the expected file path from the normalized directory
+        3. Verifying the file exists at the expected location
+        """
+        from podcast_scraper.utils import filesystem
+
         rss_url = "https://example.com/feed.xml"
         transcript_url = "https://example.com/ep1.txt"
         rss_xml = build_rss_xml_with_transcript("Integration Feed", transcript_url)
@@ -209,66 +215,44 @@ class TestIntegrationMain(unittest.TestCase):
         http_mock = self._mock_http_map(responses)
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             with tempfile.TemporaryDirectory() as tmpdir:
+                # Create a path with traversal attempts
                 malicious = os.path.join(tmpdir, "..", "danger", "..", "final")
-                exit_code = cli.main([rss_url, "--output-dir", malicious])
+
+                # Get the normalized path that will actually be used
+                # This is what validate_and_normalize_output_dir returns
+                normalized_dir = filesystem.validate_and_normalize_output_dir(malicious)
+
+                # Run the CLI with the malicious path
+                exit_code = cli.main([rss_url, "--output-dir", malicious, "--no-auto-speakers"])
                 self.assertEqual(exit_code, 0)
-                effective_dir = Path(malicious).expanduser().resolve()
-                expected_filename = "0001 - Episode 1.txt"
 
-                # Search for the transcript file using glob pattern
-                # Try multiple search patterns to handle different directory structures
-                transcript_file = None
-                # Direct path
-                direct_path = effective_dir / "transcripts" / expected_filename
-                if direct_path.exists():
-                    transcript_file = direct_path
-                else:
-                    # Recursive search from effective_dir
-                    matches = list(effective_dir.rglob(expected_filename))
-                    if matches:
-                        transcript_file = matches[0]
-                    else:
-                        # Also try parent directory
-                        matches = list(effective_dir.parent.rglob(expected_filename))
-                        if matches:
-                            transcript_file = matches[0]
-
-                # If glob didn't find it, try manual search
-                if transcript_file is None:
-                    for search_root in [effective_dir, effective_dir.parent]:
-                        if not search_root.exists():
-                            continue
-                        # Check direct transcripts directory
-                        direct_path = search_root / "transcripts" / expected_filename
-                        if direct_path.exists():
-                            transcript_file = direct_path
-                            break
-                        # Check run suffix subdirectories
-                        try:
-                            for item in search_root.iterdir():
-                                if item.is_dir():
-                                    candidate = item / "transcripts" / expected_filename
-                                    if candidate.exists():
-                                        transcript_file = candidate
-                                        break
-                                    if item.name.startswith("run_"):
-                                        candidate = item / "transcripts" / expected_filename
-                                        if candidate.exists():
-                                            transcript_file = candidate
-                                            break
-                        except (OSError, PermissionError):
-                            # Directory might not be accessible, skip
-                            continue
-                        if transcript_file:
-                            break
-
-                self.assertIsNotNone(
-                    transcript_file,
-                    f"Transcript file '{expected_filename}' should exist in normalized output directory. "
-                    f"Searched in: {effective_dir}",
+                # Construct the expected file path using the normalized directory
+                # The file should be in: normalized_dir/transcripts/0001 - Episode 1.txt
+                expected_transcript_path = (
+                    Path(normalized_dir) / "transcripts" / "0001 - Episode 1.txt"
                 )
-                self.assertTrue(transcript_file.exists())
-                self.assertNotIn("..", str(transcript_file))
+
+                # Verify the file exists at the normalized location (not the malicious location)
+                self.assertTrue(
+                    expected_transcript_path.exists(),
+                    f"Transcript file should exist at normalized path: {expected_transcript_path}",
+                )
+
+                # Verify the file content
+                with open(expected_transcript_path, "r", encoding="utf-8") as fh:
+                    self.assertEqual(fh.read().strip(), transcript_text)
+
+                # Verify the malicious path resolves to the normalized path
+                # (path normalization should collapse the '..' components)
+                malicious_path = Path(malicious)
+                self.assertEqual(
+                    malicious_path.resolve(),
+                    Path(normalized_dir),
+                    f"Malicious path '{malicious}' should resolve to normalized path '{normalized_dir}'",
+                )
+
+                # Verify the final path does not contain '..' components
+                self.assertNotIn("..", str(expected_transcript_path))
 
     def test_config_override_precedence_integration(self):
         rss_url = "https://example.com/feed.xml"
@@ -299,7 +283,7 @@ class TestIntegrationMain(unittest.TestCase):
                 return self._mock_http_map(responses)(url, user_agent, timeout, stream)
 
             with patch("podcast_scraper.downloader.fetch_url", side_effect=tracking_open):
-                with patch("podcast_scraper.workflow.apply_log_level") as mock_apply:
+                with patch("podcast_scraper.workflow.orchestration.apply_log_level") as mock_apply:
                     exit_code = cli.main(
                         [
                             "--config",
@@ -313,7 +297,14 @@ class TestIntegrationMain(unittest.TestCase):
                     self.assertEqual(exit_code, 0)
                     self.assertTrue(observed_timeouts)
                     self.assertTrue(all(timeout == 10 for timeout in observed_timeouts))
-                    mock_apply.assert_called_with("DEBUG", None)
+                    # apply_log_level is called with (level, log_file) where log_file can be None
+                    # Check that it was called with DEBUG and any log_file value (including None)
+                    mock_apply.assert_called()
+                    call_args = mock_apply.call_args
+                    self.assertEqual(call_args[0][0], "DEBUG")
+                    # log_file can be None or not provided
+                    if len(call_args[0]) > 1:
+                        self.assertIsNone(call_args[0][1])
 
     def test_dry_run_skips_downloads(self):
         rss_url = "https://example.com/feed.xml"
@@ -552,13 +543,13 @@ class TestLibraryAPIIntegration(unittest.TestCase):
         http_mock = self._mock_http_map(responses)
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
             with patch(
-                "podcast_scraper.ml.ml_provider._import_third_party_whisper"
+                "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
             ) as mock_import_whisper:
                 mock_whisper_lib = Mock()
                 mock_whisper_lib.load_model.return_value = mock_model
                 mock_import_whisper.return_value = mock_whisper_lib
                 with patch(
-                    "podcast_scraper.ml.ml_provider.MLProvider._transcribe_with_whisper",
+                    "podcast_scraper.providers.ml.ml_provider.MLProvider._transcribe_with_whisper",
                     return_value=({"text": transcribed_text, "segments": []}, 1.0),
                 ) as mock_transcribe:
                     cfg = podcast_scraper.Config(

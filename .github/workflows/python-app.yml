@@ -84,6 +84,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e .[dev]
+    - name: Check black version
+      run: |
+        python -m black --version
+        pip show black | grep Version
     - name: Install markdownlint
       run: npm install -g markdownlint-cli
     - name: Run fast lint checks
@@ -300,9 +304,8 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
+        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
     - name: Set up Python 3.11 (only if cache miss - needed for model download)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       uses: actions/setup-python@v6
@@ -325,7 +328,62 @@ jobs:
         pip install -e .[dev,ml]
     - name: Preload ML models (only if cache miss)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
-      run: make preload-ml-models
+      run: make preload-ml-models-production
+    - name: Verify models were downloaded (only if cache miss)
+      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
+      run: |
+        echo "🔍 Verifying models were downloaded..."
+        MISSING=""
+        # Check Whisper models (preload-production downloads both tiny.en and base.en)
+        for model in "tiny.en" "base.en"; do
+          if [ ! -f "$HOME/.cache/whisper/${model}.pt" ]; then
+            MISSING="$MISSING whisper:$model"
+          fi
+        done
+        # Check Hugging Face models (preload-production downloads all: bart-base, led-base-16384, bart-large-cnn, led-large-16384)
+        HF_CACHE="$HOME/.cache/huggingface/hub"
+        echo "🔍 Debug: Checking HuggingFace cache structure..."
+        echo "  HF_CACHE: $HF_CACHE"
+        echo "  HF_CACHE exists: $([ -d "$HF_CACHE" ] && echo 'yes' || echo 'no')"
+        if [ -d "$HF_CACHE" ]; then
+          echo "  Contents of HF_CACHE:"
+          ls -la "$HF_CACHE" | head -20
+        fi
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
+          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
+          echo "  Checking $model:"
+          echo "    MODEL_PATH: $MODEL_PATH"
+          echo "    MODEL_PATH exists: $([ -d "$MODEL_PATH" ] && echo 'yes' || echo 'no')"
+          if [ -d "$MODEL_PATH" ]; then
+            echo "    Contents of MODEL_PATH:"
+            ls -la "$MODEL_PATH" | head -10
+            if [ -d "$MODEL_PATH/snapshots" ]; then
+              echo "    snapshots/ exists, contents:"
+              ls -la "$MODEL_PATH/snapshots" | head -5
+            else
+              echo "    snapshots/ does NOT exist"
+            fi
+            if [ -d "$MODEL_PATH/blobs" ]; then
+              echo "    blobs/ exists, file count: $(find "$MODEL_PATH/blobs" -type f 2>/dev/null | wc -l)"
+            fi
+            TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
+            echo "    Total files in MODEL_PATH: $TOTAL_FILES"
+          fi
+          # Model is valid if it has files (in snapshots, blobs, or anywhere in the directory)
+          if [ ! -d "$MODEL_PATH" ] || [ "$(find "$MODEL_PATH" -type f 2>/dev/null | head -1)" = "" ]; then
+            MISSING="$MISSING hf:$model"
+          fi
+        done
+        if [ -n "$MISSING" ]; then
+          echo "❌ ERROR: Models not downloaded: $MISSING"
+          exit 1
+        fi
+        echo "✅ All required models downloaded successfully"
+        echo "📦 Cache will be saved at end of job for test jobs to use"
+        echo "🔍 Debug: Cache sizes before save:"
+        du -sh "$HOME/.cache/whisper" 2>/dev/null || echo "  Whisper cache not found"
+        du -sh "$HOME/.cache/huggingface" 2>/dev/null || echo "  HuggingFace cache not found"
 
   # Full integration tests - all integration tests, runs on main branch only
   test-integration:
@@ -336,8 +394,6 @@ jobs:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
-      # Signal to tests that CI has validated cache - skip redundant checks
-      ML_MODELS_VALIDATED: "true"
     if: |
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4') &&
@@ -366,9 +422,62 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
+        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
+    - name: Validate ML model cache
+      id: validate-cache
+      run: |
+        echo "🔍 Validating ML model cache..."
+        MISSING_MODELS=""
+        MODELS_COMPLETE=true
+
+        # Check Whisper models
+        echo "📦 Whisper models:"
+        for model in "tiny.en" "base.en"; do
+          WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
+          if [ -f "$WHISPER_PATH" ] && [ -s "$WHISPER_PATH" ]; then
+            SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
+            echo "  ✅ $model ($SIZE)"
+          else
+            echo "  ❌ $model - MISSING or empty"
+            MISSING_MODELS="$MISSING_MODELS whisper:$model"
+            MODELS_COMPLETE=false
+          fi
+        done
+
+        # Check Hugging Face models
+        echo ""
+        echo "📦 Hugging Face models:"
+        HF_CACHE="$HOME/.cache/huggingface/hub"
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
+          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
+          # Check if model has files anywhere (blobs, snapshots, or root)
+          # HuggingFace cache structure: files in blobs/, symlinks in snapshots/
+          TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
+          if [ -d "$MODEL_PATH" ] && [ "$TOTAL_FILES" -gt 0 ]; then
+            SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
+            echo "  ✅ $model ($SIZE, $TOTAL_FILES files)"
+          else
+            echo "  ❌ $model - MISSING or incomplete (0 files found)"
+            MISSING_MODELS="$MISSING_MODELS hf:$model"
+            MODELS_COMPLETE=false
+          fi
+        done
+
+        echo ""
+        if [ "$MODELS_COMPLETE" = true ]; then
+          echo "✅ All required ML models are cached!"
+          echo "models_complete=true" >> $GITHUB_OUTPUT
+        else
+          echo "⚠️  Some models are missing: $MISSING_MODELS"
+          echo "models_complete=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+    - name: Set ML_MODELS_VALIDATED (only if cache validated)
+      if: steps.validate-cache.outputs.models_complete == 'true'
+      run: |
+        echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
@@ -438,8 +547,6 @@ jobs:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
-      # Signal to tests that CI has validated cache - skip redundant checks
-      ML_MODELS_VALIDATED: "true"
     if: |
       github.event_name == 'pull_request' &&
       !contains(github.event.pull_request.head.ref, 'docs/') &&
@@ -468,9 +575,96 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
+        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
+    - name: Validate ML model cache
+      id: validate-cache
+      run: |
+        echo "🔍 Validating ML model cache..."
+        MISSING_MODELS=""
+        MODELS_COMPLETE=true
+
+        # Check Whisper models
+        echo "📦 Whisper models:"
+        for model in "tiny.en"; do
+          WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
+          if [ -f "$WHISPER_PATH" ] && [ -s "$WHISPER_PATH" ]; then
+            SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
+            echo "  ✅ $model ($SIZE)"
+          else
+            echo "  ❌ $model - MISSING or empty"
+            MISSING_MODELS="$MISSING_MODELS whisper:$model"
+            MODELS_COMPLETE=false
+          fi
+        done
+
+        # Check Hugging Face models
+        echo ""
+        echo "📦 Hugging Face models:"
+        HF_CACHE="$HOME/.cache/huggingface/hub"
+        echo "🔍 Debug: Checking HuggingFace cache after restore..."
+        echo "  HF_CACHE: $HF_CACHE"
+        echo "  HF_CACHE exists: $([ -d "$HF_CACHE" ] && echo 'yes' || echo 'no')"
+        if [ -d "$HF_CACHE" ]; then
+          echo "  Contents of HF_CACHE:"
+          ls -la "$HF_CACHE" | head -20
+          echo "  Total size: $(du -sh "$HF_CACHE" 2>/dev/null | cut -f1)"
+        fi
+        for model in "facebook/bart-base" "allenai/led-base-16384"; do
+          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
+          echo "  Checking $model:"
+          echo "    MODEL_PATH: $MODEL_PATH"
+          echo "    MODEL_PATH exists: $([ -d "$MODEL_PATH" ] && echo 'yes' || echo 'no')"
+          if [ -d "$MODEL_PATH" ]; then
+            echo "    Contents of MODEL_PATH:"
+            ls -la "$MODEL_PATH" | head -10
+          if [ -d "$MODEL_PATH/snapshots" ]; then
+            echo "    snapshots/ exists, contents:"
+            ls -la "$MODEL_PATH/snapshots" | head -5
+            FILE_COUNT_SNAPSHOTS=$(find "$MODEL_PATH/snapshots" -type f -o -type l 2>/dev/null | wc -l)
+            echo "    File/symlink count in snapshots/: $FILE_COUNT_SNAPSHOTS"
+          else
+            echo "    snapshots/ does NOT exist"
+          fi
+          if [ -d "$MODEL_PATH/blobs" ]; then
+            echo "    blobs/ exists, contents:"
+            ls -la "$MODEL_PATH/blobs" | head -5
+            FILE_COUNT_BLOBS=$(find "$MODEL_PATH/blobs" -type f 2>/dev/null | wc -l)
+            echo "    File count in blobs/: $FILE_COUNT_BLOBS"
+          else
+            echo "    blobs/ does NOT exist"
+          fi
+          # Check if model is complete: either files in snapshots (following symlinks) or files in blobs
+          TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
+          echo "    Total files in MODEL_PATH: $TOTAL_FILES"
+        fi
+        # Model is valid if it has files anywhere (blobs, snapshots, or root)
+        # HuggingFace cache structure: files in blobs/, symlinks in snapshots/
+        TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
+        if [ -d "$MODEL_PATH" ] && [ "$TOTAL_FILES" -gt 0 ]; then
+          SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
+          echo "  ✅ $model ($SIZE, $TOTAL_FILES files)"
+        else
+          echo "  ❌ $model - MISSING or incomplete (0 files found)"
+          MISSING_MODELS="$MISSING_MODELS hf:$model"
+          MODELS_COMPLETE=false
+        fi
+        done
+
+        echo ""
+        if [ "$MODELS_COMPLETE" = true ]; then
+          echo "✅ All required ML models are cached!"
+          echo "models_complete=true" >> $GITHUB_OUTPUT
+        else
+          echo "⚠️  Some models are missing: $MISSING_MODELS"
+          echo "models_complete=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+    - name: Set ML_MODELS_VALIDATED (only if cache validated)
+      if: steps.validate-cache.outputs.models_complete == 'true'
+      run: |
+        echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
     - name: Install dev dependencies with ML (pytest-socket for network guard)
       run: |
         python -m pip install --upgrade pip
@@ -533,8 +727,6 @@ jobs:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
-      # Signal to tests that CI has validated cache - skip redundant checks
-      ML_MODELS_VALIDATED: "true"
     if: |
       github.event_name == 'pull_request' &&
       !contains(github.event.pull_request.head.ref, 'docs/') &&
@@ -563,9 +755,62 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
+        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
+    - name: Validate ML model cache
+      id: validate-cache
+      run: |
+        echo "🔍 Validating ML model cache..."
+        MISSING_MODELS=""
+        MODELS_COMPLETE=true
+
+        # Check Whisper models
+        echo "📦 Whisper models:"
+        for model in "tiny.en" "base.en"; do
+          WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
+          if [ -f "$WHISPER_PATH" ] && [ -s "$WHISPER_PATH" ]; then
+            SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
+            echo "  ✅ $model ($SIZE)"
+          else
+            echo "  ❌ $model - MISSING or empty"
+            MISSING_MODELS="$MISSING_MODELS whisper:$model"
+            MODELS_COMPLETE=false
+          fi
+        done
+
+        # Check Hugging Face models
+        echo ""
+        echo "📦 Hugging Face models:"
+        HF_CACHE="$HOME/.cache/huggingface/hub"
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
+          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
+          # Check if model has files anywhere (blobs, snapshots, or root)
+          # HuggingFace cache structure: files in blobs/, symlinks in snapshots/
+          TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
+          if [ -d "$MODEL_PATH" ] && [ "$TOTAL_FILES" -gt 0 ]; then
+            SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
+            echo "  ✅ $model ($SIZE, $TOTAL_FILES files)"
+          else
+            echo "  ❌ $model - MISSING or incomplete (0 files found)"
+            MISSING_MODELS="$MISSING_MODELS hf:$model"
+            MODELS_COMPLETE=false
+          fi
+        done
+
+        echo ""
+        if [ "$MODELS_COMPLETE" = true ]; then
+          echo "✅ All required ML models are cached!"
+          echo "models_complete=true" >> $GITHUB_OUTPUT
+        else
+          echo "⚠️  Some models are missing: $MISSING_MODELS"
+          echo "models_complete=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+    - name: Set ML_MODELS_VALIDATED (only if cache validated)
+      if: steps.validate-cache.outputs.models_complete == 'true'
+      run: |
+        echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
     - name: Install dev dependencies (pytest-socket for network guard)
       run: |
         python -m pip install --upgrade pip
@@ -633,8 +878,6 @@ jobs:
       # Ensure consistent cache paths for Hugging Face libraries
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
-      # Signal to tests that CI has validated cache - skip redundant checks
-      ML_MODELS_VALIDATED: "true"
     if: |
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4') &&
@@ -663,9 +906,8 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
+        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
@@ -982,7 +1224,7 @@ jobs:
         pip install -e .[ml] || echo "⚠️ ML dependencies not available, skipping pipeline metrics"
         # Run minimal pipeline to collect performance metrics
         python scripts/dashboard/collect_pipeline_metrics.py \
-          --output reports/pipeline_metrics.json \
+          --output reports/output/pipeline_metrics.json \
           --max-episodes 1 || echo "⚠️ Pipeline metrics collection failed (non-blocking)"
       continue-on-error: true  # Don't fail if pipeline metrics collection fails
     - name: Generate metrics JSON from unified coverage
@@ -1015,7 +1257,7 @@ jobs:
           --reports-dir reports \
           --output metrics/latest-ci.json \
           --history metrics/history-ci.jsonl \
-          --pipeline-metrics reports/pipeline_metrics.json \
+          --pipeline-metrics reports/output/pipeline_metrics.json \
           --coverage-threshold 80 || echo "⚠️ Metrics generation failed (non-blocking)"
     - name: Update metrics history
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')

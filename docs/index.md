@@ -112,7 +112,7 @@ skip_existing: true
 | **[Architecture Overview](ARCHITECTURE.md)** | High-level system design and module responsibilities |
 | **[Testing Strategy](TESTING_STRATEGY.md)** | Test coverage, quality assurance, and testing guidelines |
 | **[Testing Guide](guides/TESTING_GUIDE.md)** | Detailed test execution, fixtures, and coverage information |
-| **[Quality Evaluation Guide](guides/EVALUATION_GUIDE.md)** | **ROUGE scoring, golden datasets, and quality metrics** |
+| **[Experiment Guide](guides/EXPERIMENT_GUIDE.md)** | **Complete guide: datasets, baselines, experiments, and evaluation** |
 | **[CI/CD Overview](ci/index.md)** | CI/CD pipeline documentation |
 | **[Engineering Process](guides/ENGINEERING_PROCESS.md)** | **The "Triad of Truth": PRDs, RFCs, and ADRs** |
 | **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** | Development environment setup and tooling |

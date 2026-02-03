@@ -62,9 +62,9 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertFalse(provider._transformers_initialized)
         self.assertTrue(provider._requires_separate_instances)
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_initialize_success(self, mock_select_model, mock_select_reduce, mock_summary_model):
         """Test successful initialization."""
         mock_select_model.return_value = "facebook/bart-large-cnn"
@@ -83,9 +83,9 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         mock_select_model.assert_called_once_with(self.cfg)
         mock_summary_model.assert_called_once()
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_initialize_with_different_reduce_model(
         self, mock_select_model, mock_select_reduce, mock_summary_model
     ):
@@ -109,7 +109,7 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertNotEqual(provider._reduce_model, provider._map_model)
         self.assertEqual(mock_summary_model.call_count, 2)
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_initialize_summaries_disabled(self, mock_select_model):
         """Test initialization when generate_summaries is False."""
         cfg = create_test_config(generate_summaries=False)
@@ -120,9 +120,9 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertIsNone(provider._map_model)
         mock_select_model.assert_not_called()
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_initialize_already_initialized(
         self, mock_select_model, mock_select_reduce, mock_summary_model
     ):
@@ -144,9 +144,9 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         # Should not call select_summary_model again
         mock_select_model.assert_not_called()
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_initialize_handles_exception(
         self, mock_select_model, mock_select_reduce, mock_summary_model
     ):
@@ -163,10 +163,10 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertIn("Model loading failed", str(context.exception))
         self.assertFalse(provider._transformers_initialized)
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_summarize_success(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):
@@ -190,10 +190,10 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertEqual(result["metadata"]["model_used"], "facebook/bart-large-cnn")
         mock_summarize.assert_called_once()
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_summarize_not_initialized(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):
@@ -206,10 +206,10 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertIn("not initialized", str(context.exception))
         mock_summarize.assert_not_called()
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_summarize_with_params(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):
@@ -239,10 +239,10 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertEqual(call_args.kwargs["max_length"], 200)
         self.assertEqual(call_args.kwargs["min_length"], 50)
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_summarize_handles_exception(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):
@@ -263,10 +263,10 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
 
         self.assertIn("Summarization failed", str(context.exception))
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.unload_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.unload_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_cleanup(self, mock_select_model, mock_select_reduce, mock_summary_model, mock_unload):
         """Test cleanup method."""
         mock_select_model.return_value = "facebook/bart-large-cnn"
@@ -286,10 +286,10 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         self.assertFalse(provider._transformers_initialized)
         mock_unload.assert_called_once()
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.unload_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.unload_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_cleanup_with_different_reduce_model(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_unload
     ):
@@ -317,9 +317,9 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         provider = create_summarization_provider(self.cfg)
         provider.cleanup()  # Should not raise
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_map_model_property(self, mock_select_model, mock_select_reduce, mock_summary_model):
         """Test map_model property."""
         mock_select_model.return_value = "facebook/bart-large-cnn"
@@ -335,9 +335,9 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         provider.initialize()
         self.assertEqual(provider.map_model, mock_map_model)
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_reduce_model_property(self, mock_select_model, mock_select_reduce, mock_summary_model):
         """Test reduce_model property."""
         mock_select_model.return_value = "facebook/bart-large-cnn"
@@ -361,10 +361,10 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         provider._transformers_initialized = True
         self.assertTrue(provider.is_initialized)
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_summarize_auto_detects_word_chunking(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):
@@ -386,10 +386,10 @@ class TestTransformersSummarizationProvider(unittest.TestCase):
         call_args = mock_summarize.call_args
         self.assertTrue(call_args.kwargs.get("use_word_chunking", False))
 
-    @patch("podcast_scraper.ml.ml_provider.summarizer.summarize_long_text")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.summarize_long_text")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     def test_summarize_with_prompt(
         self, mock_select_model, mock_select_reduce, mock_summary_model, mock_summarize
     ):

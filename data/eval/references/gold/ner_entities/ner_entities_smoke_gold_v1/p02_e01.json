@@ -1,0 +1,386 @@
+{
+  "schema": "ner_entities_gold_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "episode_id": "p02_e01",
+  "text_fingerprint": "sha256:8ce820881f8b43ceb9a04df0becf38eeff2fc86851a54a0fdf4483ebe688bfee",
+  "labels_in_scope": [
+    "PERSON",
+    "ORG",
+    "GPE",
+    "PRODUCT",
+    "EVENT"
+  ],
+  "entities": [
+    {
+      "start": 2,
+      "end": 19,
+      "text": "Practical Systems",
+      "label": "ORG"
+    },
+    {
+      "start": 73,
+      "end": 78,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 86,
+      "end": 91,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 101,
+      "end": 106,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 124,
+      "end": 141,
+      "text": "Practical Systems",
+      "label": "ORG"
+    },
+    {
+      "start": 222,
+      "end": 227,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 229,
+      "end": 234,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 259,
+      "end": 264,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 274,
+      "end": 279,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 367,
+      "end": 372,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 571,
+      "end": 576,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 893,
+      "end": 898,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 1091,
+      "end": 1096,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 1408,
+      "end": 1413,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 1484,
+      "end": 1489,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 1701,
+      "end": 1706,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 1883,
+      "end": 1888,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 2208,
+      "end": 2213,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 2284,
+      "end": 2289,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 2506,
+      "end": 2511,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 2703,
+      "end": 2708,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 3037,
+      "end": 3042,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 3234,
+      "end": 3239,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 3680,
+      "end": 3685,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 3862,
+      "end": 3867,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 4186,
+      "end": 4191,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 4353,
+      "end": 4358,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 4672,
+      "end": 4677,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 4854,
+      "end": 4859,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 5305,
+      "end": 5310,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 5495,
+      "end": 5500,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 5821,
+      "end": 5826,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 6001,
+      "end": 6006,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 6425,
+      "end": 6430,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 6501,
+      "end": 6506,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 6718,
+      "end": 6723,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 6898,
+      "end": 6903,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 7218,
+      "end": 7223,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 7389,
+      "end": 7394,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 7843,
+      "end": 7848,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 7919,
+      "end": 7924,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 8138,
+      "end": 8143,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 8318,
+      "end": 8323,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 8759,
+      "end": 8764,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 8835,
+      "end": 8840,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 9052,
+      "end": 9057,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 9242,
+      "end": 9247,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 9573,
+      "end": 9578,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 9753,
+      "end": 9758,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 10182,
+      "end": 10187,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 10363,
+      "end": 10368,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 10784,
+      "end": 10789,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 10860,
+      "end": 10865,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 11088,
+      "end": 11093,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 11176,
+      "end": 11181,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 11374,
+      "end": 11379,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 11390,
+      "end": 11395,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 11426,
+      "end": 11431,
+      "text": "Priya",
+      "label": "PERSON"
+    },
+    {
+      "start": 11441,
+      "end": 11446,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 11460,
+      "end": 11465,
+      "text": "Ethan",
+      "label": "PERSON"
+    },
+    {
+      "start": 11500,
+      "end": 11517,
+      "text": "Practical Systems",
+      "label": "ORG"
+    }
+  ],
+  "annotation_policy": {
+    "persons": "Host + guest names (all occurrences)",
+    "orgs": "Show title (all occurrences)",
+    "notes": "Offsets align to materialized text files uploaded for curated_5feeds_smoke_v1."
+  }
+}

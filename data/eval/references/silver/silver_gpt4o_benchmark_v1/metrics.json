@@ -1,0 +1,26 @@
+{
+  "dataset_id": "curated_5feeds_benchmark_v1",
+  "run_id": "silver_openai_gpt4o_benchmark_v1",
+  "episode_count": 10,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 517.7,
+      "min_tokens": 453,
+      "max_tokens": 578
+    },
+    "performance": {
+      "avg_latency_ms": 7623.715806007385
+    }
+  },
+  "vs_reference": null
+}

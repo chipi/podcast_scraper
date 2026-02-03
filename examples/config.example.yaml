@@ -52,16 +52,42 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # openai_summary_model: gpt-4o-mini  # Default: gpt-4o-mini (use gpt-4o for production)
 # openai_temperature: 0.3  # Default: 0.3 (0.0-2.0)
 
-# ML-specific settings (used with local transformers/whisper providers)
+# ML-specific settings (used with local transformers/whisper/spaCy providers)
+# Defaults: Pegasus-CNN (map) + LED-base (reduce) - production baseline (baseline_ml_prod_authority_v1)
 # whisper_device: auto  # Options: cpu, cuda, mps, auto. Can also be set via WHISPER_DEVICE env var
-# summary_model: bart-large  # Options: "bart-large", "bart-small", "fast", "pegasus", "long", "long-fast", or direct model ID like "facebook/bart-large-cnn"
-# summary_reduce_model: long-fast  # REDUCE model for map-reduce summarization. Options: "long-fast", "long", or direct model ID like "allenai/led-base-16384"
+# summary_model: pegasus-cnn  # Options: "pegasus-cnn" (default/prod), "bart-small" (dev), "bart-large", "fast", "pegasus", "long", "long-fast", or direct model ID like "google/pegasus-cnn_dailymail"
+# summary_reduce_model: long-fast  # REDUCE model for map-reduce summarization. Options: "long-fast" (default), "long", or direct model ID like "allenai/led-base-16384"
+# ner_model: en_core_web_trf  # spaCy NER model for speaker detection. Options: "en_core_web_trf" (default/prod, higher quality), "en_core_web_sm" (dev, fast). Defaults based on environment
 # summary_device: auto  # Options: cpu, cuda, mps, auto. Can also be set via SUMMARY_DEVICE env var
-# summary_max_length: 150  # Maximum summary length in tokens
-# summary_min_length: 30  # Minimum summary length in tokens
+# Legacy fields removed: summary_max_length and summary_min_length
+# Use summary_map_params and summary_reduce_params instead (see below)
 # summary_chunk_size: 2048  # Chunk size for long transcripts in tokens (null = model max length)
 # summary_cache_dir: ~/.cache/huggingface/hub  # Custom cache directory for transformer models. Can also be set via SUMMARY_CACHE_DIR or CACHE_DIR env var
 # summary_prompt: null  # Optional: custom prompt/instruction to guide summarization
+
+# Advanced ML generation parameters (aligned with baseline_ml_prod_authority_v1)
+# These fields are always present with defaults, but you can override them for fine-grained control
+# Defaults match the production baseline config values - customize as needed
+# summary_map_params:
+#   max_new_tokens: 200  # Default: 200 (Pegasus-CNN baseline)
+#   min_new_tokens: 80   # Default: 80 (Pegasus-CNN baseline)
+#   num_beams: 6         # Default: 6 (Pegasus-CNN baseline, optimized)
+#   no_repeat_ngram_size: 3  # Default: 3 (prevents repetition)
+#   length_penalty: 1.0  # Default: 1.0 (no length bias)
+#   early_stopping: true # Default: true (Pegasus-CNN baseline)
+#   repetition_penalty: 1.1  # Default: 1.1 (Pegasus-CNN baseline, optimized)
+# summary_reduce_params:
+#   max_new_tokens: 650  # Default: 650 (LED-base baseline)
+#   min_new_tokens: 220  # Default: 220 (LED-base baseline)
+#   num_beams: 4         # Default: 4 (LED-base baseline)
+#   no_repeat_ngram_size: 3  # Default: 3 (prevents repetition)
+#   length_penalty: 1.0  # Default: 1.0 (no length bias)
+#   early_stopping: false # Default: false (LED-base baseline, ensures min_new_tokens)
+#   repetition_penalty: 1.12  # Default: 1.12 (LED-base baseline, optimized)
+# summary_tokenize:
+#   map_max_input_tokens: 1024  # Default: 1024 (from baseline config)
+#   reduce_max_input_tokens: 4096  # Default: 4096 (from baseline config)
+#   truncation: true  # Default: true (from baseline config)
 
 # Parallelism settings (useful for both OpenAI and ML providers)
 # transcription_parallelism: 1  # Number of episodes to transcribe in parallel (Whisper ignores >1, OpenAI uses for parallel API calls). Can also be set via TRANSCRIPTION_PARALLELISM env var

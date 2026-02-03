@@ -11,8 +11,9 @@ import shutil
 import threading
 from typing import Dict, List, Optional, Tuple
 
-from .. import config, metrics
-from ..workflow.types import TranscriptionResources
+from .. import config
+from . import metrics
+from .types import TranscriptionResources
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +195,7 @@ def _get_provider_pricing(
         Dictionary with pricing information, or empty dict if not available
     """
     if provider_type == "openai":
-        from ..openai.openai_provider import OpenAIProvider
+        from ..providers.openai.openai_provider import OpenAIProvider
 
         return OpenAIProvider.get_pricing(model, capability)
     # Add other providers here as they're implemented

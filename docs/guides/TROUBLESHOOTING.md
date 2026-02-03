@@ -248,7 +248,7 @@ pytest-xdist parallel execution (`-n auto`), this causes deadlocks because:
 | ---- | ----- |
 | `src/podcast_scraper/whisper_integration.py` | `InterceptedTqdm` class |
 | `src/podcast_scraper/transcription/whisper_provider.py` | `InterceptedTqdm` class |
-| `src/podcast_scraper/ml/ml_provider.py` | `InterceptedTqdm` class |
+| `src/podcast_scraper/providers/ml/ml_provider.py` | `InterceptedTqdm` class |
 | `src/podcast_scraper/cli.py` | `_TqdmProgress` class |
 
 **Structural Fix:** Tests set `TQDM_DISABLE=1` environment variable in `tests/conftest.py`

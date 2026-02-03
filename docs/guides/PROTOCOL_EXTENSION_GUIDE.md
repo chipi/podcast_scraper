@@ -36,8 +36,8 @@ class TranscriptionProvider(Protocol):
 
 **CRITICAL**: Since `MLProvider` and `OpenAIProvider` each implement **multiple** protocols, you must update the relevant sections of both classes.
 
-1. **`src/podcast_scraper/ml/ml_provider.py`**: Update the local implementation.
-2. **`src/podcast_scraper/openai/openai_provider.py`**: Update the API implementation.
+1. **`src/podcast_scraper/providers/ml/ml_provider.py`**: Update the local implementation.
+2. **`src/podcast_scraper/providers/openai/openai_provider.py`**: Update the API implementation.
 
 ### Step 3: Optional Methods
 

@@ -1,0 +1,51 @@
+# Hybrid ML candidate v3 (based on v2):
+# - Same models: BART-base map + LED-large reduce
+# - Keep preprocessing + chunking unchanged
+# - Changes vs v2:
+#   * Relax MAP repetition constraints slightly (to reduce over-compression / brittleness)
+#   * Force REDUCE to be longer (higher max/min) and slightly encourage length
+
+id: "baseline_bart_small_led_large_v3_reduce_longer"
+task: "summarization"
+
+backend:
+  type: "hf_local"
+  map_model: "bart-small"     # facebook/bart-base
+  reduce_model: "long"        # allenai/led-large-16384
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v4"
+
+# MAP: keep v2 token budgets but relax repetition controls
+map_params:
+  max_new_tokens: 260
+  min_new_tokens: 120
+  num_beams: 4
+  no_repeat_ngram_size: 2
+  length_penalty: 1.0
+  early_stopping: true
+  repetition_penalty: 1.05
+  do_sample: false
+
+# REDUCE: push longer outputs + mild length encouragement
+reduce_params:
+  max_new_tokens: 950
+  min_new_tokens: 380
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  length_penalty: 1.10
+  early_stopping: true
+  repetition_penalty: 1.10
+  do_sample: false
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150

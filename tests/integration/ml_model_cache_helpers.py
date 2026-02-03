@@ -19,7 +19,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from podcast_scraper.cache_utils import (
+from podcast_scraper.cache import (
     get_transformers_cache_dir,
     get_whisper_cache_dir,
 )
@@ -420,7 +420,7 @@ def require_transformers_model_cached(model_name: str, cache_dir: Optional[str] 
         pytest.skip: If model is not cached (for better test reporting)
     """
     # Resolve alias to actual model ID if needed
-    from podcast_scraper.summarizer import DEFAULT_SUMMARY_MODELS
+    from podcast_scraper.providers.ml.summarizer import DEFAULT_SUMMARY_MODELS
 
     resolved_model_name = model_name
     if model_name in DEFAULT_SUMMARY_MODELS:

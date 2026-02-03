@@ -139,8 +139,8 @@ class TestTransformersSummarization:
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.DEBUG)
         # Get logger for summarizer module to capture strategy selection logs
-        # (The actual implementation is in summarizer.py, not map_reduce.py)
-        logger = logging.getLogger("podcast_scraper.summarizer")
+        # (The actual implementation is in providers.ml.summarizer)
+        logger = logging.getLogger("podcast_scraper.providers.ml.summarizer")
         logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
 
@@ -210,7 +210,7 @@ class TestSpacySpeakerDetection:
             # Create config with smallest spaCy model for speed
             cfg = Config(
                 speaker_detector_provider="spacy",
-                ner_model=config.DEFAULT_NER_MODEL,  # Default: en_core_web_sm
+                ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
                 auto_speakers=True,
             )
 
@@ -255,7 +255,7 @@ class TestSpacySpeakerDetection:
                 max_episodes=1,
                 auto_speakers=True,
                 speaker_detector_provider="spacy",
-                ner_model=config.DEFAULT_NER_MODEL,  # Default: en_core_web_sm
+                ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
                 transcribe_missing=False,  # Disable transcription - test only needs transcript
             )
 
@@ -302,8 +302,8 @@ class TestAllMLModelsTogether:
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.DEBUG)
         # Get logger for summarizer module to capture strategy selection logs
-        # (The actual implementation is in summarizer.py, not map_reduce.py)
-        logger = logging.getLogger("podcast_scraper.summarizer")
+        # (The actual implementation is in providers.ml.summarizer)
+        logger = logging.getLogger("podcast_scraper.providers.ml.summarizer")
         logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
 
@@ -323,7 +323,7 @@ class TestAllMLModelsTogether:
                     summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Cached
                     auto_speakers=True,
                     speaker_detector_provider="spacy",
-                    ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
+                    ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
                 )
 
                 # Run pipeline with all models
@@ -394,7 +394,7 @@ class TestAllMLModelsTogether:
             # Test spaCy detector
             cfg_speaker = Config(
                 speaker_detector_provider="spacy",
-                ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
+                ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
                 auto_speakers=True,
             )
             detector = create_speaker_detector(cfg_speaker)
@@ -449,7 +449,7 @@ class TestMLProviderDryRun:
                 summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
                 auto_speakers=True,  # Would use spaCy
                 speaker_detector_provider="spacy",
-                ner_model=config.DEFAULT_NER_MODEL,
+                ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
                 preload_models=False,  # Disable preloading (dry-run should skip anyway)
             )
 

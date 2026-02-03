@@ -21,8 +21,8 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-from podcast_scraper.audio_preprocessing import cache, factory
-from podcast_scraper.audio_preprocessing.ffmpeg_processor import (
+from podcast_scraper.preprocessing.audio import cache, factory
+from podcast_scraper.preprocessing.audio.ffmpeg_processor import (
     _check_ffmpeg_available,
     FFmpegAudioPreprocessor,
 )
@@ -302,8 +302,8 @@ class TestAudioPreprocessingWorkflowIntegration(unittest.TestCase):
     def test_preprocessing_before_transcription_provider(self):
         """Test that preprocessing happens before provider receives audio."""
         from podcast_scraper import models
-        from podcast_scraper.audio_preprocessing.factory import create_audio_preprocessor
-        from podcast_scraper.episode_processor import transcribe_media_to_text
+        from podcast_scraper.preprocessing.audio.factory import create_audio_preprocessor
+        from podcast_scraper.workflow.episode_processor import transcribe_media_to_text
 
         cfg = create_test_config(
             preprocessing_enabled=True,
@@ -337,7 +337,7 @@ class TestAudioPreprocessingWorkflowIntegration(unittest.TestCase):
 
         # Mock the factory import to track calls
         with patch(
-            "podcast_scraper.audio_preprocessing.factory.create_audio_preprocessor"
+            "podcast_scraper.preprocessing.audio.factory.create_audio_preprocessor"
         ) as mock_factory:
             mock_factory.return_value = preprocessor
 
@@ -372,7 +372,7 @@ class TestAudioPreprocessingWorkflowIntegration(unittest.TestCase):
     def test_preprocessing_disabled_uses_original_audio(self):
         """Test that when preprocessing is disabled, original audio is used."""
         from podcast_scraper import models
-        from podcast_scraper.episode_processor import transcribe_media_to_text
+        from podcast_scraper.workflow.episode_processor import transcribe_media_to_text
 
         cfg = create_test_config(
             preprocessing_enabled=False,  # Disabled

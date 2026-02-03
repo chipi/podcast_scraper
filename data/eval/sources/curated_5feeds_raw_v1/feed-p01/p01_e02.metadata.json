@@ -1,0 +1,28 @@
+{
+  "metadata_version": "1.0",
+  "source_episode_id": "p01_e02",
+  "feed_name": "Singletrack Sessions",
+  "feed_url": "http://localhost/",
+  "episode_title": "Episode 2: Enduro Skills Without the Hype (with Sophie van Dalen)",
+  "published_at": "2025-09-08",
+  "duration_seconds": 555,
+  "language": "en",
+  "scraped_at": "2026-01-13T12:07:56.657450Z",
+  "speakers": [
+    {
+      "id": "host",
+      "name": "Maya",
+      "role": "host"
+    },
+    {
+      "id": "guest",
+      "name": "Sophie",
+      "role": "guest"
+    }
+  ],
+  "expectations": {
+    "allow_speaker_names": false,
+    "allow_speaker_labels": false,
+    "allow_sponsor_content": false
+  }
+}

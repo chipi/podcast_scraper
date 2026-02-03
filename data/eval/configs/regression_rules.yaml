@@ -1,0 +1,107 @@
+# Regression Rules Configuration
+#
+# This file defines regression rules for quality gate enforcement.
+# Rules specify thresholds for metrics that trigger regressions when violated.
+#
+# Usage:
+#   - Place this file in data/eval/configs/regression_rules.yaml
+#   - Or specify custom path when creating RegressionChecker
+#
+# Rule Structure:
+#   - metric: Metric name (supports nested paths like "intrinsic.gates.boilerplate_leak_rate")
+#   - threshold: Threshold value for the metric
+#   - direction: "decrease" (regression if metric decreases) or "increase" (regression if metric increases)
+#   - severity: "error" (blocks CI), "warning" (logs warning), "info" (logs info)
+
+rules:
+  # Quality metrics - regress if they decrease
+  - metric: rougeL_f1
+    threshold: 0.05
+    direction: decrease
+    severity: error
+
+  - metric: rouge1_f1
+    threshold: 0.05
+    direction: decrease
+    severity: error
+
+  - metric: rouge2_f1
+    threshold: 0.03
+    direction: decrease
+    severity: warning
+
+  - metric: bleu
+    threshold: 0.05
+    direction: decrease
+    severity: warning
+
+  - metric: embedding_cosine
+    threshold: 0.05
+    direction: decrease
+    severity: warning
+
+  # Quality gates - regress if they increase (zero tolerance)
+  - metric: intrinsic.gates.boilerplate_leak_rate
+    threshold: 0.0
+    direction: increase
+    severity: error
+
+  - metric: intrinsic.gates.speaker_label_leak_rate
+    threshold: 0.0
+    direction: increase
+    severity: error
+
+  - metric: intrinsic.gates.truncation_rate
+    threshold: 0.0
+    direction: increase
+    severity: error
+
+  # Performance - regress if latency increases significantly
+  - metric: intrinsic.performance.avg_latency_ms
+    threshold: 1000.0  # 1 second
+    direction: increase
+    severity: warning
+
+  # Cost - warn if cost increases significantly
+  - metric: intrinsic.cost.total_cost_usd
+    threshold: 0.10  # $0.10
+    direction: increase
+    severity: warning
+
+  # ----------------------------
+  # NER (KG-oriented) - entity_set
+  # Reference: ner_entities_smoke_gold_v1
+  # ----------------------------
+  # For NER, we gate on entity_set metrics (product-relevant) and keep mention-level as diagnostics only
+  # Note: Do NOT gate on mention_exact.* or mention_overlap.* (diagnostic-only)
+
+  # Prod authority (TRF): precision must stay extremely high
+  - metric: vs_reference.ner_entities_smoke_gold_v1.entity_set.precision
+    threshold: 0.02  # Allow 2% drop (from 1.0 baseline)
+    direction: decrease
+    severity: error
+
+  # Overall entity_set F1 shouldn't regress materially
+  - metric: vs_reference.ner_entities_smoke_gold_v1.entity_set.f1
+    threshold: 0.05  # Allow 5% drop
+    direction: decrease
+    severity: error
+
+  # PERSON is your must-not-break signal (host/guest)
+  - metric: vs_reference.ner_entities_smoke_gold_v1.entity_set.per_label_f1.PERSON
+    threshold: 0.05  # Allow 5% drop
+    direction: decrease
+    severity: error
+
+  # ORG is typically noisier / formatting-dependent: warn only
+  - metric: vs_reference.ner_entities_smoke_gold_v1.entity_set.per_label_f1.ORG
+    threshold: 0.15  # Allow 15% drop
+    direction: decrease
+    severity: warning
+
+  # Performance regression: warn (tune to your tolerance)
+  # Note: This applies to both summarization and NER
+  - metric: intrinsic.performance.avg_latency_ms
+    threshold: 200.0  # 200ms increase (tighter for NER)
+    direction: increase
+    severity: warning

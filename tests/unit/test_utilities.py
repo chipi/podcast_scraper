@@ -20,7 +20,8 @@ from unittest.mock import MagicMock, Mock, patch
 # Mock ML dependencies before importing modules that require them
 # Unit tests run without ML dependencies installed
 with patch.dict("sys.modules", {"spacy": MagicMock()}):
-    from podcast_scraper import speaker_detection, whisper_integration as whisper
+    from podcast_scraper.providers.ml import speaker_detection
+    from podcast_scraper.providers.ml.ml_provider import MLProvider
 
 # Import from parent conftest explicitly to avoid conflicts
 import importlib.util
@@ -75,16 +76,21 @@ from podcast_scraper import config
 
 
 class TestFormatScreenplay(unittest.TestCase):
-    """Tests for format_screenplay_from_segments function."""
+    """Tests for format_screenplay_from_segments function (now in MLProvider)."""
 
     def test_format_screenplay(self):
-        """Test formatting screenplay from segments."""
+        """Test formatting screenplay from segments using MLProvider."""
+        cfg = create_test_config()
+        provider = MLProvider(cfg)
+
         segments = [
             {"start": 0.0, "end": 5.0, "text": "Hello, this is speaker one."},
             {"start": 6.0, "end": 10.0, "text": "And this is speaker two."},
             {"start": 15.0, "end": 20.0, "text": "Speaker one again."},
         ]
-        result = whisper.format_screenplay_from_segments(segments, 2, ["Speaker1", "Speaker2"], 2.0)
+        result = provider.format_screenplay_from_segments(
+            segments, 2, ["Speaker1", "Speaker2"], 2.0
+        )
         self.assertIn("Speaker1", result)
         self.assertIn("Speaker2", result)
         self.assertIn("Hello", result)
@@ -94,51 +100,12 @@ class TestFormatScreenplay(unittest.TestCase):
 
 
 class TestModelLoading(unittest.TestCase):
-    """Test that Whisper and spaCy models can be loaded."""
+    """Test that Whisper and spaCy models can be loaded (via MLProvider)."""
 
-    @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
-    def test_whisper_model_loading_with_fallback(self, mock_import_whisper):
-        """Test that Whisper model loading works with fallback logic."""
-        cfg = create_test_config(
-            transcribe_missing=True,
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
-            language="en",
-        )
+    # Note: Whisper model loading tests moved to test_ml_provider.py
+    # These tests now focus on spaCy model loading
 
-        # Mock Whisper library and model
-        mock_whisper_lib = Mock()
-        mock_model = Mock()
-        mock_model.transcribe = Mock()
-        mock_whisper_lib.load_model.return_value = mock_model
-        mock_import_whisper.return_value = mock_whisper_lib
-
-        # This should load the model using the mocked library
-        model = whisper.load_whisper_model(cfg)
-        self.assertIsNotNone(model)
-        self.assertTrue(hasattr(model, "transcribe") or hasattr(model, "device"))
-
-    @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
-    def test_whisper_model_loading_tiny_fallback(self, mock_import_whisper):
-        """Test that Whisper falls back to tiny model if base fails."""
-        cfg = create_test_config(
-            transcribe_missing=True,
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
-            language="en",
-        )
-
-        # Mock Whisper library and model
-        mock_whisper_lib = Mock()
-        mock_model = Mock()
-        mock_model.transcribe = Mock()
-        mock_whisper_lib.load_model.return_value = mock_model
-        mock_import_whisper.return_value = mock_whisper_lib
-
-        # Try loading - should succeed with mocked library
-        model = whisper.load_whisper_model(cfg)
-        self.assertIsNotNone(model)
-        self.assertTrue(hasattr(model, "transcribe") or hasattr(model, "device"))
-
-    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    @patch("podcast_scraper.providers.ml.speaker_detection._load_spacy_model")
     def test_spacy_model_loading(self, mock_load):
         """Test that spaCy model can be loaded."""
         cfg = create_test_config(
@@ -169,49 +136,8 @@ class TestModelLoading(unittest.TestCase):
         self.assertFalse(speaker_detection._validate_model_name(""))
         self.assertFalse(speaker_detection._validate_model_name("a" * 101))  # Too long
 
-    @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
-    def test_whisper_model_selection_english(self, mock_import_whisper):
-        """Test that English models prefer .en variants."""
-        cfg = create_test_config(
-            transcribe_missing=True,
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
-            language="en",
-        )
-
-        # Mock Whisper library and model
-        mock_whisper_lib = Mock()
-        mock_model = Mock()
-        mock_model.transcribe = Mock()
-        mock_whisper_lib.load_model.return_value = mock_model
-        mock_import_whisper.return_value = mock_whisper_lib
-
-        # The function should load the model using the mocked library
-        model = whisper.load_whisper_model(cfg)
-        self.assertIsNotNone(model)
-        self.assertTrue(hasattr(model, "transcribe") or hasattr(model, "device"))
-
-    @patch("podcast_scraper.whisper_integration._import_third_party_whisper")
-    def test_whisper_model_selection_non_english(self, mock_import_whisper):
-        """Test that non-English models use multilingual variants."""
-        # Use test default (tiny.en) - should be converted to tiny for French
-        cfg = create_test_config(
-            transcribe_missing=True,
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # tiny.en
-            language="fr",
-        )
-
-        # Mock Whisper library and model
-        mock_whisper_lib = Mock()
-        mock_model = Mock()
-        mock_model.transcribe = Mock()
-        mock_whisper_lib.load_model.return_value = mock_model
-        mock_import_whisper.return_value = mock_whisper_lib
-
-        # For French, should use multilingual model (no .en suffix)
-        # The function should load the model using the mocked library
-        model = whisper.load_whisper_model(cfg)
-        self.assertIsNotNone(model)
-        self.assertTrue(hasattr(model, "transcribe") or hasattr(model, "device"))
+    # Whisper model selection tests moved to test_ml_provider.py
+    # These tests are now covered by MLProvider tests
 
 
 # Metadata test classes moved to tests/test_metadata.py

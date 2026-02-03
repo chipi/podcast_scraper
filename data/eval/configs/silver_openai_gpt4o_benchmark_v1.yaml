@@ -1,0 +1,31 @@
+# Silver Reference: OpenAI GPT-4o on Benchmark Dataset
+#
+# Purpose: Create a high-quality silver reference using GPT-4o for the benchmark dataset.
+# This reference will be used to measure distance-to-target metrics (ROUGE, similarity)
+# for all future ML model experiments.
+#
+# Quality Level: Silver (LLM-generated, not human-verified)
+# Model: gpt-4o (strongest OpenAI model for best quality)
+# Dataset: curated_5feeds_benchmark_v1 (10 episodes)
+
+id: "silver_openai_gpt4o_benchmark_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"  # Strongest OpenAI model for silver reference quality
+
+prompts:
+  user: "openai/summarization/long_v1"  # Long-form summarization prompt
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v1"
+
+# OpenAI generation parameters
+params:
+  max_length: 800  # Target ~800 tokens for comprehensive summaries
+  min_length: 200  # Ensure minimum quality length
+  temperature: 0.0  # Deterministic for reproducibility
+
+# Use same preprocessing as production baseline for fair comparison
+preprocessing_profile: "cleaning_v4"

@@ -1,0 +1,362 @@
+{
+  "schema": "ner_entities_gold_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "episode_id": "p01_e01",
+  "text_fingerprint": "sha256:a650e729cc8b7379c94fd5b29c092bcd32a8c7e4c2086f1321d6ed496718b9b4",
+  "labels_in_scope": [
+    "PERSON",
+    "ORG",
+    "GPE",
+    "PRODUCT",
+    "EVENT"
+  ],
+  "entities": [
+    {
+      "start": 2,
+      "end": 22,
+      "text": "Singletrack Sessions",
+      "label": "ORG"
+    },
+    {
+      "start": 68,
+      "end": 72,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 80,
+      "end": 84,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 94,
+      "end": 98,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 116,
+      "end": 136,
+      "text": "Singletrack Sessions",
+      "label": "ORG"
+    },
+    {
+      "start": 209,
+      "end": 213,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 215,
+      "end": 219,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 244,
+      "end": 248,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 258,
+      "end": 262,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 350,
+      "end": 354,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 503,
+      "end": 507,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 929,
+      "end": 933,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 1096,
+      "end": 1100,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 1560,
+      "end": 1564,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 1635,
+      "end": 1639,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 1873,
+      "end": 1877,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 2030,
+      "end": 2034,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 2378,
+      "end": 2382,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 2526,
+      "end": 2530,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 2854,
+      "end": 2858,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 3042,
+      "end": 3046,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 3367,
+      "end": 3371,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 3534,
+      "end": 3538,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 3969,
+      "end": 3973,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 4142,
+      "end": 4146,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 4488,
+      "end": 4492,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 4641,
+      "end": 4645,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 4947,
+      "end": 4951,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 5022,
+      "end": 5026,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 5243,
+      "end": 5247,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 5427,
+      "end": 5431,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 5846,
+      "end": 5850,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 6021,
+      "end": 6025,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 6362,
+      "end": 6366,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 6536,
+      "end": 6540,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 6874,
+      "end": 6878,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 7031,
+      "end": 7035,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 7341,
+      "end": 7345,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 7508,
+      "end": 7512,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 7942,
+      "end": 7946,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 8087,
+      "end": 8091,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 8551,
+      "end": 8555,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 8718,
+      "end": 8722,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 9154,
+      "end": 9158,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 9229,
+      "end": 9233,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 9469,
+      "end": 9473,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 9653,
+      "end": 9657,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 10009,
+      "end": 10013,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 10173,
+      "end": 10177,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 10600,
+      "end": 10604,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 10687,
+      "end": 10691,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 10888,
+      "end": 10892,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 10903,
+      "end": 10907,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 10938,
+      "end": 10942,
+      "text": "Liam",
+      "label": "PERSON"
+    },
+    {
+      "start": 10952,
+      "end": 10956,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 10970,
+      "end": 10974,
+      "text": "Maya",
+      "label": "PERSON"
+    },
+    {
+      "start": 11009,
+      "end": 11029,
+      "text": "Singletrack Sessions",
+      "label": "ORG"
+    }
+  ],
+  "annotation_policy": {
+    "persons": "Host + guest names (all occurrences)",
+    "orgs": "Show title (all occurrences)",
+    "notes": "Offsets align to materialized text files uploaded for curated_5feeds_smoke_v1."
+  }
+}

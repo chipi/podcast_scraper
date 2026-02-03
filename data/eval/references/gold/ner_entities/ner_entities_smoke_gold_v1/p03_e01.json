@@ -1,0 +1,374 @@
+{
+  "schema": "ner_entities_gold_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "episode_id": "p03_e01",
+  "text_fingerprint": "sha256:8cdf1a18ae215eaa459dfc9295bf1730d64c9e11e3efce2f1886a5515bae16aa",
+  "labels_in_scope": [
+    "PERSON",
+    "ORG",
+    "GPE",
+    "PRODUCT",
+    "EVENT"
+  ],
+  "entities": [
+    {
+      "start": 2,
+      "end": 19,
+      "text": "Below the Surface",
+      "label": "ORG"
+    },
+    {
+      "start": 65,
+      "end": 69,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 77,
+      "end": 82,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 92,
+      "end": 96,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 114,
+      "end": 131,
+      "text": "Below the Surface",
+      "label": "ORG"
+    },
+    {
+      "start": 204,
+      "end": 209,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 211,
+      "end": 216,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 241,
+      "end": 246,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 256,
+      "end": 260,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 348,
+      "end": 352,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 507,
+      "end": 512,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 926,
+      "end": 930,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 1105,
+      "end": 1110,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 1447,
+      "end": 1451,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 1522,
+      "end": 1527,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 1750,
+      "end": 1754,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 1931,
+      "end": 1936,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 2245,
+      "end": 2249,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 2424,
+      "end": 2429,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 2756,
+      "end": 2760,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 2831,
+      "end": 2836,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 3059,
+      "end": 3063,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 3228,
+      "end": 3233,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 3550,
+      "end": 3554,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 3721,
+      "end": 3726,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 4047,
+      "end": 4051,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 4185,
+      "end": 4190,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 4527,
+      "end": 4531,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 4664,
+      "end": 4669,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 4980,
+      "end": 4984,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 5153,
+      "end": 5158,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 5488,
+      "end": 5492,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 5666,
+      "end": 5671,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 6116,
+      "end": 6120,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 6287,
+      "end": 6292,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 6628,
+      "end": 6632,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 6784,
+      "end": 6789,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 7082,
+      "end": 7086,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 7252,
+      "end": 7257,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 7576,
+      "end": 7580,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 7751,
+      "end": 7756,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 8094,
+      "end": 8098,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 8169,
+      "end": 8174,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 8379,
+      "end": 8383,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 8519,
+      "end": 8524,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 8963,
+      "end": 8967,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 9038,
+      "end": 9043,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 9254,
+      "end": 9258,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 9425,
+      "end": 9430,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 9768,
+      "end": 9772,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 9927,
+      "end": 9932,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 10266,
+      "end": 10270,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 10353,
+      "end": 10358,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 10519,
+      "end": 10523,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 10534,
+      "end": 10539,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 10570,
+      "end": 10575,
+      "text": "Marco",
+      "label": "PERSON"
+    },
+    {
+      "start": 10585,
+      "end": 10589,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 10603,
+      "end": 10607,
+      "text": "Rina",
+      "label": "PERSON"
+    },
+    {
+      "start": 10642,
+      "end": 10659,
+      "text": "Below the Surface",
+      "label": "ORG"
+    }
+  ],
+  "annotation_policy": {
+    "persons": "Host + guest names (all occurrences)",
+    "orgs": "Show title (all occurrences)",
+    "notes": "Offsets align to materialized text files uploaded for curated_5feeds_smoke_v1."
+  }
+}

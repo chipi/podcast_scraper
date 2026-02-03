@@ -6,9 +6,26 @@
 
 ## Overview
 
-This project uses **git worktrees** to enable parallel development across multiple branches.
+**Git worktrees** are an optional development workflow that enables parallel development across multiple branches.
 Each worktree is an isolated working directory that shares the same Git repository history,
 allowing you to work on multiple features simultaneously without branch switching or stashing.
+
+### When to Use Worktrees
+
+**Use worktrees when:**
+
+- You need to work on multiple features/branches simultaneously
+- You want to avoid constantly switching branches or stashing changes
+- You need isolated environments for different features (separate venvs, IDE instances)
+- You're using AI tools (like Cursor) and want clean, focused context per feature
+
+**You don't need worktrees when:**
+
+- Working on a single feature at a time
+- Simple branch switching is sufficient for your workflow
+- You prefer a single working directory
+
+**Note:** This is an optional workflow. The standard git workflow (single working directory, branch switching) works perfectly fine for most contributors.
 
 ### Key Benefits
 

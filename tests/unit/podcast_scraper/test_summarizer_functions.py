@@ -19,7 +19,7 @@ if PROJECT_ROOT not in sys.path:
 
 # Try to import summarizer, skip tests if dependencies not available
 try:
-    from podcast_scraper import summarizer
+    from podcast_scraper.providers.ml import summarizer
 
     SUMMARIZER_AVAILABLE = True
 except ImportError:
@@ -331,7 +331,7 @@ class TestJoinSummariesWithStructure(unittest.TestCase):
         self.assertIn("This is a longer summary", result)
         self.assertIn("Another longer summary", result)
         self.assertIn("Yet another longer summary", result)
-        self.assertIn("===", result)  # Should have segment separator
+        self.assertIn("---", result)  # Should have segment separator (uses "---" not "===")
         self.assertTrue(len(result) > 0)
 
     def test_join_summaries_single(self):
@@ -549,6 +549,10 @@ class TestSummarizeChunksMap(unittest.TestCase):
         mock_model.device = "cuda"  # GPU = sequential
         mock_model.model_name = "test-model"
         mock_model.summarize.return_value = "Chunk summary"
+        # Mock tokenizer for dynamic length adjustment
+        mock_tokenizer = Mock()
+        mock_tokenizer.encode.return_value = [1, 2, 3, 4, 5]  # Return list for len()
+        mock_model.tokenizer = mock_tokenizer
 
         chunks = ["Chunk 1", "Chunk 2", "Chunk 3"]
 
@@ -579,6 +583,10 @@ class TestSummarizeChunksMap(unittest.TestCase):
         mock_model.device = "cpu"  # CPU = can parallelize
         mock_model.model_name = "test-model"
         mock_model.summarize.return_value = "Chunk summary"
+        # Mock tokenizer for dynamic length adjustment
+        mock_tokenizer = Mock()
+        mock_tokenizer.encode.return_value = [1, 2, 3, 4, 5]  # Return list for len()
+        mock_model.tokenizer = mock_tokenizer
 
         chunks = ["Chunk 1", "Chunk 2"]
 

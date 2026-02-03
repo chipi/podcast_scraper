@@ -1,0 +1,47 @@
+# Baseline ML Dev Authority Config
+# Identical to v1 baseline except preprocessing_profile: cleaning_v4
+# Purpose: Isolate impact of preprocessing improvements on speaker leak rate
+#
+# Expected: Speaker name leak rate 80% → <10%
+
+id: "baseline_ml_dev_authority"
+task: "summarization"
+
+backend:
+  type: "hf_local"
+  map_model: "bart-small"      # facebook/bart-base
+  reduce_model: "long-fast"    # allenai/led-base-16384
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+# Only change from v1 baseline: preprocessing profile
+preprocessing_profile: "cleaning_v4"
+
+map_params:
+  max_new_tokens: 200
+  min_new_tokens: 80
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  length_penalty: 1.0
+  early_stopping: true
+  repetition_penalty: 1.3
+
+reduce_params:
+  max_new_tokens: 650
+  min_new_tokens: 220
+  num_beams: 4
+  no_repeat_ngram_size: 3
+  length_penalty: 1.0
+  early_stopping: true
+  repetition_penalty: 1.3
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150

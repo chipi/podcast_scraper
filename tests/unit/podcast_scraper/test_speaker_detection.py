@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 # Mock ML dependencies before importing modules that require them
 # Unit tests run without ML dependencies installed
 with patch.dict("sys.modules", {"spacy": MagicMock()}):
-    from podcast_scraper import speaker_detection
+    from podcast_scraper.providers.ml import speaker_detection
 
 # Import from parent conftest explicitly to avoid conflicts
 import importlib.util
@@ -82,7 +82,7 @@ class TestSpeakerDetection(unittest.TestCase):
         self.cfg = config.Config(
             rss_url=TEST_FEED_URL,
             auto_speakers=True,
-            ner_model=config.DEFAULT_NER_MODEL,
+            ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
         )
 
     @patch.object(speaker_detection, "_load_spacy_model")
@@ -467,21 +467,24 @@ class TestSpeakerDetectionHelpers(unittest.TestCase):
     def test_build_speaker_names_list(self):
         """Test building speaker names list."""
         # Hosts and guests
-        names, succeeded = speaker_detection._build_speaker_names_list(
+        names, succeeded, used_defaults = speaker_detection._build_speaker_names_list(
             {"Host1", "Host2"}, ["Guest1"], 5
         )
         self.assertTrue(succeeded)
+        self.assertFalse(used_defaults)
         self.assertIn("Host1", names)
         self.assertIn("Guest1", names)
 
         # Only hosts, no guests - should return actual host names
-        names, succeeded = speaker_detection._build_speaker_names_list({"Host1"}, [], 5)
+        names, succeeded, used_defaults = speaker_detection._build_speaker_names_list(
+            {"Host1"}, [], 5
+        )
         self.assertTrue(succeeded)
         self.assertEqual(names[0], "Host1")
         self.assertEqual(len(names), 1)
 
         # Multiple hosts, no guests - should return sorted host names
-        names, succeeded = speaker_detection._build_speaker_names_list(
+        names, succeeded, used_defaults = speaker_detection._build_speaker_names_list(
             {"Jane Smith", "John Doe"}, [], 5
         )
         self.assertTrue(succeeded)
@@ -490,13 +493,15 @@ class TestSpeakerDetectionHelpers(unittest.TestCase):
         self.assertEqual(names, ["Jane Smith", "John Doe"])
 
         # No hosts or guests
-        names, succeeded = speaker_detection._build_speaker_names_list(set(), [], 5)
+        names, succeeded, used_defaults = speaker_detection._build_speaker_names_list(set(), [], 5)
         self.assertFalse(succeeded)
         self.assertEqual(names, ["Host", "Guest"])
 
         # Test: Hosts only, no guests - should NOT add defaults
         # This is the new behavior: if we have hosts but no guests, use actual host names
-        names, succeeded = speaker_detection._build_speaker_names_list({"Alice", "Bob"}, [], 5)
+        names, succeeded, used_defaults = speaker_detection._build_speaker_names_list(
+            {"Alice", "Bob"}, [], 5
+        )
         self.assertTrue(succeeded)
         self.assertEqual(len(names), 2)
         self.assertIn("Alice", names)
@@ -505,7 +510,7 @@ class TestSpeakerDetectionHelpers(unittest.TestCase):
         self.assertNotIn("Guest", names)
 
         # Test: Multiple hosts, no guests, max_names limits
-        names, succeeded = speaker_detection._build_speaker_names_list(
+        names, succeeded, used_defaults = speaker_detection._build_speaker_names_list(
             {"Alice", "Bob", "Charlie"}, [], 2
         )
         self.assertTrue(succeeded)

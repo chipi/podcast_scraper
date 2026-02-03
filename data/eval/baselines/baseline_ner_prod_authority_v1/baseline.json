@@ -1,0 +1,33 @@
+{
+  "run_id": "ner_entities_spacy_trf_smoke5_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "created_at": "2026-02-02T17:41:35.683002Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "ner_entities",
+  "backend": {
+    "type": "spacy_local"
+  },
+  "params": {
+    "model": "en_core_web_trf",
+    "labels": [
+      "PERSON",
+      "ORG",
+      "GPE",
+      "PRODUCT",
+      "EVENT"
+    ]
+  },
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 2.245577812194824,
+    "avg_time_seconds": 0.44911556243896483,
+    "total_chars_in": 55003,
+    "total_chars_out": 18861,
+    "avg_compression": 2.9162292561370022
+  },
+  "promoted_from": "ner_entities_spacy_trf_smoke5_v1",
+  "promoted_at": "2026-02-02T17:43:58.408592Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_ner_prod_authority_v1"
+}

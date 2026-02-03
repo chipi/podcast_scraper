@@ -1,6 +1,6 @@
 # RFC-016: Modularization for AI Experiment Pipeline
 
-- **Status**: 🟡 **80% Complete** - Core provider pattern implemented, cleanup and experiment enhancements needed
+- **Status**: 🟢 **Complete** - All phases implemented, legacy cleanup optional
 - **Authors**:
 - **Stakeholders**: Maintainers, developers implementing AI experiment pipeline, developers maintaining core workflow
 - **Related ADRs**:
@@ -9,13 +9,13 @@
   - [ADR-029: Registered Preprocessing Profiles](../adr/ADR-029-registered-preprocessing-profiles.md)
 - **Related RFCs**: `docs/rfc/RFC-015-ai-experiment-pipeline.md`, `docs/rfc/RFC-017-prompt-management.md`, `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference), `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (completed)
 - **Related Issues**: [#303](https://github.com/chipi/podcast_scraper/issues/303) (RFC-016 Implementation)
-- **Updated**: 2026-01-08
+- **Updated**: 2026-01-16
 
 ---
 
-## 📊 Implementation Status (80% Complete)
+## 📊 Implementation Status (Complete)
 
-### ✅ Completed (Core Foundation)
+### ✅ Completed (All Phases)
 
 1. **Provider Protocols** ✅ (100% Complete)
    - `src/podcast_scraper/summarization/base.py` → `SummarizationProvider` protocol
@@ -24,11 +24,11 @@
    - All protocols have consistent interfaces and comprehensive docstrings
 
 2. **Unified Provider Implementations** ✅ (100% Complete)
-   - `src/podcast_scraper/ml/ml_provider.py` → `MLProvider` (implements all 3 protocols)
+   - `src/podcast_scraper/providers/ml/ml_provider.py` → `MLProvider` (implements all 3 protocols)
      - Whisper (transcription)
      - spaCy NER (speaker detection)
      - Transformers BART/LED (summarization)
-   - `src/podcast_scraper/openai/openai_provider.py` → `OpenAIProvider` (implements all 3 protocols)
+   - `src/podcast_scraper/providers/openai/openai_provider.py` → `OpenAIProvider` (implements all 3 protocols)
      - Whisper API (transcription)
      - GPT API (speaker detection)
      - GPT API (summarization)
@@ -37,32 +37,36 @@
    - `src/podcast_scraper/summarization/factory.py` → `create_summarization_provider()`
    - `src/podcast_scraper/transcription/factory.py` → `create_transcription_provider()`
    - `src/podcast_scraper/speaker_detectors/factory.py` → `create_speaker_detector()`
+   - Factories accept experiment-style params via `ExperimentConfig`
 
 4. **Production Integration** ✅ (100% Complete)
-   - `src/podcast_scraper/workflow.py` uses new provider factories
+   - `src/podcast_scraper/workflow/orchestration.py` uses new provider factories
    - Clean separation between orchestration and implementation
    - Proper lifecycle management
 
-### 🟡 Remaining Work (20%)
+5. **Comprehensive Fingerprinting** ✅ (100% Complete)
+   - `src/podcast_scraper/providers/fingerprint.py` → `ProviderFingerprint` with full environment capture
+   - Enhanced fingerprint structure: run context, provider, model, generation params, preprocessing, chunking, prompts, environment, runtime
+   - Fingerprint validation via smoke tests (`scripts/eval/test_fingerprint_smoke.py`)
 
-**Phase 1: Legacy Module Cleanup** (Optional - Low Priority)
+6. **Preprocessing Profiles** ✅ (100% Complete)
+   - `src/podcast_scraper/preprocessing/profiles.py` → Versioned preprocessing profiles
+   - Profile tracking in fingerprints
+   - Deterministic transformations with versioning
+
+7. **Evaluation Infrastructure** ✅ (100% Complete)
+   - `src/podcast_scraper/evaluation/scorer.py` → Intrinsic and extrinsic metrics computation
+   - `src/podcast_scraper/evaluation/comparator.py` → Baseline comparison and delta computation
+   - Structured metrics format (`metrics.json`)
+   - Reference validation and comparison
+
+### 🟡 Optional Future Work
+
+**Legacy Module Cleanup** (Optional - Low Priority)
 
 - Deprecate `src/podcast_scraper/summarizer.py`
 - Deprecate `src/podcast_scraper/speaker_detection.py`
 - Deprecate `src/podcast_scraper/whisper_integration.py`
-
-**Phase 2: Experiment-Specific Factory Enhancements** (Critical - 3-5 days)
-
-- Enable factories to accept experiment-style params dict (not just `Config`)
-- Required for RFC-015 Phase 1
-
-**Phase 3: Extract Evaluation Infrastructure** (Important - 1 week)
-
-- Create `src/podcast_scraper/experiments/evaluation.py`
-- Extract ROUGE, BLEU from `scripts/eval/eval_summaries.py`
-- Add WER calculation (jiwer)
-- Add semantic similarity (sentence-transformers)
-- Required for RFC-015 Phase 2
 
 **See [GitHub Issue #303](https://github.com/chipi/podcast_scraper/issues/303) for detailed implementation plan.**
 
@@ -72,7 +76,7 @@
 
 ## Abstract
 
-**🎯 Quick Summary:** This RFC is **80% complete**. The core provider pattern (protocols, implementations, factories) is production-ready. Remaining work (20%) focuses on legacy cleanup, experiment-specific factory enhancements, and evaluation infrastructure extraction. **You can start RFC-015 as soon as Phase 2 (factory enhancements) is complete (~3-5 days).**
+**🎯 Quick Summary:** This RFC is **complete**. All phases are implemented: provider protocols, implementations, factories, comprehensive fingerprinting, preprocessing profiles, and evaluation infrastructure. The system is production-ready and fully supports the experiment pipeline (RFC-015). Legacy module cleanup is optional and low priority.
 
 ---
 

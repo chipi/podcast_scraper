@@ -32,18 +32,19 @@ ml = [
   "spacy>=3.7.0,<4.0.0",
   # spaCy language models are distributed via GitHub releases (not PyPI) due to size constraints.
   # This is the official and standard method recommended by spaCy.
-  # Version compatibility: spaCy 3.7.x requires en_core_web_sm 3.7.x
+  # Version compatibility: spaCy 3.7.x requires en_core_web_sm 3.7.x and en_core_web_trf 3.7.x
   # See: https://spacy.io/usage/models for model version compatibility
   "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
+  "en-core-web-trf @ https://github.com/explosion/spacy-models/releases/download/en_core_web_trf-3.7.3/en_core_web_trf-3.7.3-py3-none-any.whl",
   "torch>=2.0.0,<3.0.0",
   "transformers>=4.30.0,<5.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
   "accelerate>=0.20.0,<2.0.0",
-  "protobuf>=3.20.0,<7.0.0",
+  "protobuf>=3.20.0,!=6.33.4,<7.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
 ]
 # Development tools
 dev = [
-  "black>=23.0.0,<25.0.0",
+  "black>=23.0.0,<27.0.0",
   "isort>=5.12.0,<8.0.0",
   "flake8>=6.0.0,<8.0.0",
   "pytest>=7.4.0,<10.0.0",
@@ -57,7 +58,10 @@ dev = [
   "bandit>=1.7.5,<2.0.0",
   "pip-audit>=2.6.0,<3.0.0",
   "build",
-  "rouge-score>=0.1.2,<1.0.0",  # Required for scripts/eval/eval_summaries.py
+  "rouge-score>=0.1.2,<1.0.0",  # Required for ROUGE computation in evaluation loop
+  "jiwer>=3.0.0,<4.0.0",  # Required for WER (Word Error Rate) computation
+  "sentence-transformers>=2.2.0,<3.0.0",  # Required for semantic similarity computation
+  "nltk>=3.8.0,<4.0.0",  # Required for BLEU computation
   "radon>=6.0.0,<7.0.0",  # Code complexity analysis (RFC-031)
   "vulture>=2.10,<3.0.0",  # Dead code detection (RFC-031)
   "interrogate>=1.5.0,<2.0.0",  # Docstring coverage (RFC-031)
@@ -70,9 +74,18 @@ dev = [
 # Package is now in src/ directory (src-layout)
 packages = [
     "podcast_scraper",
+    "podcast_scraper.cache",
+    "podcast_scraper.evaluation",
+    "podcast_scraper.preprocessing",
+    "podcast_scraper.preprocessing.audio",
+    "podcast_scraper.providers",
+    "podcast_scraper.providers.ml",
+    "podcast_scraper.providers.openai",
+    "podcast_scraper.rss",
     "podcast_scraper.speaker_detectors",
     "podcast_scraper.summarization",
     "podcast_scraper.transcription",
+    "podcast_scraper.utils",
     "podcast_scraper.workflow",
     "podcast_scraper.workflow.stages",
 ]

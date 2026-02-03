@@ -1,0 +1,26 @@
+{
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "run_id": "baseline_map_pegasus-cnn__reduce_led-base_v2",
+  "episode_count": 5,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 233.4,
+      "min_tokens": 216,
+      "max_tokens": 246
+    },
+    "performance": {
+      "avg_latency_ms": 22784.9636554718
+    }
+  },
+  "vs_reference": null
+}

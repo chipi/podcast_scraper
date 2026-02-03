@@ -1,7 +1,8 @@
 # ADR-025: Codified Comparison Baselines
 
-- **Status**: Accepted
+- **Status**: Accepted ✅ Implemented
 - **Date**: 2026-01-11
+- **Updated**: 2026-01-16
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**: [RFC-015](../rfc/RFC-015-ai-experiment-pipeline.md), [RFC-041](../rfc/RFC-041-podcast-ml-benchmarking-framework.md)
 - **Related PRDs**: [PRD-007](../prd/PRD-007-ai-quality-experiment-platform.md)
@@ -17,6 +18,17 @@ We mandate **Codified Comparison Baselines**.
 - Every experiment and benchmark MUST reference a specific `baseline_id` (e.g., `bart_led_baseline_v2`).
 - A baseline is a frozen artifact directory containing metadata, predictions, and calculated metrics.
 - The system prevents comparisons between experiments using different datasets or mismatched baselines.
+
+**Implementation**: Baselines are stored in `data/eval/baselines/{baseline_id}/` with:
+
+- `predictions.jsonl` - All episode outputs in structured format
+- `metrics.json` - Aggregated performance and quality metrics
+- `fingerprint.json` - Complete system fingerprint for reproducibility
+- `baseline.json` - Baseline metadata and statistics
+- `config.yaml` - Experiment configuration used
+- `README.md` - Baseline purpose and replacement policy
+
+Baselines are created via promotion workflow (`make run-promote --as baseline`) from temporary runs, ensuring immutability and explicit intent.
 
 ## Rationale
 

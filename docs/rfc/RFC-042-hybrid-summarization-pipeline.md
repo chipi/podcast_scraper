@@ -317,7 +317,7 @@ Create a new provider that implements the hybrid architecture:
 
 ```python
 
-# src/podcast_scraper/ml/hybrid_ml_provider.py
+# src/podcast_scraper/providers/ml/hybrid_ml_provider.py
 
 from typing import Protocol
 from podcast_scraper.summarization.base import SummarizationProvider
@@ -380,7 +380,7 @@ Create a backend abstraction for REDUCE model loading:
 
 ```python
 
-# src/podcast_scraper/ml/inference_backends.py
+# src/podcast_scraper/providers/ml/inference_backends.py
 
 class InferenceBackend(Protocol):
     """Protocol for local LLM inference."""
@@ -410,7 +410,7 @@ Maintain a registry of supported models:
 
 ```python
 
-# src/podcast_scraper/ml/model_registry.py
+# src/podcast_scraper/providers/ml/model_registry.py
 
 MAP_MODELS = {
     "led-base": "allenai/led-base-16384",
@@ -518,15 +518,15 @@ def create_summarization_provider(config: Config) -> SummarizationProvider:
     provider_type = config.summarization_provider
 
     if provider_type == "transformers":
-        from podcast_scraper.ml.summarizer import TransformersSummarizer
+        from podcast_scraper.providers.ml.summarizer import TransformersSummarizer
         return TransformersSummarizer(config)
 
     elif provider_type == "hybrid_ml":  # NEW
-        from podcast_scraper.ml.hybrid_ml_provider import HybridMLProvider
+        from podcast_scraper.providers.ml.hybrid_ml_provider import HybridMLProvider
         return HybridMLProvider(config)
 
     elif provider_type == "openai":
-        from podcast_scraper.openai.openai_provider import OpenAIProvider
+        from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
         return OpenAIProvider(config)
 
     # ... other providers

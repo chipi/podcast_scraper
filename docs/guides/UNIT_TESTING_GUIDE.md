@@ -38,9 +38,9 @@ This guide covers unit test implementation details: what to mock, isolation patt
 
    ```python
    # Mock before importing dependent modules
-   @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
-   @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
-   @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+   @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
+   @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+   @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
    def test_provider_creation(self, mock_summary, mock_ner, mock_whisper):
 
 ```text
@@ -50,7 +50,7 @@ This guide covers unit test implementation details: what to mock, isolation patt
 3. **External API Clients** (OpenAI, etc.)
 
    ```python
-   @patch("podcast_scraper.openai.openai_provider.OpenAI")
+   @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
    def test_openai_provider(self, mock_client):
        mock_client.return_value.chat.completions.create.return_value = ...
    ```
@@ -184,7 +184,7 @@ Test `MLProvider`/`OpenAIProvider` directly with mocked dependencies:
 class TestMLProvider(unittest.TestCase):
     """Test MLProvider standalone."""
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
     def test_transcription_initialization(self, mock_whisper):
         """Test transcription capability initialization."""
         provider = MLProvider(cfg)

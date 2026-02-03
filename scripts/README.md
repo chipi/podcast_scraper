@@ -8,7 +8,7 @@ Utility scripts for the podcast scraper project, organized by purpose.
 scripts/
 ├── cache/          # Cache management scripts
 ├── dashboard/      # Metrics and dashboard generation scripts
-├── eval/           # Evaluation scripts (cleaning, summarization)
+├── eval/           # Evaluation and experiment scripts
 ├── tools/          # Development tooling scripts
 └── setup_venv.sh   # Virtual environment setup
 ```
@@ -17,128 +17,44 @@ scripts/
 
 ## Evaluation Scripts (`eval/`)
 
-### eval_cleaning.py
+Evaluation scripts for the AI quality and experimentation platform:
 
-Evaluates transcript cleaning quality by comparing raw vs cleaned transcripts.
+### Core Scripts
 
-#### Usage
+- **`run_experiment.py`** - Run experiments with complete evaluation loop (runner + scorer + comparator)
+- **`materialize_baseline.py`** - Create frozen baseline artifacts from current system state
+- **`materialize_dataset.py`** - Materialize datasets from dataset JSON definitions
+- **`promote_run.py`** - Promote runs to baselines or references
 
-```bash
-python scripts/eval/eval_cleaning.py
-# Outputs to: data/results/cleaning_eval_YYYYMMDD_HHMMSS.json
-```
+### Dataset Management
 
-**Options:**
+- **`create_dataset_json.py`** - Create canonical dataset JSON files from source data
+- **`generate_episode_metadata.py`** - Generate episode metadata from RSS XML files
+- **`generate_source_index.py`** - Generate source inventory index.json files
 
-- `--eval-dir`: Directory containing evaluation episodes (default: `data/eval`)
-- `--episode`: Evaluate single episode only (e.g., `ep01`)
-- `--output`: Output JSON file path (default: `data/results/cleaning_eval_<timestamp>.json`)
-- `--log-level`: Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`)
+### Usage
 
-#### What It Evaluates
+See the **[Experiment Guide](../docs/guides/EXPERIMENT_GUIDE.md)** for complete usage instructions.
 
-For each episode, the script provides:
-
-1. **Removal Statistics**:
-   - Character removal (raw/cleaned/removal %)
-   - Word removal (raw/cleaned/removal %)
-
-2. **Sponsor/Ad Pattern Detection**:
-   - Counts sponsor phrases before and after cleaning
-   - Patterns checked: "this episode is brought to you by", "sponsored by", etc.
-   - Shows removal effectiveness
-
-3. **Brand Mention Detection**:
-   - Counts mentions of common podcast sponsor brands (Figma, Stripe, Justworks, etc.)
-   - Shows if brand mentions were removed
-
-4. **Outro Pattern Detection**:
-   - Counts outro patterns (subscribe, rate/review, newsletter, etc.)
-   - Shows if outro content was removed
-
-5. **Quality Flags**:
-   - ⚠️ Too much removed (>60%): Flags if cleaning removed too much content
-   - ❌ Cleaning ineffective: Flags if sponsor patterns weren't actually removed
-
-6. **Diff Snippets**:
-   - Shows what was removed (unified diff format)
-
-#### Output
-
-The script generates a JSON file with:
-
-- Aggregate statistics (average removal rates, pattern removal rates)
-- Per-episode detailed results
-- Flags for potential issues
-- Diff snippets showing what was removed
-
----
-
-### eval_summaries.py
-
-Evaluates summarization quality using ROUGE metrics and reference-free checks.
-
-#### Installation
-
-Requires the `rouge-score` library. Install with:
+**Quick examples:**
 
 ```bash
-# Option 1: Install as part of dev dependencies (recommended)
-pip install -e .[dev]
+# Create a dataset
+make dataset-create DATASET_ID=my_dataset_v1
 
-# Option 2: Install rouge-score directly
-pip install rouge-score
+# Materialize a baseline
+make baseline-create BASELINE_ID=my_baseline_v1 DATASET_ID=my_dataset_v1
+
+# Run an experiment
+make experiment-run CONFIG=data/eval/configs/my_experiment.yaml
+
+# Promote a run
+make run-promote RUN_ID=run_xxx --as baseline PROMOTED_ID=baseline_v2 REASON="..."
 ```
 
-#### Usage (eval_summaries.py)
-
-```bash
-python scripts/eval/eval_summaries.py
-# Outputs to: data/results/eval_YYYYMMDD_HHMMSS.json
-```
-
-**Options:**
-
-- `--eval-dir`: Directory containing evaluation episodes (default: `data/eval`)
-- `--map-model`: MAP model name/key (e.g., `bart-large`, `bart-small`, `pegasus`) or HuggingFace model ID. Defaults to `bart-large` (same as app default)
-- `--reduce-model`: REDUCE model name/key (e.g., `long-fast`, `long`, `bart-large`) or HuggingFace model ID. Defaults to `long-fast` (LED-base, same as app default)
-- `--model`: (Deprecated: use `--map-model`) Backward compatibility alias for `--map-model`
-- `--config`: Path to config file (JSON or YAML) - overrides model arguments
-- `--output`: Output JSON file path for results (default: `data/results/eval_<timestamp>.json`)
-- `--device`: Device to use (`cuda`, `mps`, `cpu`, or `None` for auto)
-- `--log-level`: Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`)
-- `--use-short-reference`: Use `summary.gold.short.txt` instead of `summary.gold.long.txt` for ROUGE scoring
-
-#### Model Defaults
-
-When models are not specified, the script uses the same defaults as the main application:
-
-- **MAP model**: `bart-large` (BART-large CNN) - fast, efficient chunk summarization
-- **REDUCE model**: `long-fast` (LED-base-16384) - accurate, long-context final summarization
-
-This hybrid approach (BART for map, LED for reduce) is widely used in production summarization systems.
-
-#### Output (eval_summaries.py)
-
-The script generates a JSON file with:
-
-- Model configuration (MAP and REDUCE models)
-- Summary statistics (average generation time, compression ratio, keyword coverage)
-- ROUGE scores (if reference summaries exist)
-- Per-episode results with detailed metrics
-- Check pass rates (compression, repetition, keyword coverage)
-
-#### Evaluation Dataset Structure
+### Evaluation Dataset Structure
 
 See `data/eval/README.md` for details on the evaluation dataset structure.
-
-Each episode directory should contain:
-
-- `transcript.raw.txt` - Raw transcript from Whisper (optional, for validation)
-- `transcript.cleaned.txt` - Cleaned transcript (input for summarization)
-- `summary.gold.long.txt` - Detailed human-written reference summary (default for ROUGE)
-- `summary.gold.short.txt` - Optional concise reference summary
-- `metadata.json` - Optional episode metadata
 
 ---
 

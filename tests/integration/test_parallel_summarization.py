@@ -57,10 +57,10 @@ create_test_feed = parent_conftest.create_test_feed
 def _create_mock_provider(mock_summary_model):
     """Create a mock provider with map_model and reduce_model attributes."""
     mock_provider = Mock()
-    mock_provider.map_model = mock_summary_model
-    mock_provider.reduce_model = mock_summary_model
+    mock_provider._map_model = mock_summary_model
+    mock_provider._reduce_model = mock_summary_model
     # Make it appear as MLProvider for local provider path
-    from podcast_scraper.ml.ml_provider import MLProvider
+    from podcast_scraper.providers.ml.ml_provider import MLProvider
 
     mock_provider.__class__ = MLProvider
     # Configure summarize() to return proper dict structure
@@ -72,7 +72,8 @@ def _create_mock_provider(mock_summary_model):
 
 def _create_test_transcript_files(episodes, temp_dir, cfg):
     """Helper to create transcript and metadata files for test episodes."""
-    from podcast_scraper import filesystem, metadata
+    from podcast_scraper.utils import filesystem
+    from podcast_scraper.workflow import metadata_generation as metadata
 
     for episode in episodes:
         # Create transcript file at expected path
@@ -133,7 +134,7 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
         feed = create_test_feed()
 
         # Create transcript files using the expected path format
-        from podcast_scraper import filesystem
+        from podcast_scraper.utils import filesystem
 
         for episode in episodes:
             transcript_path = filesystem.build_whisper_output_path(
@@ -153,12 +154,12 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
                 cfg=cfg,
                 effective_output_dir=self.temp_dir,
                 run_suffix=None,
-                feed_metadata=workflow._FeedMetadata(
+                feed_metadata=workflow.FeedMetadata(
                     description="Test feed",
                     image_url=None,
                     last_updated=None,
                 ),
-                host_detection_result=workflow._HostDetectionResult(
+                host_detection_result=workflow.HostDetectionResult(
                     cached_hosts=set(),
                     heuristics=None,
                 ),
@@ -209,12 +210,12 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
                 cfg=cfg,
                 effective_output_dir=self.temp_dir,
                 run_suffix=None,
-                feed_metadata=workflow._FeedMetadata(
+                feed_metadata=workflow.FeedMetadata(
                     description="Test feed",
                     image_url=None,
                     last_updated=None,
                 ),
-                host_detection_result=workflow._HostDetectionResult(
+                host_detection_result=workflow.HostDetectionResult(
                     cached_hosts=set(),
                     heuristics=None,
                 ),
@@ -301,12 +302,12 @@ class TestParallelSummarizationThreadSafety(unittest.TestCase):
                 cfg=cfg,
                 effective_output_dir=self.temp_dir,
                 run_suffix=None,
-                feed_metadata=workflow._FeedMetadata(
+                feed_metadata=workflow.FeedMetadata(
                     description="Test feed",
                     image_url=None,
                     last_updated=None,
                 ),
-                host_detection_result=workflow._HostDetectionResult(
+                host_detection_result=workflow.HostDetectionResult(
                     cached_hosts=set(),
                     heuristics=None,
                 ),
@@ -395,12 +396,12 @@ class TestParallelSummarizationFallback(unittest.TestCase):
                 cfg=cfg,
                 effective_output_dir=self.temp_dir,
                 run_suffix=None,
-                feed_metadata=workflow._FeedMetadata(
+                feed_metadata=workflow.FeedMetadata(
                     description="Test feed",
                     image_url=None,
                     last_updated=None,
                 ),
-                host_detection_result=workflow._HostDetectionResult(
+                host_detection_result=workflow.HostDetectionResult(
                     cached_hosts=set(),
                     heuristics=None,
                 ),
@@ -468,12 +469,12 @@ class TestParallelSummarizationCleanup(unittest.TestCase):
                 cfg=cfg,
                 effective_output_dir=self.temp_dir,
                 run_suffix=None,
-                feed_metadata=workflow._FeedMetadata(
+                feed_metadata=workflow.FeedMetadata(
                     description="Test feed",
                     image_url=None,
                     last_updated=None,
                 ),
-                host_detection_result=workflow._HostDetectionResult(
+                host_detection_result=workflow.HostDetectionResult(
                     cached_hosts=set(),
                     heuristics=None,
                 ),
@@ -529,12 +530,12 @@ class TestParallelSummarizationCleanup(unittest.TestCase):
                 cfg=cfg,
                 effective_output_dir=self.temp_dir,
                 run_suffix=None,
-                feed_metadata=workflow._FeedMetadata(
+                feed_metadata=workflow.FeedMetadata(
                     description="Test feed",
                     image_url=None,
                     last_updated=None,
                 ),
-                host_detection_result=workflow._HostDetectionResult(
+                host_detection_result=workflow.HostDetectionResult(
                     cached_hosts=set(),
                     heuristics=None,
                 ),
@@ -605,12 +606,12 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
                 cfg=cfg,
                 effective_output_dir=self.temp_dir,
                 run_suffix=None,
-                feed_metadata=workflow._FeedMetadata(
+                feed_metadata=workflow.FeedMetadata(
                     description="Test feed",
                     image_url=None,
                     last_updated=None,
                 ),
-                host_detection_result=workflow._HostDetectionResult(
+                host_detection_result=workflow.HostDetectionResult(
                     cached_hosts=set(),
                     heuristics=None,
                 ),
@@ -660,12 +661,12 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
                 cfg=cfg,
                 effective_output_dir=self.temp_dir,
                 run_suffix=None,
-                feed_metadata=workflow._FeedMetadata(
+                feed_metadata=workflow.FeedMetadata(
                     description="Test feed",
                     image_url=None,
                     last_updated=None,
                 ),
-                host_detection_result=workflow._HostDetectionResult(
+                host_detection_result=workflow.HostDetectionResult(
                     cached_hosts=set(),
                     heuristics=None,
                 ),
@@ -714,12 +715,12 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
                 cfg=cfg,
                 effective_output_dir=self.temp_dir,
                 run_suffix=None,
-                feed_metadata=workflow._FeedMetadata(
+                feed_metadata=workflow.FeedMetadata(
                     description="Test feed",
                     image_url=None,
                     last_updated=None,
                 ),
-                host_detection_result=workflow._HostDetectionResult(
+                host_detection_result=workflow.HostDetectionResult(
                     cached_hosts=set(),
                     heuristics=None,
                 ),

@@ -23,7 +23,9 @@ from urllib.parse import urlparse
 
 from pydantic import ValidationError
 
-from . import __version__, config, filesystem, progress, workflow
+from . import __version__, config
+from .utils import filesystem, progress
+from .workflow import orchestration as workflow
 from .workflow.stages import setup
 
 if TYPE_CHECKING:
@@ -69,8 +71,8 @@ class _RichProgress:
             completed = min(self._completed, self._total)
             self._progress.update(self._task_id, completed=completed)
         else:
-            # For indeterminate progress, track the increment
-            # Rich handles indeterminate progress by showing elapsed time
+            # For indeterminate progress, just advance - Rich shows elapsed time
+            # advance parameter makes the bar animate
             self._progress.update(self._task_id, advance=advance)
 
 
@@ -95,15 +97,14 @@ def _get_shared_progress() -> "rich.progress.Progress":
 
         _shared_progress_lock = threading.Lock()
 
-        # Use Console configured to handle logging better
-        # stderr=False means logs go to stderr, progress to stdout (better separation)
+        # Create console for progress bars
         console = Console(
             force_terminal=os.getenv("TERM") != "dumb",
-            stderr=False,  # Progress goes to stdout, logs to stderr
+            stderr=True,  # Progress to stderr
+            width=None,  # Auto-detect terminal width
         )
 
-        # Compact progress bar columns - show both percentage and elapsed time
-        # Rich will show percentage for determinate, elapsed for indeterminate
+        # Compact progress bar columns
         columns = [
             TextColumn("[progress.description]{task.description}"),
             BarColumn(bar_width=40),
@@ -114,9 +115,9 @@ def _get_shared_progress() -> "rich.progress.Progress":
         _shared_progress = Progress(
             *columns,
             console=console,
-            transient=True,  # Remove after completion
+            transient=False,  # Keep bars visible until removed
             expand=False,  # Compact mode
-            refresh_per_second=8,
+            refresh_per_second=10,  # Higher refresh for smoother updates
         )
         _shared_progress.start()
 
@@ -128,6 +129,7 @@ def _rich_progress(total: Optional[int], description: str) -> Iterator[_RichProg
     """Create a rich progress context matching the shared progress API.
 
     Uses a shared Progress instance to prevent duplicate bars and conflicts.
+    Each progress context gets its own task in the shared Progress.
     """
     # Validate total parameter
     if total is not None and total <= 0:
@@ -140,9 +142,10 @@ def _rich_progress(total: Optional[int], description: str) -> Iterator[_RichProg
     if _shared_progress_lock is not None:
         _shared_progress_lock.acquire()
 
+    task_id = None
     try:
-        # Add task to shared progress
-        # For indeterminate, use None for total and Rich will show elapsed time
+        # Add new task to shared progress
+        # Each call gets its own task, allowing multiple concurrent operations
         task_id = progress_bar.add_task(
             description,
             total=total,
@@ -500,9 +503,9 @@ def _add_speaker_detection_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--speaker-detector-provider",
-        choices=["spacy", "ner", "openai"],  # "ner" deprecated
+        choices=["spacy", "openai"],
         default="spacy",
-        help="Speaker detection provider to use (default: spacy, deprecated: ner)",
+        help="Speaker detection provider to use (default: spacy)",
     )
     parser.add_argument(
         "--auto-speakers",
@@ -587,9 +590,9 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--summary-provider",
-        choices=["transformers", "local", "openai"],  # "local" deprecated
+        choices=["transformers", "openai"],
         default="transformers",
-        help="Summary provider to use (default: transformers, deprecated: local)",
+        help="Summary provider to use (default: transformers)",
     )
     parser.add_argument(
         "--summary-model",
@@ -601,18 +604,6 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Model identifier for reduce phase of map-reduce summarization "
         "(e.g., allenai/led-base-16384). Defaults to LED-large if not specified.",
-    )
-    parser.add_argument(
-        "--summary-max-length",
-        type=int,
-        default=config.DEFAULT_SUMMARY_MAX_LENGTH,
-        help=f"Maximum summary length in tokens (default: {config.DEFAULT_SUMMARY_MAX_LENGTH})",
-    )
-    parser.add_argument(
-        "--summary-min-length",
-        type=int,
-        default=config.DEFAULT_SUMMARY_MIN_LENGTH,
-        help=f"Minimum summary length in tokens (default: {config.DEFAULT_SUMMARY_MIN_LENGTH})",
     )
     parser.add_argument(
         "--summary-device",
@@ -715,9 +706,19 @@ def _parse_cache_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespac
         help="Clean cache. Specify type (whisper, transformers, spacy) or use 'all' (default)",
     )
     parser.add_argument(
+        "--delete-model",
+        type=str,
+        default=None,
+        metavar="MODEL_NAME",
+        help=(
+            "Delete cache for a specific Transformers model "
+            "(e.g., 'google/pegasus-cnn_dailymail')"
+        ),
+    )
+    parser.add_argument(
         "--yes",
         action="store_true",
-        help="Skip confirmation prompt when cleaning cache",
+        help="Skip confirmation prompt when cleaning cache or deleting model",
     )
 
     args = parser.parse_args(argv)
@@ -809,8 +810,6 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "summary_provider": args.summary_provider,
         "summary_model": args.summary_model,
         "summary_reduce_model": args.summary_reduce_model,
-        "summary_max_length": args.summary_max_length,
-        "summary_min_length": args.summary_min_length,
         "summary_device": args.summary_device,
         "summary_batch_size": config.DEFAULT_SUMMARY_BATCH_SIZE,  # Not exposed in CLI yet
         "summary_chunk_size": args.summary_chunk_size,
@@ -910,7 +909,7 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
     logger.info(f"  Generate Summaries: {cfg.generate_summaries}")
     if cfg.generate_summaries:
         logger.info(f"  Summary Provider: {cfg.summary_provider}")
-        if cfg.summary_provider in ("transformers", "local"):  # "local" deprecated
+        if cfg.summary_provider == "transformers":
             if cfg.summary_model:
                 logger.info(f"  Summary Model: {cfg.summary_model}")
             else:
@@ -918,8 +917,26 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
             logger.info(f"  Summary Device: {cfg.summary_device or 'auto-detect'}")
             if cfg.summary_chunk_size:
                 logger.info(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
-        logger.info(f"  Summary Max Length: {cfg.summary_max_length} tokens")
-        logger.info(f"  Summary Min Length: {cfg.summary_min_length} tokens")
+        logger.info(
+            f"  Summary Map: max_new_tokens={cfg.summary_map_params.get('max_new_tokens')}, "
+            f"min_new_tokens={cfg.summary_map_params.get('min_new_tokens')}"
+        )
+        logger.info(
+            f"  Summary Reduce: max_new_tokens={cfg.summary_reduce_params.get('max_new_tokens')}, "
+            f"min_new_tokens={cfg.summary_reduce_params.get('min_new_tokens')}"
+        )
+        if cfg.summary_map_params and cfg.summary_reduce_params and cfg.summary_tokenize:
+            logger.info(
+                "  Using explicit ML parameters from config (map_params/reduce_params/tokenize)"
+            )
+            logger.info(
+                f"    Map: max_new_tokens={cfg.summary_map_params.get('max_new_tokens')}, "
+                f"num_beams={cfg.summary_map_params.get('num_beams')}"
+            )
+            logger.info(
+                f"    Reduce: max_new_tokens={cfg.summary_reduce_params.get('max_new_tokens')}, "
+                f"num_beams={cfg.summary_reduce_params.get('num_beams')}"
+            )
         if cfg.summary_prompt:
             logger.info(f"  Summary Prompt: {cfg.summary_prompt[:80]}...")
 
@@ -963,7 +980,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
     # Handle cache subcommand
     if hasattr(args, "command") and args.command == "cache":
         try:
-            from . import cache_manager
+            from .cache import manager as cache_manager
 
             if args.status:
                 cache_info = cache_manager.get_all_cache_info()
@@ -1053,6 +1070,20 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     )
                     return 0
 
+            # Handle --delete-model option
+            if args.delete_model:
+                success, freed = cache_manager.delete_transformers_model_cache(
+                    args.delete_model, confirm=confirm, force=args.yes
+                )
+                if success:
+                    freed_str = cache_manager.format_size(freed)
+                    print(f"\nDeleted cache for model '{args.delete_model}': {freed_str} freed")
+                    print("The model will be re-downloaded on next use.")
+                    return 0
+                else:
+                    print(f"\nFailed to delete cache for model '{args.delete_model}'")
+                    return 1
+
         except ImportError as exc:
             log.error(f"Cache management requires cache_manager module: {exc}")
             return 1
@@ -1060,7 +1091,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             log.error(f"Cache operation failed: {exc}")
             return 1
 
-    # Handle legacy cache management commands (for backward compatibility)
+    # Handle cache management commands
     if (
         hasattr(args, "cache_info")
         and args.cache_info
@@ -1068,7 +1099,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
         and args.prune_cache
     ):
         try:
-            from . import summarizer
+            from .providers.ml import summarizer
 
             cache_dir = args.cache_dir or None
             if args.cache_info:
@@ -1080,7 +1111,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     else (
                         summarizer.HF_CACHE_DIR
                         if summarizer.HF_CACHE_DIR.exists()
-                        else summarizer.HF_CACHE_DIR_LEGACY
+                        else summarizer.HF_CACHE_DIR
                     )
                 )
                 log.info("Hugging Face Model Cache Information:")
@@ -1122,4 +1153,33 @@ def main(  # noqa: C901 - main function handles multiple command paths
 
 
 if __name__ == "__main__":  # pragma: no cover - script entry
+    import warnings
+
+    # Silence thinc/spaCy FutureWarning about torch.cuda.amp.autocast (version compatibility issue)
+    # This warning is from thinc/shims/pytorch.py and is not actionable by users
+    # It's a known compatibility issue between thinc and newer PyTorch versions
+    warnings.filterwarnings(
+        "ignore",
+        category=FutureWarning,
+        message=r".*torch\.cuda\.amp\.autocast.*deprecated.*",
+        module="thinc.*",
+    )
+
+    # Enable faulthandler for crash diagnostics (segfault debugging)
+    # This provides native backtraces when crashes occur, especially useful for
+    # debugging segfaults from native extensions (PyTorch MPS, Transformers, spaCy)
+    import faulthandler
+
+    # Enable faulthandler if not already enabled via PYTHONFAULTHANDLER env var
+    # This provides native backtraces for segfaults (actual crashes), but we don't
+    # use dump_traceback_later() because it causes false alarms during normal long-running
+    # operations like Whisper transcription (which can take minutes).
+    if os.getenv("PYTHONFAULTHANDLER") != "1":
+        faulthandler.enable(all_threads=True)
+        # Note: We intentionally do NOT use dump_traceback_later() here because:
+        # 1. It triggers false alarms during normal long-running operations (transcription)
+        # 2. The timeout (even if increased) is arbitrary and doesn't reflect actual hangs
+        # 3. faulthandler.enable() still provides backtraces for actual segfaults/crashes
+        # For debugging actual hangs, use: PYTHONFAULTHANDLER=1 python -m podcast_scraper.cli ...
+
     raise SystemExit(main())

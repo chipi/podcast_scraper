@@ -21,6 +21,9 @@ benchmarks/
 *.pyc
 __pycache__/
 
+# Crash dumps (false alarms from faulthandler during long-running operations)
+crash_dump_*.log
+
 # OS files
 .DS_Store
 
@@ -37,10 +40,16 @@ examples/config.my.*
 examples.txt
 
 # Evaluation dataset (contains personal transcripts and reference summaries)
-data/eval/
+data/eval-old/
 
 # Evaluation results
-data/results/
+data/results-old/
+
+# Evaluation materialized outputs
+data/eval/materialized/
+
+# Evaluation runs
+data/eval/runs/
 
 # Environment variables
 .env

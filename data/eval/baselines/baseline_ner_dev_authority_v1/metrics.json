@@ -1,0 +1,64 @@
+{
+  "dataset_id": "curated_5feeds_benchmark_v1",
+  "run_id": "ner_entities_spacy_sm_v1",
+  "episode_count": 10,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 0,
+      "min_tokens": 0,
+      "max_tokens": 0
+    },
+    "performance": {
+      "avg_latency_ms": 200.65515041351318
+    }
+  },
+  "vs_reference": {
+    "ner_entities_smoke_gold_v1": {
+      "exact": {
+        "tp": 0,
+        "fp": 190,
+        "fn": 301,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "per_label_f1": {
+          "PERSON": 0.0,
+          "ORG": 0.0,
+          "PRODUCT": 0.0
+        },
+        "episodes_scored": 5,
+        "episodes_total": 10
+      },
+      "overlap": {
+        "tp": 5,
+        "fp": 185,
+        "fn": 296,
+        "precision": 0.02631578947368421,
+        "recall": 0.016611295681063124,
+        "f1": 0.020366598778004074,
+        "per_label_f1": {
+          "PERSON": 0.013574660633484165,
+          "ORG": 0.1,
+          "PRODUCT": 0.0
+        },
+        "episodes_scored": 5,
+        "episodes_total": 10
+      },
+      "reference_id": "ner_entities_smoke_gold_v1",
+      "entities_predicted": 390,
+      "entities_gold": 301
+    }
+  },
+  "schema": "metrics_ner_v1",
+  "task": "ner_entities"
+}

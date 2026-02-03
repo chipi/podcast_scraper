@@ -12,7 +12,7 @@
   - `docs/rfc/RFC-026-metrics-consumption-and-dashboards.md` (metrics consumption - different domain)
 - **Related Documents**:
   - `src/podcast_scraper/metrics.py` - Current metrics implementation
-  - `src/podcast_scraper/workflow.py` - Pipeline orchestration
+  - `src/podcast_scraper/workflow/orchestration.py` - Pipeline orchestration
   - `docs/wip/METRICS_REVIEW.md` - Original analysis (to be deleted after RFC creation)
 
 ## Abstract
@@ -192,7 +192,7 @@ This RFC defines improvements to the **pipeline metrics system** that tracks app
 **Deliverables:**
 
 - `src/podcast_scraper/metrics.py` - Updated `log_metrics()` method
-- `src/podcast_scraper/workflow.py` - Conditional logging logic
+- `src/podcast_scraper/workflow/orchestration.py` - Conditional logging logic
 - Consistent formatting across all metric outputs
 
 **Example Changes:**
@@ -223,8 +223,8 @@ def log_metrics(self) -> None:
 **Deliverables:**
 
 - `src/podcast_scraper/metrics.py` - New metric fields and methods
-- `src/podcast_scraper/workflow.py` - Metric collection points
-- `src/podcast_scraper/episode_processor.py` - Model loading time tracking
+- `src/podcast_scraper/workflow/orchestration.py` - Metric collection points
+- `src/podcast_scraper/workflow/episode_processor.py` - Model loading time tracking
 - `src/podcast_scraper/speaker_detection.py` - Cache hit/miss tracking
 
 **New Metrics:**
@@ -364,9 +364,9 @@ def export_csv(self, filepath: str) -> None:
 ## Related Files
 
 - `src/podcast_scraper/metrics.py` - Metrics collection and reporting
-- `src/podcast_scraper/workflow.py` - Pipeline orchestration and metric logging
-- `src/podcast_scraper/episode_processor.py` - Episode processing and metric collection
-- `src/podcast_scraper/metadata.py` - Metadata generation and metric collection
+- `src/podcast_scraper/workflow/orchestration.py` - Pipeline orchestration and metric logging
+- `src/podcast_scraper/workflow/episode_processor.py` - Episode processing and metric collection
+- `src/podcast_scraper/workflow/metadata_generation.py` - Metadata generation and metric collection
 - `src/podcast_scraper/cli.py` - CLI interface and export options
 
 ## Notes

@@ -38,12 +38,17 @@ class TestTranscriptionProviderFactory(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             # We can't actually create a config with invalid provider due to validation
             # So we'll test the factory directly with a mock config
+            from unittest.mock import MagicMock
+
+            from podcast_scraper import config
             from podcast_scraper.transcription.factory import create_transcription_provider
 
-            class MockConfig:
-                transcription_provider = "invalid"
+            mock_cfg = MagicMock(spec=config.Config)
+            mock_cfg.transcription_provider = "invalid"
+            # Make isinstance check pass
+            mock_cfg.__class__ = config.Config
 
-            create_transcription_provider(MockConfig())  # type: ignore[arg-type]
+            create_transcription_provider(mock_cfg)
 
         self.assertIn("Unsupported transcription provider", str(context.exception))
 
@@ -92,7 +97,7 @@ class TestMLProviderTranscription(unittest.TestCase):
         # Initially not initialized (transcribe_missing is False)
         self.assertFalse(provider.is_initialized)
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
     def test_provider_initialize_loads_model(self, mock_import_whisper):
         """Test that initialize() loads the Whisper model via factory."""
         cfg = config.Config(
@@ -116,7 +121,7 @@ class TestMLProviderTranscription(unittest.TestCase):
         self.assertEqual(provider.model, mock_model)
         mock_whisper_lib.load_model.assert_called_once()
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
     def test_provider_initialize_fails_on_no_model(self, mock_import_whisper):
         """Test that initialize() logs warning and continues if model loading fails.
 
@@ -143,8 +148,8 @@ class TestMLProviderTranscription(unittest.TestCase):
         if hasattr(provider, "_whisper_initialized"):
             self.assertFalse(provider._whisper_initialized)
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider.progress.progress_context")
     def test_provider_transcribe(self, mock_progress, mock_import_whisper):
         """Test that transcribe() calls internal transcription method via factory."""
         cfg = config.Config(
@@ -188,8 +193,8 @@ class TestMLProviderTranscription(unittest.TestCase):
         self.assertIn("not initialized", str(context.exception))
         self.assertEqual(context.exception.provider, "MLProvider/Whisper")
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.ml.ml_provider.progress.progress_context")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider.progress.progress_context")
     def test_provider_transcribe_empty_text(self, mock_progress, mock_import_whisper):
         """Test that transcribe() raises ValueError if transcription returns empty text."""
         cfg = config.Config(
@@ -223,7 +228,7 @@ class TestMLProviderTranscription(unittest.TestCase):
         provider.cleanup()
         self.assertFalse(provider.is_initialized)
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
     def test_provider_cleanup_after_initialization(self, mock_import_whisper):
         """Test that cleanup() works after initialization."""
         cfg = config.Config(

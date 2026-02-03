@@ -12,7 +12,6 @@ nav:
       - Quick Reference: guides/QUICK_REFERENCE.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
       - Git Worktree Guide: guides/GIT_WORKTREE_GUIDE.md
-      - Quality Evaluation Guide: guides/EVALUATION_GUIDE.md
       - Testing Guide: guides/TESTING_GUIDE.md
       - Unit Testing Guide: guides/UNIT_TESTING_GUIDE.md
       - Integration Testing Guide: guides/INTEGRATION_TESTING_GUIDE.md
@@ -20,6 +19,7 @@ nav:
       - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
       - AI Provider Comparison Guide: guides/AI_PROVIDER_COMPARISON_GUIDE.md
       - ML Model Comparison Guide: guides/ML_MODEL_COMPARISON_GUIDE.md
+      - Preprocessing Profiles Guide: guides/PREPROCESSING_PROFILES_GUIDE.md
       - Provider Configuration Quick Reference: guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md
       - Provider Implementation Guide: guides/PROVIDER_IMPLEMENTATION_GUIDE.md
       - ML Provider Reference: guides/ML_PROVIDER_REFERENCE.md
@@ -29,6 +29,7 @@ nav:
       - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md
       - Documentation Agent Guide: guides/DOCUMENTATION_AGENT_GUIDE.md
       - Troubleshooting: guides/TROUBLESHOOTING.md
+      - Segfault Mitigation: guides/SEGFAULT_MITIGATION.md
       - Glossary: guides/GLOSSARY.md
   - Architecture: ARCHITECTURE.md
   - Engineering Process: guides/ENGINEERING_PROCESS.md

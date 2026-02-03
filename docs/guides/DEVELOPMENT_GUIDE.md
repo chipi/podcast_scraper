@@ -14,7 +14,7 @@ For comprehensive testing information, see the dedicated testing documentation:
 
 - **[Testing Strategy](../TESTING_STRATEGY.md)** - Testing philosophy, test pyramid, decision criteria
 - **[Testing Guide](TESTING_GUIDE.md)** - Quick reference, test execution commands
-- **[Quality Evaluation Guide](EVALUATION_GUIDE.md)** — ROUGE scoring, golden datasets, and quality metrics
+- **[Experiment Guide](EXPERIMENT_GUIDE.md)** — Complete guide: datasets, baselines, experiments, and evaluation
 - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test guidelines
 - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models
@@ -155,9 +155,9 @@ make analyze-test-memory TARGET=test-integration WORKERS=4
 
 **See also:** [Troubleshooting Guide](TROUBLESHOOTING.md#memory-issues-with-ml-models) for memory issue debugging.
 
-### Quality Evaluation Scripts
+### Quality Evaluation
 
-The project includes specialized scripts for evaluating the quality of ML-driven features (cleaning and summarization). These are distinct from traditional tests as they measure **accuracy** and **effectiveness** rather than just correctness.
+Evaluation is handled automatically by the experiment runner. When you run an experiment with `--baseline` and/or `--reference` flags, the system automatically computes metrics and comparisons.
 
 **When to use:**
 
@@ -165,22 +165,17 @@ The project includes specialized scripts for evaluating the quality of ML-driven
 - When testing new summarization models or chunking strategies
 - Before major releases to ensure no regression in output quality
 
-**Scripts:**
-
-- **`eval_cleaning.py`**: Measures effectiveness of sponsor/outro removal and character/word reduction.
-- **`eval_summaries.py`**: Calculates ROUGE scores against human-written "golden" references.
-
 **Usage:**
 
 ```bash
-# Evaluate cleaning effectiveness
-python scripts/eval/eval_cleaning.py
-
-# Evaluate summarization quality (requires rouge-score)
-python scripts/eval/eval_summaries.py
+# Run experiment with automatic evaluation
+make experiment-run \
+  CONFIG=experiments/my_experiment.yaml \
+  BASELINE=baseline_prod_authority_v1 \
+  REFERENCE=silver_gpt52_v1
 ```
 
-For detailed methodology on quality metrics and the golden dataset, see the **[Quality Evaluation Guide](EVALUATION_GUIDE.md)**.
+For details, see the **[Experiment Guide](EXPERIMENT_GUIDE.md)** (Step 4: Evaluate Results).
 
 ## Environment Setup
 
@@ -217,6 +212,55 @@ pip install -e .[dev,ml]  # Install package in editable mode with dev and ML dep
 - Changes to source code are immediately available without reinstalling
 - Required for development workflow
 - Allows `python3 -m podcast_scraper.cli` to work
+
+### Updating Virtual Environment Dependencies
+
+**⚠️ CRITICAL: Update venv when dependency ranges change**
+
+When `pyproject.toml` dependency version ranges are modified (e.g., `black>=23.0.0,<27.0.0`), you **must** update your local virtual environment to match what CI installs.
+
+**Why this matters:**
+
+- CI installs fresh dependencies each run, getting the **latest version** in the range
+- Your local venv may have an **older version** installed when the range was smaller
+- Pip doesn't auto-upgrade packages that still satisfy the constraint
+- This causes **version mismatches** between local and CI
+
+**When to update:**
+
+- After modifying dependency version ranges in `pyproject.toml`
+- After pulling changes that modify `pyproject.toml` dependency ranges
+- When CI fails with formatting/linting errors but local passes
+- When you see "File would be reformatted" in CI but not locally
+
+**How to update:**
+
+```bash
+# Update all dev dependencies to latest in their ranges
+pip install --upgrade -e .[dev]
+
+# Or update specific tool (e.g., black)
+pip install --upgrade "black>=23.0.0,<27.0.0"
+
+# Verify version matches CI
+python -m black --version  # Should show latest in range (e.g., 26.1.0)
+```
+
+**Common symptoms of stale venv:**
+
+- ✅ Local: `make format-check` passes
+- ❌ CI: `make format-check` fails with "would reformat"
+- ✅ Local: `make lint` passes
+- ❌ CI: `make lint` fails with different errors
+- Tool versions differ: `python -m black --version` shows older version than CI logs
+
+**Prevention:**
+
+After modifying `pyproject.toml` dependency ranges, always run:
+
+```bash
+pip install --upgrade -e .[dev]
+```
 
 ### Environment Variables
 
@@ -1228,17 +1272,17 @@ def load_whisper():
 
 - **`cli.py`**: CLI only, no business logic
 - **`service.py`**: Service API, structured results for daemon use
-- **`workflow.py`**: Orchestration only, no HTTP/IO details
+- **`workflow.orchestration`**: Orchestration only, no HTTP/IO details
 - **`config.py`**: Configuration models and validation
-- **`downloader.py`**: HTTP operations only
-- **`filesystem.py`**: File system utilities only
-- **`rss_parser.py`**: RSS parsing, episode creation
-- **`episode_processor.py`**: Episode-level processing logic
-- **`whisper_integration.py`**: Whisper transcription interface
-- **`speaker_detection.py`**: NER-based speaker extraction
-- **`summarizer.py`**: Transcript summarization
-- **`metadata.py`**: Metadata document generation
-- **`progress.py`**: Progress reporting abstraction
+- **`rss.downloader`**: HTTP operations only
+- **`utils.filesystem`**: File system utilities only
+- **`rss.parser`**: RSS parsing, episode creation
+- **`workflow.episode_processor`**: Episode-level processing logic
+- **`providers.ml.whisper_utils`**: Whisper transcription utilities
+- **`providers.ml.speaker_detection`**: NER-based speaker extraction
+- **`providers.ml.summarizer`**: Transcript summarization
+- **`workflow.metadata_generation`**: Metadata document generation
+- **`utils.progress`**: Progress reporting abstraction
 - **`models.py`**: Shared data models
 
 **Keep concerns separated** - don't mix HTTP calls in CLI, don't put business logic in config, etc.

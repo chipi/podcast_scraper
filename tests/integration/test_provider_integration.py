@@ -72,11 +72,11 @@ class TestProviderIntegration(unittest.TestCase):
         self.assertTrue(hasattr(summarization_provider, "summarize"))
         self.assertTrue(hasattr(summarization_provider, "initialize"))
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_initialization_order(
         self,
         mock_summary_model,
@@ -122,11 +122,11 @@ class TestProviderIntegration(unittest.TestCase):
             if self.cfg.generate_summaries:
                 self.assertTrue(summarization_provider.is_initialized)  # type: ignore[attr-defined]
 
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
     def test_provider_cleanup_order(
         self,
         mock_summary_model,
@@ -412,12 +412,12 @@ class TestProviderInstanceReuse(unittest.TestCase):
             generate_metadata=True,
         )
 
-    @patch("podcast_scraper.workflow._preloaded_ml_provider", None)
-    @patch("podcast_scraper.ml.ml_provider._import_third_party_whisper")
-    @patch("podcast_scraper.ml.ml_provider.speaker_detection.get_ner_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_reduce_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.select_summary_model")
-    @patch("podcast_scraper.ml.ml_provider.summarizer.SummaryModel")
+    @patch("podcast_scraper.workflow.orchestration._preloaded_ml_provider", None)
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
+    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
+    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
     def test_factories_reuse_preloaded_instance(
         self,
         mock_summary_model,
@@ -427,8 +427,7 @@ class TestProviderInstanceReuse(unittest.TestCase):
         mock_import_whisper,
     ):
         """Test that factories reuse preloaded MLProvider instance when available."""
-        from podcast_scraper import workflow
-        from podcast_scraper.ml.ml_provider import MLProvider
+        from podcast_scraper.providers.ml.ml_provider import MLProvider
 
         # Setup mocks
         mock_whisper_model = Mock()
@@ -450,7 +449,9 @@ class TestProviderInstanceReuse(unittest.TestCase):
         # Simulate early preloading (as done in workflow)
         preloaded_provider = MLProvider(self.cfg)
         preloaded_provider.preload()
-        workflow._preloaded_ml_provider = preloaded_provider
+        import podcast_scraper.workflow
+
+        podcast_scraper.workflow._preloaded_ml_provider = preloaded_provider
 
         # Create providers via factories - they should reuse the preloaded instance
         transcription_provider = create_transcription_provider(self.cfg)
@@ -470,9 +471,9 @@ class TestProviderInstanceReuse(unittest.TestCase):
     def test_factories_create_new_instance_when_no_preload(self):
         """Test that factories create new instances when no preloaded instance exists."""
         # Ensure no preloaded instance
-        from podcast_scraper import workflow
+        from podcast_scraper.workflow import orchestration
 
-        workflow._preloaded_ml_provider = None
+        orchestration._preloaded_ml_provider = None
 
         # Create providers via factories
         transcription_provider = create_transcription_provider(self.cfg)

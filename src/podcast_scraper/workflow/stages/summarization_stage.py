@@ -11,16 +11,18 @@ import logging
 import os
 import threading
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, List, Literal, Optional, Tuple
 
 import yaml
 
-from ... import config, filesystem, metrics, models
-from ...metadata import (
+from ... import config, models
+from ...rss import extract_episode_metadata, extract_episode_published_date
+from ...utils import filesystem
+from .. import metrics
+from ..metadata_generation import (
     _determine_metadata_path,
     generate_episode_metadata as metadata_generate_episode_metadata,
 )
-from ...rss_parser import extract_episode_metadata, extract_episode_published_date
 from ..types import FeedMetadata, HostDetectionResult
 
 logger = logging.getLogger(__name__)
@@ -119,54 +121,19 @@ def _process_episodes_sequentially(
         )
 
 
-def _extract_model_configuration(
+def _can_use_parallel_processing(
     summary_provider: Any,
-) -> Optional[Dict[str, Any]]:  # type: ignore
-    """Extract model configuration from provider.
+) -> bool:
+    """Check if provider supports parallel processing with worker instances.
+
+    Args:
+        summary_provider: Provider instance to check
 
     Returns:
-        Dictionary with model configuration or None if invalid
+        True if provider supports create_worker_instances(), False otherwise
     """
-    summary_model = getattr(summary_provider, "map_model", None)
-    reduce_model = getattr(summary_provider, "reduce_model", None)
-
-    if summary_model is None:
-        logger.error("Local provider has no map_model, cannot proceed with parallel summarization")
-        return None
-
-    model_name = summary_model.model_name
-    model_device = summary_model.device
-    model_cache_dir = summary_model.cache_dir
-    model_revision = getattr(summary_model, "revision", None)
-
-    # Extract reduce model configuration (if different from MAP model)
-    reduce_model_name = None
-    reduce_model_device = None
-    reduce_model_cache_dir = None
-    reduce_model_revision = None
-    reduce_model_is_same_as_map = False
-    if reduce_model is not None:
-        if reduce_model is summary_model:
-            reduce_model_is_same_as_map = True
-        else:
-            reduce_model_name = reduce_model.model_name
-            reduce_model_device = reduce_model.device
-            reduce_model_cache_dir = reduce_model.cache_dir
-            reduce_model_revision = getattr(reduce_model, "revision", None)
-
-    return {
-        "summary_model": summary_model,
-        "reduce_model": reduce_model,
-        "model_name": model_name,
-        "model_device": model_device,
-        "model_cache_dir": model_cache_dir,
-        "model_revision": model_revision,
-        "reduce_model_name": reduce_model_name,
-        "reduce_model_device": reduce_model_device,
-        "reduce_model_cache_dir": reduce_model_cache_dir,
-        "reduce_model_revision": reduce_model_revision,
-        "reduce_model_is_same_as_map": reduce_model_is_same_as_map,
-    }
+    # Check if provider has create_worker_instances method
+    return hasattr(summary_provider, "create_worker_instances")
 
 
 def _determine_max_workers(model_device: str, cfg: config.Config, num_episodes: int) -> int:
@@ -203,9 +170,7 @@ def summarize_single_episode(
     run_suffix: Optional[str],
     feed_metadata: FeedMetadata,
     host_detection_result: HostDetectionResult,
-    summary_provider=None,  # SummarizationProvider instance (preferred)
-    summary_model=None,  # Backward compatibility for parallel processing
-    reduce_model=None,  # Backward compatibility for parallel processing
+    summary_provider=None,  # SummarizationProvider instance (required)
     detected_names: Optional[List[str]] = None,
     pipeline_metrics: Optional[metrics.Metrics] = None,
 ) -> None:
@@ -221,9 +186,7 @@ def summarize_single_episode(
         run_suffix: Optional run suffix
         feed_metadata: Feed metadata tuple
         host_detection_result: Host detection result
-        summary_provider: SummarizationProvider instance (preferred)
-        summary_model: Pre-loaded MAP summary model (backward compatibility for parallel processing)
-        reduce_model: Optional REDUCE model (backward compatibility for parallel processing)
+        summary_provider: SummarizationProvider instance (required)
         detected_names: Detected guest names for this episode (optional)
         pipeline_metrics: Metrics collector
     """
@@ -268,8 +231,6 @@ def summarize_single_episode(
                 transcript_source=transcript_source,
                 whisper_model=None,
                 summary_provider=summary_provider,
-                summary_model=summary_model,
-                reduce_model=reduce_model,
                 detected_hosts=(
                     list(host_detection_result.cached_hosts)
                     if host_detection_result.cached_hosts
@@ -308,8 +269,6 @@ def summarize_single_episode(
                     transcript_source=transcript_source,
                     whisper_model=None,
                     summary_provider=summary_provider,
-                    summary_model=summary_model,
-                    reduce_model=reduce_model,
                     detected_hosts=(
                         list(host_detection_result.cached_hosts)
                         if host_detection_result.cached_hosts
@@ -339,9 +298,7 @@ def summarize_single_episode(
         transcript_file_path=os.path.relpath(transcript_path, effective_output_dir),
         transcript_source=transcript_source,
         whisper_model=None,
-        summary_provider=summary_provider,  # Use provider when available
-        summary_model=summary_model,  # Backward compatibility for parallel processing
-        reduce_model=reduce_model,  # Backward compatibility for parallel processing
+        summary_provider=summary_provider,
         detected_hosts=(
             list(host_detection_result.cached_hosts) if host_detection_result.cached_hosts else None
         ),
@@ -370,91 +327,72 @@ def _process_episodes_in_parallel(
     host_detection_result: HostDetectionResult,
     summary_provider: Any,
     pipeline_metrics: Optional[metrics.Metrics],
-    model_config: Dict[str, Any],
-    has_separate_reduce_models: bool,
     max_workers: int,
 ) -> None:
-    """Process episodes in parallel with pre-loaded model instances.
+    """Process episodes in parallel with worker provider instances.
 
-    This function handles the complex model loading and parallel execution logic.
+    This function creates worker provider instances for parallel processing.
+    Each worker thread gets its own provider instance to ensure thread safety.
+
+    Args:
+        episodes_to_summarize: List of episode tuples to process
+        feed: Parsed RssFeed object
+        cfg: Configuration object
+        effective_output_dir: Output directory path
+        run_suffix: Optional run suffix
+        feed_metadata: Feed metadata tuple
+        host_detection_result: Host detection result
+        summary_provider: SummarizationProvider instance (must support create_worker_instances)
+        pipeline_metrics: Metrics collector
+        max_workers: Maximum number of parallel workers
     """
     logger.debug(
         f"Using {max_workers} workers for parallel episode summarization "
-        f"(pre-loading {max_workers} model instances for thread safety)"
+        f"(creating {max_workers} worker provider instances for thread safety)"
     )
 
-    # Pre-load model instances for all workers before starting parallel execution
-    from ... import summarizer  # noqa: PLC0415
+    # Create worker provider instances for parallel processing
+    # This ensures each worker thread has its own provider instance with its own models
+    if not hasattr(summary_provider, "create_worker_instances"):
+        provider_name = type(summary_provider).__name__
+        logger.warning(
+            f"Provider {provider_name} does not support "
+            "create_worker_instances(). "
+            "Falling back to sequential processing."
+        )
+        _process_episodes_sequentially(
+            episodes_to_summarize,
+            feed,
+            cfg,
+            effective_output_dir,
+            run_suffix,
+            feed_metadata,
+            host_detection_result,
+            summary_provider,
+            pipeline_metrics,
+        )
+        return
 
-    worker_models: List[Any] = []
-    worker_reduce_models: List[Any] = []  # type: ignore[assignment]
-    model_kwargs = {
-        "model_name": model_config["model_name"],
-        "device": model_config["model_device"],
-        "cache_dir": model_config["model_cache_dir"],
-    }
-    if model_config["model_revision"]:
-        model_kwargs["revision"] = model_config["model_revision"]
+    try:
+        worker_providers = summary_provider.create_worker_instances(max_workers)
+        logger.debug(f"Successfully created {len(worker_providers)} worker provider instances")
+    except Exception as e:
+        logger.error(f"Failed to create worker provider instances: {e}")
+        logger.warning("Falling back to sequential processing due to worker creation failure")
+        _process_episodes_sequentially(
+            episodes_to_summarize,
+            feed,
+            cfg,
+            effective_output_dir,
+            run_suffix,
+            feed_metadata,
+            host_detection_result,
+            summary_provider,
+            pipeline_metrics,
+        )
+        return
 
-    # Prepare reduce model kwargs if needed
-    reduce_model_kwargs = None
-    if has_separate_reduce_models:
-        reduce_model_kwargs = {
-            "model_name": model_config["reduce_model_name"],
-            "device": (model_config["reduce_model_device"] or model_config["model_device"]),
-            "cache_dir": (
-                model_config["reduce_model_cache_dir"] or model_config["model_cache_dir"]
-            ),
-        }
-        if model_config["reduce_model_revision"]:
-            reduce_model_kwargs["revision"] = model_config["reduce_model_revision"]
-
-    logger.debug(f"Pre-loading {max_workers} MAP model instances...")
-    if has_separate_reduce_models:
-        logger.debug(f"Pre-loading {max_workers} REDUCE model instances...")
-    elif model_config["reduce_model_is_same_as_map"]:
-        logger.debug("REDUCE model same as MAP - workers will reuse MAP model")
-
-    for i in range(max_workers):
-        try:
-            logger.debug(f"Loading MAP model instance {i+1}/{max_workers} for worker thread")
-            worker_model = summarizer.SummaryModel(**model_kwargs)
-            worker_models.append(worker_model)
-
-            # Load reduce model if different from MAP
-            if has_separate_reduce_models and reduce_model_kwargs:
-                logger.debug(f"Loading REDUCE model instance {i+1}/{max_workers} for worker thread")
-                worker_reduce_model = summarizer.SummaryModel(**reduce_model_kwargs)
-                worker_reduce_models.append(worker_reduce_model)
-            elif model_config["reduce_model_is_same_as_map"]:
-                # Reuse MAP model for REDUCE phase
-                worker_reduce_models.append(worker_model)
-            else:
-                # No reduce model needed
-                worker_reduce_models.append(None)  # type: ignore[arg-type]
-        except Exception as e:
-            logger.error(f"Failed to load model instance {i+1}/{max_workers}: {e}")
-            # If we can't load all models, fall back to sequential processing
-            logger.warning("Falling back to sequential processing due to model loading failure")
-            _unload_worker_models(worker_models, worker_reduce_models)
-            _process_episodes_sequentially(
-                episodes_to_summarize,
-                feed,
-                cfg,
-                effective_output_dir,
-                run_suffix,
-                feed_metadata,
-                host_detection_result,
-                summary_provider,
-                pipeline_metrics,
-            )
-            return
-
-    logger.debug(f"Successfully pre-loaded {len(worker_models)} MAP model instances")
-    if has_separate_reduce_models:
-        logger.debug(f"Successfully pre-loaded {len(worker_reduce_models)} REDUCE model instances")
-
-    # Use thread-local storage to assign pre-loaded models to worker threads
+    # Use thread-local storage to assign worker providers to worker threads
     thread_local = threading.local()
     _execute_parallel_summarization(
         episodes_to_summarize,
@@ -465,39 +403,20 @@ def _process_episodes_in_parallel(
         feed_metadata,
         host_detection_result,
         pipeline_metrics,
-        worker_models,
-        worker_reduce_models,
+        worker_providers,
         thread_local,
         max_workers,
     )
 
-    # Cleanup: unload all worker models after parallel processing
-    _unload_worker_models(worker_models, worker_reduce_models)
-    # Clear worker model lists to help GC
-    worker_models.clear()
-    worker_reduce_models.clear()
-
-
-def _unload_worker_models(worker_models: List[Any], worker_reduce_models: List[Any]) -> None:
-    """Unload worker models to free memory."""
-    from ... import summarizer  # noqa: PLC0415
-
-    if worker_models:
-        logger.debug(f"Unloading {len(worker_models)} successfully loaded MAP model(s)")
-        for worker_model in worker_models:
-            try:
-                summarizer.unload_model(worker_model)
-            except Exception as unload_error:
-                logger.debug(f"Error unloading worker MAP model: {unload_error}")
-    if worker_reduce_models:
-        reduce_count = len([m for m in worker_reduce_models if m and m not in worker_models])
-        logger.debug(f"Unloading {reduce_count} successfully loaded REDUCE model(s)")
-        for worker_reduce_model in worker_reduce_models:
-            if worker_reduce_model and worker_reduce_model not in worker_models:
-                try:
-                    summarizer.unload_model(worker_reduce_model)
-                except Exception as unload_error:
-                    logger.debug(f"Error unloading worker REDUCE model: {unload_error}")
+    # Cleanup: cleanup all worker providers after parallel processing
+    logger.debug(f"Cleaning up {len(worker_providers)} worker provider instances")
+    for worker_provider in worker_providers:
+        try:
+            worker_provider.cleanup()
+        except Exception as cleanup_error:
+            logger.debug(f"Error cleaning up worker provider: {cleanup_error}")
+    # Clear worker provider list to help GC
+    worker_providers.clear()
 
 
 def _execute_parallel_summarization(
@@ -509,34 +428,31 @@ def _execute_parallel_summarization(
     feed_metadata: FeedMetadata,
     host_detection_result: HostDetectionResult,
     pipeline_metrics: Optional[metrics.Metrics],
-    worker_models: List[Any],
-    worker_reduce_models: List[Any],
+    worker_providers: List[Any],
     thread_local: threading.local,
     max_workers: int,
 ) -> None:
-    """Execute parallel summarization with pre-loaded models."""
-    model_index = [0]  # Use list to allow modification in nested function
-    model_index_lock = threading.Lock()
+    """Execute parallel summarization with worker provider instances."""
+    provider_index = [0]  # Use list to allow modification in nested function
+    provider_index_lock = threading.Lock()
 
-    def _get_worker_models():
-        """Get pre-loaded model instances for current worker thread."""
-        if not hasattr(thread_local, "map_model"):
-            with model_index_lock:
-                if model_index[0] < len(worker_models):
-                    idx = model_index[0]
-                    thread_local.map_model = worker_models[idx]
-                    thread_local.reduce_model = worker_reduce_models[idx]
-                    model_index[0] += 1
+    def _get_worker_provider():
+        """Get worker provider instance for current worker thread."""
+        if not hasattr(thread_local, "provider"):
+            with provider_index_lock:
+                if provider_index[0] < len(worker_providers):
+                    idx = provider_index[0]
+                    thread_local.provider = worker_providers[idx]
+                    provider_index[0] += 1
                 else:
-                    # Fallback: reuse last models (shouldn't happen with proper worker count)
-                    thread_local.map_model = worker_models[-1]
-                    thread_local.reduce_model = worker_reduce_models[-1]
-        return thread_local.map_model, thread_local.reduce_model
+                    # Fallback: reuse last provider (shouldn't happen with proper worker count)
+                    thread_local.provider = worker_providers[-1]
+        return thread_local.provider
 
-    def _summarize_with_worker_model(args):
-        """Wrapper to get worker-specific models and summarize episode."""
+    def _summarize_with_worker_provider(args):
+        """Wrapper to get worker-specific provider and summarize episode."""
         episode, transcript_path, metadata_path, detected_names = args
-        worker_map_model, worker_reduce_model = _get_worker_models()
+        worker_provider = _get_worker_provider()
         summarize_single_episode(
             episode=episode,
             transcript_path=transcript_path,
@@ -547,9 +463,7 @@ def _execute_parallel_summarization(
             run_suffix=run_suffix,
             feed_metadata=feed_metadata,
             host_detection_result=host_detection_result,
-            summary_provider=None,  # Use models directly for parallel processing
-            summary_model=worker_map_model,  # Worker-specific model
-            reduce_model=worker_reduce_model,  # Worker-specific model
+            summary_provider=worker_provider,  # Use worker-specific provider
             detected_names=detected_names,
             pipeline_metrics=pipeline_metrics,
         )
@@ -558,7 +472,7 @@ def _execute_parallel_summarization(
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = []
             for episode_data in episodes_to_summarize:
-                future = executor.submit(_summarize_with_worker_model, episode_data)
+                future = executor.submit(_summarize_with_worker_provider, episode_data)
                 futures.append(future)
 
             # Wait for all to complete and log progress
@@ -635,10 +549,15 @@ def parallel_episode_summarization(
 
     logger.info(f"Processing summarization for {len(episodes_to_summarize)} episodes in parallel")
 
-    # Check if provider requires separate instances for thread safety
-    requires_separate_instances = getattr(summary_provider, "_requires_separate_instances", False)
+    # Check if provider supports parallel processing with worker instances
+    can_use_parallel = _can_use_parallel_processing(summary_provider)
 
-    if not requires_separate_instances:
+    if not can_use_parallel:
+        # Provider doesn't support parallel processing - use sequential
+        logger.debug(
+            f"Provider {type(summary_provider).__name__} does not support parallel processing, "
+            "using sequential processing"
+        )
         _process_episodes_sequentially(
             episodes_to_summarize,
             feed,
@@ -652,40 +571,31 @@ def parallel_episode_summarization(
         )
         return
 
-    # Local provider - extract model configuration for parallel processing
-    model_config = _extract_model_configuration(summary_provider)
-    if model_config is None:
-        return
-
-    max_workers = _determine_max_workers(
-        model_config["model_device"], cfg, len(episodes_to_summarize)
-    )
-
-    # Track if we need separate reduce models (for cleanup)
-    has_separate_reduce_models = (
-        not model_config["reduce_model_is_same_as_map"]
-        and model_config["reduce_model_name"] is not None
-    )
+    # Determine max workers based on provider type and configuration
+    # For MLProvider, check device from internal model
+    max_workers = 1
+    if hasattr(summary_provider, "_map_model") and summary_provider._map_model:
+        model_device = getattr(summary_provider._map_model, "device", "cpu")
+        max_workers = _determine_max_workers(model_device, cfg, len(episodes_to_summarize))
+    else:
+        # For other providers, use default sequential processing
+        max_workers = 1
 
     if max_workers <= 1:
         # Sequential processing - use provider directly
-        for episode, transcript_path, metadata_path, detected_names in episodes_to_summarize:
-            summarize_single_episode(
-                episode=episode,
-                transcript_path=transcript_path,
-                metadata_path=metadata_path,
-                feed=feed,
-                cfg=cfg,
-                effective_output_dir=effective_output_dir,
-                run_suffix=run_suffix,
-                feed_metadata=feed_metadata,
-                host_detection_result=host_detection_result,
-                summary_provider=summary_provider,
-                detected_names=detected_names,
-                pipeline_metrics=pipeline_metrics,
-            )
+        _process_episodes_sequentially(
+            episodes_to_summarize,
+            feed,
+            cfg,
+            effective_output_dir,
+            run_suffix,
+            feed_metadata,
+            host_detection_result,
+            summary_provider,
+            pipeline_metrics,
+        )
     else:
-        # Parallel processing - each worker gets its own model instance
+        # Parallel processing - each worker gets its own provider instance
         _process_episodes_in_parallel(
             episodes_to_summarize,
             feed,
@@ -696,7 +606,5 @@ def parallel_episode_summarization(
             host_detection_result,
             summary_provider,
             pipeline_metrics,
-            model_config,
-            has_separate_reduce_models,
             max_workers,
         )

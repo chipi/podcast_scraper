@@ -25,7 +25,7 @@ if PACKAGE_ROOT not in sys.path:
 # Add tests directory to path for conftest import
 from pathlib import Path
 
-from podcast_scraper import downloader, rss_parser
+from podcast_scraper.rss import downloader, parser as rss_parser
 
 tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:

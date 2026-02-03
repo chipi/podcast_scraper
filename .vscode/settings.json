@@ -4,5 +4,8 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "files.trimTrailingWhitespace": true,
-  "files.insertFinalNewline": true
+  "files.insertFinalNewline": true,
+  "python.defaultInterpreterPath": ".venv/bin/python3",
+  "python.terminal.activateEnvironment": true,
+  "makefile.configureOnOpen": false
 }

@@ -22,8 +22,7 @@ from unittest.mock import Mock, patch
 
 import requests
 
-import podcast_scraper
-from podcast_scraper import downloader
+from podcast_scraper.rss import downloader
 
 parent_tests_dir = Path(__file__).parent.parent.parent
 if str(parent_tests_dir) not in sys.path:
@@ -78,7 +77,7 @@ class TestHTTPSessionConfiguration(unittest.TestCase):
     def test_configure_http_session_mounts_retry_adapters(self):
         session = requests.Session()
         try:
-            podcast_scraper.downloader._configure_http_session(session)
+            downloader._configure_http_session(session)
             https_adapter = session.get_adapter("https://")
             http_adapter = session.get_adapter("http://")
 
@@ -257,8 +256,8 @@ class TestCloseAllSessions(unittest.TestCase):
 class TestOpenHTTPRequest(unittest.TestCase):
     """Tests for _open_http_request function."""
 
-    @patch("podcast_scraper.downloader._get_thread_request_session")
-    @patch("podcast_scraper.downloader.normalize_url")
+    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
+    @patch("podcast_scraper.rss.downloader.normalize_url")
     def test_open_http_request_success(self, mock_normalize, mock_get_session):
         """Test successful HTTP request."""
         mock_session = Mock()
@@ -284,8 +283,8 @@ class TestOpenHTTPRequest(unittest.TestCase):
         )
         mock_response.raise_for_status.assert_called_once()
 
-    @patch("podcast_scraper.downloader._get_thread_request_session")
-    @patch("podcast_scraper.downloader.normalize_url")
+    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
+    @patch("podcast_scraper.rss.downloader.normalize_url")
     def test_open_http_request_with_stream(self, mock_normalize, mock_get_session):
         """Test HTTP request with stream=True."""
         mock_session = Mock()
@@ -309,8 +308,8 @@ class TestOpenHTTPRequest(unittest.TestCase):
             stream=True,
         )
 
-    @patch("podcast_scraper.downloader._get_thread_request_session")
-    @patch("podcast_scraper.downloader.normalize_url")
+    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
+    @patch("podcast_scraper.rss.downloader.normalize_url")
     def test_open_http_request_failure(self, mock_normalize, mock_get_session):
         """Test HTTP request failure returns None."""
         mock_session = Mock()
@@ -322,7 +321,7 @@ class TestOpenHTTPRequest(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    @patch("podcast_scraper.downloader._open_http_request")
+    @patch("podcast_scraper.rss.downloader._open_http_request")
     def test_fetch_url_wrapper(self, mock_open):
         """Test fetch_url is a wrapper around _open_http_request."""
         mock_response = Mock()
@@ -337,8 +336,8 @@ class TestOpenHTTPRequest(unittest.TestCase):
 class TestHTTPGet(unittest.TestCase):
     """Tests for http_get function."""
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_success(self, mock_progress, mock_fetch):
         """Test successful http_get request."""
         mock_response = Mock()
@@ -359,8 +358,8 @@ class TestHTTPGet(unittest.TestCase):
         mock_response.iter_content.assert_called_once()
         mock_response.close.assert_called_once()
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_multiple_chunks(self, mock_progress, mock_fetch):
         """Test http_get with multiple chunks."""
         mock_response = Mock()
@@ -381,8 +380,8 @@ class TestHTTPGet(unittest.TestCase):
         mock_reporter.update.assert_any_call(6)  # chunk2 length
         mock_reporter.update.assert_any_call(6)  # chunk3 length
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_no_content_length(self, mock_progress, mock_fetch):
         """Test http_get without Content-Length header."""
         mock_response = Mock()
@@ -402,8 +401,8 @@ class TestHTTPGet(unittest.TestCase):
         # Should pass None as total_size when Content-Length is missing
         mock_progress.assert_called_once_with(None, "Downloading")
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_invalid_content_length(self, mock_progress, mock_fetch):
         """Test http_get with invalid Content-Length header."""
         mock_response = Mock()
@@ -422,8 +421,8 @@ class TestHTTPGet(unittest.TestCase):
         # Should handle invalid Content-Length gracefully
         mock_progress.assert_called_once_with(None, "Downloading")
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_empty_chunks_skipped(self, mock_progress, mock_fetch):
         """Test http_get skips empty chunks."""
         mock_response = Mock()
@@ -442,7 +441,7 @@ class TestHTTPGet(unittest.TestCase):
         # Should only update for non-empty chunks
         self.assertEqual(mock_reporter.update.call_count, 2)
 
-    @patch("podcast_scraper.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
     def test_http_get_no_response(self, mock_fetch):
         """Test http_get returns None, None when fetch_url returns None."""
         mock_fetch.return_value = None
@@ -452,8 +451,8 @@ class TestHTTPGet(unittest.TestCase):
         self.assertIsNone(content)
         self.assertIsNone(content_type)
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_read_error(self, mock_progress, mock_fetch):
         """Test http_get handles read errors gracefully."""
         mock_response = Mock()
@@ -472,8 +471,8 @@ class TestHTTPGet(unittest.TestCase):
         self.assertIsNone(content_type)
         mock_response.close.assert_called_once()
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     def test_http_get_os_error(self, mock_progress, mock_fetch):
         """Test http_get handles OSError gracefully."""
         mock_response = Mock()
@@ -496,8 +495,8 @@ class TestHTTPGet(unittest.TestCase):
 class TestHTTPDownloadToFile(unittest.TestCase):
     """Tests for http_download_to_file function."""
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     @patch("builtins.open", create=True)
     @patch("os.makedirs")
     @patch("os.path.dirname")
@@ -534,8 +533,8 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         mock_file.write.assert_called_once_with(b"Hello, World!")
         mock_response.close.assert_called_once()
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     @patch("builtins.open", create=True)
     @patch("os.makedirs")
     @patch("os.path.dirname")
@@ -571,8 +570,8 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self.assertEqual(mock_file.write.call_count, 3)
         self.assertEqual(mock_reporter.update.call_count, 3)
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     @patch("builtins.open", create=True)
     @patch("os.makedirs")
     @patch("os.path.dirname")
@@ -607,7 +606,7 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self.assertEqual(bytes_written, 7)  # len(b"content")
         mock_progress.assert_called_once_with(None, "Downloading file.txt")
 
-    @patch("podcast_scraper.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
     @patch("os.path.dirname")
     @patch("os.path.basename")
     def test_http_download_to_file_no_response(self, mock_basename, mock_dirname, mock_fetch):
@@ -623,8 +622,8 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self.assertFalse(success)
         self.assertEqual(bytes_written, 0)
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     @patch("builtins.open", create=True)
     @patch("os.makedirs")
     @patch("os.path.dirname")
@@ -659,8 +658,8 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         # Should create directory "." when dirname is empty
         mock_makedirs.assert_called_once_with(".", exist_ok=True)
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     @patch("builtins.open", create=True)
     @patch("os.makedirs")
     @patch("os.path.dirname")
@@ -687,7 +686,7 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         mock_dirname.return_value = "/tmp"
         mock_basename.return_value = ""  # Empty basename
         # When basename is empty, should use URL basename
-        with patch("podcast_scraper.downloader.os.path.basename") as mock_url_basename:
+        with patch("podcast_scraper.rss.downloader.os.path.basename") as mock_url_basename:
             mock_url_basename.return_value = "url_file.txt"
 
             success, bytes_written = downloader.http_download_to_file(
@@ -698,8 +697,8 @@ class TestHTTPDownloadToFile(unittest.TestCase):
             # Should use URL basename for progress message
             mock_progress.assert_called_once_with(5, "Downloading url_file.txt")
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     @patch("builtins.open", create=True)
     @patch("os.makedirs")
     @patch("os.path.dirname")
@@ -734,8 +733,8 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self.assertEqual(bytes_written, 0)
         mock_response.close.assert_called_once()
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     @patch("builtins.open", create=True)
     @patch("os.makedirs")
     @patch("os.path.dirname")
@@ -769,8 +768,8 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self.assertEqual(bytes_written, 0)
         mock_response.close.assert_called_once()
 
-    @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.downloader.progress.progress_context")
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
     @patch("builtins.open", create=True)
     @patch("os.makedirs")
     @patch("os.path.dirname")
@@ -811,8 +810,8 @@ class TestHTTPDownloadToFile(unittest.TestCase):
 class TestHTTPHead(unittest.TestCase):
     """Tests for http_head function."""
 
-    @patch("podcast_scraper.downloader._get_thread_request_session")
-    @patch("podcast_scraper.downloader.normalize_url")
+    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
+    @patch("podcast_scraper.rss.downloader.normalize_url")
     def test_http_head_success(self, mock_normalize, mock_get_session):
         """Test successful HTTP HEAD request."""
         mock_session = Mock()
@@ -835,8 +834,8 @@ class TestHTTPHead(unittest.TestCase):
         )
         mock_response.raise_for_status.assert_called_once()
 
-    @patch("podcast_scraper.downloader._get_thread_request_session")
-    @patch("podcast_scraper.downloader.normalize_url")
+    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
+    @patch("podcast_scraper.rss.downloader.normalize_url")
     def test_http_head_failure(self, mock_normalize, mock_get_session):
         """Test HTTP HEAD request failure returns None."""
         mock_session = Mock()
@@ -848,8 +847,8 @@ class TestHTTPHead(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    @patch("podcast_scraper.downloader._get_thread_request_session")
-    @patch("podcast_scraper.downloader.normalize_url")
+    @patch("podcast_scraper.rss.downloader._get_thread_request_session")
+    @patch("podcast_scraper.rss.downloader.normalize_url")
     def test_http_head_http_error(self, mock_normalize, mock_get_session):
         """Test HTTP HEAD request with HTTP error returns None."""
         mock_session = Mock()

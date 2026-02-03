@@ -26,7 +26,7 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper import Config, run_pipeline
-from podcast_scraper.downloader import http_download_to_file
+from podcast_scraper.rss.downloader import http_download_to_file
 
 
 @pytest.mark.e2e

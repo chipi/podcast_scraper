@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/podcast-scraper/episode-metadata-schema/v1.0",
+  "title": "Episode Metadata Schema",
+  "description": "Schema for episode metadata files (version 1.0). Separates facts (speakers) from expectations (output quality requirements).",
+  "version": "1.0",
+  "type": "object",
+  "required": [
+    "metadata_version",
+    "source_episode_id"
+  ],
+  "properties": {
+    "metadata_version": {
+      "type": "string",
+      "description": "Schema version identifier. Must be '1.0' for this schema.",
+      "const": "1.0",
+      "examples": ["1.0"]
+    },
+    "source_episode_id": {
+      "type": "string",
+      "description": "Unique identifier for the episode in the source dataset.",
+      "examples": ["p01_e01", "feed_a_ep001"]
+    },
+    "feed_name": {
+      "type": "string",
+      "description": "Name of the podcast feed.",
+      "examples": ["Singletrack Sessions", "Practical Systems"]
+    },
+    "feed_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL of the RSS feed.",
+      "examples": ["http://localhost/", "https://example.com/feed.xml"]
+    },
+    "episode_title": {
+      "type": "string",
+      "description": "Title of the episode.",
+      "examples": ["Episode 1: Building Trails That Last (with Liam Verbeek)"]
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Publication date of the episode (YYYY-MM-DD format).",
+      "examples": ["2025-09-01"]
+    },
+    "duration_seconds": {
+      "type": "integer",
+      "description": "Duration of the episode in seconds.",
+      "minimum": 0,
+      "examples": [630, 1905]
+    },
+    "language": {
+      "type": "string",
+      "description": "Language code of the episode (ISO 639-1).",
+      "pattern": "^[a-z]{2}$",
+      "examples": ["en", "fr", "de"]
+    },
+    "scraped_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the episode metadata was scraped (ISO 8601).",
+      "examples": ["2026-01-13T12:07:56.657450Z"]
+    },
+    "speakers": {
+      "type": "array",
+      "description": "Facts: List of speakers in the episode. This is factual information about who participated.",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "role"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable identifier for the speaker (e.g., 'host', 'guest', 'host_1', 'guest_1').",
+            "examples": ["host", "guest", "host_1", "guest_1"]
+          },
+          "name": {
+            "type": "string",
+            "description": "Speaker's name. Use 'TODO: Add host name' or 'TODO: Add guest name' as placeholders if unknown.",
+            "minLength": 1,
+            "examples": ["Maya", "Liam Verbeek", "TODO: Add host name"]
+          },
+          "role": {
+            "type": "string",
+            "enum": ["host", "guest"],
+            "description": "Role of the speaker in the episode."
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "examples": [
+        [
+          {
+            "id": "host",
+            "name": "Maya",
+            "role": "host"
+          },
+          {
+            "id": "guest",
+            "name": "Liam",
+            "role": "guest"
+          }
+        ]
+      ]
+    },
+    "expectations": {
+      "type": "object",
+      "description": "Expectations: Output quality requirements. These define what should or shouldn't appear in generated summaries, not facts about the episode.",
+      "properties": {
+        "allow_speaker_names": {
+          "type": "boolean",
+          "description": "Whether speaker names are allowed in summaries. If false, summaries containing speaker names will be flagged.",
+          "default": false,
+          "examples": [false, true]
+        },
+        "allow_speaker_labels": {
+          "type": "boolean",
+          "description": "Whether speaker labels (e.g., 'Name:') are allowed in summaries. If false, summaries containing speaker labels will be flagged.",
+          "default": false,
+          "examples": [false, true]
+        },
+        "allow_sponsor_content": {
+          "type": "boolean",
+          "description": "Whether sponsor/advertisement content is allowed in summaries. If false, summaries containing sponsor content will be flagged.",
+          "default": false,
+          "examples": [false, true]
+        }
+      },
+      "required": [
+        "allow_speaker_names",
+        "allow_speaker_labels",
+        "allow_sponsor_content"
+      ],
+      "additionalProperties": false,
+      "examples": [
+        {
+          "allow_speaker_names": false,
+          "allow_speaker_labels": false,
+          "allow_sponsor_content": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "metadata_version": "1.0",
+      "source_episode_id": "p01_e01",
+      "feed_name": "Singletrack Sessions",
+      "feed_url": "http://localhost/",
+      "episode_title": "Episode 1: Building Trails That Last (with Liam Verbeek)",
+      "published_at": "2025-09-01",
+      "duration_seconds": 630,
+      "language": "en",
+      "scraped_at": "2026-01-13T12:07:56.657450Z",
+      "speakers": [
+        {
+          "id": "host",
+          "name": "Maya",
+          "role": "host"
+        },
+        {
+          "id": "guest",
+          "name": "Liam",
+          "role": "guest"
+        }
+      ],
+      "expectations": {
+        "allow_speaker_names": false,
+        "allow_speaker_labels": false,
+        "allow_sponsor_content": false
+      }
+    }
+  ]
+}

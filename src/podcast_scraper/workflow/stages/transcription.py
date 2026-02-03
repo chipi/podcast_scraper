@@ -10,10 +10,12 @@ import os
 import threading
 import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
-from ... import config, filesystem, metrics, models, progress
-from ...episode_processor import transcribe_media_to_text as factory_transcribe_media_to_text
+from ... import config, models
+from ...utils import filesystem, progress
+from .. import metrics
+from ..episode_processor import transcribe_media_to_text as factory_transcribe_media_to_text
 from ..helpers import update_metric_safely
 
 
@@ -47,21 +49,29 @@ logger = logging.getLogger(__name__)
 
 
 def setup_transcription_resources(
-    cfg: config.Config, effective_output_dir: str
+    cfg: config.Config,
+    effective_output_dir: str,
+    transcription_provider: Optional[Any] = None,
 ) -> TranscriptionResources:
     """Setup transcription provider and temp directory for transcription.
 
     Args:
         cfg: Configuration object
         effective_output_dir: Output directory path
+        transcription_provider: Optional pre-initialized transcription provider instance.
+            If None and transcribe_missing=True, will create one (for backward compatibility).
 
     Returns:
         TranscriptionResources object
     """
-    transcription_provider = None
-
-    if cfg.transcribe_missing and not cfg.dry_run:
-        # Stage 2: Use provider pattern
+    # Use provided transcription provider, or create one if not provided (backward compatibility)
+    if transcription_provider is None and cfg.transcribe_missing and not cfg.dry_run:
+        # Fallback: create transcription provider if not provided (for backward compatibility)
+        # This should not happen in normal flow - providers should be created in orchestration
+        logger.warning(
+            "transcription_provider not provided to setup_transcription_resources, "
+            "creating new instance (this should be created in orchestration)"
+        )
         try:
             # Use wrapper function if available (for testability)
             import sys

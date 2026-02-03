@@ -72,8 +72,7 @@ class ConcurrentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Create RSS feed with 5 episodes for concurrent processing
             items = []
             for i in range(1, 6):
-                items.append(
-                    f"""    <item>
+                items.append(f"""    <item>
       <title>Episode {i}: Concurrent Test</title>
       <description>Episode {i} description with Joe Rogan and Elon Musk mentioned.</description>
       <enclosure
@@ -82,8 +81,7 @@ class ConcurrentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
       <podcast:transcript
         url="http://127.0.0.1:{self.server.server_address[1]}/transcript{i}.vtt"
         type="{TEST_TRANSCRIPT_TYPE_VTT}" />
-    </item>"""
-                )
+    </item>""")
             rss_xml = f"""<?xml version='1.0' encoding='UTF-8'?>
 <rss xmlns:podcast="https://podcastindex.org/namespace/1.0" version="2.0">
   <channel>
@@ -256,7 +254,9 @@ class TestConcurrentEpisodeProcessingE2E:
             )
 
             # Require Whisper model to be cached (skip if not available)
-            from tests.integration.ml_model_cache_helpers import require_whisper_model_cached
+            from tests.integration.ml_model_cache_helpers import (
+                require_whisper_model_cached,
+            )
 
             require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
@@ -362,7 +362,9 @@ class TestConcurrentEpisodeProcessingE2E:
             )
 
             # Mock summarization to avoid loading real models
-            with patch("podcast_scraper.ml.ml_provider.MLProvider") as mock_provider_class:
+            with patch(
+                "podcast_scraper.providers.ml.ml_provider.MLProvider"
+            ) as mock_provider_class:
                 mock_provider = unittest.mock.MagicMock()
                 mock_provider.summarize.return_value = "Mocked summary for concurrent testing."
                 # Mock detect_speakers to return expected 3-tuple (speakers, hosts, success)
@@ -397,7 +399,9 @@ class TestConcurrentEpisodeProcessingE2E:
             )
 
             # Mock summarization to avoid loading real models
-            with patch("podcast_scraper.ml.ml_provider.MLProvider") as mock_provider_class:
+            with patch(
+                "podcast_scraper.providers.ml.ml_provider.MLProvider"
+            ) as mock_provider_class:
                 mock_provider = unittest.mock.MagicMock()
                 mock_provider.summarize.return_value = "Mocked summary for cleanup testing."
                 # Mock detect_speakers to return expected 3-tuple (speakers, hosts, success)

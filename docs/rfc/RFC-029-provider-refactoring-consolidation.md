@@ -121,7 +121,7 @@ provider = create_summarization_provider(cfg)  # Returns MLProvider or OpenAIPro
 - API key validation for OpenAI providers
 - All provider options properly typed
 
-#### Workflow (`src/podcast_scraper/workflow.py`)
+#### Workflow (`src/podcast_scraper/workflow/orchestration.py`)
 - Uses factories to create providers
 - Calls provider methods via protocols
 - Handles provider cleanup
@@ -132,11 +132,11 @@ provider = create_summarization_provider(cfg)  # Returns MLProvider or OpenAIPro
 - `speaker_detectors/factory.py`: Returns MLProvider for "ner", OpenAIProvider for "openai"
 - `summarization/factory.py`: Returns MLProvider for "local", OpenAIProvider for "openai"
 
-#### Episode Processor (`src/podcast_scraper/episode_processor.py`)
+#### Episode Processor (`src/podcast_scraper/workflow/episode_processor.py`)
 - Uses transcription provider via protocol
 - Checks method existence with `hasattr()`
 
-#### Metadata Generation (`src/podcast_scraper/metadata.py`)
+#### Metadata Generation (`src/podcast_scraper/workflow/metadata_generation.py`)
 - Uses summarization provider via protocol
 - Supports backward compatibility for parallel processing
 
@@ -204,7 +204,7 @@ assert hasattr(provider, 'initialize')
 
 **Workflow Comments:**
 
-- `src/podcast_scraper/workflow.py` - Line 526 mentions "NERSpeakerDetector"
+- `src/podcast_scraper/workflow/orchestration.py` - Line 526 mentions "NERSpeakerDetector"
 
 **Required Changes:**
 
@@ -937,8 +937,8 @@ This work is complete when:
 - **Related RFC**: `docs/rfc/RFC-013-openai-provider-implementation.md` - Original OpenAI provider design
 - **Related RFC**: `docs/rfc/RFC-016-modularization-for-ai-experiments.md` - Provider system architecture
 - **Source Code**:
-  - `src/podcast_scraper/ml/ml_provider.py` - Unified ML provider
-  - `src/podcast_scraper/openai/openai_provider.py` - Unified OpenAI provider
+  - `src/podcast_scraper/providers/ml/ml_provider.py` - Unified ML provider
+  - `src/podcast_scraper/providers/openai/openai_provider.py` - Unified OpenAI provider
   - `src/podcast_scraper/transcription/factory.py` - Transcription factory
   - `src/podcast_scraper/speaker_detectors/factory.py` - Speaker detector factory
   - `src/podcast_scraper/summarization/factory.py` - Summarization factory

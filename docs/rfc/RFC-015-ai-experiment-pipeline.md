@@ -1,6 +1,6 @@
 # RFC-015: AI Experiment Pipeline
 
-- **Status**: 🔴 **Not Started** - Waiting for RFC-016 Phase 2 (factory enhancements)
+- **Status**: 🟢 **Phase 1-3 Complete** - Experiment runner, evaluation metrics, and storage/comparison implemented. CI integration pending.
 - **Authors**:
 - **Stakeholders**: Maintainers, researchers tuning AI models/prompts, developers evaluating model performance
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`, `docs/prd/PRD-007-ai-quality-experiment-platform.md`
@@ -10,55 +10,56 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-012-episode-summarization.md`
   - `docs/rfc/RFC-013-openai-provider-implementation.md`
-  - **`docs/rfc/RFC-016-modularization-for-ai-experiments.md`** (prerequisite - 80% complete)
-  - **`docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md`** (will reuse experiment infrastructure)
+  - **`docs/rfc/RFC-016-modularization-for-ai-experiments.md`** (prerequisite - ✅ Complete)
+  - **`docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md`** (complementary - ✅ Phase 0-1 Complete)
   - `docs/rfc/RFC-017-prompt-management.md`
 - **Related Issues**: [#304](https://github.com/chipi/podcast_scraper/issues/304) (RFC-015 Implementation)
-- **Updated**: 2026-01-08
+- **Updated**: 2026-01-16
 
 ---
 
-## 📊 Implementation Status (Not Started)
+## 📊 Implementation Status (Phase 1-3 Complete)
 
-### Prerequisites
+### ✅ Completed Phases
 
-**RFC-016 Phase 2 (Critical - 3-5 days):**
+**Phase 1: Experiment Runner** ✅ (Complete)
 
-- ⏳ Enhance factories to accept experiment-style params dict
-- ⏳ Required before RFC-015 Phase 1 can start
-- See [GitHub Issue #303](https://github.com/chipi/podcast_scraper/issues/303)
+- ✅ Experiment config schema (`src/podcast_scraper/evaluation/config.py`)
+- ✅ Experiment runner (`scripts/eval/run_experiment.py`) using RFC-016 providers
+- ✅ Dataset JSON support (reads from `data/eval/datasets/` or `benchmarks/datasets/`)
+- ✅ `make experiment-run` command with baseline/reference support
+- ✅ Comprehensive fingerprinting (run context, provider, model, generation params, preprocessing, chunking, prompts, environment, runtime)
+- ✅ Predictions stored as `predictions.jsonl` with structured format
 
-**RFC-016 Phase 3 (Important - 1 week):**
+**Phase 2: Evaluation Metrics** ✅ (Complete)
 
-- ⏳ Extract evaluation infrastructure into reusable module
-- ⏳ Required before RFC-015 Phase 2 can start
-- Can be done in parallel with RFC-015 Phase 1
+- ✅ Evaluation infrastructure (`src/podcast_scraper/evaluation/scorer.py`, `comparator.py`)
+- ✅ Intrinsic metrics computation (gates, length, performance, cost)
+- ✅ Extrinsic metrics computation (ROUGE, embedding similarity) vs references
+- ✅ Structured `metrics.json` format (intrinsic + vs_reference sections)
+- ✅ Comparison deltas (`comparisons/vs_{baseline_id}.json`)
+- ✅ Reference validation (episode ID matching, immutability)
 
-### Planned Implementation (6 Weeks After Prerequisites)
+**Phase 3: Storage & Comparison** ✅ (Complete)
 
-**Phase 1: Experiment Runner** (Weeks 1-2)
+- ✅ Experiment results storage in `data/eval/runs/`
+- ✅ Baseline storage in `data/eval/baselines/`
+- ✅ Reference storage:
+  - Silver: `data/eval/references/silver/{reference_id}/`
+  - Gold: `data/eval/references/gold/{task_type}/{reference_id}/`
+- ✅ Promotion workflow (`scripts/eval/promote_run.py`, `make run-promote`)
+- ✅ Historical tracking via immutable baselines/references
+- ✅ Comparison tools (baseline deltas, reference metrics)
+- ✅ README governance layer for all artifact types
 
-- Create experiment config schema
-- Build experiment runner using RFC-016 providers
-- Add `make experiment` command
+### 🟡 Remaining Work
 
-**Phase 2: Evaluation Metrics** (Weeks 3-4)
+**Phase 4: CI Integration** (Pending)
 
-- Integrate RFC-016 evaluation module
-- Add automated metric calculation
-- Generate human-readable reports
-
-**Phase 3: Storage & Comparison** (Week 5)
-
-- Experiment results storage
-- Historical tracking
-- Comparison tools
-
-**Phase 4: CI Integration** (Week 6)
-
-- Smoke tests on PRs
-- Nightly comprehensive experiments
-- Regression detection
+- ⏳ Smoke tests on PRs
+- ⏳ Nightly comprehensive experiments
+- ⏳ Regression detection automation
+- ⏳ PR comment integration
 
 **See [GitHub Issue #304](https://github.com/chipi/podcast_scraper/issues/304) for detailed implementation plan.**
 
@@ -68,7 +69,7 @@
 
 ## Abstract
 
-**🎯 Quick Summary:** This RFC is **ready for implementation** as soon as RFC-016 Phase 2 is complete (~3-5 days). The provider foundation (80% of RFC-016) is already production-ready. Once factory enhancements are done, RFC-015 Phase 1 can begin immediately. **Total timeline: 6 weeks after prerequisites.**
+**🎯 Quick Summary:** This RFC is **Phase 1-3 complete**. The experiment runner, evaluation metrics, and storage/comparison infrastructure are fully implemented and operational. CI integration (Phase 4) remains pending. The system supports dataset JSONs, baseline/reference comparisons, promotion workflow, and comprehensive fingerprinting.
 
 ---
 
@@ -82,13 +83,13 @@ Technical design and implementation plan for a repeatable AI experiment pipeline
 
 ### 1. Experiment Configuration Format
 
-Experiments are defined in YAML configuration files, stored in `experiments/` directory.
+Experiments are defined in YAML configuration files, stored in `data/eval/configs/` directory.
 
 **Example: Local Summarization Experiment**
 
 ````yaml
 
-# experiments/summarization_bart_led_local.yaml
+# data/eval/configs/summarization_bart_led_local.yaml
 
 id: "summarization_bart_led_v1"
 task: "summarization"
@@ -121,7 +122,7 @@ data:
   gold_data_path: "data/eval/golden/summaries/"
 ```text
 
-# experiments/summarization_openai_gpt4_mini_v1.yaml
+# data/eval/configs/summarization_openai_gpt4_mini_v1.yaml
 
 id: "summarization_openai_gpt4_mini_v1"
 task: "summarization"
@@ -129,7 +130,7 @@ description: "OpenAI GPT-4o-mini summarization with custom prompts"
 
 ```text
 
-# experiments/summarization_openai_gpt4_turbo_golden.yaml
+# data/eval/configs/summarization_openai_gpt4_turbo_golden.yaml
 
 id: "summarization_openai_gpt4_turbo_golden"
 task: "summarization"
@@ -333,7 +334,7 @@ data:
 
 ```text
 
-from podcast_scraper.prompt_store import render_prompt, get_prompt_metadata
+from podcast_scraper.prompts.store import render_prompt, get_prompt_metadata
 
 # Usage in experiment runner:
 
@@ -398,8 +399,8 @@ prompts:
 
 ```bash
 
-python scripts/run_experiment.py experiments/summarization_openai_long_v1.yaml
-python scripts/run_experiment.py experiments/summarization_openai_long_v2.yaml
+python scripts/eval/run_experiment.py experiments/summarization_openai_long_v1.yaml
+python scripts/eval/run_experiment.py experiments/summarization_openai_long_v2.yaml
 
 ```text
 
@@ -536,13 +537,13 @@ from typing import Any, Dict
 
 from openai import OpenAI
 
-from podcast_scraper.experiment_config import (
+from podcast_scraper.evaluation.config import (
     ExperimentConfig,
     load_experiment_config,
     discover_input_files,
     episode_id_from_path,
 )
-from podcast_scraper.prompt_store import render_prompt, get_prompt_metadata
+from podcast_scraper.prompts.store import render_prompt, get_prompt_metadata
 
 # OpenAI client (relies on OPENAI_API_KEY env var)
 
@@ -911,7 +912,7 @@ def evaluate_experiment_predictions(
 ```
 # Generate predictions
 
-python scripts/run_experiment.py experiments/summarization_openai_long_v1.yaml
+python scripts/eval/run_experiment.py experiments/summarization_openai_long_v1.yaml
 
 # Evaluate predictions
 
@@ -999,7 +1000,7 @@ def run_experiment(
 
 ```python
 
-        from podcast_scraper.prompt_store import get_prompt_metadata
+        from podcast_scraper.prompts.store import get_prompt_metadata
 
 ```
 
@@ -1022,7 +1023,7 @@ def run_experiment(
 
 # Generate + evaluate in one command
 
-python scripts/run_experiment.py \
+python scripts/eval/run_experiment.py \
   experiments/summarization_openai_long_v1.yaml \
   --evaluate \
   --gold-data data/eval/golden/summaries/
@@ -1070,7 +1071,7 @@ def run_experiment(cfg: ExperimentConfig) -> None:
 
 ```python
 
-# scripts/run_experiment.py
+# scripts/eval/run_experiment.py
 
 import argparse
 import json
@@ -1443,7 +1444,7 @@ def create_backend(config: ExperimentConfig):
     # Get prompt metadata for tracking (using prompt_store from RFC-017)
 
 ```python
-    from podcast_scraper.prompt_store import get_prompt_metadata
+    from podcast_scraper.prompts.store import get_prompt_metadata
 ```
 
     prompt_meta = {
@@ -1556,34 +1557,34 @@ results/
 
 # Generate predictions only
 
-python scripts/run_experiment.py \
+python scripts/eval/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --mode gen \
   --output-dir results
 
 # Evaluate existing predictions
 
-python scripts/run_experiment.py \
+python scripts/eval/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --mode eval \
   --output-dir results
 
 # Generate and evaluate (default)
 
-python scripts/run_experiment.py \
+python scripts/eval/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --output-dir results
 
 # Run multiple experiments
 
-python scripts/run_experiment.py \
+python scripts/eval/run_experiment.py \
   --config experiments/summarization_bart_led_local.yaml \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --output-dir results
 
 # Force regenerate predictions
 
-python scripts/run_experiment.py \
+python scripts/eval/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --force-regenerate
 
@@ -1744,7 +1745,7 @@ def evaluate_experiment_predictions(
 
 # Step 1: Run experiment (generates predictions.jsonl)
 
-python scripts/run_experiment.py experiments/summarization_openai_long_v1.yaml
+python scripts/eval/run_experiment.py experiments/summarization_openai_long_v1.yaml
 
 # Step 2: Evaluate predictions (uses existing eval logic)
 
@@ -1902,7 +1903,7 @@ def run_experiment(
 ```
 ```python
 
-        from podcast_scraper.prompt_store import get_prompt_metadata
+        from podcast_scraper.prompts.store import get_prompt_metadata
 
 ```
 
@@ -1928,13 +1929,13 @@ def run_experiment(
 
 # Generate + evaluate in one command
 
-python scripts/run_experiment.py \
+python scripts/eval/run_experiment.py \
   experiments/summarization_openai_long_v1.yaml \
   --mode gen+eval
 
 # Or evaluate existing predictions
 
-python scripts/run_experiment.py \
+python scripts/eval/run_experiment.py \
   experiments/summarization_openai_long_v1.yaml \
   --mode eval
 
@@ -2040,7 +2041,7 @@ jobs:
 
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          python scripts/run_experiment.py \
+          python scripts/eval/run_experiment.py \
             --config experiments/summarization_bart_led_v1.yaml \
             --episodes ep01 \
             --mode gen+eval
@@ -2656,7 +2657,7 @@ def update_experiment_results(
 
 ```python
 
-# In scripts/run_experiment.py, after evaluation phase:
+# In scripts/eval/run_experiment.py, after evaluation phase:
 
 if mode in ("eval", "gen+eval"):
     metrics = evaluate_predictions(config, predictions_file)
@@ -2675,7 +2676,7 @@ if mode in ("eval", "gen+eval"):
 
 # Run experiment and automatically update Excel
 
-python scripts/run_experiment.py \
+python scripts/eval/run_experiment.py \
   --config experiments/summarization_openai_gpt4_mini_v1.yaml \
   --update-excel
 

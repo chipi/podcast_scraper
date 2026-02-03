@@ -1,0 +1,410 @@
+{
+  "schema": "ner_entities_gold_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "episode_id": "p05_e01",
+  "text_fingerprint": "sha256:9d79da813689672219e034fbadf1b468f5e9fb8287b55f6f596301a4d5b83c4f",
+  "labels_in_scope": [
+    "PERSON",
+    "ORG",
+    "GPE",
+    "PRODUCT",
+    "EVENT"
+  ],
+  "entities": [
+    {
+      "start": 2,
+      "end": 20,
+      "text": "Long Horizon Notes",
+      "label": "ORG"
+    },
+    {
+      "start": 74,
+      "end": 78,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 86,
+      "end": 92,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 102,
+      "end": 106,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 124,
+      "end": 142,
+      "text": "Long Horizon Notes",
+      "label": "ORG"
+    },
+    {
+      "start": 223,
+      "end": 229,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 231,
+      "end": 237,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 262,
+      "end": 268,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 278,
+      "end": 282,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 370,
+      "end": 374,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 553,
+      "end": 559,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 839,
+      "end": 843,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 914,
+      "end": 920,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 1106,
+      "end": 1110,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 1268,
+      "end": 1274,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 1688,
+      "end": 1692,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 1841,
+      "end": 1847,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 2181,
+      "end": 2185,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 2256,
+      "end": 2262,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 2498,
+      "end": 2502,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 2660,
+      "end": 2666,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 2978,
+      "end": 2982,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 3171,
+      "end": 3177,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 3472,
+      "end": 3476,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 3547,
+      "end": 3553,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 3739,
+      "end": 3743,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 3895,
+      "end": 3901,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 4192,
+      "end": 4196,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 4348,
+      "end": 4354,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 4745,
+      "end": 4749,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 4892,
+      "end": 4898,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 5307,
+      "end": 5311,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 5382,
+      "end": 5388,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 5574,
+      "end": 5578,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 5733,
+      "end": 5739,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 6144,
+      "end": 6148,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 6313,
+      "end": 6319,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 6620,
+      "end": 6624,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 6767,
+      "end": 6773,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 7069,
+      "end": 7073,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 7144,
+      "end": 7150,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 7337,
+      "end": 7341,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 7515,
+      "end": 7521,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 7855,
+      "end": 7859,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 7930,
+      "end": 7936,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 8155,
+      "end": 8159,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 8317,
+      "end": 8323,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 8630,
+      "end": 8634,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 8705,
+      "end": 8711,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 8931,
+      "end": 8935,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 9108,
+      "end": 9114,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 9408,
+      "end": 9412,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 9564,
+      "end": 9570,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 9979,
+      "end": 9983,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 10054,
+      "end": 10060,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 10247,
+      "end": 10251,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 10404,
+      "end": 10410,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 10748,
+      "end": 10752,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 10835,
+      "end": 10841,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 11027,
+      "end": 11031,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 11042,
+      "end": 11048,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 11079,
+      "end": 11085,
+      "text": "Daniel",
+      "label": "PERSON"
+    },
+    {
+      "start": 11095,
+      "end": 11099,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 11113,
+      "end": 11117,
+      "text": "Nora",
+      "label": "PERSON"
+    },
+    {
+      "start": 11152,
+      "end": 11170,
+      "text": "Long Horizon Notes",
+      "label": "ORG"
+    }
+  ],
+  "annotation_policy": {
+    "persons": "Host + guest names (all occurrences)",
+    "orgs": "Show title (all occurrences)",
+    "notes": "Offsets align to materialized text files uploaded for curated_5feeds_smoke_v1."
+  }
+}

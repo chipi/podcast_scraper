@@ -22,7 +22,7 @@ import unittest
 import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
 
-from podcast_scraper import rss_parser
+from podcast_scraper.rss import parser as rss_parser
 
 parent_tests_dir = Path(__file__).parent.parent.parent
 if str(parent_tests_dir) not in sys.path:

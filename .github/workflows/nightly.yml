@@ -649,12 +649,19 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
+    - name: Install jq (for JSON parsing in job summary)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends jq
+
     - name: Install minimal dependencies
       run: |
         python -m pip install --upgrade pip
-        # Only need coverage for combining reports - no other deps needed
+        # Install coverage for combining reports
+        # Install dev tools needed for code quality metrics (radon, interrogate, vulture, codespell)
         # Scripts (generate_metrics.py, generate_dashboard.py) use only stdlib
         pip install coverage[toml]
+        pip install radon interrogate vulture codespell
 
     - name: Create directories
       run: |
@@ -667,13 +674,16 @@ jobs:
         path: downloaded-reports
         pattern: nightly-*-reports
         merge-multiple: false
+      continue-on-error: true  # Some jobs may have failed and not uploaded artifacts
 
     - name: Merge test reports
       run: |
-        # Copy all reports to a single directory
-        find downloaded-reports -name "*.json" -exec cp {} reports/ \;
-        find downloaded-reports -name "*.xml" -exec cp {} reports/ \;
-        ls -la reports/
+        # Copy all reports to a single directory (if any exist)
+        if [ -d downloaded-reports ]; then
+          find downloaded-reports -name "*.json" -exec cp {} reports/ \; 2>/dev/null || true
+          find downloaded-reports -name "*.xml" -exec cp {} reports/ \; 2>/dev/null || true
+        fi
+        ls -la reports/ || echo "No reports directory yet"
 
         # Merge pytest JSON reports if multiple exist
         if ls reports/pytest-*.json 1>/dev/null 2>&1; then
@@ -868,7 +878,7 @@ jobs:
     - name: Collect pipeline metrics
       run: |
         python scripts/dashboard/collect_pipeline_metrics.py \
-          --output reports/pipeline_metrics.json \
+          --output reports/output/pipeline_metrics.json \
           --max-episodes 1 || echo "⚠️ Pipeline metrics collection failed (non-blocking)"
       continue-on-error: true
 
@@ -878,7 +888,7 @@ jobs:
           --reports-dir reports \
           --output metrics/latest-nightly.json \
           --history metrics/history-nightly.jsonl \
-          --pipeline-metrics reports/pipeline_metrics.json \
+          --pipeline-metrics reports/output/pipeline_metrics.json \
           --coverage-threshold 80
 
     - name: Validate metrics JSON
@@ -1006,8 +1016,8 @@ jobs:
         done
 
         # Show alerts from metrics (if available)
-        if [ -f metrics/latest.json ]; then
-          ALERT_COUNT=$(jq -r '.alerts | length' metrics/latest.json 2>/dev/null || echo "0")
+        if [ -f metrics/latest-nightly.json ]; then
+          ALERT_COUNT=$(jq -r '.alerts | length' metrics/latest-nightly.json 2>/dev/null || echo "0")
           if [ "$ALERT_COUNT" -gt 0 ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "## 🚨 Metric Alerts" >> $GITHUB_STEP_SUMMARY
@@ -1015,7 +1025,7 @@ jobs:
               if .severity == "error" then "🔴 **ERROR**: \(.message)"
               elif .severity == "warning" then "⚠️ **WARNING**: \(.message)"
               else "ℹ️ **INFO**: \(.message)"
-              end' metrics/latest.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to extract alerts"
+              end' metrics/latest-nightly.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to extract alerts"
           fi
         fi
 

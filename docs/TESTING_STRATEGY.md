@@ -87,11 +87,14 @@ The testing strategy follows a three-tier pyramid:
 - **I/O Policy**:
   - ✅ **Allowed**: Real filesystem I/O (temp directories), real component interactions
   - ❌ **Mocked**: External services (HTTP APIs, external APIs) - mocked for speed/reliability
-  - ❌ **Mocked**: ML models (Whisper, spaCy, Transformers) - mocked for speed, focus on component integration
+  - ⚠️ **ML models**: Mocked by default for speed. Use real models with `@pytest.mark.ml_models`
+    for ML workflow integration tests (excluded from fast suite, see
+    [Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md))
   - ✅ **Optional**: Local HTTP server for HTTP client testing in isolation
 - **Coverage**: Critical paths and edge cases, component interactions
 - **Examples**: Provider factory → provider implementation, RSS parser → Episode → Provider → File output, HTTP client with local test server
-- **Key Distinction**: Tests how components work together, not complete user workflows. Can use mocks for ML models to keep tests fast.
+- **Key Distinction**: Tests how components work together, not complete user workflows. Mock ML
+  models for fast tests; use real models with `@pytest.mark.ml_models` for ML workflow tests.
 
 ### End-to-End Tests
 
@@ -473,8 +476,8 @@ Beyond functional testing, the project uses objective metrics to evaluate the **
 
 | Layer | Focus | Metrics | Tools |
 | :--- | :--- | :--- | :--- |
-| **Cleaning** | Effective removal of ads/outro | Removal %, Brand detection | `eval_cleaning.py` |
-| **Summarization** | Accuracy and synthesis quality | ROUGE-1/2/L, Compression ratio | `eval_summaries.py` |
+| **Cleaning** | Effective removal of ads/outro | Removal %, Brand detection | Automatic (via experiment runner) |
+| **Summarization** | Accuracy and synthesis quality | ROUGE-1/2/L, Compression ratio | Automatic (via experiment runner) |
 
 ### Golden Datasets
 
@@ -482,7 +485,7 @@ Evaluation is performed against human-verified ground truth data stored in `data
 
 ### Continuous Improvement
 
-Quality evaluation is integrated into the **[AI Quality & Experimentation Platform](prd/PRD-007-ai-quality-experiment-platform.md)** (PRD-007), which uses these metrics to gate new model deployments and configuration changes. Detailed methodology is available in the **[Quality Evaluation Guide](guides/EVALUATION_GUIDE.md)**.
+Quality evaluation is integrated into the **[AI Quality & Experimentation Platform](prd/PRD-007-ai-quality-experiment-platform.md)** (PRD-007), which uses these metrics to gate new model deployments and configuration changes. The complete evaluation loop (runner, scorer, comparator) is documented in the **[Experiment Guide](guides/EXPERIMENT_GUIDE.md)** (Step 4: Evaluate Results).
 
 ## CI/CD Integration
 

@@ -30,7 +30,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
             openai_api_key="sk-test123",
         )
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAI")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
     def test_provider_initialization(self, mock_openai_class):
         """Test that OpenAI transcription provider initializes correctly via factory."""
         provider = create_transcription_provider(self.cfg)
@@ -43,7 +43,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         mock_openai_class.assert_called_once_with(**expected_kwargs)
         self.assertTrue(provider._transcription_initialized)
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAI")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
     def test_transcribe_success(self, mock_openai_class):
         """Test successful transcription via OpenAI API via factory."""
         # Mock OpenAI client and response
@@ -108,8 +108,8 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
             auto_speakers=True,
         )
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAI")
-    @patch("podcast_scraper.prompt_store.render_prompt")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
+    @patch("podcast_scraper.prompts.store.render_prompt")
     def test_detect_speakers_success(self, mock_render_prompt, mock_openai_class):
         """Test successful speaker detection via OpenAI API via factory."""
         # Mock OpenAI client and response
@@ -195,8 +195,8 @@ class TestOpenAISummarizationProvider(unittest.TestCase):
             generate_summaries=True,
         )
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAI")
-    @patch("podcast_scraper.prompt_store.render_prompt")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
+    @patch("podcast_scraper.prompts.store.render_prompt")
     def test_summarize_success(self, mock_render_prompt, mock_openai_class):
         """Test successful summarization via OpenAI API via factory."""
         # Mock OpenAI client and response
@@ -269,7 +269,7 @@ class TestOpenAIProviderErrorHandling(unittest.TestCase):
             openai_api_key="sk-test123",
         )
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAI")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
     def test_transcribe_api_error(self, mock_openai_class):
         """Test that API errors are handled gracefully via factory."""
         # Mock OpenAI client to raise exception

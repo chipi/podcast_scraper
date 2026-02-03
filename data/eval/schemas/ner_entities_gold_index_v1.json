@@ -1,0 +1,7 @@
+{
+  "schema": "ner_entities_gold_index_v1",
+  "dataset_id": "string",
+  "episodes": ["string"],
+  "labels_in_scope": ["PERSON", "ORG", "GPE", "PRODUCT", "EVENT"],
+  "notes": "string"
+}

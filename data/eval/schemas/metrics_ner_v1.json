@@ -1,0 +1,97 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "metrics_ner_v1.json",
+    "title": "NER Metrics (v1)",
+    "type": "object",
+    "additionalProperties": true,
+    "required": ["task", "scored_episodes", "match_modes", "overall", "per_label"],
+    "properties": {
+      "schema": {
+        "type": "string",
+        "const": "metrics_ner_v1"
+      },
+      "task": {
+        "type": "string",
+        "const": "ner_entities"
+      },
+      "dataset_id": { "type": "string", "minLength": 1 },
+      "reference_id": { "type": "string", "minLength": 1 },
+
+      "scored_episodes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scored", "total"],
+        "properties": {
+          "scored": { "type": "integer", "minimum": 0 },
+          "total": { "type": "integer", "minimum": 0 }
+        }
+      },
+
+      "match_modes": {
+        "description": "Which matching modes were computed.",
+        "type": "array",
+        "items": { "type": "string", "enum": ["exact", "overlap"] },
+        "minItems": 1
+      },
+
+      "overall": {
+        "description": "Overall metrics per match mode.",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "exact": { "$ref": "#/definitions/prfCounts" },
+          "overlap": { "$ref": "#/definitions/prfCounts" }
+        }
+      },
+
+      "per_label": {
+        "description": "Per-label metrics per match mode.",
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "exact": { "$ref": "#/definitions/prfCounts" },
+            "overlap": { "$ref": "#/definitions/prfCounts" }
+          }
+        }
+      },
+
+      "counts": {
+        "description": "Optional raw counts that are useful for debugging.",
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "entities_predicted": { "type": "integer", "minimum": 0 },
+          "entities_gold": { "type": "integer", "minimum": 0 }
+        }
+      },
+
+      "performance": {
+        "description": "Optional performance stats.",
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "avg_latency_ms": { "type": "number", "minimum": 0 },
+          "min_latency_ms": { "type": "number", "minimum": 0 },
+          "max_latency_ms": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+
+    "definitions": {
+      "prfCounts": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["precision", "recall", "f1", "tp", "fp", "fn"],
+        "properties": {
+          "precision": { "type": "number", "minimum": 0, "maximum": 1 },
+          "recall": { "type": "number", "minimum": 0, "maximum": 1 },
+          "f1": { "type": "number", "minimum": 0, "maximum": 1 },
+          "tp": { "type": "integer", "minimum": 0 },
+          "fp": { "type": "integer", "minimum": 0 },
+          "fn": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }

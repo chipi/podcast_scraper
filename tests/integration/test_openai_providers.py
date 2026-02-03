@@ -32,7 +32,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
             transcribe_missing=True,
         )
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAI")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
     def test_provider_initialization(self, mock_openai_class):
         """Test that OpenAI transcription provider initializes correctly via factory."""
         provider = create_transcription_provider(self.cfg)
@@ -42,7 +42,7 @@ class TestOpenAITranscriptionProvider(unittest.TestCase):
         mock_openai_class.assert_called_once()
         self.assertTrue(provider._transcription_initialized)
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAI")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
     def test_transcribe_success(self, mock_exists, mock_open, mock_openai_class):
@@ -122,10 +122,14 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
             auto_speakers=True,
         )
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAI")
-    @patch("podcast_scraper.prompt_store.render_prompt")
-    @patch("podcast_scraper.openai.openai_provider.OpenAIProvider._build_speaker_detection_prompt")
-    @patch("podcast_scraper.openai.openai_provider.OpenAIProvider._parse_speakers_from_response")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    @patch(
+        "podcast_scraper.providers.openai.openai_provider.OpenAIProvider._build_speaker_detection_prompt"
+    )
+    @patch(
+        "podcast_scraper.providers.openai.openai_provider.OpenAIProvider._parse_speakers_from_response"
+    )
     def test_detect_speakers_success(
         self, mock_parse, mock_build_prompt, mock_render_prompt, mock_openai_class
     ):
@@ -214,10 +218,12 @@ class TestOpenAISummarizationProvider(unittest.TestCase):
             generate_summaries=True,
         )
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAI")
-    @patch("podcast_scraper.prompt_store.render_prompt")
-    @patch("podcast_scraper.prompt_store.get_prompt_metadata")
-    @patch("podcast_scraper.openai.openai_provider.OpenAIProvider._build_summarization_prompts")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
+    @patch(
+        "podcast_scraper.providers.openai.openai_provider.OpenAIProvider._build_summarization_prompts"
+    )
     def test_summarize_success(
         self, mock_build_prompts, mock_get_metadata, mock_render_prompt, mock_openai_class
     ):
@@ -305,7 +311,7 @@ class TestOpenAIProviderErrorHandling(unittest.TestCase):
             transcribe_missing=True,
         )
 
-    @patch("podcast_scraper.openai.openai_provider.OpenAI")
+    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
     def test_transcribe_api_error(self, mock_exists, mock_open, mock_openai_class):
