@@ -27,6 +27,12 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Metadata Generation** — JSON/YAML metadata per episode
 - **Resumable** — Skip existing files, handle interruptions gracefully
 - **Provider System** — Swap between local and cloud providers via config
+- **MPS Exclusive Mode** — Serialize GPU work on Apple Silicon to prevent memory contention and improve reliability (enabled by default)
+- **Reproducibility** — Deterministic runs with seed control, pinned model revisions, and comprehensive run manifests (Issue #379)
+- **Operational Hardening** — Retry policies with exponential backoff, timeout enforcement, failure handling flags, and structured JSON logging (Issue #379)
+- **Security** — Path validation, model allowlist validation, safetensors format preference, and `trust_remote_code=False` enforcement (Issue #379)
+- **Diagnostics** — `doctor` command for environment validation and dependency checks (Issue #379)
+- **Run Tracking** — Per-episode stage timings, run summaries, and episode index files for complete pipeline observability (Issue #379)
 
 ---
 
@@ -42,7 +48,9 @@ and hands-on work with edge and cloud AI/ML technologies.
 
 ### Install
 
-#### Stable (recommended)
+> **💡 Tip:** For end users who just want to run the tool, consider using [pipx](#method-2-pipx-recommended-for-end-users) or [uv](#method-3-uv-fast-installation) for easier installation. See the [Installation Guide](docs/guides/INSTALLATION_GUIDE.md) for all methods.
+
+#### Method 1: pip (Standard - Recommended for Development)
 
 Use the latest released version for normal usage.
 
@@ -66,6 +74,45 @@ pip install --upgrade pip setuptools wheel
 # Install package with ML dependencies
 pip install -e ".[ml]"
 ```
+
+#### Method 2: pipx (Recommended for End Users)
+
+For isolated installation without managing virtual environments:
+
+```bash
+# Install pipx (if not already installed)
+# macOS: brew install pipx
+# Linux: pip install --user pipx && pipx ensurepath
+
+# Clone and install
+git clone https://github.com/chipi/podcast_scraper.git
+cd podcast_scraper
+pipx install -e ".[ml]"
+
+# Verify
+podcast_scraper --version
+```
+
+See [Installation Guide](docs/guides/INSTALLATION_GUIDE.md#method-2-pipx-isolated-installation---recommended-for-end-users) for details.
+
+#### Method 3: uv (Fast Installation)
+
+For faster installation using `uv`:
+
+```bash
+# Install uv (if not already installed)
+# macOS/Linux: curl -LsSf https://astral.sh/uv/install.sh | sh
+# macOS: brew install uv
+
+# Clone and install
+git clone https://github.com/chipi/podcast_scraper.git
+cd podcast_scraper
+uv venv
+source .venv/bin/activate
+uv pip install -e ".[ml]"
+```
+
+See [Installation Guide](docs/guides/INSTALLATION_GUIDE.md#method-3-uv-fast-installation---recommended-for-speed) for details.
 
 #### Development (main)
 

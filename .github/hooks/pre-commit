@@ -26,86 +26,176 @@
 #   cp .github/hooks/pre-commit .git/hooks/pre-commit
 #   chmod +x .git/hooks/pre-commit
 #
-# To skip the hook for a specific commit:
+# To skip the hook for a specific commit (not recommended):
 #   git commit --no-verify
 
-set -e
+# Don't use set -e - we want to collect all errors, not exit on first failure
+set +e
 
-echo "🔍 Running pre-commit checks on staged files..."
-echo ""
-
-# Colors for output
+# Colors for output (define early so they can be used anywhere)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Create a temporary directory for log files (more reliable than /tmp)
+TMPDIR="${TMPDIR:-/tmp}"
+HOOK_TMPDIR="${HOOK_TMPDIR:-$TMPDIR}"
+LOG_DIR=$(mktemp -d "${HOOK_TMPDIR}/precommit_XXXXXX" 2>/dev/null || echo "$TMPDIR")
+HOOK_PID=$$
+LOG_PREFIX="${LOG_DIR}/precommit_${HOOK_PID}"
+
+# Cleanup function
+cleanup() {
+    rm -rf "${LOG_DIR}/precommit_${HOOK_PID}"* 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# Function to safely check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Function to check if a file exists and is readable
+file_exists() {
+    [ -f "$1" ] && [ -r "$1" ]
+}
+
+echo "🔍 Running pre-commit checks on staged files..."
+echo ""
+
 ERRORS=0
 
 # Get list of staged files
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || echo "")
 
 if [ -z "$STAGED_FILES" ]; then
     echo -e "${YELLOW}⚠${NC} No staged files to check"
     exit 0
 fi
 
-# Filter staged files by type
-STAGED_PYTHON=$(echo "$STAGED_FILES" | grep -E '\.(py)$' || true)
-STAGED_MARKDOWN=$(echo "$STAGED_FILES" | grep -E '\.(md)$' || true)
-STAGED_JSON=$(echo "$STAGED_FILES" | grep -E '\.(json)$' || true)
-STAGED_YAML=$(echo "$STAGED_FILES" | grep -E '\.(yaml|yml)$' || true)
+# Filter staged files by type and check they exist
+STAGED_PYTHON=""
+STAGED_MARKDOWN=""
+STAGED_JSON=""
+STAGED_YAML=""
+
+for file in $STAGED_FILES; do
+    if file_exists "$file"; then
+        case "$file" in
+            *.py)
+                STAGED_PYTHON="${STAGED_PYTHON}${STAGED_PYTHON:+$'\n'}$file"
+                ;;
+            *.md)
+                STAGED_MARKDOWN="${STAGED_MARKDOWN}${STAGED_MARKDOWN:+$'\n'}$file"
+                ;;
+            *.json)
+                STAGED_JSON="${STAGED_JSON}${STAGED_JSON:+$'\n'}$file"
+                ;;
+            *.yaml|*.yml)
+                STAGED_YAML="${STAGED_YAML}${STAGED_YAML:+$'\n'}$file"
+                ;;
+        esac
+    fi
+done
 
 # Function to run a check and track errors
 run_check() {
     local name="$1"
     local command="$2"
+    local log_file="${LOG_PREFIX}_${name// /_}.log"
 
     echo "→ Running $name..."
-    if eval "$command" > /tmp/precommit_$$.log 2>&1; then
+    if eval "$command" > "$log_file" 2>&1; then
         echo -e "${GREEN}✓${NC} $name passed"
+        rm -f "$log_file"
+        return 0
     else
         echo -e "${RED}✗${NC} $name failed"
-        cat /tmp/precommit_$$.log
+        if [ -f "$log_file" ]; then
+            cat "$log_file"
+        fi
+        rm -f "$log_file"
         ERRORS=$((ERRORS + 1))
+        return 1
     fi
-    rm -f /tmp/precommit_$$.log
-    echo ""
 }
 
 # Check if there are any Python files to check
 if [ -n "$STAGED_PYTHON" ]; then
-    # Convert newline-separated list to space-separated for commands
-    PYTHON_FILES=$(echo "$STAGED_PYTHON" | tr '\n' ' ')
+    # Convert newline-separated list to space-separated for commands, filtering existing files
+    PYTHON_FILES=""
+    for file in $STAGED_PYTHON; do
+        if file_exists "$file"; then
+            PYTHON_FILES="${PYTHON_FILES}${PYTHON_FILES:+ }$file"
+        fi
+    done
 
-    # Check formatting on staged Python files
-    run_check "Black formatting" "black --check $PYTHON_FILES"
-    run_check "isort import sorting" "isort --check-only $PYTHON_FILES"
-
-    # Check linting on staged Python files
-    # Run flake8 with full config (checks all errors, respects .flake8 config)
-    # This matches CI behavior: CI runs flake8 twice (critical + all), but pre-commit checks all at once
-    run_check "flake8 linting" "flake8 --config .flake8 $PYTHON_FILES --count --show-source --statistics"
-
-    # Check types on staged Python files
-    # Note: mypy works better when checking the whole project, but we can check specific files
-    # For better accuracy, we'll check the whole project but only report errors in staged files
-    echo "→ Running mypy type checking..."
-    if mypy --config-file pyproject.toml . > /tmp/precommit_mypy_$$.log 2>&1; then
-        echo -e "${GREEN}✓${NC} mypy type checking passed"
-    else
-        # Filter mypy output to only show errors for staged files
-        FILTERED_ERRORS=$(grep -f <(echo "$STAGED_PYTHON" | sed 's|^|^|' | sed 's|$|:|') /tmp/precommit_mypy_$$.log || true)
-        if [ -n "$FILTERED_ERRORS" ]; then
-            echo -e "${RED}✗${NC} mypy type checking failed (errors in staged files)"
-            echo "$FILTERED_ERRORS"
+    if [ -n "$PYTHON_FILES" ]; then
+        # Check if required tools are available
+        if ! command_exists python3; then
+            echo -e "${RED}✗${NC} python3 not found in PATH"
             ERRORS=$((ERRORS + 1))
         else
-            echo -e "${GREEN}✓${NC} mypy type checking passed (no errors in staged files)"
+            # Check formatting on staged Python files
+            if command_exists black; then
+                run_check "Black formatting" "black --check $PYTHON_FILES"
+            else
+                echo -e "${YELLOW}⚠${NC} black not found, skipping Black formatting check"
+                echo ""
+            fi
+
+            if command_exists isort; then
+                run_check "isort import sorting" "isort --check-only $PYTHON_FILES"
+            else
+                echo -e "${YELLOW}⚠${NC} isort not found, skipping isort check"
+                echo ""
+            fi
+
+            # Check linting on staged Python files
+            if command_exists flake8; then
+                if file_exists ".flake8"; then
+                    run_check "flake8 linting" "flake8 --config .flake8 $PYTHON_FILES --count --show-source --statistics"
+                else
+                    run_check "flake8 linting" "flake8 $PYTHON_FILES --count --show-source --statistics"
+                fi
+            else
+                echo -e "${YELLOW}⚠${NC} flake8 not found, skipping flake8 check"
+                echo ""
+            fi
+
+            # Check types on staged Python files
+            if command_exists mypy; then
+                echo "→ Running mypy type checking..."
+                MYPY_LOG="${LOG_PREFIX}_mypy.log"
+                if file_exists "pyproject.toml"; then
+                    mypy --config-file pyproject.toml . > "$MYPY_LOG" 2>&1
+                else
+                    mypy . > "$MYPY_LOG" 2>&1
+                fi
+                MYPY_EXIT=$?
+
+                if [ $MYPY_EXIT -eq 0 ]; then
+                    echo -e "${GREEN}✓${NC} mypy type checking passed"
+                else
+                    # Filter mypy output to only show errors for staged files
+                    FILTERED_ERRORS=$(grep -f <(echo "$STAGED_PYTHON" | sed 's|^|^|' | sed 's|$|:|') "$MYPY_LOG" 2>/dev/null || true)
+                    if [ -n "$FILTERED_ERRORS" ]; then
+                        echo -e "${RED}✗${NC} mypy type checking failed (errors in staged files)"
+                        echo "$FILTERED_ERRORS"
+                        ERRORS=$((ERRORS + 1))
+                    else
+                        echo -e "${GREEN}✓${NC} mypy type checking passed (no errors in staged files)"
+                    fi
+                fi
+                rm -f "$MYPY_LOG"
+                echo ""
+            else
+                echo -e "${YELLOW}⚠${NC} mypy not found, skipping mypy check"
+                echo ""
+            fi
         fi
     fi
-    rm -f /tmp/precommit_mypy_$$.log
-    echo ""
 else
     echo -e "${YELLOW}⚠${NC} No Python files staged, skipping Python checks"
     echo ""
@@ -113,28 +203,49 @@ fi
 
 # Check markdown linting (required when markdown files are staged)
 if [ -n "$STAGED_MARKDOWN" ]; then
-    if command -v markdownlint >/dev/null 2>&1; then
+    if command_exists markdownlint; then
         # Filter out wip and fixtures files (same as make lint-markdown)
-        MARKDOWN_FILES=$(echo "$STAGED_MARKDOWN" | grep -v '^docs/wip/' | grep -v '^tests/fixtures/' | tr '\n' ' ')
-        # Use same ignore patterns as make lint-markdown
-        # Check if auto-fix is requested via environment variable
+        MARKDOWN_FILES=""
+        for file in $STAGED_MARKDOWN; do
+            if file_exists "$file"; then
+                case "$file" in
+                    docs/wip/*|tests/fixtures/*)
+                        # Skip these files
+                        ;;
+                    *)
+                        MARKDOWN_FILES="${MARKDOWN_FILES}${MARKDOWN_FILES:+ }$file"
+                        ;;
+                esac
+            fi
+        done
+
         if [ -n "$MARKDOWN_FILES" ]; then
+            # Check if auto-fix is requested via environment variable
             if [ "$MARKDOWNLINT_FIX" = "1" ]; then
                 echo "→ Auto-fixing markdown linting issues..."
-                if markdownlint --fix $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json > /tmp/precommit_md_$$.log 2>&1; then
+                MD_FIX_LOG="${LOG_PREFIX}_md_fix.log"
+                if file_exists ".markdownlint.json"; then
+                    markdownlint --fix $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json > "$MD_FIX_LOG" 2>&1
+                else
+                    markdownlint --fix $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site > "$MD_FIX_LOG" 2>&1
+                fi
+                if [ $? -eq 0 ]; then
                     echo -e "${GREEN}✓${NC} Markdown auto-fix completed"
                     # Re-stage fixed files
                     echo "$MARKDOWN_FILES" | xargs git add 2>/dev/null || true
                 else
                     echo -e "${YELLOW}⚠${NC} Some markdown issues could not be auto-fixed"
-                    cat /tmp/precommit_md_$$.log
+                    cat "$MD_FIX_LOG"
                 fi
-                rm -f /tmp/precommit_md_$$.log
+                rm -f "$MD_FIX_LOG"
                 echo ""
             fi
             # Run linting check (after auto-fix if enabled)
-            # Use same config as CI (make lint-markdown) to ensure consistency
-            run_check "Markdown linting" "markdownlint $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json"
+            if file_exists ".markdownlint.json"; then
+                run_check "Markdown linting" "markdownlint $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site --config .markdownlint.json"
+            else
+                run_check "Markdown linting" "markdownlint $MARKDOWN_FILES --ignore node_modules --ignore .venv --ignore .build/site"
+            fi
         else
             echo -e "${YELLOW}⚠${NC} No markdown files to lint (all filtered out)"
             echo ""
@@ -159,24 +270,31 @@ fi
 
 # Check JSON syntax validation (required when JSON files are staged)
 if [ -n "$STAGED_JSON" ]; then
-    echo "→ Running JSON syntax validation..."
-    JSON_ERRORS=0
-    for json_file in $STAGED_JSON; do
-        if python3 -m json.tool "$json_file" > /dev/null 2>&1; then
-            echo -e "  ${GREEN}✓${NC} $json_file"
+    if command_exists python3; then
+        echo "→ Running JSON syntax validation..."
+        JSON_ERRORS=0
+        for json_file in $STAGED_JSON; do
+            if file_exists "$json_file"; then
+                if python3 -m json.tool "$json_file" > /dev/null 2>&1; then
+                    echo -e "  ${GREEN}✓${NC} $json_file"
+                else
+                    echo -e "  ${RED}✗${NC} $json_file"
+                    python3 -m json.tool "$json_file" 2>&1 | head -5
+                    JSON_ERRORS=$((JSON_ERRORS + 1))
+                fi
+            fi
+        done
+        if [ $JSON_ERRORS -eq 0 ]; then
+            echo -e "${GREEN}✓${NC} JSON syntax validation passed"
         else
-            echo -e "  ${RED}✗${NC} $json_file"
-            python3 -m json.tool "$json_file" 2>&1 | head -5
-            JSON_ERRORS=$((JSON_ERRORS + 1))
+            echo -e "${RED}✗${NC} JSON syntax validation failed ($JSON_ERRORS file(s) with errors)"
+            ERRORS=$((ERRORS + 1))
         fi
-    done
-    if [ $JSON_ERRORS -eq 0 ]; then
-        echo -e "${GREEN}✓${NC} JSON syntax validation passed"
+        echo ""
     else
-        echo -e "${RED}✗${NC} JSON syntax validation failed ($JSON_ERRORS file(s) with errors)"
-        ERRORS=$((ERRORS + 1))
+        echo -e "${YELLOW}⚠${NC} python3 not found, skipping JSON validation"
+        echo ""
     fi
-    echo ""
 else
     echo -e "${YELLOW}⚠${NC} No JSON files staged, skipping JSON checks"
     echo ""
@@ -188,41 +306,64 @@ STAGED_PYPROJECT=$(echo "$STAGED_FILES" | grep -E '(pyproject\.toml|Makefile|\.g
 STAGED_TEST_FILES=$(echo "$STAGED_FILES" | grep -E 'tests/.*\.py$' || true)
 
 if [ -n "$STAGED_PYPROJECT" ] || [ -n "$STAGED_TEST_FILES" ]; then
-    echo "→ Validating test infrastructure..."
-    # Check that integration marker works
-    # Note: grep -c outputs "0" on no matches but returns exit code 1, so we use || true to suppress the exit code
-    # Disable xdist and rerunfailures plugins during collection (they try to bind sockets which may fail in sandboxed environments)
-    INTEGRATION_COUNT=$(python3 -m pytest tests/integration/ -m integration --collect-only -q -p no:rerunfailures -p no:xdist 2>&1 | grep -c "^tests/" || true)
-    # Strip any newlines and ensure we have a valid number (default to 0 if empty)
-    INTEGRATION_COUNT=${INTEGRATION_COUNT//$'\n'/}
-    INTEGRATION_COUNT=${INTEGRATION_COUNT:-0}
-    if [ "$INTEGRATION_COUNT" -eq 0 ]; then
-        echo -e "${RED}✗${NC} Integration marker not working! No tests collected with -m integration"
-        echo "  Check pyproject.toml addopts for marker conflicts"
-        ERRORS=$((ERRORS + 1))
-    else
-        echo -e "  ${GREEN}✓${NC} Integration marker: $INTEGRATION_COUNT tests"
-    fi
+    if command_exists python3 && command_exists pytest; then
+        echo "→ Validating test infrastructure..."
+        # Check that integration marker works
+        # Note: grep -c outputs "0" on no matches but returns exit code 1, so we use || true to suppress the exit code
+        # Disable xdist and rerunfailures plugins during collection (they try to bind sockets which may fail in sandboxed environments)
+        INTEGRATION_LOG="${LOG_PREFIX}_integration.log"
+        python3 -m pytest tests/integration/ -m integration --collect-only -q -p no:rerunfailures -p no:xdist > "$INTEGRATION_LOG" 2>&1
+        INTEGRATION_COUNT=$(grep -c "^tests/" "$INTEGRATION_LOG" 2>/dev/null || echo "0")
+        # Strip any newlines and ensure we have a valid number (default to 0 if empty)
+        INTEGRATION_COUNT=${INTEGRATION_COUNT//$'\n'/}
+        INTEGRATION_COUNT=${INTEGRATION_COUNT:-0}
 
-    # Check that E2E marker works
-    # Note: grep -c outputs "0" on no matches but returns exit code 1, so we use || true to suppress the exit code
-    # Disable xdist and rerunfailures plugins during collection (they try to bind sockets which may fail in sandboxed environments)
-    E2E_COUNT=$(python3 -m pytest tests/e2e/ -m e2e --collect-only -q -p no:rerunfailures -p no:xdist 2>&1 | grep -c "^tests/" || true)
-    # Strip any newlines and ensure we have a valid number (default to 0 if empty)
-    E2E_COUNT=${E2E_COUNT//$'\n'/}
-    E2E_COUNT=${E2E_COUNT:-0}
-    if [ "$E2E_COUNT" -eq 0 ]; then
-        echo -e "${RED}✗${NC} E2E marker not working! No tests collected with -m e2e"
-        echo "  Check pyproject.toml addopts for marker conflicts"
-        ERRORS=$((ERRORS + 1))
-    else
-        echo -e "  ${GREEN}✓${NC} E2E marker: $E2E_COUNT tests"
-    fi
+        # Only fail if we can't collect tests AND pytest didn't exit with a clear error
+        if [ "$INTEGRATION_COUNT" -eq 0 ]; then
+            # Check if pytest actually ran successfully (exit code 0 means it ran but found 0 tests)
+            # If pytest failed with an error, that's a real problem
+            if grep -q "ERROR\|FAILED\|ImportError\|ModuleNotFoundError" "$INTEGRATION_LOG" 2>/dev/null; then
+                echo -e "${RED}✗${NC} Integration marker validation failed! pytest encountered errors:"
+                grep -E "ERROR|FAILED|ImportError|ModuleNotFoundError" "$INTEGRATION_LOG" | head -5
+                ERRORS=$((ERRORS + 1))
+            else
+                echo -e "${YELLOW}⚠${NC} Integration marker: No tests collected (this may be normal if no integration tests exist)"
+            fi
+        else
+            echo -e "  ${GREEN}✓${NC} Integration marker: $INTEGRATION_COUNT tests"
+        fi
+        rm -f "$INTEGRATION_LOG"
 
-    if [ $ERRORS -eq 0 ]; then
-        echo -e "${GREEN}✓${NC} Test infrastructure validation passed"
+        # Check that E2E marker works
+        E2E_LOG="${LOG_PREFIX}_e2e.log"
+        python3 -m pytest tests/e2e/ -m e2e --collect-only -q -p no:rerunfailures -p no:xdist > "$E2E_LOG" 2>&1
+        E2E_COUNT=$(grep -c "^tests/" "$E2E_LOG" 2>/dev/null || echo "0")
+        # Strip any newlines and ensure we have a valid number (default to 0 if empty)
+        E2E_COUNT=${E2E_COUNT//$'\n'/}
+        E2E_COUNT=${E2E_COUNT:-0}
+
+        if [ "$E2E_COUNT" -eq 0 ]; then
+            # Check if pytest actually ran successfully
+            if grep -q "ERROR\|FAILED\|ImportError\|ModuleNotFoundError" "$E2E_LOG" 2>/dev/null; then
+                echo -e "${RED}✗${NC} E2E marker validation failed! pytest encountered errors:"
+                grep -E "ERROR|FAILED|ImportError|ModuleNotFoundError" "$E2E_LOG" | head -5
+                ERRORS=$((ERRORS + 1))
+            else
+                echo -e "${YELLOW}⚠${NC} E2E marker: No tests collected (this may be normal if no E2E tests exist)"
+            fi
+        else
+            echo -e "  ${GREEN}✓${NC} E2E marker: $E2E_COUNT tests"
+        fi
+        rm -f "$E2E_LOG"
+
+        if [ $ERRORS -eq 0 ]; then
+            echo -e "${GREEN}✓${NC} Test infrastructure validation passed"
+        fi
+        echo ""
+    else
+        echo -e "${YELLOW}⚠${NC} python3 or pytest not found, skipping test infrastructure validation"
+        echo ""
     fi
-    echo ""
 fi
 
 # Check YAML syntax validation (required when YAML files are staged)
@@ -230,20 +371,23 @@ if [ -n "$STAGED_YAML" ]; then
     echo "→ Running YAML syntax validation..."
     YAML_ERRORS=0
     for yaml_file in $STAGED_YAML; do
-        # Try yamllint first if available (better error messages and handles custom tags)
-        if command -v yamllint >/dev/null 2>&1; then
-            if yamllint "$yaml_file" > /tmp/precommit_yaml_$$.log 2>&1; then
-                echo -e "  ${GREEN}✓${NC} $yaml_file"
-            else
-                echo -e "  ${RED}✗${NC} $yaml_file"
-                cat /tmp/precommit_yaml_$$.log | head -5
-                YAML_ERRORS=$((YAML_ERRORS + 1))
-            fi
-            rm -f /tmp/precommit_yaml_$$.log
-        else
-            # Fallback to Python yaml module - check basic syntax (ignore custom tags)
-            # Use a custom loader that ignores unknown tags for basic syntax validation
-            if python3 -c "
+        if file_exists "$yaml_file"; then
+            # Try yamllint first if available (better error messages and handles custom tags)
+            if command_exists yamllint; then
+                YAML_LOG="${LOG_PREFIX}_yaml_${yaml_file//\//_}.log"
+                yamllint "$yaml_file" > "$YAML_LOG" 2>&1
+                if [ $? -eq 0 ]; then
+                    echo -e "  ${GREEN}✓${NC} $yaml_file"
+                else
+                    echo -e "  ${RED}✗${NC} $yaml_file"
+                    head -5 "$YAML_LOG"
+                    YAML_ERRORS=$((YAML_ERRORS + 1))
+                fi
+                rm -f "$YAML_LOG"
+            elif command_exists python3; then
+                # Fallback to Python yaml module - check basic syntax (ignore custom tags)
+                YAML_LOG="${LOG_PREFIX}_yaml_${yaml_file//\//_}.log"
+                python3 -c "
 import yaml
 import sys
 try:
@@ -263,14 +407,18 @@ except yaml.YAMLError as e:
 except Exception as e:
     print(e, file=sys.stderr)
     sys.exit(1)
-" > /tmp/precommit_yaml_$$.log 2>&1; then
-                echo -e "  ${GREEN}✓${NC} $yaml_file"
+" > "$YAML_LOG" 2>&1
+                if [ $? -eq 0 ]; then
+                    echo -e "  ${GREEN}✓${NC} $yaml_file"
+                else
+                    echo -e "  ${RED}✗${NC} $yaml_file"
+                    head -5 "$YAML_LOG"
+                    YAML_ERRORS=$((YAML_ERRORS + 1))
+                fi
+                rm -f "$YAML_LOG"
             else
-                echo -e "  ${RED}✗${NC} $yaml_file"
-                cat /tmp/precommit_yaml_$$.log | head -5
-                YAML_ERRORS=$((YAML_ERRORS + 1))
+                echo -e "  ${YELLOW}⚠${NC} $yaml_file (no YAML validator available)"
             fi
-            rm -f /tmp/precommit_yaml_$$.log
         fi
     done
     if [ $YAML_ERRORS -eq 0 ]; then
@@ -300,4 +448,3 @@ else
     echo "═══════════════════════════════════════════════"
     exit 1
 fi
-

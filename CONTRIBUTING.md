@@ -296,6 +296,21 @@ Before submitting:
 
 ---
 
+## Exit Codes (Issue #379)
+
+The CLI uses standard exit codes for automation and scripting:
+
+- **0**: Success (pipeline completed successfully, even if some episodes failed)
+- **1**: Failure (run-level error: invalid config, missing dependencies, fatal errors)
+
+**Exit Code Policy:**
+
+- Exit code 0 is returned when the pipeline completes, even if individual episodes fail
+- Exit code 1 is only returned for run-level failures (invalid configuration, missing dependencies, fatal errors)
+- Episode-level failures are tracked in metrics and do not affect exit code unless `--fail-fast` or `--max-failures` is used
+
+This policy allows automation scripts to distinguish between "pipeline ran successfully" (0) and "pipeline failed to run" (1), while still tracking individual episode failures in metrics.
+
 ## Getting Help
 
 | Resource | When to Use |
@@ -307,6 +322,15 @@ Before submitting:
 | [GitHub Issues](https://github.com/chipi/podcast_scraper/issues) | Questions, bugs |
 
 ---
+
+## Scripting and Automation
+
+When writing scripts or automation that uses `podcast_scraper`, be aware of exit codes:
+
+- **Exit code 0**: Success (pipeline completed, even if some episodes were skipped)
+- **Exit code 1**: Error (validation, configuration, or pipeline failure)
+
+For detailed exit code semantics and usage examples (shell scripts, process managers, CI/CD), see the [CLI Reference - Exit Codes](docs/api/CLI.md#exit-codes).
 
 ## For AI Assistants
 

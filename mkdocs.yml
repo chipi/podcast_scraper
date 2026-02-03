@@ -30,6 +30,9 @@ nav:
       - Documentation Agent Guide: guides/DOCUMENTATION_AGENT_GUIDE.md
       - Troubleshooting: guides/TROUBLESHOOTING.md
       - Segfault Mitigation: guides/SEGFAULT_MITIGATION.md
+      - Experiment Guide: guides/EXPERIMENT_GUIDE.md
+      - Metrics Guide: guides/METRICS_GUIDE.md
+      - Promotion Workflow: guides/PROMOTION_WORKFLOW.md
       - Glossary: guides/GLOSSARY.md
   - Architecture: ARCHITECTURE.md
   - Engineering Process: guides/ENGINEERING_PROCESS.md
@@ -150,6 +153,12 @@ nav:
       - RFC-041 Podcast ML Benchmarking Framework: rfc/RFC-041-podcast-ml-benchmarking-framework.md
       - RFC-042 Hybrid Summarization Pipeline: rfc/RFC-042-hybrid-summarization-pipeline.md
       - RFC-043 Automated Metrics Alerts: rfc/RFC-043-automated-metrics-alerts.md
+      - RFC-044 Model Registry: rfc/RFC-044-model-registry.md
+      - RFC-045 ML Model Optimization Guide: rfc/RFC-045-ml-model-optimization-guide.md
+      - RFC-046 Materialization Architecture: rfc/RFC-046-materialization-architecture.md
+      - RFC-047 Run Comparison Visual Tool: rfc/RFC-047-run-comparison-visual-tool.md
+      - RFC-048 Evaluation Application Alignment: rfc/RFC-048-evaluation-application-alignment.md
+      - RFC ML Models Next Steps: rfc/RFC_ML_Models_Next_Steps_Podcast_Summarization.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
@@ -175,6 +184,12 @@ nav:
       - v2.0.0 - Modular Architecture: releases/RELEASE_v2.0.0.md
       - v1.0.0 - Initial Release: releases/RELEASE_v1.0.0.md
   - Legal Notice: LEGAL.md
+  - Work in Progress:
+      - wip/WIP_README.md
+      - Metrics Gap Analysis: wip/METRICS_GAP_ANALYSIS.md
+      - Remaining Work: wip/REMAINING_WORK.md
+      - Type Hints Analysis: wip/TYPE_HINTS_ANALYSIS.md
+      - AI Quality Implementation Plan: wip/ai-quality-implementation-plan.md
 theme:
   name: material
   features:

@@ -278,6 +278,10 @@ def get_ner_model(cfg: config.Config) -> Optional[Any]:
     Returns:
         Loaded spaCy nlp object or None if model unavailable
     """
+    # Skip model loading in dry-run mode
+    if cfg.dry_run:
+        return None
+
     if not cfg.auto_speakers:
         return None
 

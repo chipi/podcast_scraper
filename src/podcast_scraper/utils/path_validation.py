@@ -80,3 +80,41 @@ def sanitize_model_name(model_name: str) -> str:
         )
 
     return model_name
+
+
+def validate_path_is_safe(
+    path: str,
+    trusted_roots: list[Path],
+    allow_absolute: bool = False,
+) -> bool:
+    """Validate that a path is within trusted root directories.
+
+    Args:
+        path: Path to validate
+        trusted_roots: List of trusted root directories
+        allow_absolute: If True, allow absolute paths outside trusted roots
+                        (with warning). If False, only allow paths within
+                        trusted roots.
+
+    Returns:
+        True if path is safe, False otherwise
+    """
+    try:
+        path_obj = Path(path).resolve()
+    except (OSError, RuntimeError):
+        return False
+
+    # Check if path is within any trusted root
+    for root in trusted_roots:
+        try:
+            path_obj.relative_to(root)
+            return True
+        except ValueError:
+            # Path is not relative to this root, try next
+            continue
+
+    # If allow_absolute is True, allow absolute paths (but they're not "safe")
+    if allow_absolute and path_obj.is_absolute():
+        return True
+
+    return False

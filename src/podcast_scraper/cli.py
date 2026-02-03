@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import (
@@ -302,7 +303,7 @@ def _add_cache_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
-    """Add common arguments to parser.
+    """Add common arguments to parser (Issue #379).
 
     Args:
         parser: Argument parser to add arguments to
@@ -359,10 +360,30 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         help="Logging level (e.g., DEBUG, INFO)",
     )
     parser.add_argument(
+        "--json-logs",
+        action="store_true",
+        dest="json_logs",
+        help="Output structured JSON logs for monitoring/alerting (Issue #379)",
+    )
+    parser.add_argument(
         "--workers",
         type=int,
         default=config.DEFAULT_WORKERS,
         help="Number of concurrent download workers",
+    )
+    parser.add_argument(
+        "--fail-fast",
+        action="store_true",
+        dest="fail_fast",
+        help="Stop on first episode failure (Issue #379)",
+    )
+    parser.add_argument(
+        "--max-failures",
+        type=int,
+        default=None,
+        dest="max_failures",
+        metavar="N",
+        help="Stop after N episode failures (Issue #379)",
     )
 
 
@@ -612,6 +633,19 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         help="Device for summarization (cuda/mps/cpu/auto, default: auto-detect)",
     )
     parser.add_argument(
+        "--mps-exclusive",
+        action="store_true",
+        default=True,
+        dest="mps_exclusive",
+        help="Serialize GPU work on MPS to prevent memory contention (default: enabled)",
+    )
+    parser.add_argument(
+        "--no-mps-exclusive",
+        action="store_false",
+        dest="mps_exclusive",
+        help="Allow concurrent GPU operations on MPS (for systems with sufficient GPU memory)",
+    )
+    parser.add_argument(
         "--summary-chunk-size",
         type=int,
         default=None,
@@ -680,6 +714,170 @@ def _load_and_merge_config(
     return args
 
 
+def _parse_doctor_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse arguments for doctor subcommand (Issue #379).
+
+    Args:
+        argv: Command-line arguments (excluding 'doctor')
+
+    Returns:
+        Parsed arguments
+    """
+    parser = argparse.ArgumentParser(
+        description="Run diagnostic checks on podcast_scraper environment",
+        prog="podcast_scraper doctor",
+    )
+    parser.add_argument(
+        "--check-network",
+        action="store_true",
+        help="Also check network connectivity (optional)",
+    )
+    args = parser.parse_args(argv)
+    return args
+
+
+def _run_doctor_checks(check_network: bool = False) -> int:
+    """Run diagnostic checks (Issue #379).
+
+    Args:
+        check_network: Whether to check network connectivity
+
+    Returns:
+        Exit code (0 = all checks passed, 1 = some checks failed)
+    """
+    import shutil
+    import subprocess
+    import sys
+
+    print("\n" + "=" * 60)
+    print("podcast_scraper Doctor - Diagnostic Checks")
+    print("=" * 60 + "\n")
+
+    all_passed = True
+
+    # Check 1: Python version
+    print("✓ Checking Python version...")
+    python_version = sys.version_info
+    if python_version.major < 3 or (python_version.major == 3 and python_version.minor < 10):
+        print(f"  ✗ Python {python_version.major}.{python_version.minor} is too old")
+        print("    Required: Python 3.10 or higher")
+        all_passed = False
+    else:
+        print(f"  ✓ Python {python_version.major}.{python_version.minor}.{python_version.micro}")
+
+    # Check 2: ffmpeg
+    print("\n✓ Checking ffmpeg...")
+    ffmpeg_path = shutil.which("ffmpeg")
+    if not ffmpeg_path:
+        print("  ✗ ffmpeg not found in PATH")
+        print("    Install: https://ffmpeg.org/download.html")
+        all_passed = False
+    else:
+        try:
+            result = subprocess.run(
+                ["ffmpeg", "-version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                version_line = result.stdout.split("\n")[0]
+                print(f"  ✓ ffmpeg found: {ffmpeg_path}")
+                print(f"    {version_line}")
+            else:
+                print(f"  ✗ ffmpeg found but failed to run: {ffmpeg_path}")
+                all_passed = False
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+            print(f"  ✗ ffmpeg check failed: {e}")
+            all_passed = False
+
+    # Check 3: Write permissions
+    print("\n✓ Checking write permissions...")
+    try:
+        test_dir = Path.home() / ".podcast_scraper_test"
+        test_dir.mkdir(exist_ok=True)
+        test_file = test_dir / "test_write.txt"
+        test_file.write_text("test")
+        test_file.unlink()
+        test_dir.rmdir()
+        print("  ✓ Write permissions OK")
+    except Exception as e:
+        print(f"  ✗ Write permission check failed: {e}")
+        all_passed = False
+
+    # Check 4: Model cache directory
+    print("\n✓ Checking model cache directory...")
+    try:
+        from .cache import manager as cache_manager
+
+        cache_info = cache_manager.get_all_cache_info()
+        cache_dir = cache_info.get("whisper", {}).get("dir")
+        if cache_dir and cache_dir.exists():
+            test_file = cache_dir / ".podcast_scraper_test_write"
+            try:
+                test_file.write_text("test")
+                test_file.unlink()
+                print(f"  ✓ Model cache directory writable: {cache_dir}")
+            except Exception as e:
+                print(f"  ✗ Model cache directory not writable: {e}")
+                all_passed = False
+        else:
+            print("  ⚠ Model cache directory not found (will be created on first use)")
+    except ImportError:
+        print("  ⚠ Cache manager not available (optional)")
+
+    # Check 5: ML dependencies (optional)
+    print("\n✓ Checking ML dependencies...")
+    try:
+        import torch
+
+        print(f"  ✓ PyTorch: {torch.__version__}")
+    except ImportError:
+        print("  ⚠ PyTorch not installed (required for transcription/summarization)")
+
+    try:
+        import transformers
+
+        print(f"  ✓ Transformers: {transformers.__version__}")
+    except ImportError:
+        print("  ⚠ Transformers not installed (required for summarization)")
+
+    try:
+        import whisper
+
+        print(f"  ✓ Whisper: {whisper.__version__}")
+    except ImportError:
+        print("  ⚠ Whisper not installed (required for transcription)")
+
+    try:
+        import spacy
+
+        print(f"  ✓ spaCy: {spacy.__version__}")
+    except ImportError:
+        print("  ⚠ spaCy not installed (required for speaker detection)")
+
+    # Check 6: Network connectivity (optional)
+    if check_network:
+        print("\n✓ Checking network connectivity...")
+        try:
+            import urllib.request
+
+            urllib.request.urlopen("https://www.google.com", timeout=5)
+            print("  ✓ Network connectivity OK")
+        except Exception as e:
+            print(f"  ✗ Network connectivity check failed: {e}")
+            all_passed = False
+
+    # Summary
+    print("\n" + "=" * 60)
+    if all_passed:
+        print("✓ All checks passed!")
+        return 0
+    else:
+        print("✗ Some checks failed. Please fix the issues above.")
+        return 1
+
+
 def _parse_cache_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse cache subcommand arguments.
 
@@ -740,6 +938,14 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         args.command = "cache"  # Mark as cache command
         return args
 
+    # Check if first argument is "doctor" subcommand (Issue #379)
+    if argv and len(argv) > 0 and argv[0] == "doctor":
+        # Handle doctor subcommand
+        doctor_argv = list(argv[1:]) if len(argv) > 1 else []
+        args = _parse_doctor_args(doctor_argv)
+        args.command = "doctor"  # Mark as doctor command
+        return args
+
     # Normal parsing for main command
     parser = argparse.ArgumentParser(
         description="Download podcast episode transcripts from an RSS feed."
@@ -792,7 +998,10 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "run_id": args.run_id,
         "log_level": args.log_level,
         "log_file": args.log_file,
+        "json_logs": getattr(args, "json_logs", False),
         "workers": args.workers,
+        "fail_fast": getattr(args, "fail_fast", False),
+        "max_failures": getattr(args, "max_failures", None),
         "skip_existing": args.skip_existing,
         "reuse_media": args.reuse_media,
         "clean_output": args.clean_output,
@@ -811,6 +1020,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:
         "summary_model": args.summary_model,
         "summary_reduce_model": args.summary_reduce_model,
         "summary_device": args.summary_device,
+        "mps_exclusive": getattr(args, "mps_exclusive", True),
         "summary_batch_size": config.DEFAULT_SUMMARY_BATCH_SIZE,  # Not exposed in CLI yet
         "summary_chunk_size": args.summary_chunk_size,
         "summary_cache_dir": None,  # Not exposed in CLI yet
@@ -950,14 +1160,56 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
     logger.info("=" * 80)
 
 
+def _validate_python_version() -> None:
+    """Validate Python version at startup (Issue #379).
+
+    Raises:
+        SystemExit: If Python version is too old
+    """
+    if sys.version_info < (3, 10):
+        print(
+            f"Error: Python {sys.version_info.major}.{sys.version_info.minor} is not supported.\n"
+            "podcast_scraper requires Python 3.10 or higher.\n"
+            f"Current version: {sys.version}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
+def _validate_ffmpeg() -> None:
+    """Validate ffmpeg is available at startup (Issue #379).
+
+    Raises:
+        SystemExit: If ffmpeg is not found
+    """
+    import shutil
+
+    if not shutil.which("ffmpeg"):
+        print(
+            "Error: ffmpeg is not installed or not in PATH.\n"
+            "ffmpeg is required for audio processing.\n"
+            "Install: https://ffmpeg.org/download.html",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def main(  # noqa: C901 - main function handles multiple command paths
     argv: Optional[Sequence[str]] = None,
     *,
-    apply_log_level_fn: Optional[Callable[[str, Optional[str]], None]] = None,
+    apply_log_level_fn: Optional[Callable[[str, Optional[str], bool], None]] = None,
     run_pipeline_fn: Optional[Callable[[config.Config], Tuple[int, str]]] = None,
     logger: Optional[logging.Logger] = None,
 ) -> int:
     """Entry point for the CLI; returns an exit status code."""
+    # Validate Python version and dependencies at startup (Issue #379)
+    _validate_python_version()
+    # Only validate ffmpeg for main pipeline command, not for cache/doctor subcommands
+    if argv and len(argv) > 0 and argv[0] in ("cache", "doctor"):
+        pass  # Skip ffmpeg check for subcommands
+    else:
+        _validate_ffmpeg()
+
     # Initialize ML environment variables early (before any ML imports)
     setup.initialize_ml_environment()
 
@@ -976,6 +1228,10 @@ def main(  # noqa: C901 - main function handles multiple command paths
     except SystemExit as exc:
         # argparse may call sys.exit() for --help, etc.
         return exc.code if isinstance(exc.code, int) else 0
+
+    # Handle doctor subcommand (Issue #379)
+    if hasattr(args, "command") and args.command == "doctor":
+        return _run_doctor_checks(check_network=args.check_network)
 
     # Handle cache subcommand
     if hasattr(args, "command") and args.command == "cache":
@@ -1137,7 +1393,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
         log.error(f"Invalid configuration: {exc}")
         return 1
 
-    apply_log_level_fn(cfg.log_level, cfg.log_file)
+    apply_log_level_fn(cfg.log_level, cfg.log_file, cfg.json_logs)
 
     log.info("Starting podcast transcript scrape")
     _log_configuration(cfg, log)

@@ -217,8 +217,10 @@ def main() -> int:
             for i, (typ, text) in enumerate(segments, start=1):
                 voice = args.host_voice if typ == "host" else args.guest_voice
                 chunk = text.strip()
-                if i != 1:
-                    chunk = "...\n" + chunk
+                # Removed "...\n" pause marker that was causing OpenAI transcription
+                # to interpret pauses as sentence endings and add periods.
+                # Segments are already separated by being in different audio files,
+                # which will naturally create a brief pause when concatenated.
                 out_aiff = td_path / f"{txt.stem}_{i:03d}_{typ}.aiff"
                 say_to_aiff(chunk, out_aiff, voice=voice, rate=args.rate)
                 aiffs.append(out_aiff)

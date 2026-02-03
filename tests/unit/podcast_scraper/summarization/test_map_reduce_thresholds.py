@@ -7,7 +7,7 @@ Updated to work with refactored code in providers.ml.summarizer module.
 from __future__ import annotations
 
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from podcast_scraper.providers.ml.summarizer import (
     _combine_summaries_reduce,
@@ -18,11 +18,21 @@ from podcast_scraper.providers.ml.summarizer import (
 )
 
 
+def _add_summarize_lock_to_mock(mock_model):
+    """Helper to add _summarize_lock to mock model that supports context manager protocol."""
+    mock_model._summarize_lock = MagicMock()
+    mock_model._summarize_lock.__enter__ = Mock(return_value=None)
+    mock_model._summarize_lock.__exit__ = Mock(return_value=None)
+    return mock_model
+
+
 class TestModelSpecificThresholds(unittest.TestCase):
     """Test model-specific threshold selection and transition zones."""
 
     def _create_led_model_mock(self, max_position: int = 16384):
         """Create a mock model that simulates LED model config."""
+        from unittest.mock import MagicMock
+
         from podcast_scraper.providers.ml.summarizer import SummaryModel
 
         mock_tokenizer = Mock()
@@ -36,10 +46,13 @@ class TestModelSpecificThresholds(unittest.TestCase):
             max_position_embeddings=max_position,  # Code checks this first
             max_encoder_position_embeddings=max_position,
         )
+        _add_summarize_lock_to_mock(mock_model)
         return mock_model, mock_tokenizer
 
     def _create_bart_model_mock(self, max_position: int = 1024):
         """Create a mock model that simulates BART model config."""
+        from unittest.mock import MagicMock
+
         from podcast_scraper.providers.ml.summarizer import SummaryModel
 
         mock_tokenizer = Mock()
@@ -51,6 +64,7 @@ class TestModelSpecificThresholds(unittest.TestCase):
             spec=["max_position_embeddings"],
             max_position_embeddings=max_position,
         )
+        _add_summarize_lock_to_mock(mock_model)
         return mock_model, mock_tokenizer
 
     def setUp(self):

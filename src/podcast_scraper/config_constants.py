@@ -13,6 +13,9 @@ DEFAULT_LOG_LEVEL = "INFO"
 DEFAULT_NUM_SPEAKERS = 2
 DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
 DEFAULT_TIMEOUT_SECONDS = 20
+# Timeout defaults for ML operations (Issue #379)
+DEFAULT_TRANSCRIPTION_TIMEOUT_SECONDS = 1800  # 30 minutes
+DEFAULT_SUMMARIZATION_TIMEOUT_SECONDS = 600  # 10 minutes
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -87,6 +90,15 @@ PROD_DEFAULT_SUMMARY_REDUCE_MODEL = (
 PEGASUS_CNN_DAILYMAIL_REVISION = (
     "40d588fdab0cc077b80d950b300bf66ad3c75b92"  # Pinned commit SHA for reproducibility
 )
+# LED model revisions (Issue #379)
+# TODO: Update with actual commit SHAs from HuggingFace
+# To find:
+#   from huggingface_hub import HfApi
+#   api = HfApi()
+#   model_info = api.model_info("allenai/led-base-16384", revision="main")
+#   commit_hash = model_info.sha
+LED_BASE_16384_REVISION = "main"  # Placeholder - update with actual commit SHA
+LED_LARGE_16384_REVISION = "main"  # Placeholder - update with actual commit SHA
 
 # OpenAI model defaults (Issue #191)
 # Test defaults: cheapest models for dev/testing (minimize API costs)
@@ -148,3 +160,24 @@ DEFAULT_SUMMARY_WORD_CHUNK_SIZE = (
     900  # Per SUMMARY_REVIEW.md: 800-1200 words recommended for encoder-decoder models
 )
 DEFAULT_SUMMARY_WORD_OVERLAP = 150  # Per SUMMARY_REVIEW.md: 100-200 words recommended
+
+# Allowed HuggingFace models (Issue #379)
+# Security: This allowlist prevents config injection and supply chain attacks.
+# Only models in this list can be loaded by the summarizer.
+# To add a new model, update this list and ensure it's from a trusted source.
+ALLOWED_HUGGINGFACE_MODELS = frozenset(
+    [
+        # Facebook models
+        "facebook/bart-large-cnn",
+        "facebook/bart-base",
+        # Google models
+        "google/pegasus-large",
+        "google/pegasus-cnn_dailymail",
+        "google/pegasus-xsum",
+        # AllenAI models
+        "allenai/led-large-16384",
+        "allenai/led-base-16384",
+        # SSHleifer models
+        "sshleifer/distilbart-cnn-12-6",
+    ]
+)

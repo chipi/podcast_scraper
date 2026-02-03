@@ -67,6 +67,7 @@ dev = [
   "interrogate>=1.5.0,<2.0.0",  # Docstring coverage (RFC-031)
   "codespell>=2.2.0,<3.0.0",  # Spell checking (RFC-031)
   "pydeps>=1.12.0,<4.0.0",  # Module dependency visualization (RFC-038, #170)
+  "psutil>=5.9.0,<6.0.0",  # System resource monitoring for test worker calculation and memory analysis
 ]
 # Documentation - see docs/requirements.txt
 
@@ -179,6 +180,9 @@ markers = [
     "critical_path: marks tests as part of the critical path (RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files). These tests run in fast suite regardless of ml_models marker if models are cached.",
     "llm: tests that use LLM APIs (may incur costs or rate limits, includes openai and future providers)",
     "openai: tests that use OpenAI API specifically (subset of llm marker)",
+    "golden: golden tests with known stable episodes for regression testing (Issue #379)",
+    "chaos: chaos tests for error conditions and edge cases (broken RSS, 404, large files, non-English) (Issue #379)",
+    "offline: offline tests with networking disabled (verifies air-gapped operation) (Issue #379)",
     "integration_http: HTTP integration tests (use real HTTP client with test server, not external network)",
     "infrastructure: tests for test infrastructure itself (pytest markers, Makefile, CI config)",
     "serial: marks tests that must run sequentially (not in parallel) due to resource conflicts or race conditions",

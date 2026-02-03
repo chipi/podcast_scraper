@@ -322,6 +322,22 @@ class Config(BaseModel):
     max_episodes: Optional[int] = Field(default=None, alias="max_episodes")
     user_agent: str = Field(default=DEFAULT_USER_AGENT, alias="user_agent")
     timeout: int = Field(default=DEFAULT_TIMEOUT_SECONDS, alias="timeout")
+    transcription_timeout: Optional[int] = Field(
+        default=config_constants.DEFAULT_TRANSCRIPTION_TIMEOUT_SECONDS,
+        alias="transcription_timeout",
+        description=(
+            "Timeout in seconds for transcription operations (default: 1800 = 30 minutes). "
+            "Set to None to disable timeout. Prevents hangs on very long audio files."
+        ),
+    )
+    summarization_timeout: Optional[int] = Field(
+        default=config_constants.DEFAULT_SUMMARIZATION_TIMEOUT_SECONDS,
+        alias="summarization_timeout",
+        description=(
+            "Timeout in seconds for summarization operations (default: 600 = 10 minutes). "
+            "Set to None to disable timeout. Prevents hangs on very long transcripts."
+        ),
+    )
     delay_ms: int = Field(default=0, alias="delay_ms")
     prefer_types: List[str] = Field(default_factory=list, alias="prefer_type")
     transcribe_missing: bool = Field(default=True, alias="transcribe_missing")
@@ -339,7 +355,22 @@ class Config(BaseModel):
         description="Path to log file (logs will be written to both console and file). "
         "Can be set via LOG_FILE environment variable.",
     )
+    json_logs: bool = Field(
+        default=False,
+        alias="json_logs",
+        description="Output structured JSON logs for monitoring/alerting (Issue #379)",
+    )
     workers: int = Field(default=DEFAULT_WORKERS, alias="workers")
+    fail_fast: bool = Field(
+        default=False,
+        alias="fail_fast",
+        description="Stop on first episode failure (Issue #379)",
+    )
+    max_failures: Optional[int] = Field(
+        default=None,
+        alias="max_failures",
+        description="Stop after N episode failures (Issue #379). None = no limit.",
+    )
     skip_existing: bool = Field(default=False, alias="skip_existing")
     clean_output: bool = Field(default=False, alias="clean_output")
     reuse_media: bool = Field(
@@ -502,6 +533,17 @@ class Config(BaseModel):
         "falls back to summary_model when not set.",
     )
     summary_device: Optional[str] = Field(default=None, alias="summary_device")
+    mps_exclusive: bool = Field(
+        default=True,
+        alias="mps_exclusive",
+        description=(
+            "Serialize GPU work on MPS to prevent memory contention between "
+            "Whisper transcription and summarization (default: True). "
+            "When enabled and both Whisper and summarization use MPS, "
+            "transcription completes before summarization starts. "
+            "I/O operations (downloads, parsing) remain parallel."
+        ),
+    )
     summary_batch_size: int = Field(
         default=DEFAULT_SUMMARY_BATCH_SIZE,
         alias="summary_batch_size",
@@ -891,6 +933,17 @@ class Config(BaseModel):
                 env_value = str(env_device).strip().lower()
                 if env_value in ("cpu", "cuda", "mps"):
                     data["whisper_device"] = env_value
+
+        # MPS_EXCLUSIVE: Only set from env if not in config
+        if "mps_exclusive" not in data:
+            env_mps_exclusive = os.getenv("MPS_EXCLUSIVE")
+            if env_mps_exclusive:
+                env_value = str(env_mps_exclusive).strip().lower()
+                # Support various boolean representations
+                if env_value in ("1", "true", "yes", "on"):
+                    data["mps_exclusive"] = True
+                elif env_value in ("0", "false", "no", "off"):
+                    data["mps_exclusive"] = False
 
         # OPENAI_API_KEY: Only set from env if not in config
         if "openai_api_key" not in data or data.get("openai_api_key") is None:

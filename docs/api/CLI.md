@@ -61,6 +61,8 @@ python -m podcast_scraper.cli --config config.yaml
 - `--no-transcribe-missing` - Disable automatic transcription
 - `--whisper-model MODEL` - Whisper model to use (tiny, base, small, medium, large)
 - `--whisper-device DEVICE` - Device for Whisper (cuda/mps/cpu/auto, default: auto-detect)
+- `--mps-exclusive` - Serialize GPU work on MPS to prevent memory contention (default: enabled)
+- `--no-mps-exclusive` - Allow concurrent GPU operations on MPS (for systems with sufficient GPU memory)
 - `--screenplay` - Format Whisper output as screenplay
 - `--num-speakers N` - Number of speakers (default: 2)
 - `--speaker-names NAMES` - Comma-separated speaker names
@@ -94,6 +96,12 @@ python -m podcast_scraper.cli --config config.yaml
 - `--dry-run` - Preview without writing files
 - `--skip-existing` - Skip episodes with existing output
 - `--clean-output` - Remove output directory before processing
+- `--fail-fast` - Stop on first episode failure (Issue #379)
+- `--max-failures N` - Stop after N episode failures (Issue #379)
+
+### Logging Options
+
+- `--json-logs` - Output structured JSON logs for monitoring/alerting (Issue #379)
 
 ## Configuration Files
 
@@ -103,10 +111,77 @@ The CLI supports JSON and YAML configuration files:
 python -m podcast_scraper.cli --config config.json
 ```
 
-## Exit Codes
+## Diagnostic Commands (Issue #379)
 
-- `0` - Success
-- `1` - Error (invalid config, network failure, etc.)
+### `doctor` Command
+
+The `doctor` command validates your environment and dependencies:
+
+```bash
+python -m podcast_scraper.cli doctor
+```
+
+**Checks performed:**
+
+- Python version (must be 3.10+)
+- `ffmpeg` availability (required for Whisper transcription)
+- Write permissions (output directory)
+- ML model cache status (Whisper, Transformers, spaCy)
+- Network connectivity (optional, with `--verbose`)
+
+**Example output:**
+
+```text
+✓ Checking Python version...
+  ✓ Python 3.11.9 (required: 3.10+)
+
+✓ Checking ffmpeg...
+  ✓ ffmpeg version 6.0
+
+✓ Checking write permissions...
+  ✓ Output directory is writable
+
+✓ Checking ML model caches...
+  ✓ Whisper: 2 models cached (245 MB)
+  ✓ Transformers: 3 models cached (1.2 GB)
+  ✓ spaCy: 1 model cached (45 MB)
+
+✓ All checks passed!
+```
+
+**Exit codes:**
+
+- `0` - All checks passed
+- `1` - Some checks failed
+
+## Exit Codes (Issue #379)
+
+The CLI uses standard exit codes for automation and scripting:
+
+- **0**: Success (pipeline completed successfully, even if some episodes failed)
+- **1**: Failure (run-level error: invalid config, missing dependencies, fatal errors)
+
+**Exit Code Policy:**
+
+- Exit code 0 is returned when the pipeline completes, even if individual episodes fail
+- Exit code 1 is only returned for run-level failures (invalid configuration, missing dependencies, fatal errors)
+- Episode-level failures are tracked in metrics and do not affect exit code unless `--fail-fast` or `--max-failures` is used
+
+**Examples:**
+
+```bash
+# Success: pipeline completed, 5 episodes processed, 2 failed
+podcast_scraper --rss https://example.com/feed.xml
+echo $?  # 0
+
+# Failure: invalid RSS URL
+podcast_scraper --rss invalid-url
+echo $?  # 1
+
+# Failure: missing ffmpeg
+podcast_scraper --rss https://example.com/feed.xml
+echo $?  # 1 (dependency check failed)
+```
 
 ## Examples
 

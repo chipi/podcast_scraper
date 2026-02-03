@@ -167,7 +167,7 @@ class TestSummarizationInitializationFailure(unittest.TestCase):
             TranscriptionResources,
         )
 
-        mock_setup_env.return_value = (self.output_dir, None)
+        mock_setup_env.return_value = (self.output_dir, None, None)
         mock_fetch_feed.return_value = (Mock(), b"<rss></rss>")
         mock_extract_metadata.return_value = FeedMetadata(None, None, None)
         mock_prepare_episodes.return_value = []
@@ -318,7 +318,7 @@ class TestSummarizationInitializationFailure(unittest.TestCase):
             TranscriptionResources,
         )
 
-        mock_setup_env.return_value = (self.output_dir, None)
+        mock_setup_env.return_value = (self.output_dir, None, None)
         mock_fetch_feed.return_value = (Mock(), b"<rss></rss>")
         mock_extract_metadata.return_value = FeedMetadata(None, None, None)
         mock_prepare_episodes.return_value = []

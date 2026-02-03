@@ -27,6 +27,16 @@ make backup-cache-list       # List available backups
 
 ---
 
+## Diagnostic Commands (Issue #379)
+
+```bash
+# Run diagnostic checks
+python -m podcast_scraper.cli doctor
+
+# Include network connectivity check
+python -m podcast_scraper.cli doctor --verbose
+```
+
 ## Daily Development
 
 ```bash

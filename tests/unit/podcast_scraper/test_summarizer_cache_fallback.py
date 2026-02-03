@@ -65,7 +65,12 @@ class TestSummaryModelCacheFallback(unittest.TestCase):
             model = summarizer.SummaryModel(
                 model_name=config.TEST_DEFAULT_SUMMARY_MODEL, cache_dir=tmp_dir
             )
-            self.assertEqual(model.cache_dir, tmp_dir)
+            # Compare resolved paths since validate_cache_path resolves the path
+            # (on macOS, /var resolves to /private/var)
+            from pathlib import Path
+
+            expected = str(Path(tmp_dir).resolve())
+            self.assertEqual(model.cache_dir, expected)
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")

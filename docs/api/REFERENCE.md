@@ -35,7 +35,8 @@ def run_pipeline(cfg: Config) -> Tuple[int, str]
 4. Preprocess audio files if enabled (reduce size, remove silence, normalize)
 5. Transcribe media files using Whisper if needed
 6. Generate metadata and summaries if enabled
-7. Clean up temporary files
+7. Generate run tracking files (run.json, index.json, run_manifest.json, metrics.json) (Issue #379)
+8. Clean up temporary files
 
 **Parameters:**
 
@@ -153,6 +154,14 @@ class Config(BaseModel)
 
 - `log_level` (`str`, default: `"INFO"`, alias: `"log_level"`): Logging level (`"DEBUG"`, `"INFO"`, `"WARNING"`, `"ERROR"`, `"CRITICAL"`).
 - `log_file` (`Optional[str]`, default: `None`, alias: `"log_file"`): Path to log file. If provided, logs are written to both console and file.
+- `json_logs` (`bool`, default: `False`, alias: `"json_logs"`): Output structured JSON logs for monitoring/alerting (Issue #379).
+
+#### Operational Control (Issue #379)
+
+- `fail_fast` (`bool`, default: `False`, alias: `"fail_fast"`): Stop pipeline on first episode failure.
+- `max_failures` (`Optional[int]`, default: `None`, alias: `"max_failures"`): Stop pipeline after N episode failures. `None` means no limit.
+- `transcription_timeout` (`Optional[int]`, default: `None`, alias: `"transcription_timeout"`): Timeout in seconds for transcription operations. `None` means no timeout.
+- `summarization_timeout` (`Optional[int]`, default: `None`, alias: `"summarization_timeout"`): Timeout in seconds for summarization operations. `None` means no timeout.
 
 **Validation:**
 

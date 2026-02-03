@@ -315,6 +315,8 @@ class TestFinish(unittest.TestCase):
             "avg_preprocessing_size_reduction_percent",
             "preprocessing_cache_hits",
             "preprocessing_cache_misses",
+            "schema_version",
+            "episode_statuses",
         }
         self.assertEqual(set(result.keys()), expected_keys)
 

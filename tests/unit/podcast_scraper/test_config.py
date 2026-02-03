@@ -245,6 +245,27 @@ class TestValidationEdgeCases(unittest.TestCase):
         )
         self.assertTrue(cfg.preload_models)
 
+    def test_mps_exclusive_default(self):
+        """Test that mps_exclusive defaults to True."""
+        cfg = Config(rss_url="https://example.com/feed.xml")
+        self.assertTrue(cfg.mps_exclusive)
+
+    def test_mps_exclusive_can_be_disabled(self):
+        """Test that mps_exclusive can be set to False."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            mps_exclusive=False,
+        )
+        self.assertFalse(cfg.mps_exclusive)
+
+    def test_mps_exclusive_can_be_enabled(self):
+        """Test that mps_exclusive can be set to True."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            mps_exclusive=True,
+        )
+        self.assertTrue(cfg.mps_exclusive)
+
 
 class TestConfigFieldValidators(unittest.TestCase):
     """Tests for Config field validators."""

@@ -182,3 +182,26 @@ class ProviderNotInitializedError(ProviderError):
             provider=provider,
             suggestion="Call initialize() before using the provider",
         )
+
+
+class RecoverableSummarizationError(Exception):
+    """Raised when summarization fails but processing can continue.
+
+    This exception indicates that summarization failed due to a known
+    recoverable issue (e.g., tokenizer threading errors in parallel execution),
+    and metadata generation should continue without the summary rather than
+    failing the entire episode.
+
+    Attributes:
+        episode_idx: Index of the episode that failed summarization
+        reason: Reason for the recoverable failure
+    """
+
+    def __init__(self, episode_idx: int, reason: str) -> None:
+        self.episode_idx = episode_idx
+        self.reason = reason
+        message = (
+            f"[{episode_idx}] Summarization failed (recoverable): {reason}. "
+            "Metadata generation will continue without summary."
+        )
+        super().__init__(message)

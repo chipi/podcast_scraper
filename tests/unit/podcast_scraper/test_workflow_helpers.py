@@ -474,7 +474,7 @@ class TestSetupPipelineEnvironment(unittest.TestCase):
                 summary_provider="transformers",  # This will create a suffix
             )
 
-            effective_output_dir, run_suffix = setup_pipeline_environment(cfg)
+            effective_output_dir, run_suffix, full_config_string = setup_pipeline_environment(cfg)
 
             # run_suffix will include provider info (e.g., "sp_spacy_sm")
             self.assertIsNotNone(run_suffix)
@@ -500,7 +500,7 @@ class TestSetupPipelineEnvironment(unittest.TestCase):
                 summary_provider="transformers",
             )
 
-            effective_output_dir, run_suffix = setup_pipeline_environment(cfg)
+            effective_output_dir, run_suffix, full_config_string = setup_pipeline_environment(cfg)
 
             self.assertIn("test_run", effective_output_dir)
             # run_suffix will be "test_run" + provider suffix (e.g., "test_run_sp_spacy_sm")

@@ -27,6 +27,16 @@ except ImportError:
     summarizer = types.ModuleType("summarizer")  # type: ignore[assignment]
 
 
+def _add_summarize_lock_to_mock(mock_model):
+    """Helper to add _summarize_lock to mock model that supports context manager protocol."""
+    from unittest.mock import MagicMock
+
+    mock_model._summarize_lock = MagicMock()
+    mock_model._summarize_lock.__enter__ = Mock(return_value=None)
+    mock_model._summarize_lock.__exit__ = Mock(return_value=None)
+    return mock_model
+
+
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestChunkTextWords(unittest.TestCase):
     """Tests for chunk_text_words function."""
@@ -420,6 +430,7 @@ class TestCheckIfNeedsChunking(unittest.TestCase):
         mock_model = Mock()
         mock_model.tokenizer = mock_tokenizer
         mock_model.summarize.return_value = "Summary text"
+        _add_summarize_lock_to_mock(mock_model)
 
         result = summarizer._check_if_needs_chunking(
             model=mock_model,
@@ -445,6 +456,7 @@ class TestCheckIfNeedsChunking(unittest.TestCase):
 
         mock_model = Mock()
         mock_model.tokenizer = mock_tokenizer
+        _add_summarize_lock_to_mock(mock_model)
 
         result = summarizer._check_if_needs_chunking(
             model=mock_model,
@@ -494,6 +506,7 @@ class TestPrepareChunks(unittest.TestCase):
 
         mock_model = Mock()
         mock_model.tokenizer = mock_tokenizer
+        _add_summarize_lock_to_mock(mock_model)
 
         chunks, effective_chunk_size = summarizer._prepare_chunks(
             model=mock_model,
@@ -520,6 +533,7 @@ class TestPrepareChunks(unittest.TestCase):
 
         mock_model = Mock()
         mock_model.tokenizer = mock_tokenizer  # Still needs tokenizer
+        _add_summarize_lock_to_mock(mock_model)
 
         text = " ".join(["word"] * 200)  # 200 words
         chunks, effective_chunk_size = summarizer._prepare_chunks(
@@ -553,6 +567,7 @@ class TestSummarizeChunksMap(unittest.TestCase):
         mock_tokenizer = Mock()
         mock_tokenizer.encode.return_value = [1, 2, 3, 4, 5]  # Return list for len()
         mock_model.tokenizer = mock_tokenizer
+        _add_summarize_lock_to_mock(mock_model)
 
         chunks = ["Chunk 1", "Chunk 2", "Chunk 3"]
 
@@ -587,6 +602,7 @@ class TestSummarizeChunksMap(unittest.TestCase):
         mock_tokenizer = Mock()
         mock_tokenizer.encode.return_value = [1, 2, 3, 4, 5]  # Return list for len()
         mock_model.tokenizer = mock_tokenizer
+        _add_summarize_lock_to_mock(mock_model)
 
         chunks = ["Chunk 1", "Chunk 2"]
 
@@ -645,6 +661,7 @@ class TestCombineSummariesReduce(unittest.TestCase):
             max_position_embeddings=1024,
         )
         mock_model.summarize.return_value = "Final summary"
+        _add_summarize_lock_to_mock(mock_model)
 
         chunk_summaries = ["Summary 1", "Summary 2"]
 
@@ -679,6 +696,12 @@ class TestCombineSummariesReduce(unittest.TestCase):
             max_position_embeddings=1024,
         )
         mock_model.summarize.return_value = "Extracted summary"
+        # Add _summarize_lock that supports context manager protocol
+        from unittest.mock import MagicMock
+
+        mock_model._summarize_lock = MagicMock()
+        mock_model._summarize_lock.__enter__ = Mock(return_value=None)
+        mock_model._summarize_lock.__exit__ = Mock(return_value=None)
 
         chunk_summaries = [f"Summary {i}" for i in range(20)]  # Many summaries
 

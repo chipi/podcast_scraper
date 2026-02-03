@@ -288,9 +288,22 @@ class TestTransformersProviderRealModel(unittest.TestCase):
         from podcast_scraper.providers.ml import summarizer
         from podcast_scraper.summarization.factory import create_summarization_provider
 
-        # Require model to be cached (fail fast if not)
+        # Require model to be cached (skip if not, to avoid network downloads)
         model_name = summarizer.select_summary_model(self.cfg)
         require_transformers_model_cached(model_name, None)
+
+        # Also check for REDUCE model if it might be used for long transcripts
+        reduce_model_name = summarizer.select_reduce_model(self.cfg, model_name)
+        if reduce_model_name != model_name:  # Only check if different from MAP model
+            from tests.integration.ml_model_cache_helpers import _is_transformers_model_cached
+
+            if not _is_transformers_model_cached(reduce_model_name, None):
+                pytest.skip(
+                    f"REDUCE model '{reduce_model_name}' is not cached. "
+                    f"Run 'make preload-ml-models' to pre-cache all required models. "
+                    f"This test requires cached models to avoid network downloads "
+                    f"(which violates integration test rules)."
+                )
 
         # Create provider (real factory)
         provider = create_summarization_provider(self.cfg)
@@ -378,22 +391,27 @@ class TestAllProvidersRealModels(unittest.TestCase):
         from podcast_scraper.summarization.factory import create_summarization_provider
         from podcast_scraper.transcription.factory import create_transcription_provider
 
-        # Require all models to be cached (fail fast if not)
+        # Require all models to be cached (skip if not, to avoid network downloads)
         require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
         model_name = summarizer.select_summary_model(self.cfg)
-        # Skip if Transformers model is not cached (cache detection may have false negatives)
-        # This prevents the test from failing when network is blocked
-        from tests.integration.ml_model_cache_helpers import _is_transformers_model_cached
+        require_transformers_model_cached(model_name, None)
 
-        if not _is_transformers_model_cached(model_name, None):
-            import pytest
+        # Also check for REDUCE model if it might be used
+        # REDUCE model is used for long transcripts, but we check it here to ensure
+        # the test doesn't fail if the summarization provider tries to use it
+        reduce_model_name = summarizer.select_reduce_model(self.cfg, model_name)
+        if reduce_model_name != model_name:  # Only check if different from MAP model
+            from tests.integration.ml_model_cache_helpers import _is_transformers_model_cached
 
-            pytest.skip(
-                f"Transformers model '{model_name}' is not cached. "
-                f"Run 'make preload-ml-models' to pre-cache all required models. "
-                f"This test requires cached models to avoid network downloads "
-                f"(which violates integration test rules)."
-            )
+            if not _is_transformers_model_cached(reduce_model_name, None):
+                import pytest
+
+                pytest.skip(
+                    f"REDUCE model '{reduce_model_name}' is not cached. "
+                    f"Run 'make preload-ml-models' to pre-cache all required models. "
+                    f"This test requires cached models to avoid network downloads "
+                    f"(which violates integration test rules)."
+                )
 
         # Create all providers (real factories)
         transcription_provider = create_transcription_provider(self.cfg)
@@ -500,15 +518,24 @@ class TestAllProvidersRealModels(unittest.TestCase):
         # Require all models to be cached (skip if not, to avoid network downloads)
         # This check ensures models exist in cache before we try to load them.
         # If models aren't cached, skip with helpful message to run 'make preload-ml-models'.
-        try:
-            require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
-            model_name = summarizer.select_summary_model(self.cfg)
-            require_transformers_model_cached(model_name, None)
-        except AssertionError as e:
-            pytest.skip(
-                f"Models not cached: {e}. "
-                f"Run 'make preload-ml-models' to cache models before running this test."
-            )
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
+        model_name = summarizer.select_summary_model(self.cfg)
+        require_transformers_model_cached(model_name, None)
+
+        # Also check for REDUCE model if it might be used
+        # REDUCE model is used for long transcripts, but we check it here to ensure
+        # the test doesn't fail if the summarization provider tries to use it
+        reduce_model_name = summarizer.select_reduce_model(self.cfg, model_name)
+        if reduce_model_name != model_name:  # Only check if different from MAP model
+            from tests.integration.ml_model_cache_helpers import _is_transformers_model_cached
+
+            if not _is_transformers_model_cached(reduce_model_name, None):
+                pytest.skip(
+                    f"REDUCE model '{reduce_model_name}' is not cached. "
+                    f"Run 'make preload-ml-models' to pre-cache all required models. "
+                    f"This test requires cached models to avoid network downloads "
+                    f"(which violates integration test rules)."
+                )
 
         # Get transcript from fixtures
         fixture_root = Path(__file__).parent.parent / "fixtures"

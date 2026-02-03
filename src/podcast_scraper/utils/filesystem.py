@@ -105,7 +105,12 @@ def write_file(path: str, data: bytes, pipeline_metrics=None) -> None:
 
 
 def validate_and_normalize_output_dir(path: str) -> str:
-    """Validate an output directory path and return an absolute, normalized version."""
+    """Validate and normalize output directory path.
+
+    Uses path validation to ensure the path is safe (Issue #379).
+    """
+    from .path_validation import validate_path_is_safe
+
     if not path or not path.strip():
         raise ValueError("Output directory path cannot be empty")
 
@@ -115,13 +120,13 @@ def validate_and_normalize_output_dir(path: str) -> str:
     except (OSError, RuntimeError) as exc:
         raise ValueError(f"Invalid output directory path: {path} ({exc})")
 
-    safe_roots = {Path.cwd().resolve(), Path.home().resolve(), *_PLATFORMDIR_SAFE_ROOTS}
-    if any(resolved == root or resolved.is_relative_to(root) for root in safe_roots):
-        return str(resolved)
+    # Use path validation to check if path is safe
+    safe_roots = [Path.cwd().resolve(), Path.home().resolve(), *_PLATFORMDIR_SAFE_ROOTS]
+    if not validate_path_is_safe(str(resolved), trusted_roots=safe_roots, allow_absolute=True):
+        logger.warning(
+            f"Output directory {resolved} is outside recommended locations (home or app data)."
+        )
 
-    logger.warning(
-        f"Output directory {resolved} is outside recommended locations (home or app data)."
-    )
     return str(resolved)
 
 
@@ -227,7 +232,7 @@ def _build_provider_model_suffix(cfg: config.Config) -> Optional[str]:
     return "_".join(parts)
 
 
-def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str]]:
+def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str], Optional[str]]:
     """Derive the effective output directory and run suffix for a configuration.
 
     Creates the output directory structure with transcripts/ and metadata/ subdirectories.
@@ -239,32 +244,46 @@ def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str]]:
     - output_dir/transcripts/
     - output_dir/metadata/
 
-    The run_suffix includes all providers and models used:
-    - Transcription: provider + model (e.g., "w_base.en" for whisper, "oa_whisper-1" for openai)
-    - Summarization: provider + models (e.g., "tf_bart-large-cnn" for transformers)
-    - Speaker detection: provider + model (e.g., "sp_en_core_web_sm" for spacy)
+    The run_suffix uses a short hash-based format (Issue #380):
+    - Format: run_<timestamp>_<8-char-hash>
+    - Hash is derived from SHA256 of full provider/model config string
+    - Full config string is stored in run_manifest.json for reproducibility
 
     If a directory with the same name already exists and clean_output is False,
     a counter is appended to make it unique (e.g., run_<suffix>_1, run_<suffix>_2).
+
+    Returns:
+        Tuple of (effective_output_dir, run_suffix, full_config_string)
+        - effective_output_dir: Full path to output directory
+        - run_suffix: Short hash-based suffix for directory name
+        - full_config_string: Full provider/model config string (for manifest)
     """
+    import hashlib
+
+    # Build full provider/model config string
+    full_config_string = _build_provider_model_suffix(cfg)
+
+    # Generate short hash-based suffix (Issue #380)
     run_suffix: Optional[str] = None
+    timestamp = time.strftime(TIMESTAMP_FORMAT)
 
-    # Start with run_id if provided
+    if full_config_string:
+        # Generate 8-character hash from full config string
+        config_hash = hashlib.sha256(full_config_string.encode("utf-8")).hexdigest()[:8]
+        run_suffix = f"{timestamp}_{config_hash}"
+    else:
+        # No ML features, use timestamp only
+        run_suffix = timestamp
+
+    # Prepend run_id if provided
     if cfg.run_id:
-        run_suffix = (
-            time.strftime(TIMESTAMP_FORMAT)
-            if cfg.run_id.lower() == "auto"
-            else sanitize_filename(cfg.run_id)
-        )
-
-    # Build provider/model suffix
-    provider_suffix = _build_provider_model_suffix(cfg)
-
-    if provider_suffix:
-        if run_suffix:
-            run_suffix = f"{run_suffix}_{provider_suffix}"
+        if cfg.run_id.lower() == "auto":
+            # run_id="auto" already handled by timestamp above
+            pass
         else:
-            run_suffix = provider_suffix
+            # Prepend user-provided run_id to the hash-based suffix
+            run_id_safe = sanitize_filename(cfg.run_id)
+            run_suffix = f"{run_id_safe}_{run_suffix}"
 
     output_dir = cfg.output_dir
     if output_dir is None:
@@ -302,7 +321,7 @@ def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str]]:
     os.makedirs(transcripts_dir, exist_ok=True)
     os.makedirs(metadata_dir, exist_ok=True)
 
-    return effective_output_dir, run_suffix
+    return effective_output_dir, run_suffix, full_config_string
 
 
 def truncate_whisper_title(

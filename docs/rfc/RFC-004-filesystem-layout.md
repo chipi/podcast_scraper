@@ -38,7 +38,13 @@ Without consistent naming and directory policies, transcript archives become har
 5. **Whisper outputs**
    - `filesystem.build_whisper_output_name` truncates titles (32 chars) and appends run suffix when available.
    - Temporary media stored in `<effective_output_dir>/.tmp_media/` and removed post-transcription.
-6. **Cleanup semantics**
+6. **Run tracking files** (Issue #379)
+   - `run.json` - Top-level run summary combining run manifest and pipeline metrics (created at pipeline end)
+   - `index.json` - Episode index listing all processed episodes with status, paths, and error information (created at pipeline end)
+   - `run_manifest.json` - Comprehensive run manifest capturing system state for reproducibility (created at pipeline start, saved at pipeline end)
+   - `metrics.json` - Pipeline metrics including episode statuses, stage timings, and performance data (created at pipeline end)
+   - All files are written to `<effective_output_dir>/` and include schema versioning for forward compatibility.
+7. **Cleanup semantics**
    - `--clean-output` triggers deletion of existing output directory if not in dry-run mode.
    - Best-effort removal of temp directories even on errors (warnings if removal fails).
 

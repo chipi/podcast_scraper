@@ -16,8 +16,35 @@ Common issues and solutions for podcast_scraper development and usage.
 | Import errors after pull | Dependencies changed | `pip install -e ".[dev,ml]"` |
 | Tests hang with `-s` flag | tqdm + parallel execution deadlock | Use `-v` instead, or `-n 0` |
 | OpenAI episodes skipped | Audio file size > 25MB | Use local Whisper or compress audio |
+| Pipeline hangs on transcription | No timeout configured | Set `transcription_timeout` in config |
+| Pipeline hangs on summarization | No timeout configured | Set `summarization_timeout` in config |
+| Need structured logs | Default logging format | Use `--json-logs` flag |
+| Want to stop on first failure | Default continues on errors | Use `--fail-fast` flag |
+| Want to limit failures | Default has no limit | Use `--max-failures N` flag |
 
 ---
+
+## Diagnostic Commands (Issue #379)
+
+The `doctor` command helps diagnose common issues:
+
+```bash
+# Run all diagnostic checks
+python -m podcast_scraper.cli doctor
+
+# Include network connectivity check
+python -m podcast_scraper.cli doctor --verbose
+```
+
+**Checks performed:**
+
+- Python version (must be 3.10+)
+- `ffmpeg` availability (required for Whisper transcription)
+- Write permissions (output directory)
+- ML model cache status (Whisper, Transformers, spaCy)
+- Network connectivity (optional, with `--verbose`)
+
+If any check fails, the command exits with code 1 and provides guidance on how to fix the issue.
 
 ## ML Dependencies
 
@@ -98,7 +125,22 @@ pip install -e ".[dev,ml]"
 
 - Multiple tests loading same models in parallel
 - Large models (LED, BART) consuming GPU/CPU memory
+- GPU memory contention when both Whisper and summarization use MPS simultaneously
 - Too many parallel workers for available RAM
+
+**MPS Memory Contention (Apple Silicon):**
+
+If you're experiencing crashes or memory errors on Apple Silicon when both Whisper and summarization use MPS:
+
+```bash
+# Enable MPS exclusive mode (default, but verify it's enabled)
+export MPS_EXCLUSIVE=1
+
+# Or in config file
+# mps_exclusive: true
+```
+
+This serializes GPU work so transcription completes before summarization starts, preventing both models from competing for GPU memory. I/O operations (downloads, parsing) remain parallel.
 
 **Memory estimates per test type:**
 
@@ -120,11 +162,19 @@ export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 
 **Parallelism configuration:**
 
-The Makefile uses a dynamic formula: `min(max(1, cpu_count - 2), 8)`
+The Makefile uses a memory-aware calculation that considers both available RAM and CPU:
 
-- Reserves 2 cores for system
-- Caps at 8 to prevent memory exhaustion
+- **Memory-aware**: Calculates workers based on available memory and memory per worker
+  - Unit tests: ~100 MB per worker
+  - Integration tests: ~1.5 GB per worker (ML models)
+  - E2E tests: ~2 GB per worker (full pipeline)
+- **CPU-based limit**: Reserves 2 cores for system, caps at 8 workers
+- **Platform-aware**: More conservative on macOS (reduces workers by 1)
+- **System reserve**: Reserves 4 GB for system operations
 - Override with `PYTEST_WORKERS=N` environment variable
+
+The calculation uses `scripts/tools/calculate_test_workers.py` which automatically
+selects the optimal number of workers based on your system's available resources.
 
 **Memory analysis script:**
 

@@ -126,6 +126,7 @@ ner_model: en_core_web_trf  # spaCy model name. Options: "en_core_web_trf" (defa
 generate_summaries: true
 summary_model: pegasus-cnn  # Transformers model alias. Options: "pegasus-cnn" (default/prod), "bart-small" (dev), "bart-large", "fast", "pegasus", "long", "long-fast"
 summary_device: cpu  # or "cuda", "mps"
+mps_exclusive: true  # Serialize GPU work on MPS to prevent memory contention (default: true)
 ```
 
 **JSON format:**

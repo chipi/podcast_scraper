@@ -252,9 +252,19 @@ class TestSetupOutputDirectory(unittest.TestCase):
             auto_speakers=False,  # Disable to test run_id only
             generate_summaries=False,  # Disable to test run_id only
         )
-        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        self.assertIn(f"run_{TEST_RUN_ID}", output_dir)
-        self.assertEqual(run_suffix, TEST_RUN_ID)
+        output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        # New format: run_<run_id>_<timestamp> or run_<run_id>_<timestamp>_<hash> (if ML features)
+        import re
+
+        # Pattern matches: run_<run_id>_<timestamp> or run_<run_id>_<timestamp>_<hash>
+        self.assertRegex(
+            output_dir,
+            rf"run_{re.escape(TEST_RUN_ID)}_\d{{8}}-\d{{6}}(_[a-f0-9]{{8}})?",
+        )
+        self.assertIsNotNone(run_suffix)
+        self.assertIn(TEST_RUN_ID, run_suffix or "")
+        # No ML features in this test, so no full_config_string
+        self.assertIsNone(full_config_string)
 
     def test_with_duplicate_directory_counter(self):
         """Test that duplicate directories get a counter appended."""
@@ -278,23 +288,34 @@ class TestSetupOutputDirectory(unittest.TestCase):
             auto_speakers=False,
             generate_summaries=False,
         )
-        # First call - should create run_test_run
-        output_dir1, run_suffix1 = filesystem.setup_output_directory(cfg)
-        self.assertIn(f"run_{TEST_RUN_ID}", output_dir1)
-        self.assertEqual(run_suffix1, TEST_RUN_ID)
+        # First call - should create run_<run_id>_<timestamp>
+        output_dir1, run_suffix1, _ = filesystem.setup_output_directory(cfg)
+        import re
+
+        self.assertRegex(
+            output_dir1, rf"run_{re.escape(TEST_RUN_ID)}_\d{{8}}-\d{{6}}(_[a-f0-9]{{8}})?"
+        )
+        self.assertIsNotNone(run_suffix1)
+        self.assertIn(TEST_RUN_ID, run_suffix1 or "")
         self.assertTrue(os.path.exists(output_dir1))
 
-        # Second call - should create run_test_run_1
-        output_dir2, run_suffix2 = filesystem.setup_output_directory(cfg)
-        self.assertIn(f"run_{TEST_RUN_ID}_1", output_dir2)
-        self.assertEqual(run_suffix2, f"{TEST_RUN_ID}_1")
+        # Second call - should create run_<run_id>_<timestamp>_1
+        output_dir2, run_suffix2, _ = filesystem.setup_output_directory(cfg)
+        self.assertRegex(
+            output_dir2, rf"run_{re.escape(TEST_RUN_ID)}_\d{{8}}-\d{{6}}(_[a-f0-9]{{8}})?_1"
+        )
+        self.assertIsNotNone(run_suffix2)
+        self.assertIn("_1", run_suffix2 or "")
         self.assertTrue(os.path.exists(output_dir2))
         self.assertNotEqual(output_dir1, output_dir2)
 
-        # Third call - should create run_test_run_2
-        output_dir3, run_suffix3 = filesystem.setup_output_directory(cfg)
-        self.assertIn(f"run_{TEST_RUN_ID}_2", output_dir3)
-        self.assertEqual(run_suffix3, f"{TEST_RUN_ID}_2")
+        # Third call - should create run_<run_id>_<timestamp>_2
+        output_dir3, run_suffix3, _ = filesystem.setup_output_directory(cfg)
+        self.assertRegex(
+            output_dir3, rf"run_{re.escape(TEST_RUN_ID)}_\d{{8}}-\d{{6}}(_[a-f0-9]{{8}})?_2"
+        )
+        self.assertIsNotNone(run_suffix3)
+        self.assertIn("_2", run_suffix3 or "")
         self.assertTrue(os.path.exists(output_dir3))
 
     def test_with_clean_output_no_counter(self):
@@ -319,18 +340,26 @@ class TestSetupOutputDirectory(unittest.TestCase):
             auto_speakers=False,
             generate_summaries=False,
         )
-        # First call - should create run_test_run
-        output_dir1, run_suffix1 = filesystem.setup_output_directory(cfg)
-        self.assertIn(f"run_{TEST_RUN_ID}", output_dir1)
-        self.assertEqual(run_suffix1, TEST_RUN_ID)
+        # First call - should create run_<run_id>_<timestamp>
+        output_dir1, run_suffix1, _ = filesystem.setup_output_directory(cfg)
+        import re
+
+        self.assertRegex(
+            output_dir1, rf"run_{re.escape(TEST_RUN_ID)}_\d{{8}}-\d{{6}}(_[a-f0-9]{{8}})?"
+        )
+        self.assertIsNotNone(run_suffix1)
+        self.assertIn(TEST_RUN_ID, run_suffix1 or "")
         self.assertTrue(os.path.exists(output_dir1))
 
         # Second call with clean_output=True - should reuse same name (workflow will clean it)
         # Note: setup_output_directory doesn't actually clean, workflow does
         # But it should not append counter when clean_output=True
-        output_dir2, run_suffix2 = filesystem.setup_output_directory(cfg)
-        self.assertIn(f"run_{TEST_RUN_ID}", output_dir2)
-        self.assertEqual(run_suffix2, TEST_RUN_ID)
+        output_dir2, run_suffix2, _ = filesystem.setup_output_directory(cfg)
+        self.assertRegex(
+            output_dir2, rf"run_{re.escape(TEST_RUN_ID)}_\d{{8}}-\d{{6}}(_[a-f0-9]{{8}})?"
+        )
+        self.assertIsNotNone(run_suffix2)
+        self.assertIn(TEST_RUN_ID, run_suffix2 or "")
         # Directory should exist (workflow will clean it later if needed)
         self.assertTrue(os.path.exists(output_dir2))
 
@@ -356,11 +385,14 @@ class TestSetupOutputDirectory(unittest.TestCase):
             auto_speakers=False,  # Disable to test whisper only
             generate_summaries=False,  # Disable to test whisper only
         )
-        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        # Test uses TEST_DEFAULT_WHISPER_MODEL (tiny.en), so run_suffix should reflect that
+        output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        # Test uses TEST_DEFAULT_WHISPER_MODEL (tiny.en), so full_config_string should reflect that
         # Format: "w_<model>" for whisper provider
         expected_model_in_suffix = config.TEST_DEFAULT_WHISPER_MODEL
-        self.assertIn(f"w_{expected_model_in_suffix}", run_suffix or "")
+        self.assertIsNotNone(full_config_string)
+        self.assertIn(f"w_{expected_model_in_suffix}", full_config_string or "")
+        # run_suffix is now hash-based, verify it has the expected format
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}_[a-f0-9]{8}")
 
     def test_provider_suffix_openai_transcription(self):
         """Test provider suffix with OpenAI transcription."""
@@ -374,8 +406,10 @@ class TestSetupOutputDirectory(unittest.TestCase):
             auto_speakers=False,
             generate_summaries=False,
         )
-        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        self.assertIn("oa_whisper-1", run_suffix or "")
+        output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        self.assertIsNotNone(full_config_string)
+        self.assertIn("oa_whisper-1", full_config_string or "")
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}_[a-f0-9]{8}")
 
     def test_provider_suffix_openai_summary(self):
         """Test provider suffix with OpenAI summary."""
@@ -390,8 +424,10 @@ class TestSetupOutputDirectory(unittest.TestCase):
             openai_summary_model="gpt-4o",
             auto_speakers=False,
         )
-        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        self.assertIn("oa_gpt-4o", run_suffix or "")
+        output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        self.assertIsNotNone(full_config_string)
+        self.assertIn("oa_gpt-4o", full_config_string or "")
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}_[a-f0-9]{8}")
 
     def test_provider_suffix_openai_speaker(self):
         """Test provider suffix with OpenAI speaker detection."""
@@ -405,8 +441,10 @@ class TestSetupOutputDirectory(unittest.TestCase):
             openai_speaker_model="gpt-4o-mini",
             generate_summaries=False,
         )
-        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        self.assertIn("oa_gpt-4o-mini", run_suffix or "")
+        output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        self.assertIsNotNone(full_config_string)
+        self.assertIn("oa_gpt-4o-mini", full_config_string or "")
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}_[a-f0-9]{8}")
 
     def test_provider_suffix_with_reduce_model(self):
         """Test provider suffix includes reduce model when different from map."""
@@ -421,10 +459,12 @@ class TestSetupOutputDirectory(unittest.TestCase):
             summary_reduce_model="allenai/led-base-16384",
             auto_speakers=False,
         )
-        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        # Should include both map and reduce models
-        self.assertIn("tf_bart-base", run_suffix or "")
-        self.assertIn("r_led-base-16384", run_suffix or "")
+        output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        # Should include both map and reduce models in full_config_string
+        self.assertIsNotNone(full_config_string)
+        self.assertIn("tf_bart-base", full_config_string or "")
+        self.assertIn("r_led-base-16384", full_config_string or "")
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}_[a-f0-9]{8}")
 
     def test_provider_suffix_with_same_reduce_model(self):
         """Test provider suffix excludes reduce model when same as map."""
@@ -439,10 +479,12 @@ class TestSetupOutputDirectory(unittest.TestCase):
             summary_reduce_model="facebook/bart-base",  # Same as map
             auto_speakers=False,
         )
-        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        # Should include map model but NOT reduce model (they're the same)
-        self.assertIn("tf_bart-base", run_suffix or "")
-        self.assertNotIn("r_", run_suffix or "")
+        output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        # Should include map model but NOT reduce model (they're the same) in full_config_string
+        self.assertIsNotNone(full_config_string)
+        self.assertIn("tf_bart-base", full_config_string or "")
+        self.assertNotIn("r_", full_config_string or "")
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}_[a-f0-9]{8}")
 
     def test_provider_suffix_no_ml_features(self):
         """Test provider suffix returns None when no ML features are used."""
@@ -453,10 +495,15 @@ class TestSetupOutputDirectory(unittest.TestCase):
             auto_speakers=False,
             generate_summaries=False,
         )
-        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        # No run_suffix when no ML features
-        self.assertIsNone(run_suffix)
-        self.assertEqual(output_dir, self.temp_dir)
+        output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        # No ML features, but still get timestamp-based suffix
+        self.assertIsNotNone(run_suffix)
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}")
+        self.assertIsNone(full_config_string)  # No ML features = no config string
+        # New behavior: Always create run_ prefix with timestamp (Issue #380)
+        import re
+
+        self.assertRegex(output_dir, rf"{re.escape(self.temp_dir)}/run_\d{{8}}-\d{{6}}")
 
     def test_provider_suffix_speaker_with_custom_ner_model(self):
         """Test provider suffix with custom NER model."""
@@ -469,8 +516,10 @@ class TestSetupOutputDirectory(unittest.TestCase):
             ner_model="en_core_web_md",  # Custom model
             generate_summaries=False,
         )
-        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        self.assertIn("sp_spacy_md", run_suffix or "")
+        output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        self.assertIsNotNone(full_config_string)
+        self.assertIn("sp_spacy_md", full_config_string or "")
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}_[a-f0-9]{8}")
 
     def test_provider_suffix_speaker_with_non_standard_ner_model(self):
         """Test provider suffix with non-standard NER model name."""
@@ -483,8 +532,10 @@ class TestSetupOutputDirectory(unittest.TestCase):
             ner_model="custom_model_name",
             generate_summaries=False,
         )
-        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        self.assertIn("sp_custom_model_name", run_suffix or "")
+        output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        self.assertIsNotNone(full_config_string)
+        self.assertIn("sp_custom_model_name", full_config_string or "")
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}_[a-f0-9]{8}")
 
     def test_provider_suffix_speaker_with_default_ner_model(self):
         """Test provider suffix when ner_model is None (uses default)."""
@@ -497,10 +548,12 @@ class TestSetupOutputDirectory(unittest.TestCase):
             ner_model=None,  # Should use default
             generate_summaries=False,
         )
-        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
+        output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
         # Should use DEFAULT_NER_MODEL
         self.assertIsNotNone(run_suffix)
-        self.assertIn("sp_", run_suffix or "")
+        self.assertIsNotNone(full_config_string)
+        self.assertIn("sp_", full_config_string or "")
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}_[a-f0-9]{8}")
 
     def test_provider_suffix_screenplay_enabled(self):
         """Test provider suffix when screenplay is enabled (also triggers speaker detection)."""
@@ -513,10 +566,12 @@ class TestSetupOutputDirectory(unittest.TestCase):
             speaker_detector_provider="spacy",
             generate_summaries=False,
         )
-        output_dir, run_suffix = filesystem.setup_output_directory(cfg)
-        # Should include speaker detection suffix
+        output_dir, run_suffix, full_config_string = filesystem.setup_output_directory(cfg)
+        # Should include speaker detection in full_config_string
         self.assertIsNotNone(run_suffix)
-        self.assertIn("sp_", run_suffix or "")
+        self.assertIsNotNone(full_config_string)
+        self.assertIn("sp_", full_config_string or "")
+        self.assertRegex(run_suffix or "", r"\d{8}-\d{6}_[a-f0-9]{8}")
 
     @patch("os.path.exists")
     def test_setup_output_directory_counter_safety_limit(self, mock_exists):

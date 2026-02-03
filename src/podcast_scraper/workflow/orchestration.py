@@ -54,6 +54,83 @@ create_transcription_provider = _create_transcription_provider_factory
 from . import helpers as wf_helpers, stages as wf_stages
 
 
+def _log_effective_parallelism(cfg: config.Config, summary_provider: Optional[Any]) -> None:
+    """Log effective parallelism configuration for all pipeline stages (Issue #380).
+
+    Args:
+        cfg: Configuration object
+        summary_provider: Optional summary provider instance (for device detection)
+    """
+    logger.info("=" * 60)
+    logger.info("Parallelism Configuration:")
+    logger.info(f"  Download workers: {cfg.workers}")
+    transcription_configured = cfg.transcription_parallelism
+    transcription_effective = (
+        1 if cfg.transcription_provider == "whisper" else transcription_configured
+    )
+    if transcription_effective != transcription_configured:
+        logger.info(
+            f"  Transcription workers: configured={transcription_configured}, "
+            f"effective={transcription_effective} "
+            f"({cfg.transcription_provider} provider limitation)"
+        )
+    else:
+        logger.info(f"  Transcription workers: {transcription_effective}")
+    processing_configured = cfg.processing_parallelism
+    processing_effective = processing_configured
+    logger.info(f"  Processing workers: {processing_effective}")
+    if cfg.generate_summaries:
+        # Get actual device from summary provider
+        model_device = "cpu"  # Default
+        if summary_provider:
+            # Try to get device from actual model instances
+            if hasattr(summary_provider, "_map_model") and summary_provider._map_model:
+                if hasattr(summary_provider._map_model, "device"):
+                    model_device = summary_provider._map_model.device
+            elif hasattr(summary_provider, "_reduce_model") and summary_provider._reduce_model:
+                if hasattr(summary_provider._reduce_model, "device"):
+                    model_device = summary_provider._reduce_model.device
+            # Fallback to config if model not loaded yet
+            elif cfg.summary_device:
+                model_device = cfg.summary_device
+            # Fallback to provider attribute
+            elif hasattr(summary_provider, "device"):
+                model_device = summary_provider.device
+
+        # Determine serialization status
+        serialization_reasons = []
+        if model_device in ("mps", "cuda"):
+            if cfg.mps_exclusive:
+                serialization_reasons.append("mps_exclusive")
+            # Check if tokenizer serialization is enabled (lock exists)
+            if summary_provider and hasattr(summary_provider, "_map_model"):
+                if hasattr(summary_provider._map_model, "_summarize_lock"):
+                    serialization_reasons.append("tokenizer_lock")
+        serialization_status = (
+            f", serialized ({', '.join(serialization_reasons)})" if serialization_reasons else ""
+        )
+
+        if model_device == "cpu":
+            max_workers_limit = (
+                cfg.summary_max_workers_cpu if cfg.summary_max_workers_cpu is not None else 4
+            )
+            estimated_workers = min(cfg.summary_batch_size or 1, max_workers_limit)
+        elif model_device in ("mps", "cuda"):
+            max_workers_limit = (
+                cfg.summary_max_workers_gpu if cfg.summary_max_workers_gpu is not None else 2
+            )
+            estimated_workers = min(max_workers_limit, cfg.summary_batch_size or 1)
+        else:
+            estimated_workers = 1
+        logger.info(
+            f"  Summarization workers: {estimated_workers} (device={model_device}"
+            f"{serialization_status})"
+        )
+    else:
+        logger.info("  Summarization workers: N/A (summarization disabled)")
+    logger.info("=" * 60)
+
+
 def create_speaker_detector(cfg: config.Config):  # type: ignore[no-redef]  # noqa: F811
     """Create speaker detector, using re-exported version if available (for testability).
 
@@ -147,6 +224,82 @@ logger = logging.getLogger(__name__)
 _preloaded_ml_provider: Optional[Any] = None
 
 
+def _both_providers_use_mps(
+    cfg: config.Config, transcription_provider: Any, summary_provider: Any
+) -> bool:
+    """Check if both Whisper transcription and summarization use MPS.
+
+    Args:
+        cfg: Configuration object
+        transcription_provider: Transcription provider instance
+        summary_provider: Summarization provider instance (can be None)
+
+    Returns:
+        True if both providers use MPS, False otherwise
+    """
+    # Check transcription provider device
+    transcription_uses_mps = False
+    if transcription_provider is not None:
+        # Check if it's MLProvider (Whisper)
+        provider_type = type(transcription_provider).__name__
+        if provider_type == "MLProvider":
+            # MLProvider uses _detect_whisper_device() method
+            try:
+                whisper_device = transcription_provider._detect_whisper_device()
+                transcription_uses_mps = whisper_device == "mps"
+            except (AttributeError, Exception):
+                # If method doesn't exist or fails, assume not MPS
+                transcription_uses_mps = False
+        # OpenAI provider doesn't use MPS (API-based)
+        elif provider_type == "OpenAIProvider":
+            transcription_uses_mps = False
+
+    # Check summarization provider device
+    summarization_uses_mps = False
+    if summary_provider is not None and cfg.generate_summaries:
+        provider_type = type(summary_provider).__name__
+        if provider_type == "MLProvider":
+            # MLProvider uses SummaryModel which has device attribute
+            try:
+                # First check if models are initialized and have device attribute
+                if hasattr(summary_provider, "_map_model") and summary_provider._map_model:
+                    if hasattr(summary_provider._map_model, "device"):
+                        map_device = summary_provider._map_model.device
+                        summarization_uses_mps = map_device == "mps"
+                # Also check reduce_model if map_model not available
+                elif hasattr(summary_provider, "_reduce_model") and summary_provider._reduce_model:
+                    if hasattr(summary_provider._reduce_model, "device"):
+                        reduce_device = summary_provider._reduce_model.device
+                        summarization_uses_mps = reduce_device == "mps"
+                # Fallback: check summary_device from config
+                if not summarization_uses_mps and cfg.summary_device:
+                    summarization_uses_mps = cfg.summary_device == "mps"
+                # Final fallback: auto-detect if MPS is available (when device not explicitly set)
+                if not summarization_uses_mps and not cfg.summary_device:
+                    try:
+                        import torch
+
+                        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                            summarization_uses_mps = True
+                    except ImportError:
+                        summarization_uses_mps = False
+            except (AttributeError, Exception):
+                # If attributes don't exist or fail, check config
+                if cfg.summary_device:
+                    summarization_uses_mps = cfg.summary_device == "mps"
+                # Final fallback: auto-detect if MPS is available
+                elif not cfg.summary_device:
+                    try:
+                        import torch
+
+                        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                            summarization_uses_mps = True
+                    except ImportError:
+                        summarization_uses_mps = False
+
+    return transcription_uses_mps and summarization_uses_mps
+
+
 class _FeedMetadata(NamedTuple):
     """Feed metadata for metadata generation."""
 
@@ -221,13 +374,14 @@ def _preload_ml_models_if_needed(cfg: config.Config) -> None:  # noqa: F811
     wf_stages.setup.preload_ml_models_if_needed(cfg)
 
 
-def apply_log_level(level: str, log_file: Optional[str] = None) -> None:
+def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool = False) -> None:
     """Apply logging level to root logger and configure handlers.
 
     Args:
         level: Log level string (e.g., 'DEBUG', 'INFO', 'WARNING')
         log_file: Optional path to log file. If provided, logs will be written to both
                   console and file.
+        json_logs: If True, use JSON formatter for structured logging (Issue #379)
 
     Raises:
         ValueError: If log level is invalid
@@ -238,14 +392,21 @@ def apply_log_level(level: str, log_file: Optional[str] = None) -> None:
         raise ValueError(f"Invalid log level: {level}")
 
     root_logger = logging.getLogger()
-    log_format = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+
+    # Choose formatter based on json_logs flag (Issue #379)
+    if json_logs:
+        from ..utils.json_logging import JSONFormatter
+
+        formatter = JSONFormatter()
+    else:
+        formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     # Remove existing handlers if we're setting up fresh
     if not root_logger.handlers:
         # Set up console handler
         console_handler = logging.StreamHandler()
         console_handler.setLevel(numeric_level)
-        console_handler.setFormatter(logging.Formatter(log_format))
+        console_handler.setFormatter(formatter)
         root_logger.addHandler(console_handler)
         root_logger.setLevel(numeric_level)
     else:
@@ -253,6 +414,8 @@ def apply_log_level(level: str, log_file: Optional[str] = None) -> None:
         root_logger.setLevel(numeric_level)
         for handler in root_logger.handlers:
             handler.setLevel(numeric_level)
+            # Update formatter if json_logs changed
+            handler.setFormatter(formatter)
 
     # Add file handler if log_file is specified
     if log_file:
@@ -270,7 +433,7 @@ def apply_log_level(level: str, log_file: Optional[str] = None) -> None:
             # Set up file handler
             file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
             file_handler.setLevel(numeric_level)
-            file_handler.setFormatter(logging.Formatter(log_format))
+            file_handler.setFormatter(formatter)
             root_logger.addHandler(file_handler)
             logger.info(f"Logging to file: {log_file}")
 
@@ -360,7 +523,9 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     pipeline_metrics = metrics.Metrics()
 
     # Step 1: Setup pipeline environment
-    effective_output_dir, run_suffix = wf_stages.setup.setup_pipeline_environment(cfg)
+    effective_output_dir, run_suffix, full_config_string = (
+        wf_stages.setup.setup_pipeline_environment(cfg)
+    )
 
     # Step 1.5: Preload ML models if configured
     wf_stages.setup.preload_ml_models_if_needed(cfg)
@@ -460,6 +625,26 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
 
+    # Step 1.7: Log effective parallelism configuration (Issue #380)
+    _log_effective_parallelism(cfg, summary_provider)
+
+    # Step 1.5: Create run manifest (Issue #379)
+    run_manifest = None
+    if not cfg.dry_run:
+        try:
+            from .run_manifest import create_run_manifest
+
+            run_manifest = create_run_manifest(
+                cfg=cfg,
+                output_dir=effective_output_dir,
+                run_id=cfg.run_id,
+            )
+            manifest_path = os.path.join(effective_output_dir, "run_manifest.json")
+            run_manifest.save_to_file(manifest_path)
+            logger.info(f"Run manifest saved to: {manifest_path}")
+        except Exception as e:
+            logger.warning(f"Failed to generate run manifest: {e}")
+
     # Step 2: Fetch and parse RSS feed (scraping stage)
     scraping_start = time.time()
     feed, rss_bytes = wf_stages.scraping.fetch_and_parse_feed(cfg)
@@ -515,6 +700,18 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         downloads_complete_event = threading.Event()  # Signal when all downloads are complete
         transcription_saved = [0]  # Use list to allow modification from thread
 
+        # Determine if we should serialize MPS work to prevent memory contention
+        should_serialize_mps = False
+        if cfg.mps_exclusive:
+            should_serialize_mps = _both_providers_use_mps(
+                cfg, transcription_provider, summary_provider
+            )
+            if should_serialize_mps:
+                logger.info(
+                    "MPS exclusive mode enabled: Serializing GPU work "
+                    "(transcription completes before summarization starts)"
+                )
+
         # Start processing thread if metadata generation is enabled
         processing_thread = None
         if cfg.generate_metadata:
@@ -531,6 +728,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                     pipeline_metrics,
                     summary_provider,
                     transcription_complete_event,
+                    should_serialize_mps,
                 ),
                 daemon=False,
                 name="ProcessingProcessor",
@@ -722,6 +920,46 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             pipeline_metrics.save_to_file(metrics_path)
         except Exception as e:
             logger.warning(f"Failed to save metrics to {metrics_path}: {e}")
+
+    # Step 13: Generate run index (Issue #379)
+    if not cfg.dry_run:
+        try:
+            from .run_index import create_run_index
+
+            # Pass episode_statuses from metrics if available
+            episode_statuses = (
+                pipeline_metrics.episode_statuses
+                if hasattr(pipeline_metrics, "episode_statuses")
+                else None
+            )
+
+            run_index = create_run_index(
+                run_id=cfg.run_id or datetime.utcnow().isoformat() + "Z",
+                feed_url=cfg.rss_url,
+                episodes=episodes,
+                effective_output_dir=effective_output_dir,
+                episode_statuses=episode_statuses,
+            )
+            index_path = os.path.join(effective_output_dir, "index.json")
+            run_index.save_to_file(index_path)
+            logger.info(f"Run index saved to: {index_path}")
+        except Exception as e:
+            logger.warning(f"Failed to generate run index: {e}")
+
+    # Step 14: Generate run summary (Issue #379)
+    if not cfg.dry_run:
+        try:
+            from .run_summary import create_run_summary, save_run_summary
+
+            run_summary = create_run_summary(
+                run_manifest=run_manifest,
+                pipeline_metrics=pipeline_metrics,
+                output_dir=effective_output_dir,
+                run_id=cfg.run_id,
+            )
+            save_run_summary(run_summary, effective_output_dir)
+        except Exception as e:
+            logger.warning(f"Failed to generate run summary: {e}")
 
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics
