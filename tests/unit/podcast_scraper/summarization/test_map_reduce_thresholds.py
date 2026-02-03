@@ -31,8 +31,6 @@ class TestModelSpecificThresholds(unittest.TestCase):
 
     def _create_led_model_mock(self, max_position: int = 16384):
         """Create a mock model that simulates LED model config."""
-        from unittest.mock import MagicMock
-
         from podcast_scraper.providers.ml.summarizer import SummaryModel
 
         mock_tokenizer = Mock()
@@ -51,8 +49,6 @@ class TestModelSpecificThresholds(unittest.TestCase):
 
     def _create_bart_model_mock(self, max_position: int = 1024):
         """Create a mock model that simulates BART model config."""
-        from unittest.mock import MagicMock
-
         from podcast_scraper.providers.ml.summarizer import SummaryModel
 
         mock_tokenizer = Mock()

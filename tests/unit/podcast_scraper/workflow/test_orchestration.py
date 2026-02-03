@@ -55,7 +55,7 @@ class TestLogParallelismConfiguration(unittest.TestCase):
         summary_provider._map_model.device = "mps"
         summary_provider._map_model._summarize_lock = MagicMock()
 
-        orchestration._log_effective_parallelism(self.cfg, summary_provider)
+        orchestration._log_effective_parallelism(cfg, summary_provider)
 
         # Verify log was called with MPS device and serialization
         log_calls = [str(call) for call in mock_logger.info.call_args_list]
@@ -95,7 +95,7 @@ class TestLogParallelismConfiguration(unittest.TestCase):
         summary_provider._map_model.device = "mps"
         summary_provider._map_model._summarize_lock = MagicMock()
 
-        orchestration._log_effective_parallelism(self.cfg, summary_provider)
+        orchestration._log_effective_parallelism(cfg, summary_provider)
 
         # Verify serialization includes mps_exclusive
         log_calls = [str(call) for call in mock_logger.info.call_args_list]

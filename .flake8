@@ -23,3 +23,5 @@ per-file-ignores =
     *processing.py:C901
     *conftest.py:C901
     *run_index.py:C901
+    *rescore_baseline.py:C901
+    *rescore_baseline.py:C901

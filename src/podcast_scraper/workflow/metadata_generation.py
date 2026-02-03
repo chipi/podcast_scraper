@@ -1787,17 +1787,8 @@ def _generate_episode_summary(  # noqa: C901
             summary_elapsed = time.time() - summary_start
             short_summary = result.get("summary")
 
-            # Sanitize summary to remove page furniture and artifacts (Issue #389)
-            if short_summary:
-                from ..preprocessing.core import sanitize_summary
-
-                short_summary = sanitize_summary(short_summary)
-                logger.debug(
-                    "[%s] Applied post-summary sanitization to remove page furniture",
-                    episode_idx,
-                )
-
-            # Handle Mock objects in tests - convert to string if needed
+            # Handle Mock objects and non-string types in tests - convert to string if needed
+            # This must happen BEFORE sanitization, which requires a string
             if short_summary is not None:
                 # Check if it's a Mock object (common in tests)
                 from unittest.mock import Mock
@@ -1828,6 +1819,27 @@ def _generate_episode_summary(  # noqa: C901
                                 episode_idx,
                             )
                             return None
+                elif not isinstance(short_summary, str):
+                    # Non-string, non-Mock type (e.g., int, dict, etc.)
+                    # Fail fast - non-string summary is invalid when generate_summaries=True
+                    error_msg = (
+                        f"[{episode_idx}] Summary is not a string "
+                        f"(type: {type(short_summary).__name__}). "
+                        "Invalid summary format when generate_summaries=True."
+                    )
+                    logger.error(error_msg)
+                    raise RuntimeError(error_msg)
+
+            # Sanitize summary to remove page furniture and artifacts (Issue #389)
+            # Only sanitize if we have a string
+            if short_summary and isinstance(short_summary, str):
+                from ..preprocessing.core import sanitize_summary
+
+                short_summary = sanitize_summary(short_summary)
+                logger.debug(
+                    "[%s] Applied post-summary sanitization to remove page furniture",
+                    episode_idx,
+                )
 
             # Safely get length - handle Mock objects in tests
             try:

@@ -77,6 +77,7 @@ make validate-files-fast FILES="src/podcast_scraper/config.py"
 **How it works:**
 
 Tests are tagged with module markers (e.g., `module_config`, `module_workflow`) that map to source modules. When you specify changed files, the system:
+
 - Maps files to modules (e.g., `config.py` → `module_config`)
 - Finds tests tagged with those module markers
 - Runs only those tests

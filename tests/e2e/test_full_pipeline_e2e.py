@@ -24,8 +24,6 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
-import pytest
-
 from podcast_scraper import config, workflow
 
 pytestmark = [pytest.mark.e2e, pytest.mark.module_workflow]

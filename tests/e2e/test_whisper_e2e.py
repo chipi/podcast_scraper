@@ -22,9 +22,6 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 # Import cache helpers from integration tests
-import sys
-
-import pytest
 
 from podcast_scraper import Config, config, run_pipeline
 from podcast_scraper.transcription.factory import create_transcription_provider
