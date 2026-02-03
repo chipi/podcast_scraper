@@ -15,6 +15,8 @@ from unittest.mock import Mock, patch
 import pytest
 
 # Allow importing the package when tests run from within the package directory.
+
+pytestmark = [pytest.mark.unit, pytest.mark.module_workflow]
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:

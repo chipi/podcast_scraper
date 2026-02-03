@@ -1404,3 +1404,93 @@ benchmark:
 		$(if $(REFERENCE),--reference $(REFERENCE)) \
 		$(if $(OUTPUT_DIR),--output-dir $(OUTPUT_DIR)) \
 		$(if $(LOG_LEVEL),--log-level $(LOG_LEVEL))
+
+validate-files:
+	@# Validate changed files: lint/format + run only impacted tests
+	@# Usage: make validate-files FILES="src/podcast_scraper/config.py src/podcast_scraper/workflow/orchestration.py"
+	@# Optional: TEST_TYPE=unit|integration|e2e|all (default: all), FAST_ONLY=1 (only critical_path tests)
+	@if [ -z "$(FILES)" ]; then \
+		echo "❌ Error: FILES required"; \
+		echo "Usage: make validate-files FILES='file1.py file2.py' [TEST_TYPE=unit] [FAST_ONLY=1]"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make validate-files FILES='src/podcast_scraper/config.py'"; \
+		echo "  make validate-files FILES='src/podcast_scraper/config.py' TEST_TYPE=unit"; \
+		echo "  make validate-files FILES='src/podcast_scraper/config.py' FAST_ONLY=1"; \
+		exit 1; \
+	fi
+	@echo "🔍 Step 1: Linting and formatting changed files..."
+	@for file in $(FILES); do \
+		if [ ! -f "$$file" ]; then \
+			echo "⚠️  Warning: File not found: $$file"; \
+			continue; \
+		fi; \
+		echo "  Formatting: $$file"; \
+		$(PYTHON) -m black $$file; \
+		$(PYTHON) -m isort $$file; \
+		echo "  Linting: $$file"; \
+		$(PYTHON) -m flake8 --config .flake8 $$file || true; \
+		$(PYTHON) -m mypy $$file || true; \
+	done
+	@echo ""
+	@echo "🔍 Step 2: Discovering impacted tests..."
+	@TEST_TYPE=$${TEST_TYPE:-all}; \
+	FAST_ONLY=$${FAST_ONLY:-0}; \
+	TEST_MARKERS=$$($(PYTHON) scripts/tools/find_impacted_tests.py \
+		--files $(FILES) \
+		--test-type $$TEST_TYPE \
+		$(if $(filter 1,$(FAST_ONLY)),--fast-only,) \
+		--output-format list 2>&1 | grep -v "^  " | grep -v "^⚠️" | grep -v "^❌" || true); \
+	MARKER_EXPR=$$($(PYTHON) scripts/tools/find_impacted_tests.py \
+		--files $(FILES) \
+		--test-type $$TEST_TYPE \
+		$(if $(filter 1,$(FAST_ONLY)),--fast-only,) \
+		--output-format expression 2>/dev/null || echo ""); \
+	if [ -z "$$MARKER_EXPR" ]; then \
+		echo "⚠️  No tests found for changed files"; \
+		exit 0; \
+	fi; \
+	if [ -n "$$TEST_MARKERS" ]; then \
+		echo "  Discovered markers: $$TEST_MARKERS"; \
+	fi; \
+	echo "  Marker expression: $$MARKER_EXPR"; \
+	echo ""
+	@echo "🧪 Step 3: Running impacted tests..."
+	@TEST_TYPE=$${TEST_TYPE:-all}; \
+	FAST_ONLY=$${FAST_ONLY:-0}; \
+	MARKER_EXPR=$$($(PYTHON) scripts/tools/find_impacted_tests.py \
+		--files $(FILES) \
+		--test-type $$TEST_TYPE \
+		$(if $(filter 1,$(FAST_ONLY)),--fast-only,) \
+		--output-format expression 2>/dev/null || echo ""); \
+	if [ -z "$$MARKER_EXPR" ]; then \
+		echo "⚠️  No tests found for changed files"; \
+		exit 0; \
+	fi; \
+	$(PYTHON) -m pytest -m "$$MARKER_EXPR" \
+		-n $(PYTEST_WORKERS) \
+		--disable-socket --allow-hosts=127.0.0.1,localhost \
+		-v \
+		--tb=short
+	@echo ""
+	@echo "✅ Validation complete!"
+
+validate-files-fast:
+	@# Fast mode: only critical_path tests
+	@# Usage: make validate-files-fast FILES="src/podcast_scraper/config.py"
+	@if [ -z "$(FILES)" ]; then \
+		echo "❌ Error: FILES required"; \
+		echo "Usage: make validate-files-fast FILES='file1.py file2.py'"; \
+		exit 1; \
+	fi
+	@$(MAKE) validate-files FILES="$(FILES)" TEST_TYPE=all FAST_ONLY=1
+
+validate-files-unit:
+	@# Unit tests only (fastest)
+	@# Usage: make validate-files-unit FILES="src/podcast_scraper/config.py"
+	@if [ -z "$(FILES)" ]; then \
+		echo "❌ Error: FILES required"; \
+		echo "Usage: make validate-files-unit FILES='file1.py file2.py'"; \
+		exit 1; \
+	fi
+	@$(MAKE) validate-files FILES="$(FILES)" TEST_TYPE=unit

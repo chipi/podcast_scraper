@@ -16,6 +16,8 @@ from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
+pytestmark = [pytest.mark.unit, pytest.mark.module_openai_providers]
+
 
 @pytest.mark.llm
 @pytest.mark.openai

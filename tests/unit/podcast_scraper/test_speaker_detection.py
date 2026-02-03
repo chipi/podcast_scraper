@@ -25,7 +25,11 @@ with patch.dict("sys.modules", {"spacy": MagicMock()}):
 # Import from parent conftest explicitly to avoid conflicts
 import importlib.util
 
+import pytest
+
 from podcast_scraper import config
+
+pytestmark = [pytest.mark.unit, pytest.mark.module_speaker_detection]
 
 parent_tests_dir = Path(__file__).parent.parent.parent
 if str(parent_tests_dir) not in sys.path:
@@ -745,3 +749,119 @@ class TestSpeakerDetectionCaching(unittest.TestCase):
         # Should return same hosts regardless of flag
         # (flag affects workflow-level caching, not detection)
         self.assertEqual(hosts1, hosts2)
+
+    def test_is_default_speaker_name(self):
+        """Test checking if a speaker name is a default placeholder."""
+        self.assertTrue(speaker_detection.is_default_speaker_name("Host"))
+        self.assertTrue(speaker_detection.is_default_speaker_name("Guest"))
+        self.assertFalse(speaker_detection.is_default_speaker_name("Real Host"))
+        self.assertFalse(speaker_detection.is_default_speaker_name("John Doe"))
+        self.assertFalse(speaker_detection.is_default_speaker_name(""))
+
+    def test_filter_default_speaker_names(self):
+        """Test filtering out default speaker names from a list."""
+        names = ["Host", "Real Host", "Guest", "Real Guest", "Another Person"]
+        filtered = speaker_detection.filter_default_speaker_names(names)
+        self.assertEqual(filtered, ["Real Host", "Real Guest", "Another Person"])
+        self.assertNotIn("Host", filtered)
+        self.assertNotIn("Guest", filtered)
+
+        # Test with empty list
+        self.assertEqual(speaker_detection.filter_default_speaker_names([]), [])
+
+        # Test with only defaults
+        self.assertEqual(speaker_detection.filter_default_speaker_names(["Host", "Guest"]), [])
+
+        # Test with no defaults
+        names_no_defaults = ["John", "Jane", "Bob"]
+        self.assertEqual(
+            speaker_detection.filter_default_speaker_names(names_no_defaults), names_no_defaults
+        )
+
+    def test_has_guest_intent_cue(self):
+        """Test guest-intent cue detection (Issue #387)."""
+        # Test various guest-intent patterns
+        test_cases = [
+            # (name, text, expected)
+            ("John Doe", "Interview with John Doe", True),
+            ("Jane Smith", "We're joined by Jane Smith", True),
+            ("Bob Guest", "Our guest Bob Guest", True),
+            ("Alice", "Speaking with Alice about technology", True),
+            ("Charlie", "Talks to Charlie", True),
+            ("David", "Conversation with David", True),
+            ("Eve", "Featuring Eve", True),
+            ("Frank", "Welcomes Frank", True),
+            ("Grace", "Sits down with Grace", True),
+            ("Henry", "Chats with Henry", True),
+            ("Iris", "Joining us Iris", True),
+            # Test without guest-intent cues (should return False)
+            ("Trump", "Who Is the New Fed Chair?", False),  # Real-world false positive case
+            ("John Doe", "News about John Doe", False),
+            ("Jane Smith", "Analysis of Jane Smith's policies", False),
+            ("Bob", "The story covers Bob's decision", False),
+        ]
+
+        for name, text, expected in test_cases:
+            with self.subTest(name=name, text=text):
+                result = speaker_detection._has_guest_intent_cue(name, text)
+                self.assertEqual(
+                    result,
+                    expected,
+                    f"Expected {expected} for name '{name}' in text '{text}'",
+                )
+
+    def test_is_likely_actual_guest_strict(self):
+        """Test strict guest detection requiring guest-intent cues (Issue #387)."""
+        # Test cases that should pass (have guest-intent cues)
+        passing_cases = [
+            ("John Doe", "Interview with John Doe", None),
+            ("Jane Smith", "We're joined by Jane Smith today", "Description here"),
+            ("Bob Guest", "Our guest Bob Guest", None),
+        ]
+
+        for name, title, description in passing_cases:
+            with self.subTest(name=name, title=title):
+                result = speaker_detection._is_likely_actual_guest(name, title, description)
+                self.assertTrue(
+                    result,
+                    f"Expected True for '{name}' in '{title}' (has guest-intent cue)",
+                )
+
+        # Test cases that should fail (no guest-intent cues)
+        failing_cases = [
+            # Real-world false positive: "Trump" in "Who Is the New Fed Chair?"
+            ("Trump", "Who Is the New Fed Chair?", None),
+            # Other mentioned-only cases
+            ("John Doe", "News about John Doe", None),
+            ("Jane Smith", "Analysis of Jane Smith's policies", "The story covers..."),
+            ("Bob", "The CEO Bob announced", None),
+        ]
+
+        for name, title, description in failing_cases:
+            with self.subTest(name=name, title=title):
+                result = speaker_detection._is_likely_actual_guest(name, title, description)
+                self.assertFalse(
+                    result,
+                    f"Expected False for '{name}' in '{title}' (no guest-intent cue)",
+                )
+
+    def test_guest_intent_cue_real_world_examples(self):
+        """Test guest-intent cues with real-world episode examples (Issue #387)."""
+        # Test "Who Is the New Fed Chair?" episode - should NOT detect "Trump" as guest
+        title = "Who Is the New Fed Chair?"
+        description = "Discussion about the Federal Reserve and monetary policy."
+        result = speaker_detection._is_likely_actual_guest("Trump", title, description)
+        self.assertFalse(
+            result,
+            "Trump should NOT be detected as guest in 'Who Is the New Fed Chair?' "
+            "(no guest-intent cue)",
+        )
+
+        # Test episode with actual guest
+        title = "Interview with Jane Smith"
+        description = "We talk with Jane Smith about her new book."
+        result = speaker_detection._is_likely_actual_guest("Jane Smith", title, description)
+        self.assertTrue(
+            result,
+            "Jane Smith SHOULD be detected as guest (has 'Interview with' cue)",
+        )

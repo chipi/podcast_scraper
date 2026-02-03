@@ -16,6 +16,8 @@ from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider
 from podcast_scraper.transcription.factory import create_transcription_provider
 
+pytestmark = [pytest.mark.integration, pytest.mark.module_ml_providers]
+
 
 @pytest.mark.integration
 class TestProviderIntegration(unittest.TestCase):

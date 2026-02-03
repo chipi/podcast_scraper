@@ -187,6 +187,23 @@ markers = [
     "infrastructure: tests for test infrastructure itself (pytest markers, Makefile, CI config)",
     "serial: marks tests that must run sequentially (not in parallel) due to resource conflicts or race conditions",
     "flaky: marks tests as potentially flaky (may fail intermittently in parallel execution, should use reruns)",
+    "module_config: tests for config.py and config_constants.py",
+    "module_cli: tests for cli.py",
+    "module_service: tests for service.py",
+    "module_workflow: tests for workflow/*.py",
+    "module_downloader: tests for rss/downloader.py",
+    "module_rss_parser: tests for rss/parser.py",
+    "module_ml_providers: tests for providers/ml/*.py",
+    "module_openai_providers: tests for providers/openai/*.py",
+    "module_summarization: tests for summarization/*.py",
+    "module_transcription: tests for transcription/*.py",
+    "module_speaker_detection: tests for speaker_detectors/*.py",
+    "module_preprocessing: tests for preprocessing/*.py",
+    "module_cache: tests for cache/*.py",
+    "module_evaluation: tests for evaluation/*.py",
+    "module_utils: tests for utils/*.py",
+    "module_models: tests for models.py",
+    "module_exceptions: tests for exceptions.py",
 ]
 # Parallel execution configuration (pytest-xdist)
 # Use -n auto to automatically detect CPU count, or -n N for specific number

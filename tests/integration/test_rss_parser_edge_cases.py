@@ -25,7 +25,11 @@ if PACKAGE_ROOT not in sys.path:
 # Add tests directory to path for conftest import
 from pathlib import Path
 
+import pytest
+
 from podcast_scraper.rss import downloader, parser as rss_parser
+
+pytestmark = [pytest.mark.integration, pytest.mark.module_rss_parser]
 
 tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:

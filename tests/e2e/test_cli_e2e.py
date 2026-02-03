@@ -26,8 +26,12 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
+import pytest
+
 import podcast_scraper.cli as cli
 from podcast_scraper import config as config_module
+
+pytestmark = [pytest.mark.e2e, pytest.mark.module_cli]
 
 # Removed TestCLIBasicCommands class (5 tests) as part of Phase 3 consolidation:
 # - test_basic_transcript_download: Duplicate of test_basic_e2e.py (critical path already covered)

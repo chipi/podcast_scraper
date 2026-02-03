@@ -24,8 +24,12 @@ if PACKAGE_ROOT not in sys.path:
 # Import cache helpers from integration tests
 import sys
 
+import pytest
+
 from podcast_scraper import Config, config, run_pipeline
 from podcast_scraper.transcription.factory import create_transcription_provider
+
+pytestmark = [pytest.mark.e2e, pytest.mark.module_transcription]
 
 integration_dir = Path(__file__).parent.parent / "integration"
 if str(integration_dir) not in sys.path:

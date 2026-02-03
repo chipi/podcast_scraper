@@ -24,10 +24,14 @@ parent_tests_dir = Path(__file__).parent.parent.parent
 if str(parent_tests_dir) not in sys.path:
     sys.path.insert(0, str(parent_tests_dir))
 
+import pytest
+
 parent_conftest_path = parent_tests_dir / "conftest.py"
 spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
 if spec is None or spec.loader is None:
     raise ImportError(f"Could not load conftest from {parent_conftest_path}")
+
+pytestmark = [pytest.mark.unit, pytest.mark.module_summarization]
 parent_conftest = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(parent_conftest)
 

@@ -28,6 +28,8 @@ import podcast_scraper
 import podcast_scraper.cli as cli
 from podcast_scraper import config, downloader
 
+pytestmark = [pytest.mark.integration, pytest.mark.module_workflow]
+
 # Check if ML dependencies are available
 SPACY_AVAILABLE = False
 try:

@@ -13,6 +13,8 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+import pytest
+
 from podcast_scraper.prompts.store import (
     clear_cache,
     get_prompt_dir,
@@ -23,6 +25,8 @@ from podcast_scraper.prompts.store import (
     render_prompt,
     set_prompt_dir,
 )
+
+pytestmark = [pytest.mark.unit, pytest.mark.module_utils]
 
 
 class TestPromptStore(unittest.TestCase):

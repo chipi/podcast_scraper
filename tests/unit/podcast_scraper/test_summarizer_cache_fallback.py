@@ -29,6 +29,10 @@ except ImportError:
     summarizer = types.ModuleType("summarizer")  # type: ignore[assignment]
     config = types.ModuleType("config")  # type: ignore[assignment]
 
+import pytest
+
+pytestmark = [pytest.mark.unit, pytest.mark.module_summarization]
+
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestSummaryModelCacheFallback(unittest.TestCase):
