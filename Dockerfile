@@ -13,11 +13,11 @@ ENV PYTHONUNBUFFERED=1 \
 # TRANSFORMERS_MODELS: Comma-separated list of Transformers models to preload.
 #                      If empty (default), script preloads all 4 models (bart-base, bart-large-cnn, distilbart, led-base-16384).
 #                      Specify to override (e.g., "facebook/bart-base" for faster builds).
-# SKIP_TRANSFORMERS: Set to "1" to skip Transformers preloading entirely (for fast builds)
+# SKIP_TRANSFORMERS: Set to "1" to skip Transformers preloading entirely (for fast builds, default in Docker)
 ARG PRELOAD_ML_MODELS=true
 ARG WHISPER_MODELS=base.en
 ARG TRANSFORMERS_MODELS=
-ARG SKIP_TRANSFORMERS=
+ARG SKIP_TRANSFORMERS=1
 ENV PRELOAD_ML_MODELS=${PRELOAD_ML_MODELS}
 ENV WHISPER_MODELS=${WHISPER_MODELS}
 ENV TRANSFORMERS_MODELS=${TRANSFORMERS_MODELS}
@@ -92,8 +92,25 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # - spaCy: Installed as dependency, no separate cache needed
 RUN --mount=type=cache,target=/opt/whisper-cache \
     --mount=type=cache,target=/root/.cache/huggingface \
-    bash -c 'if [ "$PRELOAD_ML_MODELS" = "true" ]; then \
-        python scripts/cache/preload_ml_models.py; \
+    bash -c 'set -e; \
+    if [ "$PRELOAD_ML_MODELS" = "true" ]; then \
+        echo "Preloading ML models..."; \
+        echo "Working directory: $(pwd)"; \
+        echo "Python path: $(which python)"; \
+        echo "Python version: $(python --version)"; \
+        echo "Script exists: $(test -f scripts/cache/preload_ml_models.py && echo yes || echo no)"; \
+        python -c "import sys; print(f\"Python executable: {sys.executable}\"); print(f\"Python path: {sys.path[:3]}\")" || true; \
+        python scripts/cache/preload_ml_models.py 2>&1 || { \
+            echo ""; \
+            echo "ERROR: ML model preloading failed with exit code $?"; \
+            echo "This may be due to:"; \
+            echo "  - Network issues downloading models"; \
+            echo "  - Disk space constraints"; \
+            echo "  - Missing dependencies (check imports above)"; \
+            echo ""; \
+            echo "To skip model preloading, rebuild with: --build-arg PRELOAD_ML_MODELS=false"; \
+            exit 1; \
+        }; \
     else \
         echo "Skipping ML model preloading (PRELOAD_ML_MODELS=false)"; \
     fi'

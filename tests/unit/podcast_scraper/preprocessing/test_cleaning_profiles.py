@@ -205,11 +205,11 @@ def test_cleaning_v3_strips_credits():
 @pytest.mark.unit
 def test_cleaning_v3_strips_garbage_lines():
     """Test cleaning_v3 strips garbage/boilerplate lines."""
-    text = "Main content here.\n\nRead more at example.com\nBack to top\n\nMore content."
+    text = "Main content here.\n\nRead more at test-site\nBack to top\n\nMore content."
     result = apply_profile(text, "cleaning_v3")
     assert "Read more" not in result
     assert "Back to top" not in result
-    assert "example.com" not in result
+    assert "test-site" not in result
     assert "Main content here" in result
     assert "More content" in result
 
@@ -251,7 +251,7 @@ def test_cleaning_v3_profile_integration():
         "# Episode Title\n"
         "SPEAKER 1: Hello [00:12:34] world\n\n\n"
         "Produced by John Doe.\n"
-        "Read more at example.com\n"
+        "Read more at test-site\n"
         "This episode is brought to you by Acme Corp.\n\n"
         "Thank you so much for listening!\n"
         "TextColor- Artifact\n"
@@ -274,7 +274,7 @@ def test_cleaning_v3_profile_integration():
     assert "John Doe" not in result
     # Should strip garbage lines (v3)
     assert "Read more" not in result
-    assert "example.com" not in result
+    assert "test-site" not in result
     # Should remove artifacts (v3)
     assert "TextColor" not in result
     # Should preserve content
@@ -287,14 +287,12 @@ def test_cleaning_v3_profile_integration():
 @pytest.mark.unit
 def test_cleaning_v3_vs_v2_difference():
     """Test cleaning_v3 produces different output than v2 (credits/garbage/artifacts)."""
-    text = (
-        "Main content.\n" "Produced by John.\n" "Read more at example.com\n" "TextColor- Artifact"
-    )
+    text = "Main content.\n" "Produced by John.\n" "Read more at test-site\n" "TextColor- Artifact"
     v2_result = apply_profile(text, "cleaning_v2")
     v3_result = apply_profile(text, "cleaning_v3")
     # v3 should remove credits/garbage/artifacts, v2 should not
     assert "Produced by" in v2_result or "John" in v2_result
-    assert "Read more" in v2_result or "example.com" in v2_result
+    assert "Read more" in v2_result or "test-site" in v2_result
     assert "TextColor" in v2_result or "Artifact" in v2_result
     assert "Produced by" not in v3_result
     assert "Read more" not in v3_result
@@ -309,14 +307,14 @@ def test_cleaning_v3_vs_v1_difference():
         "Main content.\n"
         "Produced by John.\n"
         "This episode is brought to you by Acme Corp.\n"
-        "Read more at example.com"
+        "Read more at test-site"
     )
     v1_result = apply_profile(text, "cleaning_v1")
     v3_result = apply_profile(text, "cleaning_v3")
     # v3 should remove more than v1
     assert "Produced by" in v1_result or "John" in v1_result
     assert "This episode is brought to you by" in v1_result
-    assert "Read more" in v1_result or "example.com" in v1_result
+    assert "Read more" in v1_result or "test-site" in v1_result
     assert "Produced by" not in v3_result
     assert "This episode is brought to you by" not in v3_result
     assert "Read more" not in v3_result
@@ -353,7 +351,7 @@ def test_profile_version_progression():
         "SPEAKER 1: Hello [00:12:34] world\n\n\n"
         "Produced by John.\n\n"
         "This episode is brought to you by Acme Corp.\n\n"
-        "Read more at example.com\n\n"
+        "Read more at test-site\n\n"
         "TextColor- Artifact"
     )
     v1_result = apply_profile(text, "cleaning_v1")

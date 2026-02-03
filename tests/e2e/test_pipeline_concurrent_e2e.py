@@ -256,7 +256,9 @@ class TestConcurrentEpisodeProcessingE2E:
             )
 
             # Require Whisper model to be cached (skip if not available)
-            from tests.integration.ml_model_cache_helpers import require_whisper_model_cached
+            from tests.integration.ml_model_cache_helpers import (
+                require_whisper_model_cached,
+            )
 
             require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
 
