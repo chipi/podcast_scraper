@@ -1062,8 +1062,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             # Force garbage collection to clean up any remaining references
             # This helps release memory and clean up threads that might be holding references
             # Note: Skip in test environments to avoid hangs
-            import os
-
+            # os is already imported at module level, no need to import again
             if os.environ.get("PYTEST_CURRENT_TEST") is None:
                 gc.collect()
                 logger.debug("Ran garbage collection before exit")
