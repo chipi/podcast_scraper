@@ -74,9 +74,18 @@ dev = [
 # Package is now in src/ directory (src-layout)
 packages = [
     "podcast_scraper",
+    "podcast_scraper.cache",
+    "podcast_scraper.evaluation",
+    "podcast_scraper.preprocessing",
+    "podcast_scraper.preprocessing.audio",
+    "podcast_scraper.providers",
+    "podcast_scraper.providers.ml",
+    "podcast_scraper.providers.openai",
+    "podcast_scraper.rss",
     "podcast_scraper.speaker_detectors",
     "podcast_scraper.summarization",
     "podcast_scraper.transcription",
+    "podcast_scraper.utils",
     "podcast_scraper.workflow",
     "podcast_scraper.workflow.stages",
 ]

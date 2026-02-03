@@ -213,6 +213,55 @@ pip install -e .[dev,ml]  # Install package in editable mode with dev and ML dep
 - Required for development workflow
 - Allows `python3 -m podcast_scraper.cli` to work
 
+### Updating Virtual Environment Dependencies
+
+**⚠️ CRITICAL: Update venv when dependency ranges change**
+
+When `pyproject.toml` dependency version ranges are modified (e.g., `black>=23.0.0,<27.0.0`), you **must** update your local virtual environment to match what CI installs.
+
+**Why this matters:**
+
+- CI installs fresh dependencies each run, getting the **latest version** in the range
+- Your local venv may have an **older version** installed when the range was smaller
+- Pip doesn't auto-upgrade packages that still satisfy the constraint
+- This causes **version mismatches** between local and CI
+
+**When to update:**
+
+- After modifying dependency version ranges in `pyproject.toml`
+- After pulling changes that modify `pyproject.toml` dependency ranges
+- When CI fails with formatting/linting errors but local passes
+- When you see "File would be reformatted" in CI but not locally
+
+**How to update:**
+
+```bash
+# Update all dev dependencies to latest in their ranges
+pip install --upgrade -e .[dev]
+
+# Or update specific tool (e.g., black)
+pip install --upgrade "black>=23.0.0,<27.0.0"
+
+# Verify version matches CI
+python -m black --version  # Should show latest in range (e.g., 26.1.0)
+```
+
+**Common symptoms of stale venv:**
+
+- ✅ Local: `make format-check` passes
+- ❌ CI: `make format-check` fails with "would reformat"
+- ✅ Local: `make lint` passes
+- ❌ CI: `make lint` fails with different errors
+- Tool versions differ: `python -m black --version` shows older version than CI logs
+
+**Prevention:**
+
+After modifying `pyproject.toml` dependency ranges, always run:
+
+```bash
+pip install --upgrade -e .[dev]
+```
+
 ### Environment Variables
 
 **Note:** Setting up a `.env` file is **optional** but **recommended**, especially if you plan to
