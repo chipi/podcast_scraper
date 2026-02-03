@@ -643,7 +643,8 @@ class TestFullPipelineE2E:
             summary_provider="transformers",
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             auto_speakers=True,
-            ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm  # Same for tests and production
+            # Test default: en_core_web_sm (same for tests and production)
+            ner_model=config.TEST_DEFAULT_NER_MODEL,
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             language="en",

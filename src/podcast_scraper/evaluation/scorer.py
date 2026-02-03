@@ -27,7 +27,7 @@ except ImportError:
 try:
     import jiwer
 except ImportError:
-    jiwer = None
+    jiwer = None  # type: ignore[assignment]
 
 try:
     from sentence_transformers import SentenceTransformer

@@ -1074,9 +1074,10 @@ class SummaryModel:
                 else:
                     length_penalty = config_module.DEFAULT_MAP_LENGTH_PENALTY
 
-                # For reduce phase, ALWAYS disable early_stopping to ensure min_new_tokens is enforced
-                # early_stopping=True can cause premature termination before reaching min_new_tokens
-                # This override is critical even if config explicitly sets early_stopping=True
+                # For reduce phase, ALWAYS disable early_stopping to ensure
+                # min_new_tokens is enforced. early_stopping=True can cause premature
+                # termination before reaching min_new_tokens. This override is critical
+                # even if config explicitly sets early_stopping=True
                 if is_reduce_phase:
                     early_stopping = False
             elif early_stopping is None:

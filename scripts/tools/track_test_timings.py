@@ -171,7 +171,8 @@ def print_summary(runs: list[dict], current_run: dict) -> None:
             diff_pct = (diff / baseline_val * 100) if baseline_val > 0 else 0
             symbol = "↑" if diff > 0 else "↓" if diff < 0 else "="
             print(
-                f"  {suite.capitalize():12} {current:7.2f}s  {symbol} {diff:+.2f}s ({diff_pct:+.1f}%)"
+                f"  {suite.capitalize():12} {current:7.2f}s  "
+                f"{symbol} {diff:+.2f}s ({diff_pct:+.1f}%)"
             )
         else:
             print(f"  {suite.capitalize():12} {current:7.2f}s")

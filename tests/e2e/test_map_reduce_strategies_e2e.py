@@ -168,11 +168,12 @@ class TestMapReduceStrategies:
                         "approach=hierarchical reduce" in log_output
                         or 'approach="hierarchical reduce"' in log_output
                     ):
-                        # Hierarchical reduce was used - this is also valid if combined summaries
-                        # exceeded the threshold. The test verifies the system correctly chose
-                        # the appropriate strategy based on actual token counts.
-                        # Hierarchical reduce is valid if combined summaries exceeded threshold
-                        # This test verifies the system makes the right decision, not forces a specific one
+                        # Hierarchical reduce was used - this is also valid if combined
+                        # summaries exceeded the threshold. The test verifies the system
+                        # correctly chose the appropriate strategy based on actual token
+                        # counts. Hierarchical reduce is valid if combined summaries exceeded
+                        # threshold. This test verifies the system makes the right decision,
+                        # not forces a specific one
                         pass
                 else:
                     # Fallback: verify a valid strategy was used

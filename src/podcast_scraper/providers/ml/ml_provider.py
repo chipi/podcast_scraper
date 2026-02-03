@@ -1389,7 +1389,10 @@ class MLProvider:
                 raise ProviderRuntimeError(
                     message=f"Summarization failed: {e}",
                     provider="MLProvider/Transformers",
-                    suggestion="Tokenizer threading error - try sequential processing or reduce parallelism",
+                    suggestion=(
+                        "Tokenizer threading error - try sequential processing "
+                        "or reduce parallelism"
+                    ),
                 ) from e
             raise
         except Exception as e:
