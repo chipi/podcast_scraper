@@ -335,13 +335,13 @@ jobs:
       run: |
         echo "🔍 Verifying models were downloaded..."
         MISSING=""
-        # Check Whisper models
-        for model in "tiny.en" "base.en"; do
+        # Check Whisper models (preload downloads tiny.en by default)
+        for model in "tiny.en"; do
           if [ ! -f "$HOME/.cache/whisper/${model}.pt" ]; then
             MISSING="$MISSING whisper:$model"
           fi
         done
-        # Check Hugging Face models
+        # Check Hugging Face models (preload downloads bart-base and led-base-16384 by default)
         HF_CACHE="$HOME/.cache/huggingface/hub"
         for model in "facebook/bart-base" "allenai/led-base-16384"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
@@ -354,6 +354,7 @@ jobs:
           exit 1
         fi
         echo "✅ All required models downloaded successfully"
+        echo "📦 Cache will be saved at end of job for test jobs to use"
 
   # Full integration tests - all integration tests, runs on main branch only
   test-integration:
