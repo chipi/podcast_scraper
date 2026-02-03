@@ -1027,6 +1027,14 @@ def generate_episode_metadata(
         # Record summary generation time if metrics available
         if pipeline_metrics is not None and summary_elapsed > 0:
             pipeline_metrics.record_summarize_time(summary_elapsed)
+        # Validate that summary was generated when required
+        if cfg.generate_summaries and summary_metadata is None:
+            error_msg = (
+                f"[{episode.idx}] Summary generation failed but generate_summaries=True. "
+                "Summarization is required when generate_summaries is enabled."
+            )
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
 
     # Build complete metadata document
     metadata_doc = EpisodeMetadataDocument(
