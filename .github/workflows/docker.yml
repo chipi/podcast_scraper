@@ -27,7 +27,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Free disk space
       run: |
@@ -87,7 +87,7 @@ jobs:
             tag: podcast-scraper:multi-model
             build_args: "PRELOAD_ML_MODELS=true\nWHISPER_MODELS=tiny.en,base.en"
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Free disk space
       run: |
