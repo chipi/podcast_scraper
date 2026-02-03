@@ -304,45 +304,17 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
+        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
-    - name: Validate cached models (check if restore-keys cache has required models)
-      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit == 'true'
-      id: validate-cached-models
-      run: |
-        echo "🔍 Validating cached models from restore-keys..."
-        MISSING=""
-        # Check Whisper models
-        for model in "tiny.en"; do
-          if [ ! -f "$HOME/.cache/whisper/${model}.pt" ]; then
-            MISSING="$MISSING whisper:$model"
-          fi
-        done
-        # Check Hugging Face models
-        HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384"; do
-          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
-          if [ ! -d "$HF_CACHE/$MODEL_DIR/snapshots" ]; then
-            MISSING="$MISSING hf:$model"
-          fi
-        done
-        if [ -n "$MISSING" ]; then
-          echo "⚠️  Restored cache is missing required models: $MISSING"
-          echo "models_complete=false" >> $GITHUB_OUTPUT
-        else
-          echo "✅ All required models found in restored cache"
-          echo "models_complete=true" >> $GITHUB_OUTPUT
-        fi
-    - name: Set up Python 3.11 (needed for model download or validation)
-      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && (steps.cache-models.outputs.cache-hit != 'true' || (steps.cache-models.outputs.cache-hit == 'true' && steps.validate-cached-models.outputs.models_complete != 'true'))
+    - name: Set up Python 3.11 (only if cache miss - needed for model download)
+      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       uses: actions/setup-python@v6
       with:
         python-version: "3.11"
         cache: "pip"
         cache-dependency-path: pyproject.toml
-    - name: Free disk space (only if cache miss or incomplete - need space for model download)
-      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && (steps.cache-models.outputs.cache-hit != 'true' || (steps.cache-models.outputs.cache-hit == 'true' && steps.validate-cached-models.outputs.models_complete != 'true'))
+    - name: Free disk space (only if cache miss - need space for model download)
+      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: |
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /home/linuxbrew/.linuxbrew
         docker image prune -af || true
@@ -350,15 +322,15 @@ jobs:
         sudo rm -rf /var/lib/apt/lists/*
         df -h
     - name: Install full dependencies (including ML)
-      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && (steps.cache-models.outputs.cache-hit != 'true' || (steps.cache-models.outputs.cache-hit == 'true' && steps.validate-cached-models.outputs.models_complete != 'true'))
+      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: |
         python -m pip install --upgrade pip
         pip install -e .[dev,ml]
-    - name: Preload ML models (only if cache miss or incomplete)
-      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && (steps.cache-models.outputs.cache-hit != 'true' || (steps.cache-models.outputs.cache-hit == 'true' && steps.validate-cached-models.outputs.models_complete != 'true'))
+    - name: Preload ML models (only if cache miss)
+      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: make preload-ml-models
-    - name: Verify models were downloaded (only if cache miss or incomplete)
-      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && (steps.cache-models.outputs.cache-hit != 'true' || (steps.cache-models.outputs.cache-hit == 'true' && steps.validate-cached-models.outputs.models_complete != 'true'))
+    - name: Verify models were downloaded (only if cache miss)
+      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: |
         echo "🔍 Verifying models were downloaded..."
         MISSING=""
@@ -420,9 +392,8 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
+        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -571,9 +542,8 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
+        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -715,9 +685,8 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
+        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -864,9 +833,8 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key automatically invalidates when model definitions change
+        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
