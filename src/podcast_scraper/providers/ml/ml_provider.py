@@ -339,8 +339,9 @@ class MLProvider:
         """Try to copy model references from preloaded MLProvider instance.
 
         This avoids re-initializing models that were already loaded during preload,
-        saving time and memory. However, due to thread safety concerns with HuggingFace
-        models, we still need separate instances - this just avoids reloading from disk.
+        saving time and memory. Whisper and spaCy models are thread-safe for read
+        operations, so we can share the model instances. Transformers models are not
+        thread-safe, so we still need separate instances.
 
         Returns:
             True if models were copied from preloaded instance, False otherwise
@@ -350,6 +351,11 @@ class MLProvider:
 
             if _preloaded_ml_provider is None:
                 return False
+
+            # Check if we ARE the preloaded instance - if so, skip copying (already initialized)
+            if _preloaded_ml_provider is self:
+                logger.debug("This is the preloaded instance, skipping copy")
+                return True
 
             # Only copy if configurations match (same models, same device, etc.)
             if _preloaded_ml_provider.cfg.whisper_model != self.cfg.whisper_model:
@@ -364,29 +370,30 @@ class MLProvider:
             copied = False
 
             # Copy Whisper model if preloaded and we need it
+            # Whisper models are thread-safe for read operations, so we can share the instance
             if (
                 self.cfg.transcribe_missing
                 and not self._whisper_initialized
                 and _preloaded_ml_provider._whisper_initialized
                 and _preloaded_ml_provider._whisper_model is not None
             ):
-                # For Whisper, we can share the model instance
-                # (it's thread-safe for read operations)
-                # However, to be safe with concurrent transcription, we'll still reload
-                # but the model file is already in memory/cache, so it's faster
-                logger.debug("Whisper model already preloaded, will reuse cached model file")
+                logger.debug("Reusing preloaded Whisper model instance (thread-safe for read)")
+                self._whisper_model = _preloaded_ml_provider._whisper_model
+                self._whisper_initialized = True
                 copied = True
 
             # Copy spaCy model if preloaded and we need it
+            # spaCy models are thread-safe for read operations, so we can share the instance
             if (
                 self.cfg.auto_speakers
                 and not self._spacy_initialized
                 and _preloaded_ml_provider._spacy_initialized
                 and _preloaded_ml_provider._spacy_nlp is not None
             ):
-                # spaCy models are thread-safe for read operations, but to be safe
-                # we'll note that it's preloaded (the actual copy happens in _initialize_spacy)
-                logger.debug("spaCy model already preloaded, will reuse")
+                logger.debug("Reusing preloaded spaCy model instance (thread-safe for read)")
+                self._spacy_nlp = _preloaded_ml_provider._spacy_nlp
+                self._spacy_heuristics = _preloaded_ml_provider._spacy_heuristics
+                self._spacy_initialized = True
                 copied = True
 
             # For Transformers, we cannot share instances (not thread-safe)
@@ -398,7 +405,7 @@ class MLProvider:
             ):
                 logger.debug(
                     "Transformers models already preloaded, creating new instances "
-                    "for thread safety"
+                    "for thread safety (models will load faster from cache)"
                 )
                 copied = True
 
@@ -429,17 +436,39 @@ class MLProvider:
         For example, if summary_provider="openai", Transformers models will not be loaded
         even if generate_summaries=True.
         """
+        # Check if we're already fully initialized (e.g., we're the preloaded instance)
+        # If so, skip initialization entirely
+        needs_whisper = self.cfg.transcribe_missing and self.cfg.transcription_provider == "whisper"
+        needs_spacy = self.cfg.auto_speakers and self.cfg.speaker_detector_provider == "spacy"
+        needs_transformers = (
+            self.cfg.generate_summaries and self.cfg.summary_provider == "transformers"
+        )
+
+        already_initialized = (
+            (not needs_whisper or self._whisper_initialized)
+            and (not needs_spacy or self._spacy_initialized)
+            and (not needs_transformers or self._transformers_initialized)
+        )
+
+        if already_initialized:
+            logger.debug("Models already initialized, skipping redundant initialization")
+            return
+
         # Try to copy from preloaded instance first (avoids redundant initialization)
+        # This will actually copy model instances for Whisper and spaCy (thread-safe)
         preloaded_available = self._try_copy_from_preloaded()
 
         # Initialize Whisper if transcription enabled AND provider is Whisper
+        # If Whisper was copied from preloaded, _whisper_initialized will be True and we skip
         # If Whisper fails, log warning but continue with other components
-        needs_whisper = self.cfg.transcribe_missing and self.cfg.transcription_provider == "whisper"
         if needs_whisper and not self._whisper_initialized:
             try:
-                # If preloaded, the model file is already cached, so loading is faster
+                # If preloaded was available but copy didn't happen, model file is cached
                 if preloaded_available:
-                    logger.debug("Reusing preloaded Whisper model configuration")
+                    logger.debug(
+                        "Loading Whisper model (preloaded instance available, "
+                        "using cached model file)"
+                    )
                 self._initialize_whisper()
             except Exception as e:
                 logger.warning(
@@ -448,13 +477,14 @@ class MLProvider:
                 # Don't raise - allow other components to initialize
 
         # Initialize spaCy if speaker detection enabled AND provider is spaCy
-        needs_spacy = self.cfg.auto_speakers and self.cfg.speaker_detector_provider == "spacy"
+        # If spaCy was copied from preloaded, _spacy_initialized will be True and we skip
         if needs_spacy and not self._spacy_initialized:
             try:
-                # If preloaded, spaCy model is already loaded, so we can reference it
-                # However, for thread safety, we still create a new instance
+                # If preloaded was available but copy didn't happen, model is cached
                 if preloaded_available:
-                    logger.debug("Reusing preloaded spaCy model configuration")
+                    logger.debug(
+                        "Loading spaCy model (preloaded instance available, using cached model)"
+                    )
                 self._initialize_spacy()
             except Exception as e:
                 logger.warning(
@@ -465,9 +495,6 @@ class MLProvider:
         # Initialize Transformers if summarization enabled AND provider is Transformers
         # Note: Transformers models cannot be shared across threads (not thread-safe)
         # so we always create new instances, but if preloaded, the model files are cached
-        needs_transformers = (
-            self.cfg.generate_summaries and self.cfg.summary_provider == "transformers"
-        )
         if needs_transformers and not self._transformers_initialized:
             if preloaded_available:
                 logger.debug(
@@ -988,7 +1015,7 @@ class MLProvider:
         # Use detect_speaker_names with adapted parameters
         # Pass self._spacy_nlp directly (required parameter)
         speaker_names, detected_hosts_set, detection_succeeded = (
-            speaker_detection.detect_speaker_names(
+            speaker_detection.detect_speaker_names(  # type: ignore[misc]
                 episode_title=episode_title,
                 episode_description=episode_description,
                 nlp=self._spacy_nlp,  # Required: pass pre-loaded model
@@ -1283,7 +1310,7 @@ class MLProvider:
                 truncation = self.cfg.summary_tokenize.get("truncation")
             preprocessing_profile = (
                 params.get("preprocessing_profile") if params else None
-            ) or "cleaning_v3"  # Default to cleaning_v3 if not specified
+            ) or "cleaning_v4"  # Default to cleaning_v4 (matches production baseline)
 
             result = summarizer.summarize_long_text(
                 model=self._map_model,
@@ -1350,6 +1377,21 @@ class MLProvider:
                 result_dict["intermediates"] = intermediates
 
             return result_dict
+        except RuntimeError as e:
+            error_msg = str(e).lower()
+            # Handle "Already borrowed" error from Rust tokenizer in parallel execution
+            if "already borrowed" in error_msg:
+                logger.error(
+                    f"Tokenizer threading error during summarization: {e}. "
+                    "This can occur in parallel execution with Rust-based tokenizers. "
+                    "Consider reducing parallelism or using sequential processing."
+                )
+                raise ProviderRuntimeError(
+                    message=f"Summarization failed: {e}",
+                    provider="MLProvider/Transformers",
+                    suggestion="Tokenizer threading error - try sequential processing or reduce parallelism",
+                ) from e
+            raise
         except Exception as e:
             logger.error("Summarization failed: %s", e)
             raise ProviderRuntimeError(

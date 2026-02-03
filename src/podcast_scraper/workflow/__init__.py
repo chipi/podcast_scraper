@@ -62,11 +62,21 @@ if _orchestration_py_path.exists():
         spec.loader.exec_module(_orchestration_module)
         _re_export_orchestration_functions(_orchestration_module)
 
-# Re-export metadata_generation for convenience
-from . import metadata_generation
-
 # Re-export _preloaded_ml_provider from orchestration for factory reuse
-from .orchestration import _preloaded_ml_provider  # noqa: F401
+# Import the module so we can access the attribute dynamically
+# Re-export metadata_generation for convenience
+from . import metadata_generation, orchestration
+
+
+# Expose _preloaded_ml_provider as a reference to orchestration's attribute
+# This ensures factories always get the current value, even after it's set in setup.py
+# We use __getattr__ to make it work like a module-level attribute
+def __getattr__(name: str) -> Any:
+    """Dynamically access attributes from orchestration module."""
+    if name == "_preloaded_ml_provider":
+        return getattr(orchestration, "_preloaded_ml_provider", None)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "FeedMetadata",

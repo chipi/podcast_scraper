@@ -242,7 +242,7 @@ class TestFullPipelineE2E:
             metadata_format="json",
             generate_summaries=False,  # Disable to avoid loading summarization model
             auto_speakers=True,
-            ner_model=config.DEFAULT_NER_MODEL,  # Default: en_core_web_sm
+            ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
             transcribe_missing=False,  # No transcription needed
         )
 
@@ -289,7 +289,7 @@ class TestFullPipelineE2E:
             metadata_format="json",
             generate_summaries=False,  # Disable to avoid loading summarization model
             auto_speakers=True,
-            ner_model=config.DEFAULT_NER_MODEL,  # Default: en_core_web_sm
+            ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
             transcribe_missing=False,  # No transcription needed, use existing transcripts
         )
 
@@ -412,7 +412,7 @@ class TestFullPipelineE2E:
             summary_provider="transformers",
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             auto_speakers=True,
-            ner_model=config.DEFAULT_NER_MODEL,
+            ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
@@ -565,7 +565,7 @@ class TestFullPipelineE2E:
             summary_provider="transformers",
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             auto_speakers=True,
-            ner_model=config.DEFAULT_NER_MODEL,
+            ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             preload_models=True,  # Explicitly enable preloading (default)
@@ -643,7 +643,7 @@ class TestFullPipelineE2E:
             summary_provider="transformers",
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
             auto_speakers=True,
-            ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
+            ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm  # Same for tests and production
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             language="en",

@@ -74,7 +74,7 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="spacy",
             auto_speakers=True,  # Enable for speaker detection tests
-            ner_model=config.DEFAULT_NER_MODEL,
+            ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
         )
 
     def test_detector_creation_via_factory(self):

@@ -234,6 +234,22 @@ def preload_ml_models_if_needed(cfg: config.Config) -> None:
 
         _preloaded_ml_provider = MLProvider(cfg)
         _preloaded_ml_provider.preload()
+
+        # Also store in orchestration module so factories can find it
+        from .. import orchestration
+
+        orchestration._preloaded_ml_provider = _preloaded_ml_provider
+
+        # Also update workflow module's reference (for factories that import from workflow)
+        # This ensures the __getattr__ in workflow/__init__.py returns the current value
+        import sys
+
+        workflow_module = sys.modules.get("podcast_scraper.workflow")
+        if workflow_module:
+            # Update the orchestration module reference (which __getattr__ reads from)
+            # The orchestration module is already updated above, so this is just for clarity
+            pass
+
         logger.debug("ML models preloaded successfully, instance stored for reuse")
     except ImportError as e:
         # Log more details about the import error to help diagnose issues

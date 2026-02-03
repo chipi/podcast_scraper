@@ -87,11 +87,14 @@ The testing strategy follows a three-tier pyramid:
 - **I/O Policy**:
   - ✅ **Allowed**: Real filesystem I/O (temp directories), real component interactions
   - ❌ **Mocked**: External services (HTTP APIs, external APIs) - mocked for speed/reliability
-  - ❌ **Mocked**: ML models (Whisper, spaCy, Transformers) - mocked for speed, focus on component integration
+  - ⚠️ **ML models**: Mocked by default for speed. Use real models with `@pytest.mark.ml_models`
+    for ML workflow integration tests (excluded from fast suite, see
+    [Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md))
   - ✅ **Optional**: Local HTTP server for HTTP client testing in isolation
 - **Coverage**: Critical paths and edge cases, component interactions
 - **Examples**: Provider factory → provider implementation, RSS parser → Episode → Provider → File output, HTTP client with local test server
-- **Key Distinction**: Tests how components work together, not complete user workflows. Can use mocks for ML models to keep tests fast.
+- **Key Distinction**: Tests how components work together, not complete user workflows. Mock ML
+  models for fast tests; use real models with `@pytest.mark.ml_models` for ML workflow tests.
 
 ### End-to-End Tests
 

@@ -29,6 +29,7 @@ nav:
       - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md
       - Documentation Agent Guide: guides/DOCUMENTATION_AGENT_GUIDE.md
       - Troubleshooting: guides/TROUBLESHOOTING.md
+      - Segfault Mitigation: guides/SEGFAULT_MITIGATION.md
       - Glossary: guides/GLOSSARY.md
   - Architecture: ARCHITECTURE.md
   - Engineering Process: guides/ENGINEERING_PROCESS.md

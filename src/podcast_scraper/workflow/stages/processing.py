@@ -71,6 +71,7 @@ def detect_feed_hosts_and_patterns(
     feed: models.RssFeed,
     episodes: List[models.Episode],
     pipeline_metrics: Optional[metrics.Metrics] = None,
+    speaker_detector: Optional[Any] = None,
 ) -> HostDetectionResult:
     """Detect hosts from feed metadata and analyze episode patterns.
 
@@ -78,6 +79,9 @@ def detect_feed_hosts_and_patterns(
         cfg: Configuration object
         feed: Parsed RssFeed object
         episodes: List of Episode objects
+        pipeline_metrics: Optional metrics collector
+        speaker_detector: Optional pre-initialized speaker detector instance.
+            If None and auto_speakers=True, will create one (for backward compatibility).
 
     Returns:
         HostDetectionResult with cached_hosts and heuristics
@@ -106,113 +110,144 @@ def detect_feed_hosts_and_patterns(
                 logger.info("=" * 60)
         return HostDetectionResult(cached_hosts, heuristics, None)
 
-    # Stage 3: Use provider pattern for speaker detection
-    try:
-        # Use wrapper function if available (for testability)
-        import sys
-
-        workflow_pkg = sys.modules.get("podcast_scraper.workflow")
-        if workflow_pkg and hasattr(workflow_pkg, "create_speaker_detector"):
-            func = getattr(workflow_pkg, "create_speaker_detector")
-            from unittest.mock import Mock
-
-            if isinstance(func, Mock):
-                speaker_detector = func(cfg)
-            else:
-                speaker_detector = create_speaker_detector(cfg)
-        else:
-            from ...speaker_detectors.factory import (
-                create_speaker_detector as factory_create_speaker_detector,
-            )
-
-            speaker_detector = factory_create_speaker_detector(cfg)
-        # Initialize provider (loads spaCy model)
-        speaker_detector.initialize()
-
-        # Detect hosts: prefer RSS author tags, fall back to NER
-        feed_hosts = speaker_detector.detect_hosts(
-            feed_title=feed.title,
-            feed_description=None,  # TODO: Extract from feed XML if needed
-            feed_authors=feed.authors if feed.authors else None,
+    # Use provided speaker detector, or create one if not provided (backward compatibility)
+    if speaker_detector is None:
+        # Fallback: create speaker detector if not provided (for backward compatibility)
+        # This should not happen in normal flow - providers should be created in orchestration
+        logger.warning(
+            "speaker_detector not provided to detect_feed_hosts_and_patterns, "
+            "creating new instance (this should be created in orchestration)"
         )
+        try:
+            import sys
 
-        # Validate hosts with first episode: hosts should appear in first episode too
-        # Skip validation if hosts came from author tags (they're already reliable)
-        if feed_hosts and episodes and not feed.authors:
-            # Only validate if we used NER (not author tags)
-            first_episode = episodes[0]
-            first_episode_description = extract_episode_description(first_episode.item)
-            # Validate hosts by checking if they appear in first episode
-            # Use provider's detect_speakers to extract persons from first episode
-            # Pass pipeline_metrics for LLM call tracking (if OpenAI provider)
-            import inspect
+            workflow_pkg = sys.modules.get("podcast_scraper.workflow")
+            if workflow_pkg and hasattr(workflow_pkg, "create_speaker_detector"):
+                func = getattr(workflow_pkg, "create_speaker_detector")
+                from unittest.mock import Mock
 
-            sig = inspect.signature(speaker_detector.detect_speakers)
-            if "pipeline_metrics" in sig.parameters:
-                first_episode_speakers, _, _ = speaker_detector.detect_speakers(
+                if isinstance(func, Mock):
+                    speaker_detector = func(cfg)
+                else:
+                    speaker_detector = create_speaker_detector(cfg)
+            else:
+                from ...speaker_detectors.factory import (
+                    create_speaker_detector as factory_create_speaker_detector,
+                )
+
+                speaker_detector = factory_create_speaker_detector(cfg)
+            # Initialize provider (loads spaCy model)
+            speaker_detector.initialize()
+        except Exception as exc:
+            logger.error("Failed to initialize speaker detector: %s", exc)
+            # Don't raise - allow pipeline to continue without speaker detection
+            return HostDetectionResult(cached_hosts, heuristics, None)
+
+    # Detect hosts: prefer RSS author tags, fall back to NER
+    if speaker_detector is None:
+        # No speaker detector available, return empty result
+        return HostDetectionResult(cached_hosts, heuristics, None)
+
+    feed_hosts = speaker_detector.detect_hosts(
+        feed_title=feed.title,
+        feed_description=None,  # TODO: Extract from feed XML if needed
+        feed_authors=feed.authors if feed.authors else None,
+    )
+
+    # Priority: Use known_hosts from config if provided (show-level override)
+    # This is useful when RSS metadata doesn't provide clean host names
+    if cfg.known_hosts:
+        known_hosts_set = set(cfg.known_hosts)
+        logger.info(
+            "Using known_hosts from config: %s",
+            ", ".join(sorted(known_hosts_set)),
+        )
+        # Merge with feed_hosts (known_hosts takes precedence)
+        cached_hosts = known_hosts_set | feed_hosts
+        if cached_hosts:
+            logger.info("=" * 60)
+            logger.info(
+                "DETECTED HOSTS (from config known_hosts + feed): %s",
+                ", ".join(sorted(cached_hosts)),
+            )
+            logger.info("=" * 60)
+            # Skip validation since known_hosts are trusted
+            return HostDetectionResult(cached_hosts, heuristics, speaker_detector)
+
+    # Validate hosts with first episode: hosts should appear in first episode too
+    # Skip validation if hosts came from author tags (they're already reliable)
+    if feed_hosts and episodes and not feed.authors:
+        # Only validate if we used NER (not author tags)
+        first_episode = episodes[0]
+        first_episode_description = extract_episode_description(first_episode.item)
+        # Validate hosts by checking if they appear in first episode
+        # Use provider's detect_speakers to extract persons from first episode
+        # Pass pipeline_metrics for LLM call tracking (if OpenAI provider)
+        import inspect
+
+        sig = inspect.signature(speaker_detector.detect_speakers)
+        if "pipeline_metrics" in sig.parameters:
+            first_episode_speakers, _, _ = (
+                speaker_detector.detect_speakers(  # type: ignore[call-arg]
                     episode_title=first_episode.title,
                     episode_description=first_episode_description,
                     known_hosts=set(),
                     pipeline_metrics=pipeline_metrics,
                 )
-            else:
-                first_episode_speakers, _, _ = speaker_detector.detect_speakers(
-                    episode_title=first_episode.title,
-                    episode_description=first_episode_description,
-                    known_hosts=set(),
-                )
-            first_episode_persons = set(first_episode_speakers)
-            # Only keep hosts that also appear in first episode (validation)
-            validated_hosts = feed_hosts & first_episode_persons
-            if validated_hosts != feed_hosts:
-                logger.debug(
-                    "Host validation: %d hosts from feed, %d validated with first episode",
-                    len(feed_hosts),
-                    len(validated_hosts),
-                )
-                if validated_hosts:
-                    logger.debug(
-                        "Validated hosts (appear in feed and first episode): %s",
-                        list(validated_hosts),
-                    )
-                if feed_hosts - validated_hosts:
-                    logger.debug(
-                        "Hosts from feed not found in first episode (discarded): %s",
-                        list(feed_hosts - validated_hosts),
-                    )
-            cached_hosts = validated_hosts if validated_hosts else feed_hosts
-        else:
-            # If hosts came from author tags, use them directly (no validation needed)
-            cached_hosts = feed_hosts
-
-        if cached_hosts:
-            source = "RSS author tags" if feed.authors else "feed metadata (NER)"
-            logger.info("=" * 60)
-            logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
-            logger.info("=" * 60)
-        elif cfg.auto_speakers:
-            logger.debug("No hosts detected from feed metadata")
-
-        # Analyze patterns from first few episodes to extract heuristics
-        if cfg.auto_speakers and episodes:
-            heuristics_dict = speaker_detector.analyze_patterns(
-                episodes=episodes, known_hosts=cached_hosts
             )
-            if heuristics_dict:
-                heuristics = heuristics_dict
-                if heuristics.get("title_position_preference"):
-                    logger.debug(
-                        "Pattern analysis: guest names typically appear at %s of title",
-                        heuristics["title_position_preference"],
-                    )
+        else:
+            first_episode_speakers, _, _ = speaker_detector.detect_speakers(
+                episode_title=first_episode.title,
+                episode_description=first_episode_description,
+                known_hosts=set(),
+            )
+        first_episode_persons = set(first_episode_speakers)
+        # Only keep hosts that also appear in first episode (validation)
+        validated_hosts = feed_hosts & first_episode_persons
+        if validated_hosts != feed_hosts:
+            logger.debug(
+                "Host validation: %d hosts from feed, %d validated with first episode",
+                len(feed_hosts),
+                len(validated_hosts),
+            )
+            if validated_hosts:
+                logger.debug(
+                    "Validated hosts (appear in feed and first episode): %s",
+                    list(validated_hosts),
+                )
+            if feed_hosts - validated_hosts:
+                logger.debug(
+                    "Hosts from feed not found in first episode (discarded): %s",
+                    list(feed_hosts - validated_hosts),
+                )
+        cached_hosts = validated_hosts if validated_hosts else feed_hosts
+    else:
+        # If hosts came from author tags, use them directly (no validation needed)
+        cached_hosts = feed_hosts
 
-        # Return result with provider instance
-        return HostDetectionResult(cached_hosts, heuristics, speaker_detector)
-    except Exception as exc:
-        logger.error("Failed to initialize speaker detector provider: %s", exc)
-        # Fail fast - provider initialization should succeed
-        # Return empty result without provider
-        return HostDetectionResult(set(), None, None)
+    if cached_hosts:
+        source = "RSS author tags" if feed.authors else "feed metadata (NER)"
+        logger.info("=" * 60)
+        logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
+        logger.info("=" * 60)
+    elif cfg.auto_speakers:
+        logger.debug("No hosts detected from feed metadata")
+
+    # Analyze patterns from first few episodes to extract heuristics
+    if cfg.auto_speakers and episodes:
+        heuristics_dict = speaker_detector.analyze_patterns(
+            episodes=episodes, known_hosts=cached_hosts
+        )
+        if heuristics_dict:
+            heuristics = heuristics_dict
+            if heuristics.get("title_position_preference"):
+                logger.debug(
+                    "Pattern analysis: guest names typically appear at %s of title",
+                    heuristics["title_position_preference"],
+                )
+
+    # Return result with provider instance
+    return HostDetectionResult(cached_hosts, heuristics, speaker_detector)
 
 
 def setup_processing_resources(cfg: config.Config) -> ProcessingResources:
@@ -357,9 +392,18 @@ def prepare_episode_download_args(
                 extract_names_start = time.time()
 
                 # Stage 3: Use provider for speaker detection
-                # Use wrapper function if available (for testability)
+                # Get speaker detector from host_detection_result (should be set in orchestration)
                 speaker_detector = host_detection_result.speaker_detector
                 if not speaker_detector:
+                    # Fallback: create speaker detector if not in result
+                    # (for backward compatibility)
+                    # This should not happen in normal flow - providers should be
+                    # created in orchestration
+                    logger.warning(
+                        "speaker_detector not found in host_detection_result, "
+                        "creating new instance "
+                        "(this should be created in orchestration)"
+                    )
                     import sys
 
                     workflow_pkg = sys.modules.get("podcast_scraper.workflow")
@@ -381,10 +425,21 @@ def prepare_episode_download_args(
                     if speaker_detector:
                         speaker_detector.initialize()
                 if speaker_detector:
+                    # Combine cached_hosts with known_hosts from config
+                    # (known_hosts takes precedence)
                     cached_hosts_for_detection = (
                         host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
                     )
-                    # Pass pipeline_metrics for LLM call tracking (if OpenAI provider)
+                    # known_hosts from config takes precedence over cached_hosts
+                    if cfg.known_hosts:
+                        known_hosts_set = set(cfg.known_hosts)
+                        # Merge: known_hosts + cached_hosts (known_hosts are trusted)
+                        combined_hosts = known_hosts_set | cached_hosts_for_detection
+                    else:
+                        combined_hosts = cached_hosts_for_detection
+
+                    # Pass pipeline_metrics for LLM call tracking
+                    # (if OpenAI provider)
                     import inspect
 
                     sig = inspect.signature(speaker_detector.detect_speakers)
@@ -393,7 +448,7 @@ def prepare_episode_download_args(
                             speaker_detector.detect_speakers(
                                 episode_title=episode.title,
                                 episode_description=episode_description,
-                                known_hosts=cached_hosts_for_detection,
+                                known_hosts=combined_hosts,
                                 pipeline_metrics=pipeline_metrics,
                             )
                         )
@@ -402,7 +457,7 @@ def prepare_episode_download_args(
                             speaker_detector.detect_speakers(
                                 episode_title=episode.title,
                                 episode_description=episode_description,
-                                known_hosts=cached_hosts_for_detection,
+                                known_hosts=combined_hosts,
                             )
                         )
                 else:
@@ -440,6 +495,8 @@ def prepare_episode_download_args(
                 detected_speaker_names = manual_guests
             elif detection_succeeded:
                 # Filter out hosts from detected speakers (keep only guests)
+                # CRITICAL: List comprehension already creates a new list, but be explicit
+                # to prevent any shared mutable state issues
                 detected_speaker_names = [
                     s for s in detected_speakers if s not in detected_hosts_set
                 ]
@@ -607,6 +664,7 @@ def process_episodes(  # noqa: C901
                     args[5],
                     args[6],
                     args[7],
+                    pipeline_metrics=pipeline_metrics,
                 ): args[0].idx
                 for args in download_args
             }

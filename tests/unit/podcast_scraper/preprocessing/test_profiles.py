@@ -56,4 +56,4 @@ class TestPreprocessingProfiles(unittest.TestCase):
 
     def test_default_profile(self):
         """Test default profile constant."""
-        self.assertEqual(DEFAULT_PROFILE, "cleaning_v3")
+        self.assertEqual(DEFAULT_PROFILE, "cleaning_v4")

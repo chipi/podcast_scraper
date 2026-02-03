@@ -706,9 +706,19 @@ def _parse_cache_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespac
         help="Clean cache. Specify type (whisper, transformers, spacy) or use 'all' (default)",
     )
     parser.add_argument(
+        "--delete-model",
+        type=str,
+        default=None,
+        metavar="MODEL_NAME",
+        help=(
+            "Delete cache for a specific Transformers model "
+            "(e.g., 'google/pegasus-cnn_dailymail')"
+        ),
+    )
+    parser.add_argument(
         "--yes",
         action="store_true",
-        help="Skip confirmation prompt when cleaning cache",
+        help="Skip confirmation prompt when cleaning cache or deleting model",
     )
 
     args = parser.parse_args(argv)
@@ -1060,6 +1070,20 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     )
                     return 0
 
+            # Handle --delete-model option
+            if args.delete_model:
+                success, freed = cache_manager.delete_transformers_model_cache(
+                    args.delete_model, confirm=confirm, force=args.yes
+                )
+                if success:
+                    freed_str = cache_manager.format_size(freed)
+                    print(f"\nDeleted cache for model '{args.delete_model}': {freed_str} freed")
+                    print("The model will be re-downloaded on next use.")
+                    return 0
+                else:
+                    print(f"\nFailed to delete cache for model '{args.delete_model}'")
+                    return 1
+
         except ImportError as exc:
             log.error(f"Cache management requires cache_manager module: {exc}")
             return 1
@@ -1129,4 +1153,33 @@ def main(  # noqa: C901 - main function handles multiple command paths
 
 
 if __name__ == "__main__":  # pragma: no cover - script entry
+    import warnings
+
+    # Silence thinc/spaCy FutureWarning about torch.cuda.amp.autocast (version compatibility issue)
+    # This warning is from thinc/shims/pytorch.py and is not actionable by users
+    # It's a known compatibility issue between thinc and newer PyTorch versions
+    warnings.filterwarnings(
+        "ignore",
+        category=FutureWarning,
+        message=r".*torch\.cuda\.amp\.autocast.*deprecated.*",
+        module="thinc.*",
+    )
+
+    # Enable faulthandler for crash diagnostics (segfault debugging)
+    # This provides native backtraces when crashes occur, especially useful for
+    # debugging segfaults from native extensions (PyTorch MPS, Transformers, spaCy)
+    import faulthandler
+
+    # Enable faulthandler if not already enabled via PYTHONFAULTHANDLER env var
+    # This provides native backtraces for segfaults (actual crashes), but we don't
+    # use dump_traceback_later() because it causes false alarms during normal long-running
+    # operations like Whisper transcription (which can take minutes).
+    if os.getenv("PYTHONFAULTHANDLER") != "1":
+        faulthandler.enable(all_threads=True)
+        # Note: We intentionally do NOT use dump_traceback_later() here because:
+        # 1. It triggers false alarms during normal long-running operations (transcription)
+        # 2. The timeout (even if increased) is arbitrary and doesn't reflect actual hangs
+        # 3. faulthandler.enable() still provides backtraces for actual segfaults/crashes
+        # For debugging actual hangs, use: PYTHONFAULTHANDLER=1 python -m podcast_scraper.cli ...
+
     raise SystemExit(main())

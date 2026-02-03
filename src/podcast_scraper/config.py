@@ -173,8 +173,12 @@ DEFAULT_MAP_EARLY_STOPPING = True  # Production baseline: true
 DEFAULT_MAP_REPETITION_PENALTY = 1.1  # Production baseline: 1.1 (Pegasus-CNN optimized)
 
 # Reduce stage defaults (for episode-level summarization) - LED-base settings
+# Note: These defaults are dynamically capped based on input size to prevent expansion
+# When reduce input is short (< 500 tokens), min_new_tokens is overridden to 0
 DEFAULT_REDUCE_MAX_NEW_TOKENS = 650  # Production baseline: 650 tokens for reduce stage
-DEFAULT_REDUCE_MIN_NEW_TOKENS = 220  # Production baseline: 220 tokens for reduce stage
+DEFAULT_REDUCE_MIN_NEW_TOKENS = (
+    220  # Production baseline: 220 tokens (dynamically capped to prevent expansion)
+)
 DEFAULT_REDUCE_NUM_BEAMS = 4  # Production baseline: 4 beams
 DEFAULT_REDUCE_NO_REPEAT_NGRAM_SIZE = 3  # Production baseline: 3
 DEFAULT_REDUCE_LENGTH_PENALTY = 1.0  # Production baseline: 1.0
@@ -360,6 +364,15 @@ class Config(BaseModel):
     )
     auto_speakers: bool = Field(default=True, alias="auto_speakers")
     cache_detected_hosts: bool = Field(default=True, alias="cache_detected_hosts")
+    known_hosts: List[str] = Field(
+        default_factory=list,
+        alias="known_hosts",
+        description=(
+            "Known host names for the podcast (show-level override). "
+            "Useful when RSS metadata doesn't provide clean host names. "
+            "These will be used as hosts if auto-detection fails or finds no hosts."
+        ),
+    )
     # Provider selection fields (Stage 0: Foundation)
     speaker_detector_provider: Literal["spacy", "openai"] = Field(
         default="spacy",

@@ -157,12 +157,15 @@ def download_media_for_transcription(
                 final_out_path,
             )
             # Return a job with empty temp_media since we won't download/transcribe
+            # CRITICAL: Create a copy of detected_speaker_names to prevent shared mutable state
+            # This prevents speaker names from one episode leaking to another
+            speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
             return models.TranscriptionJob(
                 idx=episode.idx,
                 ep_title=episode.title,
                 ep_title_safe=episode.title_safe,
                 temp_media="",  # Empty since we're reusing existing transcript
-                detected_speaker_names=detected_speaker_names,
+                detected_speaker_names=speaker_names_copy,
             )
         prefix = "[dry-run] " if cfg.dry_run else ""
         logger.info(
@@ -206,6 +209,15 @@ def download_media_for_transcription(
     # Check if media file already exists and reuse it if configured
     total_bytes = 0
     dl_elapsed = 0.0
+
+    # Record download attempt (regardless of reuse/cache)
+    # CRITICAL: Always record attempts - this ensures metrics reflect reality
+    # Note: pipeline_metrics should always be passed, but we check for None defensively
+    if pipeline_metrics is not None:
+        pipeline_metrics.record_download_media_attempt()
+    # If metrics is None, we can't record but we don't log a warning here
+    # (the warning would be too noisy if metrics aren't available in some code paths)
+
     if cfg.reuse_media and os.path.exists(temp_media):
         logger.debug(f"    reusing existing media file: {temp_media}")
         # Verify file size is reasonable (not empty or corrupted)
@@ -233,6 +245,10 @@ def download_media_for_transcription(
                         logger.debug(f"    failed to format download size: {exc}")
         except OSError as exc:
             logger.warning(f"    error checking media file, re-downloading: {exc}")
+            # Record download attempt (re-download case)
+            if pipeline_metrics is not None:
+                pipeline_metrics.record_download_media_attempt()
+
             dl_start = time.time()
             ok, total_bytes = downloader.http_download_to_file(
                 episode.media_url, cfg.user_agent, cfg.timeout, temp_media
@@ -249,6 +265,10 @@ def download_media_for_transcription(
                     logger.warning(f"    failed to format download size: {exc}")
     else:
         # Download media file
+        # Record download attempt (regardless of success/reuse)
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_download_media_attempt()
+
         dl_start = time.time()
         ok, total_bytes = downloader.http_download_to_file(
             episode.media_url, cfg.user_agent, cfg.timeout, temp_media
@@ -266,15 +286,30 @@ def download_media_for_transcription(
                 logger.warning(f"    failed to format download size: {exc}")
 
     # Record download time if metrics available and download actually happened
+    # Note: dl_elapsed will be > 0 if download occurred, 0 if media was reused
+    # We record attempts separately, but only record time for actual downloads
     if pipeline_metrics is not None and dl_elapsed > 0:
         pipeline_metrics.record_download_media_time(dl_elapsed)
+    elif (
+        pipeline_metrics is not None
+        and dl_elapsed == 0
+        and cfg.reuse_media
+        and os.path.exists(temp_media)
+    ):
+        # Media was reused - record a tiny time (0.001s) to indicate it was "processed"
+        # This ensures download_media_count reflects all episodes, not just fresh downloads
+        # But we still distinguish via download_media_attempts vs download_media_count
+        pipeline_metrics.record_download_media_time(0.001)
 
+    # CRITICAL: Create a copy of detected_speaker_names to prevent shared mutable state
+    # This prevents speaker names from one episode leaking to another
+    speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
     return models.TranscriptionJob(
         idx=episode.idx,
         ep_title=episode.title,
         ep_title_safe=episode.title_safe,
         temp_media=temp_media,
-        detected_speaker_names=detected_speaker_names,
+        detected_speaker_names=speaker_names_copy,
     )
 
 
@@ -325,7 +360,11 @@ def _format_transcript_if_needed(
 
 
 def _save_transcript_file(
-    text: str, job: models.TranscriptionJob, run_suffix: Optional[str], effective_output_dir: str
+    text: str,
+    job: models.TranscriptionJob,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    pipeline_metrics=None,
 ) -> str:
     """Save transcript text to file.
 
@@ -347,7 +386,8 @@ def _save_transcript_file(
     out_path = filesystem.build_whisper_output_path(
         job.idx, job.ep_title_safe, run_suffix, effective_output_dir
     )
-    filesystem.write_file(out_path, text.encode("utf-8"))
+    # write_file() now logs detailed I/O metrics: file path, bytes, elapsed time
+    filesystem.write_file(out_path, text.encode("utf-8"), pipeline_metrics=pipeline_metrics)
     rel_path = os.path.relpath(out_path, effective_output_dir)
     return rel_path
 
@@ -420,9 +460,14 @@ def transcribe_media_to_text(
         return True, rel_path, 0
 
     # Log detected speaker names (hosts + guests) before transcription
+    # IMPORTANT: Log episode idx to catch speaker name leaks between episodes
     if job.detected_speaker_names:
         speaker_names_display = ", ".join(job.detected_speaker_names)
-        logger.debug("    Speaker names for transcription: %s", speaker_names_display)
+        logger.debug(
+            "[%s] Speaker names for transcription: %s",
+            job.idx,
+            speaker_names_display,
+        )
 
     # Stage 2: Require transcription provider
     if transcription_provider is None:
@@ -465,11 +510,18 @@ def transcribe_media_to_text(
 
         audio_preprocessor = create_audio_preprocessor(cfg)
         if audio_preprocessor:
+            # Record preprocessing attempt (regardless of cache hit/miss)
+            if pipeline_metrics is not None:
+                pipeline_metrics.record_preprocessing_attempt()
+
             cache_dir = cfg.preprocessing_cache_dir or preprocessing_cache.PREPROCESSING_CACHE_DIR
             cache_key = audio_preprocessor.get_cache_key(temp_media)
 
             # Check cache first
+            cache_check_start = time.time()
             cached_path = preprocessing_cache.get_cached_audio_path(cache_key, cache_dir)
+            cache_check_elapsed = time.time() - cache_check_start
+
             if cached_path:
                 logger.debug(
                     "[%s] Audio preprocessing: cache hit, using cached preprocessed audio: %s",
@@ -477,9 +529,10 @@ def transcribe_media_to_text(
                     cache_key,
                 )
                 media_for_transcription = cached_path
-                # Record cache hit
+                # Record cache hit and time (will be tiny but real)
                 if pipeline_metrics is not None:
                     pipeline_metrics.record_preprocessing_cache_hit()
+                    pipeline_metrics.record_preprocessing_time(cache_check_elapsed)
                     try:
                         cached_size = os.path.getsize(cached_path)
                         cached_size_mb = cached_size / (1024 * 1024)
@@ -604,7 +657,9 @@ def transcribe_media_to_text(
         text = _format_transcript_if_needed(
             result, cfg, job.detected_speaker_names, transcription_provider
         )
-        rel_path = _save_transcript_file(text, job, run_suffix, effective_output_dir)
+        rel_path = _save_transcript_file(
+            text, job, run_suffix, effective_output_dir, pipeline_metrics=pipeline_metrics
+        )
         logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")
 
         # Record transcription time if metrics available
@@ -750,7 +805,9 @@ def _write_transcript_file(
         return None
 
     try:
-        filesystem.write_file(out_path, data)
+        # Note: pipeline_metrics not available in this function,
+        # but write_file will still log I/O time
+        filesystem.write_file(out_path, data, pipeline_metrics=None)
         logger.info(f"    saved: {out_path}")
         # Return relative path from output_dir
         rel_path = os.path.relpath(out_path, effective_output_dir)

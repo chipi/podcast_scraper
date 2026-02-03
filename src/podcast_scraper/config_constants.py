@@ -76,6 +76,18 @@ PROD_DEFAULT_SUMMARY_REDUCE_MODEL = (
     SUMMARY_MODEL_LED_BASE_16384  # Production baseline: LED-base for reduce phase
 )
 
+# Model revision pinning (for reproducibility and security)
+# Pin to specific commit SHAs instead of "main" to avoid PR refs and ensure stable weights
+# To find the latest commit SHA for a model, check the model's HuggingFace page or use:
+#   from huggingface_hub import HfApi
+#   api = HfApi()
+#   model_info = api.model_info("google/pegasus-cnn_dailymail", revision="main")
+#   commit_hash = model_info.sha
+# Last updated: 2025-01-XX (commit SHA from main branch)
+PEGASUS_CNN_DAILYMAIL_REVISION = (
+    "40d588fdab0cc077b80d950b300bf66ad3c75b92"  # Pinned commit SHA for reproducibility
+)
+
 # OpenAI model defaults (Issue #191)
 # Test defaults: cheapest models for dev/testing (minimize API costs)
 # Production defaults: best quality/cost balance

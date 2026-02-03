@@ -549,6 +549,10 @@ class TestSummarizeChunksMap(unittest.TestCase):
         mock_model.device = "cuda"  # GPU = sequential
         mock_model.model_name = "test-model"
         mock_model.summarize.return_value = "Chunk summary"
+        # Mock tokenizer for dynamic length adjustment
+        mock_tokenizer = Mock()
+        mock_tokenizer.encode.return_value = [1, 2, 3, 4, 5]  # Return list for len()
+        mock_model.tokenizer = mock_tokenizer
 
         chunks = ["Chunk 1", "Chunk 2", "Chunk 3"]
 
@@ -579,6 +583,10 @@ class TestSummarizeChunksMap(unittest.TestCase):
         mock_model.device = "cpu"  # CPU = can parallelize
         mock_model.model_name = "test-model"
         mock_model.summarize.return_value = "Chunk summary"
+        # Mock tokenizer for dynamic length adjustment
+        mock_tokenizer = Mock()
+        mock_tokenizer.encode.return_value = [1, 2, 3, 4, 5]  # Return list for len()
+        mock_model.tokenizer = mock_tokenizer
 
         chunks = ["Chunk 1", "Chunk 2"]
 

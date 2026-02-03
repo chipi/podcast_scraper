@@ -813,9 +813,7 @@ def generate_enhanced_fingerprint(
             chunking["overlap_ratio"] = 0.1
 
     # Get environment information
-    python_version = (
-        f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-    )
+    python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     os_info = f"{platform.system()}-{platform.release()}-{platform.machine()}"
 
     # Determine pipeline structure

@@ -48,6 +48,7 @@ class TestSummarizationInitializationFailure(unittest.TestCase):
 
         shutil.rmtree(self.output_dir, ignore_errors=True)
 
+    @patch("podcast_scraper.providers.ml.ml_provider.MLProvider._initialize_transformers")
     @patch("podcast_scraper.workflow.stages.setup.initialize_ml_environment")
     @patch("podcast_scraper.workflow.stages.setup.setup_pipeline_environment")
     @patch("podcast_scraper.workflow.stages.setup.preload_ml_models_if_needed")
@@ -58,8 +59,14 @@ class TestSummarizationInitializationFailure(unittest.TestCase):
     @patch("podcast_scraper.workflow.stages.transcription.setup_transcription_resources")
     @patch("podcast_scraper.workflow.stages.processing.setup_processing_resources")
     @patch("podcast_scraper.workflow.orchestration._create_summarization_provider_factory")
+    @patch("podcast_scraper.transcription.factory.create_transcription_provider")
+    @patch("podcast_scraper.providers.ml.summarizer.transformers", create=True)
+    @patch("importlib.util.find_spec")
     def test_summarization_provider_initialization_failure_raises_error(
         self,
+        mock_find_spec,
+        mock_transformers,
+        mock_create_transcription_provider,
         mock_create_provider,
         mock_setup_processing,
         mock_setup_transcription,
@@ -70,8 +77,81 @@ class TestSummarizationInitializationFailure(unittest.TestCase):
         mock_preload_models,
         mock_setup_env,
         mock_init_env,
+        mock_init_transformers,
     ):
         """Test that summarization provider initialization failure raises RuntimeError."""
+        # Mock importlib.util.find_spec to prevent spacy.__spec__ errors
+        # Return None to indicate spacy is not available (prevents ValueError from spacy.__spec__)
+        mock_find_spec.return_value = None
+        # Mock transformers to prevent actual import
+        import sys
+
+        # Set up transformers mock to return expected values
+        # Create a mock model with nested structure for encoder/decoder access
+        mock_model_instance = Mock()
+        mock_model_instance.model = Mock()
+
+        # Set up encoder with embed_positions.weight.shape as a tuple
+        # Create a simple object with shape attribute (not a Mock to avoid auto-creation)
+        # Use a tuple directly for shape to ensure it's subscriptable
+        class MockWeight:
+            def __init__(self):
+                # Make shape a tuple that's directly accessible
+                self._shape = (1024, 768)
+
+            @property
+            def shape(self):
+                return self._shape
+
+        class MockEmbedPositions:
+            def __init__(self):
+                self.weight = MockWeight()
+
+        mock_encoder_embed_pos = MockEmbedPositions()
+        # Configure encoder Mock to return our embed_positions object
+        # Use configure_mock to ensure the attribute is properly set
+        mock_encoder = Mock()
+        mock_encoder.configure_mock(embed_positions=mock_encoder_embed_pos)
+        mock_encoder.config = Mock()
+        mock_encoder.config.hidden_size = 768
+        # Configure model.model to return our encoder
+        mock_model_instance.model.configure_mock(encoder=mock_encoder)
+
+        # Set up decoder with embed_positions.weight.shape as a tuple
+        class MockDecoderWeight:
+            def __init__(self):
+                # Make shape a tuple that's directly accessible
+                self._shape = (1024, 768)
+
+            @property
+            def shape(self):
+                return self._shape
+
+        class MockDecoderEmbedPositions:
+            def __init__(self):
+                self.weight = MockDecoderWeight()
+
+        mock_decoder_embed_pos = MockDecoderEmbedPositions()
+        # Configure decoder Mock to return our embed_positions object
+        # Use configure_mock to ensure the attribute is properly set
+        mock_decoder = Mock()
+        mock_decoder.configure_mock(embed_positions=mock_decoder_embed_pos)
+        mock_decoder.config = Mock()
+        mock_decoder.config.hidden_size = 768
+        # Configure model.model to return our decoder
+        mock_model_instance.model.configure_mock(decoder=mock_decoder)
+        mock_auto_model = Mock()
+        mock_auto_model.from_pretrained.return_value = (
+            mock_model_instance,
+            {},
+        )  # (model, loading_info)
+        mock_auto_tokenizer = Mock()
+        mock_tokenizer_instance = Mock()
+        mock_tokenizer_instance.encode.return_value = [1, 2, 3]
+        mock_auto_tokenizer.from_pretrained.return_value = mock_tokenizer_instance
+        mock_transformers.AutoModelForSeq2SeqLM = mock_auto_model
+        mock_transformers.AutoTokenizer = mock_auto_tokenizer
+        sys.modules["transformers"] = mock_transformers
         # Create config with generate_summaries=True
         cfg = create_test_config(
             output_dir=self.output_dir,
@@ -94,8 +174,14 @@ class TestSummarizationInitializationFailure(unittest.TestCase):
         mock_detect_hosts.return_value = HostDetectionResult(
             cached_hosts=set(), heuristics=None, speaker_detector=None
         )
+        # Mock transcription provider to prevent actual initialization
+        mock_transcription_provider = Mock()
+        mock_transcription_provider.initialize = Mock()
+        mock_create_transcription_provider.return_value = mock_transcription_provider
+        # Mock ML provider initialization to prevent actual model loading
+        mock_init_transformers.return_value = None
         mock_setup_transcription.return_value = TranscriptionResources(
-            transcription_provider=None,
+            transcription_provider=mock_transcription_provider,
             temp_dir=None,
             transcription_jobs=[],
             transcription_jobs_lock=None,
@@ -127,6 +213,7 @@ class TestSummarizationInitializationFailure(unittest.TestCase):
         self.assertIn("generate_summaries=True", str(context.exception))
         self.assertIn("dependencies not available", str(context.exception))
 
+    @patch("podcast_scraper.providers.ml.ml_provider.MLProvider._initialize_transformers")
     @patch("podcast_scraper.workflow.stages.setup.initialize_ml_environment")
     @patch("podcast_scraper.workflow.stages.setup.setup_pipeline_environment")
     @patch("podcast_scraper.workflow.stages.setup.preload_ml_models_if_needed")
@@ -137,8 +224,14 @@ class TestSummarizationInitializationFailure(unittest.TestCase):
     @patch("podcast_scraper.workflow.stages.transcription.setup_transcription_resources")
     @patch("podcast_scraper.workflow.stages.processing.setup_processing_resources")
     @patch("podcast_scraper.workflow.orchestration._create_summarization_provider_factory")
+    @patch("podcast_scraper.transcription.factory.create_transcription_provider")
+    @patch("podcast_scraper.providers.ml.summarizer.transformers", create=True)
+    @patch("importlib.util.find_spec")
     def test_summarization_provider_initialization_exception_raises_error(
         self,
+        mock_find_spec,
+        mock_transformers,
+        mock_create_transcription_provider,
         mock_create_provider,
         mock_setup_processing,
         mock_setup_transcription,
@@ -149,8 +242,67 @@ class TestSummarizationInitializationFailure(unittest.TestCase):
         mock_preload_models,
         mock_setup_env,
         mock_init_env,
+        mock_init_transformers,
     ):
         """Test that summarization provider initialization exception raises RuntimeError."""
+        # Mock importlib.util.find_spec to prevent spacy.__spec__ errors
+        # Return None to indicate spacy is not available (prevents ValueError from spacy.__spec__)
+        mock_find_spec.return_value = None
+        # Mock transformers to prevent actual import
+        import sys
+
+        # Set up transformers mock to return expected values
+        # Create a mock model with nested structure for encoder/decoder access
+        mock_model_instance = Mock()
+        mock_model_instance.model = Mock()
+        # Set up encoder with embed_positions.weight.shape as a tuple
+        mock_encoder_embed_pos = Mock()
+
+        # Create a simple object with shape attribute
+        class MockWeight:
+            shape = (1024, 768)
+
+        mock_encoder_embed_pos.weight = MockWeight()
+        mock_model_instance.model.encoder = Mock()
+        mock_model_instance.model.encoder.embed_positions = mock_encoder_embed_pos
+        mock_model_instance.model.encoder.config = Mock()
+        mock_model_instance.model.encoder.config.hidden_size = 768
+
+        # Set up decoder with embed_positions.weight.shape as a tuple
+        class MockDecoderWeight:
+            def __init__(self):
+                # Make shape a tuple that's directly accessible
+                self._shape = (1024, 768)
+
+            @property
+            def shape(self):
+                return self._shape
+
+        class MockDecoderEmbedPositions:
+            def __init__(self):
+                self.weight = MockDecoderWeight()
+
+        mock_decoder_embed_pos = MockDecoderEmbedPositions()
+        # Configure decoder Mock to return our embed_positions object
+        # Use configure_mock to ensure the attribute is properly set
+        mock_decoder = Mock()
+        mock_decoder.configure_mock(embed_positions=mock_decoder_embed_pos)
+        mock_decoder.config = Mock()
+        mock_decoder.config.hidden_size = 768
+        # Configure model.model to return our decoder
+        mock_model_instance.model.configure_mock(decoder=mock_decoder)
+        mock_auto_model = Mock()
+        mock_auto_model.from_pretrained.return_value = (
+            mock_model_instance,
+            {},
+        )  # (model, loading_info)
+        mock_auto_tokenizer = Mock()
+        mock_tokenizer_instance = Mock()
+        mock_tokenizer_instance.encode.return_value = [1, 2, 3]
+        mock_auto_tokenizer.from_pretrained.return_value = mock_tokenizer_instance
+        mock_transformers.AutoModelForSeq2SeqLM = mock_auto_model
+        mock_transformers.AutoTokenizer = mock_auto_tokenizer
+        sys.modules["transformers"] = mock_transformers
         # Create config with generate_summaries=True
         cfg = create_test_config(
             output_dir=self.output_dir,
@@ -173,8 +325,14 @@ class TestSummarizationInitializationFailure(unittest.TestCase):
         mock_detect_hosts.return_value = HostDetectionResult(
             cached_hosts=set(), heuristics=None, speaker_detector=None
         )
+        # Mock transcription provider to prevent actual initialization
+        mock_transcription_provider = Mock()
+        mock_transcription_provider.initialize = Mock()
+        mock_create_transcription_provider.return_value = mock_transcription_provider
+        # Mock ML provider initialization to prevent actual model loading
+        mock_init_transformers.return_value = None
         mock_setup_transcription.return_value = TranscriptionResources(
-            transcription_provider=None,
+            transcription_provider=mock_transcription_provider,
             temp_dir=None,
             transcription_jobs=[],
             transcription_jobs_lock=None,

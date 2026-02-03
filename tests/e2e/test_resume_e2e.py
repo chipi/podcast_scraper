@@ -35,6 +35,14 @@ if str(tests_dir) not in sys.path:
 # Import from parent conftest explicitly to avoid pytest resolution issues
 from tests.conftest import create_test_config  # noqa: E402
 
+# Import ML model cache helpers for model availability checks
+integration_dir = Path(__file__).parent.parent / "integration"
+if str(integration_dir) not in sys.path:
+    sys.path.insert(0, str(integration_dir))
+from ml_model_cache_helpers import (  # noqa: E402
+    require_transformers_model_cached,
+)
+
 
 @pytest.mark.e2e
 @pytest.mark.critical_path
@@ -251,3 +259,111 @@ class TestResumeE2E:
             # Note: We can't easily verify that media wasn't re-downloaded in E2E tests
             # without adding metrics tracking, but the test verifies the workflow completes
             # successfully with reuse_media=True
+
+    @pytest.mark.slow
+    @pytest.mark.ml_models
+    def test_skip_existing_regenerate_summaries_e2e(self, e2e_server):
+        """Test regenerating summaries on existing transcripts with skip_existing.
+
+        This test verifies that when skip_existing=True and generate_summaries=True,
+        transcripts are skipped but summaries are still generated:
+        1. First run: Download transcripts without generating summaries
+        2. Second run: With skip_existing=True and generate_summaries=True
+        3. Verify: Transcripts are not re-downloaded, but summaries are generated
+
+        Note: This test requires ML models to be cached.
+        """
+        # Check if ML dependencies are available
+        try:
+            import transformers  # noqa: F401
+
+            ML_AVAILABLE = True
+        except ImportError:
+            ML_AVAILABLE = False
+
+        if not ML_AVAILABLE:
+            pytest.skip("ML dependencies not available")
+
+        # Require Transformers model to be cached (skip if not available)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
+
+        rss_url = e2e_server.urls.feed("podcast1_multi_episode")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # First run: Download transcripts without summaries
+            cfg1 = create_test_config(
+                rss_url=rss_url,
+                output_dir=tmpdir,
+                max_episodes=2,
+                skip_existing=False,
+                transcribe_missing=False,  # Use transcript downloads (faster)
+                generate_metadata=False,  # No metadata initially
+                generate_summaries=False,  # No summaries initially
+                auto_speakers=False,
+            )
+
+            # Run pipeline first time
+            count1, summary1 = run_pipeline(cfg1)
+
+            # Verify: At least 1 transcript created
+            # Note: Multi-episode feed has transcripts for episodes 1 and 2,
+            # but in some test environments only 1 may be successfully processed
+            transcript_files = list(Path(tmpdir).rglob("*.txt"))
+            assert (
+                len(transcript_files) >= 1
+            ), f"First run should create at least 1 transcript, got {len(transcript_files)}"
+            assert count1 >= 1, f"First run should process at least 1 episode, got {count1}"
+
+            # Verify: No metadata files created (no summaries)
+            metadata_files_before = list(Path(tmpdir).rglob("*.metadata.json"))
+            assert (
+                len(metadata_files_before) == 0
+            ), f"First run should not create metadata files, got {len(metadata_files_before)}"
+
+            # Second run: skip_existing=True + generate_summaries=True
+            cfg2 = create_test_config(
+                rss_url=rss_url,
+                output_dir=tmpdir,
+                max_episodes=2,
+                skip_existing=True,  # Skip existing transcripts
+                transcribe_missing=False,
+                generate_metadata=True,  # Generate metadata now
+                generate_summaries=True,  # Generate summaries now
+                summary_provider="transformers",
+                summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Use test default (small, fast)
+                auto_speakers=False,
+            )
+
+            # Run pipeline second time
+            count2, summary2 = run_pipeline(cfg2)
+
+            # Verify: Transcripts still exist (not re-downloaded)
+            # Note: When generate_summaries=True, the workflow may process transcripts
+            # for summary generation, but skip_existing should prevent re-downloading
+            transcript_files_after = list(Path(tmpdir).rglob("*.txt"))
+            # Transcript count should be at least the same (may be more if summaries
+            # create additional files, but original transcripts should still exist)
+            assert len(transcript_files_after) >= len(transcript_files), (
+                f"Transcript count should not decrease when skip_existing=True. "
+                f"Before: {len(transcript_files)}, After: {len(transcript_files_after)}"
+            )
+
+            # Verify: Metadata files created (summaries generated)
+            metadata_files_after = list(Path(tmpdir).rglob("*.metadata.json"))
+            assert len(metadata_files_after) >= 1, (
+                f"Second run should create metadata files with summaries. "
+                f"Got {len(metadata_files_after)} metadata files"
+            )
+
+            # Verify: Summaries are actually in the metadata
+            if metadata_files_after:
+                import json
+
+                with open(metadata_files_after[0], "r", encoding="utf-8") as f:
+                    metadata = json.load(f)
+                assert "summary" in metadata, "Summary should be in metadata"
+                assert metadata["summary"] is not None, "Summary should not be None"
+                assert (
+                    "short_summary" in metadata["summary"]
+                ), "Summary should have short_summary field"
+                assert len(metadata["summary"]["short_summary"]) > 0, "Summary should not be empty"

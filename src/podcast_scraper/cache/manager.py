@@ -241,6 +241,67 @@ def clean_whisper_cache(confirm: bool = True) -> Tuple[int, int]:
     return deleted_count, freed_bytes
 
 
+def delete_transformers_model_cache(
+    model_name: str, confirm: bool = True, force: bool = False
+) -> Tuple[bool, int]:
+    """Delete a specific Transformers model's cache folder to force clean re-download.
+
+    This is useful when a model has corrupted cache or needs to be re-downloaded
+    (e.g., to fix "weights not initialized" warnings).
+
+    Args:
+        model_name: HuggingFace model identifier (e.g., "google/pegasus-cnn_dailymail")
+        confirm: If True, require confirmation before deleting
+        force: If True, skip confirmation prompt (useful for scripts)
+
+    Returns:
+        Tuple of (success: bool, freed_bytes: int)
+    """
+    from .directories import get_transformers_cache_dir
+
+    cache_dir = get_transformers_cache_dir()
+    if not cache_dir.exists():
+        logger.warning(f"Transformers cache directory does not exist: {cache_dir}")
+        return False, 0
+
+    # Convert model name to cache folder format:
+    # "google/pegasus-cnn_dailymail" -> "models--google--pegasus-cnn_dailymail"
+    model_cache_name = model_name.replace("/", "--")
+    model_cache_path = cache_dir / f"models--{model_cache_name}"
+
+    if not model_cache_path.exists():
+        logger.info(f"Model cache folder does not exist: {model_cache_path}")
+        logger.info(f"Model '{model_name}' is not cached (or cache is in a different location)")
+        return False, 0
+
+    # Calculate size before deletion
+    try:
+        size = calculate_directory_size(model_cache_path)
+        size_str = format_size(size)
+    except OSError:
+        size = 0
+        size_str = "unknown size"
+
+    if confirm and not force:
+        print(f"Warning: This will delete the cache for model '{model_name}' ({size_str})")
+        print(f"Cache path: {model_cache_path}")
+        print("Note: The model will be re-downloaded on next use.")
+        response = input("Are you sure you want to continue? (yes/no): ")
+        if response.lower() not in ("yes", "y"):
+            print("Cancelled.")
+            return False, 0
+
+    try:
+        shutil.rmtree(model_cache_path)
+        logger.info(f"Deleted cache for model '{model_name}' ({size_str})")
+        logger.info(f"Cache path: {model_cache_path}")
+        logger.info("The model will be re-downloaded on next use.")
+        return True, size
+    except (OSError, PermissionError) as e:
+        logger.error(f"Failed to delete cache for model '{model_name}': {e}")
+        return False, 0
+
+
 def clean_transformers_cache(confirm: bool = True) -> Tuple[int, int]:
     """Clean Transformers (Hugging Face) model cache.
 

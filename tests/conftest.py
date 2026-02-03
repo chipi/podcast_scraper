@@ -119,6 +119,8 @@ def create_test_config(**overrides):
         # Tests that need to test production behavior can override with summary_model=None
         "summary_model": config.TEST_DEFAULT_SUMMARY_MODEL,  # Test default: bart-base
         "summary_reduce_model": config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Test default: LED-base
+        # NER model: use test default (small, fast) explicitly for safety
+        "ner_model": config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
     }
     defaults.update(overrides)
 

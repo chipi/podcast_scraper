@@ -67,11 +67,41 @@ def sanitize_filename(name: str) -> str:
     return safe
 
 
-def write_file(path: str, data: bytes) -> None:
-    """Persist arbitrary bytes to disk, creating parent directories as needed."""
+def write_file(path: str, data: bytes, pipeline_metrics=None) -> None:
+    """Persist arbitrary bytes to disk, creating parent directories as needed.
+
+    This function is instrumented to log detailed I/O metrics for performance analysis.
+    Each write operation logs: file path, bytes written, and elapsed time.
+
+    Args:
+        path: File path to write to
+        data: Bytes to write
+        pipeline_metrics: Optional metrics object to record write time
+    """
+    import logging
+    import time
+
+    logger = logging.getLogger(__name__)
+    write_start = time.time()
+    bytes_written = len(data)
+
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "wb") as handle:
         handle.write(data)
+
+    write_elapsed = time.time() - write_start
+    # Log detailed I/O metrics for performance analysis
+    # This helps identify if "writing_storage" metric is measuring actual I/O or waiting time
+    logger.debug(
+        "[STORAGE I/O] file=%s bytes=%d elapsed=%.3fs",
+        path,
+        bytes_written,
+        write_elapsed,
+    )
+
+    # Record actual file write time in metrics (separate from io_and_waiting stage total)
+    if pipeline_metrics is not None:
+        pipeline_metrics.record_stage("writing_storage", write_elapsed)
 
 
 def validate_and_normalize_output_dir(path: str) -> str:

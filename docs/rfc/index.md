@@ -41,6 +41,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-045](RFC-045-ml-model-optimization-guide.md) | ML Model Optimization Guide | PRD-005, PRD-007 | Comprehensive guide for maximizing ML quality via preprocessing and parameter tuning |
 | [RFC-046](RFC-046-materialization-architecture.md) | Materialization Architecture | PRD-007 | Shift preprocessing from run parameter to dataset materialization for honest comparisons |
 | [RFC-047](RFC-047-run-comparison-visual-tool.md) | Lightweight Run Comparison & Diagnostics Tool | PRD-007 | Fast, one-page visual tool for comparing runs and diagnosing regressions |
+| [RFC-048](RFC-048-evaluation-application-alignment.md) | Evaluation ↔ Application Tightening & Alignment | PRD-007 | Alignment rules ensuring evaluation results are representative of application behavior |
 
 ## Completed RFCs
 

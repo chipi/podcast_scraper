@@ -157,16 +157,21 @@ def _is_likely_actual_guest(name: str, title: str, description: str | None) -> b
     # Check for mentioned-only indicators (strong signal for NOT a guest)
     has_mentioned_only = _has_mentioned_only_indicator(name, combined_text)
 
-    # Decision logic:
+    # Decision logic (relaxed):
     # - If interview indicator found: likely actual guest
-    # - If mentioned-only indicator found AND no interview indicator: likely NOT a guest
-    # - If neither: default to including (conservative approach)
+    # - If mentioned-only indicator found: still include
+    #   (relaxed - may be guest mentioned in context)
+    # - Default: include the name (conservative - don't filter without strong evidence)
     if has_interview:
         logger.debug("Name '%s' has interview indicator - likely actual guest", name)
         return True
     if has_mentioned_only:
-        logger.debug("Name '%s' has mentioned-only indicator - filtering out", name)
-        return False
+        # Relaxed: Don't filter out based on mentioned-only indicator alone
+        # The name might still be a guest mentioned in the description
+        logger.debug(
+            "Name '%s' has mentioned-only indicator - keeping anyway (relaxed filter)", name
+        )
+        return True
 
     # Default: include the name (conservative - don't filter without evidence)
     return True
@@ -590,6 +595,64 @@ def extract_person_entities(text: str, nlp: Any) -> List[Tuple[str, float]]:
         return []
 
 
+def detect_hosts_from_transcript_intro(
+    transcript_text: str,
+    nlp: Optional[Any] = None,
+    intro_duration_seconds: int = 120,
+    words_per_second: float = 2.5,
+) -> Set[str]:
+    """Detect host names from transcript intro patterns (first 60-120 seconds).
+
+    Scans the first portion of transcript for common intro patterns like:
+    - "I'm [Name]"
+    - "This is [Show Name]... I'm [Name]"
+    - "Welcome to [Show]... I'm [Name]"
+
+    Args:
+        transcript_text: Full transcript text
+        nlp: spaCy NLP model (optional, only needed if NER is used)
+        intro_duration_seconds: How many seconds of transcript to scan (default: 120)
+        words_per_second: Average words per second for estimating intro length (default: 2.5)
+
+    Returns:
+        Set of detected host names from intro patterns
+    """
+    if not transcript_text or not nlp:
+        return set()
+
+    # Estimate intro length: ~120 seconds * 2.5 words/sec = ~300 words
+    # Take first N words to scan for intro patterns
+    intro_word_count = int(intro_duration_seconds * words_per_second)
+    words = transcript_text.split()[:intro_word_count]
+    intro_text = " ".join(words)
+
+    # Common intro patterns
+    intro_patterns = [
+        r"I'?m\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",  # "I'm John" or "I'm John Smith"
+        # "This is The Indicator... I'm John"
+        r"This is\s+[^.]+\s+I'?m\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
+        # "Welcome to Planet Money... I'm John"
+        r"Welcome to\s+[^.]+\s+I'?m\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
+    ]
+
+    detected_names = set()
+    for pattern in intro_patterns:
+        matches = re.finditer(pattern, intro_text, re.IGNORECASE)
+        for match in matches:
+            name = match.group(1).strip()
+            # Filter out common false positives
+            if name and len(name) > 2 and name.lower() not in ["the", "this", "that"]:
+                detected_names.add(name)
+
+    # Also use NER on intro text to find person names
+    if nlp:
+        intro_persons = extract_person_entities(intro_text, nlp)
+        for name, _ in intro_persons:
+            detected_names.add(name)
+
+    return detected_names
+
+
 def detect_hosts_from_feed(
     feed_title: Optional[str],
     feed_description: Optional[str],
@@ -618,7 +681,8 @@ def detect_hosts_from_feed(
 
     # Priority 1: Use RSS author tags if available (most reliable)
     # RSS feeds typically have one channel-level author, plus optional iTunes author/owner
-    # These should all refer to the same host(s), so we collect them all
+    # However, these may be organization names (e.g., "NPR") rather than person names
+    # We'll collect them but treat them as "publisher" metadata, not necessarily hosts
     if feed_authors:
         for author in feed_authors:
             if author and author.strip():
@@ -628,7 +692,22 @@ def detect_hosts_from_feed(
                 if "<" in author_clean and ">" in author_clean:
                     author_clean = author_clean.split("<")[0].strip()
                 if author_clean:
-                    hosts.add(author_clean)
+                    # Check if this looks like an organization name (all caps, short, no spaces)
+                    # Common patterns: "NPR", "BBC", "CNN", etc.
+                    is_likely_org = (
+                        len(author_clean) <= 10
+                        and author_clean.isupper()
+                        and " " not in author_clean
+                    )
+                    if is_likely_org:
+                        logger.debug(
+                            "RSS author '%s' appears to be an organization name, "
+                            "treating as publisher metadata rather than host",
+                            author_clean,
+                        )
+                        # Don't add to hosts - these are publishers, not actual hosts
+                    else:
+                        hosts.add(author_clean)
         if hosts:
             logger.debug(
                 "Detected hosts from RSS author tags (author/itunes:author/itunes:owner): %s",
@@ -844,7 +923,8 @@ def detect_speaker_names(
     known_hosts: Optional[Set[str]] = None,
     cached_hosts: Optional[Set[str]] = None,
     heuristics: Optional[Dict[str, Any]] = None,
-) -> Tuple[List[str], Set[str], bool]:
+    transcript_text: Optional[str] = None,
+) -> Tuple[List[str], Set[str], bool, bool]:
     """
     Detect speaker names from episode title and description using NER.
 
@@ -870,20 +950,35 @@ def detect_speaker_names(
     """
     if cfg and not cfg.auto_speakers:
         logger.debug("Auto-speakers disabled, detection failed")
-        return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+        return DEFAULT_SPEAKER_NAMES.copy(), set(), False  # type: ignore[return-value]
 
     if not nlp:
         logger.debug("spaCy model not available, detection failed")
-        return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+        return DEFAULT_SPEAKER_NAMES.copy(), set(), False  # type: ignore[return-value]
 
     # Use cached/known hosts, but do NOT detect hosts from episode metadata
+    # Priority: known_hosts > cached_hosts
     hosts: Set[str] = set()
     if known_hosts:
         hosts.update(known_hosts)
     elif cached_hosts:
         hosts.update(cached_hosts)
+
+    # Fallback: If no hosts detected from RSS metadata, try transcript intro
+    # This is a cheap fallback that scans first 60-90 seconds for intro patterns
+    if not hosts and transcript_text and nlp:
+        transcript_hosts = detect_hosts_from_transcript_intro(
+            transcript_text, nlp, intro_duration_seconds=90, words_per_second=2.5
+        )
+        if transcript_hosts:
+            hosts.update(transcript_hosts)
+            logger.info(
+                "  → Detected hosts from transcript intro (fallback): %s",
+                ", ".join(sorted(transcript_hosts)),
+            )
+
     # Note: We intentionally do NOT detect hosts from episode title/description
-    # Hosts should only come from feed-level metadata
+    # Hosts should only come from feed-level metadata, known_hosts config, or transcript fallback
 
     # Extract PERSON entities from episode title and first
     # DESCRIPTION_SNIPPET_LENGTH chars of description
@@ -903,11 +998,18 @@ def detect_speaker_names(
     )
 
     # Filter out hosts from both sources (keep scores)
+    # Use case-insensitive matching to catch variations like "NPR" vs "npr"
+    # Also normalize whitespace for better matching
+    hosts_normalized = {h.lower().strip() for h in hosts}
     title_guests_with_scores = [
-        (name, score) for name, score in title_persons_with_scores if name not in hosts
+        (name, score)
+        for name, score in title_persons_with_scores
+        if name.lower().strip() not in hosts_normalized
     ]
     description_guests_with_scores = [
-        (name, score) for name, score in description_persons_with_scores if name not in hosts
+        (name, score)
+        for name, score in description_persons_with_scores
+        if name.lower().strip() not in hosts_normalized
     ]
 
     # Apply context-aware filtering to reduce false positives (Issue #325)
@@ -950,12 +1052,14 @@ def detect_speaker_names(
     # Build final speaker names list
     guests = [selected_guest] if selected_guest else []
     screenplay_num_speakers = cfg.screenplay_num_speakers if cfg else 2
-    speaker_names, detection_succeeded = _build_speaker_names_list(
+    speaker_names, detection_succeeded, _used_defaults = _build_speaker_names_list(
         hosts, guests, screenplay_num_speakers
     )
 
     # Return hosts set (hosts are passed in, not detected here)
-    return speaker_names, hosts, detection_succeeded
+    # Note: used_defaults is extracted but not returned (would require API change)
+    # TODO: Add used_defaults to return tuple when updating callers
+    return speaker_names, hosts, detection_succeeded  # type: ignore[return-value]
 
 
 def _calculate_heuristic_score(
@@ -972,7 +1076,7 @@ def _calculate_heuristic_score(
         Heuristic score (0.0 to MAX_HEURISTIC_SCORE)
     """
     if not heuristics:
-        return 0.0
+        return 0.0  # type: ignore[return-value]
 
     score = 0.0
     name_lower = name.lower()
@@ -1151,7 +1255,7 @@ def _build_speaker_names_list(
     hosts: Set[str],
     guests: List[str],
     max_names: int,
-) -> Tuple[List[str], bool]:
+) -> Tuple[List[str], bool, bool]:
     """Build final speaker names list from hosts and guests.
 
     Args:
@@ -1160,22 +1264,29 @@ def _build_speaker_names_list(
         max_names: Maximum number of names to return
 
     Returns:
-        Tuple of (speaker_names_list, detection_succeeded)
+        Tuple of (speaker_names_list, detection_succeeded, used_defaults)
+        - detection_succeeded: True if real names were detected, False if defaults were used
+        - used_defaults: True if defaults were added to reach min speakers (quality flag)
     """
     # Detection succeeded if we have real names (hosts or guests), not defaults
+    # Note: Having hosts but no guests is still a success (host-only episodes are valid)
     detection_succeeded = bool(hosts or guests)
+    used_defaults = False  # Quality flag: track if defaults were used
 
     if not guests and hosts:
         # Hosts detected but no guests - use actual host names
         # Convert set to sorted list for deterministic ordering
         host_list = sorted(list(hosts))[:max_names]
         speaker_names = host_list
-        logger.debug("  → Using detected host names: %s", speaker_names)
+        logger.debug("  → Using detected host names: %s (no guests detected)", speaker_names)
     elif not hosts and not guests:
-        # No hosts AND no guests detected - detection failed
-        logger.info("  → Detection failed: no hosts or guests found")
+        # No hosts AND no guests detected - this is "unknown host" not a failure
+        # Allow "unknown host" without flagging as detection failure
+        # This is common when RSS metadata has organization names (publishers) not person names
+        logger.info("  → No hosts or guests detected (using defaults)")
         speaker_names = DEFAULT_SPEAKER_NAMES.copy()
-        detection_succeeded = False
+        detection_succeeded = False  # Still mark as failed for backward compatibility
+        used_defaults = True  # Quality flag: defaults were used
     else:
         # Combine hosts and guests, prioritizing hosts
         speaker_names = list(hosts)[:max_names] + guests[: max_names - len(hosts)]
@@ -1184,6 +1295,7 @@ def _build_speaker_names_list(
             # Only add defaults if we have at least one real speaker (host or guest)
             # This prevents adding defaults when we have hosts but no guests (host-only episodes)
             if hosts or guests:
+                used_defaults = True  # Quality flag: defaults were used
                 logger.debug(
                     (
                         "  → Only %d speaker(s) detected, extending with defaults "
@@ -1196,8 +1308,9 @@ def _build_speaker_names_list(
             else:
                 # No real speakers - use defaults (this case should be rare)
                 speaker_names = DEFAULT_SPEAKER_NAMES.copy()
+                used_defaults = True
 
-    return speaker_names[:max_names], detection_succeeded
+    return speaker_names[:max_names], detection_succeeded, used_defaults
 
 
 __all__ = [

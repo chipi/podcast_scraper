@@ -20,6 +20,7 @@ import yaml
 from pydantic import BaseModel, computed_field, Field, field_serializer
 
 from .. import config, models
+from ..exceptions import ProviderRuntimeError
 from ..utils import filesystem
 
 logger = logging.getLogger(__name__)
@@ -482,6 +483,27 @@ def _build_processing_metadata(cfg: config.Config, output_dir: str) -> Processin
                 ml_providers["summarization"]["reduce_model"] = cfg.summary_reduce_model
             if cfg.summary_device:
                 ml_providers["summarization"]["device"] = cfg.summary_device
+
+            # Record library versions and device for reproducibility and drift detection
+            try:
+                import torch
+                import transformers
+
+                # Convert torch version to string (it's a TorchVersion object)
+                torch_version = getattr(torch, "__version__", "unknown")
+                torch_version_str = str(torch_version) if torch_version != "unknown" else "unknown"
+                ml_providers["summarization"]["versions"] = {
+                    "transformers": getattr(transformers, "__version__", "unknown"),
+                    "torch": torch_version_str,
+                }
+                # Record device (mps/cpu/cuda) for reproducibility
+                if cfg.summary_device:
+                    ml_providers["summarization"]["device"] = cfg.summary_device
+                # Record model revision if available (from config or model)
+                if hasattr(cfg, "summary_model_revision") and cfg.summary_model_revision:
+                    ml_providers["summarization"]["model_revision"] = cfg.summary_model_revision
+            except (ImportError, AttributeError, ValueError):
+                pass  # Versions not available if libraries not installed or mocked
         elif cfg.summary_provider == "openai":
             # Include OpenAI summarization model
             summary_model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
@@ -729,6 +751,23 @@ def _generate_episode_summary(  # noqa: C901
                 generated_at=datetime.now(),
                 word_count=word_count,
             )
+        except ProviderRuntimeError as e:
+            error_msg = str(e).lower()
+            # Handle "Already borrowed" error from Rust tokenizer in parallel execution
+            # This is a known threading issue with Rust-based tokenizers
+            if "already borrowed" in error_msg or "tokenizer threading error" in error_msg:
+                logger.warning(
+                    f"[{episode_idx}] Summarization failed due to tokenizer threading error: {e}. "
+                    "This can occur in parallel execution. Skipping summary for this episode."
+                )
+                return None
+            # For other provider errors, fail fast
+            error_msg_full = (
+                f"[{episode_idx}] Failed to generate summary using provider: {e}. "
+                "Summarization is required when generate_summaries=True."
+            )
+            logger.error(error_msg_full, exc_info=True)
+            raise RuntimeError(error_msg_full) from e
         except Exception as e:
             # Fail fast - if summarization fails for a specific episode, raise exception
             error_msg = (
@@ -784,7 +823,10 @@ def _determine_metadata_path(
 
 
 def _serialize_metadata(
-    metadata_doc: EpisodeMetadataDocument, metadata_path: str, cfg: config.Config
+    metadata_doc: EpisodeMetadataDocument,
+    metadata_path: str,
+    cfg: config.Config,
+    pipeline_metrics=None,
 ) -> None:
     """Serialize and write metadata document to file.
 
@@ -796,18 +838,62 @@ def _serialize_metadata(
     Raises:
         OSError: If file writing fails
     """
+    import time
+
+    serialize_start = time.time()
     os.makedirs(os.path.dirname(metadata_path) or ".", exist_ok=True)
 
     if cfg.metadata_format == "json":
+        # Time serialization separately from I/O
+        json_start = time.time()
         content_str = metadata_doc.model_dump_json(indent=2, exclude_none=False)
+        json_elapsed = time.time() - json_start
+
+        # Time actual file write
+        write_start = time.time()
         with open(metadata_path, "w", encoding="utf-8") as f:
             f.write(content_str)
+        write_elapsed = time.time() - write_start
+        bytes_written = len(content_str.encode("utf-8"))
+
+        logger.debug(
+            "[STORAGE I/O] file=%s bytes=%d serialize=%.3fs write=%.3fs total=%.3fs",
+            metadata_path,
+            bytes_written,
+            json_elapsed,
+            write_elapsed,
+            time.time() - serialize_start,
+        )
+        # Record actual file write time in metrics
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_stage("writing_storage", write_elapsed)
     else:  # yaml
+        # Time serialization separately from I/O
+        yaml_start = time.time()
         content_dict = metadata_doc.model_dump(exclude_none=False)
+        yaml_serialize_elapsed = time.time() - yaml_start
+
+        # Time actual file write
+        write_start = time.time()
         with open(metadata_path, "w", encoding="utf-8") as f:
             yaml.dump(
                 content_dict, f, default_flow_style=False, sort_keys=False, allow_unicode=True
             )
+        write_elapsed = time.time() - write_start
+        # Estimate bytes (YAML dump doesn't return size directly)
+        bytes_written = len(str(content_dict).encode("utf-8"))
+
+        logger.debug(
+            "[STORAGE I/O] file=%s bytes=%d serialize=%.3fs write=%.3fs total=%.3fs",
+            metadata_path,
+            bytes_written,
+            yaml_serialize_elapsed,
+            write_elapsed,
+            time.time() - serialize_start,
+        )
+        # Record actual file write time in metrics
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_stage("writing_storage", write_elapsed)
 
 
 def generate_episode_metadata(
@@ -993,7 +1079,7 @@ def generate_episode_metadata(
 
     # Serialize and write metadata
     try:
-        _serialize_metadata(metadata_doc, metadata_path, cfg)
+        _serialize_metadata(metadata_doc, metadata_path, cfg, pipeline_metrics=pipeline_metrics)
         logger.debug("[%s] Generated metadata file: %s", episode.idx, metadata_path)
 
         # Track metadata generation and summarization

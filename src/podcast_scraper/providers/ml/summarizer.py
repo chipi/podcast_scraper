@@ -21,7 +21,9 @@ Note: Preprocessing functions (clean_transcript, remove_sponsor_blocks, etc.)
 have been moved to preprocessing.py. Use those functions directly.
 """
 
+import contextlib
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
@@ -40,6 +42,133 @@ from ... import preprocessing
 from ...preprocessing.profiles import apply_profile_with_stats
 
 logger = logging.getLogger(__name__)
+
+
+@contextlib.contextmanager
+def _silence_hf_load_noise():
+    """Silences Hugging Face 'from_pretrained' warnings that get printed to stderr/loggers.
+
+    This is not 'more logging' — it prevents user-facing noise.
+    """
+    try:
+        from transformers.utils import logging as hf_logging
+
+        old_verbosity = hf_logging.get_verbosity()
+        hf_logging.set_verbosity_error()  # block most HF warnings
+    except ImportError:
+        # transformers not available, skip silencing
+        old_verbosity = None
+
+    devnull = open(os.devnull, "w")
+    with contextlib.redirect_stderr(devnull):
+        try:
+            yield
+        finally:
+            if old_verbosity is not None:
+                try:
+                    from transformers.utils import logging as hf_logging
+
+                    hf_logging.set_verbosity(old_verbosity)
+                except ImportError:
+                    pass
+            devnull.close()
+
+
+def _load_pegasus_without_fake_warning(
+    model_id: str,
+    device: str,
+    cache_dir: Optional[str] = None,
+    revision: Optional[str] = None,
+    local_files_only: bool = True,
+):
+    """Loads Pegasus and:
+    - *allows* only the known/benign missing positional embedding keys
+    - raises if anything else is missing/unexpected
+    - silences the misleading stderr warning
+
+    Args:
+        model_id: HuggingFace model identifier (e.g., "google/pegasus-cnn_dailymail")
+        device: Device to move model to (e.g., "cpu", "mps", "cuda")
+        cache_dir: Optional cache directory
+        revision: Optional model revision/commit SHA
+        local_files_only: If True, only load from cache (no downloads)
+
+    Returns:
+        Tuple of (tokenizer, model)
+
+    Raises:
+        RuntimeError: If unexpected keys are missing or model config is invalid
+    """
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+
+    allowed_missing = {
+        "model.encoder.embed_positions.weight",
+        "model.decoder.embed_positions.weight",
+    }
+
+    # Prepare kwargs for from_pretrained
+    tokenizer_kwargs = {
+        "local_files_only": local_files_only,
+    }
+    model_kwargs = {
+        "local_files_only": local_files_only,
+        "output_loading_info": True,  # Get loading info to validate
+    }
+    if cache_dir:
+        tokenizer_kwargs["cache_dir"] = cache_dir  # type: ignore[assignment]
+        model_kwargs["cache_dir"] = cache_dir  # type: ignore[assignment]
+    if revision:
+        tokenizer_kwargs["revision"] = revision  # type: ignore[assignment]
+        model_kwargs["revision"] = revision  # type: ignore[assignment]
+
+    # Load with silenced warnings
+    with _silence_hf_load_noise():
+        tokenizer = AutoTokenizer.from_pretrained(model_id, **tokenizer_kwargs)  # nosec B615
+        model, loading_info = AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
+            model_id,
+            **model_kwargs,
+        )
+
+    # Validate loading info
+    missing = set(loading_info.get("missing_keys", []))
+    unexpected = set(loading_info.get("unexpected_keys", []))
+    mismatched = loading_info.get("mismatched_keys", [])
+
+    # If anything important is missing, this is a real problem — fail fast.
+    if missing and not missing.issubset(allowed_missing):
+        raise RuntimeError(
+            f"Pegasus load is NOT clean. Missing keys: {sorted(missing)}; "
+            f"Unexpected: {sorted(unexpected)}; Mismatched: {mismatched}"
+        )
+
+    # Unexpected keys are usually also suspicious (version mismatch / wrong class).
+    if unexpected:
+        raise RuntimeError(
+            f"Pegasus load has unexpected keys: {sorted(unexpected)}; mismatched={mismatched}"
+        )
+
+    # Optional sanity: ensure it's actually configured as static positions (expected for Pegasus).
+    if getattr(model.config, "static_position_embeddings", None) is False:
+        raise RuntimeError(
+            "Pegasus config indicates non-static positional embeddings; "
+            "this is unexpected for google/pegasus-cnn_dailymail."
+        )
+
+    # Move to device and set eval mode
+    model = model.to(device)
+    model.eval()
+
+    # Log successful load with validation info
+    if missing:
+        logger.info(
+            f"[PEGASUS LOAD] Model loaded successfully. "
+            f"Expected missing keys (static positional embeddings): {sorted(missing)}"
+        )
+    else:
+        logger.info("[PEGASUS LOAD] Model loaded successfully (all keys present)")
+
+    return tokenizer, model
+
 
 # Hugging Face cache directory (standard locations)
 # Newer transformers versions use "hub"
@@ -227,11 +356,13 @@ RHETORICAL_FILLER_STARTS = [
 ]
 
 # Structured joiner constants
-MAX_BULLETS_PER_CHUNK = 8  # Cap bullets per chunk to prevent overflow
-MAX_BULLET_CHARS = 150  # Max characters per bullet
+MAX_BULLETS_PER_CHUNK = 12  # Cap bullets per chunk to prevent overflow (raised from 8)
+MAX_BULLET_CHARS = 300  # Max characters per bullet (raised from 150 for longer summaries)
 MIN_BULLET_CHARS = 10  # Min characters for a valid bullet
 SENTENCE_SPLIT_THRESHOLD = 220  # Only split sentences if line > this many chars
-MAX_CHUNK_CHARS = 1000  # Max total characters per chunk block
+MAX_CHUNK_CHARS = 2500  # Max total characters per chunk block (raised from 1000)
+# Threshold for skipping bulletization - if combined text is small, just join with newlines
+SKIP_BULLETIZATION_THRESHOLD = 4000  # If total map text < this, skip bulletization
 
 # Pattern for stripping leading numbers from bullets
 _LEADING_NUMBER_PATTERN = re.compile(r"^\d+[\.\)]\s*")
@@ -462,7 +593,32 @@ class SummaryModel:
         if not model_name:
             raise ValueError("model_name cannot be None or empty")
         self.model_name = model_name
-        self.revision = revision
+
+        # Force pinned revision for Pegasus models to avoid PR refs and ensure consistency
+        # Use commit SHA from config_constants for reproducibility
+        model_lower = model_name.lower()
+        if "pegasus" in model_lower:
+            from ...config_constants import PEGASUS_CNN_DAILYMAIL_REVISION
+
+            # Use pinned revision from config (should be a commit SHA, not "main")
+            pinned_revision = PEGASUS_CNN_DAILYMAIL_REVISION
+            if revision and revision != pinned_revision:
+                logger.warning(
+                    f"[PEGASUS] Overriding revision '{revision}' with pinned revision "
+                    f"'{pinned_revision}' for Pegasus model to ensure consistent, "
+                    f"stable weights (avoiding PR refs)"
+                )
+            self.revision = pinned_revision
+            if pinned_revision == "main":
+                logger.warning(
+                    "[PEGASUS] Using 'main' branch - this is not a pinned commit SHA. "
+                    "For production use, update PEGASUS_CNN_DAILYMAIL_REVISION in "
+                    "config_constants.py with a specific commit hash to ensure "
+                    "reproducibility."
+                )
+        else:
+            self.revision = revision  # type: ignore[assignment]
+
         self.device = self._detect_device(device)
 
         # Security: Validate model source before loading
@@ -564,13 +720,18 @@ class SummaryModel:
                     # Always use cache only - downloads via preload script
                     "local_files_only": True,
                 }
-                if self.revision:
-                    tokenizer_kwargs["revision"] = self.revision
-                    logger.debug(f"Using pinned revision: {self.revision}")
-                self.tokenizer = AutoTokenizer.from_pretrained(  # nosec B615
-                    self.model_name,
-                    **tokenizer_kwargs,
-                )
+                # For Pegasus, tokenizer is loaded by _load_pegasus_without_fake_warning
+                # Skip tokenizer loading here if it's Pegasus (will be loaded below)
+                model_lower = self.model_name.lower()
+                if "pegasus" not in model_lower:
+                    # Non-Pegasus models: load tokenizer normally
+                    if self.revision:
+                        tokenizer_kwargs["revision"] = self.revision
+                        logger.debug(f"Using pinned revision: {self.revision}")
+                    self.tokenizer = AutoTokenizer.from_pretrained(  # nosec B615
+                        self.model_name,
+                        **tokenizer_kwargs,
+                    )
 
                 # Load model
                 # Security: Revision pinning provides reproducibility and prevents
@@ -586,6 +747,122 @@ class SummaryModel:
                 }
                 if self.revision:
                     model_kwargs["revision"] = self.revision
+                    if "pegasus" in self.model_name.lower():
+                        logger.info(
+                            f"[PEGASUS LOAD] Using pinned revision for model: {self.revision}"
+                        )
+                    else:
+                        logger.debug(f"Using pinned revision: {self.revision}")
+                else:
+                    # This should not happen for Pegasus (we force revision="main" above)
+                    # but log a warning if it does
+                    if "pegasus" in self.model_name.lower():
+                        logger.warning(
+                            "[PEGASUS LOAD] No revision specified - this should not happen. "
+                            "Forcing revision='main' to avoid PR refs."
+                        )
+                        model_kwargs["revision"] = "main"
+                        self.revision = "main"
+
+                # Use model-specific classes for better compatibility
+                # This prevents "weights not initialized" warnings that can occur
+                # when using AutoModel with certain model architectures
+                model_lower = self.model_name.lower()
+                if "pegasus" in model_lower:
+                    # Use specialized Pegasus loader that:
+                    # - Silences misleading "newly initialized" warnings
+                    # - Validates that only expected positional embedding keys are missing
+                    # - Fails fast if anything unexpected is missing
+                    logger.debug("Using specialized Pegasus loader (validates loading info)")
+
+                    # Log transformers version before loading
+                    try:
+                        import transformers
+
+                        transformers_version = transformers.__version__
+                        logger.info(f"[PEGASUS LOAD] transformers version: {transformers_version}")
+                    except Exception:
+                        transformers_version = "unknown"
+
+                    # Load using specialized function that validates and silences warnings
+                    # Note: Tokenizer is already loaded above, but we'll reload it in the function
+                    # to ensure consistency. The function returns both tokenizer and model.
+                    self.tokenizer, self.model = _load_pegasus_without_fake_warning(
+                        model_id=self.model_name,
+                        device=self.device,
+                        cache_dir=self.cache_dir,
+                        revision=self.revision,
+                        local_files_only=True,
+                    )
+
+                    # Structured health check: verify model is working correctly
+                    health_checks = {}
+                    if self.model and hasattr(self.model, "config"):
+                        config = self.model.config
+                        static_pos = getattr(config, "static_position_embeddings", None)
+                        max_pos_emb = getattr(config, "max_position_embeddings", None)
+                        d_model = getattr(config, "d_model", None)
+
+                        health_checks["static_pos"] = static_pos is True  # type: ignore[assignment]
+                        health_checks["max_pos_emb"] = max_pos_emb  # type: ignore[assignment]
+                        health_checks["d_model"] = d_model  # type: ignore[assignment]
+
+                        # Verify embed_positions shapes match expected config
+                        encoder_shape_ok = False
+                        decoder_shape_ok = False
+                        try:
+                            encoder_embed_pos = getattr(
+                                self.model.model.encoder,  # type: ignore[union-attr]
+                                "embed_positions",
+                                None,
+                            )
+                            decoder_embed_pos = getattr(
+                                self.model.model.decoder,  # type: ignore[union-attr]
+                                "embed_positions",
+                                None,
+                            )
+                            if encoder_embed_pos and hasattr(encoder_embed_pos, "weight"):
+                                enc_shape = encoder_embed_pos.weight.shape
+                                encoder_shape_ok = enc_shape == (max_pos_emb, d_model)
+                                health_checks["encoder_shape"] = (
+                                    f"{enc_shape[0]}x{enc_shape[1]}"  # type: ignore[assignment]
+                                )
+                            if decoder_embed_pos and hasattr(decoder_embed_pos, "weight"):
+                                dec_shape = decoder_embed_pos.weight.shape
+                                decoder_shape_ok = dec_shape == (max_pos_emb, d_model)
+                                health_checks["decoder_shape"] = (
+                                    f"{dec_shape[0]}x{dec_shape[1]}"  # type: ignore[assignment]
+                                )
+                        except (AttributeError, TypeError):
+                            pass
+
+                        health_checks["embed_pos_shape_ok"] = encoder_shape_ok and decoder_shape_ok
+
+                    # Store health checks for later (to add generate_ok)
+                    self._pegasus_health_checks = health_checks
+
+                    # Note: Sanity check will run after pipeline is created (see below)
+                elif "led" in model_lower or "longformer" in model_lower:
+                    # Use LEDForConditionalGeneration for LED models
+                    from transformers import LEDForConditionalGeneration
+
+                    logger.debug("Using LEDForConditionalGeneration for LED model")
+                    self.model = LEDForConditionalGeneration.from_pretrained(  # nosec B615
+                        self.model_name,
+                        **model_kwargs,
+                    )
+                elif "bart" in model_lower:
+                    # Use BartForConditionalGeneration for BART models
+                    from transformers import BartForConditionalGeneration
+
+                    logger.debug("Using BartForConditionalGeneration for BART model")
+                    self.model = BartForConditionalGeneration.from_pretrained(  # nosec B615
+                        self.model_name,
+                        **model_kwargs,
+                    )
+                else:
+                    # Fallback to AutoModelForSeq2SeqLM for other models
+                    logger.debug("Using AutoModelForSeq2SeqLM (auto-detection)")
                 self.model = AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
                     self.model_name,
                     **model_kwargs,
@@ -618,6 +895,47 @@ class SummaryModel:
                 tokenizer=self.tokenizer,
                 device=pipeline_device,
             )
+
+            # Sanity check for Pegasus: run a tiny summarization to verify model works correctly
+            # This completes the health check started during model load
+            if "pegasus" in self.model_name.lower() and hasattr(self, "_pegasus_health_checks"):
+                try:
+                    test_input = "This is a test sentence for model verification."
+                    test_summary = self.summarize(test_input, max_length=20, min_length=5)
+                    generate_ok = test_summary and len(test_summary.strip()) > 0
+                    self._pegasus_health_checks["generate_ok"] = (  # type: ignore[assignment]
+                        bool(generate_ok)
+                    )
+
+                    if generate_ok:
+                        # Update the health check log with generate_ok status
+                        # Include transformers version, torch version, device, and
+                        # revision in health check
+                        health_status_parts = [
+                            f"{k}={v}"
+                            for k, v in self._pegasus_health_checks.items()
+                            if v is not None
+                        ]
+                        try:
+                            import transformers
+
+                            health_status_parts.append(f"transformers={transformers.__version__}")
+                            health_status_parts.append(f"torch={torch.__version__}")
+                            health_status_parts.append(f"device={self.device}")
+                            if self.revision:
+                                health_status_parts.append(f"revision={self.revision}")
+                        except Exception:
+                            pass
+                        health_status = " ".join(health_status_parts)
+                        logger.info(f"PEGASUS_OK {health_status}")
+                    else:
+                        logger.warning(
+                            "[PEGASUS MODEL VERIFICATION] Sanity check failed: "
+                            "model returned empty summary"
+                        )
+                except Exception as e:
+                    self._pegasus_health_checks["generate_ok"] = False
+                    logger.warning(f"[PEGASUS MODEL VERIFICATION] Sanity check error: {e}")
 
             # Remove default max_new_tokens from pipeline/model generation config
             # to prevent warnings
@@ -756,11 +1074,11 @@ class SummaryModel:
                 else:
                     length_penalty = config_module.DEFAULT_MAP_LENGTH_PENALTY
 
-            # For reduce phase, ALWAYS disable early_stopping to ensure min_new_tokens is enforced
-            # early_stopping=True can cause premature termination before reaching min_new_tokens
-            # This override is critical even if config explicitly sets early_stopping=True
-            if is_reduce_phase:
-                early_stopping = False
+                # For reduce phase, ALWAYS disable early_stopping to ensure min_new_tokens is enforced
+                # early_stopping=True can cause premature termination before reaching min_new_tokens
+                # This override is critical even if config explicitly sets early_stopping=True
+                if is_reduce_phase:
+                    early_stopping = False
             elif early_stopping is None:
                 early_stopping = config_module.DEFAULT_MAP_EARLY_STOPPING
 
@@ -773,9 +1091,23 @@ class SummaryModel:
                     repetition_penalty = config_module.DEFAULT_MAP_REPETITION_PENALTY
 
             # Use max_new_tokens if provided, otherwise fall back to max_length
-            # Convert max_length to max_new_tokens for clarity (max_length includes input+output)
-            effective_max_new_tokens = max_new_tokens if max_new_tokens is not None else max_length
-            effective_min_new_tokens = min_new_tokens if min_new_tokens is not None else min_length
+            # Convert max_length to max_new_tokens for clarity
+            # (max_length includes input+output)
+            # For MAP stage (when max_new_tokens/min_new_tokens are None),
+            # use max_length/min_length directly
+            # This is more reliable for encoder-decoder models like Pegasus
+            if max_new_tokens is not None:
+                effective_max_new_tokens = max_new_tokens
+            else:
+                # For MAP stage, max_length is the target output length (not input+output)
+                # So we can use it directly
+                effective_max_new_tokens = max_length
+
+            if min_new_tokens is not None:
+                effective_min_new_tokens = min_new_tokens
+            else:
+                # For MAP stage, min_length is the target output length
+                effective_min_new_tokens = min_length
 
             # Handle input truncation if max_input_tokens is specified
             effective_truncation = truncation if truncation is not None else True
@@ -816,14 +1148,29 @@ class SummaryModel:
                         input_text = "summarize: " + input_text
                         logger.debug("Added T5 prefix 'summarize: ' to input text")
 
+            # For MAP stage (when max_new_tokens/min_new_tokens are None), use max_length/min_length
+            # This is more reliable for encoder-decoder models like Pegasus
+            # The pipeline accepts both max_new_tokens/min_new_tokens and max_length/min_length
+            # Prefer max_new_tokens/min_new_tokens if provided, otherwise use max_length/min_length
             pipeline_kwargs = {
-                "max_new_tokens": effective_max_new_tokens,  # Use max_new_tokens (output-only)
-                "min_new_tokens": effective_min_new_tokens,  # Use min_new_tokens (output-only)
                 "truncation": effective_truncation,
                 # Penalize repetition to prevent hallucinations
                 "repetition_penalty": repetition_penalty,
                 "no_repeat_ngram_size": no_repeat_ngram_size,
             }
+
+            # Use max_new_tokens/min_new_tokens if provided, otherwise use max_length/min_length
+            if max_new_tokens is not None:
+                pipeline_kwargs["max_new_tokens"] = effective_max_new_tokens
+            else:
+                # For MAP stage, use max_length directly (more reliable for Pegasus)
+                pipeline_kwargs["max_length"] = max_length
+
+            if min_new_tokens is not None:
+                pipeline_kwargs["min_new_tokens"] = effective_min_new_tokens
+            else:
+                # For MAP stage, use min_length directly (more reliable for Pegasus)
+                pipeline_kwargs["min_length"] = min_length
             # Add encoder_no_repeat_ngram_size if provided (prevents copying from input)
             if encoder_no_repeat_ngram_size is not None:
                 pipeline_kwargs["encoder_no_repeat_ngram_size"] = encoder_no_repeat_ngram_size
@@ -844,6 +1191,7 @@ class SummaryModel:
 
             with warnings.catch_warnings():
                 # Filter max_length > input_length warnings
+                # (should be rare now with dynamic adjustment)
                 warnings.filterwarnings(
                     "ignore",
                     message=r".*max_length.*input_length.*",
@@ -855,6 +1203,9 @@ class SummaryModel:
                     message=r"Your max_length is set to \d+, but your input_length is only \d+.*",
                     category=UserWarning,
                 )
+                # Note: Thinc/spaCy FutureWarning about torch.cuda.amp.autocast is
+                # filtered at CLI startup (see cli.py) to prevent user-facing noise
+                # from version compatibility issues
                 # Filter "Asking to truncate to max_length but no maximum length
                 # is provided" warning
                 warnings.filterwarnings(
@@ -862,8 +1213,7 @@ class SummaryModel:
                     message=r".*truncate.*max_length.*no maximum length.*",
                     category=UserWarning,
                 )
-                # Filter "Asking to truncate to max_length but no maximum length
-                # is provided" (alternative wording)
+                # Filter alternative wording of truncate warning
                 warnings.filterwarnings(
                     "ignore",
                     message=r".*no maximum length.*Default to no truncation.*",
@@ -887,7 +1237,7 @@ class SummaryModel:
             raw_tokens = (
                 len(
                     self.tokenizer.encode(  # type: ignore[attr-defined]
-                        summary_text, add_special_tokens=False
+                        summary_text, add_special_tokens=False, truncation=True, max_length=100000
                     )
                 )
                 if summary_text and self.tokenizer
@@ -932,6 +1282,13 @@ class SummaryModel:
                     "Text is too long - use chunking with summarize_long_text() instead."
                 )
                 return ""
+            # Handle "Already borrowed" error from Rust tokenizer in parallel execution
+            if "already borrowed" in error_msg:
+                logger.error(
+                    f"Tokenizer threading error during summarization: {e}. "
+                    "This can occur in parallel execution. Retrying with empty result."
+                )
+                return ""
             raise
         except Exception as e:
             logger.error(f"Summarization failed: {e}")
@@ -957,7 +1314,11 @@ def chunk_text_for_summarization(
         List of text chunks
     """
     # Tokenize to get accurate token counts
-    tokens = tokenizer.encode(text, add_special_tokens=False)  # type: ignore[attr-defined]
+    # Use truncation=True to prevent warnings when text exceeds model max
+    # (We're chunking anyway, so truncation here is just to avoid warnings)
+    tokens = tokenizer.encode(  # type: ignore[attr-defined]
+        text, add_special_tokens=False, truncation=True, max_length=100000
+    )
 
     chunks = []
     start = 0
@@ -1005,7 +1366,11 @@ def _chunk_by_tokens(text: str, tokenizer: "AutoTokenizer", max_tokens: int = 60
     Returns:
         List of text chunks, each guaranteed to be <= max_tokens
     """
-    ids = tokenizer.encode(text, add_special_tokens=False)  # type: ignore[attr-defined]
+    # Use truncation=True to prevent warnings when text exceeds model max
+    # (We're chunking anyway, so truncation here is just to avoid warnings)
+    ids = tokenizer.encode(  # type: ignore[attr-defined]
+        text, add_special_tokens=False, truncation=True, max_length=100000
+    )
     chunks = []
     for i in range(0, len(ids), max_tokens):
         cs = ids[i : i + max_tokens]
@@ -1175,7 +1540,11 @@ def _check_if_needs_chunking(
         raise RuntimeError("Model tokenizer not available")
 
     # Check if text fits in configured chunk_size
-    tokens = model.tokenizer.encode(text, add_special_tokens=False)  # type: ignore[attr-defined]
+    # Use truncation=True to prevent warnings when text exceeds model max
+    # (This is just for counting, actual processing will chunk if needed)
+    tokens = model.tokenizer.encode(  # type: ignore[attr-defined]
+        text, add_special_tokens=False, truncation=True, max_length=100000
+    )
     total_tokens = len(tokens)
 
     if total_tokens <= chunk_size:
@@ -1209,7 +1578,14 @@ def _prepare_chunks(
     if not model.tokenizer:
         raise RuntimeError("Model tokenizer not available")
 
-    overlap = max(1, int(chunk_size * CHUNK_OVERLAP_RATIO))
+    # For encoder-decoder models, use 60-80 token overlap (as recommended)
+    # For other models, use the default overlap ratio
+    if use_word_chunking:
+        # Encoder-decoder models: 60-80 token overlap for better performance
+        overlap = max(60, min(80, int(chunk_size * 0.1)))  # 10% of chunk_size, clamped to 60-80
+    else:
+        overlap = max(1, int(chunk_size * CHUNK_OVERLAP_RATIO))
+
     chunks = chunk_text_for_summarization(
         text,
         model.tokenizer,
@@ -1218,8 +1594,12 @@ def _prepare_chunks(
     )
 
     total_words = len(text.split())
+    # Use truncation=True to prevent warnings when text exceeds model max
+    # (This is just for counting/logging, actual chunks are already created)
     total_tokens = len(
-        model.tokenizer.encode(text, add_special_tokens=False)  # type: ignore[attr-defined]
+        model.tokenizer.encode(  # type: ignore[attr-defined]
+            text, add_special_tokens=False, truncation=True, max_length=100000
+        )
     )
 
     if use_word_chunking:
@@ -1277,7 +1657,8 @@ def summarize_long_text(
     reduce_encoder_no_repeat_ngram_size: Optional[int] = None,
     reduce_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
-    preprocessing_profile: str = "cleaning_v3",
+    preprocessing_profile: str = "cleaning_v4",  # Default to cleaning_v4
+    # (matches production baseline)
 ) -> str | tuple[str, Dict[str, Any]]:
     """Summarize long text by chunking and combining summaries.
 
@@ -1347,8 +1728,12 @@ def summarize_long_text(
     input_chars = len(text)
     input_words = len(text.split())
     if model.tokenizer:
+        # Use truncation=True to prevent warnings when text exceeds model max
+        # (This is just for counting/logging, actual processing will chunk if needed)
         input_tokens = len(
-            model.tokenizer.encode(text, add_special_tokens=False)  # type: ignore[attr-defined]
+            model.tokenizer.encode(  # type: ignore[attr-defined]
+                text, add_special_tokens=False, truncation=True, max_length=100000
+            )
         )
     else:
         input_tokens = input_chars // CHARS_PER_TOKEN_ESTIMATE
@@ -1373,10 +1758,18 @@ def summarize_long_text(
     )
     requested_chunk_size = chunk_size
     chunk_size = max(1, min(chunk_size, model_max_tokens - MODEL_MAX_BUFFER))
+
+    # For encoder-decoder models, use token chunking directly (don't convert from word chunking)
+    # This provides more uniform chunk sizes and better performance
     encoder_decoder_override = False
     if use_word_chunking:
-        chunk_size = min(chunk_size, ENCODER_DECODER_TOKEN_CHUNK_SIZE)
+        # Use token chunking directly: 700 tokens with 60-80 token overlap (as recommended)
+        chunk_size = min(chunk_size, 700)  # Optimal for encoder-decoder models
         encoder_decoder_override = True
+        logger.debug(
+            "Encoder-decoder model: Using token chunking directly "
+            f"(chunk_size={chunk_size} tokens, recommended 700 tokens with 60-80 overlap)"
+        )
 
     logger.debug(
         "[MAP-REDUCE VALIDATION] Chunking strategy: "
@@ -1411,10 +1804,11 @@ def summarize_long_text(
     chunk_sizes_chars = [len(chunk) for chunk in chunks]
     chunk_sizes_words = [len(chunk.split()) for chunk in chunks]
     if model.tokenizer:
+        # Chunks are already within limits, but add truncation to prevent any warnings
         chunk_sizes_tokens = [
             len(
                 model.tokenizer.encode(  # type: ignore[attr-defined]
-                    chunk, add_special_tokens=False
+                    chunk, add_special_tokens=False, truncation=True, max_length=100000
                 )
             )
             for chunk in chunks
@@ -1500,8 +1894,32 @@ def summarize_long_text(
     # Calculate reduce input size (for logging/diagnostics)
     reduce_input_chars = 0
     if chunk_summaries:
+        # Log map output before joining (to investigate shrink)
+        map_output_total_chars = sum(len(s) for s in chunk_summaries)
+        map_output_total_words = sum(len(s.split()) for s in chunk_summaries)
+        logger.debug(
+            f"[MAP-REDUCE VALIDATION] Map output before joining: "
+            f"{map_output_total_chars:,} chars, {map_output_total_words:,} words, "
+            f"{len(chunk_summaries)} summaries"
+        )
+
+        # Log first 80 chars of each summary for debugging
+        for i, summary in enumerate(chunk_summaries[:4], 1):  # Log first 4
+            preview = summary[:80].replace("\n", " ")
+            logger.debug(f"[MAP-REDUCE VALIDATION] Map summary {i} preview: {preview}...")
+
         combined_text = _join_summaries_with_structure(chunk_summaries)
         reduce_input_chars = len(combined_text)
+
+        # Log shrink if significant
+        if map_output_total_chars > 0:
+            shrink_ratio = reduce_input_chars / map_output_total_chars
+            if shrink_ratio < 0.8:  # More than 20% shrink
+                logger.debug(
+                    f"[MAP-REDUCE VALIDATION] Map→Reduce shrink detected: "
+                    f"{map_output_total_chars:,} chars → {reduce_input_chars:,} chars "
+                    f"({shrink_ratio:.1%} retained, {1-shrink_ratio:.1%} lost in joining)"
+                )
 
     reduce_start_time = time.time()
     final_summary = _combine_summaries_reduce(
@@ -1528,9 +1946,10 @@ def summarize_long_text(
     final_chars = len(final_summary)
     final_words = len(final_summary.split())
     if model.tokenizer:
+        # Final summary is already generated, but add truncation to prevent any warnings
         final_tokens = len(
             model.tokenizer.encode(  # type: ignore[attr-defined]
-                final_summary, add_special_tokens=False
+                final_summary, add_special_tokens=False, truncation=True, max_length=100000
             )
         )
     else:
@@ -1635,12 +2054,45 @@ def _summarize_chunks_map(
     if max_workers > 1:
         estimated_minutes = estimated_minutes // max_workers
     overlap = int(chunk_size * CHUNK_OVERLAP_RATIO)
-    chunk_max_length = min(chunk_size, max_length, CHUNK_SUMMARY_MAX_TOKENS)
-    chunk_min_length = min(chunk_max_length, max(min_length, CHUNK_SUMMARY_MIN_TOKENS))
+
+    # For MAP stage, use min_length/max_length instead of min_new_tokens/max_new_tokens
+    # This is more reliable for encoder-decoder models like Pegasus
+    # Target: 120-180 tokens per chunk summary (good ratio for 600-token input chunks)
+    # User recommendation: min_length=120-160, max_length=220-260
+
+    # Base max_length calculation
+    if map_max_new_tokens is not None:
+        base_chunk_max_length = min(chunk_size, map_max_new_tokens, CHUNK_SUMMARY_MAX_TOKENS)
+    else:
+        base_chunk_max_length = min(chunk_size, max_length, CHUNK_SUMMARY_MAX_TOKENS)
+
+    # Dynamic reduction: when chunk input is small, reduce max_length to prevent warnings
+    # This reduces "max_length > input_length" warnings and improves efficiency
+    # We'll calculate this per-chunk, but set a reasonable default here
+    # The actual dynamic adjustment happens in the chunk processing loop
+    chunk_max_length = base_chunk_max_length
+
+    if map_min_new_tokens is not None:
+        # Convert min_new_tokens to min_length (approximate)
+        chunk_min_length = min(chunk_max_length, max(map_min_new_tokens, CHUNK_SUMMARY_MIN_TOKENS))
+    else:
+        # For MAP stage, ignore reduce min_length parameter - use MAP-specific default
+        # User recommendation: 120-160 tokens for MAP summaries
+        # Use 120 as minimum (not the reduce min_length=220 which is too high for MAP)
+        map_default_min = 120  # MAP-specific minimum (user recommendation)
+        chunk_min_length = min(chunk_max_length, max(map_default_min, CHUNK_SUMMARY_MIN_TOKENS))
+
+    # Ensure min_length is reasonable (not too high relative to max)
+    # But don't cap too aggressively - we want 120+ tokens
+    if chunk_min_length > chunk_max_length * 0.7:
+        # If min is too close to max, set it to 60% of max (but not below 120)
+        chunk_min_length = max(120, int(chunk_max_length * 0.6))
+
     logger.debug(
         f"[MAP-REDUCE CONFIG] Map stage: {total_chunks} chunks, chunk_size={chunk_size} tokens, "
         f"overlap={overlap} tokens, workers={max_workers}, "
-        f"chunk_summary_range={chunk_min_length}-{chunk_max_length} tokens, "
+        f"chunk_summary_range={chunk_min_length}-{chunk_max_length} tokens "
+        f"(using min_length/max_length), "
         f"estimated time ~{estimated_minutes} minutes"
     )
 
@@ -1731,16 +2183,34 @@ def _summarize_chunks_parallel(
     def _summarize_chunk(chunk_idx_and_text):
         chunk_idx, chunk_text = chunk_idx_and_text
         try:
+            # Dynamic max_length/min_length adjustment: cap by input length to prevent warnings
+            # Robust rule: max_length = min(configured_max, max(20, int(0.7 * in_len)))
+            # This prevents the model from trying to generate longer-than-input outputs
+            if model.tokenizer:
+                chunk_tokens = len(
+                    model.tokenizer.encode(  # type: ignore[attr-defined]
+                        chunk_text, add_special_tokens=False, truncation=True, max_length=100000
+                    )
+                )
+                # Cap max_length based on input: min(configured_max, max(20, 0.7 * input))
+                dynamic_max_length = min(chunk_max_length, max(20, int(0.7 * chunk_tokens)))
+                # Cap min_length based on input: min(configured_min, max(10, 0.3 * input))
+                dynamic_min_length = min(chunk_min_length, max(10, int(0.3 * chunk_tokens)))
+            else:
+                dynamic_max_length = chunk_max_length
+                dynamic_min_length = chunk_min_length
+
+            # For MAP stage, use min_length/max_length instead of min_new_tokens/max_new_tokens
             return (
                 chunk_idx,
                 model.summarize(
                     chunk_text,
-                    max_length=chunk_max_length,
-                    min_length=chunk_min_length,
+                    max_length=dynamic_max_length,
+                    min_length=dynamic_min_length,
                     prompt=prompt,
-                    # Pass map generation params
-                    max_new_tokens=map_max_new_tokens,
-                    min_new_tokens=map_min_new_tokens,
+                    # Pass other map generation params (but NOT max_new_tokens/min_new_tokens)
+                    max_new_tokens=None,  # Use max_length instead
+                    min_new_tokens=None,  # Use min_length instead
                     num_beams=map_num_beams,
                     no_repeat_ngram_size=map_no_repeat_ngram_size,
                     length_penalty=map_length_penalty,
@@ -1831,14 +2301,36 @@ def _summarize_chunks_sequential(
                 logger.debug(
                     f"Processing chunk {i}/{total_chunks} with MAP model: {model.model_name}..."
                 )
+            # Dynamic max_length/min_length adjustment: cap by input length to prevent warnings
+            # Robust rule: max_length = min(configured_max, max(20, int(0.7 * in_len)))
+            # This prevents the model from trying to generate longer-than-input outputs
+            if model.tokenizer:
+                chunk_tokens = len(
+                    model.tokenizer.encode(  # type: ignore[attr-defined]
+                        chunk, add_special_tokens=False, truncation=True, max_length=100000
+                    )
+                )
+                # Cap max_length based on input: min(configured_max, max(20, 0.7 * input))
+                dynamic_max_length = min(chunk_max_length, max(20, int(0.7 * chunk_tokens)))
+                # Cap min_length based on input: min(configured_min, max(10, 0.3 * input))
+                dynamic_min_length = min(chunk_min_length, max(10, int(0.3 * chunk_tokens)))
+            else:
+                dynamic_max_length = chunk_max_length
+                dynamic_min_length = chunk_min_length
+
+            # For MAP stage, use min_length/max_length instead of
+            # min_new_tokens/max_new_tokens
+            # This is more reliable for encoder-decoder models like Pegasus
+            # Don't pass max_new_tokens/min_new_tokens - let model.summarize()
+            # use max_length/min_length
             summary = model.summarize(
                 chunk,
-                max_length=chunk_max_length,
-                min_length=chunk_min_length,
+                max_length=dynamic_max_length,
+                min_length=dynamic_min_length,
                 prompt=prompt,
-                # Pass map generation params
-                max_new_tokens=map_max_new_tokens,
-                min_new_tokens=map_min_new_tokens,
+                # Pass other map generation params (but NOT max_new_tokens/min_new_tokens)
+                max_new_tokens=None,  # Use max_length instead
+                min_new_tokens=None,  # Use min_length instead
                 num_beams=map_num_beams,
                 no_repeat_ngram_size=map_no_repeat_ngram_size,
                 length_penalty=map_length_penalty,
@@ -1914,9 +2406,11 @@ def _combine_summaries_reduce(
     combined_chars = len(combined_text)
     combined_words = len(combined_text.split())
     if model.tokenizer:
+        # Combined text is from chunk summaries, but add truncation to prevent warnings
+        # (This is just for counting/logging, actual processing will handle truncation)
         combined_tokens = len(
             model.tokenizer.encode(  # type: ignore[attr-defined]
-                combined_text, add_special_tokens=False
+                combined_text, add_special_tokens=False, truncation=True, max_length=100000
             )
         )
     else:
@@ -2163,16 +2657,41 @@ def _join_summaries_with_structure(summaries: List[str]) -> str:
     Returns:
         Structured text for reducer input (bullets only, no instructions)
     """
+    # Calculate total size before processing
+    total_chars = sum(len(s) for s in summaries)
+
+    # If combined text is small, skip bulletization to avoid unnecessary compression
+    # This prevents double-compression when we have headroom in the reduce phase
+    if total_chars < SKIP_BULLETIZATION_THRESHOLD:
+        # Just join with newlines and separators - no bulletization/truncation
+        cleaned_summaries = []
+        for s in summaries:
+            s = s.strip()
+            if not s:
+                continue
+            # Normalize Pegasus <n> markers to real newlines
+            s = s.replace("<n>", "\n").replace("</n>", "")
+            # Sanitize artifacts
+            s = preprocessing.remove_summarization_artifacts(s)  # type: ignore[attr-defined]
+            cleaned_summaries.append(s)
+        # Join with separators but no bulletization
+        return "\n\n---\n\n".join(cleaned_summaries).strip()
+
+    # For larger texts, use bulletization with scaled caps
     blocks = []
     for i, s in enumerate(summaries, start=1):
         s = s.strip()
         if not s:
             continue
 
+        # Normalize Pegasus <n> markers to real newlines BEFORE splitlines()
+        # This is critical - Pegasus outputs "<n>" not "\n", so splitlines() won't work
+        s = s.replace("<n>", "\n").replace("</n>", "")
+
         # Sanitize: remove any artifacts that might have leaked through
         s = preprocessing.remove_summarization_artifacts(s)  # type: ignore[attr-defined]
 
-        # Convert prose to bullets
+        # Convert prose to bullets (now splitlines() will work correctly)
         lines = [ln.strip() for ln in s.splitlines() if ln.strip()]
 
         # If single long line, split into sentences (but only if very long)
@@ -2182,20 +2701,27 @@ def _join_summaries_with_structure(summaries: List[str]) -> str:
             parts = [p.strip() for p in re.split(r"(?<=[.!?])\s+", text) if p.strip()]
             lines = parts[:MAX_BULLETS_PER_CHUNK]
 
-        # Convert to bullets, cap length
+        # Convert to bullets, cap length (with scaled caps based on number of chunks)
+        # Scale caps based on number of chunks - more chunks = more headroom per chunk
+        num_chunks = len(summaries)
+        scaled_max_bullets = min(MAX_BULLETS_PER_CHUNK + (num_chunks - 1), 16)  # Scale up to 16 max
+        scaled_max_chunk_chars = min(
+            MAX_CHUNK_CHARS + (num_chunks - 1) * 200, 4000
+        )  # Scale up to 4000 max
+
         bullet_lines = []
-        total_chars = 0
+        chunk_total_chars = 0
         for ln in lines:
             ln = _normalize_bullet(ln)
             if len(ln) < MIN_BULLET_CHARS:
                 continue
             if len(ln) > MAX_BULLET_CHARS:
                 ln = ln[:MAX_BULLET_CHARS] + "..."
-            if total_chars + len(ln) > MAX_CHUNK_CHARS:
+            if chunk_total_chars + len(ln) > scaled_max_chunk_chars:
                 break
             bullet_lines.append(f"- {ln}")
-            total_chars += len(ln)
-            if len(bullet_lines) >= MAX_BULLETS_PER_CHUNK:
+            chunk_total_chars += len(ln)
+            if len(bullet_lines) >= scaled_max_bullets:
                 break
 
         if bullet_lines:
@@ -2652,9 +3178,10 @@ def _combine_summaries_mini_map_reduce(
         # Validate chunk sizes to ensure they don't exceed model limit
         max_chunk_tokens = 0
         for i, chunk in enumerate(mini_chunks, 1):
+            # Chunks are already within limits, but add truncation to prevent any warnings
             chunk_tokens = len(
                 model.tokenizer.encode(  # type: ignore[attr-defined]
-                    chunk, add_special_tokens=False
+                    chunk, add_special_tokens=False, truncation=True, max_length=100000
                 )
             )
             max_chunk_tokens = max(max_chunk_tokens, chunk_tokens)
@@ -2746,9 +3273,10 @@ def _combine_summaries_mini_map_reduce(
         current_chars = len(current_text)
         current_words = len(current_text.split())
         if model.tokenizer:
+            # Current text is from section summaries, but add truncation to prevent warnings
             current_tokens = len(
                 model.tokenizer.encode(  # type: ignore[attr-defined]
-                    current_text, add_special_tokens=False
+                    current_text, add_special_tokens=False, truncation=True, max_length=100000
                 )
             )
         else:
@@ -2854,11 +3382,49 @@ def _combine_summaries_abstractive(
     Returns:
         Final summary
     """
-    # Cap max_length to prevent expansion (Issue #283)
-    # When max_length > input_length, LED models tend to expand instead of summarize
-    max_output_ratio = 0.8  # Target 80% of input length
-    input_based_max = int(combined_tokens * max_output_ratio)
+    # Dynamic capping to prevent expansion (Issue #283 fix)
+    # The problem: min_new_tokens=220 forces expansion when input is only ~156 tokens
+    # Solution: Cap both max_new_tokens and min_new_tokens based on input size
 
+    # Calculate dynamic caps based on input size
+    max_output_ratio = 0.45  # Target 45% of input tokens for output (prevents expansion)
+
+    # Cap max_new_tokens: use smaller of config value or dynamic cap
+    if reduce_max_new_tokens is None:
+        # Fallback to max_length if max_new_tokens not provided
+        base_max_new_tokens = max_length
+    else:
+        base_max_new_tokens = reduce_max_new_tokens
+
+    # Dynamic cap: Use higher ratio when input is small (allows fuller rewrite without expansion)
+    # For small inputs (< 250 tokens), allow 0.8-1.2 ratio (fuller summary)
+    # For larger inputs, use 0.45 ratio (prevents expansion)
+    if combined_tokens < 250:
+        # Small input: allow more tokens for a fuller rewrite (won't expand wildly)
+        small_input_ratio = min(1.2, max(0.8, max_output_ratio * 1.5))
+        dynamic_max_new_tokens = max(120, int(combined_tokens * small_input_ratio))
+        logger.debug(
+            f"[MAP-REDUCE VALIDATION] Small reduce input ({combined_tokens} tokens), "
+            f"using higher ratio ({small_input_ratio:.2f}) for fuller summary"
+        )
+    else:
+        # Larger input: use standard ratio to prevent expansion
+        dynamic_max_new_tokens = max(80, int(combined_tokens * max_output_ratio))
+    effective_max_new_tokens = min(base_max_new_tokens, dynamic_max_new_tokens)
+
+    # Dynamic min_new_tokens: 0 (no minimum) or small value, never force expansion
+    # IMPORTANT: For reduce stage, min_new_tokens should ALWAYS be 0 to prevent forced expansion
+    # Reduce stage should never be forced to produce a minimum length - let the model decide
+    # the optimal summary length based on content, not arbitrary minimums
+    # Map stage can keep a floor (e.g., 60-100 tokens) for consistency, but reduce should be 0
+    effective_min_new_tokens = 0
+    if reduce_min_new_tokens is not None and reduce_min_new_tokens > 0:
+        logger.debug(
+            f"[MAP-REDUCE] Reduce stage: ignoring min_new_tokens={reduce_min_new_tokens}, "
+            f"using 0 to prevent forced expansion (reduce should never be forced to expand)"
+        )
+
+    # Also cap max_length for backward compatibility (though max_new_tokens takes precedence)
     base_max_length = int(
         min(
             max_length * FINAL_MAX_LENGTH_MULTIPLIER,
@@ -2866,21 +3432,44 @@ def _combine_summaries_abstractive(
             SAFE_MAX_LENGTH,
         )
     )
+    input_based_max_length = int(combined_tokens * max_output_ratio)
+    final_max_length = max(min_length, min(base_max_length, input_based_max_length))
 
-    # Use the smaller of base_max_length and input_based_max, but ensure min_length
-    final_max_length = max(min_length, min(base_max_length, input_based_max))
+    # Log if we capped any parameters - include policy name and thresholds for future debugging
+    max_capped = effective_max_new_tokens < base_max_new_tokens
+    min_capped = effective_min_new_tokens < (
+        reduce_min_new_tokens if reduce_min_new_tokens is not None else float("inf")
+    )
 
-    if input_based_max < base_max_length:
+    # Determine policy name based on input size
+    if combined_tokens < 250:
+        policy_name = "cap_v2_small_input"
+        policy_threshold = f"ratio={small_input_ratio:.2f}, min_floor=0 when input < 250 tokens"
+    else:
+        policy_name = "cap_v2_standard"
+        policy_threshold = f"ratio={max_output_ratio}, min_floor=0 when input >= 250 tokens"
+
+    if max_capped or min_capped:
+        logger.info(
+            f"[MAP-REDUCE VALIDATION] Policy: {policy_name} ({policy_threshold}) - "
+            f"Capping reduce params to prevent expansion: "
+            f"max_new_tokens={base_max_new_tokens}→{effective_max_new_tokens}, "
+            f"min_new_tokens={reduce_min_new_tokens or 0}→{effective_min_new_tokens} "
+            f"(input={combined_tokens} tokens)"
+        )
+    else:
+        # Log policy even when not capping (for transparency)
         logger.debug(
-            f"[MAP-REDUCE VALIDATION] Capping max_length from {base_max_length} "
-            f"to {final_max_length} (input={combined_tokens} tokens, "
-            f"max_output_ratio={max_output_ratio}) to prevent expansion"
+            f"[MAP-REDUCE VALIDATION] Policy: {policy_name} ({policy_threshold}) - "
+            f"No capping needed: max_new_tokens={effective_max_new_tokens}, "
+            f"min_new_tokens={effective_min_new_tokens} (input={combined_tokens} tokens)"
         )
 
     logger.debug(
         f"Final summarization: {len(chunk_summaries)} chunks, "
         f"combined ~{combined_tokens} tokens, "
-        f"using max_length={final_max_length} for final summary"
+        f"using max_new_tokens={effective_max_new_tokens}, "
+        f"min_new_tokens={effective_min_new_tokens}"
     )
 
     try:
@@ -2893,10 +3482,9 @@ def _combine_summaries_abstractive(
             do_sample=False,
             prompt=prompt,
             is_reduce_phase=True,  # Use REDUCE-specific generation params
-            # (if explicit params not provided)
-            # Pass reduce generation params (override phase defaults if provided)
-            max_new_tokens=reduce_max_new_tokens,
-            min_new_tokens=reduce_min_new_tokens,
+            # Pass dynamically capped generation params
+            max_new_tokens=effective_max_new_tokens,
+            min_new_tokens=effective_min_new_tokens,
             num_beams=reduce_num_beams,
             no_repeat_ngram_size=reduce_no_repeat_ngram_size,
             length_penalty=reduce_length_penalty,
@@ -2912,8 +3500,111 @@ def _combine_summaries_abstractive(
         # Post-process the REDUCE output
         final_summary = _postprocess_ml_summary(final_summary)
 
-        # Apply DISTILL phase for final compression
-        final_summary = _distill_final_summary(model, final_summary)
+        # HARD GUARDRAIL: Detect expansion and retry or fall back to map-only
+        # If output is within 95% of input, treat as failure and retry with smaller cap
+        # If retry still fails, skip reduce and use map-only (join chunk summaries)
+        EXPANSION_THRESHOLD = 0.95  # If output > input * 0.95, treat as expansion
+        RETRY_MAX_OUTPUT_RATIO = 0.30  # Retry with 30% cap (more aggressive)
+
+        output_chars = len(final_summary) if final_summary else 0
+        input_chars = len(combined_text)
+        used_map_only = False  # Track if we fell back to map-only
+
+        if output_chars > input_chars * EXPANSION_THRESHOLD:
+            logger.warning(
+                f"[GUARDRAIL] Reduce output ({output_chars} chars) exceeds expansion "
+                f"threshold ({input_chars * EXPANSION_THRESHOLD:.0f} chars, "
+                f"{EXPANSION_THRESHOLD*100:.0f}% of input). "
+                f"Retrying with smaller cap ({RETRY_MAX_OUTPUT_RATIO*100:.0f}% of input)..."
+            )
+
+            # Retry with more aggressive capping (30% instead of 45%)
+            retry_dynamic_max_new_tokens = max(60, int(combined_tokens * RETRY_MAX_OUTPUT_RATIO))
+            retry_effective_max_new_tokens = min(
+                effective_max_new_tokens, retry_dynamic_max_new_tokens
+            )
+            retry_effective_min_new_tokens = 0  # Force no minimum on retry
+
+            logger.debug(
+                f"[GUARDRAIL] Retry params: "
+                f"max_new_tokens={effective_max_new_tokens}→{retry_effective_max_new_tokens}, "
+                f"min_new_tokens={effective_min_new_tokens}→{retry_effective_min_new_tokens}"
+            )
+
+            try:
+                retry_final_summary = model.summarize(
+                    combined_text,
+                    max_length=final_max_length,
+                    min_length=min_length,
+                    do_sample=False,
+                    prompt=prompt,
+                    is_reduce_phase=True,
+                    max_new_tokens=retry_effective_max_new_tokens,
+                    min_new_tokens=retry_effective_min_new_tokens,
+                    num_beams=reduce_num_beams,
+                    no_repeat_ngram_size=reduce_no_repeat_ngram_size,
+                    length_penalty=reduce_length_penalty,
+                    early_stopping=reduce_early_stopping,
+                    repetition_penalty=reduce_repetition_penalty,
+                    encoder_no_repeat_ngram_size=reduce_encoder_no_repeat_ngram_size,
+                    max_input_tokens=reduce_max_input_tokens,
+                    truncation=truncation,
+                )
+                retry_final_summary = _postprocess_ml_summary(retry_final_summary)
+                retry_output_chars = len(retry_final_summary) if retry_final_summary else 0
+
+                # Check if retry succeeded (output < 95% of input)
+                if retry_output_chars <= input_chars * EXPANSION_THRESHOLD:
+                    logger.info(
+                        f"[GUARDRAIL] Retry succeeded: output ({retry_output_chars} chars) "
+                        f"is now within threshold ({input_chars * EXPANSION_THRESHOLD:.0f} chars)"
+                    )
+                    final_summary = retry_final_summary
+                    output_chars = retry_output_chars
+                else:
+                    # Retry also failed - fall back to map-only (join chunk summaries)
+                    logger.warning(
+                        f"[GUARDRAIL] Retry failed: output ({retry_output_chars} chars) "
+                        f"still exceeds threshold. "
+                        f"Falling back to map-only (joining chunk summaries without "
+                        f"reduce phase)."
+                    )
+                    # Join chunk summaries directly (map-only, no reduce)
+                    final_summary = _join_summaries_with_structure(chunk_summaries)
+                    used_map_only = True
+                    logger.info(
+                        f"[GUARDRAIL] Using map-only result: {len(final_summary)} chars "
+                        f"(from {len(chunk_summaries)} chunk summaries)"
+                    )
+            except Exception as retry_error:
+                # Retry failed with error - fall back to map-only
+                logger.warning(
+                    f"[GUARDRAIL] Retry failed with error: {retry_error}. "
+                    "Falling back to map-only (joining chunk summaries without reduce phase)."
+                )
+                final_summary = _join_summaries_with_structure(chunk_summaries)
+                used_map_only = True
+                logger.info(
+                    f"[GUARDRAIL] Using map-only result: {len(final_summary)} chars "
+                    f"(from {len(chunk_summaries)} chunk summaries)"
+                )
+
+        # Apply DISTILL phase conditionally - only if output is long enough to benefit
+        # When reduce input is already short (~150-200 tokens), distilling again often expands
+        # Skip DISTILL if we used map-only fallback (already concise)
+        if not used_map_only:
+            DISTILL_THRESHOLD_CHARS = 1200  # Only distill if output is above this threshold
+            if len(final_summary) > DISTILL_THRESHOLD_CHARS:
+                logger.debug(
+                    f"[DISTILL] Reduce output ({len(final_summary)} chars) exceeds threshold "
+                    f"({DISTILL_THRESHOLD_CHARS} chars), applying distillation"
+                )
+                final_summary = _distill_final_summary(model, final_summary)
+            else:
+                logger.debug(
+                    f"[DISTILL] Skipping distillation - reduce output ({len(final_summary)} chars) "
+                    f"is already concise (threshold: {DISTILL_THRESHOLD_CHARS} chars)"
+                )
 
         # Validate summary quality (Issue #283 follow-up)
         # Check for expansion (summary longer than input) - this is a critical issue
@@ -2932,10 +3623,22 @@ def _combine_summaries_abstractive(
                 f"Acceptable for LED models (threshold={SUMMARY_VALIDATION_THRESHOLD})."
             )
 
-        if len(final_summary) < min_length * MIN_SUMMARY_LENGTH_MULTIPLIER:
+        # Smarter "too short" warning: only warn if output is suspiciously short
+        # AND input was large enough to expect more content
+        # Don't warn on short-format shows or when input was already concise
+        output_words = len(final_summary.split()) if final_summary else 0
+        input_words = len(combined_text.split()) if combined_text else 0
+        if output_words < 80 and input_words > 1200 and len(final_summary) < 400:
             logger.warning(
-                f"Final summary seems too short ({len(final_summary)} chars). "
-                "This might indicate summarization issues."
+                f"Final summary seems too short ({len(final_summary)} chars, {output_words} words) "
+                f"for large input ({input_words} words). This might indicate summarization issues."
+            )
+        elif output_words < 50 and input_words > 2000:
+            # Very short output for very large input - definitely suspicious
+            logger.warning(
+                f"Final summary is very short ({len(final_summary)} chars, "
+                f"{output_words} words) for very large input ({input_words} words). "
+                f"This might indicate summarization issues."
             )
 
         return final_summary

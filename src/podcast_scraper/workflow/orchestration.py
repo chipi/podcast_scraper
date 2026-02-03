@@ -365,44 +365,67 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     # Step 1.5: Preload ML models if configured
     wf_stages.setup.preload_ml_models_if_needed(cfg)
 
-    # Step 2: Fetch and parse RSS feed (scraping stage)
-    scraping_start = time.time()
-    feed, rss_bytes = wf_stages.scraping.fetch_and_parse_feed(cfg)
-    pipeline_metrics.record_stage("scraping", time.time() - scraping_start)
-
-    # Step 3: Extract feed metadata (if metadata generation enabled)
-    # Reuse RSS bytes from initial fetch to avoid duplicate network request
-    feed_metadata = wf_stages.scraping.extract_feed_metadata_for_generation(cfg, feed, rss_bytes)
-
-    # Step 4: Prepare episodes from RSS items (parsing stage)
-    parsing_start = time.time()
-    episodes = wf_stages.scraping.prepare_episodes_from_feed(feed, cfg)
-    pipeline_metrics.episodes_scraped_total = len(episodes)
-    pipeline_metrics.record_stage("parsing", time.time() - parsing_start)
-
-    # Step 5: Detect hosts and analyze patterns (if auto_speakers enabled)
-    # This is part of normalizing stage
-    normalizing_start = time.time()
-    host_detection_result = wf_stages.processing.detect_feed_hosts_and_patterns(
-        cfg, feed, episodes, pipeline_metrics
-    )
-
-    # Step 6: Setup transcription resources (Whisper model, temp dir)
-    transcription_resources = wf_stages.transcription.setup_transcription_resources(
-        cfg, effective_output_dir
-    )
-
-    # Step 6.5: Setup processing resources (metadata/summarization queue)
-    processing_resources = wf_stages.processing.setup_processing_resources(cfg)
-
-    # Step 6.6: Setup summary provider if summarization is enabled
-    # Stage 4: Use provider pattern for summarization
+    # Step 1.6: Create all providers once (singleton pattern per run)
+    # Providers are created here and passed to stages to avoid redundant initialization
+    transcription_provider = None
+    speaker_detector = None
     summary_provider = None
 
+    # Create transcription provider if needed
+    if cfg.transcribe_missing and not cfg.dry_run:
+        try:
+            import sys
+            from unittest.mock import Mock
+
+            _workflow_pkg = sys.modules.get("podcast_scraper.workflow")
+            if _workflow_pkg and hasattr(_workflow_pkg, "create_transcription_provider"):
+                func = getattr(_workflow_pkg, "create_transcription_provider")
+                if isinstance(func, Mock) or func is not _create_transcription_provider_factory:
+                    transcription_provider = func(cfg)
+                else:
+                    transcription_provider = _create_transcription_provider_factory(cfg)
+            else:
+                transcription_provider = _create_transcription_provider_factory(cfg)
+            transcription_provider.initialize()
+            logger.debug(
+                "Transcription provider initialized: %s",
+                type(transcription_provider).__name__,
+            )
+        except Exception as exc:
+            logger.error("Failed to initialize transcription provider: %s", exc)
+            # Fail fast - provider initialization should succeed
+            transcription_provider = None
+            raise
+
+    # Create speaker detector if needed
+    if cfg.auto_speakers and not cfg.dry_run:
+        try:
+            import sys
+            from unittest.mock import Mock
+
+            _workflow_pkg = sys.modules.get("podcast_scraper.workflow")
+            if _workflow_pkg and hasattr(_workflow_pkg, "create_speaker_detector"):
+                func = getattr(_workflow_pkg, "create_speaker_detector")
+                if isinstance(func, Mock) or func is not _create_speaker_detector_factory:
+                    speaker_detector = func(cfg)
+                else:
+                    speaker_detector = _create_speaker_detector_factory(cfg)
+            else:
+                speaker_detector = _create_speaker_detector_factory(cfg)
+            speaker_detector.initialize()
+            logger.debug(
+                "Speaker detector initialized: %s",
+                type(speaker_detector).__name__,
+            )
+        except Exception as exc:
+            logger.error("Failed to initialize speaker detector: %s", exc)
+            # Fail fast - provider initialization should succeed
+            speaker_detector = None
+            raise
+
+    # Create summarization provider if needed
     if cfg.generate_summaries and not cfg.dry_run:
         try:
-            # Stage 4: Create and initialize summarization provider
-            # Use re-exported version if available (for testability)
             import sys
             from unittest.mock import Mock
 
@@ -437,6 +460,36 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
 
+    # Step 2: Fetch and parse RSS feed (scraping stage)
+    scraping_start = time.time()
+    feed, rss_bytes = wf_stages.scraping.fetch_and_parse_feed(cfg)
+    pipeline_metrics.record_stage("scraping", time.time() - scraping_start)
+
+    # Step 3: Extract feed metadata (if metadata generation enabled)
+    # Reuse RSS bytes from initial fetch to avoid duplicate network request
+    feed_metadata = wf_stages.scraping.extract_feed_metadata_for_generation(cfg, feed, rss_bytes)
+
+    # Step 4: Prepare episodes from RSS items (parsing stage)
+    parsing_start = time.time()
+    episodes = wf_stages.scraping.prepare_episodes_from_feed(feed, cfg)
+    pipeline_metrics.episodes_scraped_total = len(episodes)
+    pipeline_metrics.record_stage("parsing", time.time() - parsing_start)
+
+    # Step 5: Detect hosts and analyze patterns (if auto_speakers enabled)
+    # This is part of normalizing stage
+    normalizing_start = time.time()
+    host_detection_result = wf_stages.processing.detect_feed_hosts_and_patterns(
+        cfg, feed, episodes, pipeline_metrics, speaker_detector=speaker_detector
+    )
+
+    # Step 6: Setup transcription resources (Whisper model, temp dir)
+    transcription_resources = wf_stages.transcription.setup_transcription_resources(
+        cfg, effective_output_dir, transcription_provider=transcription_provider
+    )
+
+    # Step 6.5: Setup processing resources (metadata/summarization queue)
+    processing_resources = wf_stages.processing.setup_processing_resources(cfg)
+
     # Wrap all processing in try-finally to ensure cleanup always happens
     # This prevents memory leaks if exceptions occur during processing
     try:
@@ -454,6 +507,9 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
         # Step 8: Process episodes (download transcripts or queue transcription jobs)
         # Start processing stage concurrently (metadata/summarization)
+        # NOTE: writing_start measures the entire "processing" stage, not just file I/O
+        # This includes: downloads, transcription waiting, thread synchronization, AND actual I/O
+        # For accurate I/O metrics, check [STORAGE I/O] debug logs
         writing_start = time.time()
         transcription_complete_event = threading.Event()
         downloads_complete_event = threading.Event()  # Signal when all downloads are complete
@@ -552,7 +608,24 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 pipeline_metrics,
                 summary_provider,
             )
-        pipeline_metrics.record_stage("writing_storage", time.time() - writing_start)
+        # Record "io_and_waiting" stage time (renamed from "writing_storage" for clarity)
+        # This metric measures the entire "processing" stage:
+        # - Episode downloads
+        # - Transcription job processing (including waiting for jobs)
+        # - Thread synchronization (join() calls)
+        # - Actual file I/O operations
+        # For accurate I/O metrics, check [STORAGE I/O] debug logs which show per-file:
+        # - File path
+        # - Bytes written
+        # - Elapsed time per write
+        # This will reveal if the bottleneck is actual I/O or waiting time
+        io_and_waiting_time = time.time() - writing_start
+        pipeline_metrics.record_stage("io_and_waiting", io_and_waiting_time)
+        logger.debug(
+            "[IO METRIC] io_and_waiting stage total: %.2fs "
+            "(includes downloads, transcription waiting, thread sync, and actual I/O)",
+            io_and_waiting_time,
+        )
 
         # Step 9.5: Wait for processing to complete (if started)
         if processing_thread is not None:

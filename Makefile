@@ -14,7 +14,7 @@ PACKAGE = podcast_scraper
 # Can be overridden: PYTEST_WORKERS=4 make test
 PYTEST_WORKERS ?= $(shell python3 -c "import os; print(min(max(1, (os.cpu_count() or 4) - 2), 8))")
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity deadcode docstrings spelling spelling-docs quality check-unit-imports deps-analyze deps-check analyze-test-memory test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark
+.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity deadcode docstrings spelling spelling-docs quality check-unit-imports deps-analyze deps-check analyze-test-memory test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark
 
 help:
 	@echo "Common developer commands:"
@@ -55,6 +55,10 @@ help:
 	@echo "  make test                Run all tests (unit + integration + e2e, full suite, uses multi-episode feed)"
 	@echo "  make test-sequential     Run all tests sequentially (for debugging, uses multi-episode feed)"
 	@echo "  make test-fast           Run fast tests (unit + critical path integration + critical path e2e, uses fast feed)"
+	@echo "  make test-track          Run all test suites (unit + integration + e2e) and track execution times"
+	@echo "                            Results saved to reports/test-timings.json for historical comparison"
+	@echo "  make test-track-view     View test timing history and compare runs"
+	@echo "                            Options: --last N, --compare, --stats, --regressions, --trends"
 	@echo ""
 	@echo "OpenAI test commands:"
 	@echo "  make test-openai         Run OpenAI tests with fast feed (p01_fast.xml - 1 episode, 1 minute)"
@@ -98,6 +102,8 @@ help:
 	@echo "  make install-hooks   Install git pre-commit hook for automatic linting"
 	@echo "  make clean           Remove build artifacts (.build/, .mypy_cache/, .pytest_cache/, output/)"
 	@echo "  make clean-cache     Remove ML model caches (Whisper, spaCy) to test network isolation"
+	@echo "  make clean-model-cache  Delete cache for a specific Transformers model (forces re-download)"
+	@echo "                            Usage: make clean-model-cache MODEL_NAME=google/pegasus-cnn_dailymail [FORCE=yes]"
 	@echo "  make clean-all       Remove both build artifacts and ML model caches"
 	@echo "  make preload-ml-models  Pre-download and cache all required ML models locally (test models)"
 	@echo "  make preload-ml-models-production  Pre-download and cache production ML models (for nightly tests)"
@@ -262,13 +268,13 @@ test-integration:
 	$(PYTHON) -m pytest tests/integration/ -m integration -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration-fast:
-	# Fast integration tests: critical path tests only (includes ML tests if models are cached)
+	# Fast integration tests: critical path tests only (excludes ml_models for speed)
 	# Parallelism: $(PYTEST_WORKERS) workers (adapts to CPU, reserves 2 cores, caps at 8)
 	# Includes reruns for flaky tests (matches CI behavior)
-	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
+	# Excludes ml_models marker - use test-integration for ML workflow tests
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Coverage: measured independently but no threshold (fast tests are a subset, full suite enforces threshold)
-	$(PYTHON) -m pytest tests/integration/ -m "integration and critical_path" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
+	$(PYTHON) -m pytest tests/integration/ -m "integration and critical_path and not ml_models" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
 
 test-ci:
 	# CI test suite: parallel execution for speed
@@ -370,6 +376,22 @@ test-fast:
 test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	$(PYTHON) -m pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
+
+test-track:
+	# Run all test suites (unit + integration + e2e) and track execution times
+	# Results saved to reports/test-timings.json for historical comparison
+	# Use this to monitor test performance over time and detect regressions
+	@mkdir -p reports
+	$(PYTHON) scripts/tools/track_test_timings.py
+
+test-track-view:
+	# View test timing history and compare runs
+	# Shows recent runs with timing comparisons
+	@if [ ! -f reports/test-timings.json ]; then \
+		echo "No timing data found. Run 'make test-track' first."; \
+		exit 1; \
+	fi
+	$(PYTHON) scripts/tools/track_test_timings.py --view
 
 test-openai:
 	# Test OpenAI providers (uses E2E server by default, or real API if USE_REAL_OPENAI_API=1)
@@ -802,6 +824,23 @@ clean-cache:
 		rm -rf "$$HOME/.cache/torch"; \
 	fi
 	@echo "Cache cleaning complete. Run 'make test-unit' to verify network isolation."
+
+clean-model-cache:
+	@if [ -z "$(MODEL_NAME)" ]; then \
+		echo "Error: MODEL_NAME is required"; \
+		echo "Usage: make clean-model-cache MODEL_NAME=google/pegasus-cnn_dailymail [FORCE=yes]"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make clean-model-cache MODEL_NAME=google/pegasus-cnn_dailymail"; \
+		echo "  make clean-model-cache MODEL_NAME=facebook/bart-large-cnn FORCE=yes"; \
+		exit 1; \
+	fi
+	@echo "Deleting cache for Transformers model: $(MODEL_NAME)"
+	@if [ "$(FORCE)" = "yes" ]; then \
+		$(PYTHON) -c "from podcast_scraper.cache import manager; success, freed = manager.delete_transformers_model_cache('$(MODEL_NAME)', confirm=False, force=True); exit(0)"; \
+	else \
+		$(PYTHON) -c "from podcast_scraper.cache import manager; success, freed = manager.delete_transformers_model_cache('$(MODEL_NAME)', confirm=True, force=False); exit(0)"; \
+	fi
 
 clean-all: clean clean-cache
 	@echo "All cleaning complete."

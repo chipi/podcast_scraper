@@ -145,6 +145,9 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             AutoTokenizer.from_pretrained(
                 model_name, cache_dir=str(cache_dir), local_files_only=False  # nosec B615
             )
+
+            # Use AutoModelForSeq2SeqLM for all models (as recommended)
+            # This ensures proper weight initialization without class mismatch
             AutoModelForSeq2SeqLM.from_pretrained(
                 model_name, cache_dir=str(cache_dir), local_files_only=False  # nosec B615
             )

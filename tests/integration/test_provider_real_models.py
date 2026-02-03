@@ -187,7 +187,7 @@ class TestSpacyProviderRealModel(unittest.TestCase):
 
         self.cfg = create_test_config(
             auto_speakers=True,
-            ner_model=config.DEFAULT_NER_MODEL,
+            ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
             language="en",
         )
 
@@ -357,7 +357,7 @@ class TestAllProvidersRealModels(unittest.TestCase):
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=True,
-            ner_model=config.DEFAULT_NER_MODEL,  # Same for tests and production
+            ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
             generate_summaries=True,
             generate_metadata=True,
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,

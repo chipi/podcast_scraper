@@ -375,5 +375,5 @@ register_profile("cleaning_none", _cleaning_none)
 
 # Default profile (matches current production behavior)
 # Note: Production baseline (baseline_ml_prod_authority_v1) uses cleaning_v4
-# but cleaning_v3 remains the default for backward compatibility
-DEFAULT_PROFILE = "cleaning_v3"
+# Default changed to cleaning_v4 to match production baseline
+DEFAULT_PROFILE = "cleaning_v4"

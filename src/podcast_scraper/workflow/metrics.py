@@ -37,12 +37,19 @@ class Metrics:
     time_scraping: float = 0.0
     time_parsing: float = 0.0
     time_normalizing: float = 0.0
-    time_writing_storage: float = 0.0
+    time_io_and_waiting: float = (
+        0.0  # Renamed from time_writing_storage - includes downloads,
+        # transcription waiting, thread sync, and actual I/O
+    )
+    time_writing_storage: float = (
+        0.0  # Actual file write time only (open/write/flush) - should be tiny
+    )
 
     # Per-episode operation timing (for A/B testing and performance analysis)
     download_media_times: List[float] = field(
         default_factory=list
     )  # Media download times per episode
+    download_media_attempts: int = 0  # Total media download attempts (including reused/cached)
     transcribe_times: List[float] = field(default_factory=list)  # Transcription times per episode
     extract_names_times: List[float] = field(
         default_factory=list
@@ -71,6 +78,7 @@ class Metrics:
     preprocessing_preprocessed_sizes: List[int] = field(
         default_factory=list
     )  # Preprocessed audio file sizes in bytes
+    preprocessing_attempts: int = 0  # Total preprocessing attempts (cache hits + misses)
     preprocessing_cache_hits: int = 0  # Number of cache hits
     preprocessing_cache_misses: int = 0  # Number of cache misses
 
@@ -89,8 +97,15 @@ class Metrics:
             self.time_parsing += duration
         elif stage == "normalizing":
             self.time_normalizing += duration
+        elif stage == "io_and_waiting":
+            self.time_io_and_waiting += duration
         elif stage == "writing_storage":
+            # Actual file write time only (should be tiny)
             self.time_writing_storage += duration
+
+    def record_download_media_attempt(self) -> None:
+        """Record a media download attempt (called regardless of cache/reuse)."""
+        self.download_media_attempts += 1
 
     def record_download_media_time(self, duration: float) -> None:
         """Record time spent downloading media for an episode.
@@ -175,6 +190,10 @@ class Metrics:
         self.preprocessing_original_sizes.append(original_size)
         self.preprocessing_preprocessed_sizes.append(preprocessed_size)
 
+    def record_preprocessing_attempt(self) -> None:
+        """Record a preprocessing attempt (called for both cache hits and misses)."""
+        self.preprocessing_attempts += 1
+
     def record_preprocessing_cache_hit(self) -> None:
         """Record a preprocessing cache hit."""
         self.preprocessing_cache_hits += 1
@@ -244,14 +263,21 @@ class Metrics:
             "time_scraping": round(self.time_scraping, 2),
             "time_parsing": round(self.time_parsing, 2),
             "time_normalizing": round(self.time_normalizing, 2),
-            "time_writing_storage": round(self.time_writing_storage, 2),
+            "time_io_and_waiting": round(self.time_io_and_waiting, 2),
+            "time_writing_storage": round(
+                self.time_writing_storage, 2
+            ),  # Actual file write time only
             # Per-episode averages
             "avg_download_media_seconds": avg_download_media,
             "avg_transcribe_seconds": avg_transcribe,
             "avg_extract_names_seconds": avg_extract_names,
             "avg_summarize_seconds": avg_summarize,
             # Operation counts for context
-            "download_media_count": len(self.download_media_times),
+            "download_media_count": len(
+                self.download_media_times
+            ),  # Episodes with actual download time recorded
+            # Total download attempts (including reused/cached)
+            "download_media_attempts": self.download_media_attempts,
             "transcribe_count": len(self.transcribe_times),
             "extract_names_count": len(self.extract_names_times),
             "summarize_count": len(self.summarize_times),
@@ -267,6 +293,7 @@ class Metrics:
             # Audio preprocessing metrics
             "avg_preprocessing_seconds": avg_preprocessing,
             "preprocessing_count": len(self.preprocessing_times),
+            "preprocessing_attempts": self.preprocessing_attempts,  # Total attempts (hits + misses)
             "avg_preprocessing_size_reduction_percent": avg_size_reduction_percent,
             "preprocessing_cache_hits": self.preprocessing_cache_hits,
             "preprocessing_cache_misses": self.preprocessing_cache_misses,

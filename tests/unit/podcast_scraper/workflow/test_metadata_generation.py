@@ -274,8 +274,13 @@ class TestMetadataGeneration(unittest.TestCase):
 
         self.assertIsNone(metadata_path)
 
-    def test_generate_metadata_dry_run(self):
+    @patch("podcast_scraper.workflow.metadata_generation.transformers", create=True)
+    @patch("podcast_scraper.workflow.metadata_generation.torch", create=True)
+    def test_generate_metadata_dry_run(self, mock_torch, mock_transformers):
         """Test metadata generation in dry-run mode."""
+        # Mock transformers and torch to prevent actual imports
+        mock_transformers.__version__ = "4.0.0"
+        mock_torch.__version__ = "2.0.0"
         cfg = create_test_config(
             output_dir=self.temp_dir,
             generate_metadata=True,
