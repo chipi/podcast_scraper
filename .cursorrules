@@ -160,6 +160,31 @@
      - ❌ Bad: `cd /path/to/project && make docs`
      - ✅ Good (subdirectory): `cd scripts && python analyze.py`
 
+9b. **NEVER run the same test suite multiple times (CRITICAL: tests are slow, especially e2e)**
+   - **ALWAYS collect ALL needed information in a SINGLE test run** - never run tests 2-3 times
+   - E2E tests take 6-10+ minutes - running them multiple times wastes significant time
+   - **Before running tests, decide what you need:**
+     - Test results (pass/fail/skip)? → Use `-v` (verbose) and `-ra` (show all outcomes)
+     - Failure details? → Use `--tb=short` or `--tb=long` in the SAME run
+     - Skipped tests? → Use `-rs` (show skip reasons) in the SAME run
+     - Test count? → Use `--co` (collect-only) OR check final summary in same run
+   - **Single efficient run example:**
+     ```bash
+     # ✅ GOOD: One run with all flags
+     pytest tests/e2e -v --tb=short -ra -rs
+     # This gives: verbose output, short tracebacks, all outcomes, skip reasons
+
+     # ❌ BAD: Multiple runs
+     pytest tests/e2e  # Run 1
+     pytest tests/e2e -v  # Run 2 (wasteful!)
+     pytest tests/e2e -rs  # Run 3 (wasteful!)
+     ```
+   - **If you need to check specific failures after a run:**
+     - Use `grep`/`tail` on the output file (already captured)
+     - OR run only the failing test: `pytest path/to/test.py::test_name -xvs`
+   - **Why:** Tests are expensive (time, resources). Running them multiple times is wasteful and frustrating for users
+   - **Exception:** Only re-run if you've FIXED something and need to verify the fix
+
 ### Documentation & Markdown
 
 10. **Fix markdown linting issues before committing markdown files**
