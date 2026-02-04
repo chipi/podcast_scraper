@@ -23,9 +23,12 @@ OpenAI Mocking:
 
 from __future__ import annotations
 
+import logging
 import os
 
 import pytest
+
+logger = logging.getLogger(__name__)
 
 # Check if we should use real OpenAI API (for manual testing only)
 # Set USE_REAL_OPENAI_API=1 to test with real API endpoints
@@ -250,16 +253,20 @@ def configure_openai_mock_server(request, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def configure_gemini_mock_server(request, monkeypatch):
-    """Configure Gemini providers to use E2E server mock endpoints.
+    """Configure Gemini providers to use E2E server mock endpoints via fake SDK.
 
-    This fixture automatically configures all Gemini providers to use the E2E server's
-    mock Gemini API endpoints instead of the real Gemini API. This allows E2E tests to
-    use real HTTP requests to mock endpoints, testing the full HTTP client → Network →
-    Mock Server → Response chain.
+    This fixture automatically replaces the Gemini SDK's GenerativeModel class
+    with a fake client that routes calls to the E2E server's mock Gemini API
+    endpoints. This allows E2E tests to use real HTTP requests to mock endpoints,
+    testing the full HTTP client → Network → Mock Server → Response chain.
 
     The E2E server provides mock endpoints:
     - /v1beta/models/{model}:generateContent: For transcription, summarization,
       and speaker detection
+
+    Implementation:
+        Uses a fake GenerativeModel class that intercepts SDK calls and routes
+        them to the E2E mock server via HTTP, similar to how OpenAI tests work.
 
     Note:
         This fixture is autouse=True, so it's automatically applied to all
@@ -291,11 +298,25 @@ def configure_gemini_mock_server(request, monkeypatch):
         return
 
     # Set GEMINI_API_BASE environment variable to point to E2E server
-    # This will be picked up by the Config model's field validator
-    # Note: The Gemini SDK may not support custom base URLs, so this may need
-    # to be handled via SDK mocking in tests
     gemini_api_base = e2e_server.urls.gemini_api_base()
     monkeypatch.setenv("GEMINI_API_BASE", gemini_api_base)
+
+    # Replace Gemini SDK's GenerativeModel with fake client that routes to E2E server
+    # This allows tests to use real HTTP requests to mock endpoints
+    try:
+        from tests.e2e.fixtures.gemini_mock_client import create_fake_gemini_client
+
+        FakeGenerativeModel = create_fake_gemini_client(gemini_api_base)
+        # Monkeypatch the SDK's GenerativeModel class
+        monkeypatch.setattr("google.generativeai.GenerativeModel", FakeGenerativeModel)
+        logger.debug(
+            "Replaced Gemini SDK GenerativeModel with fake client pointing to %s",
+            gemini_api_base,
+        )
+    except ImportError:
+        # If fake client can't be imported, fall back to Python-level mocking
+        # (This shouldn't happen in normal test runs)
+        logger.warning("Could not import fake Gemini client, falling back to Python-level mocking")
 
 
 # Fixture to ensure OpenAI API key is set for all E2E tests
