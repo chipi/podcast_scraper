@@ -47,7 +47,7 @@ from tests.conftest import (  # noqa: E402
 # Check if we should use real OpenAI API (for manual testing only)
 USE_REAL_OPENAI_API = os.getenv("USE_REAL_OPENAI_API", "0") == "1"
 
-# Feed selection for OpenAI tests
+# Feed selection for LLM provider tests (shared by OpenAI, Gemini, etc.)
 # Options:
 # - "fast": Use p01_fast.xml (1 episode, 1 minute) - requires E2E_TEST_MODE=fast
 # - "multi": Use p01_multi.xml (5 episodes, 10-15 seconds each) - DEFAULT (works in all modes)
@@ -56,14 +56,17 @@ USE_REAL_OPENAI_API = os.getenv("USE_REAL_OPENAI_API", "0") == "1"
 # - "p03": Use p03_scuba.xml (podcast3) - requires E2E_TEST_MODE=nightly or data_quality
 # - "p04": Use p04_photo.xml (podcast4) - requires E2E_TEST_MODE=nightly or data_quality
 # - "p05": Use p05_investing.xml (podcast5) - requires E2E_TEST_MODE=nightly or data_quality
-# For real API mode: Set USE_REAL_OPENAI_API=1 and OPENAI_TEST_RSS_FEED=<feed-url>
+# For real API mode: Set USE_REAL_OPENAI_API=1 and LLM_TEST_RSS_FEED=<feed-url>
 #   (no default real feed - must be explicitly provided)
+#   Supports fallback to OPENAI_TEST_RSS_FEED for backward compatibility
 # Default to "multi" to work in both fast and multi_episode E2E_TEST_MODE
-OPENAI_TEST_FEED = os.getenv("OPENAI_TEST_FEED", "multi")
+# Supports fallback to OPENAI_TEST_FEED for backward compatibility
+LLM_TEST_FEED = os.getenv("LLM_TEST_FEED") or os.getenv("OPENAI_TEST_FEED", "multi")
 
-# Real RSS feed URL for testing (only used when USE_REAL_OPENAI_API=1)
-# NOTE: No default real feed - must be explicitly set via OPENAI_TEST_RSS_FEED
-REAL_TEST_RSS_FEED = os.getenv(
+# Real RSS feed URL for testing (only used when USE_REAL_OPENAI_API=1 or USE_REAL_GEMINI_API=1)
+# NOTE: No default real feed - must be explicitly set via LLM_TEST_RSS_FEED
+# Supports fallback to provider-specific vars for backward compatibility
+REAL_TEST_RSS_FEED = os.getenv("LLM_TEST_RSS_FEED") or os.getenv(
     "OPENAI_TEST_RSS_FEED",
     None,  # No default - must be explicitly provided
 )
@@ -72,7 +75,7 @@ REAL_TEST_RSS_FEED = os.getenv(
 def _get_test_feed_url(
     e2e_server: Optional[Any] = None,
 ) -> tuple[str, Optional[str], Optional[str]]:
-    """Get RSS feed URL and OpenAI config based on OPENAI_TEST_FEED environment variable.
+    """Get RSS feed URL and OpenAI config based on LLM_TEST_FEED environment variable.
 
     Args:
         e2e_server: E2E server fixture (None if using real API or if fixture not available)
@@ -80,7 +83,7 @@ def _get_test_feed_url(
     Returns:
         Tuple of (rss_url, openai_api_base, openai_api_key)
     """
-    feed_type = OPENAI_TEST_FEED.lower()
+    feed_type = (LLM_TEST_FEED or "multi").lower()
 
     # Real API mode - can use either real RSS feed OR fixture feeds
     if USE_REAL_OPENAI_API:
@@ -93,7 +96,8 @@ def _get_test_feed_url(
         if e2e_server is None:
             raise ValueError(
                 "E2E server is required when using fixture feeds with real API. "
-                "Set OPENAI_TEST_RSS_FEED=<url> to use a real RSS feed instead."
+                "Set LLM_TEST_RSS_FEED=<url> (or OPENAI_TEST_RSS_FEED for backward compatibility) "
+                "to use a real RSS feed instead."
             )
 
         # Use fixture feeds but with real API (no mock API base)
@@ -117,7 +121,8 @@ def _get_test_feed_url(
         raise ValueError(
             f"Unknown feed type: {feed_type}. "
             "Use 'fast', 'multi', 'p01', 'p02', 'p03', 'p04', 'p05', "
-            "or set OPENAI_TEST_RSS_FEED for a real feed."
+            "or set LLM_TEST_RSS_FEED (or OPENAI_TEST_RSS_FEED for backward "
+            "compatibility) for a real feed."
         )
 
     # E2E server mode - use test fixtures with mock API
@@ -526,7 +531,11 @@ class TestOpenAIProviderE2E:
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Get max_episodes from environment variable (for real feeds) or use default
-            max_episodes = int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1"))
+            # Supports LLM_TEST_MAX_EPISODES (shared by all LLM providers) with fallback
+            max_episodes_str = os.getenv("LLM_TEST_MAX_EPISODES") or os.getenv(
+                "OPENAI_TEST_MAX_EPISODES", "1"
+            )
+            max_episodes = int(max_episodes_str or "1")
 
             # Create config with OpenAI transcription ONLY (no other providers)
             cfg = create_test_config(
@@ -621,7 +630,11 @@ class TestOpenAIProviderE2E:
                 generate_summaries=False,  # Disable summarization
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(
+                    os.getenv("LLM_TEST_MAX_EPISODES")
+                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
+                    or "1"
+                ),
             )
 
             # Run pipeline (uses OpenAI ONLY, no local ML providers)
@@ -685,7 +698,11 @@ class TestOpenAIProviderE2E:
                 auto_speakers=False,  # Disable speaker detection
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(
+                    os.getenv("LLM_TEST_MAX_EPISODES")
+                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
+                    or "1"
+                ),
             )
 
             # Run pipeline (uses OpenAI ONLY, no local ML providers)
@@ -749,7 +766,11 @@ class TestOpenAIProviderE2E:
                 generate_summaries=True,
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(
+                    os.getenv("LLM_TEST_MAX_EPISODES")
+                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
+                    or "1"
+                ),
             )
 
             # Run pipeline (uses E2E server OpenAI endpoints, no direct mocking)
@@ -809,7 +830,11 @@ class TestOpenAIProviderE2E:
                 auto_speakers=False,  # Disable speaker detection
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(
+                    os.getenv("LLM_TEST_MAX_EPISODES")
+                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
+                    or "1"
+                ),
             )
 
             # Run pipeline - E2E server provides successful responses
@@ -858,7 +883,11 @@ class TestOpenAIProviderE2E:
                 generate_summaries=False,  # Disable summarization
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(
+                    os.getenv("LLM_TEST_MAX_EPISODES")
+                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
+                    or "1"
+                ),
             )
 
             # Run pipeline (uses OpenAI ONLY, no local ML providers)
@@ -908,7 +937,11 @@ class TestOpenAIProviderE2E:
                 auto_speakers=False,  # Disable speaker detection
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(
+                    os.getenv("LLM_TEST_MAX_EPISODES")
+                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
+                    or "1"
+                ),
             )
 
             # Run pipeline (uses OpenAI ONLY, no local ML providers)
@@ -960,7 +993,11 @@ class TestOpenAIProviderE2E:
                 auto_speakers=False,  # Disable speaker detection
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(
+                    os.getenv("LLM_TEST_MAX_EPISODES")
+                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
+                    or "1"
+                ),
             )
 
             # Run pipeline - E2E server provides successful responses

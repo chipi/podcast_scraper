@@ -47,12 +47,14 @@ from tests.conftest import (  # noqa: E402
 # Check if we should use real Gemini API (for manual testing only)
 USE_REAL_GEMINI_API = os.getenv("USE_REAL_GEMINI_API", "0") == "1"
 
-# Feed selection for Gemini tests
+# Feed selection for LLM provider tests (shared by OpenAI, Gemini, etc.)
 # Default to "multi" to work in both fast and multi_episode E2E_TEST_MODE
-GEMINI_TEST_FEED = os.getenv("GEMINI_TEST_FEED", "multi")
+# Supports fallback to GEMINI_TEST_FEED for backward compatibility
+LLM_TEST_FEED = os.getenv("LLM_TEST_FEED") or os.getenv("GEMINI_TEST_FEED", "multi")
 
 # Real RSS feed URL for testing (only used when USE_REAL_GEMINI_API=1)
-REAL_TEST_RSS_FEED = os.getenv(
+# Supports fallback to GEMINI_TEST_RSS_FEED for backward compatibility
+REAL_TEST_RSS_FEED = os.getenv("LLM_TEST_RSS_FEED") or os.getenv(
     "GEMINI_TEST_RSS_FEED",
     None,  # No default - must be explicitly provided
 )
@@ -61,7 +63,7 @@ REAL_TEST_RSS_FEED = os.getenv(
 def _get_test_feed_url(
     e2e_server: Optional[Any] = None,
 ) -> tuple[str, Optional[str], Optional[str]]:
-    """Get RSS feed URL and Gemini config based on GEMINI_TEST_FEED environment variable.
+    """Get RSS feed URL and Gemini config based on LLM_TEST_FEED environment variable.
 
     Args:
         e2e_server: E2E server fixture (None if using real API or if fixture not available)
@@ -69,7 +71,7 @@ def _get_test_feed_url(
     Returns:
         Tuple of (rss_url, gemini_api_base, gemini_api_key)
     """
-    feed_type = GEMINI_TEST_FEED.lower()
+    feed_type = (LLM_TEST_FEED or "multi").lower()
 
     # Real API mode - can use either real RSS feed OR fixture feeds
     if USE_REAL_GEMINI_API:
@@ -81,7 +83,8 @@ def _get_test_feed_url(
         if e2e_server is None:
             raise ValueError(
                 "E2E server is required when using fixture feeds with real API. "
-                "Set GEMINI_TEST_RSS_FEED=<url> to use a real RSS feed instead."
+                "Set LLM_TEST_RSS_FEED=<url> (or GEMINI_TEST_RSS_FEED for backward compatibility) "
+                "to use a real RSS feed instead."
             )
 
         # Use fixture feeds but with real API (no mock API base)
@@ -189,7 +192,11 @@ class TestGeminiProviderE2E:
                 gemini_api_key=gemini_api_key,
                 gemini_api_base=gemini_api_base,
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("GEMINI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(
+                    os.getenv("LLM_TEST_MAX_EPISODES")
+                    or os.getenv("GEMINI_TEST_MAX_EPISODES", "1")
+                    or "1"
+                ),
             )
 
             # Run pipeline (uses Gemini for transcription, local for other tasks)
@@ -263,7 +270,11 @@ class TestGeminiProviderE2E:
                 generate_summaries=False,  # Disable summarization
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("GEMINI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(
+                    os.getenv("LLM_TEST_MAX_EPISODES")
+                    or os.getenv("GEMINI_TEST_MAX_EPISODES", "1")
+                    or "1"
+                ),
             )
 
             # Run pipeline (uses Gemini for speaker detection, local for other tasks)
@@ -328,7 +339,11 @@ class TestGeminiProviderE2E:
                 generate_metadata=True,
                 auto_speakers=True,
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("GEMINI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(
+                    os.getenv("LLM_TEST_MAX_EPISODES")
+                    or os.getenv("GEMINI_TEST_MAX_EPISODES", "1")
+                    or "1"
+                ),
             )
 
             # Run pipeline (uses Gemini for summarization, local for other tasks)
@@ -428,7 +443,11 @@ class TestGeminiProviderE2E:
                 auto_speakers=True,
                 transcribe_missing=True,
                 preload_models=False,  # No local ML models needed
-                max_episodes=int(os.getenv("GEMINI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(
+                    os.getenv("LLM_TEST_MAX_EPISODES")
+                    or os.getenv("GEMINI_TEST_MAX_EPISODES", "1")
+                    or "1"
+                ),
             )
 
             # Run pipeline (uses Gemini for all three capabilities)
