@@ -302,35 +302,51 @@ def _save_openai_responses(  # noqa: C901
     Returns:
         Path to the saved response file
     """
+    import hashlib
     from datetime import datetime
+    from urllib.parse import urlparse
 
-    # Create reports directory structure: reports/<test-name>/
-    reports_dir = Path("reports")
-    reports_dir.mkdir(parents=True, exist_ok=True)
+    from podcast_scraper.utils import filesystem
 
-    # Clean test name (remove test_ prefix, convert underscores to hyphens)
-    clean_test_name = test_name.replace("test_", "").replace("_", "-")
+    # Extract feed information from metadata
+    feed_data = metadata_content.get("feed", {})
+    feed_url = feed_data.get("url", "")
 
-    # Create subfolder for this test
-    test_reports_dir = reports_dir / clean_test_name
-    test_reports_dir.mkdir(exist_ok=True)
+    # Derive feed name from URL (same logic as derive_output_dir)
+    if feed_url:
+        parsed = urlparse(feed_url)
+        base = parsed.netloc or "feed"
+        safe_base = filesystem.sanitize_filename(base)
+        # Deterministic hash for directory naming (not security sensitive)
+        digest = hashlib.sha1(feed_url.encode("utf-8"), usedforsecurity=False).hexdigest()
+        feed_dir_name = f"rss_{safe_base}_{digest[:8]}"  # Use 8 chars like URL_HASH_LENGTH
+    else:
+        # Fallback if no feed URL in metadata
+        feed_dir_name = "unknown_feed"
 
-    # Generate filename with timestamp including microseconds to ensure uniqueness
-    # Format: YYYYMMDD_HHMMSS_microseconds
+    # Generate unique run name from timestamp
     now = datetime.now()
-    timestamp = now.strftime("%Y%m%d_%H%M%S_%f")  # %f is microseconds (6 digits)
-    filename = f"openai-responses_{timestamp}.txt"
-    output_file = test_reports_dir / filename
+    run_name = now.strftime("run_%Y%m%d-%H%M%S_%f")  # Include microseconds for uniqueness
+
+    # Create output directory structure: output/<feed-name>/<run-name>/
+    output_dir = Path("output")
+    feed_output_dir = output_dir / feed_dir_name
+    run_output_dir = feed_output_dir / run_name
+    run_output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate filename (simple name since run name already includes timestamp)
+    filename = "openai-responses.txt"
+    output_file = run_output_dir / filename
 
     # Additional safety: if file somehow exists, append a counter
     counter = 1
     original_output_file = output_file
     while output_file.exists():
-        filename_with_counter = f"openai-responses_{timestamp}_{counter}.txt"
-        output_file = test_reports_dir / filename_with_counter
+        filename_with_counter = f"openai-responses_{counter}.txt"
+        output_file = run_output_dir / filename_with_counter
         counter += 1
         if counter > 10000:  # Safety limit to prevent infinite loop
-            raise RuntimeError(f"Too many files with same timestamp: {original_output_file}")
+            raise RuntimeError(f"Too many files with same name: {original_output_file}")
 
     # Collect all response data
     response_lines = []
