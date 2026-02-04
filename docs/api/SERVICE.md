@@ -109,7 +109,18 @@ print(f"Success: {result.summary}")
 sys.exit(0)
 ```
 
+## Docker Usage
+
+For Docker-based deployments, see the [Docker Service Guide](../guides/DOCKER_SERVICE_GUIDE.md) which covers:
+
+- Service-oriented Docker execution
+- Environment variables and volume mounts
+- Supervisor integration
+- Docker Compose examples
+- Troubleshooting
+
 ## See Also
 
 - [Configuration](CONFIGURATION.md) - Configuration options
 - [API Reference](REFERENCE.md) - Complete API reference
+- [Docker Service Guide](../guides/DOCKER_SERVICE_GUIDE.md) - Docker service deployment

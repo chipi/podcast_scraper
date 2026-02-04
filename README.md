@@ -41,10 +41,29 @@ and hands-on work with edge and cloud AI/ML technologies.
 ### Requirements
 
 - **Python 3.10+** — Check with `python3 --version`
-- **ffmpeg** (for Whisper transcription):
+- **ffmpeg** (only needed for local Whisper transcription):
   - macOS: `brew install ffmpeg`
   - Linux: `apt install ffmpeg` or `yum install ffmpeg`
   - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+  - **Note:** Not required if using OpenAI providers only
+
+### Installation Options
+
+Choose the installation method based on your use case:
+
+| Use Case | Installation Command | What You Get | Disk Space |
+| -------- | --------------------- | ----------- | --------- |
+| **LLM-only** (recommended) | `pip install -e .` | Core package + LLM SDKs (OpenAI, etc.) | ~50MB |
+| **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper + spaCy + Transformers | ~1-3GB |
+| **Both options** | `pip install -e ".[ml]"` | Everything (LLM + local ML) | ~1-3GB |
+
+**Quick decision guide:**
+
+- Using LLM APIs (OpenAI, etc.) for transcription/summarization? → Install core only (`pip install -e .`)
+- Want to run models locally (Whisper, spaCy, Transformers)? → Install with ML (`pip install -e ".[ml]"`)
+- Want both options? → Install with ML (`pip install -e ".[ml]"`)
+
+**Note:** LLM provider SDKs (like `openai`) are included in core dependencies, so LLM-based providers work without ML dependencies.
 
 ### Install
 
@@ -54,11 +73,13 @@ and hands-on work with edge and cloud AI/ML technologies.
 
 Use the latest released version for normal usage.
 
+**For LLM-only users (no ML dependencies needed):**
+
 ```bash
 # Clone the repository
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
-git checkout <latest-release-tag>   # e.g. v2.3.0
+git checkout <latest-release-tag>   # e.g. v2.5.0
 
 # Create and activate virtual environment
 python3 -m venv .venv
@@ -71,26 +92,46 @@ python --version  # Should show Python 3.10.x or higher
 # This is required for editable installs with pyproject.toml
 pip install --upgrade pip setuptools wheel
 
-# Install package with ML dependencies
+# Install core package only (includes LLM SDKs like OpenAI, no ML dependencies)
+# This is sufficient if you're using LLM-based providers (OpenAI, etc.) for transcription, speaker detection, and summarization
+pip install -e .
+```
+
+**For local ML users (Whisper, spaCy, Transformers):**
+
+```bash
+# Same setup as above, then:
+# Install package with ML dependencies (includes Whisper, spaCy, Transformers)
 pip install -e ".[ml]"
 ```
+
+**Note:** LLM provider SDKs (like `openai`) are included in core dependencies, so LLM-based providers work without installing `[ml]`.
 
 #### Method 2: pipx (Recommended for End Users)
 
 For isolated installation without managing virtual environments:
+
+**For LLM-only users:**
 
 ```bash
 # Install pipx (if not already installed)
 # macOS: brew install pipx
 # Linux: pip install --user pipx && pipx ensurepath
 
-# Clone and install
+# Clone and install (core package only, no ML dependencies)
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
-pipx install -e ".[ml]"
+pipx install -e .
 
 # Verify
 podcast_scraper --version
+```
+
+**For local ML users:**
+
+```bash
+# Same as above, but install with ML dependencies:
+pipx install -e ".[ml]"
 ```
 
 See [Installation Guide](docs/guides/INSTALLATION_GUIDE.md#method-2-pipx-isolated-installation---recommended-for-end-users) for details.
@@ -99,20 +140,67 @@ See [Installation Guide](docs/guides/INSTALLATION_GUIDE.md#method-2-pipx-isolate
 
 For faster installation using `uv`:
 
+**For LLM-only users:**
+
 ```bash
 # Install uv (if not already installed)
 # macOS/Linux: curl -LsSf https://astral.sh/uv/install.sh | sh
 # macOS: brew install uv
 
-# Clone and install
+# Clone and install (core package only)
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 uv venv
 source .venv/bin/activate
+uv pip install -e .
+```
+
+**For local ML users:**
+
+```bash
+# Same as above, but install with ML dependencies:
 uv pip install -e ".[ml]"
 ```
 
 See [Installation Guide](docs/guides/INSTALLATION_GUIDE.md#method-3-uv-fast-installation---recommended-for-speed) for details.
+
+#### Method 4: Docker (Containerized - Recommended for Production)
+
+For containerized deployments and service-oriented usage:
+
+**LLM-only variant (small, fast, ~200-300MB):**
+
+```bash
+# Build LLM-only image
+docker build --build-arg INSTALL_EXTRAS="" -t podcast-scraper:llm-only .
+
+# Run with config file
+docker run -v ./config.yaml:/app/config.yaml \
+           -v ./output:/app/output \
+           -e OPENAI_API_KEY=sk-your-key \
+           podcast-scraper:llm-only
+```
+
+**ML-enabled variant (full features, ~1-3GB):**
+
+```bash
+# Build ML-enabled image (default)
+docker build --build-arg INSTALL_EXTRAS=ml -t podcast-scraper:ml .
+
+# Run with config file
+docker run -v ./config.yaml:/app/config.yaml \
+           -v ./output:/app/output \
+           podcast-scraper:ml
+```
+
+**Quick start with Docker Compose:**
+
+```bash
+# Use provided docker-compose.yml
+docker-compose up -d
+```
+
+See [Docker Service Guide](docs/guides/DOCKER_SERVICE_GUIDE.md) and [Docker Variants Guide](docs/guides/DOCKER_VARIANTS_GUIDE.md) for complete Docker documentation.
 
 #### Development (main)
 
@@ -142,21 +230,23 @@ pip install -e ".[ml]"
 **Important Notes:**
 
 - **Python 3.10+ is REQUIRED** — The project uses features that require Python 3.10 or higher. Always verify with `python --version` after activating the venv.
-- **The `pip install -e ".[ml]"` step is required** before running CLI commands. Without it, you'll get `ModuleNotFoundError: No module named 'podcast_scraper'` when trying to run `python3 -m podcast_scraper.cli`.
+- **Installation is required** — You must run `pip install -e .` (or `pip install -e ".[ml]"` for ML) before running CLI commands. Without it, you'll get `ModuleNotFoundError: No module named 'podcast_scraper'`.
+- **LLM-only users** — If you're using LLM-based providers (OpenAI, etc.) only, install with `pip install -e .` (no `[ml]` needed). LLM provider SDKs are included in core dependencies.
+- **Local ML users** — If you want to use local Whisper, spaCy, or Transformers, install with `pip install -e ".[ml]"` to get ML dependencies.
 - **Upgrade pip/setuptools first** — If you see `"editable mode currently requires a setuptools-based build"` error, run `pip install --upgrade pip setuptools wheel` and try again.
 - **Always activate the venv** — Remember to activate your virtual environment (`source .venv/bin/activate`) before running any commands.
 
-### Configure Environment Variables (Optional but Recommended)
+### Configure Environment Variables (Required for LLM Providers)
 
-If you plan to use OpenAI providers (transcription, speaker detection, or summarization), or want to
-customize logging, paths, or performance settings, set up a `.env` file:
+If you plan to use LLM-based providers (OpenAI, etc.) for transcription, speaker detection, or summarization, you **must** set up a `.env` file with your API key:
 
 ```bash
 # Copy the template
 cp examples/.env.example .env
 
-# Edit .env and add your OpenAI API key (required for OpenAI providers)
-# OPENAI_API_KEY=sk-your-actual-api-key-here
+# Edit .env and add your LLM API key (REQUIRED for LLM providers)
+# For OpenAI: OPENAI_API_KEY=sk-your-actual-api-key-here
+# Additional LLM providers will have their own API key variables
 ```
 
 **Important variables:**
@@ -164,7 +254,7 @@ cp examples/.env.example .env
 - `OPENAI_API_KEY` - **Required** if using OpenAI providers (transcription, speaker detection, or summarization)
 - `LOG_LEVEL` - Controls logging verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `OUTPUT_DIR` - Custom output directory (default: `./output/`)
-- `CACHE_DIR` - ML model cache location
+- `CACHE_DIR` - ML model cache location (only needed for local ML providers)
 - Performance tuning variables (WORKERS, TIMEOUT, etc.)
 
 See `examples/.env.example` for all available options and detailed documentation.
@@ -190,21 +280,56 @@ python -m podcast_scraper.cli --help
 
 Replace `https://example.com/feed.xml` with your podcast's RSS feed URL.
 
+**For LLM-only users (no ML dependencies):**
+
 ```bash
 # Make sure venv is activated
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Download transcripts (automatically generates missing ones with Whisper)
-python -m podcast_scraper.cli https://example.com/feed.xml
+# Set LLM API key (if not in .env file)
+# For OpenAI:
+export OPENAI_API_KEY=sk-your-actual-api-key-here
+
+# Download transcripts (automatically generates missing ones with LLM API, e.g., OpenAI Whisper API)
+python -m podcast_scraper.cli https://example.com/feed.xml \
+  --transcription-provider openai
 
 # Only download existing transcripts (skip transcription)
-python -m podcast_scraper.cli https://example.com/feed.xml --no-transcribe-missing
+python -m podcast_scraper.cli https://example.com/feed.xml \
+  --no-transcribe-missing
 
-# Full processing: transcripts + metadata + summaries
+# Full processing with LLM providers: transcripts + speaker detection + summaries + metadata
+python -m podcast_scraper.cli https://example.com/feed.xml \
+  --transcription-provider openai \
+  --speaker-detector-provider openai \
+  --summary-provider openai \
+  --generate-metadata \
+  --generate-summaries
+```
+
+**For local ML users (with ML dependencies installed):**
+
+```bash
+# Make sure venv is activated
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Download transcripts (automatically generates missing ones with local Whisper)
+python -m podcast_scraper.cli https://example.com/feed.xml
+
+# Full processing with local ML: transcripts + speaker detection + summaries + metadata
 python -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-metadata \
   --generate-summaries
 ```
+
+**Using a config file (recommended):**
+
+```bash
+# Use a config file to set providers and other options
+python -m podcast_scraper.cli --config examples/config.my.planetmoney.openai.yaml
+```
+
+See `examples/config.my.planetmoney.openai.yaml` for an LLM-only configuration example.
 
 **Output:** Files are organized in `output/` with subdirectories:
 

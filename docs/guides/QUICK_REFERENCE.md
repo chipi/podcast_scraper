@@ -219,9 +219,36 @@ python -c "import yaml; yaml.safe_load(open('config.yaml'))"
 
 ---
 
+## Docker
+
+```bash
+# Build variants
+make docker-build-llm      # LLM-only variant (~200MB)
+make docker-build          # ML-enabled variant (~1-3GB)
+make docker-build-fast     # ML variant, no model preloading
+
+# Test both variants
+make docker-test
+
+# Run container
+docker run -v ./config.yaml:/app/config.yaml \
+           -v ./output:/app/output \
+           podcast-scraper:latest
+
+# Docker Compose
+docker-compose up -d       # ML-enabled variant
+docker-compose -f docker-compose.llm-only.yml up -d  # LLM-only variant
+```
+
+**See:** [Docker Service Guide](DOCKER_SERVICE_GUIDE.md), [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md)
+
+---
+
 ## Links
 
 - [Development Guide](DEVELOPMENT_GUIDE.md) - Full development workflow
 - [Testing Guide](TESTING_GUIDE.md) - Detailed test information
+- [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) - Docker usage and deployment
+- [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) - LLM-only vs ML-enabled
 - [CLI Reference](../api/CLI.md) - All CLI options
 - [Configuration](../api/CONFIGURATION.md) - Config file options

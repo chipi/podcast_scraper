@@ -1,12 +1,14 @@
 # PRD-011: DeepSeek Provider Integration
 
-- **Status**: Draft
-- **Related RFCs**: RFC-034
+- **Status**: Draft (Revised)
+- **Revision**: 2
+- **Date**: 2026-02-04
+- **Related RFCs**: RFC-034 (Revised)
 - **Related PRDs**: PRD-006 (OpenAI), PRD-009 (Anthropic), PRD-010 (Mistral)
 
 ## Summary
 
-Add DeepSeek AI as an optional provider for speaker detection and summarization capabilities. DeepSeek offers extremely competitive pricing (up to 95% cheaper than OpenAI) and strong reasoning capabilities via DeepSeek-R1. Like Anthropic, DeepSeek does NOT support audio transcription via its public API. This builds on the existing modularization architecture (RFC-021) and provider patterns to provide seamless provider switching.
+Add DeepSeek AI as an optional provider for speaker detection and summarization capabilities. DeepSeek offers extremely competitive pricing (up to 95% cheaper than OpenAI) and strong reasoning capabilities via DeepSeek-R1. Like OpenAI, DeepSeek uses a **unified provider pattern** where a single `DeepSeekProvider` class implements both capabilities. Like Anthropic, DeepSeek does NOT support audio transcription via its public API. This builds on the existing modularization architecture (RFC-021) and provider patterns to provide seamless provider switching.
 
 ## Background & Context
 
@@ -31,57 +33,90 @@ This PRD addresses adding DeepSeek as a cost-effective provider option.
 
 - Add DeepSeek AI as provider option for speaker detection and summarization
 - Maintain 100% backward compatibility with existing providers
-- Follow identical architectural patterns as other providers
+- Follow **unified provider pattern** (like OpenAI) - single class implementing both protocols
 - Provide secure API key management via environment variables and `.env` files
+- Support both Config-based and experiment-based factory modes from the start
 - Enable per-capability provider selection (can mix all providers)
 - Handle capability gaps gracefully (transcription not supported)
-- Leverage OpenAI-compatible API for simplified integration
+- Leverage OpenAI-compatible API for simplified integration (no new SDK dependency)
+- Use environment-based model defaults (test vs production)
 - Create DeepSeek-specific prompt templates
 
 ## DeepSeek Model Selection and Cost Analysis
 
 ### Configuration Fields
 
-Add to `config.py` when implementing DeepSeek providers:
+Add to `config.py` when implementing DeepSeek providers (following OpenAI pattern):
 
 ```python
-
-# DeepSeek Model Selection
-
-deepseek_speaker_model: str = Field(
-    default="deepseek-chat",
-    description="DeepSeek model for speaker detection"
-)
-
-deepseek_summary_model: str = Field(
-    default="deepseek-chat",
-    description="DeepSeek model for summarization"
-)
-
 # DeepSeek API Configuration
-
 deepseek_api_key: Optional[str] = Field(
     default=None,
+    alias="deepseek_api_key",
     description="DeepSeek API key (prefer DEEPSEEK_API_KEY env var or .env file)"
 )
 
 deepseek_api_base: Optional[str] = Field(
-    default="https://api.deepseek.com",
-    description="DeepSeek API base URL (for E2E testing with mock servers)"
+    default=None,
+    alias="deepseek_api_base",
+    description="DeepSeek API base URL (default: https://api.deepseek.com, for E2E testing)"
 )
 
+# DeepSeek Model Selection (environment-based defaults, like OpenAI)
+deepseek_speaker_model: str = Field(
+    default_factory=_get_default_deepseek_speaker_model,
+    alias="deepseek_speaker_model",
+    description="DeepSeek model for speaker detection (default: environment-based)"
+)
+
+deepseek_summary_model: str = Field(
+    default_factory=_get_default_deepseek_summary_model,
+    alias="deepseek_summary_model",
+    description="DeepSeek model for summarization (default: environment-based)"
+)
+
+# Shared settings (like OpenAI)
 deepseek_temperature: float = Field(
     default=0.3,
-    ge=0.0,
-    le=2.0,
-    description="Temperature for DeepSeek generation (0.0-2.0)"
+    alias="deepseek_temperature",
+    description="Temperature for DeepSeek generation (0.0-2.0, lower = more deterministic)"
 )
 
 deepseek_max_tokens: Optional[int] = Field(
-    default=4096,
-    description="Max tokens for DeepSeek generation"
+    default=None,
+    alias="deepseek_max_tokens",
+    description="Max tokens for DeepSeek generation (None = model default)"
 )
-```yaml
+
+# DeepSeek Prompt Configuration (following OpenAI pattern)
+deepseek_speaker_system_prompt: Optional[str] = Field(
+    default=None,
+    alias="deepseek_speaker_system_prompt",
+    description="DeepSeek system prompt for speaker detection (default: deepseek/ner/system_ner_v1)"
+)
+
+deepseek_speaker_user_prompt: str = Field(
+    default="deepseek/ner/guest_host_v1",
+    alias="deepseek_speaker_user_prompt",
+    description="DeepSeek user prompt for speaker detection"
+)
+
+deepseek_summary_system_prompt: Optional[str] = Field(
+    default=None,
+    alias="deepseek_summary_system_prompt",
+    description="DeepSeek system prompt for summarization (default: deepseek/summarization/system_v1)"
+)
+
+deepseek_summary_user_prompt: str = Field(
+    default="deepseek/summarization/long_v1",
+    alias="deepseek_summary_user_prompt",
+    description="DeepSeek user prompt for summarization"
+)
+```
+
+**Environment-based defaults:**
+- **Test environment**: `deepseek-chat` (fast, extremely cheap)
+- **Production environment**: `deepseek-chat` (same model, still very cheap)
 
 ## Model Options and Pricing
 
@@ -164,6 +199,7 @@ deepseek_max_tokens: Optional[int] = Field(
 - **FR1.4**: Provider selection is independent per capability
 - **FR1.5**: Default values maintain current behavior (local providers)
 - **FR1.6**: Invalid provider values result in clear error messages
+- **FR1.7**: Support both Config-based and experiment-based factory modes from the start
 
 ### FR2: Provider Capability Gap Handling
 
@@ -173,12 +209,13 @@ deepseek_max_tokens: Optional[int] = Field(
 
 ### FR3: API Key Management
 
-- **FR3.1**: Support `DEEPSEEK_API_KEY` environment variable for API authentication
+- **FR3.1**: Support `DEEPSEEK_API_KEY` environment variable for API authentication (like `OPENAI_API_KEY`)
 - **FR3.2**: Support `.env` file via `python-dotenv` for convenient configuration
 - **FR3.3**: API key is never stored in source code or committed files
 - **FR3.4**: `.env.example` template file updated with DeepSeek placeholder
 - **FR3.5**: Missing API key results in clear error message
 - **FR3.6**: API key validation at provider initialization (fail fast)
+- **FR3.7**: Support `DEEPSEEK_API_BASE` environment variable for E2E testing (like `OPENAI_API_BASE`)
 
 ### FR4: Speaker Detection with DeepSeek
 
@@ -220,18 +257,20 @@ deepseek_max_tokens: Optional[int] = Field(
 
 ### TR1: Architecture
 
-- **TR1.1**: Follow identical patterns as Anthropic provider (no transcription)
-- **TR1.2**: Create `podcast_scraper/deepseek/` package for shared utilities
-- **TR1.3**: Create `speaker_detectors/deepseek_detector.py` implementing `SpeakerDetector` protocol
-- **TR1.4**: Create `summarization/deepseek_provider.py` implementing `SummarizationProvider` protocol
-- **TR1.5**: Update factories to include DeepSeek provider option
+- **TR1.1**: Follow **unified provider pattern** (like OpenAI) - single class implementing both protocols
+- **TR1.2**: Create `providers/deepseek/deepseek_provider.py` with unified `DeepSeekProvider` class
+- **TR1.3**: `DeepSeekProvider` implements `SpeakerDetector` and `SummarizationProvider` protocols
+- **TR1.4**: Update factories to include DeepSeek option with support for both Config-based and experiment-based modes
+- **TR1.5**: Create `prompts/deepseek/` directory with provider-specific prompt templates
 - **TR1.6**: Use OpenAI SDK with custom base_url (no new SDK dependency)
+- **TR1.7**: Follow OpenAI provider architecture exactly for consistency
 
 ### TR2: Dependencies
 
 - **TR2.1**: Reuse existing `openai` package (already installed for OpenAI provider)
 - **TR2.2**: No additional SDK dependency required
 - **TR2.3**: Lazy initialization of OpenAI client with DeepSeek base_url
+- **TR2.4**: ImportError with helpful message if `openai` package not installed
 
 ### TR3: Configuration
 
@@ -250,20 +289,24 @@ deepseek_max_tokens: Optional[int] = Field(
 
 ### TR5: E2E Server Extensions
 
-- **TR5.1**: Add DeepSeek mock endpoints (reuse OpenAI format)
-- **TR5.2**: Mock `/v1/chat/completions` for DeepSeek
+- **TR5.1**: Add DeepSeek mock endpoints (reuse OpenAI format - same API structure)
+- **TR5.2**: Mock `/v1/chat/completions` for DeepSeek (same as OpenAI endpoint)
 - **TR5.3**: Add `deepseek_api_base()` helper to `E2EServerURLs` class
+- **TR5.4**: Support `deepseek_api_base` config field for custom base URL (like `openai_api_base`)
 
 ## Success Criteria
 
-- ✅ Users can select DeepSeek provider for speaker detection and summarization
+- ✅ Users can select DeepSeek provider for speaker detection and summarization via unified provider
 - ✅ Clear error when attempting transcription with DeepSeek
 - ✅ Default behavior (local providers) unchanged
-- ✅ API keys managed securely
+- ✅ API keys managed securely via `DEEPSEEK_API_KEY` environment variable
+- ✅ Environment-based model defaults (test vs production)
+- ✅ Both Config-based and experiment-based factory modes supported
 - ✅ DeepSeek providers implement same interfaces as other providers
 - ✅ Uses existing OpenAI SDK (no new dependency)
 - ✅ Error handling is clear and actionable
 - ✅ E2E tests pass with DeepSeek mock endpoints
+- ✅ Follows OpenAI provider pattern exactly for consistency
 
 ## Out of Scope
 

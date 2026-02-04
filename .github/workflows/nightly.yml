@@ -117,7 +117,11 @@ jobs:
         echo ""
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
+        # Only check models that are actually preloaded by preload-ml-models-production:
+        # - facebook/bart-base (test model)
+        # - allenai/led-base-16384 (test + production REDUCE model)
+        # - google/pegasus-cnn_dailymail (production MAP model)
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           if [ -d "$MODEL_PATH/snapshots" ] && [ "$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | head -1)" ]; then
@@ -156,7 +160,11 @@ jobs:
         done
 
         HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "facebook/bart-large-cnn" "allenai/led-large-16384"; do
+        # Only check models that are actually preloaded by preload-ml-models-production:
+        # - facebook/bart-base (test model)
+        # - allenai/led-base-16384 (test + production REDUCE model)
+        # - google/pegasus-cnn_dailymail (production MAP model)
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           if [ ! -d "$HF_CACHE/$MODEL_DIR/snapshots" ]; then
             echo "❌ HF $model still missing!"

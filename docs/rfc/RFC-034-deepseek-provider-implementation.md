@@ -1,20 +1,22 @@
-# RFC-034: DeepSeek Provider Implementation
+# RFC-034: DeepSeek Provider Implementation (Revised)
 
-- **Status**: Draft
+- **Status**: Draft (Revised)
+- **Revision**: 2
+- **Date**: 2026-02-04
 - **Authors**:
 - **Stakeholders**: Maintainers, users wanting DeepSeek API integration, cost-conscious users
 - **Related PRDs**:
   - `docs/prd/PRD-011-deepseek-provider-integration.md`
 - **Related RFCs**:
-  - `docs/rfc/RFC-013-openai-provider-implementation.md` (reference implementation)
+  - `docs/rfc/RFC-013-openai-provider-implementation.md` (reference - unified provider pattern)
   - `docs/rfc/RFC-032-anthropic-provider-implementation.md` (similar pattern - no transcription)
   - `docs/rfc/RFC-021-modularization-refactoring-plan.md` (architecture foundation)
 
 ## Abstract
 
-Design and implement DeepSeek AI providers for speaker detection and summarization capabilities. DeepSeek offers an OpenAI-compatible API at significantly lower cost (90-95% cheaper), making it ideal for cost-conscious users. Like Anthropic, DeepSeek does NOT support audio transcription. This RFC follows the established provider patterns and leverages the existing OpenAI SDK for implementation.
+Design and implement DeepSeek AI as a unified provider for speaker detection and summarization capabilities. DeepSeek offers an OpenAI-compatible API at significantly lower cost (90-95% cheaper), making it ideal for cost-conscious users. Like Anthropic, DeepSeek does NOT support audio transcription. This RFC follows the **unified provider pattern** established by OpenAI (RFC-013), where a single provider class implements multiple protocols. The key implementation detail is using the OpenAI SDK with a custom `base_url` pointing to DeepSeek's API.
 
-**Architecture Alignment:** This RFC follows the protocol-based provider system established in RFC-021. DeepSeek providers implement the same protocols (`SpeakerDetector`, `SummarizationProvider`) and integrate via the existing factory pattern. The key implementation detail is using the OpenAI SDK with a custom `base_url` pointing to DeepSeek's API.
+**Architecture Alignment:** DeepSeek provider follows the exact same unified provider pattern as `OpenAIProvider`, implementing two protocols (`SpeakerDetector`, `SummarizationProvider`) in a single class and integrating via the existing factory pattern with support for both Config-based and experiment-based modes.
 
 ## Problem Statement
 
@@ -28,7 +30,7 @@ Users want the option to use DeepSeek AI as an extremely cost-effective alternat
 Key advantages of DeepSeek:
 
 - **95% cheaper** than OpenAI for text processing
-- **OpenAI-compatible API** - no new SDK required
+- **OpenAI-compatible API** - no new SDK required (uses OpenAI SDK)
 - **Strong reasoning** with DeepSeek-R1 model
 
 Requirements:
@@ -38,6 +40,7 @@ Requirements:
 - Per-capability provider selection
 - Use OpenAI SDK with custom base_url (no new dependency)
 - Handle capability gaps gracefully (transcription not supported)
+- Support both Config-based and experiment-based factory modes
 
 ## Constraints & Assumptions
 
@@ -48,6 +51,7 @@ Requirements:
 - **API Key Security**: API keys never in source code
 - **Capability Gap**: DeepSeek does not support audio transcription
 - **SDK Reuse**: Use existing OpenAI SDK, no new dependency
+- **Must follow unified provider pattern** (like OpenAI)
 
 **Assumptions:**
 
@@ -68,359 +72,547 @@ DeepSeek provides an OpenAI-compatible API:
 | **Audio API** | ✅ Whisper | ❌ Not available |
 | **Context Window** | 128k tokens | 64k tokens |
 | **SDK** | `openai` | `openai` (with custom base_url) |
+| **Provider Pattern** | Unified (`OpenAIProvider`) | Unified (`DeepSeekProvider`) |
 
 ### 1. Architecture Overview
 
+**Unified Provider Pattern** (following OpenAI):
+
 ```text
-podcast_scraper/
-├── deepseek/                       # NEW: Shared DeepSeek utilities
-│   ├── __init__.py
-│   └── deepseek_provider.py        # Shared client using OpenAI SDK
-├── speaker_detectors/
-│   ├── base.py                     # SpeakerDetector protocol (existing)
-│   ├── factory.py                  # Updated to include DeepSeek
-│   └── deepseek_detector.py        # NEW: DeepSeek implementation
-├── summarization/
-│   ├── base.py                     # SummarizationProvider protocol (existing)
-│   ├── factory.py                  # Updated to include DeepSeek
-│   └── deepseek_provider.py        # NEW: DeepSeek implementation
+src/podcast_scraper/
+├── providers/
+│   └── deepseek/                     # NEW: Unified DeepSeek provider
+│       ├── __init__.py
+│       └── deepseek_provider.py      # Single class implementing 2 protocols
 ├── prompts/
-│   └── deepseek/                   # NEW: DeepSeek-specific prompts
-│       ├── summarization/
-│       │   ├── system_v1.j2
-│       │   └── long_v1.j2
-│       └── ner/
-│           ├── system_ner_v1.j2
-│           └── guest_host_v1.j2
-└── config.py                       # Updated with DeepSeek fields
+│   └── deepseek/                     # NEW: DeepSeek-specific prompts
+│       ├── ner/
+│       │   ├── system_ner_v1.j2
+│       │   └── guest_host_v1.j2
+│       └── summarization/
+│           ├── system_v1.j2
+│           └── long_v1.j2
+├── speaker_detectors/
+│   └── factory.py                    # Updated: Add "deepseek" option
+├── summarization/
+│   └── factory.py                    # Updated: Add "deepseek" option
+└── config.py                         # Updated: Add DeepSeek fields
 ```
+
+**Key Architectural Decision:** Use unified provider pattern (single `DeepSeekProvider` class) matching `OpenAIProvider`, not separate files per capability.
 
 ### 2. Configuration
 
-Add to `config.py`:
+Add to `config.py` following OpenAI pattern exactly:
 
 ```python
 from typing import Literal, Optional
 
-# Provider Selection (updated to include deepseek)
-
-speaker_detector_provider: Literal["spacy", "openai", "anthropic", "mistral", "deepseek"] = Field(
+# Provider Selection (updated)
+speaker_detector_provider: Literal["spacy", "openai", "anthropic", "deepseek"] = Field(
     default="spacy",
     description="Speaker detection provider"
 )
 
-summary_provider: Literal["transformers", "openai", "anthropic", "mistral", "deepseek"] = Field(
+summary_provider: Literal["transformers", "openai", "anthropic", "deepseek"] = Field(
     default="transformers",
     description="Summarization provider"
 )
 
-# DeepSeek API Configuration
-
+# DeepSeek API Configuration (following OpenAI pattern)
 deepseek_api_key: Optional[str] = Field(
     default=None,
+    alias="deepseek_api_key",
     description="DeepSeek API key (prefer DEEPSEEK_API_KEY env var or .env file)"
 )
 
-deepseek_api_base: str = Field(
-    default="https://api.deepseek.com",
-    description="DeepSeek API base URL"
+deepseek_api_base: Optional[str] = Field(
+    default=None,
+    alias="deepseek_api_base",
+    description="DeepSeek API base URL (default: https://api.deepseek.com, for E2E testing)"
 )
 
-# DeepSeek Model Selection
-
+# DeepSeek Model Selection (environment-based defaults, like OpenAI)
 deepseek_speaker_model: str = Field(
-    default="deepseek-chat",
-    description="DeepSeek model for speaker detection"
+    default_factory=_get_default_deepseek_speaker_model,
+    alias="deepseek_speaker_model",
+    description="DeepSeek model for speaker detection (default: environment-based)"
 )
 
 deepseek_summary_model: str = Field(
-    default="deepseek-chat",
-    description="DeepSeek model for summarization"
+    default_factory=_get_default_deepseek_summary_model,
+    alias="deepseek_summary_model",
+    description="DeepSeek model for summarization (default: environment-based)"
 )
 
+# Shared settings (like OpenAI)
 deepseek_temperature: float = Field(
     default=0.3,
-    ge=0.0,
-    le=2.0,
-    description="Temperature for DeepSeek generation"
+    alias="deepseek_temperature",
+    description="Temperature for DeepSeek generation (0.0-2.0, lower = more deterministic)"
 )
 
 deepseek_max_tokens: Optional[int] = Field(
-    default=4096,
-    description="Max tokens for DeepSeek generation"
+    default=None,
+    alias="deepseek_max_tokens",
+    description="Max tokens for DeepSeek generation (None = model default)"
 )
 
-# DeepSeek Prompt Configuration
+# DeepSeek Prompt Configuration (following OpenAI pattern)
+deepseek_speaker_system_prompt: Optional[str] = Field(
+    default=None,
+    alias="deepseek_speaker_system_prompt",
+    description="DeepSeek system prompt for speaker detection (default: deepseek/ner/system_ner_v1)"
+)
 
-deepseek_summary_system_prompt: str = Field(
-    default="deepseek/summarization/system_v1",
-    description="DeepSeek system prompt for summarization"
+deepseek_speaker_user_prompt: str = Field(
+    default="deepseek/ner/guest_host_v1",
+    alias="deepseek_speaker_user_prompt",
+    description="DeepSeek user prompt for speaker detection"
+)
+
+deepseek_summary_system_prompt: Optional[str] = Field(
+    default=None,
+    alias="deepseek_summary_system_prompt",
+    description="DeepSeek system prompt for summarization (default: deepseek/summarization/system_v1)"
 )
 
 deepseek_summary_user_prompt: str = Field(
     default="deepseek/summarization/long_v1",
+    alias="deepseek_summary_user_prompt",
     description="DeepSeek user prompt for summarization"
-)
-
-deepseek_ner_system_prompt: str = Field(
-    default="deepseek/ner/system_ner_v1",
-    description="DeepSeek system prompt for speaker detection"
-)
-
-deepseek_ner_user_prompt: str = Field(
-    default="deepseek/ner/guest_host_v1",
-    description="DeepSeek user prompt for speaker detection"
 )
 ```
 
-## 3. API Key Management and Validation
+**Environment-based defaults** (like OpenAI):
 
 ```python
+# In config_constants.py
+TEST_DEFAULT_DEEPSEEK_SPEAKER_MODEL = "deepseek-chat"
+PROD_DEFAULT_DEEPSEEK_SPEAKER_MODEL = "deepseek-chat"  # Same model, still very cheap
 
-# config.py - API Key Loading and Validation
+TEST_DEFAULT_DEEPSEEK_SUMMARY_MODEL = "deepseek-chat"
+PROD_DEFAULT_DEEPSEEK_SUMMARY_MODEL = "deepseek-chat"  # Same model, still very cheap
 
-from dotenv import load_dotenv
+# In config.py
+def _get_default_deepseek_speaker_model() -> str:
+    """Get default DeepSeek speaker detection model based on environment."""
+    if _is_test_environment():
+        return TEST_DEFAULT_DEEPSEEK_SPEAKER_MODEL
+    return PROD_DEFAULT_DEEPSEEK_SPEAKER_MODEL
 
-load_dotenv(override=False)
+def _get_default_deepseek_summary_model() -> str:
+    """Get default DeepSeek summarization model based on environment."""
+    if _is_test_environment():
+        return TEST_DEFAULT_DEEPSEEK_SUMMARY_MODEL
+    return PROD_DEFAULT_DEEPSEEK_SUMMARY_MODEL
+```
 
-@field_validator('deepseek_api_key', mode='before')
+### 3. API Key Management
+
+Follow OpenAI pattern exactly:
+
+```python
+# In config.py
+
+@field_validator("deepseek_api_key", mode="before")
 @classmethod
-def load_deepseek_api_key_from_env(cls, v: Any) -> Optional[str]:
-    """Load API key from environment variable if not provided."""
-    if v is not None:
-        return v
-    return os.getenv('DEEPSEEK_API_KEY')
+def _load_deepseek_api_key_from_env(cls, value: Any) -> Optional[str]:
+    """Load DeepSeek API key from environment variable if not provided."""
+    if value is not None:
+        return value
+    env_key = os.getenv("DEEPSEEK_API_KEY")
+    if env_key:
+        return env_key
+    return None
 
-@model_validator(mode='after')
-def validate_deepseek_config(self) -> 'Config':
-    """Validate DeepSeek provider configuration."""
-    needs_key = (
-        self.speaker_detector_provider == "deepseek" or
-        self.summary_provider == "deepseek"
-    )
-    if needs_key and not self.deepseek_api_key:
+@field_validator("deepseek_api_base", mode="before")
+@classmethod
+def _load_deepseek_api_base_from_env(cls, value: Any) -> Optional[str]:
+    """Load DeepSeek API base URL from environment variable if not provided."""
+    if value is not None:
+        return value
+    env_base = os.getenv("DEEPSEEK_API_BASE")
+    if env_base:
+        return env_base
+    # Default to DeepSeek API base URL
+    return "https://api.deepseek.com"
+
+@model_validator(mode="after")
+def _validate_deepseek_provider_requirements(self) -> "Config":
+    """Validate that DeepSeek API key is provided when DeepSeek providers are selected."""
+    deepseek_providers_used = []
+    if self.speaker_detector_provider == "deepseek":
+        deepseek_providers_used.append("speaker_detection")
+    if self.summary_provider == "deepseek":
+        deepseek_providers_used.append("summarization")
+
+    if deepseek_providers_used and not self.deepseek_api_key:
+        providers_str = ", ".join(deepseek_providers_used)
         raise ValueError(
-            "DeepSeek API key required when using DeepSeek providers. "
-            "Set DEEPSEEK_API_KEY environment variable, add it to .env file, "
-            "or set deepseek_api_key in config file."
+            f"DeepSeek API key required for DeepSeek providers: {providers_str}. "
+            "Set DEEPSEEK_API_KEY environment variable or deepseek_api_key in config."
         )
+
     return self
 ```
 
-## 4. Provider Capability Validation
+### 4. Provider Capability Validation
+
+Add validation to prevent using DeepSeek for transcription:
 
 ```python
-
 # config.py - Capability Validation
 
-@model_validator(mode='after')
-def validate_provider_capabilities(self) -> 'Config':
+@model_validator(mode="after")
+def _validate_provider_capabilities(self) -> "Config":
     """Validate provider supports requested capability."""
-    # Anthropic doesn't support transcription
-    if self.transcription_provider == "anthropic":
-        raise ValueError(
-            "Anthropic provider does not support transcription. "
-            "Use 'whisper' (local), 'openai', or 'mistral' instead."
-        )
-    # DeepSeek doesn't support transcription
     if self.transcription_provider == "deepseek":
         raise ValueError(
             "DeepSeek provider does not support transcription. "
-            "Use 'whisper' (local), 'openai', or 'mistral' instead."
+            "Use 'whisper' (local) or 'openai' instead. "
+            "See provider capability matrix in documentation."
         )
     return self
 ```
 
-## 5. DeepSeek Provider Implementations
+### 5. Unified Provider Implementation
 
-### 5.1 Shared DeepSeek Utilities
+**File**: `src/podcast_scraper/providers/deepseek/deepseek_provider.py`
 
-**File**: `podcast_scraper/deepseek/deepseek_provider.py`
-
-```python
-"""Shared DeepSeek provider utilities.
-
-This module provides shared utilities for DeepSeek API providers.
-Key insight: DeepSeek uses an OpenAI-compatible API, so we reuse the OpenAI SDK.
-"""
-
-from __future__ import annotations
-
-import logging
-from typing import Any
-
-from openai import OpenAI
-
-from .. import config
-
-logger = logging.getLogger(__name__)
-
-def create_deepseek_client(cfg: config.Config) -> OpenAI:
-
-```text
-
-    """Create DeepSeek client using OpenAI SDK with custom base_url.
-
-```
-
-#### 5.2 Speaker Detection Provider
-
-**File**: `podcast_scraper/speaker_detectors/deepseek_detector.py`
+Follow `OpenAIProvider` pattern exactly, but use OpenAI SDK with custom base_url:
 
 ```python
+"""Unified DeepSeek provider for speaker detection and summarization.
 
-"""DeepSeek AI-based speaker detection provider.
+This module provides a single DeepSeekProvider class that implements two protocols:
+- SpeakerDetector (using DeepSeek chat API via OpenAI SDK)
+- SummarizationProvider (using DeepSeek chat API via OpenAI SDK)
 
-This module provides a SpeakerDetector implementation using DeepSeek's chat API
-for cloud-based speaker/guest detection from episode metadata.
+This unified approach matches the pattern of OpenAI providers, where a single
+provider type handles multiple capabilities using shared API client.
 
-Note: Uses OpenAI SDK with DeepSeek's base_url for API compatibility.
+Key insight: DeepSeek uses an OpenAI-compatible API, so we reuse the OpenAI SDK
+with a custom base_url. No new dependency required.
+
+Note: DeepSeek does NOT support transcription (no audio API).
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Set, Tuple
+import os
+from typing import Any, Dict, Optional, Set, Tuple
 
-from .. import config, models
-from ..deepseek.deepseek_provider import create_deepseek_client
+from openai import OpenAI
+
+from ... import config, models
+from ...workflow import metrics
 
 logger = logging.getLogger(__name__)
 
-class DeepSeekSpeakerDetector:
+# Default speaker names when detection fails
+DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
 
-```text
+# DeepSeek API pricing constants (for cost estimation)
+# Source: https://platform.deepseek.com/pricing
+# Last updated: 2026-02
+DEEPSEEK_CHAT_INPUT_COST_PER_1M_TOKENS = 0.28
+DEEPSEEK_CHAT_OUTPUT_COST_PER_1M_TOKENS = 0.42
+DEEPSEEK_CHAT_CACHE_HIT_INPUT_COST_PER_1M_TOKENS = 0.028  # 90% discount on cache hits
 
-    """DeepSeek AI-based speaker detection provider.
 
-```python
+class DeepSeekProvider:
+    """Unified DeepSeek provider implementing SpeakerDetector and SummarizationProvider.
+
+    This provider initializes and manages:
+    - DeepSeek chat API for speaker detection (via OpenAI SDK)
+    - DeepSeek chat API for summarization (via OpenAI SDK)
+
+    All capabilities share the same OpenAI client (configured with DeepSeek base_url),
+    similar to how OpenAI providers share the same OpenAI client.
+
+    Note: Transcription is NOT supported (DeepSeek has no audio API).
+    """
 
     def __init__(self, cfg: config.Config):
-        """Initialize DeepSeek speaker detector.
+        """Initialize unified DeepSeek provider.
 
-```python
+        Args:
+            cfg: Configuration object with settings for both capabilities
+
+        Raises:
+            ValueError: If DeepSeek API key is not provided
+            ImportError: If openai package is not installed
+        """
+        try:
+            from openai import OpenAI
+        except ImportError:
+            raise ImportError(
+                "openai package required for DeepSeek provider. "
+                "Install with: pip install 'podcast-scraper[openai]'"
+            )
+
+        if not cfg.deepseek_api_key:
+            raise ValueError(
+                "DeepSeek API key required for DeepSeek provider. "
+                "Set DEEPSEEK_API_KEY environment variable or deepseek_api_key in config."
+            )
+
+        self.cfg = cfg
+
+        # Suppress verbose OpenAI SDK debug logs (same as OpenAI provider)
+        # Set OpenAI SDK loggers to WARNING level when root logger is DEBUG
+        root_logger = logging.getLogger()
+        root_level = root_logger.level if root_logger.level else logging.INFO
+        if root_level <= logging.DEBUG:
+            openai_loggers = [
+                "openai",
+                "openai._base_client",
+                "openai.api_resources",
+                "httpx",
+                "httpcore",
+            ]
+            for logger_name in openai_loggers:
+                openai_logger = logging.getLogger(logger_name)
+                openai_logger.setLevel(logging.WARNING)
+
+        # Support custom base_url for E2E testing with mock servers
+        # Default to DeepSeek API base URL
+        base_url = cfg.deepseek_api_base or "https://api.deepseek.com"
+        client_kwargs: dict[str, Any] = {
+            "api_key": cfg.deepseek_api_key,
+            "base_url": base_url,
+        }
+        self.client = OpenAI(**client_kwargs)
+
+        # Speaker detection settings
+        self.speaker_model = getattr(cfg, "deepseek_speaker_model", "deepseek-chat")
+        self.speaker_temperature = getattr(cfg, "deepseek_temperature", 0.3)
+
+        # Summarization settings
+        self.summary_model = getattr(cfg, "deepseek_summary_model", "deepseek-chat")
+        self.summary_temperature = getattr(cfg, "deepseek_temperature", 0.3)
+        # DeepSeek supports 64k context window
+        self.max_context_tokens = 64000  # Conservative estimate
+
+        # Initialization state
+        self._speaker_detection_initialized = False
+        self._summarization_initialized = False
+
+        # Mark provider as thread-safe (API clients can be shared across threads)
+        self._requires_separate_instances = False
+
+    @staticmethod
+    def get_pricing(model: str, capability: str) -> Dict[str, float]:
+        """Get pricing information for a specific model and capability.
+
+        Args:
+            model: Model name
+            capability: Capability type ("speaker_detection", "summarization")
+
+        Returns:
+            Dictionary with pricing information
+        """
+        # Implementation similar to OpenAIProvider.get_pricing()
+        # ...
 
     def initialize(self) -> None:
-        """Initialize provider (no local model loading needed for API)."""
-        if self._initialized:
-            return
+        """Initialize all DeepSeek capabilities.
 
-```python
+        For DeepSeek API, initialization is a no-op but we track it for consistency.
+        This method is idempotent and can be called multiple times safely.
+        """
+        # Initialize speaker detection if enabled
+        if self.cfg.auto_speakers and not self._speaker_detection_initialized:
+            self._initialize_speaker_detection()
+
+        # Initialize summarization if enabled
+        if self.cfg.generate_summaries and not self._summarization_initialized:
+            self._initialize_summarization()
+
+    def _initialize_speaker_detection(self) -> None:
+        """Initialize speaker detection capability."""
+        logger.debug("Initializing DeepSeek speaker detection (model: %s)", self.speaker_model)
+        self._speaker_detection_initialized = True
+
+    def _initialize_summarization(self) -> None:
+        """Initialize summarization capability."""
+        logger.debug("Initializing DeepSeek summarization (model: %s)", self.summary_model)
+        self._summarization_initialized = True
+
+    # ============================================================================
+    # SpeakerDetector Protocol Implementation
+    # ============================================================================
 
     def detect_hosts(
         self,
-        feed_title: str,
-        feed_description: Optional[str],
-        feed_authors: Optional[List[str]],
+        feed_title: str | None,
+        feed_description: str | None,
+        feed_authors: list[str] | None = None,
     ) -> Set[str]:
-        """Detect hosts from feed metadata using DeepSeek API.
+        """Detect host names from feed-level metadata using DeepSeek API.
 
-```json
+        Args:
+            feed_title: Feed title (can be None)
+            feed_description: Optional feed description
+            feed_authors: Optional list of author names from RSS feed (preferred source)
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                max_tokens=self.cfg.deepseek_max_tokens or 500,
-                temperature=self.temperature,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
+        Returns:
+            Set of detected host names
+        """
+        if not self._speaker_detection_initialized:
+            raise RuntimeError(
+                "DeepSeekProvider speaker detection not initialized. Call initialize() first."
             )
 
-```python
+        # Prefer RSS author tags if available (like OpenAI)
+        if feed_authors:
+            return set(feed_authors)
 
-        except Exception as e:
-            logger.error("DeepSeek API error in host detection: %s", e)
-            raise ValueError(f"DeepSeek host detection failed: {e}") from e
+        # Otherwise, use DeepSeek API to detect hosts from feed metadata
+        if not feed_title:
+            return set()
 
-```python
+        try:
+            # Use detect_speakers with empty known_hosts to detect hosts
+            speakers, detected_hosts, _ = self.detect_speakers(
+                episode_title=feed_title,
+                episode_description=feed_description,
+                known_hosts=set(),
+            )
+            return detected_hosts
+        except Exception as exc:
+            logger.warning("Failed to detect hosts from feed metadata: %s", exc)
+            return set()
 
     def detect_speakers(
         self,
         episode_title: str,
-        episode_description: Optional[str],
+        episode_description: str | None,
         known_hosts: Set[str],
-    ) -> Tuple[List[str], Set[str], bool]:
-        """Detect speakers for an episode using DeepSeek API.
+        pipeline_metrics: metrics.Metrics | None = None,
+    ) -> Tuple[list[str], Set[str], bool]:
+        """Detect speaker names from episode metadata using DeepSeek API.
 
-```json
+        Args:
+            episode_title: Episode title
+            episode_description: Optional episode description
+            known_hosts: Set of known host names (for context)
+            pipeline_metrics: Optional metrics tracker
+
+        Returns:
+            Tuple of:
+            - List of detected speaker names (hosts + guests)
+            - Set of detected host names (subset of known_hosts)
+            - Success flag (True if detection succeeded)
+
+        Raises:
+            ValueError: If detection fails or API key is invalid
+            RuntimeError: If provider is not initialized
+        """
+        # If auto_speakers is disabled, return defaults without requiring initialization
+        if not self.cfg.auto_speakers:
+            logger.debug("Auto-speakers disabled, detection failed")
+            return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+
+        if not self._speaker_detection_initialized:
+            raise RuntimeError(
+                "DeepSeekProvider speaker detection not initialized. Call initialize() first."
+            )
+
+        logger.debug("Detecting speakers via DeepSeek API for episode: %s", episode_title[:50])
 
         try:
+            # Build prompt using prompt_store (RFC-017)
+            user_prompt = self._build_speaker_detection_prompt(
+                episode_title, episode_description, known_hosts
+            )
+
+            # Get system prompt from prompt_store
+            from ...prompts.store import render_prompt
+
+            system_prompt_name = (
+                self.cfg.deepseek_speaker_system_prompt or "deepseek/ner/system_ner_v1"
+            )
+            system_prompt = render_prompt(system_prompt_name)
+
+            # Call DeepSeek API (OpenAI-compatible format)
             response = self.client.chat.completions.create(
-                model=self.model,
-                max_tokens=self.cfg.deepseek_max_tokens or 500,
-                temperature=self.temperature,
+                model=self.speaker_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
+                temperature=self.speaker_temperature,
+                max_tokens=300,
+                response_format={"type": "json_object"},  # Request JSON response
             )
 
-```python
+            response_text = response.choices[0].message.content
+            if not response_text:
+                logger.warning("DeepSeek API returned empty response")
+                return DEFAULT_SPEAKER_NAMES.copy(), set(), False
 
-        except Exception as e:
-            logger.error("DeepSeek API error in speaker detection: %s", e)
-            raise ValueError(f"DeepSeek speaker detection failed: {e}") from e
+            # Parse JSON response
+            speakers, detected_hosts, success = self._parse_speakers_from_response(
+                response_text, known_hosts
+            )
 
-```python
+            logger.debug(
+                "DeepSeek speaker detection completed: %d speakers, %d hosts, success=%s",
+                len(speakers),
+                len(detected_hosts),
+                success,
+            )
+
+            # Track LLM call metrics if available
+            if pipeline_metrics is not None and hasattr(response, "usage"):
+                input_tokens = response.usage.prompt_tokens if response.usage else 0
+                output_tokens = response.usage.completion_tokens if response.usage else 0
+                pipeline_metrics.record_llm_speaker_detection_call(input_tokens, output_tokens)
+
+            return speakers, detected_hosts, success
+
+        except json.JSONDecodeError as exc:
+            logger.error("Failed to parse DeepSeek API JSON response: %s", exc)
+            return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+        except Exception as exc:
+            logger.error("DeepSeek API error in speaker detection: %s", exc)
+            raise ValueError(f"DeepSeek speaker detection failed: {exc}") from exc
 
     def analyze_patterns(
         self,
-        episodes: List[models.Episode],
+        episodes: list[models.Episode],
         known_hosts: Set[str],
-    ) -> Optional[Dict[str, Any]]:
-        """Analyze episode patterns (optional, can use local logic)."""
+    ) -> dict[str, object] | None:
+        """Analyze patterns across multiple episodes (optional).
+
+        For DeepSeek provider, pattern analysis is not implemented.
+        Returns None to use local pattern analysis logic.
+        """
         return None
 
-```python
+    def _build_speaker_detection_prompt(
+        self, episode_title: str, episode_description: str | None, known_hosts: Set[str]
+    ) -> str:
+        """Build user prompt for speaker detection using prompt_store."""
+        from ...prompts.store import render_prompt
 
-    def cleanup(self) -> None:
-        """Cleanup provider resources (no-op for API provider)."""
-        pass
-
-```python
-
-    def _build_host_detection_prompts(
-        self,
-        feed_title: str,
-        feed_description: Optional[str],
-        feed_authors: Optional[List[str]],
-    ) -> Tuple[str, str]:
-        """Build prompts for host detection using prompt_store."""
-        from ..prompt_store import render_prompt
-
-```python
-
-    def _build_speaker_detection_prompts(
-        self,
-        episode_title: str,
-        episode_description: Optional[str],
-        known_hosts: Set[str],
-    ) -> Tuple[str, str]:
-        """Build prompts for speaker detection using prompt_store."""
-        from ..prompt_store import render_prompt
-
-```python
-
-    def _parse_hosts_from_response(self, response_text: str) -> Set[str]:
-        """Parse host names from API response."""
-        try:
-            data = json.loads(response_text)
-            if isinstance(data, dict) and "hosts" in data:
-                return set(data["hosts"])
-            if isinstance(data, list):
-                return set(data)
-        except json.JSONDecodeError:
-            pass
-
-```python
+        user_prompt_name = self.cfg.deepseek_speaker_user_prompt
+        user_prompt = render_prompt(
+            user_prompt_name,
+            episode_title=episode_title,
+            episode_description=episode_description or "",
+            known_hosts=", ".join(known_hosts) if known_hosts else "",
+        )
+        return user_prompt
 
     def _parse_speakers_from_response(
         self, response_text: str, known_hosts: Set[str]
-    ) -> Tuple[List[str], Set[str], bool]:
-        """Parse speakers from API response."""
+    ) -> Tuple[list[str], Set[str], bool]:
+        """Parse speaker names from DeepSeek API response."""
         try:
             data = json.loads(response_text)
             if isinstance(data, dict):
@@ -432,58 +624,19 @@ class DeepSeekSpeakerDetector:
         except json.JSONDecodeError:
             pass
 
-```
+        # Fallback: parse from plain text
+        speakers = []
+        for line in response_text.strip().split("\n"):
+            for name in line.split(","):
+                name = name.strip().strip("-").strip("*").strip()
+                if name and len(name) > 1:
+                    speakers.append(name)
+        detected_hosts = set(s for s in speakers if s in known_hosts)
+        return speakers, detected_hosts, len(speakers) > 0
 
-#### 5.3 Summarization Provider
-
-**File**: `podcast_scraper/summarization/deepseek_provider.py`
-
-```python
-
-"""DeepSeek AI-based summarization provider.
-
-This module provides a SummarizationProvider implementation using DeepSeek's chat API
-for cloud-based episode summarization.
-
-Note: Uses OpenAI SDK with DeepSeek's base_url for API compatibility.
-Key advantage: DeepSeek is 90-95% cheaper than OpenAI.
-"""
-
-from __future__ import annotations
-
-import logging
-from typing import Any, Dict, Optional
-
-from .. import config
-from ..deepseek.deepseek_provider import create_deepseek_client
-
-logger = logging.getLogger(__name__)
-
-class DeepSeekSummarizationProvider:
-
-```text
-
-    """DeepSeek AI-based summarization provider.
-
-```python
-
-    def __init__(self, cfg: config.Config):
-        """Initialize DeepSeek summarization provider.
-
-```
-
-        self._initialized = False
-        # API providers are thread-safe
-        self._requires_separate_instances = False
-
-```python
-
-    def initialize(self) -> None:
-        """Initialize provider (no local model loading needed for API)."""
-        if self._initialized:
-            return
-
-```python
+    # ============================================================================
+    # SummarizationProvider Protocol Implementation
+    # ============================================================================
 
     def summarize(
         self,
@@ -491,56 +644,123 @@ class DeepSeekSummarizationProvider:
         episode_title: Optional[str] = None,
         episode_description: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: metrics.Metrics | None = None,
     ) -> Dict[str, Any]:
-        """Summarize text using DeepSeek chat API.
+        """Summarize text using DeepSeek API.
 
-```
+        Can handle full transcripts directly due to large context window (64k tokens).
+        No chunking needed for most podcast transcripts.
 
+        Args:
+            text: Transcript text to summarize
+            episode_title: Optional episode title
+            episode_description: Optional episode description
+            params: Optional parameters dict with max_length, min_length, etc.
+            pipeline_metrics: Optional metrics tracker
+
+        Returns:
+            Dictionary with summary results:
+            {
+                "summary": str,
+                "summary_short": Optional[str],
+                "metadata": {...}
+            }
+
+        Raises:
+            ValueError: If summarization fails
+            RuntimeError: If provider is not initialized
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "DeepSeekProvider summarization not initialized. Call initialize() first."
+            )
+
+        # Extract parameters with defaults from config
+        max_length = (
+            (params.get("max_length") if params else None)
+            or self.cfg.summary_reduce_params.get("max_new_tokens")
+            or 800
+        )
+        min_length = (
+            (params.get("min_length") if params else None)
+            or self.cfg.summary_reduce_params.get("min_new_tokens")
+            or 100
+        )
+        custom_prompt = params.get("prompt") if params else None
+
+        logger.debug(
+            "Summarizing text via DeepSeek API (model: %s, max_tokens: %d)",
+            self.summary_model,
+            max_length,
+        )
+
+        try:
+            # Build prompts using prompt_store (RFC-017)
+            (
+                system_prompt,
+                user_prompt,
                 system_prompt_name,
                 user_prompt_name,
                 paragraphs_min,
                 paragraphs_max,
             ) = self._build_summarization_prompts(
-                text, episode_title, episode_description, max_length, min_length
+                text, episode_title, episode_description, max_length, min_length, custom_prompt
             )
 
-```json
-
+            # Call DeepSeek API (OpenAI-compatible format)
             response = self.client.chat.completions.create(
-                model=self.model,
-                max_tokens=self.cfg.deepseek_max_tokens or max_length,
-                temperature=self.temperature,
+                model=self.summary_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
+                temperature=self.summary_temperature,
+                max_tokens=max_length,
             )
 
             summary = response.choices[0].message.content
             if not summary:
-
-```text
-
                 logger.warning("DeepSeek API returned empty summary")
                 summary = ""
 
-```python
+            logger.debug("DeepSeek summarization completed: %d characters", len(summary))
 
-            from ..prompt_store import get_prompt_metadata
+            # Track LLM call metrics if available
+            if pipeline_metrics is not None and hasattr(response, "usage"):
+                input_tokens = response.usage.prompt_tokens if response.usage else 0
+                output_tokens = response.usage.completion_tokens if response.usage else 0
+                pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
 
-```
+            # Get prompt metadata for tracking (RFC-017)
+            from ...prompts.store import get_prompt_metadata
 
-```
-
+            prompt_metadata = {}
+            if system_prompt_name:
+                prompt_metadata["system"] = get_prompt_metadata(system_prompt_name)
+            user_params = {
+                "transcript": text[:100] + "..." if len(text) > 100 else text,
+                "title": episode_title or "",
+                "paragraphs_min": paragraphs_min,
+                "paragraphs_max": paragraphs_max,
             }
+            user_params.update(self.cfg.summary_prompt_params)
+            prompt_metadata["user"] = get_prompt_metadata(user_prompt_name, params=user_params)
 
-```python
+            return {
+                "summary": summary,
+                "summary_short": None,  # DeepSeek provider doesn't generate short summaries separately
+                "metadata": {
+                    "model": self.summary_model,
+                    "provider": "deepseek",
+                    "max_length": max_length,
+                    "min_length": min_length,
+                    "prompts": prompt_metadata,
+                },
+            }
 
         except Exception as exc:
             logger.error("DeepSeek API error in summarization: %s", exc)
             raise ValueError(f"DeepSeek summarization failed: {exc}") from exc
-
-```python
 
     def _build_summarization_prompts(
         self,
@@ -549,313 +769,151 @@ class DeepSeekSummarizationProvider:
         episode_description: Optional[str],
         max_length: int,
         min_length: int,
-    ) -> tuple[str, str, str, str, int, int]:
-        """Build system and user prompts using prompt_store."""
-        from ..prompt_store import render_prompt
+        custom_prompt: Optional[str],
+    ) -> tuple[str, str, Optional[str], str, int, int]:
+        """Build system and user prompts for summarization using prompt_store (RFC-017)."""
+        from ...prompts.store import render_prompt
 
-```
+        system_prompt_name = (
+            self.cfg.deepseek_summary_system_prompt or "deepseek/summarization/system_v1"
+        )
+        user_prompt_name = self.cfg.deepseek_summary_user_prompt
 
-```python
+        system_prompt = render_prompt(system_prompt_name)
+
+        paragraphs_min = max(1, min_length // 100)
+        paragraphs_max = max(paragraphs_min, max_length // 100)
+
+        if custom_prompt:
+            user_prompt = custom_prompt.replace("{{ transcript }}", text)
+            if episode_title:
+                user_prompt = user_prompt.replace("{{ title }}", episode_title)
+            user_prompt_name = "custom"
+        else:
+            template_params = {
+                "transcript": text,
+                "title": episode_title or "",
+                "paragraphs_min": paragraphs_min,
+                "paragraphs_max": paragraphs_max,
+            }
+            template_params.update(self.cfg.summary_prompt_params)
+            user_prompt = render_prompt(user_prompt_name, **template_params)
+
+        return (
+            system_prompt,
+            user_prompt,
+            system_prompt_name,
+            user_prompt_name,
+            paragraphs_min,
+            paragraphs_max,
+        )
+
+    # ============================================================================
+    # Cleanup Methods
+    # ============================================================================
 
     def cleanup(self) -> None:
-        """Cleanup provider resources (no-op for API provider)."""
+        """Cleanup all provider resources (no-op for API provider)."""
+        self._speaker_detection_initialized = False
+        self._summarization_initialized = False
+
+    def clear_cache(self) -> None:
+        """Clear cache (no-op for API provider)."""
         pass
 
+    @property
+    def is_initialized(self) -> bool:
+        """Check if provider is initialized (any component)."""
+        return self._speaker_detection_initialized or self._summarization_initialized
 ```
 
 ### 6. Factory Updates
 
-#### 6.1 Speaker Detector Factory
+Update both factories to support both Config-based and experiment-based modes (like OpenAI):
 
-**File**: `podcast_scraper/speaker_detectors/factory.py` (update)
+**File**: `src/podcast_scraper/speaker_detectors/factory.py`
 
 ```python
+def create_speaker_detector(
+    cfg_or_provider_type: Union[config.Config, str],
+    params: Optional[Union[SpeakerDetectionParams, Dict[str, Any]]] = None,
+) -> SpeakerDetector:
+    # ... existing code ...
 
-def create_speaker_detector(cfg: config.Config) -> Optional[SpeakerDetector]:
-    """Create a speaker detector based on configuration."""
-    if not cfg.auto_speakers:
-        return None
-
-    provider_type = cfg.speaker_detector_provider
-
-    if provider_type in ("spacy", "ner"):
-        from .ner_detector import NERSpeakerDetector
-        return NERSpeakerDetector(cfg)
-    elif provider_type == "openai":
-        from .openai_detector import OpenAISpeakerDetector
-        return OpenAISpeakerDetector(cfg)
-    elif provider_type == "anthropic":
-        from .anthropic_detector import AnthropicSpeakerDetector
-        return AnthropicSpeakerDetector(cfg)
-    elif provider_type == "mistral":
-        from .mistral_detector import MistralSpeakerDetector
-        return MistralSpeakerDetector(cfg)
     elif provider_type == "deepseek":
+        from ..providers.deepseek.deepseek_provider import DeepSeekProvider
 
-```python
-
-        from .deepseek_detector import DeepSeekSpeakerDetector
-        return DeepSeekSpeakerDetector(cfg)
+        if experiment_mode:
+            from ..config import Config
+            assert isinstance(params, SpeakerDetectionParams)
+            cfg = Config(
+                rss="",
+                speaker_detector_provider="deepseek",
+                deepseek_speaker_model=params.model_name if params.model_name else "deepseek-chat",
+                deepseek_temperature=params.temperature if params.temperature is not None else 0.3,
+                deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
+            )
+            return DeepSeekProvider(cfg)
+        else:
+            return DeepSeekProvider(cfg)
     else:
         raise ValueError(
-            f"Unsupported speaker detector provider: {provider_type}. "
-            "Supported providers: 'spacy', 'openai', 'anthropic', 'mistral', 'deepseek'."
+            f"Unsupported speaker detector type: {provider_type}. "
+            "Supported types: 'spacy', 'openai', 'anthropic', 'deepseek'"
         )
-
 ```
 
-#### 6.2 Summarization Factory
+Similar update for `summarization/factory.py`.
 
-**File**: `podcast_scraper/summarization/factory.py` (update)
+### 7. Dependencies
 
-```python
-
-def create_summarization_provider(cfg: config.Config) -> Optional[SummarizationProvider]:
-    """Create a summarization provider based on configuration."""
-    if not cfg.generate_summaries:
-        return None
-
-    provider_type = cfg.summary_provider
-
-    if provider_type in ("transformers", "local"):
-        from .local_provider import LocalSummarizationProvider
-        return LocalSummarizationProvider(cfg)
-    elif provider_type == "openai":
-        from .openai_provider import OpenAISummarizationProvider
-        return OpenAISummarizationProvider(cfg)
-    elif provider_type == "anthropic":
-        from .anthropic_provider import AnthropicSummarizationProvider
-        return AnthropicSummarizationProvider(cfg)
-    elif provider_type == "mistral":
-        from .mistral_provider import MistralSummarizationProvider
-        return MistralSummarizationProvider(cfg)
-    elif provider_type == "deepseek":
-
-```python
-
-        from .deepseek_provider import DeepSeekSummarizationProvider
-        return DeepSeekSummarizationProvider(cfg)
-    else:
-        raise ValueError(
-            f"Unsupported summarization provider: {provider_type}. "
-            "Supported providers: 'transformers', 'openai', 'anthropic', 'mistral', 'deepseek'."
-        )
-
-```
-
-### 7. DeepSeek-Specific Prompt Templates
-
-#### 7.1 Summarization System Prompt
-
-**File**: `prompts/deepseek/summarization/system_v1.j2`
-
-```jinja2
-
-You are an expert podcast summarizer. Your task is to create concise, informative summaries of podcast episode transcripts.
-
-Guidelines:
-- Focus on key insights, decisions, and takeaways
-- Ignore sponsor reads, ads, and housekeeping announcements
-- Do not use direct quotes or speaker attributions
-- Do not invent information not present in the transcript
-- Write in a clear, professional tone
-- Structure the summary with logical flow
-
-```
-
-#### 7.2 Summarization User Prompt
-
-**File**: `prompts/deepseek/summarization/long_v1.j2`
-
-```jinja2
-
-Please summarize the following podcast transcript.
-
-{% if title %}Episode Title: {{ title }}{% endif %}
-
-Target length: {{ paragraphs_min }} to {{ paragraphs_max }} paragraphs.
-
-Transcript:
-{{ transcript }}
-
-Provide a comprehensive summary covering the main topics, key insights, and important takeaways.
-
-```
-
-#### 7.3 NER System Prompt
-
-**File**: `prompts/deepseek/ner/system_ner_v1.j2`
-
-```jinja2
-
-You are an expert at identifying people mentioned in podcast metadata. Your task is to extract speaker names from podcast episode information.
-
-Guidelines:
-- Focus on identifying hosts, guests, and speakers
-- Return names in a consistent format
-- Distinguish between hosts (regular presenters) and guests (episode-specific)
-- Respond in JSON format with "hosts" and "guests" arrays
-
-```
-
-#### 7.4 NER User Prompt
-
-**File**: `prompts/deepseek/ner/guest_host_v1.j2`
-
-```jinja2
-
-{% if task == "host_detection" %}
-Identify the hosts of this podcast from the following information:
-
-Podcast Title: {{ feed_title }}
-{% if feed_description %}Description: {{ feed_description }}{% endif %}
-{% if feed_authors %}Listed Authors: {{ feed_authors }}{% endif %}
-
-Return a JSON object with format: {"hosts": ["Name1", "Name2"]}
-{% else %}
-Identify speakers in this podcast episode:
-
-Episode Title: {{ episode_title }}
-{% if episode_description %}Description: {{ episode_description }}{% endif %}
-{% if known_hosts %}Known Hosts: {{ known_hosts }}{% endif %}
-
-Return a JSON object with format: {"speakers": [...], "hosts": [...], "guests": [...]}
-{% endif %}
-
-```
-
-### 8. E2E Server Mock Endpoints
-
-DeepSeek uses OpenAI-compatible API, so we can reuse OpenAI mock endpoints. Add URL helper:
-
-```python
-
-class E2EServerURLs:
-    """URL helper class for E2E server."""
-
-    def deepseek_api_base(self) -> str:
-        """Get DeepSeek API base URL for E2E testing.
-
-        Note: DeepSeek uses OpenAI-compatible API, so we reuse the same mock endpoint.
-        """
-        return f"http://{self.host}:{self.port}"
-
-```
-
-### 9. Dependencies
-
-No new dependencies required - DeepSeek uses OpenAI SDK:
+**No new dependencies required** - DeepSeek uses OpenAI SDK:
 
 ```toml
-
 # pyproject.toml - No changes needed
 # DeepSeek uses existing openai package with custom base_url
+```
 
-```yaml
+**Note:** DeepSeek provider requires `openai` package (already a dependency for OpenAI provider).
+
+### 8. Prompt Templates
+
+Create DeepSeek-specific prompts in `src/podcast_scraper/prompts/deepseek/`:
+
+- `ner/system_ner_v1.j2` - System prompt for speaker detection
+- `ner/guest_host_v1.j2` - User prompt for speaker detection
+- `summarization/system_v1.j2` - System prompt for summarization
+- `summarization/long_v1.j2` - User prompt for summarization
+
+Follow OpenAI prompt patterns but optimize for DeepSeek models.
 
 ## Testing Strategy
 
-### Test Coverage
+Same pattern as OpenAI provider:
 
-| Test Type | Description | Location |
-| --------- | ----------- | -------- |
-| **Unit Tests** | Mock DeepSeek API calls | `tests/unit/podcast_scraper/test_deepseek_providers.py` |
-| **Integration Tests** | Test with E2E server mock | `tests/integration/test_deepseek_providers.py` |
-| **E2E Tests** | Full pipeline with DeepSeek | `tests/e2e/test_deepseek_provider_integration_e2e.py` |
+1. **Unit tests**: Mock DeepSeek API responses (using OpenAI SDK mocks)
+2. **Integration tests**: Use E2E mock server with DeepSeek endpoints (reuse OpenAI format)
+3. **E2E tests**: Full workflow with DeepSeek provider
 
-### Test Organization
+## Success Criteria
 
-```text
+1. ✅ DeepSeek supports speaker detection and summarization via unified provider
+2. ✅ Clear error when attempting transcription with DeepSeek
+3. ✅ No new SDK dependency (uses OpenAI SDK)
+4. ✅ E2E tests pass
+5. ✅ Experiment mode supported from start
+6. ✅ Environment-based model defaults (test vs prod)
+7. ✅ Follows OpenAI provider pattern exactly
 
-tests/
-├── unit/
-│   └── podcast_scraper/
-│       └── test_deepseek_providers.py
-├── integration/
-│   └── test_deepseek_providers.py
-└── e2e/
-    └── test_deepseek_provider_integration_e2e.py
+## Migration Notes
 
-```
-
-### Test Markers
-
-```python
-
-@pytest.mark.unit           # Unit tests
-@pytest.mark.integration    # Integration tests
-@pytest.mark.e2e           # End-to-end tests
-@pytest.mark.llm           # Uses LLM APIs
-@pytest.mark.deepseek      # Uses DeepSeek specifically
-
-```go
-
-## Rollout & Monitoring
-
-### Rollout Plan
-
-1. **Phase 1**: Core implementation
-   - Create `deepseek/` package with shared utilities
-   - Implement `DeepSeekSpeakerDetector`
-   - Implement `DeepSeekSummarizationProvider`
-   - Add configuration fields
-
-2. **Phase 2**: Integration
-   - Update factories
-   - Add provider capability validation
-   - Create DeepSeek-specific prompts
-   - Update `.env.example`
-
-3. **Phase 3**: Testing
-   - Reuse OpenAI mock endpoints
-   - Write unit tests
-   - Write integration tests
-   - Write E2E tests
-
-4. **Phase 4**: Documentation
-   - Update Provider Configuration Quick Reference
-   - Update Provider Implementation Guide
-   - Add cost comparison documentation
-
-### Success Criteria
-
-1. ✅ DeepSeek providers implement same interfaces as other providers
-2. ✅ Users can select DeepSeek for speaker detection and summarization
-3. ✅ Clear error when attempting transcription with DeepSeek
-4. ✅ API keys managed securely via environment variables
-5. ✅ No new SDK dependency (uses OpenAI SDK)
-6. ✅ E2E tests pass with mock endpoints
-7. ✅ Default behavior (local providers) unchanged
-
-## Alternatives Considered
-
-### 1. Dedicated DeepSeek SDK
-
-**Description**: Use official DeepSeek Python SDK instead of OpenAI SDK
-
-**Pros**:
-
-- May support DeepSeek-specific features
-- Official support
-
-**Cons**:
-
-- Additional dependency
-- May not be as well-maintained as OpenAI SDK
-- OpenAI compatibility is documented and stable
-
-**Why Rejected**: OpenAI SDK works well with DeepSeek's OpenAI-compatible API, avoiding new dependency.
-
-## Open Questions
-
-1. **Cache Hit Pricing**: How can users maximize cache hits for lower costs?
-2. **DeepSeek-R1 Integration**: Should we add support for reasoning tokens?
-3. **Regional Availability**: Document any regional restrictions?
+- **Breaking Changes**: None (new provider, backward compatible)
+- **Configuration**: Add `DEEPSEEK_API_KEY` to `.env` file
+- **Dependencies**: No new dependencies (uses existing `openai` package)
 
 ## References
 
 - **Related PRD**: `docs/prd/PRD-011-deepseek-provider-integration.md`
-- **OpenAI Provider RFC**: `docs/rfc/RFC-013-openai-provider-implementation.md`
-- **Anthropic Provider RFC**: `docs/rfc/RFC-032-anthropic-provider-implementation.md`
+- **Reference Implementation**: `src/podcast_scraper/providers/openai/openai_provider.py`
 - **DeepSeek API Documentation**: https://platform.deepseek.com/docs
 - **DeepSeek Pricing**: https://platform.deepseek.com/pricing

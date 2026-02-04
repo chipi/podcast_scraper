@@ -31,6 +31,8 @@ PRDs serve as the foundation for technical design (RFCs) and help ensure feature
 | [PRD-014](PRD-014-ollama-provider-integration.md) | Ollama Provider Integration | RFC-037 | Ollama - fully local/offline, zero cost |
 | [PRD-015](PRD-015-engineering-governance-productivity.md) | Engineering Governance & Productivity Platform | RFC-018-024, 030, 031, 038, 039 | Integrated system for developer velocity and quality |
 | [PRD-016](PRD-016-operational-observability-pipeline-intelligence.md) | Operational Observability & Pipeline Intelligence | RFC-025, 026, 027 | System for managing operational health and visibility |
+| [PRD-017](PRD-017-podcast-knowledge-graph.md) | Podcast Knowledge Graph (PKG) | RFC-049, 050 | Structured knowledge extraction from podcast transcripts |
+|| [PRD-018](PRD-018-database-export-knowledge-graph.md) | Database Export for Knowledge Graph | RFC-051 | Fast, queryable database projection of episode and KG data |
 
 ## Completed PRDs
 

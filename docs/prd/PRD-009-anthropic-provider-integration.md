@@ -1,12 +1,14 @@
 # PRD-009: Anthropic Provider Integration
 
-- **Status**: Draft
-- **Related RFCs**: RFC-032
+- **Status**: Draft (Revised)
+- **Revision**: 2
+- **Date**: 2026-02-04
+- **Related RFCs**: RFC-032 (Revised)
 - **Related PRDs**: PRD-006 (OpenAI Provider Integration)
 
 ## Summary
 
-Add Anthropic Claude API as an optional provider for speaker detection and summarization capabilities, enabling users to choose between local on-device processing, OpenAI API, and Anthropic Claude API. This builds on the existing modularization architecture (RFC-021) and provider patterns (PRD-006) to provide seamless provider switching without changing end-user experience or workflow behavior.
+Add Anthropic Claude API as an optional provider for speaker detection and summarization capabilities, enabling users to choose between local on-device processing, OpenAI API, and Anthropic Claude API. Like OpenAI, Anthropic uses a **unified provider pattern** where a single `AnthropicProvider` class implements both capabilities. This builds on the existing modularization architecture (RFC-021) and provider patterns (PRD-006) to provide seamless provider switching without changing end-user experience or workflow behavior.
 
 ## Background & Context
 
@@ -32,57 +34,89 @@ This PRD addresses the need to add Anthropic as a provider option while:
 
 - Add Anthropic Claude API as provider option for speaker detection and summarization
 - Maintain 100% backward compatibility with existing providers (local, OpenAI)
-- Follow identical architectural patterns as OpenAI provider (PRD-006, RFC-013)
+- Follow **unified provider pattern** (like OpenAI) - single class implementing both protocols
 - Provide secure API key management via environment variables and `.env` files
+- Support both Config-based and experiment-based factory modes from the start
 - Enable per-capability provider selection (can mix local, OpenAI, and Anthropic providers)
 - Handle provider capability gaps gracefully with clear error messages
-- Support dev/test vs production model selection patterns
+- Use environment-based model defaults (test vs production)
 - Create Anthropic-specific prompt templates (prompts are provider-specific)
 
 ## Anthropic Model Selection and Cost Analysis
 
 ### Configuration Fields
 
-Add to `config.py` when implementing Anthropic providers:
+Add to `config.py` when implementing Anthropic providers (following OpenAI pattern):
 
 ```python
-
-# Anthropic Model Selection
-
-anthropic_speaker_model: str = Field(
-    default="claude-3-5-haiku-latest",
-    description="Anthropic model for speaker detection (dev/test: haiku, prod: sonnet)"
-)
-
-anthropic_summary_model: str = Field(
-    default="claude-3-5-haiku-latest",
-    description="Anthropic model for summarization (dev/test: haiku, prod: sonnet)"
-)
-
 # Anthropic API Configuration
-
 anthropic_api_key: Optional[str] = Field(
     default=None,
+    alias="anthropic_api_key",
     description="Anthropic API key (prefer ANTHROPIC_API_KEY env var or .env file)"
 )
 
 anthropic_api_base: Optional[str] = Field(
     default=None,
-    description="Custom Anthropic API base URL (for E2E testing with mock servers)"
+    alias="anthropic_api_base",
+    description="Anthropic API base URL (for E2E testing with mock servers)"
 )
 
+# Anthropic Model Selection (environment-based defaults, like OpenAI)
+anthropic_speaker_model: str = Field(
+    default_factory=_get_default_anthropic_speaker_model,
+    alias="anthropic_speaker_model",
+    description="Anthropic model for speaker detection (default: environment-based)"
+)
+
+anthropic_summary_model: str = Field(
+    default_factory=_get_default_anthropic_summary_model,
+    alias="anthropic_summary_model",
+    description="Anthropic model for summarization (default: environment-based)"
+)
+
+# Shared settings (like OpenAI)
 anthropic_temperature: float = Field(
     default=0.3,
-    ge=0.0,
-    le=1.0,
+    alias="anthropic_temperature",
     description="Temperature for Anthropic generation (0.0-1.0, lower = more deterministic)"
 )
 
 anthropic_max_tokens: Optional[int] = Field(
     default=None,
+    alias="anthropic_max_tokens",
     description="Max tokens for Anthropic generation (None = model default)"
 )
-```yaml
+
+# Anthropic Prompt Configuration (following OpenAI pattern)
+anthropic_speaker_system_prompt: Optional[str] = Field(
+    default=None,
+    alias="anthropic_speaker_system_prompt",
+    description="Anthropic system prompt for speaker detection (default: anthropic/ner/system_ner_v1)"
+)
+
+anthropic_speaker_user_prompt: str = Field(
+    default="anthropic/ner/guest_host_v1",
+    alias="anthropic_speaker_user_prompt",
+    description="Anthropic user prompt for speaker detection"
+)
+
+anthropic_summary_system_prompt: Optional[str] = Field(
+    default=None,
+    alias="anthropic_summary_system_prompt",
+    description="Anthropic system prompt for summarization (default: anthropic/summarization/system_v1)"
+)
+
+anthropic_summary_user_prompt: str = Field(
+    default="anthropic/summarization/long_v1",
+    alias="anthropic_summary_user_prompt",
+    description="Anthropic user prompt for summarization"
+)
+```
+
+**Environment-based defaults:**
+- **Test environment**: `claude-3-5-haiku-latest` (fast, cheap)
+- **Production environment**: `claude-3-5-sonnet-latest` (best quality)
 
 ## Model Options and Pricing
 
@@ -147,6 +181,7 @@ anthropic_max_tokens: Optional[int] = Field(
 - **FR1.4**: Provider selection is independent per capability (can mix local, OpenAI, Anthropic)
 - **FR1.5**: Default values maintain current behavior (local providers)
 - **FR1.6**: Invalid provider values result in clear error messages with valid options listed
+- **FR1.7**: Support both Config-based and experiment-based factory modes from the start
 
 ### FR2: Provider Capability Gap Handling
 
@@ -157,14 +192,14 @@ anthropic_max_tokens: Optional[int] = Field(
 
 ### FR3: API Key Management
 
-- **FR3.1**: Support `ANTHROPIC_API_KEY` environment variable for API authentication
+- **FR3.1**: Support `ANTHROPIC_API_KEY` environment variable for API authentication (like `OPENAI_API_KEY`)
 - **FR3.2**: Support `.env` file via `python-dotenv` for convenient per-environment configuration
 - **FR3.3**: API key is never stored in source code, config files, or committed files
 - **FR3.4**: `.env` file automatically loaded when `config.py` module is imported
 - **FR3.5**: `examples/.env.example` template file updated with Anthropic placeholder
 - **FR3.6**: Missing API key when Anthropic provider is selected results in clear error message
 - **FR3.7**: API key validation occurs at provider initialization (fail fast)
-- **FR3.8**: Environment variable priority: config file > system env > `.env` file
+- **FR3.8**: Support `ANTHROPIC_API_BASE` environment variable for E2E testing (like `OPENAI_API_BASE`)
 
 ### FR4: Speaker Detection with Anthropic
 
@@ -211,12 +246,12 @@ anthropic_max_tokens: Optional[int] = Field(
 
 ### TR1: Architecture
 
-- **TR1.1**: Follow identical patterns as OpenAI provider (RFC-013)
-- **TR1.2**: Create `podcast_scraper/anthropic/` package for shared utilities
-- **TR1.3**: Create `speaker_detectors/anthropic_detector.py` implementing `SpeakerDetector` protocol
-- **TR1.4**: Create `summarization/anthropic_provider.py` implementing `SummarizationProvider` protocol
-- **TR1.5**: Update factories to include Anthropic provider option
-- **TR1.6**: No changes to workflow.py logic (uses factory pattern)
+- **TR1.1**: Follow **unified provider pattern** (like OpenAI) - single class implementing both protocols
+- **TR1.2**: Create `providers/anthropic/anthropic_provider.py` with unified `AnthropicProvider` class
+- **TR1.3**: `AnthropicProvider` implements `SpeakerDetector` and `SummarizationProvider` protocols
+- **TR1.4**: Update factories to include Anthropic option with support for both Config-based and experiment-based modes
+- **TR1.5**: Create `prompts/anthropic/` directory with provider-specific prompt templates
+- **TR1.6**: Follow OpenAI provider architecture exactly for consistency
 
 ### TR2: Dependencies
 
@@ -250,15 +285,17 @@ anthropic_max_tokens: Optional[int] = Field(
 
 ## Success Criteria
 
-- ✅ Users can select Anthropic provider for speaker detection and summarization
+- ✅ Users can select Anthropic provider for speaker detection and summarization via unified provider
 - ✅ Clear error when attempting to use Anthropic for transcription
 - ✅ Default behavior (local providers) remains unchanged
-- ✅ API keys are managed securely via environment variables and `.env` files
+- ✅ API keys are managed securely via `ANTHROPIC_API_KEY` environment variable
+- ✅ Environment-based model defaults (test vs production)
+- ✅ Both Config-based and experiment-based factory modes supported
 - ✅ Anthropic providers implement same interfaces as local/OpenAI providers
 - ✅ No changes required to workflow.py or end-user code
 - ✅ Error handling is clear and actionable
-- ✅ Documentation explains provider selection, capabilities, and API key setup
 - ✅ E2E tests pass with Anthropic mock endpoints
+- ✅ Follows OpenAI provider pattern exactly for consistency
 
 ## Out of Scope
 
