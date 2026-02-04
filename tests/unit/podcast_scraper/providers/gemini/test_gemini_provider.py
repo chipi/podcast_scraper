@@ -622,7 +622,9 @@ class TestGeminiProviderSummarization(unittest.TestCase):
         provider = GeminiProvider(self.cfg)
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        from podcast_scraper.exceptions import ProviderRuntimeError
+
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.summarize("Text")
 
         self.assertIn("summarization failed", str(context.exception).lower())
