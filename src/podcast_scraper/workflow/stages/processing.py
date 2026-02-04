@@ -366,13 +366,13 @@ def prepare_episode_download_args(
             # Always log episode info
             logger.info("Episode %d: %s", episode.idx, episode.title)
 
-            # Check file size before speaker detection if using OpenAI transcription
-            # to avoid wasting API calls on episodes that will be skipped
+            # Check file size before speaker detection if using API transcription providers
+            # (OpenAI, Gemini) to avoid wasting API calls on episodes that will be skipped
             skip_speaker_detection_due_to_size = False
             if (
                 not cfg.dry_run
                 and cfg.transcribe_missing
-                and cfg.transcription_provider == "openai"
+                and cfg.transcription_provider in ("openai", "gemini")
                 and episode.media_url
             ):
                 # Check file size using HTTP HEAD request
@@ -384,18 +384,26 @@ def prepare_episode_download_args(
                             file_size_bytes = int(content_length)
                             file_size_mb = file_size_bytes / BYTES_PER_MB
                             if file_size_bytes > OPENAI_MAX_FILE_SIZE_BYTES:
+                                provider_name = (
+                                    "OpenAI" if cfg.transcription_provider == "openai" else "Gemini"
+                                )
                                 logger.info(
                                     "[%d] Skipping speaker detection: Audio file size (%.1f MB) "
-                                    "exceeds OpenAI API limit (25 MB). Episode will be skipped.",
+                                    "exceeds %s API limit (25 MB). Episode will be skipped.",
                                     episode.idx,
                                     file_size_mb,
+                                    provider_name,
                                 )
                                 skip_speaker_detection_due_to_size = True
                             else:
+                                provider_name = (
+                                    "OpenAI" if cfg.transcription_provider == "openai" else "Gemini"
+                                )
                                 logger.debug(
-                                    "[%d] File size check: %.1f MB (within OpenAI limit)",
+                                    "[%d] File size check: %.1f MB (within %s limit)",
                                     episode.idx,
                                     file_size_mb,
+                                    provider_name,
                                 )
                         except (ValueError, TypeError):
                             # Content-Length header is invalid, proceed with speaker detection

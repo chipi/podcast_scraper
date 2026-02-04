@@ -1,0 +1,85 @@
+# Example podcast scraper configuration - Gemini Providers
+#
+# Values specified here are used as defaults unless overridden on the CLI
+#
+# Note: Some settings (like GEMINI_API_KEY, WORKERS, TIMEOUT) are better set via .env file
+# See examples/.env.example for environment variable options
+
+rss: https://example.com/feed.xml
+output_dir: output_podcast_example  # Can also be set via OUTPUT_DIR env var
+max_episodes: 10
+
+# Provider configuration - using Gemini for all providers
+# Note: GEMINI_API_KEY should be set in .env file (see examples/.env.example)
+transcription_provider: gemini  # Options: gemini, whisper, openai
+speaker_detector_provider: gemini  # Options: gemini, spacy, openai
+summary_provider: gemini  # Options: gemini, transformers, openai
+
+transcribe_missing: true  # Enable automatic transcription of missing transcripts
+# whisper_model: base.en  # Not used with Gemini transcription provider
+
+delay_ms: 250
+language: en
+auto_speakers: true
+cache_detected_hosts: true
+# known_hosts:  # Optional: show-level host names override (used when RSS metadata doesn't provide clean host names)
+#   - Host Name 1  # Example: Use when RSS author is organization name instead of actual host names
+#   - Host Name 2
+screenplay: false  # Gemini provider doesn't support screenplay formatting (only ML/Whisper provider does)
+speaker_names:  # Optional: manual speaker names fallback (used only if auto-detection fails)
+  - Host
+  - Guest
+run_id: experiment
+workers: 4  # Number of parallel download workers. Can also be set via WORKERS env var
+log_level: INFO  # Can also be set via LOG_LEVEL env var (DEBUG, INFO, WARNING, ERROR)
+
+# Optional: Uncomment to enable
+# skip_existing: true  # Skip episodes with existing output (transcripts/metadata)
+# reuse_media: true  # Reuse existing media files instead of re-downloading (for faster testing)
+# dry_run: true  # Dry run mode (no actual downloads or processing)
+# log_file: logs/podcast_scraper.log  # Optional: path to log file (logs written to both console and file)
+
+generate_metadata: true  # Generate metadata documents alongside transcripts
+generate_summaries: true  # Generate summaries for episodes
+metadata_format: json  # json or yaml (json recommended for database ingestion)
+# metadata_subdirectory: metadata  # Optional: subdirectory for metadata files (null = same as transcripts)
+
+# Gemini configuration (required if using any Gemini providers)
+# Note: GEMINI_API_KEY should be set in .env file (see examples/.env.example)
+# gemini_api_key: your-key-here  # Not recommended - use .env file instead
+# gemini_api_base: http://localhost:8000/v1beta  # Optional: Custom Gemini API base URL (e.g., for E2E testing)
+
+# Gemini model configuration (optional - defaults are used if not specified)
+# Environment-based defaults:
+#   Test/Dev: gemini-1.5-flash (fast, cheap)
+#   Production: gemini-1.5-pro (higher quality)
+# gemini_transcription_model: gemini-1.5-pro  # Default: environment-based (gemini-1.5-flash for test, gemini-1.5-pro for prod)
+# gemini_speaker_model: gemini-1.5-pro  # Default: environment-based
+# gemini_summary_model: gemini-1.5-pro  # Default: environment-based
+# gemini_temperature: 0.3  # Default: 0.3 (0.0-2.0, lower = more deterministic)
+# gemini_max_tokens: null  # Default: null (use model default)
+
+# Audio preprocessing settings (RFC-040: Optimize audio for API providers with file size limits)
+# Preprocessing is useful for Gemini API (file size limits vary by model)
+# preprocessing_enabled: false  # Enable audio preprocessing before transcription (default: false)
+# preprocessing_cache_dir: null  # Custom cache directory for preprocessed audio (default: .cache/preprocessing)
+# preprocessing_sample_rate: 16000  # Target sample rate in Hz (default: 16000, recommended for speech)
+# preprocessing_silence_threshold: "-50dB"  # Silence detection threshold (default: -50dB)
+# preprocessing_silence_duration: 2.0  # Minimum silence duration to remove in seconds (default: 2.0)
+# preprocessing_target_loudness: -16  # Target loudness in LUFS for normalization (default: -16)
+
+# ML-specific settings (not used with Gemini providers - commented out)
+# whisper_device: auto  # Not used with Gemini transcription provider (only for local Whisper)
+# summary_model: pegasus-cnn  # Not used with Gemini provider
+# summary_reduce_model: long-fast  # Not used with Gemini provider
+# summary_device: mps  # Not used with Gemini provider (no local GPU needed)
+# ner_model: en_core_web_trf  # Not used with Gemini speaker detection provider (only for local spaCy)
+
+# Parallelism settings (useful for Gemini - controls parallel API calls)
+# transcription_parallelism: 1  # Number of episodes to transcribe in parallel (Gemini uses for parallel API calls). Can also be set via TRANSCRIPTION_PARALLELISM env var
+# processing_parallelism: 2  # Number of episodes to process (metadata/summarization) in parallel. Can also be set via PROCESSING_PARALLELISM env var
+# summary_batch_size: 1  # Episode-level parallelism: Number of episodes to summarize in parallel. Can also be set via SUMMARY_BATCH_SIZE env var
+# summary_chunk_parallelism: 1  # Chunk-level parallelism: Number of chunks to process in parallel within a single episode (CPU-bound, local providers only). Can also be set via SUMMARY_CHUNK_PARALLELISM env var
+
+# Advanced settings
+# save_cleaned_transcript: true  # Save cleaned transcript to separate file (e.g., episode.cleaned.txt) for testing

@@ -421,6 +421,56 @@ def _add_openai_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_gemini_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add Gemini API-related arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
+    parser.add_argument(
+        "--gemini-api-key",
+        type=str,
+        default=None,
+        help="Gemini API key (or set GEMINI_API_KEY env var)",
+    )
+    parser.add_argument(
+        "--gemini-api-base",
+        type=str,
+        default=None,
+        help="Gemini API base URL (for E2E testing, or set GEMINI_API_BASE env var)",
+    )
+    parser.add_argument(
+        "--gemini-transcription-model",
+        type=str,
+        default=None,
+        help="Gemini transcription model (default: gemini-2.0-flash)",
+    )
+    parser.add_argument(
+        "--gemini-speaker-model",
+        type=str,
+        default=None,
+        help="Gemini speaker detection model (default: gemini-2.0-flash)",
+    )
+    parser.add_argument(
+        "--gemini-summary-model",
+        type=str,
+        default=None,
+        help="Gemini summarization model (default: gemini-2.0-flash)",
+    )
+    parser.add_argument(
+        "--gemini-temperature",
+        type=float,
+        default=None,
+        help="Temperature for Gemini models (0.0-2.0, default: 0.3)",
+    )
+    parser.add_argument(
+        "--gemini-max-tokens",
+        type=int,
+        default=None,
+        help="Maximum tokens for Gemini responses (default: model-specific)",
+    )
+
+
 def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
     """Add transcription-related arguments to parser.
 
@@ -441,7 +491,7 @@ def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--transcription-provider",
-        choices=["whisper", "openai"],
+        choices=["whisper", "openai", "gemini"],
         default="whisper",
         help="Transcription provider to use (default: whisper)",
     )
@@ -531,7 +581,7 @@ def _add_speaker_detection_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--speaker-detector-provider",
-        choices=["spacy", "openai"],
+        choices=["spacy", "openai", "gemini"],
         default="spacy",
         help="Speaker detection provider to use (default: spacy)",
     )
@@ -618,7 +668,7 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--summary-provider",
-        choices=["transformers", "openai"],
+        choices=["transformers", "openai", "gemini"],
         default="transformers",
         help="Summary provider to use (default: transformers)",
     )
@@ -973,6 +1023,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     _add_speaker_detection_arguments(parser)
     _add_summarization_arguments(parser)
     _add_openai_arguments(parser)
+    _add_gemini_arguments(parser)
     _add_cache_arguments(parser)
 
     initial_args, _ = parser.parse_known_args(argv)
@@ -1062,6 +1113,21 @@ def _build_config(args: argparse.Namespace) -> config.Config:
     # Explicitly include openai_api_key=None to trigger field validator
     # The field validator will load it from OPENAI_API_KEY env var if available
     payload["openai_api_key"] = None
+    # Add Gemini API configuration
+    payload["gemini_api_base"] = args.gemini_api_base
+    if args.gemini_transcription_model is not None:
+        payload["gemini_transcription_model"] = args.gemini_transcription_model
+    if args.gemini_speaker_model is not None:
+        payload["gemini_speaker_model"] = args.gemini_speaker_model
+    if args.gemini_summary_model is not None:
+        payload["gemini_summary_model"] = args.gemini_summary_model
+    if args.gemini_temperature is not None:
+        payload["gemini_temperature"] = args.gemini_temperature
+    if args.gemini_max_tokens is not None:
+        payload["gemini_max_tokens"] = args.gemini_max_tokens
+    # Explicitly include gemini_api_key=None to trigger field validator
+    # The field validator will load it from GEMINI_API_KEY env var if available
+    payload["gemini_api_key"] = None
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))
 
