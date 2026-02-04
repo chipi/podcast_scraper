@@ -140,7 +140,7 @@ Supervisor provides advanced process management with automatic restarts, logging
 
 ### Enabling Supervisor Mode
 
-1. **Create supervisor config file** (see `docker/supervisor.conf.example`):
+1. **Create supervisor config file** (see `docker/supervisor.conf.example` in the repository):
 
    ```ini
    [supervisord]
@@ -275,7 +275,7 @@ services:
 
 ## Configuration File
 
-The service reads configuration from a JSON or YAML file. See [Configuration API](api/CONFIGURATION.md) for complete configuration options.
+The service reads configuration from a JSON or YAML file. See [Configuration API](../api/CONFIGURATION.md) for complete configuration options.
 
 **Example `config.yaml`:**
 
@@ -563,8 +563,8 @@ snyk test --docker podcast-scraper:latest
 
 ## Related Documentation
 
-- [Service API](api/SERVICE.md) - Service mode API reference
-- [Configuration API](api/CONFIGURATION.md) - Config file format and options
+- [Service API](../api/SERVICE.md) - Service mode API reference
+- [Configuration API](../api/CONFIGURATION.md) - Config file format and options
 - [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) - LLM-only vs ML-enabled variants
-- [Supervisor Example](../examples/supervisor.conf.example) - Supervisor configuration example
-- [Docker Supervisor Config](../docker/supervisor.conf.example) - Docker-specific supervisor config
+- Supervisor Example: `examples/supervisor.conf.example` (in repository root)
+- Docker Supervisor Config: `docker/supervisor.conf.example` (in repository root)

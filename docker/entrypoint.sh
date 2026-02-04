@@ -17,6 +17,12 @@ log() {
 
 log "Starting podcast_scraper container entrypoint..."
 
+# Handle --help flag (should work without config file)
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    python -m podcast_scraper.service --help
+    exit 0
+fi
+
 # Validate config file exists and is readable
 if [ ! -f "$CONFIG_FILE" ]; then
     log "ERROR: Config file not found: $CONFIG_FILE"

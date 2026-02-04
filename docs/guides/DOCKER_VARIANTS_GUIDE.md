@@ -369,6 +369,6 @@ jobs:
 ## Related Documentation
 
 - [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) - Service-oriented Docker usage
-- [Installation Guide](INSTALLATION_GUIDE.md) - Local installation variants
+- [Development Guide](DEVELOPMENT_GUIDE.md) - Local installation and setup
 - [Provider Configuration](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) - Provider setup
 - [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md) - Compare providers
