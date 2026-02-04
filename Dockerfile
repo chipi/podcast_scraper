@@ -227,6 +227,7 @@ COPY --chown=podcast:podcast examples/config.example.* /opt/podcast_scraper/exam
 COPY --chown=podcast:podcast docker/supervisord.conf /etc/supervisor/supervisord.conf
 COPY --chown=podcast:podcast docker/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 WORKDIR /app
 
