@@ -17,9 +17,9 @@ log() {
 
 log "Starting podcast_scraper container entrypoint..."
 
-# Handle --help flag (should work without config file)
-if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-    python -m podcast_scraper.service --help
+# Handle --help and --version flags (should work without config file)
+if [ "$1" = "--help" ] || [ "$1" = "-h" ] || [ "$1" = "--version" ]; then
+    python -m podcast_scraper.service "$1"
     exit 0
 fi
 
