@@ -81,7 +81,7 @@ def _get_test_feed_url(
 
     # Real API mode - can use either real RSS feed OR fixture feeds
     if USE_REAL_OPENAI_API:
-        # If OPENAI_TEST_RSS_FEED is explicitly set, use that real RSS feed
+        # If LLM_TEST_RSS_FEED is explicitly set, use that real RSS feed
         if REAL_TEST_RSS_FEED is not None:
             return REAL_TEST_RSS_FEED, None, None
 
@@ -519,7 +519,7 @@ class TestOpenAIProviderE2E:
 
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            # Get feed URL and OpenAI config based on LLM_TEST_FEED
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Get max_episodes from environment variable (for real feeds) or use default
@@ -601,7 +601,7 @@ class TestOpenAIProviderE2E:
         """Test OpenAI speaker detection provider in full pipeline."""
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            # Get feed URL and OpenAI config based on LLM_TEST_FEED
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Create config with OpenAI speaker detection and transcription ONLY (no summarization)
@@ -618,11 +618,7 @@ class TestOpenAIProviderE2E:
                 generate_summaries=False,  # Disable summarization
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(
-                    os.getenv("LLM_TEST_MAX_EPISODES")
-                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
-                    or "1"
-                ),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline (uses OpenAI ONLY, no local ML providers)
@@ -669,7 +665,7 @@ class TestOpenAIProviderE2E:
         """Test OpenAI summarization provider in full pipeline."""
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            # Get feed URL and OpenAI config based on LLM_TEST_FEED
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Create config with OpenAI summarization and transcription ONLY (no speaker detection)
@@ -686,11 +682,7 @@ class TestOpenAIProviderE2E:
                 auto_speakers=False,  # Disable speaker detection
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(
-                    os.getenv("LLM_TEST_MAX_EPISODES")
-                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
-                    or "1"
-                ),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline (uses OpenAI ONLY, no local ML providers)
@@ -737,7 +729,7 @@ class TestOpenAIProviderE2E:
         """Test all OpenAI providers together in full pipeline."""
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            # Get feed URL and OpenAI config based on LLM_TEST_FEED
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Create config with ALL OpenAI providers ONLY (no local ML providers)
@@ -754,11 +746,7 @@ class TestOpenAIProviderE2E:
                 generate_summaries=True,
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(
-                    os.getenv("LLM_TEST_MAX_EPISODES")
-                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
-                    or "1"
-                ),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline (uses E2E server OpenAI endpoints, no direct mocking)
@@ -802,7 +790,7 @@ class TestOpenAIProviderE2E:
         """
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            # Get feed URL and OpenAI config based on LLM_TEST_FEED
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Create config with OpenAI transcription ONLY (no other providers)
@@ -818,11 +806,7 @@ class TestOpenAIProviderE2E:
                 auto_speakers=False,  # Disable speaker detection
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(
-                    os.getenv("LLM_TEST_MAX_EPISODES")
-                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
-                    or "1"
-                ),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline - E2E server provides successful responses
@@ -854,7 +838,7 @@ class TestOpenAIProviderE2E:
         """
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            # Get feed URL and OpenAI config based on LLM_TEST_FEED
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Create config with OpenAI speaker detection and transcription ONLY (no summarization)
@@ -871,11 +855,7 @@ class TestOpenAIProviderE2E:
                 generate_summaries=False,  # Disable summarization
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(
-                    os.getenv("LLM_TEST_MAX_EPISODES")
-                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
-                    or "1"
-                ),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline (uses OpenAI ONLY, no local ML providers)
@@ -908,7 +888,7 @@ class TestOpenAIProviderE2E:
         """
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            # Get feed URL and OpenAI config based on LLM_TEST_FEED
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Create config with OpenAI summarization and transcription ONLY (no speaker detection)
@@ -925,11 +905,7 @@ class TestOpenAIProviderE2E:
                 auto_speakers=False,  # Disable speaker detection
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(
-                    os.getenv("LLM_TEST_MAX_EPISODES")
-                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
-                    or "1"
-                ),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline (uses OpenAI ONLY, no local ML providers)
@@ -965,7 +941,7 @@ class TestOpenAIProviderE2E:
         """
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            # Get feed URL and OpenAI config based on LLM_TEST_FEED
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Create config with OpenAI transcription ONLY (no other providers)
@@ -981,11 +957,7 @@ class TestOpenAIProviderE2E:
                 auto_speakers=False,  # Disable speaker detection
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(
-                    os.getenv("LLM_TEST_MAX_EPISODES")
-                    or os.getenv("OPENAI_TEST_MAX_EPISODES", "1")
-                    or "1"
-                ),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline - E2E server provides successful responses

@@ -71,7 +71,7 @@ def _get_test_feed_url(
 
     # Real API mode - can use either real RSS feed OR fixture feeds
     if USE_REAL_GEMINI_API:
-        # If GEMINI_TEST_RSS_FEED is explicitly set, use that real RSS feed
+        # If LLM_TEST_RSS_FEED is explicitly set, use that real RSS feed
         if REAL_TEST_RSS_FEED is not None:
             return REAL_TEST_RSS_FEED, None, None
 
@@ -187,11 +187,7 @@ class TestGeminiProviderE2E:
                 gemini_api_key=gemini_api_key,
                 gemini_api_base=gemini_api_base,
                 transcribe_missing=True,
-                max_episodes=int(
-                    os.getenv("LLM_TEST_MAX_EPISODES")
-                    or os.getenv("GEMINI_TEST_MAX_EPISODES", "1")
-                    or "1"
-                ),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline (uses Gemini for transcription, local for other tasks)
@@ -265,11 +261,7 @@ class TestGeminiProviderE2E:
                 generate_summaries=False,  # Disable summarization
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(
-                    os.getenv("LLM_TEST_MAX_EPISODES")
-                    or os.getenv("GEMINI_TEST_MAX_EPISODES", "1")
-                    or "1"
-                ),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline (uses Gemini for speaker detection, local for other tasks)
@@ -334,11 +326,7 @@ class TestGeminiProviderE2E:
                 generate_metadata=True,
                 auto_speakers=True,
                 transcribe_missing=True,
-                max_episodes=int(
-                    os.getenv("LLM_TEST_MAX_EPISODES")
-                    or os.getenv("GEMINI_TEST_MAX_EPISODES", "1")
-                    or "1"
-                ),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline (uses Gemini for summarization, local for other tasks)
@@ -438,11 +426,7 @@ class TestGeminiProviderE2E:
                 auto_speakers=True,
                 transcribe_missing=True,
                 preload_models=False,  # No local ML models needed
-                max_episodes=int(
-                    os.getenv("LLM_TEST_MAX_EPISODES")
-                    or os.getenv("GEMINI_TEST_MAX_EPISODES", "1")
-                    or "1"
-                ),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline (uses Gemini for all three capabilities)
