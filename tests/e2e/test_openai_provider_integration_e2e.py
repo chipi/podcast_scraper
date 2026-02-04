@@ -304,8 +304,8 @@ def _save_openai_responses(  # noqa: C901
     """
     from datetime import datetime
 
-    # Create reports directory structure: reports/output/<test-name>/
-    reports_dir = Path("reports") / "output"
+    # Create reports directory structure: reports/<test-name>/
+    reports_dir = Path("reports")
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     # Clean test name (remove test_ prefix, convert underscores to hyphens)
