@@ -254,12 +254,20 @@ pip install -e .[ml]
 
 ### With API Provider Dependencies (OpenAI)
 
+**Note**: The `openai` package is **already included** in core dependencies (see `pyproject.toml`).
+You do **not** need to install it separately. OpenAI providers work with just the core package:
+
 ````bash
-pip install -e .[ml] openai
+# For LLM-only users (no ML dependencies needed)
+pip install -e .
 ````
 
-**Note**: The `openai` package is not included in the `[ml]` extra by default.
-Install it separately if you plan to use OpenAI providers for transcription, speaker detection, or summarization.
+If you want to use both OpenAI and local ML providers:
+
+````bash
+# For users who want both OpenAI and local ML options
+pip install -e ".[ml]"
+````
 
 ### With Development Dependencies
 

@@ -1,0 +1,296 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.com/schemas/kg.schema.json",
+    "title": "Podcast Knowledge Graph Episode Artifact (kg.json)",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schema_version", "episode_id", "nodes", "edges"],
+    "properties": {
+      "schema_version": { "type": "string", "pattern": "^1\\.0$" },
+      "episode_id": { "type": "string", "minLength": 1 },
+      "nodes": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/node" }
+      },
+      "edges": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/edge" }
+      }
+    },
+    "$defs": {
+      "evidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "episode_id",
+          "transcript_ref",
+          "char_start",
+          "char_end",
+          "timestamp_start_ms",
+          "timestamp_end_ms",
+          "extraction_method",
+          "model_version"
+        ],
+        "properties": {
+          "episode_id": { "type": "string", "minLength": 1 },
+          "transcript_ref": { "type": "string", "minLength": 1 },
+          "char_start": { "type": "integer", "minimum": 0 },
+          "char_end": { "type": "integer", "minimum": 0 },
+          "timestamp_start_ms": { "type": "integer", "minimum": 0 },
+          "timestamp_end_ms": { "type": "integer", "minimum": 0 },
+          "extraction_method": { "type": "string", "minLength": 1 },
+          "model_version": { "type": "string", "minLength": 1 }
+        }
+      },
+
+      "ml_provenance": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["confidence", "evidence"],
+        "properties": {
+          "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+          "evidence": { "$ref": "#/$defs/evidence" }
+        }
+      },
+
+      "node_base": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "properties"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "type": {
+            "type": "string",
+            "enum": ["Podcast", "Episode", "Speaker", "Topic", "Entity", "Claim"]
+          },
+          "properties": { "type": "object" },
+          "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+          "evidence": { "$ref": "#/$defs/evidence" }
+        }
+      },
+
+      "node": {
+        "oneOf": [
+          { "$ref": "#/$defs/podcast_node" },
+          { "$ref": "#/$defs/episode_node" },
+          { "$ref": "#/$defs/speaker_node" },
+          { "$ref": "#/$defs/topic_node" },
+          { "$ref": "#/$defs/entity_node" },
+          { "$ref": "#/$defs/claim_node" }
+        ]
+      },
+
+      "podcast_node": {
+        "allOf": [
+          { "$ref": "#/$defs/node_base" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": { "const": "Podcast" },
+              "properties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["title", "rss_url"],
+                "properties": {
+                  "title": { "type": "string", "minLength": 1 },
+                  "rss_url": { "type": "string", "minLength": 1 },
+                  "publisher": { "type": "string" }
+                }
+              }
+            }
+          }
+        ]
+      },
+
+      "episode_node": {
+        "allOf": [
+          { "$ref": "#/$defs/node_base" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": { "const": "Episode" },
+              "properties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["podcast_id", "title", "publish_date"],
+                "properties": {
+                  "podcast_id": { "type": "string", "minLength": 1 },
+                  "title": { "type": "string", "minLength": 1 },
+                  "publish_date": { "type": "string", "format": "date-time" },
+                  "audio_url": { "type": "string" },
+                  "duration_ms": { "type": "integer", "minimum": 0 }
+                }
+              }
+            }
+          }
+        ]
+      },
+
+      "speaker_node": {
+        "allOf": [
+          { "$ref": "#/$defs/node_base" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": { "const": "Speaker" },
+              "properties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string", "minLength": 1 },
+                  "aliases": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        ]
+      },
+
+      "topic_node": {
+        "allOf": [
+          { "$ref": "#/$defs/node_base" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": { "const": "Topic" },
+              "properties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["label"],
+                "properties": {
+                  "label": { "type": "string", "minLength": 1 },
+                  "aliases": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        ]
+      },
+
+      "entity_node": {
+        "allOf": [
+          { "$ref": "#/$defs/node_base" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": { "const": "Entity" },
+              "properties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name", "entity_type"],
+                "properties": {
+                  "name": { "type": "string", "minLength": 1 },
+                  "entity_type": {
+                    "type": "string",
+                    "enum": ["person", "company", "product", "place", "org", "event", "other"]
+                  },
+                  "external_ids": { "type": "object" }
+                }
+              }
+            }
+          }
+        ]
+      },
+
+      "claim_node": {
+        "allOf": [
+          { "$ref": "#/$defs/node_base" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["confidence", "evidence"],
+            "properties": {
+              "type": { "const": "Claim" },
+              "properties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "speaker_id",
+                  "episode_id",
+                  "timestamp_start_ms",
+                  "timestamp_end_ms"
+                ],
+                "properties": {
+                  "text": { "type": "string", "minLength": 1 },
+                  "speaker_id": { "type": "string", "minLength": 1 },
+                  "episode_id": { "type": "string", "minLength": 1 },
+                  "timestamp_start_ms": { "type": "integer", "minimum": 0 },
+                  "timestamp_end_ms": { "type": "integer", "minimum": 0 }
+                }
+              },
+              "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+              "evidence": { "$ref": "#/$defs/evidence" }
+            }
+          }
+        ]
+      },
+
+      "edge": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "from", "to", "properties"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "HAS_EPISODE",
+              "SPOKE_IN",
+              "DISCUSSES",
+              "MENTIONS",
+              "ASSERTS",
+              "ABOUT",
+              "RELATED_TO"
+            ]
+          },
+          "from": { "type": "string", "minLength": 1 },
+          "to": { "type": "string", "minLength": 1 },
+          "properties": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": { "enum": ["DISCUSSES", "MENTIONS", "ABOUT", "RELATED_TO"] }
+              }
+            },
+            "then": {
+              "properties": {
+                "properties": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": ["confidence", "evidence"],
+                  "properties": {
+                    "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+                    "evidence": { "$ref": "#/$defs/evidence" }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": { "type": { "enum": ["HAS_EPISODE", "SPOKE_IN", "ASSERTS"] } }
+            },
+            "then": {
+              "properties": {
+                "properties": {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }

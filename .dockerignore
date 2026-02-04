@@ -1,9 +1,76 @@
-.venv
+# Python
+.venv/
 __pycache__/
-output*/
-output_*/
 *.pyc
 *.pyo
-*.swp
-*.tmp
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
 
+# Output and temporary files
+output*/
+output_*/
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# Development and IDE files
+.git/
+.github/
+.cursor/
+.vscode/
+.idea/
+*.iml
+.DS_Store
+
+# Documentation (keep README.md)
+docs/
+*.md
+!README.md
+
+# Testing and development
+tests/
+benchmarks/
+data/
+reports/
+scripts/eval/
+scripts/dashboard/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# CI/CD and build artifacts
+.build/
+site/
+.mypy_cache/
+.ruff_cache/
+
+# Environment and secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Project-specific
+examples.txt
+WORKTREE.md
+CLAUDE.md
+docker-compose*.yml
+docker-compose*.yaml
+
+# Keep essential files
+!pyproject.toml
+!README.md
+!LICENSE
+!src/
+!scripts/cache/
+!examples/config.example.*
+!docker/

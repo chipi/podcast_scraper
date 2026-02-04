@@ -1,0 +1,55 @@
+version: '3.8'
+
+# Docker Compose configuration for podcast_scraper
+# See docs/guides/DOCKER_SERVICE_GUIDE.md for complete documentation
+
+services:
+  podcast_scraper:
+    # Choose variant based on your needs:
+    # - LLM-only: Build with --build-arg INSTALL_EXTRAS=""
+    # - ML-enabled: Build with --build-arg INSTALL_EXTRAS=ml (default)
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_EXTRAS: ml  # Change to "" for LLM-only variant
+        PRELOAD_ML_MODELS: "true"  # Set to "false" for faster builds
+    image: podcast-scraper:latest
+
+    # Required: Mount config file
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./output:/app/output
+
+    # Optional: Model cache persistence (recommended for ML variant)
+    # Uncomment to persist models across container restarts:
+    # - ./whisper-cache:/opt/whisper-cache
+    # - ./huggingface-cache:/home/podcast/.cache/huggingface
+
+    # Optional: Supervisor mode (uncomment to enable)
+    # - ./supervisor.conf:/etc/supervisor/conf.d/podcast_scraper.conf:ro
+    # - ./logs:/var/log/podcast_scraper
+
+    environment:
+      # Config file path (default: /app/config.yaml)
+      - PODCAST_SCRAPER_CONFIG=/app/config.yaml
+      - PODCAST_SCRAPER_WORK_DIR=/app
+
+      # OpenAI API key (if using OpenAI providers)
+      # Set via .env file or environment variable for security
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Resource limits (adjust based on variant and workload)
+    # LLM-only: 1 CPU, 512MB-1GB RAM
+    # ML-enabled: 2-4 CPUs, 2-4GB RAM
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G

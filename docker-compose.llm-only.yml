@@ -1,0 +1,36 @@
+version: '3.8'
+
+# Docker Compose configuration for LLM-only variant
+# Smaller, faster image (~200-300MB) for users who only use OpenAI/API providers
+# See docs/guides/DOCKER_VARIANTS_GUIDE.md for variant comparison
+
+services:
+  podcast_scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_EXTRAS: ""  # LLM-only, no ML dependencies
+    image: podcast-scraper:llm-only
+
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./output:/app/output
+
+    environment:
+      - PODCAST_SCRAPER_CONFIG=/app/config.yaml
+      - PODCAST_SCRAPER_WORK_DIR=/app
+      # OpenAI API key required for LLM-only variant
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+
+    restart: unless-stopped
+
+    # Lower resource requirements for LLM-only variant
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M

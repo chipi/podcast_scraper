@@ -1,0 +1,35 @@
+; Supervisor program configuration for podcast_scraper Docker container
+; Mount this file to /etc/supervisor/conf.d/podcast_scraper.conf to enable supervisor mode
+;
+; Usage:
+;   docker run -v /host/config.yaml:/app/config.yaml \
+;              -v /host/supervisor.conf:/etc/supervisor/conf.d/podcast_scraper.conf \
+;              podcast_scraper
+;
+; Supervisor will automatically start and manage the podcast_scraper service
+; Note: The main supervisord.conf is provided in the Docker image
+
+[program:podcast_scraper]
+command=python -m podcast_scraper.service
+directory=/app
+autostart=true
+autorestart=true
+startretries=3
+startsecs=10
+stopwaitsecs=30
+stdout_logfile=/var/log/podcast_scraper/stdout.log
+stderr_logfile=/var/log/podcast_scraper/stderr.log
+stdout_logfile_maxbytes=10MB
+stderr_logfile_maxbytes=10MB
+stdout_logfile_backups=5
+stderr_logfile_backups=5
+environment=PYTHONUNBUFFERED="1",PODCAST_SCRAPER_CONFIG="/app/config.yaml",PODCAST_SCRAPER_WORK_DIR="/app"
+
+; Optional: Run on a schedule using cron-like syntax
+; Note: This requires additional setup with cron inside the container
+; [program:podcast_scraper_scheduled]
+; command=python -m podcast_scraper.service
+; directory=/app
+; autostart=false
+; autorestart=false
+; ; Use cron to trigger this: 0 2 * * * supervisorctl -c /etc/supervisor/supervisord.conf start podcast_scraper_scheduled

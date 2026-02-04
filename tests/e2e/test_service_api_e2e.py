@@ -282,9 +282,14 @@ class TestServiceMainCLI:
             assert exc_info.value.code == 0, "service.main() should exit with 0 for --version"
 
     def test_service_main_missing_config_argument(self):
-        """Test service.main() fails when --config is missing."""
+        """Test service.main() fails when --config is missing and default config doesn't exist."""
         from unittest.mock import patch
 
         with patch("sys.argv", ["service"]):
-            with pytest.raises(SystemExit):
-                service.main()
+            # When --config is missing, service.main() uses default path (/app/config.yaml)
+            # which doesn't exist in test environment, so it should return 1
+            exit_code = service.main()
+
+            assert (
+                exit_code == 1
+            ), f"service.main() should return 1 when default config is missing, got {exit_code}"

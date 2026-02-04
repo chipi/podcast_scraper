@@ -42,6 +42,9 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-046](RFC-046-materialization-architecture.md) | Materialization Architecture | PRD-007 | Shift preprocessing from run parameter to dataset materialization for honest comparisons |
 | [RFC-047](RFC-047-run-comparison-visual-tool.md) | Lightweight Run Comparison & Diagnostics Tool | PRD-007 | Fast, one-page visual tool for comparing runs and diagnosing regressions |
 | [RFC-048](RFC-048-evaluation-application-alignment.md) | Evaluation ↔ Application Tightening & Alignment | PRD-007 | Alignment rules ensuring evaluation results are representative of application behavior |
+| [RFC-049](RFC-049-podcast-knowledge-graph-core.md) | Podcast Knowledge Graph – Core Concepts & Data Model | PRD-017 | Core ontology, storage format, and data contracts for Knowledge Graph |
+| [RFC-050](RFC-050-podcast-knowledge-graph-use-cases.md) | Podcast Knowledge Graph – Use Cases & Consumption | PRD-017 | Use cases, query patterns, and integration with existing outputs |
+|| [RFC-051](RFC-051-database-export-knowledge-graph.md) | Podcast Knowledge Graph – Episode & KG Data Store Projection | PRD-018 | Database export design for fast queries and notebook workflows |
 
 ## Completed RFCs
 

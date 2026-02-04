@@ -1,12 +1,14 @@
 # PRD-010: Mistral Provider Integration
 
-- **Status**: Draft
-- **Related RFCs**: RFC-033
+- **Status**: Draft (Revised)
+- **Revision**: 2
+- **Date**: 2026-02-04
+- **Related RFCs**: RFC-033 (Revised)
 - **Related PRDs**: PRD-006 (OpenAI), PRD-009 (Anthropic)
 
 ## Summary
 
-Add Mistral AI as an optional provider for transcription, speaker detection, and summarization capabilities. Mistral is unique among cloud providers in offering a complete alternative to OpenAI, supporting all three capabilities through their chat models and Voxtral audio models. This builds on the existing modularization architecture (RFC-021) and provider patterns (PRD-006, PRD-009) to provide seamless provider switching.
+Add Mistral AI as an optional provider for transcription, speaker detection, and summarization capabilities. Mistral is unique among cloud providers in offering a complete alternative to OpenAI, supporting all three capabilities through their chat models and Voxtral audio models. Like OpenAI, Mistral uses a **unified provider pattern** where a single `MistralProvider` class implements all three capabilities. This builds on the existing modularization architecture (RFC-021) and provider patterns (PRD-006, PRD-009) to provide seamless provider switching.
 
 ## Background & Context
 
@@ -30,10 +32,11 @@ This PRD addresses adding Mistral as a complete provider option covering all thr
 
 - Add Mistral AI as provider option for transcription, speaker detection, and summarization
 - Maintain 100% backward compatibility with existing providers (local, OpenAI, Anthropic)
-- Follow identical architectural patterns as OpenAI/Anthropic providers
+- Follow **unified provider pattern** (like OpenAI) - single class implementing all three protocols
 - Provide secure API key management via environment variables and `.env` files
+- Support both Config-based and experiment-based factory modes from the start
 - Enable per-capability provider selection (can mix local, OpenAI, Anthropic, and Mistral)
-- Support dev/test vs production model selection patterns
+- Use environment-based model defaults (test vs production)
 - Create Mistral-specific prompt templates (prompts are provider-specific)
 - Leverage Voxtral models for audio transcription
 
@@ -41,51 +44,87 @@ This PRD addresses adding Mistral as a complete provider option covering all thr
 
 ### Configuration Fields
 
-Add to `config.py` when implementing Mistral providers:
+Add to `config.py` when implementing Mistral providers (following OpenAI pattern):
 
 ```python
-
-# Mistral Model Selection
-
-mistral_speaker_model: str = Field(
-    default="mistral-small-latest",
-    description="Mistral model for speaker detection (dev/test: small, prod: large)"
-)
-
-mistral_summary_model: str = Field(
-    default="mistral-small-latest",
-    description="Mistral model for summarization (dev/test: small, prod: large)"
-)
-
-mistral_transcription_model: str = Field(
-    default="voxtral-mini-latest",
-    description="Mistral Voxtral model for transcription"
-)
-
 # Mistral API Configuration
-
 mistral_api_key: Optional[str] = Field(
     default=None,
+    alias="mistral_api_key",
     description="Mistral API key (prefer MISTRAL_API_KEY env var or .env file)"
 )
 
 mistral_api_base: Optional[str] = Field(
     default=None,
-    description="Custom Mistral API base URL (for E2E testing with mock servers)"
+    alias="mistral_api_base",
+    description="Mistral API base URL (for E2E testing with mock servers)"
 )
 
+# Mistral Model Selection (environment-based defaults, like OpenAI)
+mistral_transcription_model: str = Field(
+    default_factory=_get_default_mistral_transcription_model,
+    alias="mistral_transcription_model",
+    description="Mistral Voxtral model for transcription (default: environment-based)"
+)
+
+mistral_speaker_model: str = Field(
+    default_factory=_get_default_mistral_speaker_model,
+    alias="mistral_speaker_model",
+    description="Mistral model for speaker detection (default: environment-based)"
+)
+
+mistral_summary_model: str = Field(
+    default_factory=_get_default_mistral_summary_model,
+    alias="mistral_summary_model",
+    description="Mistral model for summarization (default: environment-based)"
+)
+
+# Shared settings (like OpenAI)
 mistral_temperature: float = Field(
     default=0.3,
-    ge=0.0,
-    le=1.0,
-    description="Temperature for Mistral generation (0.0-1.0)"
+    alias="mistral_temperature",
+    description="Temperature for Mistral generation (0.0-1.0, lower = more deterministic)"
 )
 
 mistral_max_tokens: Optional[int] = Field(
     default=None,
+    alias="mistral_max_tokens",
     description="Max tokens for Mistral generation (None = model default)"
 )
-```yaml
+
+# Mistral Prompt Configuration (following OpenAI pattern)
+mistral_speaker_system_prompt: Optional[str] = Field(
+    default=None,
+    alias="mistral_speaker_system_prompt",
+    description="Mistral system prompt for speaker detection (default: mistral/ner/system_ner_v1)"
+)
+
+mistral_speaker_user_prompt: str = Field(
+    default="mistral/ner/guest_host_v1",
+    alias="mistral_speaker_user_prompt",
+    description="Mistral user prompt for speaker detection"
+)
+
+mistral_summary_system_prompt: Optional[str] = Field(
+    default=None,
+    alias="mistral_summary_system_prompt",
+    description="Mistral system prompt for summarization (default: mistral/summarization/system_v1)"
+)
+
+mistral_summary_user_prompt: str = Field(
+    default="mistral/summarization/long_v1",
+    alias="mistral_summary_user_prompt",
+    description="Mistral user prompt for summarization"
+)
+```
+
+**Environment-based defaults:**
+- **Test environment**:
+  - Transcription: `voxtral-mini-latest` (only option)
+  - Speaker/Summary: `mistral-small-latest` (cheapest text)
+- **Production environment**:
+  - Transcription: `voxtral-mini-latest` (only option)
+  - Speaker/Summary: `mistral-large-latest` (best quality, 256k context)
 
 ## Mistral Model Pricing
 
@@ -216,17 +255,18 @@ For organizations requiring EU data residency, Mistral is the only cloud provide
 - **FR1.4**: Provider selection is independent per capability (can mix all providers)
 - **FR1.5**: Default values maintain current behavior (local providers)
 - **FR1.6**: Invalid provider values result in clear error messages with valid options listed
+- **FR1.7**: Support both Config-based and experiment-based factory modes from the start
 
 ### FR2: API Key Management
 
-- **FR2.1**: Support `MISTRAL_API_KEY` environment variable for API authentication
+- **FR2.1**: Support `MISTRAL_API_KEY` environment variable for API authentication (like `OPENAI_API_KEY`)
 - **FR2.2**: Support `.env` file via `python-dotenv` for convenient configuration
 - **FR2.3**: API key is never stored in source code, config files, or committed files
 - **FR2.4**: `.env` file automatically loaded when `config.py` module is imported
 - **FR2.5**: `examples/.env.example` template file updated with Mistral placeholder
 - **FR2.6**: Missing API key when Mistral provider is selected results in clear error
 - **FR2.7**: API key validation occurs at provider initialization (fail fast)
-- **FR2.8**: Environment variable priority: config file > system env > `.env` file
+- **FR2.8**: Support `MISTRAL_API_BASE` environment variable for E2E testing (like `OPENAI_API_BASE`)
 
 ### FR3: Transcription with Mistral
 
@@ -283,13 +323,12 @@ For organizations requiring EU data residency, Mistral is the only cloud provide
 
 ### TR1: Architecture
 
-- **TR1.1**: Follow identical patterns as OpenAI/Anthropic providers
-- **TR1.2**: Create `podcast_scraper/mistral/` package for shared utilities
-- **TR1.3**: Create `transcription/mistral_provider.py` implementing `TranscriptionProvider` protocol
-- **TR1.4**: Create `speaker_detectors/mistral_detector.py` implementing `SpeakerDetector` protocol
-- **TR1.5**: Create `summarization/mistral_provider.py` implementing `SummarizationProvider` protocol
-- **TR1.6**: Update all factories to include Mistral provider option
-- **TR1.7**: No changes to workflow.py logic (uses factory pattern)
+- **TR1.1**: Follow **unified provider pattern** (like OpenAI) - single class implementing all three protocols
+- **TR1.2**: Create `providers/mistral/mistral_provider.py` with unified `MistralProvider` class
+- **TR1.3**: `MistralProvider` implements `TranscriptionProvider`, `SpeakerDetector`, and `SummarizationProvider` protocols
+- **TR1.4**: Update all factories to include Mistral option with support for both Config-based and experiment-based modes
+- **TR1.5**: Create `prompts/mistral/` directory with provider-specific prompt templates
+- **TR1.6**: Follow OpenAI provider architecture exactly for consistency
 
 ### TR2: Dependencies
 
@@ -324,15 +363,17 @@ For organizations requiring EU data residency, Mistral is the only cloud provide
 
 ## Success Criteria
 
-- ✅ Users can select Mistral provider for transcription, speaker detection, and summarization
+- ✅ Users can select Mistral provider for transcription, speaker detection, and summarization via unified provider
 - ✅ Mistral is a complete OpenAI alternative (all three capabilities)
 - ✅ Default behavior (local providers) remains unchanged
-- ✅ API keys are managed securely via environment variables and `.env` files
+- ✅ API keys are managed securely via `MISTRAL_API_KEY` environment variable
+- ✅ Environment-based model defaults (test vs production)
+- ✅ Both Config-based and experiment-based factory modes supported
 - ✅ Mistral providers implement same interfaces as other providers
 - ✅ No changes required to workflow.py or end-user code
 - ✅ Error handling is clear and actionable
-- ✅ Documentation explains provider selection, capabilities, and API key setup
 - ✅ E2E tests pass with Mistral mock endpoints
+- ✅ Follows OpenAI provider pattern exactly for consistency
 
 ## Out of Scope
 

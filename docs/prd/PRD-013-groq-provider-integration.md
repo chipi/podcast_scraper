@@ -1,12 +1,14 @@
 # PRD-013: Groq Provider Integration
 
-- **Status**: Draft
-- **Related RFCs**: RFC-036
+- **Status**: Draft (Revised)
+- **Revision**: 2
+- **Date**: 2026-02-04
+- **Related RFCs**: RFC-036 (Revised)
 - **Related PRDs**: PRD-006 (OpenAI), PRD-011 (DeepSeek)
 
 ## Summary
 
-Add Groq as an optional provider for speaker detection and summarization capabilities. Groq is unique in offering **ultra-fast inference** (10x faster than other providers) by running models on custom LPU (Language Processing Unit) hardware. Like Anthropic and DeepSeek, Groq does NOT support audio transcription. Groq hosts open-source models like Llama 3.3, Mixtral, and Gemma.
+Add Groq as an optional provider for speaker detection and summarization capabilities. Groq is unique in offering **ultra-fast inference** (10x faster than other providers) by running models on custom LPU (Language Processing Unit) hardware. Like OpenAI, Groq uses a **unified provider pattern** where a single `GroqProvider` class implements both capabilities. Like Anthropic and DeepSeek, Groq does NOT support audio transcription. Groq hosts open-source models like Llama 3.3, Mixtral, and Gemma.
 
 ## Background & Context
 
@@ -24,53 +26,88 @@ This PRD addresses adding Groq as a speed-optimized provider.
 
 - Add Groq as provider option for speaker detection and summarization
 - Maintain 100% backward compatibility
-- Follow identical architectural patterns
-- Provide secure API key management
+- Follow **unified provider pattern** (like OpenAI) - single class implementing both protocols
+- Provide secure API key management via environment variables and `.env` files
+- Support both Config-based and experiment-based factory modes from the start
 - Handle capability gaps gracefully (no transcription)
-- Use OpenAI SDK with custom base_url (same as DeepSeek pattern)
+- Use OpenAI SDK with custom base_url (no new dependency)
+- Use environment-based model defaults (test vs production)
 
 ## Groq Model Selection and Cost Analysis
 
 ### Configuration Fields
 
+Add to `config.py` when implementing Groq providers (following OpenAI pattern):
+
 ```python
+# Groq API Configuration
+groq_api_key: Optional[str] = Field(
+    default=None,
+    alias="groq_api_key",
+    description="Groq API key (prefer GROQ_API_KEY env var or .env file)"
+)
 
-# Groq Model Selection
+groq_api_base: Optional[str] = Field(
+    default=None,
+    alias="groq_api_base",
+    description="Groq API base URL (default: https://api.groq.com/openai/v1, for E2E testing)"
+)
 
+# Groq Model Selection (environment-based defaults, like OpenAI)
 groq_speaker_model: str = Field(
-    default="llama-3.3-70b-versatile",
-    description="Groq model for speaker detection"
+    default_factory=_get_default_groq_speaker_model,
+    alias="groq_speaker_model",
+    description="Groq model for speaker detection (default: environment-based)"
 )
 
 groq_summary_model: str = Field(
-    default="llama-3.3-70b-versatile",
-    description="Groq model for summarization"
+    default_factory=_get_default_groq_summary_model,
+    alias="groq_summary_model",
+    description="Groq model for summarization (default: environment-based)"
 )
 
-# Groq API Configuration
-
-groq_api_key: Optional[str] = Field(
-    default=None,
-    description="Groq API key (prefer GROQ_API_KEY env var)"
-)
-
-groq_api_base: str = Field(
-    default="https://api.groq.com/openai/v1",
-    description="Groq API base URL"
-)
-
+# Shared settings (like OpenAI)
 groq_temperature: float = Field(
     default=0.3,
-    ge=0.0,
-    le=2.0,
-    description="Temperature for Groq generation"
+    alias="groq_temperature",
+    description="Temperature for Groq generation (0.0-2.0, lower = more deterministic)"
 )
 
 groq_max_tokens: Optional[int] = Field(
-    default=4096,
-    description="Max tokens for Groq generation"
+    default=None,
+    alias="groq_max_tokens",
+    description="Max tokens for Groq generation (None = model default)"
 )
-```yaml
+
+# Groq Prompt Configuration (following OpenAI pattern)
+groq_speaker_system_prompt: Optional[str] = Field(
+    default=None,
+    alias="groq_speaker_system_prompt",
+    description="Groq system prompt for speaker detection (default: groq/ner/system_ner_v1)"
+)
+
+groq_speaker_user_prompt: str = Field(
+    default="groq/ner/guest_host_v1",
+    alias="groq_speaker_user_prompt",
+    description="Groq user prompt for speaker detection"
+)
+
+groq_summary_system_prompt: Optional[str] = Field(
+    default=None,
+    alias="groq_summary_system_prompt",
+    description="Groq system prompt for summarization (default: groq/summarization/system_v1)"
+)
+
+groq_summary_user_prompt: str = Field(
+    default="groq/summarization/long_v1",
+    alias="groq_summary_user_prompt",
+    description="Groq user prompt for summarization"
+)
+```
+
+**Environment-based defaults:**
+- **Test environment**: `llama-3.1-8b-instant` (free tier, ultra-fast)
+- **Production environment**: `llama-3.3-70b-versatile` (best quality, still fast)
 
 ## Model Options and Pricing
 
@@ -144,12 +181,14 @@ groq_max_tokens: Optional[int] = Field(
 - **FR1.2**: Add `"groq"` as valid value for `summary_provider`
 - **FR1.3**: Attempting transcription with Groq results in clear error
 - **FR1.4**: Default values maintain current behavior
+- **FR1.5**: Support both Config-based and experiment-based factory modes from the start
 
 ### FR2: API Key Management
 
-- **FR2.1**: Support `GROQ_API_KEY` environment variable
-- **FR2.2**: Support `.env` file
+- **FR2.1**: Support `GROQ_API_KEY` environment variable (like `OPENAI_API_KEY`)
+- **FR2.2**: Support `.env` file via `python-dotenv` for convenient configuration
 - **FR2.3**: Clear error on missing API key
+- **FR2.4**: Support `GROQ_API_BASE` environment variable for E2E testing (like `OPENAI_API_BASE`)
 
 ### FR3: Speaker Detection with Groq
 
@@ -172,11 +211,13 @@ groq_max_tokens: Optional[int] = Field(
 
 ### TR1: Architecture
 
-- **TR1.1**: Follow DeepSeek pattern (OpenAI SDK + custom base_url)
-- **TR1.2**: Create `podcast_scraper/groq/` package
-- **TR1.3**: Create `speaker_detectors/groq_detector.py`
-- **TR1.4**: Create `summarization/groq_provider.py`
-- **TR1.5**: Update factories
+- **TR1.1**: Follow **unified provider pattern** (like OpenAI) - single class implementing both protocols
+- **TR1.2**: Create `providers/groq/groq_provider.py` with unified `GroqProvider` class
+- **TR1.3**: `GroqProvider` implements `SpeakerDetector` and `SummarizationProvider` protocols
+- **TR1.4**: Update factories to include Groq option with support for both Config-based and experiment-based modes
+- **TR1.5**: Create `prompts/groq/` directory with provider-specific prompt templates
+- **TR1.6**: Use OpenAI SDK with custom base_url (no new SDK dependency)
+- **TR1.7**: Follow OpenAI provider architecture exactly for consistency
 
 ### TR2: Dependencies
 
@@ -185,11 +226,15 @@ groq_max_tokens: Optional[int] = Field(
 
 ## Success Criteria
 
-- ✅ Users can select Groq for speaker detection and summarization
-- ✅ Clear error when attempting transcription
-- ✅ 10x faster than OpenAI
+- ✅ Users can select Groq provider for speaker detection and summarization via unified provider
+- ✅ Clear error when attempting transcription with Groq
+- ✅ 10x faster than other providers (500+ tokens/second)
 - ✅ Free tier works for development
+- ✅ Environment-based model defaults (test vs production)
+- ✅ Both Config-based and experiment-based factory modes supported
+- ✅ No new SDK dependency (uses OpenAI SDK)
 - ✅ E2E tests pass
+- ✅ Follows OpenAI provider pattern exactly for consistency
 
 ## Provider Capability Matrix (Updated)
 

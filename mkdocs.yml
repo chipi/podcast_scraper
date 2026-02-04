@@ -20,6 +20,8 @@ nav:
       - AI Provider Comparison Guide: guides/AI_PROVIDER_COMPARISON_GUIDE.md
       - ML Model Comparison Guide: guides/ML_MODEL_COMPARISON_GUIDE.md
       - Preprocessing Profiles Guide: guides/PREPROCESSING_PROFILES_GUIDE.md
+      - Docker Service Guide: guides/DOCKER_SERVICE_GUIDE.md
+      - Docker Variants Guide: guides/DOCKER_VARIANTS_GUIDE.md
       - Provider Configuration Quick Reference: guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md
       - Provider Implementation Guide: guides/PROVIDER_IMPLEMENTATION_GUIDE.md
       - ML Provider Reference: guides/ML_PROVIDER_REFERENCE.md

@@ -162,15 +162,25 @@ def main() -> int:
     This function is designed to be called as a script entry point:
     python -m podcast_scraper.service --config config.yaml
 
-    It only accepts a --config argument and is optimized for non-interactive use.
+    It accepts a --config argument (optional if PODCAST_SCRAPER_CONFIG env var is set)
+    and is optimized for non-interactive use.
+
+    Config file resolution order:
+    1. --config argument (if provided)
+    2. PODCAST_SCRAPER_CONFIG environment variable
+    3. Default: /app/config.yaml (for Docker/service usage)
 
     Returns:
         Exit code (0 for success, 1 for failure)
     """
     import argparse
+    import os
 
     # Initialize ML environment variables early (before any ML imports)
     setup.initialize_ml_environment()
+
+    # Default config path (for Docker/service usage)
+    default_config = os.getenv("PODCAST_SCRAPER_CONFIG", "/app/config.yaml")
 
     parser = argparse.ArgumentParser(
         description="Podcast Scraper Service - Run pipeline from configuration file",
@@ -179,6 +189,12 @@ def main() -> int:
 Examples:
   # Run with config file
   python -m podcast_scraper.service --config config.yaml
+
+  # Run with environment variable
+  PODCAST_SCRAPER_CONFIG=/path/to/config.yaml python -m podcast_scraper.service
+
+  # Run with default path (Docker/service mode)
+  python -m podcast_scraper.service
 
   # For supervisor/systemd usage
   [program:podcast_scraper]
@@ -189,8 +205,12 @@ Examples:
     )
     parser.add_argument(
         "--config",
-        required=True,
-        help="Path to configuration file (JSON or YAML)",
+        default=None,
+        help=(
+            "Path to configuration file (JSON or YAML). "
+            "If not provided, uses PODCAST_SCRAPER_CONFIG environment variable "
+            f"or default: {default_config}"
+        ),
     )
     parser.add_argument(
         "--version",
@@ -200,8 +220,11 @@ Examples:
 
     args = parser.parse_args()
 
+    # Resolve config file path
+    config_path = args.config or default_config
+
     # Run the service
-    result = run_from_config_file(args.config)
+    result = run_from_config_file(config_path)
 
     # Print results
     if result.success:

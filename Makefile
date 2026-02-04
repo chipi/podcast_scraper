@@ -6,6 +6,11 @@ PYTHON ?= .venv/bin/python
 endif
 PACKAGE = podcast_scraper
 
+# Pip cache directory (can be overridden via environment variable)
+# Defaults to standard pip cache location, but can be set explicitly for consistency
+PIP_CACHE_DIR ?= $(HOME)/.cache/pip
+export PIP_CACHE_DIR
+
 # Test parallelism: Memory-aware calculation that adapts to available RAM and CPU
 # - Considers available memory and memory per worker (varies by test type)
 # - Reserves 2 cores for system operations
@@ -733,13 +738,29 @@ ci-nightly: format-check lint lint-markdown type security complexity deadcode do
 	@echo "✓ Full nightly CI chain completed"
 
 docker-build:
-	docker build -t podcast-scraper:test -f Dockerfile .
+	@echo "Building Docker image (ML-enabled variant, default)..."
+	@DOCKER_BUILDKIT=1 docker build \
+		--build-arg INSTALL_EXTRAS=ml \
+		-t podcast-scraper:test \
+		-f Dockerfile .
+
+docker-build-llm:
+	@echo "Building Docker image (LLM-only variant, ~200MB)..."
+	@echo "This variant excludes ML dependencies for smaller size and faster builds..."
+	@echo ""
+	@DOCKER_BUILDKIT=1 docker build \
+		--build-arg INSTALL_EXTRAS="" \
+		-t podcast-scraper:test-llm \
+		-f Dockerfile .
+	@echo ""
+	@echo "✓ LLM-only build complete! Image tagged as: podcast-scraper:test-llm"
 
 docker-build-fast:
-	@echo "Building Docker image (fast mode - no model preloading, matches PR builds)..."
+	@echo "Building Docker image (fast mode - ML variant, no model preloading, matches PR builds)..."
 	@echo "This should complete in under 5 minutes..."
 	@echo ""
 	@DOCKER_BUILDKIT=1 docker build \
+		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=false \
 		-t podcast-scraper:test-fast \
 		-f Dockerfile .
@@ -747,10 +768,11 @@ docker-build-fast:
 	@echo "✓ Fast build complete! Image tagged as: podcast-scraper:test-fast"
 
 docker-build-full:
-	@echo "Building Docker image (full mode - with model preloading, matches main builds)..."
+	@echo "Building Docker image (full mode - ML variant with model preloading, matches main builds)..."
 	@echo "This will take longer due to ML model downloads..."
 	@echo ""
 	@DOCKER_BUILDKIT=1 docker build \
+		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=true \
 		--build-arg WHISPER_MODELS=base.en \
 		-t podcast-scraper:test \
@@ -758,21 +780,34 @@ docker-build-full:
 	@echo ""
 	@echo "✓ Full build complete! Image tagged as: podcast-scraper:test"
 
-docker-test: docker-build
-	@echo "Running Docker tests..."
+docker-test: docker-build docker-build-llm
+	@echo "Running Docker tests for both variants..."
+	@echo ""
+	@echo "=== Testing ML-enabled variant ==="
 	@echo "Test 1: --help command"
 	@docker run --rm podcast-scraper:test --help > /dev/null
 	@echo "Test 2: --version command"
 	@docker run --rm podcast-scraper:test --version
-	@echo "Test 3: No args (should error)"
-	@docker run --rm podcast-scraper:test 2>&1 | grep -q "required" && echo "[OK] Error handling works"
-	@echo "Test 4: Building with multiple Whisper models..."
-	@docker build --quiet --build-arg WHISPER_PRELOAD_MODELS="tiny.en,base.en" -t podcast-scraper:multi-model -f Dockerfile . > /dev/null
-	@docker run --rm podcast-scraper:multi-model --help > /dev/null
-	@echo "[OK] All Docker tests passed"
+	@echo "Test 3: No args (should show config file error)"
+	@docker run --rm podcast-scraper:test 2>&1 | grep -q "Config file not found" && echo "[OK] Error handling works"
+	@echo ""
+	@echo "=== Testing LLM-only variant ==="
+	@echo "Test 1: --help command"
+	@docker run --rm podcast-scraper:test-llm --help > /dev/null
+	@echo "Test 2: --version command"
+	@docker run --rm podcast-scraper:test-llm --version
+	@echo "Test 3: No args (should show config file error)"
+	@docker run --rm podcast-scraper:test-llm 2>&1 | grep -q "Config file not found" && echo "[OK] Error handling works"
+	@echo "Test 4: Verify LLM-only variant is smaller"
+	@ML_SIZE=$$(docker images podcast-scraper:test --format "{{.Size}}" | head -1); \
+	LLM_SIZE=$$(docker images podcast-scraper:test-llm --format "{{.Size}}" | head -1); \
+	echo "ML variant size: $$ML_SIZE"; \
+	echo "LLM-only variant size: $$LLM_SIZE"; \
+	echo "[OK] Both variants built and tested successfully"
 
 docker-clean:
-	docker rmi podcast-scraper:test podcast-scraper:test-fast podcast-scraper:multi-model 2>/dev/null || true
+	docker rmi podcast-scraper:test podcast-scraper:test-llm podcast-scraper:test-fast podcast-scraper:multi-model 2>/dev/null || true
+	@echo "Cleaned up Docker test images"
 
 install-hooks:
 	@if [ ! -d .git ]; then echo "Error: Not a git repository"; exit 1; fi

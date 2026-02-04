@@ -22,7 +22,9 @@ permissions:
   contents: read
 
 jobs:
-  # Fast Docker build for PRs (sub-5 min target)
+  # Fast Docker build for PRs (LLM-only variant, sub-3 min target)
+  # Builds LLM-only variant for fast feedback on PRs
+  # Most code changes affect both variants, so LLM-only is sufficient for PR validation
   docker-build-fast:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -43,49 +45,50 @@ jobs:
         driver-opts: |
           image=moby/buildkit:latest
 
-    - name: Build Docker image (default, skip model preloading)
+    - name: Build Docker image (LLM-only variant, fast)
       uses: docker/build-push-action@v6
       with:
         context: .
         file: Dockerfile
         build-args: |
-          PRELOAD_ML_MODELS=false
+          INSTALL_EXTRAS=
         push: false
         load: true
-        tags: podcast-scraper:test
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        tags: podcast-scraper:test-llm
+        cache-from: type=gha,scope=llm-only
+        cache-to: type=gha,mode=max,scope=llm-only
 
     - name: Test Docker image (help command)
       run: |
-        docker run --rm podcast-scraper:test --help
+        docker run --rm podcast-scraper:test-llm --help
 
     - name: Test Docker image (version check)
       run: |
-        docker run --rm podcast-scraper:test --version
+        docker run --rm podcast-scraper:test-llm --version
 
-    - name: Test Docker image (no args - should show error)
+    - name: Test Docker image (no args - should show config file error)
       run: |
-        output=$(docker run --rm podcast-scraper:test 2>&1 || true)
-        echo "$output" | grep -q "required"
+        output=$(docker run --rm podcast-scraper:test-llm 2>&1 || true)
+        echo "$output" | grep -q "Config file not found"
 
     - name: Validate Dockerfile with hadolint
       run: |
         docker run --rm -v $(pwd):/workspace -w /workspace hadolint/hadolint:latest hadolint Dockerfile
 
-  # Full Docker build for main branch (parallel builds for speed)
+  # Full Docker build for main branch (both variants in parallel)
+  # Builds both LLM-only and ML-enabled variants to ensure full validation
   docker-build-full:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - name: default
+          - name: llm-only
+            tag: podcast-scraper:test-llm
+            build_args: "INSTALL_EXTRAS="
+          - name: ml
             tag: podcast-scraper:test
-            build_args: "PRELOAD_ML_MODELS=true\nWHISPER_MODELS=base.en"
-          - name: multi-model
-            tag: podcast-scraper:multi-model
-            build_args: "PRELOAD_ML_MODELS=true\nWHISPER_MODELS=tiny.en,base.en"
+            build_args: "INSTALL_EXTRAS=ml\nPRELOAD_ML_MODELS=true\nWHISPER_MODELS=base.en"
     steps:
     - uses: actions/checkout@v6
 
@@ -124,12 +127,12 @@ jobs:
       run: |
         docker run --rm ${{ matrix.tag }} --version
 
-    - name: Test Docker image (${{ matrix.name }} - no args - should show error)
+    - name: Test Docker image (${{ matrix.name }} - no args - should show config file error)
       run: |
         output=$(docker run --rm ${{ matrix.tag }} 2>&1 || true)
-        echo "$output" | grep -q "required"
+        echo "$output" | grep -q "Config file not found"
 
     - name: Validate Dockerfile with hadolint
-      if: matrix.name == 'default'
+      if: matrix.name == 'llm-only'
       run: |
         docker run --rm -v $(pwd):/workspace -w /workspace hadolint/hadolint:latest hadolint Dockerfile

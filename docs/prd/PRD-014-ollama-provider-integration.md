@@ -1,12 +1,14 @@
 # PRD-014: Ollama Provider Integration
 
-- **Status**: Draft
-- **Related RFCs**: RFC-037
+- **Status**: Draft (Revised)
+- **Revision**: 2
+- **Date**: 2026-02-04
+- **Related RFCs**: RFC-037 (Revised)
 - **Related PRDs**: PRD-006 (OpenAI), PRD-013 (Groq)
 
 ## Summary
 
-Add Ollama as an optional provider for speaker detection and summarization capabilities. Ollama is unique in being a **fully local/offline solution** that runs open-source LLMs on your own hardware. Unlike cloud providers, Ollama requires NO API keys, has NO rate limits, and incurs NO per-token costs. Like Anthropic, DeepSeek, and Groq, Ollama does NOT support audio transcription.
+Add Ollama as an optional provider for speaker detection and summarization capabilities. Ollama is unique in being a **fully local/offline solution** that runs open-source LLMs on your own hardware. Unlike cloud providers, Ollama requires NO API keys, has NO rate limits, and incurs NO per-token costs. Like OpenAI, Ollama uses a **unified provider pattern** where a single `OllamaProvider` class implements both capabilities. Like Anthropic, DeepSeek, and Groq, Ollama does NOT support audio transcription.
 
 ## Background & Context
 
@@ -25,48 +27,90 @@ This PRD addresses adding Ollama as a privacy-first, cost-free provider option.
 
 - Add Ollama as provider option for speaker detection and summarization
 - Maintain 100% backward compatibility
-- Follow identical architectural patterns
+- Follow **unified provider pattern** (like OpenAI) - single class implementing both protocols
 - Support local model selection (user installs models via Ollama CLI)
+- Support both Config-based and experiment-based factory modes from the start
 - Handle capability gaps gracefully (no transcription)
-- Use OpenAI SDK with `http://localhost:11434/v1` base_url
+- Use OpenAI SDK with custom base_url (no new SDK dependency)
+- Use environment-based model defaults (test vs production)
+- Validate Ollama server is running and models are available
 
 ## Ollama Model Selection and Cost Analysis
 
 ### Configuration Fields
 
+Add to `config.py` when implementing Ollama providers (following OpenAI pattern):
+
 ```python
+# Ollama API Configuration (NO API KEY NEEDED - local service)
+ollama_api_base: Optional[str] = Field(
+    default=None,
+    alias="ollama_api_base",
+    description="Ollama API base URL (default: http://localhost:11434/v1, for E2E testing)"
+)
 
-# Ollama Model Selection
-
+# Ollama Model Selection (environment-based defaults, like OpenAI)
 ollama_speaker_model: str = Field(
-    default="llama3.3:latest",
-    description="Ollama model for speaker detection"
+    default_factory=_get_default_ollama_speaker_model,
+    alias="ollama_speaker_model",
+    description="Ollama model for speaker detection (default: environment-based)"
 )
 
 ollama_summary_model: str = Field(
-    default="llama3.3:latest",
-    description="Ollama model for summarization"
+    default_factory=_get_default_ollama_summary_model,
+    alias="ollama_summary_model",
+    description="Ollama model for summarization (default: environment-based)"
 )
 
-# Ollama API Configuration
-
-ollama_api_base: str = Field(
-    default="http://localhost:11434/v1",
-    description="Ollama API base URL (default: local)"
-)
-
+# Shared settings (like OpenAI)
 ollama_temperature: float = Field(
     default=0.3,
-    ge=0.0,
-    le=2.0,
-    description="Temperature for Ollama generation"
+    alias="ollama_temperature",
+    description="Temperature for Ollama generation (0.0-2.0, lower = more deterministic)"
 )
 
 ollama_max_tokens: Optional[int] = Field(
-    default=4096,
-    description="Max tokens for Ollama generation"
+    default=None,
+    alias="ollama_max_tokens",
+    description="Max tokens for Ollama generation (None = model default)"
 )
-```yaml
+
+# Ollama Connection Settings
+ollama_timeout: int = Field(
+    default=120,
+    alias="ollama_timeout",
+    description="Timeout in seconds for Ollama API calls (local inference can be slow)"
+)
+
+# Ollama Prompt Configuration (following OpenAI pattern)
+ollama_speaker_system_prompt: Optional[str] = Field(
+    default=None,
+    alias="ollama_speaker_system_prompt",
+    description="Ollama system prompt for speaker detection (default: ollama/ner/system_ner_v1)"
+)
+
+ollama_speaker_user_prompt: str = Field(
+    default="ollama/ner/guest_host_v1",
+    alias="ollama_speaker_user_prompt",
+    description="Ollama user prompt for speaker detection"
+)
+
+ollama_summary_system_prompt: Optional[str] = Field(
+    default=None,
+    alias="ollama_summary_system_prompt",
+    description="Ollama system prompt for summarization (default: ollama/summarization/system_v1)"
+)
+
+ollama_summary_user_prompt: str = Field(
+    default="ollama/summarization/long_v1",
+    alias="ollama_summary_user_prompt",
+    description="Ollama user prompt for summarization"
+)
+```
+
+**Environment-based defaults:**
+- **Test environment**: `llama3.2:latest` (smaller, faster for testing)
+- **Production environment**: `llama3.3:latest` (best quality, 128k context)
 
 ## Model Options and Cost Analysis
 
@@ -142,12 +186,14 @@ For optimal Ollama performance:
 - **FR1.2**: Add `"ollama"` as valid value for `summary_provider`
 - **FR1.3**: Attempting transcription with Ollama results in clear error
 - **FR1.4**: Default values maintain current behavior
+- **FR1.5**: Support both Config-based and experiment-based factory modes from the start
 
 ### FR2: No API Key Required
 
 - **FR2.1**: Ollama does not require API key (local service)
-- **FR2.2**: Clear error if Ollama server is not running
+- **FR2.2**: Clear error if Ollama server is not running (with helpful instructions)
 - **FR2.3**: Support custom `ollama_api_base` for remote Ollama servers
+- **FR2.4**: Support `OLLAMA_API_BASE` environment variable (like `OPENAI_API_BASE`)
 
 ### FR3: Model Availability Validation
 
@@ -176,17 +222,20 @@ For optimal Ollama performance:
 
 ### TR1: Architecture
 
-- **TR1.1**: Follow OpenAI SDK pattern (same as DeepSeek, Groq)
-- **TR1.2**: Create `podcast_scraper/ollama/` package
-- **TR1.3**: Create `speaker_detectors/ollama_detector.py`
-- **TR1.4**: Create `summarization/ollama_provider.py`
-- **TR1.5**: Update factories
+- **TR1.1**: Follow **unified provider pattern** (like OpenAI) - single class implementing both protocols
+- **TR1.2**: Create `providers/ollama/ollama_provider.py` with unified `OllamaProvider` class
+- **TR1.3**: `OllamaProvider` implements `SpeakerDetector` and `SummarizationProvider` protocols
+- **TR1.4**: Update factories to include Ollama option with support for both Config-based and experiment-based modes
+- **TR1.5**: Create `prompts/ollama/` directory with provider-specific prompt templates
+- **TR1.6**: Use OpenAI SDK with custom base_url (no new SDK dependency)
+- **TR1.7**: Follow OpenAI provider architecture exactly for consistency
 
 ### TR2: Dependencies
 
-- **TR2.1**: Reuse existing `openai` package
-- **TR2.2**: No new SDK dependency
+- **TR2.1**: Reuse existing `openai` package (already installed for OpenAI provider)
+- **TR2.2**: Add `httpx` package for Ollama health checks (connection validation)
 - **TR2.3**: External dependency: Ollama must be installed and running
+- **TR2.4**: ImportError with helpful message if `openai` or `httpx` packages not installed
 
 ### TR3: Connection Handling
 
@@ -196,12 +245,15 @@ For optimal Ollama performance:
 
 ## Success Criteria
 
-- ✅ Users can select Ollama for speaker detection and summarization
-- ✅ Clear error when Ollama not running
-- ✅ Clear error when model not installed
+- ✅ Users can select Ollama provider for speaker detection and summarization via unified provider
+- ✅ Clear error when Ollama server is not running (with helpful instructions)
+- ✅ Clear error when model is not installed (with `ollama pull` command)
 - ✅ Works completely offline
 - ✅ Zero API costs
+- ✅ Environment-based model defaults (test vs production)
+- ✅ Both Config-based and experiment-based factory modes supported
 - ✅ E2E tests pass (with mock or real Ollama)
+- ✅ Follows OpenAI provider pattern exactly for consistency
 
 ## Provider Capability Matrix (Final)
 
