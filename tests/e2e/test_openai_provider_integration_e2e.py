@@ -449,15 +449,53 @@ def _save_openai_responses(  # noqa: C901
 
     # 1. Transcription result
     # Try to find transcript file - OpenAI transcription creates .txt files
-    transcript_files = list(temp_dir.rglob("*.txt"))
-    # Filter out cleaned transcripts and metadata files
-    transcript_files = [
-        f for f in transcript_files if "cleaned" not in f.name and "metadata" not in f.name
-    ]
+    # First, try to find the transcript file that matches this episode's metadata
+    transcript_file = None
 
-    if transcript_files:
-        # Use the first transcript file found
-        transcript_file = transcript_files[0]
+    # Get episode information from metadata to match the correct transcript file
+    episode_data = metadata_content.get("episode", {})
+    episode_idx = episode_data.get("idx")
+    episode_title = episode_data.get("title", "")
+
+    # Try to find transcript file matching this episode
+    if episode_idx is not None:
+        # Transcript files are named like "0001 - Episode Title.txt"
+        # Search for files matching the episode index
+        all_transcript_files = list(temp_dir.rglob("*.txt"))
+        # Filter out cleaned transcripts and metadata files
+        candidate_files = [
+            f for f in all_transcript_files if "cleaned" not in f.name and "metadata" not in f.name
+        ]
+
+        # Try to match by episode index (format: "0001 - Title.txt")
+        idx_str = f"{episode_idx:04d}"
+        for candidate in candidate_files:
+            if candidate.name.startswith(idx_str):
+                transcript_file = candidate
+                break
+
+        # If not found by index, try to match by title (safe version)
+        if transcript_file is None and episode_title:
+            # Create a safe version of the title (similar to how filesystem does it)
+            import re
+
+            title_safe = re.sub(r"[^\w\s-]", "", episode_title).strip()
+            title_safe = re.sub(r"[-\s]+", "_", title_safe)
+            for candidate in candidate_files:
+                if title_safe.lower() in candidate.name.lower():
+                    transcript_file = candidate
+                    break
+
+    # Fallback: if we couldn't match by episode, use first available transcript
+    if transcript_file is None:
+        all_transcript_files = list(temp_dir.rglob("*.txt"))
+        candidate_files = [
+            f for f in all_transcript_files if "cleaned" not in f.name and "metadata" not in f.name
+        ]
+        if candidate_files:
+            transcript_file = candidate_files[0]
+
+    if transcript_file and transcript_file.exists():
         transcript_text = transcript_file.read_text(encoding="utf-8")
         response_lines.append("\n📝 TRANSCRIPTION RESULT:")
         response_lines.append("-" * 80)
