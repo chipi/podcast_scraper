@@ -91,6 +91,14 @@ class E2EServerURLs:
         """
         return f"{self.base_url}/v1"
 
+    def gemini_api_base(self) -> str:
+        """Get Gemini API base URL (points to E2E server).
+
+        Returns:
+            Gemini API base URL (e.g., "http://127.0.0.1:8000/v1beta")
+        """
+        return f"{self.base_url}/v1beta"
+
 
 class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     """HTTP request handler for E2E server.
@@ -378,8 +386,18 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_audio_transcriptions()
             return
 
+        # Route: Gemini API endpoints
+        # /v1beta/models/{model}:generateContent -> Mock Gemini generateContent
+        if path.startswith("/v1beta/models/") and path.endswith(":generateContent"):
+            self._handle_gemini_generate_content()
+            return
+
         # 404 for all other paths
-        self.send_error(404, "OpenAI endpoint not found")
+        # Check if it's an OpenAI or Gemini endpoint
+        if path.startswith("/v1/") or path.startswith("/v1beta/"):
+            self.send_error(404, "API endpoint not found")
+        else:
+            self.send_error(404, "File not found")
 
     def _handle_chat_completions(self):
         """Handle OpenAI chat completions API requests."""
@@ -532,6 +550,136 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         except Exception as e:
             self.send_error(500, f"Error handling audio transcriptions: {e}")
+
+    def _handle_gemini_generate_content(self):
+        """Handle Gemini generateContent API requests.
+
+        Gemini API uses POST /v1beta/models/{model}:generateContent
+        This handler supports:
+        - Audio transcription (multimodal input with audio)
+        - Text generation (summarization, speaker detection)
+        """
+        try:
+            # Read request body
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length == 0:
+                self.send_error(400, "Request body required")
+                return
+
+            body = self.rfile.read(content_length)
+            request_data = json.loads(body.decode("utf-8"))
+
+            # Extract contents from request
+            contents = request_data.get("contents", [])
+
+            # Check if request contains audio (multimodal) or just text
+            has_audio = False
+            text_prompt = ""
+            for content in contents:
+                if isinstance(content, list):
+                    for part in content:
+                        if isinstance(part, dict) and "mime_type" in part:
+                            mime_type = part.get("mime_type", "")
+                            if mime_type.startswith("audio/"):
+                                has_audio = True
+                        elif isinstance(part, str):
+                            text_prompt = part
+                elif isinstance(content, str):
+                    text_prompt = content
+
+            # Determine response type
+            if has_audio:
+                # Audio transcription response
+                transcript = (
+                    "This is a test transcription from Gemini. "
+                    "The audio contains spoken content that has been transcribed."
+                )
+                response_data = {
+                    "candidates": [
+                        {
+                            "content": {
+                                "parts": [{"text": transcript}],
+                                "role": "model",
+                            },
+                            "finishReason": "STOP",
+                        }
+                    ],
+                    "usageMetadata": {
+                        "promptTokenCount": 100,
+                        "candidatesTokenCount": 50,
+                        "totalTokenCount": 150,
+                    },
+                }
+            else:
+                # Text generation (summarization or speaker detection)
+                # Check if it's JSON response (speaker detection) or text (summarization)
+                generation_config = request_data.get("generationConfig", {})
+                response_mime_type = generation_config.get("response_mime_type", "")
+
+                if response_mime_type == "application/json":
+                    # Speaker detection response
+                    response_data = {
+                        "candidates": [
+                            {
+                                "content": {
+                                    "parts": [
+                                        {
+                                            "text": json.dumps(
+                                                {
+                                                    "speakers": ["Host", "Guest"],
+                                                    "hosts": ["Host"],
+                                                    "guests": ["Guest"],
+                                                }
+                                            )
+                                        }
+                                    ],
+                                    "role": "model",
+                                },
+                                "finishReason": "STOP",
+                            }
+                        ],
+                        "usageMetadata": {
+                            "promptTokenCount": 100,
+                            "candidatesTokenCount": 50,
+                            "totalTokenCount": 150,
+                        },
+                    }
+                else:
+                    # Summarization response
+                    # Generate a simple summary based on text length
+                    summary_length = min(200, len(text_prompt) // 10)
+                    summary = (
+                        f"This is a test summary from Gemini. {text_prompt[:summary_length]}..."
+                    )
+                    response_data = {
+                        "candidates": [
+                            {
+                                "content": {
+                                    "parts": [{"text": summary}],
+                                    "role": "model",
+                                },
+                                "finishReason": "STOP",
+                            }
+                        ],
+                        "usageMetadata": {
+                            "promptTokenCount": 100,
+                            "candidatesTokenCount": 50,
+                            "totalTokenCount": 150,
+                        },
+                    }
+
+            # Send response
+            response_json = json.dumps(response_data)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response_json)))
+            self.end_headers()
+            self.wfile.write(response_json.encode("utf-8"))
+
+        except json.JSONDecodeError:
+            self.send_error(400, "Invalid JSON in request body")
+        except Exception as e:
+            self.send_error(500, f"Error handling Gemini generateContent: {e}")
 
     def _validate_and_sanitize_filename(
         self, subdir: str, filename: str

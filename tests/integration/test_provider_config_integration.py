@@ -256,6 +256,59 @@ class TestProviderFactories(unittest.TestCase):
         self.assertTrue(hasattr(provider, "initialize"))
         self.assertTrue(hasattr(provider, "cleanup"))
 
+    def test_gemini_providers_factory_creation(self):
+        """Test that Gemini providers can be created via factories."""
+        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
+        from podcast_scraper.summarization.factory import create_summarization_provider
+        from podcast_scraper.transcription.factory import create_transcription_provider
+
+        # Test Gemini transcription provider
+        cfg_transcription = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="gemini",
+            gemini_api_key="test-api-key-123",
+        )
+        provider = create_transcription_provider(cfg_transcription)
+        self.assertIsNotNone(provider)
+        # Verify it's the unified Gemini provider
+        self.assertEqual(provider.__class__.__name__, "GeminiProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(provider, "transcribe"))
+        self.assertTrue(hasattr(provider, "transcribe_with_segments"))
+
+        # Test Gemini speaker detector
+        cfg_speaker = config.Config(
+            rss_url="https://example.com/feed.xml",
+            speaker_detector_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            auto_speakers=True,
+        )
+        detector = create_speaker_detector(cfg_speaker)
+        self.assertIsNotNone(detector)
+        # Verify it's the unified Gemini provider
+        self.assertEqual(detector.__class__.__name__, "GeminiProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(detector, "detect_speakers"))
+        self.assertTrue(hasattr(detector, "detect_hosts"))
+        self.assertTrue(hasattr(detector, "clear_cache"))
+
+        # Test Gemini summarization provider
+        cfg_summary = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            generate_metadata=True,  # Required when generate_summaries=True
+            generate_summaries=True,
+        )
+        provider = create_summarization_provider(cfg_summary)
+        self.assertIsNotNone(provider)
+        # Verify it's the unified Gemini provider
+        self.assertEqual(provider.__class__.__name__, "GeminiProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(provider, "summarize"))
+        self.assertTrue(hasattr(provider, "initialize"))
+        self.assertTrue(hasattr(provider, "cleanup"))
+
 
 @pytest.mark.integration
 @pytest.mark.critical_path

@@ -35,7 +35,7 @@ def create_speaker_detector(
 
     Args:
         cfg_or_provider_type: Either a Config object or provider type string
-            ("spacy" or "openai")
+            ("spacy", "openai", or "gemini")
         params: Optional parameters dict or SpeakerDetectionParams object (experiment mode only)
 
     Returns:
@@ -77,10 +77,10 @@ def create_speaker_detector(
         # Experiment-based mode
         provider_type_str = str(cfg_or_provider_type)
         # Type narrowing: validate it's one of the allowed values
-        if provider_type_str not in ("spacy", "openai"):
+        if provider_type_str not in ("spacy", "openai", "gemini"):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
         experiment_mode = True
-        provider_type = cast(Literal["spacy", "openai"], provider_type_str)
+        provider_type = cast(Literal["spacy", "openai", "gemini"], provider_type_str)
 
     # Convert params to SpeakerDetectionParams if needed
     if experiment_mode:
@@ -142,8 +142,27 @@ def create_speaker_detector(
             return OpenAIProvider(cfg)
         else:
             return OpenAIProvider(cfg)
+    elif provider_type == "gemini":
+        from ..providers.gemini.gemini_provider import GeminiProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SpeakerDetectionParams
+            assert isinstance(params, SpeakerDetectionParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for speaker detection (use alias)
+                speaker_detector_provider="gemini",
+                gemini_speaker_model=params.model_name if params.model_name else "gemini-2.0-flash",
+                gemini_temperature=params.temperature if params.temperature is not None else 0.3,
+                gemini_api_key=os.getenv("GEMINI_API_KEY"),  # Load from env
+            )
+            return GeminiProvider(cfg)
+        else:
+            return GeminiProvider(cfg)
     else:
         raise ValueError(
             f"Unsupported speaker detector type: {provider_type}. "
-            "Supported types: 'spacy', 'openai'"
+            "Supported types: 'spacy', 'openai', 'gemini'"
         )

@@ -144,6 +144,39 @@ def _get_default_openai_summary_model() -> str:
     return PROD_DEFAULT_OPENAI_SUMMARY_MODEL
 
 
+def _get_default_gemini_transcription_model() -> str:
+    """Get default Gemini transcription model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_GEMINI_TRANSCRIPTION_MODEL
+    return config_constants.PROD_DEFAULT_GEMINI_TRANSCRIPTION_MODEL
+
+
+def _get_default_gemini_speaker_model() -> str:
+    """Get default Gemini speaker detection model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_GEMINI_SPEAKER_MODEL
+    return config_constants.PROD_DEFAULT_GEMINI_SPEAKER_MODEL
+
+
+def _get_default_gemini_summary_model() -> str:
+    """Get default Gemini summarization model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_GEMINI_SUMMARY_MODEL
+    return config_constants.PROD_DEFAULT_GEMINI_SUMMARY_MODEL
+
+
 def _get_default_ner_model() -> str:
     """Get default spaCy NER model based on environment.
 
@@ -405,12 +438,12 @@ class Config(BaseModel):
         ),
     )
     # Provider selection fields (Stage 0: Foundation)
-    speaker_detector_provider: Literal["spacy", "openai"] = Field(
+    speaker_detector_provider: Literal["spacy", "openai", "gemini"] = Field(
         default="spacy",
         alias="speaker_detector_provider",
         description="Speaker detection provider type (default: 'spacy' for spaCy NER).",
     )
-    transcription_provider: Literal["whisper", "openai"] = Field(
+    transcription_provider: Literal["whisper", "openai", "gemini"] = Field(
         default="whisper",
         alias="transcription_provider",
         description="Transcription provider type (default: 'whisper' for local Whisper)",
@@ -514,6 +547,72 @@ class Config(BaseModel):
         alias="ner_prompt_params",
         description="Template parameters for NER prompts (passed to Jinja2 templates).",
     )
+    # Gemini API configuration (Issue #194)
+    gemini_api_key: Optional[str] = Field(
+        default=None,
+        alias="gemini_api_key",
+        description="Google AI API key (prefer GEMINI_API_KEY env var or .env file)",
+    )
+    gemini_api_base: Optional[str] = Field(
+        default=None,
+        alias="gemini_api_base",
+        description="Gemini API base URL (for E2E testing with mock servers). "
+        "Can be set via GEMINI_API_BASE environment variable.",
+    )
+    gemini_transcription_model: str = Field(
+        default_factory=_get_default_gemini_transcription_model,
+        alias="gemini_transcription_model",
+        description="Gemini model for transcription (default: environment-based)",
+    )
+    gemini_speaker_model: str = Field(
+        default_factory=_get_default_gemini_speaker_model,
+        alias="gemini_speaker_model",
+        description="Gemini model for speaker detection (default: environment-based)",
+    )
+    gemini_summary_model: str = Field(
+        default_factory=_get_default_gemini_summary_model,
+        alias="gemini_summary_model",
+        description="Gemini model for summarization (default: environment-based)",
+    )
+    gemini_temperature: float = Field(
+        default=0.3,
+        alias="gemini_temperature",
+        description="Temperature for Gemini generation (0.0-2.0, lower = more deterministic)",
+    )
+    gemini_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="gemini_max_tokens",
+        description="Max tokens for Gemini generation (None = model default)",
+    )
+    # Gemini Prompt Configuration (following OpenAI pattern)
+    gemini_summary_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="gemini_summary_system_prompt",
+        description=(
+            "Gemini system prompt for summarization (default: gemini/summarization/system_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    gemini_summary_user_prompt: str = Field(
+        default="gemini/summarization/long_v1",
+        alias="gemini_summary_user_prompt",
+        description="Gemini user prompt for summarization. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    gemini_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="gemini_speaker_system_prompt",
+        description=(
+            "Gemini system prompt for speaker detection (default: gemini/ner/system_ner_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    gemini_speaker_user_prompt: str = Field(
+        default="gemini/ner/guest_host_v1",
+        alias="gemini_speaker_user_prompt",
+        description="Gemini user prompt for speaker detection. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
     generate_metadata: bool = Field(default=False, alias="generate_metadata")
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
@@ -526,7 +625,7 @@ class Config(BaseModel):
         "(same level as transcripts/ and metadata/ subdirectories). "
         "Set to empty string to disable metrics export.",
     )
-    summary_provider: Literal["transformers", "openai"] = Field(
+    summary_provider: Literal["transformers", "openai", "gemini"] = Field(
         default="transformers",
         alias="summary_provider",
         description=(
@@ -992,6 +1091,22 @@ class Config(BaseModel):
                 if env_value:
                     data["openai_api_base"] = env_value
 
+        # GEMINI_API_KEY: Only set from env if not in config
+        if "gemini_api_key" not in data or data.get("gemini_api_key") is None:
+            env_key = os.getenv("GEMINI_API_KEY")
+            if env_key:
+                env_value = str(env_key).strip()
+                if env_value:
+                    data["gemini_api_key"] = env_value
+
+        # GEMINI_API_BASE: Only set from env if not in config
+        if "gemini_api_base" not in data or data.get("gemini_api_base") is None:
+            env_base = os.getenv("GEMINI_API_BASE")
+            if env_base:
+                env_value = str(env_base).strip()
+                if env_value:
+                    data["gemini_api_base"] = env_value
+
         # OPENAI_TEMPERATURE: Only set from env if not in config
         if "openai_temperature" not in data or data.get("openai_temperature") is None:
             env_temp = os.getenv("OPENAI_TEMPERATURE")
@@ -1255,37 +1370,39 @@ class Config(BaseModel):
 
     @field_validator("speaker_detector_provider", mode="before")
     @classmethod
-    def _validate_speaker_detector_provider(cls, value: Any) -> Literal["spacy", "ner", "openai"]:
+    def _validate_speaker_detector_provider(
+        cls, value: Any
+    ) -> Literal["spacy", "ner", "openai", "gemini"]:
         """Validate speaker detector provider type."""
         if value is None or value == "":
             return "spacy"
         value_str = str(value).strip().lower()
 
-        if value_str not in ("spacy", "openai"):
-            raise ValueError("speaker_detector_provider must be 'spacy' or 'openai'")
+        if value_str not in ("spacy", "openai", "gemini"):
+            raise ValueError("speaker_detector_provider must be 'spacy', 'openai', or 'gemini'")
         return value_str  # type: ignore[return-value]
 
     @field_validator("transcription_provider", mode="before")
     @classmethod
-    def _validate_transcription_provider(cls, value: Any) -> Literal["whisper", "openai"]:
+    def _validate_transcription_provider(cls, value: Any) -> Literal["whisper", "openai", "gemini"]:
         """Validate transcription provider."""
         if value is None or value == "":
             return "whisper"
         value_str = str(value).strip().lower()
-        if value_str not in ("whisper", "openai"):
-            raise ValueError("transcription_provider must be 'whisper' or 'openai'")
+        if value_str not in ("whisper", "openai", "gemini"):
+            raise ValueError("transcription_provider must be 'whisper', 'openai', or 'gemini'")
         return value_str  # type: ignore[return-value]
 
     @field_validator("summary_provider", mode="before")
     @classmethod
-    def _validate_summary_provider(cls, value: Any) -> Literal["transformers", "openai"]:
+    def _validate_summary_provider(cls, value: Any) -> Literal["transformers", "openai", "gemini"]:
         """Validate summary provider."""
         if value is None or value == "":
             return "transformers"
         value_str = str(value).strip().lower()
 
-        if value_str not in ("transformers", "openai"):
-            raise ValueError("summary_provider must be 'transformers' or 'openai'")
+        if value_str not in ("transformers", "openai", "gemini"):
+            raise ValueError("summary_provider must be 'transformers', 'openai', or 'gemini'")
         return value_str  # type: ignore[return-value]
 
     @field_validator("openai_temperature", mode="before")
@@ -1300,6 +1417,44 @@ class Config(BaseModel):
             raise ValueError("openai_temperature must be a number") from exc
         if temp < 0.0 or temp > 2.0:
             raise ValueError("openai_temperature must be between 0.0 and 2.0")
+        return temp
+
+    @field_validator("gemini_api_key", mode="before")
+    @classmethod
+    def _load_gemini_api_key_from_env(cls, value: Any) -> Optional[str]:
+        """Load Gemini API key from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_key = os.getenv("GEMINI_API_KEY")
+        if env_key:
+            return env_key.strip() or None
+        return None
+
+    @field_validator("gemini_api_base", mode="before")
+    @classmethod
+    def _load_gemini_api_base_from_env(cls, value: Any) -> Optional[str]:
+        """Load Gemini API base URL from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_base = os.getenv("GEMINI_API_BASE")
+        if env_base:
+            return env_base.strip() or None
+        return None
+
+    @field_validator("gemini_temperature", mode="before")
+    @classmethod
+    def _validate_gemini_temperature(cls, value: Any) -> float:
+        """Validate Gemini temperature is in valid range (0.0-2.0)."""
+        if value is None or value == "":
+            return 0.3
+        try:
+            temp = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("gemini_temperature must be a number") from exc
+        if temp < 0.0 or temp > 2.0:
+            raise ValueError("gemini_temperature must be between 0.0 and 2.0")
         return temp
 
     @model_validator(mode="after")
@@ -1318,6 +1473,26 @@ class Config(BaseModel):
             raise ValueError(
                 f"OpenAI API key required for OpenAI providers: {providers_str}. "
                 "Set OPENAI_API_KEY environment variable or openai_api_key in config."
+            )
+
+        return self
+
+    @model_validator(mode="after")
+    def _validate_gemini_provider_requirements(self) -> "Config":
+        """Validate that Gemini API key is provided when Gemini providers are selected."""
+        gemini_providers_used = []
+        if self.transcription_provider == "gemini":
+            gemini_providers_used.append("transcription")
+        if self.speaker_detector_provider == "gemini":
+            gemini_providers_used.append("speaker_detection")
+        if self.summary_provider == "gemini":
+            gemini_providers_used.append("summarization")
+
+        if gemini_providers_used and not self.gemini_api_key:
+            providers_str = ", ".join(gemini_providers_used)
+            raise ValueError(
+                f"Gemini API key required for Gemini providers: {providers_str}. "
+                "Set GEMINI_API_KEY environment variable or gemini_api_key in config."
             )
 
         return self

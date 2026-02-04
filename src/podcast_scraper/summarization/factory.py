@@ -35,7 +35,7 @@ def create_summarization_provider(
 
     Args:
         cfg_or_provider_type: Either a Config object or provider type string
-            ("transformers" or "openai")
+            ("transformers", "openai", or "gemini")
         params: Optional parameters dict or SummarizationParams object (experiment mode only)
 
     Returns:
@@ -79,10 +79,10 @@ def create_summarization_provider(
         # Experiment-based mode
         provider_type_str = str(cfg_or_provider_type)
         # Type narrowing: validate it's one of the allowed values
-        if provider_type_str not in ("transformers", "openai"):
+        if provider_type_str not in ("transformers", "openai", "gemini"):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
 
-        provider_type_value = cast(Literal["transformers", "openai"], provider_type_str)
+        provider_type_value = cast(Literal["transformers", "openai", "gemini"], provider_type_str)
         experiment_mode = True
         provider_type = provider_type_value
 
@@ -173,8 +173,30 @@ def create_summarization_provider(
             return OpenAIProvider(cfg)
         else:
             return OpenAIProvider(cfg)
+    elif provider_type == "gemini":
+        from ..providers.gemini.gemini_provider import GeminiProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SummarizationParams
+            assert isinstance(params, SummarizationParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for summarization (use alias)
+                summary_provider="gemini",
+                generate_summaries=True,  # Required for Gemini provider initialization
+                generate_metadata=True,  # Required when generate_summaries=True
+                gemini_summary_model=params.model_name if params.model_name else "gemini-2.0-flash",
+                gemini_temperature=params.temperature if params.temperature is not None else 0.3,
+                gemini_api_key=os.getenv("GEMINI_API_KEY"),  # Load from env
+                gemini_max_tokens=params.max_length if params.max_length else None,
+            )
+            return GeminiProvider(cfg)
+        else:
+            return GeminiProvider(cfg)
     else:
         raise ValueError(
             f"Unsupported summarization provider: {provider_type}. "
-            "Supported providers: 'transformers', 'openai'."
+            "Supported providers: 'transformers', 'openai', 'gemini'."
         )

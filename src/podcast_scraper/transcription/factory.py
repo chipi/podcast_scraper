@@ -35,7 +35,7 @@ def create_transcription_provider(
 
     Args:
         cfg_or_provider_type: Either a Config object or provider type string
-            ("whisper" or "openai")
+            ("whisper", "openai", or "gemini")
         params: Optional parameters dict or TranscriptionParams object (experiment mode only)
 
     Returns:
@@ -79,10 +79,10 @@ def create_transcription_provider(
         # Experiment-based mode
         provider_type_str = str(cfg_or_provider_type)
         # Type narrowing: validate it's one of the allowed values
-        if provider_type_str not in ("whisper", "openai"):
+        if provider_type_str not in ("whisper", "openai", "gemini"):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
 
-        provider_type_value = cast(Literal["whisper", "openai"], provider_type_str)
+        provider_type_value = cast(Literal["whisper", "openai", "gemini"], provider_type_str)
         experiment_mode = True
         provider_type = provider_type_value
 
@@ -147,8 +147,28 @@ def create_transcription_provider(
             return OpenAIProvider(cfg)
         else:
             return OpenAIProvider(cfg)
+    elif provider_type == "gemini":
+        from ..providers.gemini.gemini_provider import GeminiProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be TranscriptionParams
+            assert isinstance(params, TranscriptionParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for transcription (use alias)
+                transcription_provider="gemini",
+                gemini_transcription_model=(
+                    params.model_name if params.model_name else "gemini-2.0-flash"
+                ),
+                gemini_api_key=os.getenv("GEMINI_API_KEY"),  # Load from env
+            )
+            return GeminiProvider(cfg)
+        else:
+            return GeminiProvider(cfg)
     else:
         raise ValueError(
             f"Unsupported transcription provider: {provider_type}. "
-            "Supported providers: 'whisper', 'openai'"
+            "Supported providers: 'whisper', 'openai', 'gemini'"
         )

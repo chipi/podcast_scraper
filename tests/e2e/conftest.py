@@ -38,6 +38,16 @@ USE_REAL_OPENAI_API = os.getenv("USE_REAL_OPENAI_API", "0") == "1"
 if not USE_REAL_OPENAI_API and "OPENAI_API_KEY" not in os.environ:
     os.environ["OPENAI_API_KEY"] = "sk-test-dummy-key-for-e2e-tests"
 
+# Check if we should use real Gemini API (for manual testing only)
+USE_REAL_GEMINI_API = os.getenv("USE_REAL_GEMINI_API", "0") == "1"
+
+# Set dummy Gemini API key for all E2E tests (will use mocked provider)
+# This is needed because config validation requires the key to be present
+# even though we mock the Gemini SDK
+# SKIP if using real API (will use key from .env file)
+if not USE_REAL_GEMINI_API and "GEMINI_API_KEY" not in os.environ:
+    os.environ["GEMINI_API_KEY"] = "test-dummy-key-for-e2e-tests"
+
 # Set HF_HUB_CACHE to local cache if it exists (ensures consistent cache resolution)
 # This must be set BEFORE any transformers imports happen
 from pathlib import Path
@@ -236,6 +246,56 @@ def configure_openai_mock_server(request, monkeypatch):
     # This will be picked up by the Config model's field validator
     openai_api_base = e2e_server.urls.openai_api_base()
     monkeypatch.setenv("OPENAI_API_BASE", openai_api_base)
+
+
+@pytest.fixture(autouse=True)
+def configure_gemini_mock_server(request, monkeypatch):
+    """Configure Gemini providers to use E2E server mock endpoints.
+
+    This fixture automatically configures all Gemini providers to use the E2E server's
+    mock Gemini API endpoints instead of the real Gemini API. This allows E2E tests to
+    use real HTTP requests to mock endpoints, testing the full HTTP client → Network →
+    Mock Server → Response chain.
+
+    The E2E server provides mock endpoints:
+    - /v1beta/models/{model}:generateContent: For transcription, summarization,
+      and speaker detection
+
+    Note:
+        This fixture is autouse=True, so it's automatically applied to all
+        E2E tests. No need to explicitly use it in test functions.
+
+    Important:
+        The Gemini SDK (google-generativeai) may not support custom base URLs directly.
+        If the SDK doesn't support custom base URLs, tests will need to mock the SDK
+        calls instead of using HTTP endpoints. This fixture sets GEMINI_API_BASE for
+        documentation purposes, but actual mocking may need to be done at the SDK level.
+
+    Real API Mode:
+        When USE_REAL_GEMINI_API=1, this fixture is skipped to allow real API calls.
+        This is for manual testing only and should NOT be used in CI.
+    """
+    # Check if we should use real Gemini API (for manual testing only)
+    USE_REAL_GEMINI_API = os.getenv("USE_REAL_GEMINI_API", "0") == "1"
+
+    # Skip E2E server configuration if using real Gemini API
+    if USE_REAL_GEMINI_API:
+        monkeypatch.delenv("GEMINI_API_BASE", raising=False)
+        return
+
+    # Get e2e_server fixture (may be skipped if USE_REAL_GEMINI_API=1)
+    try:
+        e2e_server = request.getfixturevalue("e2e_server")
+    except pytest.FixtureLookupError:
+        # E2E server not available (shouldn't happen in normal E2E mode)
+        return
+
+    # Set GEMINI_API_BASE environment variable to point to E2E server
+    # This will be picked up by the Config model's field validator
+    # Note: The Gemini SDK may not support custom base URLs, so this may need
+    # to be handled via SDK mocking in tests
+    gemini_api_base = e2e_server.urls.gemini_api_base()
+    monkeypatch.setenv("GEMINI_API_BASE", gemini_api_base)
 
 
 # Fixture to ensure OpenAI API key is set for all E2E tests

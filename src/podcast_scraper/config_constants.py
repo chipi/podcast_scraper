@@ -114,6 +114,18 @@ PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
 PROD_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cost-effective for production
 PROD_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o"  # Higher quality for production
 
+# Gemini model defaults (Issue #194)
+# Test defaults: free tier models for dev/testing (gemini-2.0-flash)
+# Production defaults: best quality models (gemini-1.5-pro with 2M context)
+#
+# For current pricing, see: https://ai.google.dev/pricing
+TEST_DEFAULT_GEMINI_TRANSCRIPTION_MODEL = "gemini-2.0-flash"  # Free tier, fast
+TEST_DEFAULT_GEMINI_SPEAKER_MODEL = "gemini-2.0-flash"  # Free tier, fast
+TEST_DEFAULT_GEMINI_SUMMARY_MODEL = "gemini-2.0-flash"  # Free tier, fast
+PROD_DEFAULT_GEMINI_TRANSCRIPTION_MODEL = "gemini-1.5-pro"  # Best quality, 2M context
+PROD_DEFAULT_GEMINI_SPEAKER_MODEL = "gemini-1.5-pro"  # Best quality
+PROD_DEFAULT_GEMINI_SUMMARY_MODEL = "gemini-1.5-pro"  # Best quality, 2M context
+
 # Validation constants
 VALID_WHISPER_MODELS = (
     "tiny",

@@ -371,6 +371,138 @@ class TestE2EServerOpenAIEndpoints:
 
 
 @pytest.mark.integration
+@pytest.mark.critical_path
+class TestE2EServerGeminiEndpoints:
+    """Test that E2E server Gemini mock endpoints work correctly."""
+
+    def test_gemini_api_base_url_helper(self, e2e_server):
+        """Test that Gemini API base URL helper works."""
+        gemini_api_base = e2e_server.urls.gemini_api_base()
+        assert gemini_api_base.startswith("http://127.0.0.1:")
+        assert gemini_api_base.endswith("/v1beta")
+        assert "/v1beta" in gemini_api_base
+
+    def test_gemini_generate_content_endpoint_transcription(self, e2e_server):
+        """Test that Gemini generateContent endpoint works for audio transcription."""
+        import requests
+
+        gemini_api_base = e2e_server.urls.gemini_api_base()
+        url = f"{gemini_api_base}/models/gemini-2.0-flash:generateContent"
+
+        # Create an audio transcription request (multimodal with audio)
+        request_data = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "mime_type": "audio/mpeg",
+                            "data": "FAKE_AUDIO_DATA_BASE64",
+                        },
+                        "Transcribe this audio file to text.",
+                    ]
+                }
+            ],
+        }
+
+        response = requests.post(url, json=request_data, timeout=2)
+        assert (
+            response.status_code == 200
+        ), f"Expected 200, got {response.status_code}: {response.text}"
+        assert "application/json" in response.headers.get("Content-Type", "")
+
+        data = response.json()
+        assert "candidates" in data
+        assert len(data["candidates"]) > 0
+        assert "content" in data["candidates"][0]
+        assert "parts" in data["candidates"][0]["content"]
+        assert "text" in data["candidates"][0]["content"]["parts"][0]
+        assert "test transcription" in data["candidates"][0]["content"]["parts"][0]["text"].lower()
+
+    def test_gemini_generate_content_endpoint_speaker_detection(self, e2e_server):
+        """Test that Gemini generateContent endpoint works for speaker detection."""
+        import json
+
+        import requests
+
+        gemini_api_base = e2e_server.urls.gemini_api_base()
+        url = f"{gemini_api_base}/models/gemini-2.0-flash:generateContent"
+
+        # Create a speaker detection request (with response_mime_type="application/json")
+        request_data = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": "Episode: Alice interviews Bob about their work.",
+                        }
+                    ],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.3,
+                "max_output_tokens": 300,
+                "response_mime_type": "application/json",
+            },
+        }
+
+        response = requests.post(url, json=request_data, timeout=2)
+        assert (
+            response.status_code == 200
+        ), f"Expected 200, got {response.status_code}: {response.text}"
+        assert "application/json" in response.headers.get("Content-Type", "")
+
+        data = response.json()
+        assert "candidates" in data
+        assert len(data["candidates"]) > 0
+        assert "content" in data["candidates"][0]
+        assert "parts" in data["candidates"][0]["content"]
+        assert "text" in data["candidates"][0]["content"]["parts"][0]
+
+        # Parse JSON response
+        response_text = data["candidates"][0]["content"]["parts"][0]["text"]
+        response_json = json.loads(response_text)
+        assert "speakers" in response_json or "hosts" in response_json
+
+    def test_gemini_generate_content_endpoint_summarization(self, e2e_server):
+        """Test that Gemini generateContent endpoint works for summarization."""
+        import requests
+
+        gemini_api_base = e2e_server.urls.gemini_api_base()
+        url = f"{gemini_api_base}/models/gemini-1.5-pro:generateContent"
+
+        # Create a summarization request (text only, no JSON response)
+        request_data = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": "This is a long transcript that needs to be summarized. " * 10,
+                        }
+                    ],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.3,
+                "max_output_tokens": 800,
+            },
+        }
+
+        response = requests.post(url, json=request_data, timeout=2)
+        assert (
+            response.status_code == 200
+        ), f"Expected 200, got {response.status_code}: {response.text}"
+        assert "application/json" in response.headers.get("Content-Type", "")
+
+        data = response.json()
+        assert "candidates" in data
+        assert len(data["candidates"]) > 0
+        assert "content" in data["candidates"][0]
+        assert "parts" in data["candidates"][0]["content"]
+        assert "text" in data["candidates"][0]["content"]["parts"][0]
+        assert "test summary" in data["candidates"][0]["content"]["parts"][0]["text"].lower()
+
+
+@pytest.mark.integration
 class TestE2EServerMultiEpisodeFeed:
     """Test that E2E server multi-episode feed works correctly with mocks."""
 
