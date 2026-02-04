@@ -26,6 +26,8 @@ from typing import Optional
 
 import pytest
 
+pytestmark = [pytest.mark.integration, pytest.mark.module_downloader]
+
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if PACKAGE_ROOT not in sys.path:

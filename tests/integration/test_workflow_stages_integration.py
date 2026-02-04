@@ -53,6 +53,8 @@ create_test_config = parent_conftest.create_test_config
 create_test_feed = parent_conftest.create_test_feed
 create_test_episode = parent_conftest.create_test_episode
 
+pytestmark = [pytest.mark.integration, pytest.mark.module_workflow]
+
 
 @pytest.mark.integration
 class TestSetupStage(unittest.TestCase):

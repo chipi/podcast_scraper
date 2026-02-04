@@ -25,6 +25,8 @@ from typing import Any, Optional
 
 import pytest
 
+pytestmark = [pytest.mark.e2e, pytest.mark.module_openai_providers]
+
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if PACKAGE_ROOT not in sys.path:

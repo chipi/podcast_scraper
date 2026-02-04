@@ -24,10 +24,14 @@ parent_tests_dir = Path(__file__).parent.parent.parent
 if str(parent_tests_dir) not in sys.path:
     sys.path.insert(0, str(parent_tests_dir))
 
+import pytest
+
 parent_conftest_path = parent_tests_dir / "conftest.py"
 spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
 if spec is None or spec.loader is None:
     raise ImportError(f"Could not load conftest from {parent_conftest_path}")
+
+pytestmark = [pytest.mark.unit, pytest.mark.module_summarization]
 parent_conftest = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(parent_conftest)
 
@@ -548,12 +552,13 @@ class TestChunking(unittest.TestCase):
         # directly to model.pipeline. The warning log confirms the pipeline
         # was called, so we verify the result instead
 
+    @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("transformers.AutoTokenizer", create=True)
     @patch("transformers.AutoModelForSeq2SeqLM", create=True)
     @patch("transformers.pipeline", create=True)
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_summarize_long_text_with_led_model(
-        self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class
+        self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class, mock_load_model
     ):
         """Test summarization with LED model (long context)."""
         mock_torch.backends.mps.is_available.return_value = False
@@ -579,6 +584,9 @@ class TestChunking(unittest.TestCase):
         mock_pipe = Mock(return_value=[{"summary_text": "Direct summary without chunking."}])
         mock_pipeline.return_value = mock_pipe
 
+        # Patch _load_model to prevent network calls and framework inference issues
+        mock_load_model.return_value = None
+
         from podcast_scraper import config
 
         model = summarizer.SummaryModel(
@@ -586,6 +594,7 @@ class TestChunking(unittest.TestCase):
             device="cpu",
             cache_dir=self.temp_dir,
         )
+        # Manually set attributes that _load_model would set
         model.model = mock_model
         model.pipeline = mock_pipe
         model.tokenizer = mock_tokenizer

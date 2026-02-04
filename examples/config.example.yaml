@@ -22,6 +22,9 @@ delay_ms: 250
 language: en
 auto_speakers: true
 cache_detected_hosts: true
+# known_hosts:  # Optional: show-level host names override (used when RSS metadata doesn't provide clean host names)
+#   - Darian Woods  # Example: Use when RSS author is "NPR" (organization) instead of actual host names
+#   - Erika Beras
 screenplay: true
 speaker_names:  # Optional: manual speaker names fallback (used only if auto-detection fails)
   - Host

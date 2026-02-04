@@ -27,6 +27,10 @@ except ImportError:
     SUMMARIZER_AVAILABLE = False
     summarizer = types.ModuleType("summarizer")  # type: ignore[assignment]
 
+import pytest
+
+pytestmark = [pytest.mark.unit, pytest.mark.module_summarization]
+
 
 # TestModelLoadingFailures and TestMemoryCleanup moved to
 # tests/integration/test_summarizer_security_integration.py

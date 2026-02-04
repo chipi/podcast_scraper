@@ -40,7 +40,49 @@ make test-integration          # Integration tests (parallel, reruns)
 make test-e2e                  # E2E tests (serial first, then parallel)
 make test                      # All tests
 make test-fast                 # Unit + critical path only
-```python
+```
+
+### Fast Validation for Changed Files
+
+When fixing a few files to stabilize a failing PR, use `make validate-files` to run only impacted tests. This is much faster than running the entire test suite.
+
+**Usage:**
+
+```bash
+# Validate specific files (runs all test types by default)
+make validate-files FILES="src/podcast_scraper/config.py src/podcast_scraper/workflow/orchestration.py"
+
+# Unit tests only (fastest, < 1 minute typically)
+make validate-files-unit FILES="src/podcast_scraper/config.py"
+
+# Include integration/E2E tests
+make validate-files FILES="..." TEST_TYPE=all
+
+# Fast mode (critical_path tests only)
+make validate-files-fast FILES="src/podcast_scraper/config.py"
+```
+
+**What it does:**
+
+1. **Linting/formatting** on changed files (black, isort, flake8, mypy)
+2. **Discovery** of impacted tests via module markers
+3. **Execution** of only those tests (unit/integration/e2e based on TEST_TYPE)
+
+**Performance:**
+
+- **Unit tests only**: < 1 minute for typical changes
+- **With integration**: < 2 minutes
+- **Full suite (all types)**: < 5 minutes (still faster than `make ci-fast` which takes 6-10 minutes)
+
+**How it works:**
+
+Tests are tagged with module markers (e.g., `module_config`, `module_workflow`) that map to source modules. When you specify changed files, the system:
+
+- Maps files to modules (e.g., `config.py` → `module_config`)
+- Finds tests tagged with those module markers
+- Runs only those tests
+
+**Note:** This is a **development tool** for fast iteration. For full validation before PR, still use `make ci-fast` or `make ci`.
 
 ### ML Dependencies in Tests
 

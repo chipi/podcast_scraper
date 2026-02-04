@@ -25,6 +25,8 @@ import podcast_scraper
 import podcast_scraper.cli as cli
 from podcast_scraper import config
 
+pytestmark = [pytest.mark.e2e, pytest.mark.module_workflow, pytest.mark.module_cli]
+
 # Import cache helpers from integration tests
 integration_dir = Path(__file__).parent.parent / "integration"
 if str(integration_dir) not in sys.path:

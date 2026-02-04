@@ -255,19 +255,35 @@ def detect_feed_hosts_and_patterns(
         )
         logger.info("=" * 60)
 
+    # Fallback to known_hosts from config if no hosts detected (show-level override)
+    # This is useful when RSS metadata doesn't provide clean host names
+    # (e.g., "NPR" instead of actual hosts)
+    if not cached_hosts and cfg.known_hosts:
+        cached_hosts = set(cfg.known_hosts)
+        logger.info("=" * 60)
+        logger.info(
+            "DETECTED HOSTS (from config known_hosts fallback): %s",
+            ", ".join(sorted(cached_hosts)),
+        )
+        logger.info("=" * 60)
+
     if cached_hosts:
         # Determine source for logging
         if feed.authors:
             source = "RSS author tags"
         elif episode_authors and cached_hosts == episode_authors:
             source = "episode-level authors"
+        elif cfg.known_hosts and cached_hosts == set(cfg.known_hosts):
+            source = "config known_hosts (fallback)"
         else:
             source = "feed metadata (NER)"
         logger.info("=" * 60)
         logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
         logger.info("=" * 60)
     elif cfg.auto_speakers:
-        logger.debug("No hosts detected from feed metadata or episode-level authors")
+        logger.debug(
+            "No hosts detected from feed metadata, episode-level authors, or config known_hosts"
+        )
 
     # Analyze patterns from first few episodes to extract heuristics
     if cfg.auto_speakers and episodes:
@@ -639,6 +655,17 @@ def process_episodes(  # noqa: C901
                         update_metric_safely(pipeline_metrics, "transcripts_downloaded", 1)
                     logger.debug("Episode %s yielded transcript (saved=%s)", episode.idx, saved)
 
+                    # Update episode status: downloaded (Issue #391)
+                    if pipeline_metrics is not None:
+                        from ..helpers import get_episode_id_from_episode
+
+                        episode_id, episode_number = get_episode_id_from_episode(
+                            episode, cfg.rss_url or ""
+                        )
+                        pipeline_metrics.update_episode_status(
+                            episode_id=episode_id, stage="downloaded"
+                        )
+
                     # Queue processing job if metadata generation enabled and transcript available
                     # Skip if transcript_source is None (Whisper pending) - queued after
                     if cfg.generate_metadata and transcript_source is not None:
@@ -959,10 +986,16 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     break
 
                 # Wait a bit before checking again
+                # Track queue wait time (Issue #387)
+                queue_wait_start = time.time()
                 if not (transcription_complete_event and transcription_complete_event.is_set()):
                     time.sleep(0.1)
+                    queue_wait_duration = time.time() - queue_wait_start
                 else:
                     time.sleep(0.05)
+                    queue_wait_duration = time.time() - queue_wait_start
+                if pipeline_metrics is not None:
+                    pipeline_metrics.record_queue_wait_time(queue_wait_duration)
 
         return (jobs_processed_ok[0], jobs_processed_failed[0])
 
@@ -1042,6 +1075,19 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     )
                     return False
 
+            # Extract spaCy model from summary_provider if available (Issue #387)
+            nlp = None
+            if summary_provider is not None:
+                try:
+                    # Check if provider has spaCy model (MLProvider pattern)
+                    if (
+                        hasattr(summary_provider, "_spacy_nlp")
+                        and summary_provider._spacy_nlp is not None
+                    ):
+                        nlp = summary_provider._spacy_nlp
+                except Exception:
+                    pass  # Ignore errors when accessing provider attributes
+
             metadata_stage.call_generate_metadata(
                 episode=job.episode,
                 feed=feed,
@@ -1056,6 +1102,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 detected_names=job.detected_names,
                 summary_provider=summary_provider,
                 pipeline_metrics=pipeline_metrics,
+                nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
             )
             return True
         except Exception as exc:  # pragma: no cover

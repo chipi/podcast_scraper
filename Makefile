@@ -16,7 +16,7 @@ PACKAGE = podcast_scraper
 # Uses memory-aware calculation script (defaults to integration test estimates)
 PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default 2>/dev/null || echo 2)
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity deadcode docstrings spelling spelling-docs quality check-unit-imports deps-analyze deps-check analyze-test-memory test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark
+.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity deadcode docstrings spelling spelling-docs quality check-unit-imports deps-analyze deps-check analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark
 
 help:
 	@echo "Common developer commands:"
@@ -41,6 +41,9 @@ help:
 	@echo ""
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
+	@echo ""
+	@echo "Cleanup commands:"
+	@echo "  make cleanup-processes  Clean up leftover Python/test processes from previous runs"
 	@echo ""
 	@echo "Test commands:"
 	@echo "  make test-unit            Run unit tests with coverage in parallel (default, matches CI)"
@@ -254,19 +257,31 @@ check-unit-imports:
 	# Run this when: adding new modules, refactoring imports, or debugging CI failures
 	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_unit_test_imports.py
 
-test-unit:
+cleanup-processes:
+	# Clean up leftover Python/test processes from previous runs
+	# This prevents resource conflicts and memory issues from accumulated processes
+	# Automatically called by pytest fixture, but can be run manually if needed
+	@echo "🧹 Cleaning up leftover test processes..."
+	@pkill -f pytest 2>/dev/null || true
+	@pkill -f "python.*podcast_scraper.*test" 2>/dev/null || true
+	@pkill -f "gw[0-9]" 2>/dev/null || true
+	@echo "✅ Process cleanup complete"
+
+test-unit: cleanup-processes
 	# Unit tests: parallel execution for faster feedback
 	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
+	# Note: cleanup-processes runs automatically via pytest fixture, but also called here for safety
 	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
 
-test-integration:
+test-integration: cleanup-processes
 	# Integration tests: parallel execution (3.4x faster, significant benefit)
 	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)
 	# Integration tests load ML models which consume ~1-2 GB per worker
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	# Coverage: measured independently (not appended) to match CI per-job measurement
+	# Note: cleanup-processes runs automatically via pytest fixture, but also called here for safety
 	$(PYTHON) -m pytest tests/integration/ -m integration -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration-fast:
@@ -293,10 +308,11 @@ test-ci-fast:
 	# Includes reruns for flaky tests (matches CI behavior) - increased to 3 retries for very flaky tests
 	$(PYTHON) -m pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2
 
-test-e2e:
+test-e2e: cleanup-processes
 	# E2E tests: parallel execution for speed
 	# Uses E2E-specific worker calculation (more conservative to prevent system freezes)
 	# Excludes analysis/diagnostic tests - these are slow diagnostic tools, not regular tests
+	# Note: cleanup-processes runs automatically via pytest fixture, but also called here for safety
 	# Includes reruns for flaky tests (matches CI behavior) - 3 retries for ML model variability
 	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
 	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
@@ -351,16 +367,23 @@ test-nightly:
 	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n 2 --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json
 
 test:
-	# All tests: parallel execution for speed
+	# All tests: run separately with --cov-append to match CI behavior and get accurate coverage
+	# CI runs tests in separate jobs (unit, integration, e2e) and combines coverage
+	# This matches that approach for consistent coverage numbers
 	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
 	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)
 	# Excludes nightly tests (run separately via make test-nightly)
 	# Excludes analytical tests (diagnostic tools, run separately via make test-analytical)
-	# Note: Coverage with pytest-xdist creates separate files that need combining
-	# Coverage is automatically combined by pytest-cov, but coverage-enforce ensures proper combination
-	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/ -m "not nightly and not analytical" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
-	@# Combine any remaining parallel coverage files (pytest-cov should handle this, but ensure it's done)
+	@echo "Running unit tests with coverage..."
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/unit/ -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@echo "Running integration tests with coverage (appending)..."
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/integration/ -m integration -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 -q
+	@echo "Running E2E tests with coverage (appending)..."
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not nightly" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 -q
+	@# Combine any remaining parallel coverage files
 	@$(PYTHON) -m coverage combine 2>/dev/null || true
+	@echo "Final coverage:"
+	@$(PYTHON) -m coverage report 2>&1 | grep "^TOTAL"
 
 test-sequential:
 	# All tests: sequential execution (slower but clearer output, useful for debugging)
@@ -1404,3 +1427,93 @@ benchmark:
 		$(if $(REFERENCE),--reference $(REFERENCE)) \
 		$(if $(OUTPUT_DIR),--output-dir $(OUTPUT_DIR)) \
 		$(if $(LOG_LEVEL),--log-level $(LOG_LEVEL))
+
+validate-files:
+	@# Validate changed files: lint/format + run only impacted tests
+	@# Usage: make validate-files FILES="src/podcast_scraper/config.py src/podcast_scraper/workflow/orchestration.py"
+	@# Optional: TEST_TYPE=unit|integration|e2e|all (default: all), FAST_ONLY=1 (only critical_path tests)
+	@if [ -z "$(FILES)" ]; then \
+		echo "❌ Error: FILES required"; \
+		echo "Usage: make validate-files FILES='file1.py file2.py' [TEST_TYPE=unit] [FAST_ONLY=1]"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make validate-files FILES='src/podcast_scraper/config.py'"; \
+		echo "  make validate-files FILES='src/podcast_scraper/config.py' TEST_TYPE=unit"; \
+		echo "  make validate-files FILES='src/podcast_scraper/config.py' FAST_ONLY=1"; \
+		exit 1; \
+	fi
+	@echo "🔍 Step 1: Linting and formatting changed files..."
+	@for file in $(FILES); do \
+		if [ ! -f "$$file" ]; then \
+			echo "⚠️  Warning: File not found: $$file"; \
+			continue; \
+		fi; \
+		echo "  Formatting: $$file"; \
+		$(PYTHON) -m black $$file; \
+		$(PYTHON) -m isort $$file; \
+		echo "  Linting: $$file"; \
+		$(PYTHON) -m flake8 --config .flake8 $$file || true; \
+		$(PYTHON) -m mypy $$file || true; \
+	done
+	@echo ""
+	@echo "🔍 Step 2: Discovering impacted tests..."
+	@TEST_TYPE=$${TEST_TYPE:-all}; \
+	FAST_ONLY=$${FAST_ONLY:-0}; \
+	TEST_MARKERS=$$($(PYTHON) scripts/tools/find_impacted_tests.py \
+		--files $(FILES) \
+		--test-type $$TEST_TYPE \
+		$(if $(filter 1,$(FAST_ONLY)),--fast-only,) \
+		--output-format list 2>&1 | grep -v "^  " | grep -v "^⚠️" | grep -v "^❌" || true); \
+	MARKER_EXPR=$$($(PYTHON) scripts/tools/find_impacted_tests.py \
+		--files $(FILES) \
+		--test-type $$TEST_TYPE \
+		$(if $(filter 1,$(FAST_ONLY)),--fast-only,) \
+		--output-format expression 2>/dev/null || echo ""); \
+	if [ -z "$$MARKER_EXPR" ]; then \
+		echo "⚠️  No tests found for changed files"; \
+		exit 0; \
+	fi; \
+	if [ -n "$$TEST_MARKERS" ]; then \
+		echo "  Discovered markers: $$TEST_MARKERS"; \
+	fi; \
+	echo "  Marker expression: $$MARKER_EXPR"; \
+	echo ""
+	@echo "🧪 Step 3: Running impacted tests..."
+	@TEST_TYPE=$${TEST_TYPE:-all}; \
+	FAST_ONLY=$${FAST_ONLY:-0}; \
+	MARKER_EXPR=$$($(PYTHON) scripts/tools/find_impacted_tests.py \
+		--files $(FILES) \
+		--test-type $$TEST_TYPE \
+		$(if $(filter 1,$(FAST_ONLY)),--fast-only,) \
+		--output-format expression 2>/dev/null || echo ""); \
+	if [ -z "$$MARKER_EXPR" ]; then \
+		echo "⚠️  No tests found for changed files"; \
+		exit 0; \
+	fi; \
+	$(PYTHON) -m pytest -m "$$MARKER_EXPR" \
+		-n $(PYTEST_WORKERS) \
+		--disable-socket --allow-hosts=127.0.0.1,localhost \
+		-v \
+		--tb=short
+	@echo ""
+	@echo "✅ Validation complete!"
+
+validate-files-fast:
+	@# Fast mode: only critical_path tests
+	@# Usage: make validate-files-fast FILES="src/podcast_scraper/config.py"
+	@if [ -z "$(FILES)" ]; then \
+		echo "❌ Error: FILES required"; \
+		echo "Usage: make validate-files-fast FILES='file1.py file2.py'"; \
+		exit 1; \
+	fi
+	@$(MAKE) validate-files FILES="$(FILES)" TEST_TYPE=all FAST_ONLY=1
+
+validate-files-unit:
+	@# Unit tests only (fastest)
+	@# Usage: make validate-files-unit FILES="src/podcast_scraper/config.py"
+	@if [ -z "$(FILES)" ]; then \
+		echo "❌ Error: FILES required"; \
+		echo "Usage: make validate-files-unit FILES='file1.py file2.py'"; \
+		exit 1; \
+	fi
+	@$(MAKE) validate-files FILES="$(FILES)" TEST_TYPE=unit

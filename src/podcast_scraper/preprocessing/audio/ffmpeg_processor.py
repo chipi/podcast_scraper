@@ -1,11 +1,13 @@
 """FFmpeg-based audio preprocessor implementation."""
 
 import hashlib
+import json
 import logging
+import os
 import shutil
 import subprocess
 import time
-from typing import Tuple
+from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,88 @@ def _check_ffmpeg_available() -> bool:
         True if ffmpeg is available, False otherwise
     """
     return shutil.which("ffmpeg") is not None
+
+
+def _check_ffprobe_available() -> bool:
+    """Check if ffprobe is available on the system.
+
+    Returns:
+        True if ffprobe is available, False otherwise
+    """
+    return shutil.which("ffprobe") is not None
+
+
+def extract_audio_metadata(audio_path: str) -> Optional[Dict[str, Any]]:
+    """Extract audio metadata using ffprobe (Issue #387).
+
+    Args:
+        audio_path: Path to audio file
+
+    Returns:
+        Dictionary with audio metadata (bitrate, sample_rate, codec, channels)
+        or None if extraction fails
+    """
+    if not _check_ffprobe_available():
+        logger.debug("FFprobe not available, skipping audio metadata extraction")
+        return None
+
+    if not audio_path or not os.path.exists(audio_path):
+        logger.debug("Audio file does not exist, skipping metadata extraction: %s", audio_path)
+        return None
+
+    try:
+        # Use ffprobe to extract audio stream metadata
+        cmd = [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=bit_rate,sample_rate,codec_name,channels",
+            "-of",
+            "json",
+            audio_path,
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=True)
+
+        data = json.loads(result.stdout)
+        streams = data.get("streams", [])
+
+        # Find audio stream (first stream with audio codec)
+        for stream in streams:
+            codec = stream.get("codec_name")
+            if codec and codec.startswith(("pcm", "mp3", "aac", "opus", "flac", "wav")):
+                metadata: Dict[str, Any] = {}
+                if "bit_rate" in stream and stream["bit_rate"]:
+                    try:
+                        metadata["bitrate"] = int(stream["bit_rate"])
+                    except (ValueError, TypeError):
+                        pass
+                if "sample_rate" in stream and stream["sample_rate"]:
+                    try:
+                        metadata["sample_rate"] = int(float(stream["sample_rate"]))
+                    except (ValueError, TypeError):
+                        pass
+                if "codec_name" in stream and stream["codec_name"]:
+                    metadata["codec"] = stream["codec_name"]
+                if "channels" in stream and stream["channels"]:
+                    try:
+                        metadata["channels"] = int(stream["channels"])
+                    except (ValueError, TypeError):
+                        pass
+
+                return metadata if metadata else None
+
+        return None
+
+    except (
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        json.JSONDecodeError,
+        FileNotFoundError,
+    ) as exc:
+        logger.debug("Failed to extract audio metadata: %s", exc)
+        return None
 
 
 class FFmpegAudioPreprocessor:

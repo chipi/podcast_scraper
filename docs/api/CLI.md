@@ -93,7 +93,7 @@ python -m podcast_scraper.cli --config config.yaml
 
 ### Control Options
 
-- `--dry-run` - Preview without writing files
+- `--dry-run` - Preview without writing files (includes cost projection for OpenAI providers) (includes cost projection for OpenAI providers)
 - `--skip-existing` - Skip episodes with existing output
 - `--clean-output` - Remove output directory before processing
 - `--fail-fast` - Stop on first episode failure (Issue #379)
@@ -102,6 +102,48 @@ python -m podcast_scraper.cli --config config.yaml
 ### Logging Options
 
 - `--json-logs` - Output structured JSON logs for monitoring/alerting (Issue #379)
+
+## Cost Projection in Dry-Run Mode
+
+When using `--dry-run` with OpenAI providers configured, the pipeline displays a cost projection before execution. This helps you estimate API costs before running expensive operations.
+
+The cost projection includes:
+
+- **Transcription costs** - Based on estimated audio duration (from RSS feed metadata or 30-minute fallback)
+- **Speaker detection costs** - Based on estimated token usage (transcript length + prompt overhead)
+- **Summarization costs** - Based on estimated token usage (transcript length + prompt overhead)
+
+**Example output:**
+
+```text
+Dry run complete. transcripts_planned=5
+  - Direct downloads planned: 3
+  - Whisper transcriptions planned: 2
+  - Output directory: /path/to/output
+
+Cost Projection (Dry Run):
+==============================
+Transcription (whisper-1):
+  - Episodes: 5
+  - Estimated audio: 150.0 minutes
+  - Estimated cost: $0.9000
+
+Speaker Detection (gpt-4o-mini):
+  - Episodes: 5
+  - Estimated tokens: ~29,750 input + ~250 output
+  - Estimated cost: $0.0045
+
+Summarization (gpt-4o):
+  - Episodes: 5
+  - Estimated tokens: ~29,950 input + ~750 output
+  - Estimated cost: $0.1625
+
+Total Estimated Cost: $1.0670
+
+Note: Estimates are approximate and based on average episode duration. Actual costs may vary based on actual audio length and transcript complexity.
+```
+
+**Note:** Cost projection only appears when OpenAI providers are configured. Estimates use episode durations from RSS feed metadata when available, or a conservative 30-minute average per episode as a fallback.
 
 ## Configuration Files
 

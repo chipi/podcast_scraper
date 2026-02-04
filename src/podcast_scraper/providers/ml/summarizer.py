@@ -114,13 +114,13 @@ def _load_pegasus_without_fake_warning(
     tokenizer_kwargs = {
         "local_files_only": local_files_only,
         "trust_remote_code": False,  # Security: don't execute remote code
-        "use_safetensors": False,  # Pegasus models don't have safetensors files
+        "use_safetensors": False,  # Pegasus doesn't have safetensors files
     }
     model_kwargs = {
         "local_files_only": local_files_only,
         "output_loading_info": True,  # Get loading info to validate
         "trust_remote_code": False,  # Security: don't execute remote code
-        "use_safetensors": False,  # Pegasus models don't have safetensors files
+        "use_safetensors": False,  # Pegasus doesn't have safetensors files
     }
     if cache_dir:
         tokenizer_kwargs["cache_dir"] = cache_dir  # type: ignore[assignment]
@@ -782,14 +782,9 @@ class SummaryModel:
                 # (less secure but more convenient).
                 # ALWAYS use local_files_only=True - we never allow libraries to download.
                 # All downloads must go through our centralized preload script logic.
-                # Helper function for model-load retry (Issue #379)
+                # Helper function for model-load retry with fallback (Issue #379)
                 def _load_with_retry(load_func, model_type: str = "model"):
-                    """Load model/tokenizer with retry for transient network errors.
-
-                    Note: This code path always uses local_files_only=True, so we can never
-                    re-download. Cache deletion is not performed here - if cache is corrupted,
-                    users should manually run 'make preload-ml-models' or use CLI --delete-model.
-                    """
+                    """Load model/tokenizer with retry and fallback to cache clearing on failure."""
                     from requests.exceptions import (
                         ConnectionError,
                         HTTPError,
@@ -808,8 +803,7 @@ class SummaryModel:
                         OSError,  # Network/IO errors
                     )
 
-                    # Retry for transient errors (though with local_files_only=True,
-                    # network errors shouldn't occur - this is defensive)
+                    # First, try with retry for transient errors
                     try:
                         return retry_with_exponential_backoff(
                             load_func,
@@ -819,14 +813,45 @@ class SummaryModel:
                             retryable_exceptions=retryable_exceptions,
                         )
                     except Exception as e:
-                        # This code path always uses local_files_only=True, so we can't re-download
-                        # Just raise with helpful error message
-                        logger.error(
-                            f"{model_type.capitalize()} loading failed for {self.model_name}: {e}. "
-                            f"Using local_files_only=True, cannot re-download. "
-                            f"If cache is corrupted, run 'make preload-ml-models' to re-download."
+                        # Retry failed - try clearing cache and retrying once
+                        logger.warning(
+                            f"{model_type.capitalize()} loading failed for "
+                            f"{self.model_name}: {e}. Clearing cache and retrying once..."
                         )
-                        raise
+                        try:
+                            from ...cache.manager import delete_transformers_model_cache
+
+                            deleted, freed_bytes = delete_transformers_model_cache(
+                                self.model_name, confirm=False, force=True
+                            )
+                            if deleted:
+                                logger.info(
+                                    f"Cleared cache for {self.model_name} "
+                                    f"({freed_bytes / (1024 * 1024):.1f} MB freed)"
+                                )
+                            else:
+                                logger.debug(
+                                    f"Cache for {self.model_name} was already empty or not found"
+                                )
+                        except Exception as cache_error:
+                            logger.warning(
+                                f"Failed to clear cache for {self.model_name}: {cache_error}"
+                            )
+
+                        # Retry once after cache clear
+                        # (will still fail if cache was cleared, but we tried)
+                        logger.info(
+                            f"Retrying {model_type} load for {self.model_name} after cache clear..."
+                        )
+                        try:
+                            return load_func()
+                        except Exception as retry_error:
+                            logger.error(
+                                f"{model_type.capitalize()} load failed again after cache clear: "
+                                f"{retry_error}. Please run 'make preload-ml-models' to "
+                                f"re-download the model."
+                            )
+                            raise
 
                 logger.debug("Loading tokenizer from cache...")
                 tokenizer_kwargs = {
@@ -859,16 +884,20 @@ class SummaryModel:
                 # ALWAYS use local_files_only=True - we never allow libraries to download.
                 # All downloads must go through our centralized preload script logic.
                 logger.debug("Loading model from cache...")
+                model_lower = self.model_name.lower()
+                # Pegasus models don't have safetensors files, so disable safetensors
+                use_safetensors = "pegasus" not in model_lower
                 model_kwargs = {
                     "cache_dir": self.cache_dir,
                     # Always use cache only - downloads via preload script
                     "local_files_only": True,
                     "trust_remote_code": False,  # Security: don't execute remote code (Issue #379)
-                    "use_safetensors": True,  # Prefer safetensors format (Issue #379)
+                    # Disable safetensors for Pegasus (no safetensors files)
+                    "use_safetensors": use_safetensors,
                 }
                 if self.revision:
                     model_kwargs["revision"] = self.revision
-                    if "pegasus" in self.model_name.lower():
+                    if "pegasus" in model_lower:
                         logger.info(
                             f"[PEGASUS LOAD] Using pinned revision for model: {self.revision}"
                         )
@@ -877,7 +906,7 @@ class SummaryModel:
                 else:
                     # This should not happen for Pegasus (we force revision="main" above)
                     # but log a warning if it does
-                    if "pegasus" in self.model_name.lower():
+                    if "pegasus" in model_lower:
                         logger.warning(
                             "[PEGASUS LOAD] No revision specified - this should not happen. "
                             "Forcing revision='main' to avoid PR refs."
@@ -888,7 +917,6 @@ class SummaryModel:
                 # Use model-specific classes for better compatibility
                 # This prevents "weights not initialized" warnings that can occur
                 # when using AutoModel with certain model architectures
-                model_lower = self.model_name.lower()
                 if "pegasus" in model_lower:
                     # Use specialized Pegasus loader that:
                     # - Silences misleading "newly initialized" warnings
@@ -1959,6 +1987,10 @@ def summarize_long_text(
     truncation: Optional[bool] = None,
     preprocessing_profile: str = "cleaning_v4",  # Default to cleaning_v4
     # (matches production baseline)
+    # Optional 2nd-pass distill parameters (Issue #387)
+    enable_2nd_pass_distill: bool = False,
+    transcript_text: Optional[str] = None,
+    episode_description: Optional[str] = None,
 ) -> str | tuple[str, Dict[str, Any]]:
     """Summarize long text by chunking and combining summaries.
 
@@ -2244,6 +2276,10 @@ def summarize_long_text(
         reduce_encoder_no_repeat_ngram_size=reduce_encoder_no_repeat_ngram_size,
         reduce_max_input_tokens=reduce_max_input_tokens,
         truncation=truncation,
+        # Pass 2nd-pass distill parameters
+        enable_2nd_pass_distill=enable_2nd_pass_distill,
+        transcript_text=transcript_text,
+        episode_description=episode_description,
     )
     reduce_time = time.time() - reduce_start_time
 
@@ -2696,6 +2732,10 @@ def _combine_summaries_reduce(
     reduce_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
     map_model: Optional[SummaryModel] = None,  # MAP model for routing short inputs
+    # Optional 2nd-pass distill parameters (Issue #387)
+    enable_2nd_pass_distill: bool = False,
+    transcript_text: Optional[str] = None,
+    episode_description: Optional[str] = None,
 ) -> str:
     """Reduce step: Combine chunk summaries into final summary.
 
@@ -2912,6 +2952,10 @@ def _combine_summaries_reduce(
             reduce_early_stopping=reduce_early_stopping,
             reduce_max_input_tokens=reduce_max_input_tokens,
             truncation=truncation,
+            # Pass 2nd-pass distill parameters
+            enable_2nd_pass_distill=enable_2nd_pass_distill,
+            transcript_text=transcript_text,
+            episode_description=episode_description,
         )
     except RuntimeError as e:
         error_msg = str(e).lower()
@@ -3270,6 +3314,88 @@ def _prune_filler_sentences(text: str) -> str:
         return text
 
     return result
+
+
+def _distill_final_summary_2nd_pass(
+    model: "SummaryModel",
+    summary_text: str,
+    transcript_text: Optional[str] = None,
+    episode_description: Optional[str] = None,
+) -> str:
+    """Apply optional 2nd-pass distillation with faithfulness prompt (Issue #387).
+
+    This pass uses a prompt to guide the model to be faithful to the source
+    and reduce hallucinations. Only effective with OpenAI provider
+    (BART/LED models don't use prompts effectively).
+
+    Args:
+        model: The summary model (use reduce model for consistency)
+        summary_text: The reduce phase output (or 1st distill output)
+        transcript_text: Optional transcript text for faithfulness context
+        episode_description: Optional episode description for faithfulness context
+
+    Returns:
+        More faithful summary
+    """
+    if not summary_text or not summary_text.strip():
+        return summary_text
+
+    logger.debug(f"[DISTILL-2ND] Input length: {len(summary_text)} chars")
+
+    # Build faithfulness prompt
+    faithfulness_prompt = (
+        "Summarize the following text while being strictly faithful to the source. "
+        "Only include information that is explicitly stated. "
+        "Do not add, infer, or hallucinate any details not present in the source. "
+        "Focus on accuracy and faithfulness over creativity."
+    )
+
+    # For OpenAI provider, we can use the prompt effectively
+    # For BART/LED, prompts are less effective but we still try
+    from podcast_scraper import config as config_module
+
+    distill_max_tokens = config_module.DEFAULT_DISTILL_MAX_TOKENS
+    distill_min_tokens = config_module.DEFAULT_DISTILL_MIN_TOKENS
+    distill_num_beams = config_module.DEFAULT_DISTILL_NUM_BEAMS
+    distill_no_repeat_ngram_size = config_module.DEFAULT_DISTILL_NO_REPEAT_NGRAM_SIZE
+    distill_length_penalty = config_module.DEFAULT_DISTILL_LENGTH_PENALTY
+
+    distilled = model.summarize(
+        summary_text,
+        max_length=distill_max_tokens,
+        min_length=distill_min_tokens,
+        do_sample=False,
+        prompt=faithfulness_prompt,  # Use faithfulness prompt
+        is_reduce_phase=False,
+        is_distill_phase=True,
+        max_new_tokens=distill_max_tokens,
+        min_new_tokens=distill_min_tokens,
+        num_beams=distill_num_beams,
+        no_repeat_ngram_size=distill_no_repeat_ngram_size,
+        length_penalty=distill_length_penalty,
+        early_stopping=True,
+    )
+
+    # Post-process the distilled output
+    distilled = _postprocess_ml_summary(distilled)
+
+    # Remove near-duplicate sentences
+    distilled = _dedupe_sentences(distilled)
+
+    # Conservative post-distill pruning
+    distilled = _prune_filler_sentences(distilled)
+
+    logger.debug(f"[DISTILL-2ND] Output length: {len(distilled) if distilled else 0} chars")
+
+    # If distillation produced something too short or empty, return original
+    if not distilled or len(distilled) < 50:
+        logger.warning(
+            f"2nd-pass distillation produced too short output "
+            f"({len(distilled) if distilled else 0} chars), returning pre-distill summary."
+        )
+        return _postprocess_ml_summary(summary_text)
+
+    return distilled
 
 
 def _distill_final_summary(model: "SummaryModel", summary_text: str) -> str:
@@ -3723,6 +3849,10 @@ def _combine_summaries_abstractive(
     reduce_encoder_no_repeat_ngram_size: Optional[int] = None,
     reduce_max_input_tokens: Optional[int] = None,
     truncation: Optional[bool] = None,
+    # Optional 2nd-pass distill parameters (Issue #387)
+    enable_2nd_pass_distill: bool = False,
+    transcript_text: Optional[str] = None,
+    episode_description: Optional[str] = None,
 ) -> str:
     """Combine summaries using abstractive approach (final summarization pass).
 
@@ -3957,6 +4087,18 @@ def _combine_summaries_abstractive(
                     f"({DISTILL_THRESHOLD_CHARS} chars), applying distillation"
                 )
                 final_summary = _distill_final_summary(model, final_summary)
+
+                # Apply optional 2nd-pass distill with faithfulness prompt (Issue #387)
+                if enable_2nd_pass_distill:
+                    logger.debug(
+                        "[DISTILL-2ND] Applying 2nd-pass distillation with faithfulness prompt"
+                    )
+                    final_summary = _distill_final_summary_2nd_pass(
+                        model,
+                        final_summary,
+                        transcript_text,
+                        episode_description,
+                    )
             else:
                 logger.debug(
                     f"[DISTILL] Skipping distillation - reduce output ({len(final_summary)} chars) "
@@ -4094,24 +4236,22 @@ def unload_model(model: Optional[SummaryModel]) -> None:
     if model is None:
         return
 
-    # Delete model components to release memory
-    if model.model:
-        del model.model
-    if model.tokenizer:
-        del model.tokenizer
-    if model.pipeline:
-        del model.pipeline
-
-    model.model = None
-    model.tokenizer = None
-    model.pipeline = None
-
-    # Lazy import torch for cache clearing (only if available)
+    # Lazy import torch for model cleanup and cache clearing (only if available)
     # Unit tests run without ML dependencies, so torch may not be installed
     import gc  # noqa: F401
 
     try:
         import torch  # noqa: F401
+
+        # Move model to CPU before deletion to avoid teardown hazards (Issue #390)
+        # This prevents bus errors on macOS during interpreter shutdown
+        if model.model is not None:
+            # Move model to CPU before deletion
+            try:
+                model.model = model.model.to("cpu")  # type: ignore[assignment,attr-defined]
+            except Exception:
+                # Ignore errors (model might already be on CPU or in unexpected state)
+                pass
 
         # Clear device-specific cache (wrap in try-except to handle any torch errors)
         try:
@@ -4128,6 +4268,18 @@ def unload_model(model: Optional[SummaryModel]) -> None:
         # torch not available (e.g., in unit tests without ML dependencies)
         # This is fine - we'll just do basic garbage collection
         pass
+
+    # Delete model components to release memory
+    if model.model:
+        del model.model
+    if model.tokenizer:
+        del model.tokenizer
+    if model.pipeline:
+        del model.pipeline
+
+    model.model = None
+    model.tokenizer = None
+    model.pipeline = None
 
     # Force garbage collection to clean up any remaining references
     # This helps release memory and clean up threads that might be holding references

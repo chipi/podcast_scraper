@@ -28,6 +28,8 @@ import podcast_scraper
 import podcast_scraper.cli as cli
 from podcast_scraper import config, downloader
 
+pytestmark = [pytest.mark.integration, pytest.mark.module_workflow]
+
 # Check if ML dependencies are available
 SPACY_AVAILABLE = False
 try:
@@ -247,11 +249,24 @@ class TestIntegrationMain(unittest.TestCase):
                 exit_code = cli.main([rss_url, "--output-dir", malicious, "--no-auto-speakers"])
                 self.assertEqual(exit_code, 0)
 
-                # Construct the expected file path using the normalized directory
-                # The file should be in: normalized_dir/transcripts/0001 - Episode 1.txt
-                expected_transcript_path = (
-                    Path(normalized_dir) / "transcripts" / "0001 - Episode 1.txt"
+                # Files are now saved in run_<suffix>/transcripts/ with run suffix in filename
+                # Find the run directory and transcript file (similar to test_integration_main_downloads_transcript)
+                import glob
+
+                run_dirs = glob.glob(os.path.join(normalized_dir, "run_*"))
+                self.assertGreater(
+                    len(run_dirs), 0, f"Should have at least one run directory in {normalized_dir}"
                 )
+                run_dir = run_dirs[0]
+                transcripts_dir = os.path.join(run_dir, "transcripts")
+                # Find transcript file (may have run suffix in filename)
+                transcript_files = glob.glob(os.path.join(transcripts_dir, "0001 - Episode 1*.txt"))
+                self.assertGreater(
+                    len(transcript_files),
+                    0,
+                    f"Should find transcript file in {transcripts_dir}",
+                )
+                expected_transcript_path = Path(transcript_files[0])
 
                 # Verify the file exists at the normalized location (not the malicious location)
                 self.assertTrue(

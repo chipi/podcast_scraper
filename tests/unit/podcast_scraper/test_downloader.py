@@ -20,9 +20,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pytest
 import requests
 
 from podcast_scraper.rss import downloader
+
+pytestmark = [pytest.mark.unit, pytest.mark.module_downloader]
 
 parent_tests_dir = Path(__file__).parent.parent.parent
 if str(parent_tests_dir) not in sys.path:

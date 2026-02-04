@@ -5,8 +5,10 @@ These tests verify the Metrics class that tracks pipeline performance
 and execution statistics.
 """
 
+import json
 import os
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -16,7 +18,11 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+import pytest
+
 from podcast_scraper.workflow import metrics
+
+pytestmark = [pytest.mark.unit, pytest.mark.module_workflow]
 
 
 class TestMetricsInitialization(unittest.TestCase):
@@ -315,6 +321,26 @@ class TestFinish(unittest.TestCase):
             "avg_preprocessing_size_reduction_percent",
             "preprocessing_cache_hits",
             "preprocessing_cache_misses",
+            # New preprocessing metrics (Issue #387)
+            "avg_preprocessing_wall_ms",
+            "avg_preprocessing_cache_hit_ms",
+            "avg_preprocessing_cache_miss_ms",
+            "total_preprocessing_saved_bytes",
+            "avg_preprocessing_saved_bytes",
+            "preprocessing_audio_metadata",
+            # IO/waiting metrics (Issue #391)
+            "io_and_waiting_thread_sum_seconds",
+            "io_and_waiting_wall_seconds",
+            "time_io_and_waiting",  # Backward compatibility (deprecated)
+            # Sub-buckets for io_and_waiting (Issue #387)
+            "time_download_wait_seconds",
+            "time_transcription_wait_seconds",
+            "time_summarization_wait_seconds",
+            "time_thread_sync_seconds",
+            "time_queue_wait_seconds",
+            # Device usage per stage (Issue #387)
+            "transcription_device",
+            "summarization_device",
             "schema_version",
             "episode_statuses",
         }
@@ -424,6 +450,344 @@ class TestPreprocessingMetrics(unittest.TestCase):
         self.assertEqual(result["avg_preprocessing_size_reduction_percent"], 0.0)
         self.assertEqual(result["preprocessing_cache_hits"], 0)
         self.assertEqual(result["preprocessing_cache_misses"], 0)
+
+    def test_record_preprocessing_wall_time(self):
+        """Test recording preprocessing wall time (Issue #387)."""
+        m = metrics.Metrics()
+        m.record_preprocessing_wall_time(0.5)
+        self.assertEqual(m.preprocessing_wall_times, [0.5])
+        m.record_preprocessing_wall_time(1.0)
+        self.assertEqual(m.preprocessing_wall_times, [0.5, 1.0])
+
+    def test_record_preprocessing_cache_hit_time(self):
+        """Test recording preprocessing cache hit time (Issue #387)."""
+        m = metrics.Metrics()
+        m.record_preprocessing_cache_hit_time(0.01)
+        self.assertEqual(m.preprocessing_cache_hit_times, [0.01])
+        m.record_preprocessing_cache_hit_time(0.02)
+        self.assertEqual(m.preprocessing_cache_hit_times, [0.01, 0.02])
+
+    def test_record_preprocessing_cache_miss_time(self):
+        """Test recording preprocessing cache miss time (Issue #387)."""
+        m = metrics.Metrics()
+        m.record_preprocessing_cache_miss_time(2.5)
+        self.assertEqual(m.preprocessing_cache_miss_times, [2.5])
+        m.record_preprocessing_cache_miss_time(3.0)
+        self.assertEqual(m.preprocessing_cache_miss_times, [2.5, 3.0])
+
+    def test_record_preprocessing_cache_hit_flag(self):
+        """Test recording preprocessing cache hit flag (Issue #387)."""
+        m = metrics.Metrics()
+        m.record_preprocessing_cache_hit_flag(True)
+        self.assertEqual(m.preprocessing_cache_hit_flags, [True])
+        m.record_preprocessing_cache_hit_flag(False)
+        self.assertEqual(m.preprocessing_cache_hit_flags, [True, False])
+
+    def test_record_preprocessing_audio_metadata(self):
+        """Test recording preprocessing audio metadata (Issue #387)."""
+        m = metrics.Metrics()
+        m.record_preprocessing_audio_metadata(
+            bitrate=128000, sample_rate=44100, codec="mp3", channels=2
+        )
+        self.assertEqual(len(m.preprocessing_audio_metadata), 1)
+        self.assertEqual(m.preprocessing_audio_metadata[0]["bitrate"], 128000)
+        self.assertEqual(m.preprocessing_audio_metadata[0]["sample_rate"], 44100)
+        self.assertEqual(m.preprocessing_audio_metadata[0]["codec"], "mp3")
+        self.assertEqual(m.preprocessing_audio_metadata[0]["channels"], 2)
+
+        # Test partial metadata
+        m.record_preprocessing_audio_metadata(bitrate=64000, sample_rate=16000)
+        self.assertEqual(len(m.preprocessing_audio_metadata), 2)
+        self.assertEqual(m.preprocessing_audio_metadata[1]["bitrate"], 64000)
+        self.assertEqual(m.preprocessing_audio_metadata[1]["sample_rate"], 16000)
+        self.assertNotIn("codec", m.preprocessing_audio_metadata[1])
+        self.assertNotIn("channels", m.preprocessing_audio_metadata[1])
+
+    def test_record_preprocessing_size_reduction_calculates_saved_bytes(self):
+        """Test that record_preprocessing_size_reduction calculates saved bytes (Issue #387)."""
+        m = metrics.Metrics()
+        m.record_preprocessing_size_reduction(1000000, 500000)  # 1MB -> 0.5MB
+        self.assertEqual(m.preprocessing_original_sizes, [1000000])
+        self.assertEqual(m.preprocessing_preprocessed_sizes, [500000])
+        self.assertEqual(m.preprocessing_saved_bytes, [500000])  # 1MB - 0.5MB = 0.5MB saved
+
+    def test_finish_includes_new_preprocessing_metrics(self):
+        """Test that finish includes new preprocessing metrics (Issue #387)."""
+        m = metrics.Metrics()
+        m.record_preprocessing_wall_time(0.5)
+        m.record_preprocessing_wall_time(1.0)
+        m.record_preprocessing_cache_hit_time(0.01)
+        m.record_preprocessing_cache_hit_time(0.02)
+        m.record_preprocessing_cache_miss_time(2.5)
+        m.record_preprocessing_size_reduction(1000000, 500000)
+        m.record_preprocessing_size_reduction(2000000, 1000000)
+        m.record_preprocessing_audio_metadata(bitrate=128000, codec="mp3")
+
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        # Check new preprocessing metrics are included
+        self.assertEqual(result["avg_preprocessing_wall_ms"], 750.0)  # (0.5 + 1.0) / 2 * 1000
+        self.assertEqual(result["avg_preprocessing_cache_hit_ms"], 15.0)  # (0.01 + 0.02) / 2 * 1000
+        self.assertEqual(result["avg_preprocessing_cache_miss_ms"], 2500.0)  # 2.5 * 1000
+        self.assertEqual(result["total_preprocessing_saved_bytes"], 1500000)  # 500000 + 1000000
+        self.assertEqual(
+            result["avg_preprocessing_saved_bytes"], 750000.0
+        )  # (500000 + 1000000) / 2
+        self.assertEqual(len(result["preprocessing_audio_metadata"]), 1)
+
+
+class TestIOAndWaitingSubBuckets(unittest.TestCase):
+    """Tests for io_and_waiting sub-buckets (Issue #387)."""
+
+    def test_record_download_wait_time(self):
+        """Test recording download wait time."""
+        m = metrics.Metrics()
+        m.record_download_wait_time(5.0)
+        self.assertEqual(m.time_download_wait_seconds, 5.0)
+        self.assertEqual(m.time_io_and_waiting, 5.0)  # Should also add to total
+        m.record_download_wait_time(3.0)
+        self.assertEqual(m.time_download_wait_seconds, 8.0)
+        self.assertEqual(m.time_io_and_waiting, 8.0)
+
+    def test_record_transcription_wait_time(self):
+        """Test recording transcription wait time."""
+        m = metrics.Metrics()
+        m.record_transcription_wait_time(10.0)
+        self.assertEqual(m.time_transcription_wait_seconds, 10.0)
+        self.assertEqual(m.time_io_and_waiting, 10.0)  # Should also add to total
+        m.record_transcription_wait_time(5.0)
+        self.assertEqual(m.time_transcription_wait_seconds, 15.0)
+        self.assertEqual(m.time_io_and_waiting, 15.0)
+
+    def test_record_summarization_wait_time(self):
+        """Test recording summarization wait time."""
+        m = metrics.Metrics()
+        m.record_summarization_wait_time(2.0)
+        self.assertEqual(m.time_summarization_wait_seconds, 2.0)
+        self.assertEqual(m.time_io_and_waiting, 2.0)  # Should also add to total
+        m.record_summarization_wait_time(1.0)
+        self.assertEqual(m.time_summarization_wait_seconds, 3.0)
+        self.assertEqual(m.time_io_and_waiting, 3.0)
+
+    def test_record_thread_sync_time(self):
+        """Test recording thread sync time."""
+        m = metrics.Metrics()
+        m.record_thread_sync_time(0.5)
+        self.assertEqual(m.time_thread_sync_seconds, 0.5)
+        self.assertEqual(m.time_io_and_waiting, 0.5)  # Should also add to total
+        m.record_thread_sync_time(0.3)
+        self.assertEqual(m.time_thread_sync_seconds, 0.8)
+        self.assertEqual(m.time_io_and_waiting, 0.8)
+
+    def test_record_queue_wait_time(self):
+        """Test recording queue wait time."""
+        m = metrics.Metrics()
+        m.record_queue_wait_time(1.0)
+        self.assertEqual(m.time_queue_wait_seconds, 1.0)
+        self.assertEqual(m.time_io_and_waiting, 1.0)  # Should also add to total
+        m.record_queue_wait_time(0.5)
+        self.assertEqual(m.time_queue_wait_seconds, 1.5)
+        self.assertEqual(m.time_io_and_waiting, 1.5)
+
+    def test_sub_buckets_sum_to_io_and_waiting(self):
+        """Test that sub-buckets sum to io_and_waiting total."""
+        m = metrics.Metrics()
+        m.record_download_wait_time(5.0)
+        m.record_transcription_wait_time(10.0)
+        m.record_summarization_wait_time(2.0)
+        m.record_thread_sync_time(0.5)
+        m.record_queue_wait_time(1.0)
+
+        expected_total = 5.0 + 10.0 + 2.0 + 0.5 + 1.0
+        self.assertEqual(m.time_io_and_waiting, expected_total)
+        self.assertEqual(m.time_download_wait_seconds, 5.0)
+        self.assertEqual(m.time_transcription_wait_seconds, 10.0)
+        self.assertEqual(m.time_summarization_wait_seconds, 2.0)
+        self.assertEqual(m.time_thread_sync_seconds, 0.5)
+        self.assertEqual(m.time_queue_wait_seconds, 1.0)
+
+    def test_finish_includes_sub_buckets(self):
+        """Test that finish includes sub-buckets in output."""
+        m = metrics.Metrics()
+        m.record_download_wait_time(5.0)
+        m.record_transcription_wait_time(10.0)
+        m.record_summarization_wait_time(2.0)
+        m.record_thread_sync_time(0.5)
+        m.record_queue_wait_time(1.0)
+
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        # Check sub-buckets are included
+        self.assertEqual(result["time_download_wait_seconds"], 5.0)
+        self.assertEqual(result["time_transcription_wait_seconds"], 10.0)
+        self.assertEqual(result["time_summarization_wait_seconds"], 2.0)
+        self.assertEqual(result["time_thread_sync_seconds"], 0.5)
+        self.assertEqual(result["time_queue_wait_seconds"], 1.0)
+        # Check total is sum of sub-buckets
+        self.assertEqual(result["time_io_and_waiting"], 18.5)
+
+
+class TestDeviceTracking(unittest.TestCase):
+    """Tests for device usage tracking per stage (Issue #387)."""
+
+    def test_record_transcription_device(self):
+        """Test recording transcription device."""
+        m = metrics.Metrics()
+        m.record_transcription_device("mps")
+        self.assertEqual(m.transcription_device, "mps")
+        m.record_transcription_device("cpu")
+        self.assertEqual(m.transcription_device, "cpu")
+
+    def test_record_summarization_device(self):
+        """Test recording summarization device."""
+        m = metrics.Metrics()
+        m.record_summarization_device("cuda")
+        self.assertEqual(m.summarization_device, "cuda")
+        m.record_summarization_device("mps")
+        self.assertEqual(m.summarization_device, "mps")
+
+    def test_finish_includes_device_metrics(self):
+        """Test that finish includes device metrics in output."""
+        m = metrics.Metrics()
+        m.record_transcription_device("mps")
+        m.record_summarization_device("cpu")
+
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        # Check device metrics are included
+        self.assertEqual(result["transcription_device"], "mps")
+        self.assertEqual(result["summarization_device"], "cpu")
+
+
+class TestMetricsHygiene(unittest.TestCase):
+    """Tests for metrics hygiene (validation and atomic writes) (Issue #387)."""
+
+    def test_save_to_file_validates_metrics(self):
+        """Test that save_to_file validates metrics before writing."""
+        m = metrics.Metrics()
+        # Create a metrics object that's missing required fields
+        # We'll use a mock to bypass finish() validation
+        with patch.object(m, "finish", return_value={"run_duration_seconds": 1.0}):
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+                temp_path = f.name
+            try:
+                with self.assertRaises(ValueError) as cm:
+                    m.save_to_file(temp_path)
+                self.assertIn("missing required keys", str(cm.exception))
+            finally:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+
+    def test_save_to_file_atomic_write(self):
+        """Test that save_to_file uses atomic write (temp file then rename)."""
+        m = metrics.Metrics()
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            temp_path = f.name
+        try:
+            # Save metrics
+            m.save_to_file(temp_path)
+
+            # Verify file exists and is valid JSON
+            self.assertTrue(os.path.exists(temp_path))
+            with open(temp_path, "r") as f:
+                data = json.load(f)
+                self.assertIn("run_duration_seconds", data)
+                self.assertIn("schema_version", data)
+
+            # Verify temp file was cleaned up
+            temp_file = temp_path + ".tmp"
+            self.assertFalse(os.path.exists(temp_file))
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+    def test_validate_metrics_missing_keys(self):
+        """Test _validate_metrics raises error for missing required keys."""
+        m = metrics.Metrics()
+        incomplete_metrics = {"run_duration_seconds": 1.0}
+        with self.assertRaises(ValueError) as cm:
+            m._validate_metrics(incomplete_metrics)
+        self.assertIn("missing required keys", str(cm.exception))
+
+    def test_validate_metrics_missing_schema_version(self):
+        """Test _validate_metrics raises error for missing schema_version."""
+        m = metrics.Metrics()
+        incomplete_metrics = {
+            "run_duration_seconds": 1.0,
+            "episodes_scraped_total": 0,
+            "episodes_skipped_total": 0,
+            "errors_total": 0,
+            "time_scraping": 0.0,
+            "time_parsing": 0.0,
+            "time_normalizing": 0.0,
+            "time_io_and_waiting": 0.0,
+            "time_writing_storage": 0.0,
+            "time_download_wait_seconds": 0.0,
+            "time_transcription_wait_seconds": 0.0,
+            "time_summarization_wait_seconds": 0.0,
+            "time_thread_sync_seconds": 0.0,
+            "time_queue_wait_seconds": 0.0,
+        }
+        with self.assertRaises(ValueError) as cm:
+            m._validate_metrics(incomplete_metrics)
+        self.assertIn("schema_version", str(cm.exception))
+
+    def test_validate_metrics_none_numeric_fields(self):
+        """Test _validate_metrics raises error for None numeric fields."""
+        m = metrics.Metrics()
+        invalid_metrics = {
+            "run_duration_seconds": None,  # Should be numeric, not None
+            "episodes_scraped_total": 0,
+            "episodes_skipped_total": 0,
+            "errors_total": 0,
+            "time_scraping": 0.0,
+            "time_parsing": 0.0,
+            "time_normalizing": 0.0,
+            "time_io_and_waiting": 0.0,
+            "time_writing_storage": 0.0,
+            "io_and_waiting_thread_sum_seconds": 0.0,
+            "io_and_waiting_wall_seconds": 0.0,
+            "time_io_and_waiting": 0.0,  # Backward compatibility (deprecated)
+            "time_download_wait_seconds": 0.0,
+            "time_transcription_wait_seconds": 0.0,
+            "time_summarization_wait_seconds": 0.0,
+            "time_thread_sync_seconds": 0.0,
+            "time_queue_wait_seconds": 0.0,
+            "schema_version": "1.0",
+        }
+        # Create a metrics dict with a None value to test validation
+        invalid_metrics_with_none = invalid_metrics.copy()
+        invalid_metrics_with_none["time_scraping"] = None
+        with self.assertRaises(ValueError) as cm:
+            m._validate_metrics(invalid_metrics_with_none)
+        self.assertIn("is None", str(cm.exception))
+
+    def test_validate_metrics_valid_metrics(self):
+        """Test _validate_metrics passes for valid metrics."""
+        m = metrics.Metrics()
+        valid_metrics = m.finish()  # Get complete metrics
+        # Should not raise
+        m._validate_metrics(valid_metrics)
+
+    def test_save_to_file_cleans_up_temp_on_error(self):
+        """Test that save_to_file cleans up temp file on error."""
+        m = metrics.Metrics()
+        # Use a path that will cause an error (invalid path)
+        invalid_path = "/nonexistent/directory/metrics.json"
+
+        # Should raise OSError
+        with self.assertRaises(OSError):
+            m.save_to_file(invalid_path)
+
+        # Verify temp file was cleaned up (if it was created)
+        temp_file = invalid_path + ".tmp"
+        self.assertFalse(os.path.exists(temp_file))
 
     def test_finish_updates_expected_keys_with_preprocessing(self):
         """Test that finish includes preprocessing keys in expected keys."""

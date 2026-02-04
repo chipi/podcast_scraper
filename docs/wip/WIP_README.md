@@ -15,6 +15,7 @@ are not yet finalized or integrated into the main documentation.
 | File | Description | Status |
 | ------ | ------------- | -------- |
 | `ai-quality-implementation-plan.md` | Implementation plan for AI Quality & Experimentation Platform | Active |
+| `file-based-validation-plan.md` | Plan for file-based validation and impacted test discovery system | Active |
 | `METRICS_GAP_ANALYSIS.md` | Gap analysis for metrics implementation | Active |
 | `REMAINING_WORK.md` | Summary of remaining implementation work | Active |
 | `TYPE_HINTS_ANALYSIS.md` | Analysis of type hints usage | Active |

@@ -19,6 +19,8 @@ if PROJECT_ROOT not in sys.path:
 
 from podcast_scraper import config
 
+pytestmark = [pytest.mark.unit, pytest.mark.module_config]
+
 
 @pytest.mark.unit
 class TestEnvironmentVariables(unittest.TestCase):

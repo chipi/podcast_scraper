@@ -97,13 +97,20 @@ make ci
 - Upgrades pip and setuptools (required for PEP 660 editable installs)
 - Creates virtual environment (if not exists)
 - Installs package in editable mode with all dependencies
-- Installs pre-commit hooks
+- **Installs pre-commit hooks** (automatically runs checks before each commit)
 - Sets up development tools (black, isort, flake8, mypy)
 
 **⚠️ Important Notes:**
 
 - **Python 3.10+ is REQUIRED** — The project uses features that require Python 3.10 or higher. Always verify the venv's Python version with `python --version` after activation. If it's < 3.10, recreate the venv with a newer Python version.
 - **Always activate your virtual environment** before running `make` commands. The Makefile uses tools installed in `.venv/bin/`, so they won't be found if the venv isn't activated.
+- **Pre-commit hook is REQUIRED** — The git pre-commit hook automatically checks your code (formatting, linting, type checking) before each commit. It's installed by `make init`, but if you need to reinstall it manually:
+
+  ```bash
+  make install-hooks
+  ```
+
+  The hook uses tools from `.venv/bin/`, so ensure your venv is activated and `make init` has been run. If commits are being rejected, the hook will show you what needs to be fixed. You can skip the hook for a specific commit with `git commit --no-verify` (not recommended).
 - **markdownlint-cli** is required for `make ci` to pass. Install it globally with `npm install -g markdownlint-cli`.
 - **Editable installs require modern setuptools** — If you see `"editable mode currently requires a setuptools-based build"` error:
   1. Ensure pip and setuptools are upgraded: `pip install --upgrade pip setuptools wheel`
@@ -265,6 +272,8 @@ make ci                 # Full suite before PR
 git add -A
 git commit -m "feat: add my feature"   # Use conventional commits
 ```
+
+**⚠️ Pre-commit hook:** The git pre-commit hook will automatically run checks (formatting, linting, type checking) before your commit. If checks fail, fix the issues and commit again. The hook uses tools from `.venv/bin/`, so ensure your venv is activated.
 
 **Commit format:** `type: description`
 

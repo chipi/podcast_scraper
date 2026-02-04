@@ -80,9 +80,12 @@ def _log_effective_parallelism(cfg: config.Config, summary_provider: Optional[An
     processing_effective = processing_configured
     logger.info(f"  Processing workers: {processing_effective}")
     if cfg.generate_summaries:
-        # Get actual device from summary provider
+        # Get actual device from summary provider (Issue #387)
+        # Stage-level device config takes precedence
         model_device = "cpu"  # Default
-        if summary_provider:
+        if cfg.summarization_device:
+            model_device = cfg.summarization_device.lower()
+        elif summary_provider:
             # Try to get device from actual model instances
             if hasattr(summary_provider, "_map_model") and summary_provider._map_model:
                 if hasattr(summary_provider._map_model, "device"):
@@ -227,7 +230,10 @@ _preloaded_ml_provider: Optional[Any] = None
 def _both_providers_use_mps(
     cfg: config.Config, transcription_provider: Any, summary_provider: Any
 ) -> bool:
-    """Check if both Whisper transcription and summarization use MPS.
+    """Check if both transcription and summarization stages use MPS (Issue #387).
+
+    Updated to check stage-level device config (transcription_device, summarization_device)
+    which override provider-specific devices. This allows CPU/GPU mix to regain overlap.
 
     Args:
         cfg: Configuration object
@@ -235,12 +241,16 @@ def _both_providers_use_mps(
         summary_provider: Summarization provider instance (can be None)
 
     Returns:
-        True if both providers use MPS, False otherwise
+        True if both stages use MPS, False otherwise
     """
-    # Check transcription provider device
+    # Check transcription stage device (Issue #387)
+    # Stage-level device overrides provider-specific device
     transcription_uses_mps = False
-    if transcription_provider is not None:
-        # Check if it's MLProvider (Whisper)
+    if cfg.transcription_device:
+        # Stage-level device config takes precedence
+        transcription_uses_mps = cfg.transcription_device.lower() == "mps"
+    elif transcription_provider is not None:
+        # Fallback to provider-specific device detection
         provider_type = type(transcription_provider).__name__
         if provider_type == "MLProvider":
             # MLProvider uses _detect_whisper_device() method
@@ -254,9 +264,14 @@ def _both_providers_use_mps(
         elif provider_type == "OpenAIProvider":
             transcription_uses_mps = False
 
-    # Check summarization provider device
+    # Check summarization stage device (Issue #387)
+    # Stage-level device overrides provider-specific device
     summarization_uses_mps = False
-    if summary_provider is not None and cfg.generate_summaries:
+    if cfg.summarization_device:
+        # Stage-level device config takes precedence
+        summarization_uses_mps = cfg.summarization_device.lower() == "mps"
+    elif summary_provider is not None and cfg.generate_summaries:
+        # Fallback to provider-specific device detection
         provider_type = type(summary_provider).__name__
         if provider_type == "MLProvider":
             # MLProvider uses SummaryModel which has device attribute
@@ -628,6 +643,35 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     # Step 1.7: Log effective parallelism configuration (Issue #380)
     _log_effective_parallelism(cfg, summary_provider)
 
+    # Step 1.8: Record device usage per stage (Issue #387)
+    if transcription_provider is not None:
+        # Get transcription device (stage-level config takes precedence)
+        if cfg.transcription_device:
+            transcription_device = cfg.transcription_device.lower()
+        elif hasattr(transcription_provider, "_detect_whisper_device"):
+            try:
+                transcription_device = transcription_provider._detect_whisper_device()
+            except Exception:
+                transcription_device = "unknown"
+        else:
+            transcription_device = cfg.whisper_device or "auto"
+        pipeline_metrics.record_transcription_device(transcription_device)
+        logger.debug("Transcription device: %s", transcription_device)
+
+    if summary_provider is not None and cfg.generate_summaries:
+        # Get summarization device (stage-level config takes precedence)
+        if cfg.summarization_device:
+            summarization_device = cfg.summarization_device.lower()
+        elif hasattr(summary_provider, "_map_model") and summary_provider._map_model:
+            if hasattr(summary_provider._map_model, "device"):
+                summarization_device = summary_provider._map_model.device
+            else:
+                summarization_device = cfg.summary_device or "auto"
+        else:
+            summarization_device = cfg.summary_device or "auto"
+        pipeline_metrics.record_summarization_device(summarization_device)
+        logger.debug("Summarization device: %s", summarization_device)
+
     # Step 1.5: Create run manifest (Issue #379)
     run_manifest = None
     if not cfg.dry_run:
@@ -659,6 +703,45 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     episodes = wf_stages.scraping.prepare_episodes_from_feed(feed, cfg)
     pipeline_metrics.episodes_scraped_total = len(episodes)
     pipeline_metrics.record_stage("parsing", time.time() - parsing_start)
+
+    # Initialize episode statuses (Issue #391)
+    if pipeline_metrics is not None:
+        from ..rss.parser import extract_episode_published_date
+        from .metadata_generation import generate_episode_id
+
+        for episode in episodes:
+            # Extract episode metadata for ID generation
+            episode_guid = None
+            episode_link = None
+            episode_published_date = None
+            episode_number = getattr(episode, "number", None)
+
+            if hasattr(episode, "item") and episode.item is not None:
+                # Extract GUID from RSS item
+                guid_elem = episode.item.find("guid")
+                if guid_elem is not None and guid_elem.text:
+                    episode_guid = guid_elem.text.strip()
+                # Extract link
+                link_elem = episode.item.find("link")
+                if link_elem is not None and link_elem.text:
+                    episode_link = link_elem.text.strip()
+                # Extract published date
+                episode_published_date = extract_episode_published_date(episode.item)
+
+            # Generate stable episode ID
+            episode_id = generate_episode_id(
+                feed_url=cfg.rss_url or "",
+                episode_title=episode.title,
+                episode_guid=episode_guid,
+                published_date=episode_published_date,
+                episode_link=episode_link,
+                episode_number=episode_number,
+            )
+
+            # Create initial status entry (queued)
+            pipeline_metrics.get_or_create_episode_status(
+                episode_id=episode_id, episode_number=episode.idx
+            )
 
     # Step 5: Detect hosts and analyze patterns (if auto_speakers enabled)
     # This is part of normalizing stage
@@ -695,7 +778,6 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         # NOTE: writing_start measures the entire "processing" stage, not just file I/O
         # This includes: downloads, transcription waiting, thread synchronization, AND actual I/O
         # For accurate I/O metrics, check [STORAGE I/O] debug logs
-        writing_start = time.time()
         transcription_complete_event = threading.Event()
         downloads_complete_event = threading.Event()  # Signal when all downloads are complete
         transcription_saved = [0]  # Use list to allow modification from thread
@@ -766,6 +848,8 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             transcription_thread.start()
             logger.debug("Started concurrent transcription processing thread")
 
+        # Track download wait time (Issue #387, #391)
+        download_start = time.time()
         saved = wf_stages.processing.process_episodes(
             download_args,
             episodes,
@@ -780,6 +864,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             pipeline_metrics,
             summary_provider,
         )
+        download_wait_time = time.time() - download_start
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_download_wait_time(download_wait_time)
+            # Track wall-clock time for downloads (Issue #391)
+            pipeline_metrics.record_io_waiting_wall_time(download_wait_time)
 
         # Signal that downloads are complete (so transcription thread can exit when queue is empty)
         if cfg.transcribe_missing and not cfg.dry_run:
@@ -787,12 +876,19 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
         # Step 9: Wait for transcription to complete (if started)
         if cfg.transcribe_missing and not cfg.dry_run:
+            # Track thread sync time for transcription (Issue #387)
+            transcription_sync_start = time.time()
             # Wait for transcription thread to finish processing remaining jobs
             transcription_thread.join()
+            transcription_sync_time = time.time() - transcription_sync_start
+            if pipeline_metrics is not None:
+                pipeline_metrics.record_thread_sync_time(transcription_sync_time)
+                pipeline_metrics.record_transcription_wait_time(transcription_sync_time)
             saved += transcription_saved[0]
             logger.debug("Concurrent transcription processing completed")
         elif cfg.transcribe_missing:
             # Dry-run mode: process transcription jobs sequentially after downloads
+            transcription_start = time.time()
             saved += wf_stages.transcription.process_transcription_jobs(
                 transcription_resources,
                 download_args,
@@ -806,32 +902,42 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 pipeline_metrics,
                 summary_provider,
             )
-        # Record "io_and_waiting" stage time (renamed from "writing_storage" for clarity)
-        # This metric measures the entire "processing" stage:
-        # - Episode downloads
-        # - Transcription job processing (including waiting for jobs)
-        # - Thread synchronization (join() calls)
-        # - Actual file I/O operations
-        # For accurate I/O metrics, check [STORAGE I/O] debug logs which show per-file:
-        # - File path
-        # - Bytes written
-        # - Elapsed time per write
-        # This will reveal if the bottleneck is actual I/O or waiting time
-        io_and_waiting_time = time.time() - writing_start
-        pipeline_metrics.record_stage("io_and_waiting", io_and_waiting_time)
-        logger.debug(
-            "[IO METRIC] io_and_waiting stage total: %.2fs "
-            "(includes downloads, transcription waiting, thread sync, and actual I/O)",
-            io_and_waiting_time,
-        )
+            transcription_wait_time = time.time() - transcription_start
+            if pipeline_metrics is not None:
+                pipeline_metrics.record_transcription_wait_time(transcription_wait_time)
 
         # Step 9.5: Wait for processing to complete (if started)
         if processing_thread is not None:
             # Signal that transcription is complete (processing waits for this)
             transcription_complete_event.set()
+            # Track thread sync time for processing (Issue #387, #391)
+            processing_sync_start = time.time()
             # Wait for processing thread to finish
             processing_thread.join()
+            processing_sync_time = time.time() - processing_sync_start
+            if pipeline_metrics is not None:
+                pipeline_metrics.record_thread_sync_time(processing_sync_time)
+                # Track wall-clock time for processing thread sync (Issue #391)
+                pipeline_metrics.record_io_waiting_wall_time(processing_sync_time)
             logger.debug("Concurrent processing completed")
+
+        # Log io_and_waiting breakdown (Issue #387, #391)
+        # Note: io_and_waiting_thread_sum_seconds is the sum of sub-buckets
+        # (aggregate across threads). Sub-buckets are recorded individually and
+        # automatically add to io_and_waiting_thread_sum_seconds
+        if pipeline_metrics is not None:
+            logger.debug(
+                "[IO METRIC] io_and_waiting thread_sum: %.2fs, wall_clock: %.2fs "
+                "(sum of sub-buckets: download_wait=%.2fs, transcription_wait=%.2fs, "
+                "thread_sync=%.2fs, queue_wait=%.2fs, summarization_wait=%.2fs)",
+                pipeline_metrics.io_and_waiting_thread_sum_seconds,
+                pipeline_metrics.io_and_waiting_wall_seconds,
+                pipeline_metrics.time_download_wait_seconds,
+                pipeline_metrics.time_transcription_wait_seconds,
+                pipeline_metrics.time_thread_sync_seconds,
+                pipeline_metrics.time_queue_wait_seconds,
+                pipeline_metrics.time_summarization_wait_seconds,
+            )
 
         # Step 10: Parallel episode summarization (if enabled and multiple episodes)
         # Process episodes that need summarization in parallel for better performance
@@ -848,6 +954,8 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         ):
             # Only run parallel summarization if we have multiple episodes to process
             # It will skip episodes that already have summaries
+            # Track summarization wait time (Issue #387)
+            summarization_start = time.time()
             wf_stages.summarization_stage.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
@@ -860,6 +968,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 download_args=download_args,
                 pipeline_metrics=pipeline_metrics,
             )
+            summarization_wait_time = time.time() - summarization_start
+            if pipeline_metrics is not None:
+                pipeline_metrics.record_summarization_wait_time(summarization_wait_time)
+                # Track wall-clock time for summarization wait (Issue #391)
+                pipeline_metrics.record_io_waiting_wall_time(summarization_wait_time)
 
     finally:
         # Step 9.5: Unload models to free memory
@@ -939,6 +1052,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 episodes=episodes,
                 effective_output_dir=effective_output_dir,
                 episode_statuses=episode_statuses,
+                run_suffix=run_suffix,
             )
             index_path = os.path.join(effective_output_dir, "index.json")
             run_index.save_to_file(index_path)
@@ -961,6 +1075,52 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         except Exception as e:
             logger.warning(f"Failed to generate run summary: {e}")
 
+    # Step 15: Aggressive cleanup before exit (Issue #390 - prevent bus error on macOS)
+    # Clean up ML providers and PyTorch/MPS resources before interpreter shutdown
+    try:
+        # Cleanup summary provider if available
+        if summary_provider is not None:
+            logger.debug("Cleaning up summary provider before exit")
+            summary_provider.cleanup()
+
+        # Cleanup transcription provider if available
+        if transcription_provider is not None and transcription_provider != summary_provider:
+            logger.debug("Cleaning up transcription provider before exit")
+            transcription_provider.cleanup()
+
+        # Aggressive PyTorch/MPS cleanup to prevent bus errors during interpreter shutdown
+        try:
+            import gc
+
+            import torch
+
+            # Move any remaining models to CPU before deletion (avoid teardown hazards)
+            # This is a best-effort cleanup - models should already be cleaned up by providers
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                if hasattr(torch.mps, "empty_cache"):
+                    torch.mps.empty_cache()
+                    logger.debug("Cleared MPS cache before exit")
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                logger.debug("Cleared CUDA cache before exit")
+
+            # Force garbage collection to clean up any remaining references
+            # This helps release memory and clean up threads that might be holding references
+            # Note: Skip in test environments to avoid hangs
+            # os is already imported at module level, no need to import again
+            if os.environ.get("PYTEST_CURRENT_TEST") is None:
+                gc.collect()
+                logger.debug("Ran garbage collection before exit")
+        except ImportError:
+            # torch not available (e.g., in unit tests without ML dependencies)
+            pass
+        except Exception as exc:
+            # Ignore any errors during cleanup - we're about to exit anyway
+            logger.debug(f"Error during final cleanup (non-fatal): {exc}")
+    except Exception as exc:
+        # Ignore any errors during cleanup - we're about to exit anyway
+        logger.debug(f"Error during provider cleanup (non-fatal): {exc}")
+
     return wf_helpers.generate_pipeline_summary(
-        cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics
+        cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )

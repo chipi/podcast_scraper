@@ -15,7 +15,11 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+import pytest
+
 from podcast_scraper import preprocessing
+
+pytestmark = [pytest.mark.unit, pytest.mark.module_preprocessing]
 
 
 class TestCleanTranscript(unittest.TestCase):

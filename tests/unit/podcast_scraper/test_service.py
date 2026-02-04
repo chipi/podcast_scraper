@@ -20,8 +20,12 @@ if PROJECT_ROOT not in sys.path:
 # Import service module directly (not via __getattr__) to avoid recursion
 import importlib
 
+import pytest
+
 service_module = importlib.import_module("podcast_scraper.service")
 ServiceResult = service_module.ServiceResult
+
+pytestmark = [pytest.mark.unit, pytest.mark.module_service]
 
 
 class TestServiceResult(unittest.TestCase):

@@ -29,6 +29,8 @@ if PACKAGE_ROOT not in sys.path:
 import podcast_scraper.cli as cli
 from podcast_scraper import config as config_module
 
+pytestmark = [pytest.mark.e2e, pytest.mark.module_cli]
+
 # Removed TestCLIBasicCommands class (5 tests) as part of Phase 3 consolidation:
 # - test_basic_transcript_download: Duplicate of test_basic_e2e.py (critical path already covered)
 # - test_dry_run: Utility feature, not core workflow

@@ -26,6 +26,8 @@ if PACKAGE_ROOT not in sys.path:
 
 from podcast_scraper import config, workflow
 
+pytestmark = [pytest.mark.e2e, pytest.mark.module_workflow]
+
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:

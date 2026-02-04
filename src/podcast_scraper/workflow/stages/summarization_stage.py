@@ -209,6 +209,16 @@ def summarize_single_episode(
         "direct_download"  # Default, could be enhanced to detect Whisper
     )
 
+    # Extract spaCy model from summary_provider if available (Issue #387)
+    nlp = None
+    if summary_provider is not None:
+        try:
+            # Check if provider has spaCy model (MLProvider pattern)
+            if hasattr(summary_provider, "_spacy_nlp") and summary_provider._spacy_nlp is not None:
+                nlp = summary_provider._spacy_nlp
+        except Exception:
+            pass  # Ignore errors when accessing provider attributes
+
     # Generate/update metadata with summary
     # Use wrapper function if available (for testability)
     import sys
@@ -248,6 +258,7 @@ def summarize_single_episode(
                 episode_number=episode_number,
                 episode_image_url=episode_image_url,
                 pipeline_metrics=pipeline_metrics,
+                nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
             )
             return
     # Check for metadata module patch (tests patch workflow.metadata.generate_episode_metadata)
@@ -286,8 +297,10 @@ def summarize_single_episode(
                     episode_number=episode_number,
                     episode_image_url=episode_image_url,
                     pipeline_metrics=pipeline_metrics,
+                    nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
                 )
                 return
+
     metadata_generate_episode_metadata(
         feed=feed,
         episode=episode,
@@ -314,6 +327,7 @@ def summarize_single_episode(
         episode_number=episode_number,
         episode_image_url=episode_image_url,
         pipeline_metrics=pipeline_metrics,
+        nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
     )
 
 

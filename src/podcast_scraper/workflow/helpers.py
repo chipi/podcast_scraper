@@ -9,11 +9,14 @@ import logging
 import os
 import shutil
 import threading
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from .. import config
 from . import metrics
 from .types import TranscriptionResources
+
+if TYPE_CHECKING:
+    from .. import models
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +44,52 @@ def update_metric_safely(
         setattr(pipeline_metrics, metric_name, current_value + value)
 
 
+def get_episode_id_from_episode(
+    episode: "models.Episode", feed_url: str
+) -> Tuple[str, Optional[int]]:
+    """Generate episode ID from episode object (helper for status tracking).
+
+    Args:
+        episode: Episode object
+        feed_url: RSS feed URL
+
+    Returns:
+        Tuple of (episode_id, episode_number)
+    """
+    from ..rss.parser import extract_episode_published_date
+    from .metadata_generation import generate_episode_id
+
+    # Extract episode metadata for ID generation
+    episode_guid = None
+    episode_link = None
+    episode_published_date = None
+    episode_number = getattr(episode, "number", None)
+
+    if hasattr(episode, "item") and episode.item is not None:
+        # Extract GUID from RSS item
+        guid_elem = episode.item.find("guid")
+        if guid_elem is not None and guid_elem.text:
+            episode_guid = guid_elem.text.strip()
+        # Extract link
+        link_elem = episode.item.find("link")
+        if link_elem is not None and link_elem.text:
+            episode_link = link_elem.text.strip()
+        # Extract published date
+        episode_published_date = extract_episode_published_date(episode.item)
+
+    # Generate stable episode ID
+    episode_id = generate_episode_id(
+        feed_url=feed_url,
+        episode_title=episode.title,
+        episode_guid=episode_guid,
+        published_date=episode_published_date,
+        episode_link=episode_link,
+        episode_number=episode_number,
+    )
+
+    return episode_id, episode.idx
+
+
 def cleanup_pipeline(temp_dir: Optional[str]) -> None:
     """Cleanup temporary files and directories.
 
@@ -61,6 +110,7 @@ def generate_pipeline_summary(
     transcription_resources: TranscriptionResources,
     effective_output_dir: str,
     pipeline_metrics: metrics.Metrics,
+    episodes: Optional[List["models.Episode"]] = None,
 ) -> Tuple[int, str]:
     """Generate pipeline summary message with detailed statistics.
 
@@ -75,6 +125,7 @@ def generate_pipeline_summary(
         transcription_resources: Transcription resources containing the job queue
         effective_output_dir: Full path to output directory for display
         pipeline_metrics: Metrics collector with timing data for operations
+        episodes: Optional list of episodes for cost projection in dry-run mode
 
     Returns:
         Tuple[int, str]: A tuple containing:
@@ -97,6 +148,15 @@ def generate_pipeline_summary(
         summary_lines.append(f"  - Direct downloads planned: {planned_downloads}")
         summary_lines.append(f"  - Whisper transcriptions planned: {planned_transcriptions}")
         summary_lines.append(f"  - Output directory: {effective_output_dir}")
+
+        # Add cost projection if OpenAI providers are configured (Issue #253)
+        cost_projection = _generate_dry_run_cost_projection(cfg, episodes, planned_total)
+        if cost_projection:
+            summary_lines.append("")
+            summary_lines.append("Cost Projection (Dry Run):")
+            summary_lines.append("=" * 30)
+            summary_lines.extend(cost_projection)
+
         summary = "\n".join(summary_lines)
         # Don't log here - caller (cli.py) will log the summary
         return planned_total, summary
@@ -320,5 +380,158 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
     # Add total cost if any calls were made
     if total_cost > 0:
         summary_lines.append(f"  - Total estimated cost: ${total_cost:.4f}")
+
+    return summary_lines
+
+
+def _generate_dry_run_cost_projection(
+    cfg: config.Config,
+    episodes: Optional[List["models.Episode"]],
+    episode_count: int,
+) -> List[str]:
+    """Generate cost projection for dry-run mode based on configured OpenAI providers.
+
+    Estimates API costs for OpenAI transcription, speaker detection, and summarization
+    based on episode count and available metadata (duration). Only displays projection
+    when OpenAI providers are configured.
+
+    Args:
+        cfg: Configuration object to check provider settings
+        episodes: Optional list of episodes for duration-based estimation
+        episode_count: Total number of episodes to process
+
+    Returns:
+        List of cost projection lines, or empty list if no OpenAI providers configured
+    """
+    summary_lines: List[str] = []
+
+    # Check if any OpenAI provider is configured
+    uses_openai_transcription = cfg.transcription_provider == "openai"
+    uses_openai_speaker = cfg.speaker_detector_provider == "openai"
+    uses_openai_summarization = cfg.summary_provider == "openai"
+
+    if not (uses_openai_transcription or uses_openai_speaker or uses_openai_summarization):
+        return summary_lines
+
+    # Extract episode durations if available
+    episode_durations: List[int] = []
+    if episodes:
+        from ..rss.parser import extract_episode_metadata
+
+        # base_url not needed for duration extraction (only used for URL resolution)
+        for episode in episodes:
+            # Extract duration from RSS item metadata
+            # extract_episode_metadata returns: (description, guid, link, duration_seconds, ...)
+            _, _, _, duration, _, _ = extract_episode_metadata(episode.item, "")
+            if duration:
+                episode_durations.append(duration)
+
+    # Calculate average duration for estimation
+    avg_duration_minutes = 0.0
+    if episode_durations:
+        avg_duration_seconds = sum(episode_durations) / len(episode_durations)
+        avg_duration_minutes = avg_duration_seconds / 60.0
+    else:
+        # Conservative fallback: assume 30 minutes per episode if no duration available
+        avg_duration_minutes = 30.0
+
+    total_cost = 0.0
+
+    # Transcription cost estimation
+    if uses_openai_transcription:
+        transcription_episodes = episode_count
+        model = getattr(cfg, "openai_transcription_model", "whisper-1")
+        pricing = _get_provider_pricing(cfg, "openai", "transcription", model)
+        if pricing and "cost_per_minute" in pricing:
+            total_audio_minutes = transcription_episodes * avg_duration_minutes
+            transcription_cost = total_audio_minutes * pricing["cost_per_minute"]
+            total_cost += transcription_cost
+            summary_lines.append(
+                f"Transcription ({model}):\n"
+                f"  - Episodes: {transcription_episodes}\n"
+                f"  - Estimated audio: {total_audio_minutes:.1f} minutes\n"
+                f"  - Estimated cost: ${transcription_cost:.4f}"
+            )
+
+    # Speaker detection cost estimation
+    if uses_openai_speaker:
+        speaker_episodes = episode_count
+        model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
+        pricing = _get_provider_pricing(cfg, "openai", "speaker_detection", model)
+        if pricing and "input_cost_per_1m_tokens" in pricing:
+            # Estimate tokens: ~150 words/minute speaking rate, ~1.3 tokens/word
+            # Plus prompt overhead (~200 tokens for system + user prompt)
+            words_per_minute = 150.0
+            tokens_per_word = 1.3
+            prompt_overhead_tokens = 200
+
+            # Estimate transcript tokens from duration
+            transcript_tokens_per_episode = int(
+                avg_duration_minutes * words_per_minute * tokens_per_word
+            )
+            input_tokens_per_episode = transcript_tokens_per_episode + prompt_overhead_tokens
+            # Output: typically small JSON response (~50 tokens)
+            output_tokens_per_episode = 50
+
+            total_input_tokens = speaker_episodes * input_tokens_per_episode
+            total_output_tokens = speaker_episodes * output_tokens_per_episode
+
+            input_cost = (total_input_tokens / 1_000_000) * pricing["input_cost_per_1m_tokens"]
+            output_cost = (total_output_tokens / 1_000_000) * pricing["output_cost_per_1m_tokens"]
+            speaker_cost = input_cost + output_cost
+            total_cost += speaker_cost
+
+            summary_lines.append(
+                f"Speaker Detection ({model}):\n"
+                f"  - Episodes: {speaker_episodes}\n"
+                f"  - Estimated tokens: ~{total_input_tokens:,} input + "
+                f"~{total_output_tokens:,} output\n"
+                f"  - Estimated cost: ${speaker_cost:.4f}"
+            )
+
+    # Summarization cost estimation
+    if uses_openai_summarization:
+        summary_episodes = episode_count
+        model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
+        pricing = _get_provider_pricing(cfg, "openai", "summarization", model)
+        if pricing and "input_cost_per_1m_tokens" in pricing:
+            # Estimate tokens: same as speaker detection for input (transcript)
+            # Plus prompt overhead (~300 tokens for summarization prompt)
+            words_per_minute = 150.0
+            tokens_per_word = 1.3
+            prompt_overhead_tokens = 300
+
+            transcript_tokens_per_episode = int(
+                avg_duration_minutes * words_per_minute * tokens_per_word
+            )
+            input_tokens_per_episode = transcript_tokens_per_episode + prompt_overhead_tokens
+            # Output: summary is typically 100-200 words (~150 tokens)
+            output_tokens_per_episode = 150
+
+            total_input_tokens = summary_episodes * input_tokens_per_episode
+            total_output_tokens = summary_episodes * output_tokens_per_episode
+
+            input_cost = (total_input_tokens / 1_000_000) * pricing["input_cost_per_1m_tokens"]
+            output_cost = (total_output_tokens / 1_000_000) * pricing["output_cost_per_1m_tokens"]
+            summary_cost = input_cost + output_cost
+            total_cost += summary_cost
+
+            summary_lines.append(
+                f"Summarization ({model}):\n"
+                f"  - Episodes: {summary_episodes}\n"
+                f"  - Estimated tokens: ~{total_input_tokens:,} input + "
+                f"~{total_output_tokens:,} output\n"
+                f"  - Estimated cost: ${summary_cost:.4f}"
+            )
+
+    # Add total cost and disclaimer
+    if total_cost > 0:
+        summary_lines.append("")
+        summary_lines.append(f"Total Estimated Cost: ${total_cost:.4f}")
+        summary_lines.append("")
+        summary_lines.append(
+            "Note: Estimates are approximate and based on average episode duration. "
+            "Actual costs may vary based on actual audio length and transcript complexity."
+        )
 
     return summary_lines

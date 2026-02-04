@@ -457,6 +457,12 @@ def transcribe_media_to_text(
             job.idx,
             rel_path,
         )
+        # Update episode status: transcribed (reused existing) (Issue #391)
+        if pipeline_metrics is not None and hasattr(job, "episode"):
+            from ..workflow.helpers import get_episode_id_from_episode
+
+            episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+            pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
         return True, rel_path, 0
 
     # Log detected speaker names (hosts + guests) before transcription
@@ -517,6 +523,21 @@ def transcribe_media_to_text(
             cache_dir = cfg.preprocessing_cache_dir or preprocessing_cache.PREPROCESSING_CACHE_DIR
             cache_key = audio_preprocessor.get_cache_key(temp_media)
 
+            # Track wall time for preprocessing (Issue #387)
+            preprocessing_wall_start = time.time()
+
+            # Extract audio metadata from original file (Issue #387)
+            from podcast_scraper.preprocessing.audio.ffmpeg_processor import extract_audio_metadata
+
+            audio_metadata = extract_audio_metadata(temp_media)
+            if audio_metadata and pipeline_metrics is not None:
+                pipeline_metrics.record_preprocessing_audio_metadata(
+                    bitrate=audio_metadata.get("bitrate"),
+                    sample_rate=audio_metadata.get("sample_rate"),
+                    codec=audio_metadata.get("codec"),
+                    channels=audio_metadata.get("channels"),
+                )
+
             # Check cache first
             cache_check_start = time.time()
             cached_path = preprocessing_cache.get_cached_audio_path(cache_key, cache_dir)
@@ -529,10 +550,15 @@ def transcribe_media_to_text(
                     cache_key,
                 )
                 media_for_transcription = cached_path
-                # Record cache hit and time (will be tiny but real)
+                preprocessing_wall_elapsed = time.time() - preprocessing_wall_start
+
+                # Record cache hit metrics (Issue #387)
                 if pipeline_metrics is not None:
                     pipeline_metrics.record_preprocessing_cache_hit()
                     pipeline_metrics.record_preprocessing_time(cache_check_elapsed)
+                    pipeline_metrics.record_preprocessing_wall_time(preprocessing_wall_elapsed)
+                    pipeline_metrics.record_preprocessing_cache_hit_time(preprocessing_wall_elapsed)
+                    pipeline_metrics.record_preprocessing_cache_hit_flag(True)
                     try:
                         cached_size = os.path.getsize(cached_path)
                         cached_size_mb = cached_size / (1024 * 1024)
@@ -565,6 +591,8 @@ def transcribe_media_to_text(
                 success, preprocess_elapsed = audio_preprocessor.preprocess(
                     temp_media, preprocessed_path
                 )
+
+                preprocessing_wall_elapsed = time.time() - preprocessing_wall_start
 
                 if success and os.path.exists(preprocessed_path):
                     # Save to cache
@@ -601,9 +629,16 @@ def transcribe_media_to_text(
                             preprocess_elapsed,
                         )
 
-                        # Record metrics
+                        # Record metrics (Issue #387)
                         if pipeline_metrics is not None:
                             pipeline_metrics.record_preprocessing_time(preprocess_elapsed)
+                            pipeline_metrics.record_preprocessing_wall_time(
+                                preprocessing_wall_elapsed
+                            )
+                            pipeline_metrics.record_preprocessing_cache_miss_time(
+                                preprocessing_wall_elapsed
+                            )
+                            pipeline_metrics.record_preprocessing_cache_hit_flag(False)
                             pipeline_metrics.record_preprocessing_size_reduction(
                                 original_size, preprocessed_size
                             )
@@ -613,13 +648,24 @@ def transcribe_media_to_text(
                             job.idx,
                             preprocess_elapsed,
                         )
-                        # Still record time even if size is unknown
+                        # Still record time even if size is unknown (Issue #387)
                         if pipeline_metrics is not None:
                             pipeline_metrics.record_preprocessing_time(preprocess_elapsed)
+                            pipeline_metrics.record_preprocessing_wall_time(
+                                preprocessing_wall_elapsed
+                            )
+                            pipeline_metrics.record_preprocessing_cache_miss_time(
+                                preprocessing_wall_elapsed
+                            )
+                            pipeline_metrics.record_preprocessing_cache_hit_flag(False)
                 else:
                     # Preprocessing failed, use original audio
                     logger.warning("[%s] Audio preprocessing failed, using original audio", job.idx)
                     media_for_transcription = temp_media
+                    # Still record wall time even on failure (Issue #387)
+                    if pipeline_metrics is not None:
+                        pipeline_metrics.record_preprocessing_wall_time(preprocessing_wall_elapsed)
+                        pipeline_metrics.record_preprocessing_cache_hit_flag(False)
                     # Clean up failed preprocessed file if it exists
                     if os.path.exists(preprocessed_path):
                         try:
@@ -675,6 +721,12 @@ def transcribe_media_to_text(
         # Record transcription time if metrics available
         if pipeline_metrics is not None:
             pipeline_metrics.record_transcribe_time(tc_elapsed)
+            # Update episode status: transcribed (Issue #391)
+            if hasattr(job, "episode"):
+                from ..workflow.helpers import get_episode_id_from_episode
+
+                episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+                pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
 
         return True, rel_path, bytes_downloaded
     except (ValueError, ProviderRuntimeError) as exc:

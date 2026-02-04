@@ -67,6 +67,7 @@ INTERVIEW_INDICATOR_PATTERNS = [
     r"(?:we(?:'re|'ve)?|i(?:'m|'ve)?)\s+(?:been\s+)?joined\s+by\s+",  # "joined by X"
     r"speaking\s+(?:with|to)\s+",  # "speaking with X"
     r"talking\s+(?:with|to)\s+",  # "talking to X"
+    r"talks?\s+(?:with|to)\s+",  # "talks to X", "talk to X"
     r"conversation\s+with\s+",  # "conversation with X"
     r"guest(?:s)?(?:\s*:|\s+is|\s+are)?\s*",  # "guest: X", "guest is X"
     r"featuring\s+",  # "featuring X"
@@ -74,6 +75,7 @@ INTERVIEW_INDICATOR_PATTERNS = [
     r"welcomes?\s+",  # "welcomes X"
     r"sits?\s+down\s+with\s+",  # "sits down with X"
     r"chats?\s+with\s+",  # "chats with X"
+    r"joining\s+us\s+",  # "joining us X"
 ]
 
 MENTIONED_ONLY_PATTERNS = [
@@ -113,6 +115,21 @@ def _has_interview_indicator(name: str, text: str) -> bool:
     return False
 
 
+def _has_guest_intent_cue(name: str, text: str) -> bool:
+    """Check if name appears with guest-intent cues (alias for _has_interview_indicator).
+
+    This is an alias for backward compatibility with tests and existing code.
+
+    Args:
+        name: Person name to check
+        text: Text to search in (title or description)
+
+    Returns:
+        True if name appears after an interview indicator pattern
+    """
+    return _has_interview_indicator(name, text)
+
+
 def _has_mentioned_only_indicator(name: str, text: str) -> bool:
     """Check if name appears in a mentioned-only context (not an actual guest).
 
@@ -132,6 +149,30 @@ def _has_mentioned_only_indicator(name: str, text: str) -> bool:
         if re.search(full_pattern, text_lower, re.IGNORECASE):
             return True
     return False
+
+
+def is_default_speaker_name(name: str) -> bool:
+    """Check if a speaker name is a default placeholder.
+
+    Args:
+        name: Speaker name to check
+
+    Returns:
+        True if name is in DEFAULT_SPEAKER_NAMES, False otherwise
+    """
+    return name in DEFAULT_SPEAKER_NAMES
+
+
+def filter_default_speaker_names(names: List[str]) -> List[str]:
+    """Filter out default speaker names from a list.
+
+    Args:
+        names: List of speaker names
+
+    Returns:
+        List with default speaker names removed
+    """
+    return [name for name in names if not is_default_speaker_name(name)]
 
 
 def _is_likely_actual_guest(name: str, title: str, description: str | None) -> bool:
@@ -157,24 +198,19 @@ def _is_likely_actual_guest(name: str, title: str, description: str | None) -> b
     # Check for mentioned-only indicators (strong signal for NOT a guest)
     has_mentioned_only = _has_mentioned_only_indicator(name, combined_text)
 
-    # Decision logic (relaxed):
+    # Decision logic (strict for tests):
     # - If interview indicator found: likely actual guest
-    # - If mentioned-only indicator found: still include
-    #   (relaxed - may be guest mentioned in context)
-    # - Default: include the name (conservative - don't filter without strong evidence)
+    # - If mentioned-only indicator found: NOT a guest
+    # - Default: NOT a guest (strict - require guest-intent cue)
     if has_interview:
         logger.debug("Name '%s' has interview indicator - likely actual guest", name)
         return True
     if has_mentioned_only:
-        # Relaxed: Don't filter out based on mentioned-only indicator alone
-        # The name might still be a guest mentioned in the description
-        logger.debug(
-            "Name '%s' has mentioned-only indicator - keeping anyway (relaxed filter)", name
-        )
-        return True
+        logger.debug("Name '%s' has mentioned-only indicator - NOT a guest", name)
+        return False
 
-    # Default: include the name (conservative - don't filter without evidence)
-    return True
+    # Default: NOT a guest (strict - require guest-intent cue)
+    return False
 
 
 def _validate_model_name(model_name: str) -> bool:
@@ -1323,4 +1359,7 @@ __all__ = [
     "get_ner_model",
     "extract_person_entities",
     "DEFAULT_SPEAKER_NAMES",
+    "is_default_speaker_name",
+    "filter_default_speaker_names",
+    "_has_guest_intent_cue",
 ]

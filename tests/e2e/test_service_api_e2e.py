@@ -24,6 +24,8 @@ if PACKAGE_ROOT not in sys.path:
 
 from podcast_scraper import Config, config as config_module, service
 
+pytestmark = [pytest.mark.e2e, pytest.mark.module_service]
+
 # Removed TestServiceAPIBasic class (4 tests) as part of Phase 3 consolidation:
 # - test_service_run_basic: Duplicate of test_basic_e2e.py (critical path already covered)
 # - test_service_run_with_metadata: Extended feature, not core workflow
