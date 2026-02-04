@@ -49,15 +49,11 @@ USE_REAL_GEMINI_API = os.getenv("USE_REAL_GEMINI_API", "0") == "1"
 
 # Feed selection for LLM provider tests (shared by OpenAI, Gemini, etc.)
 # Default to "multi" to work in both fast and multi_episode E2E_TEST_MODE
-# Supports fallback to GEMINI_TEST_FEED for backward compatibility
-LLM_TEST_FEED = os.getenv("LLM_TEST_FEED") or os.getenv("GEMINI_TEST_FEED", "multi")
+LLM_TEST_FEED = os.getenv("LLM_TEST_FEED", "multi")
 
 # Real RSS feed URL for testing (only used when USE_REAL_GEMINI_API=1)
-# Supports fallback to GEMINI_TEST_RSS_FEED for backward compatibility
-REAL_TEST_RSS_FEED = os.getenv("LLM_TEST_RSS_FEED") or os.getenv(
-    "GEMINI_TEST_RSS_FEED",
-    None,  # No default - must be explicitly provided
-)
+# NOTE: No default real feed - must be explicitly set via LLM_TEST_RSS_FEED
+REAL_TEST_RSS_FEED = os.getenv("LLM_TEST_RSS_FEED", None)
 
 
 def _get_test_feed_url(
@@ -83,8 +79,7 @@ def _get_test_feed_url(
         if e2e_server is None:
             raise ValueError(
                 "E2E server is required when using fixture feeds with real API. "
-                "Set LLM_TEST_RSS_FEED=<url> (or GEMINI_TEST_RSS_FEED for backward compatibility) "
-                "to use a real RSS feed instead."
+                "Set LLM_TEST_RSS_FEED=<url> to use a real RSS feed instead."
             )
 
         # Use fixture feeds but with real API (no mock API base)
