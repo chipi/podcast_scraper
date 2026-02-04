@@ -420,71 +420,16 @@ class MockHTTPResponse:
         return None
 
 
-def _cleanup_leftover_processes():
-    """Clean up leftover Python/test processes from previous runs.
-
-    This function kills any leftover pytest or Python processes that may have
-    been left running from previous test runs. This prevents resource conflicts
-    and memory issues.
-
-    Safe to call multiple times - only kills processes matching specific patterns.
-    """
-    import subprocess
-
-    try:
-        # Kill pytest processes (including pytest-xdist workers)
-        subprocess.run(
-            ["pkill", "-f", "pytest"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
-
-        # Kill Python processes related to podcast_scraper tests
-        subprocess.run(
-            ["pkill", "-f", "python.*podcast_scraper.*test"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
-
-        # Kill pytest-xdist worker processes (gw0, gw1, etc.)
-        subprocess.run(
-            ["pkill", "-f", "gw[0-9]"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
-
-        # Wait a moment for processes to terminate
-        import time
-
-        time.sleep(0.5)
-    except Exception:
-        # Ignore any errors (pkill may fail if no processes found, which is fine)
-        pass
-
-
-@pytest.fixture(scope="session", autouse=True)
-def cleanup_processes_before_tests():
-    """Automatically clean up leftover processes before test session starts.
-
-    This fixture runs once per test session (before any tests) to ensure
-    a clean state. It kills any leftover pytest or Python processes from
-    previous test runs.
-
-    This prevents:
-    - Resource conflicts from leftover processes
-    - Memory issues from accumulated processes
-    - Port conflicts from leftover servers
-    - Test failures due to stale state
-
-    Issue #351: Automatic cleanup of leftover test processes.
-    """
-    _cleanup_leftover_processes()
-    yield
-    # Also clean up after session (in case tests were interrupted)
-    _cleanup_leftover_processes()
+# Removed automatic process cleanup (Issue #351) - it was over-engineered and caused
+# problems with pytest-xdist workers. If you need to clean up leftover test processes,
+# use the manual script: scripts/tools/cleanup_test_processes.sh
+#
+# Reasons for removal:
+# 1. Unix/Linux only (uses pkill, doesn't work on Windows)
+# 2. Risky - could kill current test run's workers
+# 3. Unnecessary in CI (clean environments)
+# 4. Unnecessary in local dev (users can manually clean up if needed)
+# 5. Caused "OSError: cannot send (already closed?)" during pytest_sessionfinish
 
 
 def pytest_collection_modifyitems(config, items):
