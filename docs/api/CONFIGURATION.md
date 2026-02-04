@@ -108,7 +108,39 @@ OpenAI providers support configurable model selection for dev/test vs production
 | Speaker Detection | `gpt-4o-mini` | `gpt-4o` | Mini is fast/cheap; 4o is more accurate |
 | Summarization | `gpt-4o-mini` | `gpt-4o` | Mini is fast/cheap; 4o produces better summaries |
 
-**Example** (config file):
+#### Gemini API Configuration
+
+**`GEMINI_API_KEY`**
+
+- **Description**: Google AI (Gemini) API key for Gemini-based providers (transcription, speaker detection, summarization)
+- **Required**: Yes, when using Gemini providers (`transcription_provider=gemini`, `speaker_detector_provider=gemini`, or `summary_provider=gemini`)
+- **Example**: `export GEMINI_API_KEY=your-actual-api-key-here`
+- **Security**: Never commit `.env` files containing API keys. API keys are never logged or exposed in error messages.
+- **Getting an API Key**: Visit [Google AI Studio](https://makersuite.google.com/app/apikey) to generate a Gemini API key.
+
+#### Gemini Model Configuration
+
+Gemini providers support configurable model selection for dev/test vs production environments.
+
+| Field | CLI Flag | Default | Description |
+| ------- | ---------- | --------- | ------------- |
+| `gemini_transcription_model` | `--gemini-transcription-model` | `gemini-1.5-flash` (test) / `gemini-1.5-pro` (prod) | Gemini model for transcription |
+| `gemini_speaker_model` | `--gemini-speaker-model` | `gemini-1.5-flash` (test) / `gemini-1.5-pro` (prod) | Gemini model for speaker detection |
+| `gemini_summary_model` | `--gemini-summary-model` | `gemini-1.5-flash` (test) / `gemini-1.5-pro` (prod) | Gemini model for summarization |
+| `gemini_temperature` | `--gemini-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
+| `gemini_max_tokens` | `--gemini-max-tokens` | `None` | Max tokens for generation (None = model default) |
+
+**Note on Transcription Limits**: The Gemini API has file size limits that vary by model. The system proactively checks file sizes via HTTP HEAD requests before downloading or attempting transcription with the Gemini provider. Episodes exceeding limits will be skipped to avoid API errors and unnecessary bandwidth usage.
+
+**Recommended Models by Environment**:
+
+| Purpose | Test/Dev | Production | Notes |
+| --------- | ---------- | ------------ | ------- |
+| Transcription | `gemini-1.5-flash` | `gemini-1.5-pro` | Flash is fast/cheap; Pro is higher quality |
+| Speaker Detection | `gemini-1.5-flash` | `gemini-1.5-pro` | Flash is fast/cheap; Pro is more accurate |
+| Summarization | `gemini-1.5-flash` | `gemini-1.5-pro` | Flash is fast/cheap; Pro produces better summaries |
+
+**Example** (OpenAI config file):
 
 ```yaml
 transcription_provider: openai
@@ -120,7 +152,7 @@ openai_summary_model: gpt-4o      # Production: better summaries
 openai_temperature: 0.3           # Lower = more deterministic
 ```
 
-**Example** (CLI):
+**Example** (OpenAI CLI):
 
 ```bash
 podcast-scraper --rss https://example.com/feed.xml \
@@ -129,6 +161,32 @@ podcast-scraper --rss https://example.com/feed.xml \
   --summary-provider openai \
   --openai-speaker-model gpt-4o \
   --openai-summary-model gpt-4o
+```
+
+**Example** (Gemini config file):
+
+```yaml
+transcription_provider: gemini
+speaker_detector_provider: gemini
+summary_provider: gemini
+gemini_transcription_model: gemini-1.5-pro      # Production: higher quality
+gemini_speaker_model: gemini-1.5-pro           # Production: more accurate
+gemini_summary_model: gemini-1.5-pro           # Production: better summaries
+gemini_temperature: 0.3                        # Lower = more deterministic
+gemini_max_tokens: null                        # Use model default
+```
+
+**Example** (Gemini CLI):
+
+```bash
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider gemini \
+  --speaker-detector-provider gemini \
+  --summary-provider gemini \
+  --gemini-transcription-model gemini-1.5-pro \
+  --gemini-speaker-model gemini-1.5-pro \
+  --gemini-summary-model gemini-1.5-pro \
+  --gemini-temperature 0.3
 ```
 
 #### Logging Configuration

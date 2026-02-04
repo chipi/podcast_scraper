@@ -160,7 +160,10 @@ help:
 init:
 	# Upgrade pip, setuptools, and wheel (required for PEP 660 editable installs with pyproject.toml)
 	$(PYTHON) -m pip install --upgrade pip setuptools wheel
-	$(PYTHON) -m pip install -e .[dev,ml]
+	# Install package with all optional dependencies for development
+	# Note: When adding new optional dependency groups to pyproject.toml, add them here too
+	# Current groups: dev (development tools), ml (ML models), gemini (Gemini API provider)
+	$(PYTHON) -m pip install -e .[dev,ml,gemini]
 	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install -r docs/requirements.txt; fi
 
 format:

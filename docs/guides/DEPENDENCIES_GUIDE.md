@@ -269,6 +269,30 @@ If you want to use both OpenAI and local ML providers:
 pip install -e ".[ml]"
 ````
 
+### With API Provider Dependencies (Gemini)
+
+**Note**: The `google-generativeai` package is **not** included in core dependencies. You must install it separately using the `[gemini]` extra:
+
+````bash
+# For Gemini-only users (no ML dependencies needed)
+pip install -e ".[gemini]"
+````
+
+If you want to use both Gemini and local ML providers:
+
+````bash
+# For users who want both Gemini and local ML options
+pip install -e ".[ml,gemini]"
+````
+
+If you want all options (OpenAI, Gemini, and local ML):
+
+````bash
+# For users who want all provider options
+pip install -e ".[ml,gemini]"
+# Note: OpenAI is already in core, so no need to specify it
+````
+
 ### With Development Dependencies
 
 ````bash

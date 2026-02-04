@@ -12,12 +12,13 @@ choose the right provider based on capabilities, cost, quality, speed, and priva
 **Important:** This guide includes both **implemented** and **planned** providers.
 Check the status below before making decisions.
 
-### ✅ Implemented Providers (v2.4.0)
+### ✅ Implemented Providers (v2.4.0+)
 
 | Provider | Status | RFC | Notes |
 | ---------- | :------: | :---: | ------- |
 | **Local ML** | ✅ **Implemented** | - | Default provider (Whisper + spaCy + Transformers) |
 | **OpenAI** | ✅ **Implemented** | RFC-013 | Full-stack: Whisper API + GPT API |
+| **Gemini** | ✅ **Implemented** | RFC-035 | Full-stack: Gemini API for all capabilities |
 
 ### 📋 Planned Providers (RFCs in Draft Status)
 
@@ -29,7 +30,6 @@ They are documented here for planning purposes and future reference.
 | **Anthropic** | 📋 **Planned** | RFC-032 (Draft) | Design complete, not implemented |
 | **Mistral** | 📋 **Planned** | RFC-033 (Draft) | Design complete, not implemented |
 | **DeepSeek** | 📋 **Planned** | RFC-034 (Draft) | Design complete, not implemented |
-| **Gemini** | 📋 **Planned** | RFC-035 (Draft) | Design complete, not implemented |
 | **Groq** | 📋 **Planned** | RFC-036 (Draft) | Design complete, not implemented |
 | **Ollama** | 📋 **Planned** | RFC-037 (Draft) | Design complete, not implemented |
 
@@ -45,11 +45,11 @@ The comparison data below is based on design specifications and may change durin
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        PROVIDER LANDSCAPE OVERVIEW                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  2 Providers Implemented │  6 Providers Planned    │  2 Full-Stack Ready  │
+│  3 Providers Implemented │  5 Providers Planned    │  3 Full-Stack Ready  │
 │  ════════════════════     │  ═══════════════════════ │  ═══════════════     │
 │  ✅ Local ML              │  📋 Anthropic, Mistral  │  ✅ Local ML          │
-│  ✅ OpenAI                │  📋 DeepSeek, Gemini     │  ✅ OpenAI            │
-│                            │  📋 Groq, Ollama         │                      │
+│  ✅ OpenAI                 │  📋 DeepSeek, Groq       │  ✅ OpenAI            │
+│  ✅ Gemini                 │  📋 Ollama               │  ✅ Gemini            │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                           COST SPECTRUM (per 100 episodes)                  │
 │                                                                             │

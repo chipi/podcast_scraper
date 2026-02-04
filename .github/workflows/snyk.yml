@@ -50,7 +50,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[dev,ml]
+          pip install -e .[dev,ml,gemini]
           # Clean up pip cache after installation to save space
           pip cache purge || true
 
@@ -149,7 +149,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[dev,ml]
+          pip install -e .[dev,ml,gemini]
           # Clean up pip cache after installation to save space
           pip cache purge || true
 

@@ -144,9 +144,10 @@ flowchart TD
 - `workflow.episode_processor`: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
 - `utils.filesystem`: Filename sanitization, output directory derivation based on feed hash ([ADR-003](adr/ADR-003-deterministic-feed-storage.md)), run suffix logic, and helper utilities for Whisper output paths.
 - **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-012](adr/ADR-012-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
-- **Unified Providers** (RFC-029): Two unified provider classes implement all three protocols ([ADR-011](adr/ADR-011-unified-provider-pattern.md)):
+- **Unified Providers** (RFC-029): Three unified provider classes implement all three protocols ([ADR-011](adr/ADR-011-unified-provider-pattern.md)):
   - `ml/ml_provider.py` - `MLProvider`: Implements all three protocols using local ML models (Whisper for transcription, spaCy for speaker detection, Transformers for summarization)
   - `openai/openai_provider.py` - `OpenAIProvider`: Implements all three protocols using OpenAI APIs (Whisper API for transcription, GPT API for speaker detection and summarization)
+  - `gemini/gemini_provider.py` - `GeminiProvider`: Implements all three protocols using Google Gemini APIs (Gemini API for transcription, speaker detection, and summarization)
   - **Factories**: Factory functions in `transcription/factory.py`, `speaker_detectors/factory.py`, and `summarization/factory.py` create the appropriate unified provider based on configuration.
 - `whisper_integration.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names. Now accessed via `MLProvider` (unified provider pattern).
 - `speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Now accessed via `MLProvider` (unified provider pattern).
@@ -206,10 +207,13 @@ graph TB
     Workflow --> SummaryFactory
     TranscriptionFactory --> MLProvider
     TranscriptionFactory --> OpenAIProvider
+    TranscriptionFactory --> GeminiProvider
     SpeakerFactory --> MLProvider
     SpeakerFactory --> OpenAIProvider
+    SpeakerFactory --> GeminiProvider
     SummaryFactory --> MLProvider
     SummaryFactory --> OpenAIProvider
+    SummaryFactory --> GeminiProvider
     MLProvider --> Whisper
     MLProvider --> SpeakerDetect
     MLProvider --> Summarizer

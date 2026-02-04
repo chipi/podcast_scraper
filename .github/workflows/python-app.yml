@@ -325,7 +325,7 @@ jobs:
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml]
+        pip install -e .[dev,ml,gemini]
     - name: Preload ML models (only if cache miss)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: make preload-ml-models-production
@@ -481,7 +481,7 @@ jobs:
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml]
+        pip install -e .[dev,ml,gemini]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -668,7 +668,7 @@ jobs:
     - name: Install dev dependencies with ML (pytest-socket for network guard)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml]
+        pip install -e .[dev,ml,gemini]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -814,7 +814,7 @@ jobs:
     - name: Install dev dependencies (pytest-socket for network guard)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml]
+        pip install -e .[dev,ml,gemini]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -911,7 +911,7 @@ jobs:
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml]
+        pip install -e .[dev,ml,gemini]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |

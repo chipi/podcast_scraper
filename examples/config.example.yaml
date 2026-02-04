@@ -10,10 +10,10 @@ output_dir: output_podcast_example  # Can also be set via OUTPUT_DIR env var
 max_episodes: 10
 
 # Provider configuration - mixed example (can use different providers for different capabilities)
-# Options: openai (API-based), whisper (local Whisper), spacy (local spaCy), transformers (local HuggingFace)
-transcription_provider: whisper  # Options: openai, whisper
-speaker_detector_provider: spacy  # Options: openai, spacy
-summary_provider: transformers  # Options: openai, transformers
+# Options: openai, gemini (API-based), whisper (local Whisper), spacy (local spaCy), transformers (local HuggingFace)
+transcription_provider: whisper  # Options: whisper, openai, gemini
+speaker_detector_provider: spacy  # Options: spacy, openai, gemini
+summary_provider: transformers  # Options: transformers, openai, gemini
 
 transcribe_missing: true  # Enable automatic transcription of missing transcripts
 whisper_model: base.en  # Whisper model to use (tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large, large-v1, large-v2, large-v3)
@@ -48,6 +48,11 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # Note: OPENAI_API_KEY should be set in .env file (see examples/.env.example)
 # openai_api_key: your-key-here  # Not recommended - use .env file instead
 # openai_api_base: http://localhost:8000/v1  # Optional: Custom OpenAI API base URL (e.g., for E2E testing)
+
+# Gemini configuration (required if using any Gemini providers)
+# Note: GEMINI_API_KEY should be set in .env file (see examples/.env.example)
+# gemini_api_key: your-key-here  # Not recommended - use .env file instead
+# gemini_api_base: http://localhost:8000/v1beta  # Optional: Custom Gemini API base URL (e.g., for E2E testing)
 
 # OpenAI model configuration (optional - defaults are used if not specified)
 # openai_transcription_model: whisper-1  # Default: whisper-1

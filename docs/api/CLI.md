@@ -51,9 +51,9 @@ python -m podcast_scraper.cli --config config.yaml
 
 ### Provider Selection (v2.4.0+)
 
-- `--transcription-provider PROVIDER` - Provider for transcription (`whisper`, `openai`)
-- `--speaker-detector-provider PROVIDER` - Provider for speaker detection (`spacy`, `openai`, `anthropic`, etc.)
-- `--summary-provider PROVIDER` - Provider for summarization (`transformers`, `openai`, `anthropic`, etc.)
+- `--transcription-provider PROVIDER` - Provider for transcription (`whisper`, `openai`, `gemini`)
+- `--speaker-detector-provider PROVIDER` - Provider for speaker detection (`spacy`, `openai`, `gemini`)
+- `--summary-provider PROVIDER` - Provider for summarization (`transformers`, `openai`, `gemini`)
 
 ### Transcription Options
 
@@ -77,6 +77,25 @@ python -m podcast_scraper.cli --config config.yaml
 - `--preprocessing-target-loudness LOUDNESS` - Target loudness in LUFS for normalization (default: `-16`)
 
 **Note**: Preprocessing requires `ffmpeg` to be installed. If `ffmpeg` is not available, preprocessing is automatically disabled with a warning.
+
+### OpenAI Provider Options
+
+- `--openai-api-key KEY` - OpenAI API key (can also use `OPENAI_API_KEY` env var)
+- `--openai-api-base URL` - Custom OpenAI API base URL (for E2E testing or custom endpoints)
+- `--openai-transcription-model MODEL` - OpenAI model for transcription (default: `whisper-1`)
+- `--openai-speaker-model MODEL` - OpenAI model for speaker detection (default: `gpt-4o-mini`)
+- `--openai-summary-model MODEL` - OpenAI model for summarization (default: `gpt-4o-mini`)
+- `--openai-temperature TEMP` - Temperature for OpenAI generation (0.0-2.0, default: 0.3)
+
+### Gemini Provider Options
+
+- `--gemini-api-key KEY` - Gemini API key (can also use `GEMINI_API_KEY` env var)
+- `--gemini-api-base URL` - Custom Gemini API base URL (for E2E testing or custom endpoints)
+- `--gemini-transcription-model MODEL` - Gemini model for transcription (default: environment-based, `gemini-1.5-flash` for test, `gemini-1.5-pro` for prod)
+- `--gemini-speaker-model MODEL` - Gemini model for speaker detection (default: environment-based)
+- `--gemini-summary-model MODEL` - Gemini model for summarization (default: environment-based)
+- `--gemini-temperature TEMP` - Temperature for Gemini generation (0.0-2.0, default: 0.3)
+- `--gemini-max-tokens N` - Max tokens for Gemini generation (default: model default)
 
 ### Metadata & Summarization
 
@@ -143,7 +162,7 @@ Total Estimated Cost: $1.0670
 Note: Estimates are approximate and based on average episode duration. Actual costs may vary based on actual audio length and transcript complexity.
 ```
 
-**Note:** Cost projection only appears when OpenAI providers are configured. Estimates use episode durations from RSS feed metadata when available, or a conservative 30-minute average per episode as a fallback.
+**Note:** Cost projection appears when OpenAI or Gemini providers are configured. Estimates use episode durations from RSS feed metadata when available, or a conservative 30-minute average per episode as a fallback.
 
 ## Configuration Files
 
@@ -261,11 +280,17 @@ python -m podcast_scraper.cli https://example.com/feed.xml \
   --speaker-detector-provider openai \
   --summary-provider openai
 
-# Mix and match
+# Use Gemini for everything
+python -m podcast_scraper.cli https://example.com/feed.xml \
+  --transcription-provider gemini \
+  --speaker-detector-provider gemini \
+  --summary-provider gemini
+
+# Mix and match providers
 python -m podcast_scraper.cli https://example.com/feed.xml \
   --transcription-provider whisper \
-  --speaker-detector-provider anthropic \
-  --summary-provider mistral
+  --speaker-detector-provider gemini \
+  --summary-provider openai
 ```
 
 ## See Also

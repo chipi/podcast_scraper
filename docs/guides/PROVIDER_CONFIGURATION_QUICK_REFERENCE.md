@@ -11,21 +11,25 @@ The podcast scraper uses a **Unified Provider** pattern where a single class imp
 
 1. **`MLProvider` (Local)**: Handles `whisper`, `spacy`, and `transformers`.
 2. **`OpenAIProvider` (API)**: Handles all OpenAI-based transcription, speaker detection, and summarization.
+3. **`GeminiProvider` (API)**: Handles all Google Gemini-based transcription, speaker detection, and summarization.
 
 ### Transcription Providers
 
 - **`whisper`** (default): Local Whisper models (via `MLProvider`)
 - **`openai`**: OpenAI Whisper API (via `OpenAIProvider`)
+- **`gemini`**: Google Gemini API (via `GeminiProvider`)
 
 ### Speaker Detection Providers
 
 - **`spacy`** (default): Local spaCy NER models (via `MLProvider`)
 - **`openai`**: OpenAI GPT API (via `OpenAIProvider`)
+- **`gemini`**: Google Gemini API (via `GeminiProvider`)
 
 ### Summarization Providers
 
 - **`transformers`** (default): Local HuggingFace Transformers models (via `MLProvider`)
 - **`openai`**: OpenAI GPT API (via `OpenAIProvider`)
+- **`gemini`**: Google Gemini API (via `GeminiProvider`)
 
 ## Configuration Methods
 
@@ -72,6 +76,32 @@ podcast-scraper --rss https://example.com/feed.xml \
   --speaker-detector-provider openai \
   --summary-provider openai \
   --openai-api-key sk-your-key-here
+
+# Use Gemini for transcription
+
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider gemini \
+  --gemini-api-key your-key-here
+
+# Use Gemini for speaker detection
+
+podcast-scraper --rss https://example.com/feed.xml \
+  --speaker-detector-provider gemini \
+  --gemini-api-key your-key-here
+
+# Use Gemini for summarization
+
+podcast-scraper --rss https://example.com/feed.xml \
+  --summary-provider gemini \
+  --gemini-api-key your-key-here
+
+# All Gemini providers
+
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider gemini \
+  --speaker-detector-provider gemini \
+  --summary-provider gemini \
+  --gemini-api-key your-key-here
 ```
 
 **OpenAI API Key Options:**
@@ -89,6 +119,21 @@ podcast-scraper --rss https://example.com/feed.xml \
   --openai-api-key sk-test123
 ```
 
+**Gemini API Key Options:**
+
+- Set via `--gemini-api-key` flag
+- Set via `GEMINI_API_KEY` environment variable
+- Set via `.env` file in project root
+
+**Custom Gemini Base URL (for E2E testing):**
+
+```bash
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider gemini \
+  --gemini-api-base http://localhost:8000/v1beta \
+  --gemini-api-key test123
+```
+
 ## 2. Configuration File (YAML/JSON)
 
 Create a config file (e.g., `config.yaml`) with provider settings:
@@ -102,14 +147,19 @@ output_dir: ./transcripts
 
 # Provider configuration
 
-transcription_provider: whisper  # or "openai"
-speaker_detector_provider: spacy  # or "openai"
-summary_provider: transformers  # or "openai"
+transcription_provider: whisper  # or "openai", "gemini"
+speaker_detector_provider: spacy  # or "openai", "gemini"
+summary_provider: transformers  # or "openai", "gemini"
 
 # OpenAI configuration (required if using OpenAI providers)
 
 openai_api_key: sk-your-key-here  # Optional: can use OPENAI_API_KEY env var instead
 openai_api_base: null  # Optional: custom base URL (e.g., "http://localhost:8000/v1" for E2E testing)
+
+# Gemini configuration (required if using Gemini providers)
+
+gemini_api_key: your-key-here  # Optional: can use GEMINI_API_KEY env var instead
+gemini_api_base: null  # Optional: custom base URL (e.g., "http://localhost:8000/v1beta" for E2E testing)
 
 # Transcription settings (for whisper provider)
 
@@ -139,6 +189,7 @@ mps_exclusive: true  # Serialize GPU work on MPS to prevent memory contention (d
   "speaker_detector_provider": "spacy",
   "summary_provider": "transformers",
   "openai_api_key": "sk-your-key-here",
+  "gemini_api_key": "your-key-here",
   "transcribe_missing": true,
   "whisper_model": "base",
   "auto_speakers": true,
@@ -203,6 +254,31 @@ cfg = Config(
     generate_summaries=True,
 )
 
+# Gemini transcription
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    transcription_provider="gemini",
+    gemini_api_key="your-key-here",  # or set GEMINI_API_KEY env var
+)
+
+# Gemini speaker detection
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    speaker_detector_provider="gemini",
+    gemini_api_key="your-key-here",
+)
+
+# Gemini summarization
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    summary_provider="gemini",
+    gemini_api_key="your-key-here",
+    generate_summaries=True,
+)
+
 # Mixed configuration
 
 cfg = Config(
@@ -221,6 +297,19 @@ cfg = Config(
     speaker_detector_provider="openai",
     summary_provider="openai",
     openai_api_key="sk-your-key-here",
+    transcribe_missing=True,
+    auto_speakers=True,
+    generate_summaries=True,
+)
+
+# All Gemini providers
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    transcription_provider="gemini",
+    speaker_detector_provider="gemini",
+    summary_provider="gemini",
+    gemini_api_key="your-key-here",
     transcribe_missing=True,
     auto_speakers=True,
     generate_summaries=True,
@@ -300,10 +389,23 @@ export OPENAI_API_KEY=sk-your-key-here
 
 export OPENAI_API_BASE=http://localhost:8000/v1
 
+# Gemini API key
+
+export GEMINI_API_KEY=your-key-here
+
+# Gemini API base URL (for E2E testing)
+
+export GEMINI_API_BASE=http://localhost:8000/v1beta
+
 # Then use in CLI or config
 
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider openai
+
+# Or with Gemini
+
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider gemini
 ```
 
 ## Common Configuration Patterns
@@ -333,7 +435,21 @@ openai_api_key: sk-your-key-here
 - API costs per request
 - Requires internet connection
 
-### Pattern 3: Hybrid (Local + OpenAI)
+### Pattern 2b: All Gemini
+
+```yaml
+transcription_provider: gemini
+speaker_detector_provider: gemini
+summary_provider: gemini
+gemini_api_key: your-key-here
+```
+
+- No local ML models needed
+- API costs per request
+- Requires internet connection
+- Alternative to OpenAI
+
+### Pattern 3: Hybrid (Local + API)
 
 ```yaml
 transcription_provider: whisper      # Local (fast, free)
@@ -367,7 +483,7 @@ Invalid provider types will raise `ValueError`:
 
 cfg = Config(
     rss_url="https://example.com/feed.xml",
-    transcription_provider="invalid",  # Not "whisper" or "openai"
+    transcription_provider="invalid",  # Not "whisper", "openai", or "gemini"
 )
 
 # ✅ Valid
@@ -378,7 +494,7 @@ cfg = Config(
 )
 ```
 
-Missing OpenAI API key when using OpenAI providers will raise `ValueError`:
+Missing API key when using API providers will raise `ValueError`:
 
 ```python
 
@@ -396,6 +512,22 @@ cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="openai",
     openai_api_key="sk-your-key-here",  # Required
+)
+
+# ❌ Invalid - will raise ValueError
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    transcription_provider="gemini",
+    # Missing gemini_api_key
+)
+
+# ✅ Valid
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    transcription_provider="gemini",
+    gemini_api_key="your-key-here",  # Required
 )
 ```
 
@@ -416,6 +548,15 @@ podcast-scraper --rss https://example.com/feed.xml \
 export OPENAI_API_KEY=sk-your-key-here
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider openai \
+  --transcribe-missing
+```
+
+### Example 2b: Gemini Transcription Only
+
+```bash
+export GEMINI_API_KEY=your-key-here
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider gemini \
   --transcribe-missing
 ```
 
