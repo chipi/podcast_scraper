@@ -108,13 +108,16 @@ class GeminiProvider:
             )
 
         # Transcription settings
+        # Model validation happens at API call time - invalid models will raise clear errors
         self.transcription_model = getattr(cfg, "gemini_transcription_model", "gemini-2.0-flash")
 
         # Speaker detection settings
+        # Model validation happens at API call time - invalid models will raise clear errors
         self.speaker_model = getattr(cfg, "gemini_speaker_model", "gemini-2.0-flash")
         self.speaker_temperature = getattr(cfg, "gemini_temperature", 0.3)
 
         # Summarization settings
+        # Model validation happens at API call time - invalid models will raise clear errors
         self.summary_model = getattr(cfg, "gemini_summary_model", "gemini-2.0-flash")
         self.summary_temperature = getattr(cfg, "gemini_temperature", 0.3)
         # Gemini 1.5 Pro supports 2M context window
@@ -126,6 +129,8 @@ class GeminiProvider:
         self._summarization_initialized = False
 
         # Mark provider as thread-safe (API clients can be shared across threads)
+        # API providers handle rate limiting and retries internally via SDK
+        # Gemini SDK automatically handles retries with exponential backoff
         self._requires_separate_instances = False
 
     @staticmethod
@@ -291,12 +296,36 @@ class GeminiProvider:
 
         except Exception as exc:
             logger.error("Gemini API error in transcription: %s", exc)
-            from podcast_scraper.exceptions import ProviderRuntimeError
+            from podcast_scraper.exceptions import (
+                ProviderAuthError,
+                ProviderRuntimeError,
+            )
 
-            raise ProviderRuntimeError(
-                message=f"Gemini transcription failed: {exc}",
-                provider="GeminiProvider/Transcription",
-            ) from exc
+            # Handle Gemini-specific error types
+            error_msg = str(exc).lower()
+            if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
+                raise ProviderAuthError(
+                    message=f"Gemini authentication failed: {exc}",
+                    provider="GeminiProvider/Transcription",
+                    suggestion="Check your GEMINI_API_KEY environment variable or config setting",
+                ) from exc
+            elif "quota" in error_msg or "rate limit" in error_msg:
+                raise ProviderRuntimeError(
+                    message=f"Gemini rate limit exceeded: {exc}",
+                    provider="GeminiProvider/Transcription",
+                    suggestion="Wait before retrying or check your API quota",
+                ) from exc
+            elif "invalid" in error_msg and "model" in error_msg:
+                raise ProviderRuntimeError(
+                    message=f"Gemini invalid model: {exc}",
+                    provider="GeminiProvider/Transcription",
+                    suggestion="Check gemini_transcription_model configuration",
+                ) from exc
+            else:
+                raise ProviderRuntimeError(
+                    message=f"Gemini transcription failed: {exc}",
+                    provider="GeminiProvider/Transcription",
+                ) from exc
 
     def transcribe_with_segments(
         self,
@@ -442,9 +471,10 @@ class GeminiProvider:
                 "response_mime_type": "application/json",
             }
 
+            # Type ignore: Gemini SDK accepts dict for generation_config
             response = model.generate_content(
                 user_prompt,
-                generation_config=generation_config,
+                generation_config=generation_config,  # type: ignore[arg-type]
             )
 
             response_text = response.text if hasattr(response, "text") else str(response)
@@ -479,7 +509,36 @@ class GeminiProvider:
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False
         except Exception as exc:
             logger.error("Gemini API error in speaker detection: %s", exc)
-            raise ValueError(f"Gemini speaker detection failed: {exc}") from exc
+            from podcast_scraper.exceptions import (
+                ProviderAuthError,
+                ProviderRuntimeError,
+            )
+
+            # Handle Gemini-specific error types
+            error_msg = str(exc).lower()
+            if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
+                raise ProviderAuthError(
+                    message=f"Gemini authentication failed: {exc}",
+                    provider="GeminiProvider/SpeakerDetection",
+                    suggestion="Check your GEMINI_API_KEY environment variable or config setting",
+                ) from exc
+            elif "quota" in error_msg or "rate limit" in error_msg:
+                raise ProviderRuntimeError(
+                    message=f"Gemini rate limit exceeded: {exc}",
+                    provider="GeminiProvider/SpeakerDetection",
+                    suggestion="Wait before retrying or check your API quota",
+                ) from exc
+            elif "invalid" in error_msg and "model" in error_msg:
+                raise ProviderRuntimeError(
+                    message=f"Gemini invalid model: {exc}",
+                    provider="GeminiProvider/SpeakerDetection",
+                    suggestion="Check gemini_speaker_model configuration",
+                ) from exc
+            else:
+                raise ProviderRuntimeError(
+                    message=f"Gemini speaker detection failed: {exc}",
+                    provider="GeminiProvider/SpeakerDetection",
+                ) from exc
 
     def analyze_patterns(
         self,
@@ -620,9 +679,10 @@ class GeminiProvider:
                 "max_output_tokens": max_length,
             }
 
+            # Type ignore: Gemini SDK accepts dict for generation_config
             response = model.generate_content(
                 user_prompt,
-                generation_config=generation_config,
+                generation_config=generation_config,  # type: ignore[arg-type]
             )
 
             summary = response.text if hasattr(response, "text") else str(response)
@@ -668,7 +728,36 @@ class GeminiProvider:
 
         except Exception as exc:
             logger.error("Gemini API error in summarization: %s", exc)
-            raise ValueError(f"Gemini summarization failed: {exc}") from exc
+            from podcast_scraper.exceptions import (
+                ProviderAuthError,
+                ProviderRuntimeError,
+            )
+
+            # Handle Gemini-specific error types
+            error_msg = str(exc).lower()
+            if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
+                raise ProviderAuthError(
+                    message=f"Gemini authentication failed: {exc}",
+                    provider="GeminiProvider/Summarization",
+                    suggestion="Check your GEMINI_API_KEY environment variable or config setting",
+                ) from exc
+            elif "quota" in error_msg or "rate limit" in error_msg:
+                raise ProviderRuntimeError(
+                    message=f"Gemini rate limit exceeded: {exc}",
+                    provider="GeminiProvider/Summarization",
+                    suggestion="Wait before retrying or check your API quota",
+                ) from exc
+            elif "invalid" in error_msg and "model" in error_msg:
+                raise ProviderRuntimeError(
+                    message=f"Gemini invalid model: {exc}",
+                    provider="GeminiProvider/Summarization",
+                    suggestion="Check gemini_summary_model configuration",
+                ) from exc
+            else:
+                raise ProviderRuntimeError(
+                    message=f"Gemini summarization failed: {exc}",
+                    provider="GeminiProvider/Summarization",
+                ) from exc
 
     def _build_summarization_prompts(
         self,
