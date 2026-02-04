@@ -1502,6 +1502,10 @@ def _build_processing_metadata(
             # Include OpenAI transcription model
             transcription_model = getattr(cfg, "openai_transcription_model", "whisper-1")
             ml_providers["transcription"]["openai_model"] = transcription_model
+        elif cfg.transcription_provider == "gemini":
+            # Include Gemini transcription model
+            transcription_model = getattr(cfg, "gemini_transcription_model", "gemini-1.5-pro")
+            ml_providers["transcription"]["gemini_model"] = transcription_model
 
     # Speaker detection provider
     if cfg.speaker_detector_provider:
@@ -1514,6 +1518,10 @@ def _build_processing_metadata(
             # Include OpenAI speaker detection model
             speaker_model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
             ml_providers["speaker_detection"]["openai_model"] = speaker_model
+        elif cfg.speaker_detector_provider == "gemini":
+            # Include Gemini speaker detection model
+            speaker_model = getattr(cfg, "gemini_speaker_model", "gemini-1.5-pro")
+            ml_providers["speaker_detection"]["gemini_model"] = speaker_model
 
     # Summarization provider
     if cfg.summary_provider:
@@ -1553,6 +1561,10 @@ def _build_processing_metadata(
             # Include OpenAI summarization model
             summary_model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
             ml_providers["summarization"]["openai_model"] = summary_model
+        elif cfg.summary_provider == "gemini":
+            # Include Gemini summarization model
+            summary_model = getattr(cfg, "gemini_summary_model", "gemini-1.5-pro")
+            ml_providers["summarization"]["gemini_model"] = summary_model
 
     # Build config_snapshot with ml_providers first for prominence
     config_snapshot: Dict[str, Any] = {}
