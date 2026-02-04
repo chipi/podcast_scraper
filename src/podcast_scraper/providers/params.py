@@ -31,7 +31,7 @@ class SummarizationParams(BaseModel):
         word_chunk_size: Chunk size in words for word-based chunking
         word_overlap: Overlap in words for word-based chunking
         prompt: Optional custom prompt/instruction
-        temperature: Temperature for generation (0.0-2.0, OpenAI only)
+        temperature: Temperature for generation (0.0-2.0, OpenAI/Gemini only)
         device: Device for model execution ("cpu", "cuda", "mps", or None for auto)
         reduce_model: Optional separate model for REDUCE phase (transformers only)
         cache_dir: Custom cache directory for transformer models (None = default)
@@ -91,7 +91,7 @@ class SummarizationParams(BaseModel):
         default=0.3,
         ge=0.0,
         le=2.0,
-        description="Temperature for generation (OpenAI only, 0.0-2.0)",
+        description="Temperature for generation (OpenAI/Gemini only, 0.0-2.0)",
     )
     device: Optional[str] = Field(
         default=None,
@@ -194,7 +194,7 @@ class SpeakerDetectionParams(BaseModel):
 
     Attributes:
         model_name: Model identifier (e.g., "en_core_web_sm", "gpt-4o-mini")
-        temperature: Temperature for generation (0.0-2.0, OpenAI only)
+        temperature: Temperature for generation (0.0-2.0, OpenAI/Gemini only)
 
     Example:
         >>> params = SpeakerDetectionParams(
@@ -210,7 +210,7 @@ class SpeakerDetectionParams(BaseModel):
         default=0.3,
         ge=0.0,
         le=2.0,
-        description="Temperature for generation (OpenAI only, 0.0-2.0)",
+        description="Temperature for generation (OpenAI/Gemini only, 0.0-2.0)",
     )
 
     def model_dump(self, **kwargs: Any) -> Dict[str, Any]:  # type: ignore[override]
