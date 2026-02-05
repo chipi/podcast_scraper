@@ -340,6 +340,10 @@ class TestGeminiProviderTranscription(unittest.TestCase):
     @patch("os.path.exists")
     def test_transcribe_with_segments_success(self, mock_exists, mock_open, mock_genai):
         """Test transcribe_with_segments returns full result."""
+        # Ensure mock_genai is not None so the provider's __init__ check passes
+        if mock_genai is None:
+            mock_genai = Mock()
+
         mock_exists.return_value = True
         mock_file = Mock()
         mock_file.read.return_value = b"fake audio data"
@@ -351,6 +355,7 @@ class TestGeminiProviderTranscription(unittest.TestCase):
         mock_model = Mock()
         mock_model.generate_content.return_value = mock_response
         mock_genai.GenerativeModel.return_value = mock_model
+        mock_genai.configure = Mock()  # Ensure configure method exists
 
         provider = GeminiProvider(self.cfg)
         provider.initialize()
@@ -520,6 +525,10 @@ class TestGeminiProviderSummarization(unittest.TestCase):
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_summarize_success(self, mock_render_prompt, mock_genai):
         """Test successful summarization."""
+        # Ensure mock_genai is not None so the provider's __init__ check passes
+        if mock_genai is None:
+            mock_genai = Mock()
+
         # Mock render_prompt to return prompts (called twice: system and user)
         mock_render_prompt.side_effect = ["System Prompt", "User Prompt"]
 
@@ -529,6 +538,7 @@ class TestGeminiProviderSummarization(unittest.TestCase):
         mock_model = Mock()
         mock_model.generate_content.return_value = mock_response
         mock_genai.GenerativeModel.return_value = mock_model
+        mock_genai.configure = Mock()  # Ensure configure method exists
 
         provider = GeminiProvider(self.cfg)
         provider.initialize()
@@ -561,6 +571,10 @@ class TestGeminiProviderSummarization(unittest.TestCase):
         self, mock_build_prompts, mock_render_prompt, mock_get_metadata, mock_genai
     ):
         """Test summarization with custom parameters."""
+        # Ensure mock_genai is not None so the provider's __init__ check passes
+        if mock_genai is None:
+            mock_genai = Mock()
+
         # _build_summarization_prompts returns:
         # (system_prompt, user_prompt, system_prompt_name, user_prompt_name,
         #  paragraphs_min, paragraphs_max)
@@ -586,6 +600,7 @@ class TestGeminiProviderSummarization(unittest.TestCase):
         mock_model = Mock()
         mock_model.generate_content.return_value = mock_response
         mock_genai.GenerativeModel.return_value = mock_model
+        mock_genai.configure = Mock()  # Ensure configure method exists
 
         provider = GeminiProvider(self.cfg)
         provider.initialize()

@@ -95,8 +95,11 @@ class TestGrokSpeakerDetector(unittest.TestCase):
             if original_key is not None:
                 os.environ["GROK_API_KEY"] = original_key
 
-    def test_factory_creates_grok_provider(self):
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_factory_creates_grok_provider(self, mock_openai):
         """Test that factory creates Grok speaker detector."""
+        mock_client = Mock()
+        mock_openai.return_value = mock_client
         provider = create_speaker_detector(self.cfg)
         # Factory returns unified GrokProvider
         self.assertEqual(provider.__class__.__name__, "GrokProvider")
@@ -172,8 +175,11 @@ class TestGrokSummarizationProvider(unittest.TestCase):
             if original_key is not None:
                 os.environ["GROK_API_KEY"] = original_key
 
-    def test_factory_creates_grok_provider(self):
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_factory_creates_grok_provider(self, mock_openai):
         """Test that factory creates Grok summarization provider."""
+        mock_client = Mock()
+        mock_openai.return_value = mock_client
         provider = create_summarization_provider(self.cfg)
         # Factory returns unified GrokProvider
         self.assertEqual(provider.__class__.__name__, "GrokProvider")

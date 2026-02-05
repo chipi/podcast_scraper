@@ -201,6 +201,11 @@ class TestGeminiSummarizationProvider(unittest.TestCase):
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_summarize_success(self, mock_render_prompt, mock_genai):
         """Test successful summarization via Gemini API via factory."""
+        # Ensure mock_genai is not None and has required methods
+        if mock_genai is None:
+            mock_genai = Mock()
+        mock_genai.configure = Mock()
+
         # Mock Gemini client and response
         mock_response = Mock()
         mock_response.text = "This is a summary of the transcript."
@@ -247,9 +252,10 @@ class TestGeminiSummarizationProvider(unittest.TestCase):
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_factory_creates_gemini_provider(self, mock_genai):
         """Test that factory creates Gemini summarization provider."""
-        # Ensure genai is not None (module-level import check)
+        # Ensure genai is not None and has required methods
         if mock_genai is None:
             mock_genai = Mock()
+        mock_genai.configure = Mock()
         provider = create_summarization_provider(self.cfg)
         # Factory now returns unified GeminiProvider, not separate provider classes
         self.assertEqual(provider.__class__.__name__, "GeminiProvider")
