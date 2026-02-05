@@ -201,9 +201,7 @@ class TestGeminiSummarizationProvider(unittest.TestCase):
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_summarize_success(self, mock_render_prompt, mock_genai):
         """Test successful summarization via Gemini API via factory."""
-        # Ensure mock_genai is not None and has required methods
-        if mock_genai is None:
-            mock_genai = Mock()
+        # Set up mock_genai.configure BEFORE provider instantiation
         mock_genai.configure = Mock()
 
         # Mock Gemini client and response
