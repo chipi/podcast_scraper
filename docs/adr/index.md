@@ -56,6 +56,11 @@ Architecture Decision Records (ADRs) capture the **what** and **why** of signifi
 | [ADR-040](ADR-040-periodic-module-coupling-analysis.md) | Periodic Module Coupling Analysis | Accepted | [RFC-038](../rfc/RFC-038-continuous-review-tooling.md) | Nightly visualization of architecture health |
 | [ADR-041](ADR-041-mandatory-pre-release-validation.md) | Mandatory Pre-Release Validation | Accepted | [RFC-038](../rfc/RFC-038-continuous-review-tooling.md) | Standardized checklist script for releases |
 | [ADR-042](ADR-042-proactive-metric-regression-alerting.md) | Proactive Metric Regression Alerting | Accepted | [RFC-043](../rfc/RFC-043-automated-metrics-alerts.md) | Automated PR comments and webhook notifications |
+| [ADR-043](ADR-043-unified-provider-metrics-contract.md) | Unified Provider Metrics Contract | Accepted | - | Standardized `ProviderCallMetrics` pattern for all providers |
+| [ADR-044](ADR-044-unified-retry-policy-with-metrics.md) | Unified Retry Policy with Metrics | Accepted | - | Centralized retry logic with exponential backoff and metrics tracking |
+| [ADR-045](ADR-045-composable-e2e-mock-response-strategy.md) | Composable E2E Mock Response Strategy | Proposed | [RFC-054](../rfc/RFC-054-e2e-mock-response-strategy.md) | Separation of functional responses from non-functional behavior in tests |
+| [ADR-046](ADR-046-adaptive-summarization-routing.md) | Adaptive Summarization Routing | Proposed | [RFC-053](../rfc/RFC-053-adaptive-summarization-routing.md) | Rule-based routing with episode profiling for summarization strategies |
+| [ADR-047](ADR-047-centralized-model-registry.md) | Centralized Model Registry | Proposed | [RFC-044](../rfc/RFC-044-model-registry.md) | Single source of truth for model architecture limits |
 
 ---
 

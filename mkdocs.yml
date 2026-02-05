@@ -7,6 +7,7 @@ docs_dir: docs
 site_dir: .build/site
 nav:
   - Home: index.md
+  - Roadmap: ROADMAP.md
   - Guides:
       - guides/index.md
       - Quick Reference: guides/QUICK_REFERENCE.md

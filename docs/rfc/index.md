@@ -47,6 +47,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 || [RFC-051](RFC-051-database-export-knowledge-graph.md) | Podcast Knowledge Graph – Episode & KG Data Store Projection | PRD-018 | Database export design for fast queries and notebook workflows |
 || [RFC-052](RFC-052-locally-hosted-llm-models-with-prompts.md) | Locally Hosted LLM Models with Prompts | PRD-014 | Architecture for locally hosted LLM models with optimized prompts to solve cost and latency |
 || [RFC-053](RFC-053-adaptive-summarization-routing.md) | Adaptive Summarization Routing Based on Episode Profiling | PRD-005 | Episode profiling and routing system for optimal summarization strategies per episode type |
+| [RFC-054](RFC-054-e2e-mock-response-strategy.md) | Flexible E2E Mock Response Strategy | #135, #399, #401 | Flexible strategy for E2E mock responses supporting normal and advanced error handling scenarios |
 
 ## Completed RFCs
 
