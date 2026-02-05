@@ -12,12 +12,18 @@ not its integration with the app.
 import json
 import os
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from podcast_scraper import config
-from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
+# Mock google.generativeai before importing modules that require it
+# Unit tests run without google-generativeai package installed
+mock_genai_module = MagicMock()
+mock_genai_module.configure = Mock()
+mock_genai_module.GenerativeModel = Mock()
+with patch.dict("sys.modules", {"google": MagicMock(), "google.generativeai": mock_genai_module}):
+    from podcast_scraper import config
+    from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
 
 
 @pytest.mark.unit
