@@ -51,6 +51,30 @@ USE_REAL_GEMINI_API = os.getenv("USE_REAL_GEMINI_API", "0") == "1"
 if not USE_REAL_GEMINI_API and "GEMINI_API_KEY" not in os.environ:
     os.environ["GEMINI_API_KEY"] = "test-dummy-key-for-e2e-tests"
 
+# Check if we should use real Mistral API (for manual testing only)
+USE_REAL_MISTRAL_API = os.getenv("USE_REAL_MISTRAL_API", "0") == "1"
+
+# Set dummy Mistral API key for all E2E tests (will use mocked provider)
+# This is needed because config validation requires the key to be present
+# even though we mock the Mistral client
+# SKIP if using real API (will use key from .env file)
+if not USE_REAL_MISTRAL_API and "MISTRAL_API_KEY" not in os.environ:
+    os.environ["MISTRAL_API_KEY"] = "test-dummy-key-for-e2e-tests"
+
+
+# Set dummy DeepSeek API key for E2E tests (unless using real API)
+USE_REAL_DEEPSEEK_API = os.getenv("USE_REAL_DEEPSEEK_API", "0") == "1"
+if not USE_REAL_DEEPSEEK_API and "DEEPSEEK_API_KEY" not in os.environ:
+    os.environ["DEEPSEEK_API_KEY"] = "test-dummy-key-for-e2e-tests"
+
+# Check if we should use real Ollama API (for manual testing only)
+USE_REAL_OLLAMA_API = os.getenv("USE_REAL_OLLAMA_API", "0") == "1"
+# Note: Ollama doesn't require an API key, but we set a dummy value for consistency
+# with other providers (not actually used by Ollama)
+if not USE_REAL_OLLAMA_API:
+    # Ollama doesn't use API keys, but we set a dummy for consistency
+    pass
+
 # Set HF_HUB_CACHE to local cache if it exists (ensures consistent cache resolution)
 # This must be set BEFORE any transformers imports happen
 from pathlib import Path
@@ -304,7 +328,7 @@ def configure_gemini_mock_server(request, monkeypatch):
     # Replace Gemini SDK's GenerativeModel with fake client that routes to E2E server
     # This allows tests to use real HTTP requests to mock endpoints
     try:
-        from tests.e2e.fixtures.gemini_mock_client import create_fake_gemini_client
+        from tests.fixtures.mock_server.gemini_mock_client import create_fake_gemini_client
 
         FakeGenerativeModel = create_fake_gemini_client(gemini_api_base)
         # Monkeypatch the SDK's GenerativeModel class
@@ -317,6 +341,215 @@ def configure_gemini_mock_server(request, monkeypatch):
         # If fake client can't be imported, fall back to Python-level mocking
         # (This shouldn't happen in normal test runs)
         logger.warning("Could not import fake Gemini client, falling back to Python-level mocking")
+
+
+@pytest.fixture(autouse=True)
+def configure_mistral_mock_server(request, monkeypatch):
+    """Configure Mistral providers to use E2E server mock endpoints via fake SDK.
+
+    This fixture automatically replaces the Mistral SDK's Mistral class with a fake
+    client that routes calls to the E2E server's mock Mistral API endpoints. This
+    allows E2E tests to use real HTTP requests to mock endpoints, testing the full
+    HTTP client → Network → Mock Server → Response chain.
+
+    The E2E server provides mock endpoints:
+    - /v1/chat/completions: For summarization and speaker detection
+    - /v1/audio/transcriptions: For transcription
+
+    Implementation:
+        Uses a fake Mistral class that intercepts SDK calls and routes them to
+        the E2E mock server via HTTP, similar to how Gemini tests work.
+
+    Note:
+        This fixture is autouse=True, so it's automatically applied to all
+        E2E tests. No need to explicitly use it in test functions.
+
+    Real API Mode:
+        When USE_REAL_MISTRAL_API=1, this fixture is skipped to allow real API calls.
+        This is for manual testing only and should NOT be used in CI.
+    """
+    # Check if we should use real Mistral API (for manual testing only)
+    USE_REAL_MISTRAL_API = os.getenv("USE_REAL_MISTRAL_API", "0") == "1"
+
+    # Skip E2E server configuration if using real Mistral API
+    if USE_REAL_MISTRAL_API:
+        monkeypatch.delenv("MISTRAL_API_BASE", raising=False)
+        return
+
+    # Get e2e_server fixture (may be skipped if USE_REAL_MISTRAL_API=1)
+    try:
+        e2e_server = request.getfixturevalue("e2e_server")
+    except pytest.FixtureLookupError:
+        # E2E server not available (shouldn't happen in normal E2E mode)
+        return
+
+    # Set MISTRAL_API_BASE environment variable to point to E2E server
+    mistral_api_base = e2e_server.urls.mistral_api_base()
+    monkeypatch.setenv("MISTRAL_API_BASE", mistral_api_base)
+
+    # Replace Mistral SDK's Mistral class with fake client that routes to E2E server
+    # This allows tests to use real HTTP requests to mock endpoints
+    try:
+        from tests.fixtures.mock_server.mistral_mock_client import create_fake_mistral_client
+
+        FakeMistral = create_fake_mistral_client(mistral_api_base)
+        # Monkeypatch the SDK's Mistral class
+        monkeypatch.setattr("mistralai.Mistral", FakeMistral)
+        logger.debug(
+            "Replaced Mistral SDK Mistral with fake client pointing to %s",
+            mistral_api_base,
+        )
+    except ImportError:
+        # If fake client can't be imported, fall back to Python-level mocking
+        # (This shouldn't happen in normal test runs)
+        logger.warning("Could not import fake Mistral client, falling back to Python-level mocking")
+
+
+@pytest.fixture(autouse=True)
+def configure_grok_mock_server(request, monkeypatch):
+    """Configure Grok providers to use E2E server mock endpoints.
+
+    This fixture automatically configures all Grok providers to use the E2E server's
+    mock Grok API endpoints instead of the real Grok API. Grok uses OpenAI-compatible
+    API format, so it uses the same endpoints as OpenAI:
+    - /v1/chat/completions: For summarization and speaker detection
+    - Note: Grok does NOT support audio transcription
+
+    This allows E2E tests to use real HTTP requests to mock endpoints, testing the full
+    HTTP client → Network → Mock Server → Response chain.
+
+    Note:
+        This fixture is autouse=True, so it's automatically applied to all
+        E2E tests. No need to explicitly use it in test functions.
+
+    Real API Mode:
+        When USE_REAL_GROK_API=1, this fixture is skipped to allow real API calls.
+        This is for manual testing only and should NOT be used in CI.
+    """
+    # Check if we should use real Grok API (for manual testing only)
+    USE_REAL_GROK_API = os.getenv("USE_REAL_GROK_API", "0") == "1"
+
+    # Skip E2E server configuration if using real Grok API
+    # Also explicitly unset GROK_API_BASE to ensure real API is used
+    if USE_REAL_GROK_API:
+        # Explicitly unset GROK_API_BASE to ensure we use real Grok API
+        # (not a mock server that might have been set in a previous test)
+        monkeypatch.delenv("GROK_API_BASE", raising=False)
+        return
+
+    # Get e2e_server fixture (may be skipped if USE_REAL_GROK_API=1)
+    try:
+        e2e_server = request.getfixturevalue("e2e_server")
+    except pytest.FixtureLookupError:
+        # E2E server not available (shouldn't happen in normal E2E mode)
+        return
+
+    # Set GROK_API_BASE environment variable to point to E2E server
+    # This will be picked up by the Config model's field validator
+    grok_api_base = e2e_server.urls.grok_api_base()
+    monkeypatch.setenv("GROK_API_BASE", grok_api_base)
+
+
+@pytest.fixture(autouse=True)
+def configure_deepseek_mock_server(request, monkeypatch):
+    """Configure DeepSeek providers to use E2E server mock endpoints.
+
+    This fixture automatically configures all DeepSeek providers to use the E2E server's
+    mock DeepSeek API endpoints instead of the real DeepSeek API. DeepSeek uses OpenAI-compatible
+    API format, so it uses the same endpoints as OpenAI:
+    - /v1/chat/completions: For summarization and speaker detection
+    - Note: DeepSeek does NOT support audio transcription
+
+    This allows E2E tests to use real HTTP requests to mock endpoints, testing the full
+    HTTP client → Network → Mock Server → Response chain.
+
+    Note:
+        This fixture is autouse=True, so it's automatically applied to all
+        E2E tests. No need to explicitly use it in test functions.
+
+    Real API Mode:
+        When USE_REAL_DEEPSEEK_API=1, this fixture is skipped to allow real API calls.
+        This is for manual testing only and should NOT be used in CI.
+    """
+    # Check if we should use real DeepSeek API (for manual testing only)
+    USE_REAL_DEEPSEEK_API = os.getenv("USE_REAL_DEEPSEEK_API", "0") == "1"
+
+    # Skip E2E server configuration if using real DeepSeek API
+    # Also explicitly unset DEEPSEEK_API_BASE to ensure real API is used
+    if USE_REAL_DEEPSEEK_API:
+        # Explicitly unset DEEPSEEK_API_BASE to ensure we use real DeepSeek API
+        # (not a mock server that might have been set in a previous test)
+        monkeypatch.delenv("DEEPSEEK_API_BASE", raising=False)
+        return
+
+    # Get e2e_server fixture (may be skipped if USE_REAL_DEEPSEEK_API=1)
+    try:
+        e2e_server = request.getfixturevalue("e2e_server")
+    except pytest.FixtureLookupError:
+        # E2E server not available (shouldn't happen in normal E2E mode)
+        return
+
+    # Set DEEPSEEK_API_BASE environment variable to point to E2E server
+    # This will be picked up by the Config model's field validator
+    deepseek_api_base = e2e_server.urls.deepseek_api_base()
+    monkeypatch.setenv("DEEPSEEK_API_BASE", deepseek_api_base)
+
+
+@pytest.fixture(autouse=True)
+def configure_ollama_mock_server(request, monkeypatch):
+    """Configure Ollama providers to use E2E server mock endpoints.
+
+    This fixture automatically configures all Ollama providers to use the E2E server's
+    mock Ollama API endpoints instead of the real Ollama server. Ollama uses OpenAI-compatible
+    API format for chat completions, so it uses the same endpoints as OpenAI:
+    - /v1/chat/completions: For summarization and speaker detection
+    - Note: Ollama does NOT support audio transcription
+
+    Additionally, the E2E server provides Ollama-specific endpoints:
+    - /api/version: For health checks (validates server is running)
+    - /api/tags: For model validation (lists available models)
+
+    This allows E2E tests to use real HTTP requests to mock endpoints, testing the full
+    HTTP client → Network → Mock Server → Response chain.
+
+    Note:
+        This fixture is autouse=True, so it's automatically applied to all
+        E2E tests. No need to explicitly use it in test functions.
+
+    Real API Mode:
+        When USE_REAL_OLLAMA_API=1, this fixture is skipped to allow real API calls.
+        This is for manual testing only and should NOT be used in CI.
+    """
+    # Check if we should use real Ollama API (for manual testing only)
+    USE_REAL_OLLAMA_API = os.getenv("USE_REAL_OLLAMA_API", "0") == "1"
+
+    # Skip E2E server configuration if using real Ollama API
+    # Also explicitly unset OLLAMA_API_BASE to ensure real API is used
+    if USE_REAL_OLLAMA_API:
+        # Explicitly unset OLLAMA_API_BASE to ensure we use real Ollama server
+        # (not a mock server that might have been set in a previous test)
+        monkeypatch.delenv("OLLAMA_API_BASE", raising=False)
+        return
+
+    # Get e2e_server fixture (may be skipped if USE_REAL_OLLAMA_API=1)
+    try:
+        e2e_server = request.getfixturevalue("e2e_server")
+    except pytest.FixtureLookupError:
+        # E2E server not available (shouldn't happen in normal E2E mode)
+        return
+
+    # Set OLLAMA_API_BASE environment variable to point to E2E server
+    # This will be picked up by the Config model's field validator
+    # Note: Ollama provider uses this base URL for both:
+    # - Health checks (/api/version) - removes /v1 suffix
+    # - Model validation (/api/tags) - removes /v1 suffix
+    # - API calls (/v1/chat/completions) - uses full base URL
+    ollama_api_base = e2e_server.urls.ollama_api_base()
+    monkeypatch.setenv("OLLAMA_API_BASE", ollama_api_base)
+    logger.debug(
+        "Configured Ollama to use E2E server at %s",
+        ollama_api_base,
+    )
 
 
 # Fixture to ensure OpenAI API key is set for all E2E tests
@@ -347,8 +580,9 @@ parent_tests_dir = Path(__file__).parent.parent
 if str(parent_tests_dir) not in sys.path:
     sys.path.insert(0, str(parent_tests_dir))
 
-# Import helper functions from parent conftest
-from conftest import (  # noqa: E402, F401
+# Import helper functions from parent conftest using absolute import
+# Use tests.conftest to avoid ambiguity with other conftest files
+from tests.conftest import (  # noqa: E402, F401
     build_rss_xml_with_media,
     build_rss_xml_with_speakers,
     build_rss_xml_with_transcript,
@@ -419,6 +653,12 @@ def configure_e2e_feed_limiting(request):
 
     # Get test run mode from environment variable (set by Makefile)
     test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
+
+    # If test is marked as nightly and E2E_TEST_MODE is not explicitly set,
+    # default to nightly mode (nightly tests need all podcasts)
+    is_nightly = request.node.get_closest_marker("nightly") is not None
+    if test_mode == "multi_episode" and is_nightly:
+        test_mode = "nightly"
 
     # If test is marked as critical_path and E2E_TEST_MODE is not explicitly set,
     # default to fast mode (critical path tests need fast fixtures)

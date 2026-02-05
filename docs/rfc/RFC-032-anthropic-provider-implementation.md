@@ -1,7 +1,7 @@
 # RFC-032: Anthropic Provider Implementation (Revised)
 
-- **Status**: Draft (Revised)
-- **Revision**: 2
+- **Status**: Implemented
+- **Revision**: 3
 - **Date**: 2026-02-04
 - **Authors**:
 - **Stakeholders**: Maintainers, users wanting Anthropic API integration, developers implementing providers

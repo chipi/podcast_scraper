@@ -22,8 +22,8 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Transcript Downloads** — Automatic detection and download from RSS feeds
 - **Transcription** — Generate transcripts with Whisper, OpenAI API, or Google Gemini API
 - **Audio Preprocessing** — Optimize audio files before transcription (reduce size, remove silence, normalize loudness)
-- **Speaker Detection** — Identify speakers using spaCy NER, OpenAI, or Google Gemini
-- **Summarization** — Episode summaries with BART/LED (local), OpenAI, or Google Gemini
+- **Speaker Detection** — Identify speakers using spaCy NER, OpenAI, Google Gemini, Grok (real-time info), or other providers
+- **Summarization** — Episode summaries with BART/LED (local), OpenAI, Google Gemini, Grok (real-time info), or other providers
 - **Metadata Generation** — JSON/YAML metadata per episode
 - **Resumable** — Skip existing files, handle interruptions gracefully
 - **Provider System** — Swap between local and cloud providers via config
@@ -282,6 +282,38 @@ python -m podcast_scraper.cli --help
 
 **Prerequisite:** Make sure you've completed the installation steps above and activated your virtual environment.
 
+#### Basic Usage with Example Config (Recommended for First-Time Users)
+
+The easiest way to get started is using an example config file:
+
+```bash
+# Make sure venv is activated
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Set your API key (if using LLM providers)
+export OPENAI_API_KEY=sk-your-actual-api-key-here
+
+# Run with an example config file
+python -m podcast_scraper.cli --config examples/config.example.yaml
+```
+
+**Available example config:**
+
+- `examples/config.example.yaml` — Example configuration with local ML providers (Whisper, spaCy, Transformers)
+
+**To customize:** Copy the example config and edit the `rss` field with your podcast feed URL:
+
+```bash
+# Copy the example config
+cp examples/config.example.yaml my-config.yaml
+
+# Edit my-config.yaml and change the RSS feed URL
+# Then run:
+python -m podcast_scraper.cli --config my-config.yaml
+```
+
+#### Advanced Usage (Command-Line Options)
+
 Replace `https://example.com/feed.xml` with your podcast's RSS feed URL.
 
 **For LLM-only users (no ML dependencies):**
@@ -342,14 +374,9 @@ python -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-summaries
 ```
 
-**Using a config file (recommended):**
+**Using a config file:**
 
-```bash
-# Use a config file to set providers and other options
-python -m podcast_scraper.cli --config examples/config.my.planetmoney.openai.yaml
-```
-
-See `examples/config.my.planetmoney.openai.yaml` for an LLM-only configuration example.
+See the [Basic Usage with Example Config](#basic-usage-with-example-config-recommended-for-first-time-users) section above for the recommended approach. You can also use any config file from the `examples/` directory or create your own.
 
 **Output:** Files are organized in `output/` with subdirectories:
 

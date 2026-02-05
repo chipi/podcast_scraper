@@ -51,7 +51,7 @@ Different transcription providers impose various file size constraints:
 | **OpenAI Whisper** | Audio API | **25 MB** | N/A | [Official Docs](https://platform.openai.com/docs/guides/speech-to-text/whisper) | ✅ Supported |
 | **Mistral Voxtral** | Audio API | **TBD** (likely similar to OpenAI) | TBD | [API Docs](https://docs.mistral.ai/) | 🔄 Planned (PRD-010) |
 | **Google Gemini** | Multimodal API | **TBD** (native audio) | TBD | [AI Studio](https://ai.google.dev/) | 🔄 Planned (PRD-012) |
-| **Groq Whisper** | N/A | ❌ No transcription | N/A | [API Docs](https://console.groq.com/docs) | 🔄 Planned (PRD-013, LLMs only) |
+| **Grok** | N/A | ❌ No transcription | N/A | [API Docs](https://docs.x.ai) | ✅ Implemented (PRD-013, LLMs only) |
 | **Google Cloud (sync)** | Speech-to-Text | **10 MB** | ~1 minute | [Quotas](https://cloud.google.com/speech-to-text/quotas) | ❌ Not planned |
 | **Azure Speech** | Fast/Batch | **300 MB - 1 GB** | 120-240 min | [Service Limits](https://learn.microsoft.com/azure/ai-services/speech-service/speech-services-quotas-and-limits) | ❌ Not planned |
 
@@ -65,7 +65,7 @@ Different transcription providers impose various file size constraints:
 | **Gemini** | ✅ Native audio (limit TBD) | ✅ | ✅ | Planned (PRD-012) |
 | **Anthropic** | ❌ | ✅ | ✅ | No audio API (PRD-009) |
 | **DeepSeek** | ❌ | ✅ | ✅ | No audio API (PRD-011) |
-| **Groq** | ❌ | ✅ | ✅ | LLMs only (PRD-013) |
+| **Grok** | ❌ | ✅ | ✅ | LLMs only (PRD-013) |
 | **Ollama** | ❌ | ✅ | ✅ | Local LLMs (PRD-014) |
 
 **Critical Constraints**:
@@ -100,14 +100,14 @@ We need a **pipeline stage that preprocesses audio before it reaches any provide
 
 **Use Cases:**
 
-1. **API Upload Size Compliance**: Reduce audio files to fit within 25 MB limit (OpenAI, Groq)
+1. **API Upload Size Compliance**: Reduce audio files to fit within 25 MB limit (OpenAI, Grok)
 2. **Cost Optimization**: Reduce API costs by removing silence and music before API calls
 3. **Performance Optimization**: Speed up local Whisper transcription by processing smaller audio files
 4. **Quality Standardization**: Normalize audio levels across different podcast sources for consistent transcription quality
 
 ## Goals
 
-1. **Ensure API compatibility** — All preprocessed audio must be **<25 MB** to support OpenAI & Groq
+1. **Ensure API compatibility** — All preprocessed audio must be **<25 MB** to support OpenAI & Grok
 2. **Reduce audio size for API upload limits** — Target 10-25× reduction (typical 50 MB → 2-5 MB)
 3. **Lower transcription costs** — Reduce API usage by processing less audio (30-60% cost savings)
 4. **Improve transcription performance** — Faster processing for both local and API providers
@@ -123,7 +123,7 @@ We need a **pipeline stage that preprocesses audio before it reaches any provide
 
 - Must not break existing transcription workflows (backward compatibility)
 - Must work **before** any provider is invoked (not provider-specific)
-- Must ensure preprocessed files are **<25 MB** (OpenAI & Groq constraint - most restrictive)
+- Must ensure preprocessed files are **<25 MB** (OpenAI & Grok constraint - most restrictive)
 - Must handle various input formats (MP3, M4A, WAV, etc.)
 - Must be performant enough not to negate transcription time savings
 - Must preserve audio segment boundaries for accurate transcription timing
@@ -657,7 +657,7 @@ def _add_preprocessing_arguments(parser: argparse.ArgumentParser) -> None:
 | API compatibility | 100% of podcasts fit <25 MB | Upload success rate |
 | Preprocessing overhead | +10–30% time | Time measurement (seconds) |
 | Transcription runtime | -30–60% faster | Time measurement (seconds) |
-| OpenAI/Groq API cost | -30–60% reduction | API usage tracking ($) |
+| OpenAI/Grok API cost | -30–60% reduction | API usage tracking ($) |
 | Transcript size | -15–40% fewer tokens | Word count comparison |
 | Transcription quality | Improved consistency | Manual QA review |
 | Total pipeline time | -20–40% faster | End-to-end time measurement |

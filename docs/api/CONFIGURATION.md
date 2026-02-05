@@ -118,6 +118,48 @@ OpenAI providers support configurable model selection for dev/test vs production
 - **Security**: Never commit `.env` files containing API keys. API keys are never logged or exposed in error messages.
 - **Getting an API Key**: Visit [Google AI Studio](https://makersuite.google.com/app/apikey) to generate a Gemini API key.
 
+#### Mistral API Configuration
+
+**`MISTRAL_API_KEY`**
+
+- **Description**: Mistral AI API key for Mistral-based providers (transcription, speaker detection, summarization)
+- **Required**: Yes, when using Mistral providers (`transcription_provider=mistral`, `speaker_detector_provider=mistral`, or `summary_provider=mistral`)
+- **Example**: `export MISTRAL_API_KEY=your-actual-api-key-here`
+- **Security**: Never commit `.env` files containing API keys. API keys are never logged or exposed in error messages.
+- **Getting an API Key**: Visit [Mistral AI Platform](https://console.mistral.ai/) to generate a Mistral API key.
+- **Note**: Mistral is a full-stack provider (all three capabilities) with EU data residency support.
+
+#### Anthropic API Configuration
+
+**`ANTHROPIC_API_KEY`**
+
+- **Description**: Anthropic API key for Anthropic-based providers (speaker detection, summarization)
+- **Required**: Yes, when using Anthropic providers (`speaker_detector_provider=anthropic` or `summary_provider=anthropic`)
+- **Example**: `export ANTHROPIC_API_KEY=your-actual-api-key-here`
+- **Security**: Never commit `.env` files containing API keys. API keys are never logged or exposed in error messages.
+- **Getting an API Key**: Visit [Anthropic Console](https://console.anthropic.com/) to generate an Anthropic API key.
+- **Note**: Anthropic does NOT support native audio transcription. Use `whisper` (local) or `openai` for transcription.
+
+#### Anthropic Model Configuration
+
+Anthropic providers support configurable model selection for dev/test vs production environments.
+
+| Field | CLI Flag | Default | Description |
+| ------- | ---------- | --------- | ------------- |
+| `anthropic_speaker_model` | `--anthropic-speaker-model` | `claude-3-5-haiku-20241022` (test) / `claude-3-5-sonnet-20241022` (prod) | Anthropic model for speaker detection |
+| `anthropic_summary_model` | `--anthropic-summary-model` | `claude-3-5-haiku-20241022` (test) / `claude-3-5-sonnet-20241022` (prod) | Anthropic model for summarization |
+| `anthropic_temperature` | `--anthropic-temperature` | `0.3` | Temperature for generation (0.0-1.0) |
+| `anthropic_max_tokens` | `--anthropic-max-tokens` | `None` | Max tokens for generation (None = model default) |
+
+**Recommended Models by Environment**:
+
+| Purpose | Test/Dev | Production | Notes |
+| --------- | ---------- | ------------ | ------- |
+| Speaker Detection | `claude-3-5-haiku-20241022` | `claude-3-5-sonnet-20241022` | Haiku is fast/cheap; Sonnet is more accurate |
+| Summarization | `claude-3-5-haiku-20241022` | `claude-3-5-sonnet-20241022` | Haiku is fast/cheap; Sonnet produces better summaries |
+
+**Note on Transcription**: Anthropic does NOT support native audio transcription. If you set `transcription_provider=anthropic`, you will get a clear error message suggesting alternatives (`whisper` or `openai`).
+
 #### Gemini Model Configuration
 
 Gemini providers support configurable model selection for dev/test vs production environments.
@@ -176,6 +218,30 @@ gemini_temperature: 0.3                        # Lower = more deterministic
 gemini_max_tokens: null                        # Use model default
 ```
 
+**Example** (Mistral config file):
+
+```yaml
+transcription_provider: mistral
+speaker_detector_provider: mistral
+summary_provider: mistral
+mistral_transcription_model: voxtral-mini-latest      # Default: voxtral-mini-latest
+mistral_speaker_model: mistral-large-latest           # Default: environment-based
+mistral_summary_model: mistral-large-latest           # Default: environment-based
+mistral_temperature: 0.3                              # Lower = more deterministic
+mistral_max_tokens: null                              # Use model default
+```
+
+**Example** (Mistral CLI):
+
+```bash
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider mistral \
+  --speaker-detector-provider mistral \
+  --summary-provider mistral \
+  --mistral-speaker-model mistral-large-latest \
+  --mistral-summary-model mistral-large-latest
+```
+
 **Example** (Gemini CLI):
 
 ```bash
@@ -187,6 +253,85 @@ podcast-scraper --rss https://example.com/feed.xml \
   --gemini-speaker-model gemini-1.5-pro \
   --gemini-summary-model gemini-1.5-pro \
   --gemini-temperature 0.3
+```
+
+#### Mistral Model Configuration
+
+Mistral providers support configurable model selection for dev/test vs production environments.
+
+| Field | CLI Flag | Default | Description |
+| ------- | ---------- | --------- | ------------- |
+| `mistral_transcription_model` | `--mistral-transcription-model` | `voxtral-mini-latest` | Mistral Voxtral model for transcription |
+| `mistral_speaker_model` | `--mistral-speaker-model` | `mistral-small-latest` (test) / `mistral-large-latest` (prod) | Mistral model for speaker detection |
+| `mistral_summary_model` | `--mistral-summary-model` | `mistral-small-latest` (test) / `mistral-large-latest` (prod) | Mistral model for summarization |
+| `mistral_temperature` | `--mistral-temperature` | `0.3` | Temperature for generation (0.0-1.0) |
+| `mistral_max_tokens` | `--mistral-max-tokens` | `None` | Max tokens for generation (None = model default) |
+
+**Recommended Models by Environment**:
+
+| Purpose | Test/Dev | Production | Notes |
+| --------- | ---------- | ------------ | ------- |
+| Transcription | `voxtral-mini-latest` | `voxtral-mini-latest` | Single model for all environments |
+| Speaker Detection | `mistral-small-latest` | `mistral-large-latest` | Small is fast/cheap; Large is more accurate |
+| Summarization | `mistral-small-latest` | `mistral-large-latest` | Small is fast/cheap; Large produces better summaries |
+
+#### Ollama API Configuration
+
+**`OLLAMA_API_BASE`**
+
+- **Description**: Ollama API base URL (for local Ollama server or remote instance)
+- **Required**: No (defaults to `http://localhost:11434/v1` if not specified)
+- **Example**: `export OLLAMA_API_BASE=http://localhost:11434/v1`
+- **Note**: Ollama is a local, self-hosted solution. No API key is required. The server must be running locally or accessible at the specified URL.
+
+#### Ollama Model Configuration
+
+Ollama providers support configurable model selection for dev/test vs production environments.
+
+| Field | CLI Flag | Default | Description |
+| ------- | ---------- | --------- | ------------- |
+| `ollama_speaker_model` | `--ollama-speaker-model` | `llama3.2:latest` (test) / `llama3.3:latest` (prod) | Ollama model for speaker detection |
+| `ollama_summary_model` | `--ollama-summary-model` | `llama3.2:latest` (test) / `llama3.3:latest` (prod) | Ollama model for summarization |
+| `ollama_temperature` | `--ollama-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
+| `ollama_max_tokens` | `--ollama-max-tokens` | `None` | Max tokens for generation (None = model default) |
+| `ollama_timeout` | `--ollama-timeout` | `120` | Timeout in seconds for API calls (local inference can be slow) |
+
+**Important Notes**:
+
+- **No Transcription Support**: Ollama does NOT support transcription (no audio API). Use `whisper` (local) or `openai` for transcription.
+- **Zero Cost**: Ollama is completely free - all processing happens on your local hardware with no per-token pricing.
+- **Prerequisites**: Ollama must be installed and running locally. Models must be pulled before use (e.g., `ollama pull llama3.3`).
+- **Privacy**: All data stays on your local machine - perfect for sensitive content or air-gapped environments.
+
+**Recommended Models by Environment**:
+
+| Purpose | Test/Dev | Production | Notes |
+| --------- | ---------- | ------------ | ------- |
+| Speaker Detection | `llama3.2:latest` | `llama3.3:latest` | 3.2 is smaller/faster; 3.3 is higher quality |
+| Summarization | `llama3.2:latest` | `llama3.3:latest` | 3.2 is smaller/faster; 3.3 produces better summaries |
+
+**Example** (Ollama config file):
+
+```yaml
+speaker_detector_provider: ollama
+summary_provider: ollama
+ollama_api_base: http://localhost:11434/v1  # Default, can be omitted
+ollama_speaker_model: llama3.3:latest       # Production: higher quality
+ollama_summary_model: llama3.3:latest       # Production: better summaries
+ollama_temperature: 0.3                      # Lower = more deterministic
+ollama_timeout: 300                          # 5 minutes for slow inference
+```
+
+**Example** (Ollama CLI):
+
+```bash
+podcast-scraper --rss https://example.com/feed.xml \
+  --speaker-detector-provider ollama \
+  --summary-provider ollama \
+  --ollama-speaker-model llama3.3:latest \
+  --ollama-summary-model llama3.3:latest \
+  --ollama-temperature 0.3 \
+  --ollama-timeout 300
 ```
 
 #### Logging Configuration
@@ -322,7 +467,7 @@ Audio preprocessing optimizes audio files before transcription, reducing file si
 **Benefits**:
 
 - **File Size Reduction**: Typically 10-25× smaller (50 MB → 2-5 MB)
-- **API Compatibility**: Ensures files fit within 25 MB limit for OpenAI/Groq
+- **API Compatibility**: Ensures files fit within 25 MB limit for OpenAI/Grok
 - **Cost Savings**: Reduces API costs by processing less audio (30-60% reduction)
 - **Performance**: Faster transcription for both local and API providers
 - **Caching**: Preprocessed audio is cached to avoid reprocessing

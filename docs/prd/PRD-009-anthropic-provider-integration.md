@@ -1,7 +1,7 @@
 # PRD-009: Anthropic Provider Integration
 
-- **Status**: Draft (Revised)
-- **Revision**: 2
+- **Status**: Implemented
+- **Revision**: 3
 - **Date**: 2026-02-04
 - **Related RFCs**: RFC-032 (Revised)
 - **Related PRDs**: PRD-006 (OpenAI Provider Integration)
@@ -122,9 +122,10 @@ anthropic_summary_user_prompt: str = Field(
 
 | Model | Input Cost | Output Cost | Context Window | Best For |
 | ----- | ---------- | ----------- | -------------- | -------- |
-| **claude-3-5-sonnet-latest** | $3.00 / 1M tokens | $15.00 / 1M tokens | 200k tokens | **Production** (best quality) |
-| **claude-3-5-haiku-latest** | $0.25 / 1M tokens | $1.25 / 1M tokens | 200k tokens | **Dev/Test** (fast, cheap) |
-| **claude-3-opus-latest** | $15.00 / 1M tokens | $75.00 / 1M tokens | 200k tokens | Maximum quality (expensive) |
+| **claude-3-5-sonnet-20241022** | $3.00 / 1M tokens | $15.00 / 1M tokens | 200k tokens | **Production** (best quality) |
+| **claude-3-5-haiku-20241022** | $0.80 / 1M tokens | $4.00 / 1M tokens | 200k tokens | **Dev/Test** (fast, cheap) |
+| **claude-3-opus-20240229** | $15.00 / 1M tokens | $75.00 / 1M tokens | 200k tokens | Maximum quality (expensive) |
+| **claude-3-haiku-20240307** | $0.25 / 1M tokens | $1.25 / 1M tokens | 200k tokens | Legacy Haiku (cheapest) |
 
 **Note:** Prices subject to change. Check [Anthropic Pricing](https://www.anthropic.com/pricing) for current rates.
 
@@ -132,8 +133,8 @@ anthropic_summary_user_prompt: str = Field(
 
 | Environment | Speaker Model | Summary Model | Rationale |
 | ----------- | ------------- | ------------- | --------- |
-| **Dev/Test** | `claude-3-5-haiku-latest` | `claude-3-5-haiku-latest` | Fast iteration, low cost |
-| **Production** | `claude-3-5-sonnet-latest` | `claude-3-5-sonnet-latest` | Best quality/cost balance |
+| **Dev/Test** | `claude-3-5-haiku-20241022` | `claude-3-5-haiku-20241022` | Fast iteration, low cost |
+| **Production** | `claude-3-5-sonnet-20241022` | `claude-3-5-sonnet-20241022` | Best quality/cost balance |
 
 ### Cost Comparison: Anthropic vs OpenAI (Per 100 Episodes)
 
@@ -326,11 +327,11 @@ anthropic_summary_user_prompt: str = Field(
 
 ## Provider Capability Matrix
 
-| Capability | Local | OpenAI | Anthropic |
-| ---------- | ----- | ------ | --------- |
-| **Transcription** | ✅ Whisper | ✅ Whisper API | ❌ Not supported |
-| **Speaker Detection** | ✅ spaCy NER | ✅ GPT API | ✅ Claude API |
-| **Summarization** | ✅ Transformers | ✅ GPT API | ✅ Claude API |
+| Capability | Local | OpenAI | Anthropic | Gemini | Mistral | DeepSeek | Grok | Ollama |
+| ---------- | ----- | ------ | --------- | ------ | ------- | -------- | ---- | ------ |
+| **Transcription** | ✅ Whisper | ✅ Whisper API | ❌ Not supported | ✅ Gemini API | ✅ Voxtral API | ❌ Not supported | ❌ Not supported | ❌ Not supported |
+| **Speaker Detection** | ✅ spaCy NER | ✅ GPT API | ✅ Claude API | ✅ Gemini API | ✅ Mistral API | ✅ DeepSeek API | ✅ Grok API | ✅ Ollama API |
+| **Summarization** | ✅ Transformers | ✅ GPT API | ✅ Claude API | ✅ Gemini API | ✅ Mistral API | ✅ DeepSeek API | ✅ Grok API | ✅ Ollama API |
 
 ## Future Considerations
 

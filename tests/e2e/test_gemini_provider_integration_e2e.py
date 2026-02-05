@@ -246,6 +246,27 @@ def _save_all_episode_responses(
     elif len(saved_files) == 1:
         print(f"📁 Gemini API responses saved to: {saved_files[0]}")
 
+    # Also copy metadata files to output folder for easy access
+    import shutil
+
+    if saved_files:
+        # Get the output directory from the first saved file
+        run_output_dir = saved_files[0].parent
+
+        metadata_files_copied = []
+        for metadata_file in sorted(metadata_files):
+            # Copy metadata file to same output directory as response files
+            output_metadata_file = run_output_dir / metadata_file.name
+            shutil.copy2(metadata_file, output_metadata_file)
+            metadata_files_copied.append(output_metadata_file)
+
+        if len(metadata_files_copied) > 1:
+            print(f"\n📄 Copied {len(metadata_files_copied)} metadata files to output folder:")
+            for idx, file_path in enumerate(metadata_files_copied, 1):
+                print(f"  {idx}. {file_path}")
+        elif len(metadata_files_copied) == 1:
+            print(f"📄 Metadata file copied to: {metadata_files_copied[0]}")
+
     return saved_files
 
 
@@ -536,6 +557,11 @@ class TestGeminiProviderE2E:
             # Mock Gemini SDK responses
             mock_response = Mock()
             mock_response.text = "This is a test transcription from Gemini in the pipeline."
+            # Add usage_metadata with integer token counts (not Mock objects)
+            mock_usage = Mock()
+            mock_usage.prompt_token_count = 100
+            mock_usage.candidates_token_count = 50
+            mock_response.usage_metadata = mock_usage
             mock_model = Mock()
             mock_model.generate_content.return_value = mock_response
             mock_genai.GenerativeModel.return_value = mock_model
@@ -549,6 +575,7 @@ class TestGeminiProviderE2E:
                 summary_provider="transformers",  # Use local for summarization
                 gemini_api_key=gemini_api_key,
                 gemini_api_base=gemini_api_base,
+                generate_metadata=True,  # Enable metadata generation
                 transcribe_missing=True,
                 max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
@@ -560,8 +587,16 @@ class TestGeminiProviderE2E:
             assert transcripts_saved > 0, "Should have saved at least one transcript"
 
             # Verify metadata files were created
-            metadata_dir = Path(temp_dir) / "metadata"
-            assert metadata_dir.exists(), "Metadata directory should exist"
+            # Output directory includes run suffix, so find the actual run directory
+            run_dirs = [
+                d for d in Path(temp_dir).iterdir() if d.is_dir() and d.name.startswith("run_")
+            ]
+            assert (
+                len(run_dirs) > 0
+            ), f"Should have created at least one run directory in {temp_dir}"
+            run_dir = run_dirs[0]
+            metadata_dir = run_dir / "metadata"
+            assert metadata_dir.exists(), f"Metadata directory should exist at {metadata_dir}"
 
             metadata_files = list(metadata_dir.glob("*.json"))
             assert len(metadata_files) > 0, "Should have created at least one metadata file"
@@ -606,6 +641,11 @@ class TestGeminiProviderE2E:
                     "guests": ["Guest"],
                 }
             )
+            # Add usage_metadata with integer token counts (not Mock objects)
+            mock_usage = Mock()
+            mock_usage.prompt_token_count = 100
+            mock_usage.candidates_token_count = 50
+            mock_response.usage_metadata = mock_usage
             mock_model = Mock()
             mock_model.generate_content.return_value = mock_response
             mock_genai.GenerativeModel.return_value = mock_model
@@ -634,8 +674,16 @@ class TestGeminiProviderE2E:
             assert transcripts_saved > 0, "Should have saved at least one transcript"
 
             # Verify metadata files were created
-            metadata_dir = Path(temp_dir) / "metadata"
-            assert metadata_dir.exists(), "Metadata directory should exist"
+            # Output directory includes run suffix, so find the actual run directory
+            run_dirs = [
+                d for d in Path(temp_dir).iterdir() if d.is_dir() and d.name.startswith("run_")
+            ]
+            assert (
+                len(run_dirs) > 0
+            ), f"Should have created at least one run directory in {temp_dir}"
+            run_dir = run_dirs[0]
+            metadata_dir = run_dir / "metadata"
+            assert metadata_dir.exists(), f"Metadata directory should exist at {metadata_dir}"
 
             metadata_files = list(metadata_dir.glob("*.json"))
             assert len(metadata_files) > 0, "Should have created at least one metadata file"
@@ -672,6 +720,11 @@ class TestGeminiProviderE2E:
             # Mock Gemini SDK responses
             mock_response = Mock()
             mock_response.text = "This is a test summary from Gemini in the pipeline."
+            # Add usage_metadata with integer token counts (not Mock objects)
+            mock_usage = Mock()
+            mock_usage.prompt_token_count = 100
+            mock_usage.candidates_token_count = 50
+            mock_response.usage_metadata = mock_usage
             mock_model = Mock()
             mock_model.generate_content.return_value = mock_response
             mock_genai.GenerativeModel.return_value = mock_model
@@ -699,8 +752,16 @@ class TestGeminiProviderE2E:
             assert transcripts_saved > 0, "Should have saved at least one transcript"
 
             # Verify metadata files were created
-            metadata_dir = Path(temp_dir) / "metadata"
-            assert metadata_dir.exists(), "Metadata directory should exist"
+            # Output directory includes run suffix, so find the actual run directory
+            run_dirs = [
+                d for d in Path(temp_dir).iterdir() if d.is_dir() and d.name.startswith("run_")
+            ]
+            assert (
+                len(run_dirs) > 0
+            ), f"Should have created at least one run directory in {temp_dir}"
+            run_dir = run_dirs[0]
+            metadata_dir = run_dir / "metadata"
+            assert metadata_dir.exists(), f"Metadata directory should exist at {metadata_dir}"
 
             metadata_files = list(metadata_dir.glob("*.json"))
             assert len(metadata_files) > 0, "Should have created at least one metadata file"

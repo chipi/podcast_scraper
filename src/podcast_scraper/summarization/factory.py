@@ -23,7 +23,7 @@ else:
     from podcast_scraper.summarization.base import SummarizationProvider
 
 
-def create_summarization_provider(
+def create_summarization_provider(  # noqa: C901
     cfg_or_provider_type: Union[config.Config, str],
     params: Optional[Union[SummarizationParams, Dict[str, Any]]] = None,
 ) -> SummarizationProvider:
@@ -35,7 +35,8 @@ def create_summarization_provider(
 
     Args:
         cfg_or_provider_type: Either a Config object or provider type string
-            ("transformers", "openai", or "gemini")
+            ("transformers", "openai", "gemini", "mistral", "grok", "deepseek",
+            "ollama", or "anthropic")
         params: Optional parameters dict or SummarizationParams object (experiment mode only)
 
     Returns:
@@ -79,10 +80,31 @@ def create_summarization_provider(
         # Experiment-based mode
         provider_type_str = str(cfg_or_provider_type)
         # Type narrowing: validate it's one of the allowed values
-        if provider_type_str not in ("transformers", "openai", "gemini"):
+        if provider_type_str not in (
+            "transformers",
+            "openai",
+            "gemini",
+            "mistral",
+            "grok",
+            "deepseek",
+            "ollama",
+            "anthropic",
+        ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
 
-        provider_type_value = cast(Literal["transformers", "openai", "gemini"], provider_type_str)
+        provider_type_value = cast(
+            Literal[
+                "transformers",
+                "openai",
+                "gemini",
+                "mistral",
+                "grok",
+                "deepseek",
+                "ollama",
+                "anthropic",
+            ],
+            provider_type_str,
+        )
         experiment_mode = True
         provider_type = provider_type_value
 
@@ -195,8 +217,125 @@ def create_summarization_provider(
             return GeminiProvider(cfg)
         else:
             return GeminiProvider(cfg)
+    elif provider_type == "mistral":
+        from ..providers.mistral.mistral_provider import MistralProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SummarizationParams
+            assert isinstance(params, SummarizationParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for summarization (use alias)
+                summary_provider="mistral",
+                generate_summaries=True,  # Required for Mistral provider initialization
+                generate_metadata=True,  # Required when generate_summaries=True
+                mistral_summary_model=(
+                    params.model_name if params.model_name else "mistral-small-latest"
+                ),
+                mistral_temperature=params.temperature if params.temperature is not None else 0.3,
+                mistral_api_key=os.getenv("MISTRAL_API_KEY"),  # Load from env
+                mistral_max_tokens=params.max_length if params.max_length else None,
+            )
+            return MistralProvider(cfg)
+        else:
+            return MistralProvider(cfg)
+    elif provider_type == "grok":
+        from ..providers.grok.grok_provider import GrokProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SummarizationParams
+            assert isinstance(params, SummarizationParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for summarization (use alias)
+                summary_provider="grok",
+                generate_summaries=True,  # Required for Grok provider initialization
+                generate_metadata=True,  # Required when generate_summaries=True
+                grok_summary_model=(params.model_name if params.model_name else "grok-2"),
+                grok_temperature=params.temperature if params.temperature is not None else 0.3,
+                grok_api_key=os.getenv("GROK_API_KEY"),  # Load from env
+                grok_max_tokens=params.max_length if params.max_length else None,
+            )
+            return GrokProvider(cfg)
+        else:
+            return GrokProvider(cfg)
+    elif provider_type == "deepseek":
+        from ..providers.deepseek.deepseek_provider import DeepSeekProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SummarizationParams
+            assert isinstance(params, SummarizationParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for summarization (use alias)
+                summary_provider="deepseek",
+                generate_summaries=True,  # Required for DeepSeek provider initialization
+                generate_metadata=True,  # Required when generate_summaries=True
+                deepseek_summary_model=params.model_name if params.model_name else "deepseek-chat",
+                deepseek_temperature=params.temperature if params.temperature is not None else 0.3,
+                deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),  # Load from env
+                deepseek_max_tokens=params.max_length if params.max_length else None,
+            )
+            return DeepSeekProvider(cfg)
+        else:
+            return DeepSeekProvider(cfg)
+    elif provider_type == "ollama":
+        from ..providers.ollama.ollama_provider import OllamaProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SummarizationParams
+            assert isinstance(params, SummarizationParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for summarization (use alias)
+                summary_provider="ollama",
+                generate_summaries=True,  # Required for Ollama provider initialization
+                generate_metadata=True,  # Required when generate_summaries=True
+                ollama_summary_model=params.model_name if params.model_name else "llama3.3:latest",
+                ollama_temperature=params.temperature if params.temperature is not None else 0.3,
+                ollama_api_base=os.getenv("OLLAMA_API_BASE", "http://localhost:11434/v1"),
+                ollama_max_tokens=params.max_length if params.max_length else None,
+            )
+            return OllamaProvider(cfg)
+        else:
+            return OllamaProvider(cfg)
+    elif provider_type == "anthropic":
+        from ..providers.anthropic.anthropic_provider import AnthropicProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SummarizationParams
+            assert isinstance(params, SummarizationParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for summarization (use alias)
+                summary_provider="anthropic",
+                generate_summaries=True,  # Required for Anthropic provider initialization
+                generate_metadata=True,  # Required when generate_summaries=True
+                anthropic_summary_model=(
+                    params.model_name if params.model_name else "claude-3-5-sonnet-20241022"
+                ),
+                anthropic_temperature=(
+                    params.temperature if params.temperature is not None else 0.3
+                ),
+                anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),  # Load from env
+                anthropic_max_tokens=params.max_length if params.max_length else None,
+            )
+            return AnthropicProvider(cfg)
+        else:
+            return AnthropicProvider(cfg)
     else:
         raise ValueError(
             f"Unsupported summarization provider: {provider_type}. "
-            "Supported providers: 'transformers', 'openai', 'gemini'."
+            "Supported providers: 'transformers', 'openai', 'gemini', 'grok', "
+            "'deepseek', 'mistral', 'ollama', 'anthropic'."
         )

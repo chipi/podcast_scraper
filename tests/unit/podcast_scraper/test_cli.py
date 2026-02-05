@@ -1252,7 +1252,7 @@ class TestAddArgumentGroups(unittest.TestCase):
             (a for a in parser._actions if a.dest == "transcription_provider"), None
         )
         self.assertIsNotNone(transcription_action)
-        self.assertEqual(transcription_action.choices, ["whisper", "openai"])
+        self.assertEqual(transcription_action.choices, ["whisper", "openai", "gemini"])
         self.assertEqual(transcription_action.default, "whisper")
 
     def test_add_metadata_arguments(self):
@@ -1282,8 +1282,9 @@ class TestAddArgumentGroups(unittest.TestCase):
         )
         self.assertIsNotNone(speaker_detector_action)
         self.assertEqual(
-            speaker_detector_action.choices, ["spacy", "openai"]
-        )  # "ner" was deprecated and removed
+            speaker_detector_action.choices,
+            ["spacy", "openai", "gemini", "anthropic", "mistral", "grok", "deepseek", "ollama"],
+        )
         self.assertEqual(speaker_detector_action.default, "spacy")
 
     def test_add_summarization_arguments(self):

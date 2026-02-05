@@ -246,6 +246,7 @@ E2E_TEST_MODE=multi_episode make test-e2e
 | Error handling | `test_error_handling_e2e.py` |
 | Edge cases | `test_edge_cases_e2e.py` |
 | HTTP behaviors | `test_http_behaviors_e2e.py` |
+| Ollama providers | `test_ollama_provider_integration_e2e.py` |
 
 ## Running E2E Tests
 
@@ -290,6 +291,32 @@ Covers:
 - Provider works in full pipeline
 - Multiple providers work together
 - E2E test checklist for new providers
+
+### Real API Testing (Manual Mode)
+
+Some providers support real API testing for manual validation:
+
+**Ollama (Local Server):**
+
+```bash
+# Prerequisites: Ollama installed and running
+ollama serve  # Start server
+ollama pull llama3.3:latest  # Pull models
+
+# Run tests with real Ollama
+USE_REAL_OLLAMA_API=1 \
+pytest tests/e2e/test_ollama_provider_integration_e2e.py -v
+```
+
+**OpenAI/Gemini (Cloud APIs):**
+
+```bash
+# Set environment variable to use real APIs
+USE_REAL_OPENAI_API=1 pytest tests/e2e/test_openai_provider_integration_e2e.py
+USE_REAL_GEMINI_API=1 pytest tests/e2e/test_gemini_provider_integration_e2e.py
+```
+
+**Note:** Real API mode preserves test output for inspection and will incur costs for cloud APIs. See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) for detailed Ollama setup and troubleshooting.
 
 ## Coverage Targets
 

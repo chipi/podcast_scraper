@@ -1,0 +1,15 @@
+Summarize the following podcast episode transcript.
+
+{% if title %}
+Episode Title: {{ title }}
+{% endif %}
+
+Transcript:
+{{ transcript }}
+
+Guidelines:
+- Write a detailed summary with {{ paragraphs_min }}-{{ paragraphs_max }} paragraphs
+- Focus on key decisions, arguments, and lessons learned
+- Ignore sponsorships, ads, and housekeeping
+- Do not use quotes or speaker names
+- Do not invent information not implied by the transcript

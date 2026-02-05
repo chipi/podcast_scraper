@@ -27,7 +27,7 @@ PRDs serve as the foundation for technical design (RFCs) and help ensure feature
 | [PRD-010](PRD-010-mistral-provider-integration.md) | Mistral Provider Integration | RFC-033 | Mistral AI as complete OpenAI alternative |
 | [PRD-011](PRD-011-deepseek-provider-integration.md) | DeepSeek Provider Integration | RFC-034 | DeepSeek AI - ultra low-cost provider |
 | [PRD-012](PRD-012-gemini-provider-integration.md) | Google Gemini Provider Integration | RFC-035 | Google Gemini - 2M context, native audio |
-| [PRD-013](PRD-013-groq-provider-integration.md) | Groq Provider Integration | RFC-036 | Groq - ultra-fast inference (10x speed) |
+| [PRD-013](PRD-013-grok-provider-integration.md) | Grok Provider Integration (xAI) | RFC-036 | Grok - xAI's AI model with real-time information access |
 | [PRD-014](PRD-014-ollama-provider-integration.md) | Ollama Provider Integration | RFC-037 | Ollama - fully local/offline, zero cost |
 | [PRD-015](PRD-015-engineering-governance-productivity.md) | Engineering Governance & Productivity Platform | RFC-018-024, 030, 031, 038, 039 | Integrated system for developer velocity and quality |
 | [PRD-016](PRD-016-operational-observability-pipeline-intelligence.md) | Operational Observability & Pipeline Intelligence | RFC-025, 026, 027 | System for managing operational health and visibility |

@@ -262,15 +262,35 @@ def _get_provider_pricing(
         from ..providers.gemini.gemini_provider import GeminiProvider
 
         return GeminiProvider.get_pricing(model, capability)
-    # Add other providers here as they're implemented
-    # elif provider_type == "anthropic":
-    #     from ..anthropic.anthropic_provider import AnthropicProvider
-    #     return AnthropicProvider.get_pricing(model, capability)
+    elif provider_type == "anthropic":
+        from ..providers.anthropic.anthropic_provider import AnthropicProvider
+
+        return AnthropicProvider.get_pricing(model, capability)
+    elif provider_type == "mistral":
+        from ..providers.mistral.mistral_provider import MistralProvider
+
+        return MistralProvider.get_pricing(model, capability)
+    elif provider_type == "deepseek":
+        from ..providers.deepseek.deepseek_provider import DeepSeekProvider
+
+        return DeepSeekProvider.get_pricing(model, capability)
+    elif provider_type == "grok":
+        from ..providers.grok.grok_provider import GrokProvider
+
+        return GrokProvider.get_pricing(model, capability)
+    elif provider_type == "ollama":
+        from ..providers.ollama.ollama_provider import OllamaProvider
+
+        return OllamaProvider.get_pricing(model, capability)
     return {}
 
 
 def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Metrics) -> List[str]:
     """Generate summary of LLM API calls and estimated costs.
+
+    This is a shared utility function that handles cost summaries for ALL LLM providers
+    (OpenAI, Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama). It checks which provider
+    was configured and generates the appropriate cost summary for that provider.
 
     Args:
         cfg: Configuration object to check which providers were used
@@ -282,47 +302,38 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
     summary_lines: List[str] = []
     metrics_dict = pipeline_metrics.finish()
 
-    # Check if any LLM provider was used
-    uses_openai_transcription = cfg.transcription_provider == "openai"
-    uses_openai_speaker = cfg.speaker_detector_provider == "openai"
-    uses_openai_summarization = cfg.summary_provider == "openai"
-    uses_gemini_transcription = cfg.transcription_provider == "gemini"
-    uses_gemini_speaker = cfg.speaker_detector_provider == "gemini"
-    uses_gemini_summarization = cfg.summary_provider == "gemini"
+    # Determine which LLM providers are configured (generic approach)
+    llm_transcription_provider = cfg.transcription_provider
+    llm_speaker_provider = cfg.speaker_detector_provider
+    llm_summarization_provider = cfg.summary_provider
 
-    if not (
-        uses_openai_transcription
-        or uses_openai_speaker
-        or uses_openai_summarization
-        or uses_gemini_transcription
-        or uses_gemini_speaker
-        or uses_gemini_summarization
-    ):
+    # Supported LLM providers for each capability
+    llm_providers = {"openai", "gemini", "mistral", "anthropic", "deepseek", "grok", "ollama"}
+
+    # Check if any LLM provider was used
+    uses_llm_transcription = llm_transcription_provider in llm_providers
+    uses_llm_speaker = llm_speaker_provider in llm_providers
+    uses_llm_summarization = llm_summarization_provider in llm_providers
+
+    if not (uses_llm_transcription or uses_llm_speaker or uses_llm_summarization):
         return summary_lines
 
     total_cost = 0.0
 
     # Transcription calls
-    if uses_openai_transcription:
+    if uses_llm_transcription:
         transcription_calls = metrics_dict.get("llm_transcription_calls", 0)
         audio_minutes = metrics_dict.get("llm_transcription_audio_minutes", 0.0)
         if transcription_calls > 0:
-            model = getattr(cfg, "openai_transcription_model", "whisper-1")
-            pricing = _get_provider_pricing(cfg, "openai", "transcription", model)
-            if pricing and "cost_per_minute" in pricing:
-                transcription_cost = audio_minutes * pricing["cost_per_minute"]
-                total_cost += transcription_cost
-                summary_lines.append(
-                    f"  - Transcription: {transcription_calls} calls, "
-                    f"{audio_minutes:.1f} minutes, ${transcription_cost:.4f} "
-                    f"(model: {model})"
-                )
-    elif uses_gemini_transcription:
-        transcription_calls = metrics_dict.get("llm_transcription_calls", 0)
-        audio_minutes = metrics_dict.get("llm_transcription_audio_minutes", 0.0)
-        if transcription_calls > 0:
-            model = getattr(cfg, "gemini_transcription_model", "gemini-1.5-pro")
-            pricing = _get_provider_pricing(cfg, "gemini", "transcription", model)
+            # Get model and default based on provider
+            model_attr = f"{llm_transcription_provider}_transcription_model"
+            default_models = {
+                "openai": "whisper-1",
+                "gemini": "gemini-1.5-pro",
+                "mistral": "voxtral",
+            }
+            model = getattr(cfg, model_attr, default_models.get(llm_transcription_provider, ""))
+            pricing = _get_provider_pricing(cfg, llm_transcription_provider, "transcription", model)
             if pricing and "cost_per_minute" in pricing:
                 transcription_cost = audio_minutes * pricing["cost_per_minute"]
                 total_cost += transcription_cost
@@ -342,34 +353,24 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
             )
 
     # Speaker detection calls
-    if uses_openai_speaker:
+    if uses_llm_speaker:
         speaker_calls = metrics_dict.get("llm_speaker_detection_calls", 0)
         speaker_input_tokens = metrics_dict.get("llm_speaker_detection_input_tokens", 0)
         speaker_output_tokens = metrics_dict.get("llm_speaker_detection_output_tokens", 0)
         if speaker_calls > 0:
-            model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
-            pricing = _get_provider_pricing(cfg, "openai", "speaker_detection", model)
-            if pricing and "input_cost_per_1m_tokens" in pricing:
-                input_cost = (speaker_input_tokens / 1_000_000) * pricing[
-                    "input_cost_per_1m_tokens"
-                ]
-                output_cost = (speaker_output_tokens / 1_000_000) * pricing[
-                    "output_cost_per_1m_tokens"
-                ]
-                speaker_cost = input_cost + output_cost
-                total_cost += speaker_cost
-                summary_lines.append(
-                    f"  - Speaker Detection: {speaker_calls} calls, "
-                    f"{speaker_input_tokens:,} input + {speaker_output_tokens:,} output tokens, "
-                    f"${speaker_cost:.4f} (model: {model})"
-                )
-    elif uses_gemini_speaker:
-        speaker_calls = metrics_dict.get("llm_speaker_detection_calls", 0)
-        speaker_input_tokens = metrics_dict.get("llm_speaker_detection_input_tokens", 0)
-        speaker_output_tokens = metrics_dict.get("llm_speaker_detection_output_tokens", 0)
-        if speaker_calls > 0:
-            model = getattr(cfg, "gemini_speaker_model", "gemini-1.5-pro")
-            pricing = _get_provider_pricing(cfg, "gemini", "speaker_detection", model)
+            # Get model and default based on provider
+            model_attr = f"{llm_speaker_provider}_speaker_model"
+            default_models = {
+                "openai": "gpt-4o-mini",
+                "gemini": "gemini-1.5-pro",
+                "anthropic": "claude-3-5-sonnet-20241022",
+                "mistral": "mistral-small",
+                "deepseek": "deepseek-chat",
+                "grok": "grok-beta",
+                "ollama": "llama3.2",
+            }
+            model = getattr(cfg, model_attr, default_models.get(llm_speaker_provider, ""))
+            pricing = _get_provider_pricing(cfg, llm_speaker_provider, "speaker_detection", model)
             if pricing and "input_cost_per_1m_tokens" in pricing:
                 input_cost = (speaker_input_tokens / 1_000_000) * pricing[
                     "input_cost_per_1m_tokens"
@@ -395,34 +396,24 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
             )
 
     # Summarization calls
-    if uses_openai_summarization:
+    if uses_llm_summarization:
         summary_calls = metrics_dict.get("llm_summarization_calls", 0)
         summary_input_tokens = metrics_dict.get("llm_summarization_input_tokens", 0)
         summary_output_tokens = metrics_dict.get("llm_summarization_output_tokens", 0)
         if summary_calls > 0:
-            model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
-            pricing = _get_provider_pricing(cfg, "openai", "summarization", model)
-            if pricing and "input_cost_per_1m_tokens" in pricing:
-                input_cost = (summary_input_tokens / 1_000_000) * pricing[
-                    "input_cost_per_1m_tokens"
-                ]
-                output_cost = (summary_output_tokens / 1_000_000) * pricing[
-                    "output_cost_per_1m_tokens"
-                ]
-                summary_cost = input_cost + output_cost
-                total_cost += summary_cost
-                summary_lines.append(
-                    f"  - Summarization: {summary_calls} calls, "
-                    f"{summary_input_tokens:,} input + {summary_output_tokens:,} output tokens, "
-                    f"${summary_cost:.4f} (model: {model})"
-                )
-    elif uses_gemini_summarization:
-        summary_calls = metrics_dict.get("llm_summarization_calls", 0)
-        summary_input_tokens = metrics_dict.get("llm_summarization_input_tokens", 0)
-        summary_output_tokens = metrics_dict.get("llm_summarization_output_tokens", 0)
-        if summary_calls > 0:
-            model = getattr(cfg, "gemini_summary_model", "gemini-1.5-pro")
-            pricing = _get_provider_pricing(cfg, "gemini", "summarization", model)
+            # Get model and default based on provider
+            model_attr = f"{llm_summarization_provider}_summary_model"
+            default_models = {
+                "openai": "gpt-4o-mini",
+                "gemini": "gemini-1.5-pro",
+                "anthropic": "claude-3-5-sonnet-20241022",
+                "mistral": "mistral-small",
+                "deepseek": "deepseek-chat",
+                "grok": "grok-beta",
+                "ollama": "llama3.2",
+            }
+            model = getattr(cfg, model_attr, default_models.get(llm_summarization_provider, ""))
+            pricing = _get_provider_pricing(cfg, llm_summarization_provider, "summarization", model)
             if pricing and "input_cost_per_1m_tokens" in pricing:
                 input_cost = (summary_input_tokens / 1_000_000) * pricing[
                     "input_cost_per_1m_tokens"
@@ -461,9 +452,9 @@ def _generate_dry_run_cost_projection(
 ) -> List[str]:
     """Generate cost projection for dry-run mode based on configured LLM providers.
 
-    Estimates API costs for OpenAI/Gemini transcription, speaker detection, and summarization
-    based on episode count and available metadata (duration). Only displays projection
-    when LLM providers are configured.
+    Estimates API costs for OpenAI/Gemini/Anthropic transcription, speaker detection,
+    and summarization based on episode count and available metadata (duration).
+    Only displays projection when LLM providers are configured.
 
     Args:
         cfg: Configuration object to check provider settings
@@ -475,22 +466,20 @@ def _generate_dry_run_cost_projection(
     """
     summary_lines: List[str] = []
 
-    # Check if any LLM provider is configured
-    uses_openai_transcription = cfg.transcription_provider == "openai"
-    uses_openai_speaker = cfg.speaker_detector_provider == "openai"
-    uses_openai_summarization = cfg.summary_provider == "openai"
-    uses_gemini_transcription = cfg.transcription_provider == "gemini"
-    uses_gemini_speaker = cfg.speaker_detector_provider == "gemini"
-    uses_gemini_summarization = cfg.summary_provider == "gemini"
+    # Determine which LLM providers are configured (generic approach)
+    llm_transcription_provider = cfg.transcription_provider
+    llm_speaker_provider = cfg.speaker_detector_provider
+    llm_summarization_provider = cfg.summary_provider
 
-    if not (
-        uses_openai_transcription
-        or uses_openai_speaker
-        or uses_openai_summarization
-        or uses_gemini_transcription
-        or uses_gemini_speaker
-        or uses_gemini_summarization
-    ):
+    # Supported LLM providers for each capability
+    llm_providers = {"openai", "gemini", "mistral", "anthropic", "deepseek", "grok", "ollama"}
+
+    # Check if any LLM provider is configured
+    uses_llm_transcription = llm_transcription_provider in llm_providers
+    uses_llm_speaker = llm_speaker_provider in llm_providers
+    uses_llm_summarization = llm_summarization_provider in llm_providers
+
+    if not (uses_llm_transcription or uses_llm_speaker or uses_llm_summarization):
         return summary_lines
 
     # Extract episode durations if available
@@ -518,24 +507,17 @@ def _generate_dry_run_cost_projection(
     total_cost = 0.0
 
     # Transcription cost estimation
-    if uses_openai_transcription:
+    if uses_llm_transcription:
         transcription_episodes = episode_count
-        model = getattr(cfg, "openai_transcription_model", "whisper-1")
-        pricing = _get_provider_pricing(cfg, "openai", "transcription", model)
-        if pricing and "cost_per_minute" in pricing:
-            total_audio_minutes = transcription_episodes * avg_duration_minutes
-            transcription_cost = total_audio_minutes * pricing["cost_per_minute"]
-            total_cost += transcription_cost
-            summary_lines.append(
-                f"Transcription ({model}):\n"
-                f"  - Episodes: {transcription_episodes}\n"
-                f"  - Estimated audio: {total_audio_minutes:.1f} minutes\n"
-                f"  - Estimated cost: ${transcription_cost:.4f}"
-            )
-    elif uses_gemini_transcription:
-        transcription_episodes = episode_count
-        model = getattr(cfg, "gemini_transcription_model", "gemini-1.5-pro")
-        pricing = _get_provider_pricing(cfg, "gemini", "transcription", model)
+        # Get model and default based on provider
+        model_attr = f"{llm_transcription_provider}_transcription_model"
+        default_models = {
+            "openai": "whisper-1",
+            "gemini": "gemini-1.5-pro",
+            "mistral": "voxtral",
+        }
+        model = getattr(cfg, model_attr, default_models.get(llm_transcription_provider, ""))
+        pricing = _get_provider_pricing(cfg, llm_transcription_provider, "transcription", model)
         if pricing and "cost_per_minute" in pricing:
             total_audio_minutes = transcription_episodes * avg_duration_minutes
             transcription_cost = total_audio_minutes * pricing["cost_per_minute"]
@@ -548,44 +530,21 @@ def _generate_dry_run_cost_projection(
             )
 
     # Speaker detection cost estimation
-    if uses_openai_speaker:
+    if uses_llm_speaker:
         speaker_episodes = episode_count
-        model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
-        pricing = _get_provider_pricing(cfg, "openai", "speaker_detection", model)
-        if pricing and "input_cost_per_1m_tokens" in pricing:
-            # Estimate tokens: ~150 words/minute speaking rate, ~1.3 tokens/word
-            # Plus prompt overhead (~200 tokens for system + user prompt)
-            words_per_minute = 150.0
-            tokens_per_word = 1.3
-            prompt_overhead_tokens = 200
-
-            # Estimate transcript tokens from duration
-            transcript_tokens_per_episode = int(
-                avg_duration_minutes * words_per_minute * tokens_per_word
-            )
-            input_tokens_per_episode = transcript_tokens_per_episode + prompt_overhead_tokens
-            # Output: typically small JSON response (~50 tokens)
-            output_tokens_per_episode = 50
-
-            total_input_tokens = speaker_episodes * input_tokens_per_episode
-            total_output_tokens = speaker_episodes * output_tokens_per_episode
-
-            input_cost = (total_input_tokens / 1_000_000) * pricing["input_cost_per_1m_tokens"]
-            output_cost = (total_output_tokens / 1_000_000) * pricing["output_cost_per_1m_tokens"]
-            speaker_cost = input_cost + output_cost
-            total_cost += speaker_cost
-
-            summary_lines.append(
-                f"Speaker Detection ({model}):\n"
-                f"  - Episodes: {speaker_episodes}\n"
-                f"  - Estimated tokens: ~{total_input_tokens:,} input + "
-                f"~{total_output_tokens:,} output\n"
-                f"  - Estimated cost: ${speaker_cost:.4f}"
-            )
-    elif uses_gemini_speaker:
-        speaker_episodes = episode_count
-        model = getattr(cfg, "gemini_speaker_model", "gemini-1.5-pro")
-        pricing = _get_provider_pricing(cfg, "gemini", "speaker_detection", model)
+        # Get model and default based on provider
+        model_attr = f"{llm_speaker_provider}_speaker_model"
+        default_models = {
+            "openai": "gpt-4o-mini",
+            "gemini": "gemini-1.5-pro",
+            "anthropic": "claude-3-5-sonnet-20241022",
+            "mistral": "mistral-small",
+            "deepseek": "deepseek-chat",
+            "grok": "grok-beta",
+            "ollama": "llama3.2",
+        }
+        model = getattr(cfg, model_attr, default_models.get(llm_speaker_provider, ""))
+        pricing = _get_provider_pricing(cfg, llm_speaker_provider, "speaker_detection", model)
         if pricing and "input_cost_per_1m_tokens" in pricing:
             # Estimate tokens: ~150 words/minute speaking rate, ~1.3 tokens/word
             # Plus prompt overhead (~200 tokens for system + user prompt)
@@ -618,43 +577,21 @@ def _generate_dry_run_cost_projection(
             )
 
     # Summarization cost estimation
-    if uses_openai_summarization:
+    if uses_llm_summarization:
         summary_episodes = episode_count
-        model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
-        pricing = _get_provider_pricing(cfg, "openai", "summarization", model)
-        if pricing and "input_cost_per_1m_tokens" in pricing:
-            # Estimate tokens: same as speaker detection for input (transcript)
-            # Plus prompt overhead (~300 tokens for summarization prompt)
-            words_per_minute = 150.0
-            tokens_per_word = 1.3
-            prompt_overhead_tokens = 300
-
-            transcript_tokens_per_episode = int(
-                avg_duration_minutes * words_per_minute * tokens_per_word
-            )
-            input_tokens_per_episode = transcript_tokens_per_episode + prompt_overhead_tokens
-            # Output: summary is typically 100-200 words (~150 tokens)
-            output_tokens_per_episode = 150
-
-            total_input_tokens = summary_episodes * input_tokens_per_episode
-            total_output_tokens = summary_episodes * output_tokens_per_episode
-
-            input_cost = (total_input_tokens / 1_000_000) * pricing["input_cost_per_1m_tokens"]
-            output_cost = (total_output_tokens / 1_000_000) * pricing["output_cost_per_1m_tokens"]
-            summary_cost = input_cost + output_cost
-            total_cost += summary_cost
-
-            summary_lines.append(
-                f"Summarization ({model}):\n"
-                f"  - Episodes: {summary_episodes}\n"
-                f"  - Estimated tokens: ~{total_input_tokens:,} input + "
-                f"~{total_output_tokens:,} output\n"
-                f"  - Estimated cost: ${summary_cost:.4f}"
-            )
-    elif uses_gemini_summarization:
-        summary_episodes = episode_count
-        model = getattr(cfg, "gemini_summary_model", "gemini-1.5-pro")
-        pricing = _get_provider_pricing(cfg, "gemini", "summarization", model)
+        # Get model and default based on provider
+        model_attr = f"{llm_summarization_provider}_summary_model"
+        default_models = {
+            "openai": "gpt-4o-mini",
+            "gemini": "gemini-1.5-pro",
+            "anthropic": "claude-3-5-sonnet-20241022",
+            "mistral": "mistral-small",
+            "deepseek": "deepseek-chat",
+            "grok": "grok-beta",
+            "ollama": "llama3.2",
+        }
+        model = getattr(cfg, model_attr, default_models.get(llm_summarization_provider, ""))
+        pricing = _get_provider_pricing(cfg, llm_summarization_provider, "summarization", model)
         if pricing and "input_cost_per_1m_tokens" in pricing:
             # Estimate tokens: same as speaker detection for input (transcript)
             # Plus prompt overhead (~300 tokens for summarization prompt)

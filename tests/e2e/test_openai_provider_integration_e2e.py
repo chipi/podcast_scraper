@@ -5,8 +5,9 @@ These tests verify that OpenAI providers work correctly in complete user workflo
 - OpenAI transcription in workflow
 - OpenAI speaker detection in workflow
 - OpenAI summarization in workflow
-- Error handling (API errors, rate limiting, retries)
-- Fallback behavior when OpenAI API fails
+
+Note: Error handling (API errors, rate limiting, retries) is tested in unit/integration tests,
+not in E2E tests since the E2E server doesn't simulate errors.
 
 These tests use the E2E server's OpenAI mock endpoints (real HTTP requests to mock server)
 and are marked with @pytest.mark.e2e to allow selective execution.
@@ -298,6 +299,27 @@ def _save_all_episode_responses(
             print(f"  {idx}. {file_path}")
     elif len(saved_files) == 1:
         print(f"📁 OpenAI API responses saved to: {saved_files[0]}")
+
+    # Also copy metadata files to output folder for easy access
+    import shutil
+
+    if saved_files:
+        # Get the output directory from the first saved file
+        run_output_dir = saved_files[0].parent
+
+        metadata_files_copied = []
+        for metadata_file in sorted(metadata_files):
+            # Copy metadata file to same output directory as response files
+            output_metadata_file = run_output_dir / metadata_file.name
+            shutil.copy2(metadata_file, output_metadata_file)
+            metadata_files_copied.append(output_metadata_file)
+
+        if len(metadata_files_copied) > 1:
+            print(f"\n📄 Copied {len(metadata_files_copied)} metadata files to output folder:")
+            for idx, file_path in enumerate(metadata_files_copied, 1):
+                print(f"  {idx}. {file_path}")
+        elif len(metadata_files_copied) == 1:
+            print(f"📄 Metadata file copied to: {metadata_files_copied[0]}")
 
     return saved_files
 
@@ -903,202 +925,3 @@ class TestOpenAIProviderE2E:
             else:
                 # Log location for debugging
                 print(f"\n⚠️  Preserving temp_dir (USE_REAL_OPENAI_API=1): {temp_dir}")
-
-    def test_openai_transcription_api_error_handling(self, e2e_server: Optional[Any]):
-        """Test that OpenAI transcription API errors are handled gracefully.
-
-        Note: E2E server currently doesn't simulate errors, so this test verifies
-        that the pipeline completes successfully. Error handling is tested in
-        unit/integration tests.
-        """
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # Get feed URL and OpenAI config based on LLM_TEST_FEED
-            rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
-
-            # Create config with OpenAI transcription ONLY (no other providers)
-            cfg = create_test_config(
-                rss_url=rss_url,
-                output_dir=temp_dir,
-                transcription_provider="openai",
-                speaker_detector_provider="openai",  # Explicitly set to avoid spaCy default
-                summary_provider="openai",  # Explicitly set to avoid transformers default
-                openai_api_key=openai_api_key,
-                openai_api_base=openai_api_base,
-                generate_summaries=False,  # Disable summarization
-                auto_speakers=False,  # Disable speaker detection
-                preload_models=False,  # Disable model preloading (no local ML models)
-                transcribe_missing=True,
-                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
-            )
-
-            # Run pipeline - E2E server provides successful responses
-            transcripts_saved, summary = workflow.run_pipeline(cfg)
-
-            # Pipeline should complete successfully
-            # Note: Error handling is tested in unit/integration tests
-            assert transcripts_saved >= 0, "Pipeline should complete"
-
-            # Verify OpenAI transcription provider was used (if metadata exists)
-            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
-            if len(metadata_files) > 0:
-                # Save responses for all episodes (if any succeeded)
-                _save_all_episode_responses(
-                    Path(temp_dir),
-                    metadata_files,
-                    "test_openai_transcription_api_error_handling",
-                    validate_provider="openai",
-                )
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
-    def test_openai_speaker_detection_api_error_handling(self, e2e_server: Optional[Any]):
-        """Test that OpenAI speaker detection works correctly.
-
-        Note: E2E server currently doesn't simulate errors, so this test verifies
-        that the pipeline completes successfully. Error handling is tested in
-        unit/integration tests.
-        """
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # Get feed URL and OpenAI config based on LLM_TEST_FEED
-            rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
-
-            # Create config with OpenAI speaker detection and transcription ONLY (no summarization)
-            cfg = create_test_config(
-                rss_url=rss_url,
-                output_dir=temp_dir,
-                transcription_provider="openai",
-                speaker_detector_provider="openai",
-                summary_provider="openai",  # Explicitly set to avoid transformers default
-                openai_api_key=openai_api_key,
-                openai_api_base=openai_api_base,
-                auto_speakers=True,
-                generate_metadata=True,
-                generate_summaries=False,  # Disable summarization
-                preload_models=False,  # Disable model preloading (no local ML models)
-                transcribe_missing=True,
-                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
-            )
-
-            # Run pipeline (uses OpenAI ONLY, no local ML providers)
-            transcripts_saved, summary = workflow.run_pipeline(cfg)
-
-            # Pipeline should complete successfully
-            # Note: Error handling is tested in unit/integration tests
-            assert transcripts_saved >= 0, "Pipeline should complete"
-
-            # Verify OpenAI speaker detection provider was used (if metadata exists)
-            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
-            if len(metadata_files) > 0:
-                # Save responses for all episodes
-                _save_all_episode_responses(
-                    Path(temp_dir),
-                    metadata_files,
-                    "test_openai_speaker_detection_api_error_handling",
-                    validate_provider="openai",
-                    validate_summarization=False,  # Summarization not enabled in this test
-                )
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
-    def test_openai_summarization_api_error_handling(self, e2e_server: Optional[Any]):
-        """Test that OpenAI summarization works correctly.
-
-        Note: E2E server currently doesn't simulate errors, so this test verifies
-        that the pipeline completes successfully. Error handling is tested in
-        unit/integration tests.
-        """
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # Get feed URL and OpenAI config based on LLM_TEST_FEED
-            rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
-
-            # Create config with OpenAI summarization and transcription ONLY (no speaker detection)
-            cfg = create_test_config(
-                rss_url=rss_url,
-                output_dir=temp_dir,
-                transcription_provider="openai",
-                speaker_detector_provider="openai",  # Explicitly set to avoid spaCy default
-                summary_provider="openai",
-                openai_api_key=openai_api_key,
-                openai_api_base=openai_api_base,
-                generate_metadata=True,
-                generate_summaries=True,
-                auto_speakers=False,  # Disable speaker detection
-                preload_models=False,  # Disable model preloading (no local ML models)
-                transcribe_missing=True,
-                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
-            )
-
-            # Run pipeline (uses OpenAI ONLY, no local ML providers)
-            transcripts_saved, summary = workflow.run_pipeline(cfg)
-
-            # Pipeline should complete successfully
-            # Note: Error handling is tested in unit/integration tests
-            assert transcripts_saved >= 0, "Pipeline should complete"
-
-            # Verify metadata files were created
-            # Metadata should be created with summary from E2E server
-            # Use *.metadata.json to avoid matching metrics.json files
-            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
-            assert len(metadata_files) > 0, "Metadata files should be created"
-
-            # Save responses for all episodes
-            _save_all_episode_responses(
-                Path(temp_dir),
-                metadata_files,
-                "test_openai_summarization_api_error_handling",
-                validate_provider="openai",
-                validate_speaker_detection=False,  # Speaker detection not enabled in this test
-            )
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
-    def test_openai_transcription_rate_limiting(self, e2e_server: Optional[Any]):
-        """Test that OpenAI transcription works correctly.
-
-        Note: E2E server currently doesn't simulate rate limiting, so this test verifies
-        that the pipeline completes successfully. Rate limiting is tested in
-        unit/integration tests.
-        """
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # Get feed URL and OpenAI config based on LLM_TEST_FEED
-            rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
-
-            # Create config with OpenAI transcription ONLY (no other providers)
-            cfg = create_test_config(
-                rss_url=rss_url,
-                output_dir=temp_dir,
-                transcription_provider="openai",
-                speaker_detector_provider="openai",  # Explicitly set to avoid spaCy default
-                summary_provider="openai",  # Explicitly set to avoid transformers default
-                openai_api_key=openai_api_key,
-                openai_api_base=openai_api_base,
-                generate_summaries=False,  # Disable summarization
-                auto_speakers=False,  # Disable speaker detection
-                preload_models=False,  # Disable model preloading (no local ML models)
-                transcribe_missing=True,
-                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
-            )
-
-            # Run pipeline - E2E server provides successful responses
-            transcripts_saved, summary = workflow.run_pipeline(cfg)
-
-            # Pipeline should complete successfully
-            # Note: Rate limiting is tested in unit/integration tests
-            assert transcripts_saved >= 0, "Pipeline should complete"
-
-            # Verify OpenAI transcription provider was used (if metadata exists)
-            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
-            if len(metadata_files) > 0:
-                # Save responses for all episodes (if any succeeded)
-                _save_all_episode_responses(
-                    Path(temp_dir),
-                    metadata_files,
-                    "test_openai_transcription_rate_limiting",
-                    validate_provider="openai",
-                )
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)

@@ -295,25 +295,71 @@ class GeminiProvider:
             return text
 
         except Exception as exc:
-            logger.error("Gemini API error in transcription: %s", exc)
+            # Enhanced error logging for diagnostics
+            error_type = type(exc).__name__
+            error_msg = str(exc)
+            error_msg_lower = error_msg.lower()
+
+            # Log full error details for 429/rate limit errors
+            if (
+                "429" in error_msg
+                or "quota" in error_msg_lower
+                or "rate limit" in error_msg_lower
+                or "resource exhausted" in error_msg_lower
+            ):
+                logger.error(
+                    "Gemini API 429/rate limit error in transcription:\n"
+                    "  Error type: %s\n"
+                    "  Error message: %s\n"
+                    "  Full exception: %s",
+                    error_type,
+                    error_msg,
+                    exc,
+                    exc_info=True,
+                )
+                # Check if exception has additional attributes (some SDKs provide rate limit info)
+                if hasattr(exc, "status_code"):
+                    logger.error("  HTTP status code: %s", exc.status_code)
+                if hasattr(exc, "response"):
+                    logger.error("  Response object: %s", exc.response)
+                if hasattr(exc, "retry_after"):
+                    logger.error("  Retry after: %s seconds", exc.retry_after)
+            else:
+                logger.error("Gemini API error in transcription: %s", exc)
+
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
             )
 
             # Handle Gemini-specific error types
-            error_msg = str(exc).lower()
-            if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
+            if (
+                "api key" in error_msg_lower
+                or "authentication" in error_msg_lower
+                or "permission" in error_msg_lower
+            ):
                 raise ProviderAuthError(
                     message=f"Gemini authentication failed: {exc}",
                     provider="GeminiProvider/Transcription",
                     suggestion="Check your GEMINI_API_KEY environment variable or config setting",
                 ) from exc
-            elif "quota" in error_msg or "rate limit" in error_msg:
+            elif (
+                "429" in error_msg
+                or "quota" in error_msg_lower
+                or "rate limit" in error_msg_lower
+                or "resource exhausted" in error_msg_lower
+            ):
                 raise ProviderRuntimeError(
-                    message=f"Gemini rate limit exceeded: {exc}",
+                    message=f"Gemini rate limit exceeded (429): {exc}",
                     provider="GeminiProvider/Transcription",
-                    suggestion="Wait before retrying or check your API quota",
+                    suggestion=(
+                        "Gemini API rate limit exceeded. This usually means:\n"
+                        "1. Too many requests per minute - reduce parallelism or add delays\n"
+                        "2. Daily quota exceeded - check your API quota at "
+                        "https://aistudio.google.com/app/apikey\n"
+                        "3. Account limits - free tier has lower limits than paid\n"
+                        "Wait a few minutes and retry, or check your API quota/limits"
+                    ),
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
@@ -498,8 +544,18 @@ class GeminiProvider:
             # Note: Check Gemini SDK for usage information structure
             if pipeline_metrics is not None and hasattr(response, "usage_metadata"):
                 usage = response.usage_metadata
+                # Safely extract token counts, handling Mock objects in tests
                 input_tokens = getattr(usage, "prompt_token_count", 0)
                 output_tokens = getattr(usage, "candidates_token_count", 0)
+                # Convert to int (handles Mock objects in tests)
+                try:
+                    input_tokens = int(input_tokens) if input_tokens is not None else 0
+                except (TypeError, ValueError):
+                    input_tokens = 0
+                try:
+                    output_tokens = int(output_tokens) if output_tokens is not None else 0
+                except (TypeError, ValueError):
+                    output_tokens = 0
                 pipeline_metrics.record_llm_speaker_detection_call(input_tokens, output_tokens)
 
             return speakers, detected_hosts, success
@@ -695,8 +751,18 @@ class GeminiProvider:
             # Track LLM call metrics if available
             if pipeline_metrics is not None and hasattr(response, "usage_metadata"):
                 usage = response.usage_metadata
+                # Safely extract token counts, handling Mock objects in tests
                 input_tokens = getattr(usage, "prompt_token_count", 0)
                 output_tokens = getattr(usage, "candidates_token_count", 0)
+                # Convert to int (handles Mock objects in tests)
+                try:
+                    input_tokens = int(input_tokens) if input_tokens is not None else 0
+                except (TypeError, ValueError):
+                    input_tokens = 0
+                try:
+                    output_tokens = int(output_tokens) if output_tokens is not None else 0
+                except (TypeError, ValueError):
+                    output_tokens = 0
                 pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
 
             # Get prompt metadata for tracking (RFC-017)

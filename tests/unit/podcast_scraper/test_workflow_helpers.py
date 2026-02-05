@@ -958,13 +958,21 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         )
 
         # Create test episode with media URL
+        # Mock RSS item with description element
+        mock_item = Mock()
+        mock_desc = Mock()
+        mock_desc.text = "Test episode description"
+        mock_desc.strip.return_value = "Test episode description"
+        mock_item.find.return_value = mock_desc
+        mock_item.itertext.return_value = []
+
         episode = models.Episode(
             idx=1,
             title="Test Episode",
             title_safe="Test_Episode",
             media_url="https://example.com/episode.mp3",
-            transcript_urls=[],
-            item=Mock(),
+            transcript_urls=["https://example.com/transcript.txt"],  # Has transcript URLs
+            item=mock_item,
         )
 
         # Mock HTTP HEAD response with file size > 25MB
@@ -984,10 +992,11 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
             transcription_jobs_lock=threading.Lock(),
             saved_counter_lock=threading.Lock(),
         )
+        # Don't provide speaker_detector - it should not be created when skipping
         host_detection_result = HostDetectionResult(
             cached_hosts=set(),
             heuristics=None,
-            speaker_detector=None,
+            speaker_detector=None,  # Should not be created when skipping
         )
         pipeline_metrics = metrics.Metrics()
 

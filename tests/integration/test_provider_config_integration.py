@@ -309,6 +309,43 @@ class TestProviderFactories(unittest.TestCase):
         self.assertTrue(hasattr(provider, "initialize"))
         self.assertTrue(hasattr(provider, "cleanup"))
 
+    def test_grok_providers_factory_creation(self):
+        """Test that Grok providers can be created via factories."""
+        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
+        from podcast_scraper.summarization.factory import create_summarization_provider
+
+        # Test Grok speaker detector
+        cfg_speaker = config.Config(
+            rss_url="https://example.com/feed.xml",
+            speaker_detector_provider="grok",
+            grok_api_key="test-api-key-123",
+            auto_speakers=True,
+        )
+        detector = create_speaker_detector(cfg_speaker)
+        self.assertIsNotNone(detector)
+        # Verify it's the unified Grok provider
+        self.assertEqual(detector.__class__.__name__, "GrokProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(detector, "detect_speakers"))
+        self.assertTrue(hasattr(detector, "detect_hosts"))
+
+        # Test Grok summarization provider
+        cfg_summary = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="grok",
+            grok_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+        )
+        provider = create_summarization_provider(cfg_summary)
+        self.assertIsNotNone(provider)
+        # Verify it's the unified Grok provider
+        self.assertEqual(provider.__class__.__name__, "GrokProvider")
+        # Verify protocol compliance
+        self.assertTrue(hasattr(provider, "summarize"))
+        self.assertTrue(hasattr(provider, "initialize"))
+        self.assertTrue(hasattr(provider, "cleanup"))
+
 
 @pytest.mark.integration
 @pytest.mark.critical_path

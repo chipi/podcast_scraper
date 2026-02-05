@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import http.server
 import json
+import logging
 import os
 import re
 import socketserver
@@ -29,6 +30,8 @@ from typing import Any, Dict, Optional
 import pytest
 
 from podcast_scraper import config
+
+logger = logging.getLogger(__name__)
 
 
 class E2EServerURLs:
@@ -98,6 +101,67 @@ class E2EServerURLs:
             Gemini API base URL (e.g., "http://127.0.0.1:8000/v1beta")
         """
         return f"{self.base_url}/v1beta"
+
+    def mistral_api_base(self) -> str:
+        """Get Mistral API base URL (points to E2E server).
+
+        Mistral uses OpenAI-compatible API format, so it uses the same endpoints:
+        - /v1/chat/completions for chat models
+        - /v1/audio/transcriptions for audio transcription
+
+        Returns:
+            Mistral API base URL (e.g., "http://127.0.0.1:8000/v1")
+        """
+        return f"{self.base_url}/v1"
+
+    def grok_api_base(self) -> str:
+        """Get Grok API base URL (points to E2E server).
+
+        Grok uses OpenAI-compatible API format, so it uses the same endpoints:
+        - /v1/chat/completions for chat models (speaker detection, summarization)
+        - Note: Grok does NOT support audio transcription
+
+        Returns:
+            Grok API base URL (e.g., "http://127.0.0.1:8000/v1")
+        """
+        return f"{self.base_url}/v1"
+
+    def deepseek_api_base(self) -> str:
+        """Get DeepSeek API base URL (points to E2E server).
+
+        DeepSeek uses OpenAI-compatible API format, so it uses the same endpoints:
+        - /v1/chat/completions for chat models (speaker detection, summarization)
+        - Note: DeepSeek does NOT support audio transcription
+
+        Returns:
+            DeepSeek API base URL (e.g., "http://127.0.0.1:8000/v1")
+        """
+        return f"{self.base_url}/v1"
+
+    def ollama_api_base(self) -> str:
+        """Get Ollama API base URL (points to E2E server).
+
+        Ollama uses OpenAI-compatible API format, so it uses the same endpoints:
+        - /v1/chat/completions for chat models (speaker detection, summarization)
+        - Note: Ollama does NOT support audio transcription
+
+        Returns:
+            Ollama API base URL (e.g., "http://127.0.0.1:8000/v1")
+        """
+        return f"{self.base_url}/v1"
+
+    def anthropic_api_base(self) -> str:
+        """Get Anthropic API base URL (points to E2E server).
+
+        Anthropic uses its own API format:
+        - /v1/messages for chat models (speaker detection, summarization)
+        - Note: Anthropic does NOT support native audio transcription
+        - Note: Anthropic SDK appends /v1/messages, so base URL should NOT include /v1
+
+        Returns:
+            Anthropic API base URL (e.g., "http://127.0.0.1:8000")
+        """
+        return self.base_url
 
 
 class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -356,12 +420,25 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._serve_file(file_path, content_type="text/plain")
             return
 
+        # Route 4: Ollama API endpoints (for health checks and model validation)
+        # /api/version -> Ollama health check
+        if path == "/api/version":
+            self._handle_ollama_version()
+            return
+
+        # /api/tags -> Ollama model list (for model validation)
+        if path == "/api/tags":
+            self._handle_ollama_tags()
+            return
+
         # 404 for all other paths
         self.send_error(404, "File not found")
 
     def do_POST(self):
-        """Handle POST requests for OpenAI API endpoints."""
+        """Handle POST requests for API endpoints."""
         path = self.path.split("?")[0]  # Remove query string
+        # Debug: log the path being requested
+        logger.debug("E2E server POST request to path: %s", path)
 
         # Check for error behavior first
         with self._error_behaviors_lock:
@@ -384,6 +461,13 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # /v1/audio/transcriptions -> Mock audio transcriptions
         if path == "/v1/audio/transcriptions":
             self._handle_audio_transcriptions()
+            return
+
+        # Route: Anthropic API endpoints
+        # /v1/messages -> Mock Anthropic messages API (speaker detection, summarization)
+        # Anthropic SDK appends /v1/messages to base URL, so we match /v1/messages
+        if path == "/v1/messages" or path.endswith("/v1/messages"):
+            self._handle_anthropic_messages()
             return
 
         # Route: Gemini API endpoints
@@ -551,6 +635,156 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             self.send_error(500, f"Error handling audio transcriptions: {e}")
 
+    def _handle_ollama_version(self):
+        """Handle Ollama version API requests (health check).
+
+        Ollama uses GET /api/version to check if the server is running.
+        Returns a simple version response.
+        """
+        try:
+            # Return a simple version response (Ollama format)
+            version_response = {"version": "1.0.0"}
+            response_json = json.dumps(version_response)
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response_json)))
+            self.end_headers()
+            self.wfile.write(response_json.encode("utf-8"))
+
+        except Exception as e:
+            self.send_error(500, f"Error handling Ollama version: {e}")
+
+    def _handle_ollama_tags(self):
+        """Handle Ollama tags API requests (model list).
+
+        Ollama uses GET /api/tags to list available models.
+        Returns a list of models that are commonly used in tests.
+        """
+        try:
+            # Return a list of models that are commonly used in tests
+            # This matches what the integration tests expect
+            models_response = {
+                "models": [
+                    {"name": "llama3.3:latest"},
+                    {"name": "llama3.2:latest"},
+                    {"name": "llama3.1:latest"},
+                    {"name": "llama3:latest"},
+                ]
+            }
+            response_json = json.dumps(models_response)
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response_json)))
+            self.end_headers()
+            self.wfile.write(response_json.encode("utf-8"))
+
+        except Exception as e:
+            self.send_error(500, f"Error handling Ollama tags: {e}")
+
+    def _handle_anthropic_messages(self):
+        """Handle Anthropic messages API requests.
+
+        Anthropic API uses POST /v1/messages
+        This handler supports:
+        - Speaker detection (when system prompt contains "speaker" or "NER")
+        - Summarization (default)
+        """
+        try:
+            # Read request body
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length == 0:
+                self.send_error(400, "Request body required")
+                return
+
+            body = self.rfile.read(content_length)
+            request_data = json.loads(body.decode("utf-8"))
+
+            # Extract request details
+            messages = request_data.get("messages", [])
+            user_message = next((m for m in messages if m.get("role") == "user"), {})
+            # Handle content that might be a string or list
+            user_content_raw = user_message.get("content", "")
+            if isinstance(user_content_raw, list):
+                # Extract text from content blocks
+                user_content = " ".join(
+                    item.get("text", "") if isinstance(item, dict) else str(item)
+                    for item in user_content_raw
+                )
+            else:
+                user_content = str(user_content_raw)
+            system = request_data.get("system", "")
+
+            # Determine response type based on system prompt
+            # If system prompt contains "speaker" or "NER", it's speaker detection
+            is_speaker_detection = (
+                "speaker" in system.lower() or "ner" in system.lower() or "name" in system.lower()
+            )
+
+            if is_speaker_detection:
+                # Speaker detection response (Anthropic format)
+                response_data = {
+                    "id": "msg-test-speaker",
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {
+                                    "speakers": ["Host", "Guest"],
+                                    "hosts": ["Host"],
+                                    "guests": ["Guest"],
+                                }
+                            ),
+                        }
+                    ],
+                    "model": request_data.get("model", "claude-3-5-haiku-latest"),
+                    "stop_reason": "end_turn",
+                    "stop_sequence": None,
+                    "usage": {
+                        "input_tokens": 100,
+                        "output_tokens": 50,
+                    },
+                }
+            else:
+                # Summarization response (Anthropic format)
+                # Generate a simple summary based on text length
+                summary_length = min(200, len(user_content) // 10)
+                summary = (
+                    f"This is a test summary of the transcript. {user_content[:summary_length]}..."
+                )
+
+                response_data = {
+                    "id": "msg-test-summary",
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": summary}],
+                    "model": request_data.get("model", "claude-3-5-haiku-latest"),
+                    "stop_reason": "end_turn",
+                    "stop_sequence": None,
+                    "usage": {
+                        "input_tokens": 100,
+                        "output_tokens": 50,
+                    },
+                }
+
+            # Send response
+            response_json = json.dumps(response_data)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response_json)))
+            self.end_headers()
+            self.wfile.write(response_json.encode("utf-8"))
+            self.wfile.flush()  # Ensure response is sent
+
+        except json.JSONDecodeError:
+            self.send_error(400, "Invalid JSON in request body")
+        except Exception as e:
+            logger.error("Error handling Anthropic messages: %s", e, exc_info=True)
+            self.send_error(500, f"Error handling Anthropic messages: {e}")
+
     def _handle_gemini_generate_content(self):
         """Handle Gemini generateContent API requests.
 
@@ -576,7 +810,20 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             has_audio = False
             text_prompt = ""
             for content in contents:
-                if isinstance(content, list):
+                # Handle both formats:
+                # 1. content is a dict with "parts" key: {"parts": [...]}
+                # 2. content is a list: [...]
+                # 3. content is a string: "..."
+                if isinstance(content, dict) and "parts" in content:
+                    parts = content.get("parts", [])
+                    for part in parts:
+                        if isinstance(part, dict) and "mime_type" in part:
+                            mime_type = part.get("mime_type", "")
+                            if mime_type.startswith("audio/"):
+                                has_audio = True
+                        elif isinstance(part, str):
+                            text_prompt = part
+                elif isinstance(content, list):
                     for part in content:
                         if isinstance(part, dict) and "mime_type" in part:
                             mime_type = part.get("mime_type", "")

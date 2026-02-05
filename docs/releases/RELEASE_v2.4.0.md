@@ -29,7 +29,7 @@ v2.4.0 is a **major minor release** introducing a **comprehensive multi-provider
 - **Mistral** - Mistral Large, Mistral Medium (speaker detection, summarization)
 - **DeepSeek** - DeepSeek Chat, DeepSeek Coder (speaker detection, summarization)
 - **Gemini** - Gemini 1.5 Pro, Gemini 2.0 Flash (speaker detection, summarization)
-- **Groq** - Fast LLaMA, Mixtral inference (speaker detection, summarization)
+- **Grok** - xAI's Grok models with real-time information access (speaker detection, summarization)
 - **Ollama** - Local LLM inference (speaker detection, summarization)
 
 **Provider Selection:**
@@ -353,7 +353,7 @@ RUN_ID=my_experiment python3 -m podcast_scraper.cli ...
 
 - **RFC-040**: Audio Preprocessing Pipeline (future work)
 - **RFC-039**: Development Workflow with Git Worktrees & CI
-- Multiple provider RFCs (Anthropic, Mistral, DeepSeek, Gemini, Groq, Ollama)
+- Multiple provider RFCs (Anthropic, Mistral, DeepSeek, Gemini, Grok, Ollama)
 
 ## What's New
 
@@ -419,7 +419,7 @@ RUN_ID=my_experiment python3 -m podcast_scraper.cli ...
 
 **Provider Matrix:**
 
-| Capability | Local | OpenAI | Anthropic | Mistral | DeepSeek | Gemini | Groq | Ollama |
+| Capability | Local | OpenAI | Anthropic | Mistral | DeepSeek | Gemini | Grok | Ollama |
 | ------------ | ------- | -------- | ----------- | --------- | ---------- | -------- | ------ | -------- |
 | Transcription | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Speaker Detection | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -434,8 +434,8 @@ RUN_ID=my_experiment python3 -m podcast_scraper.cli ...
 # Provider selection
 
 transcription_provider: whisper      # or openai
-speaker_detector_provider: spacy     # or openai, anthropic, mistral, deepseek, gemini, groq, ollama
-summary_provider: transformers       # or openai, anthropic, mistral, deepseek, gemini, groq, ollama
+speaker_detector_provider: spacy     # or openai, anthropic, mistral, deepseek, gemini, grok, ollama
+summary_provider: transformers       # or openai, anthropic, mistral, deepseek, gemini, grok, ollama
 
 # OpenAI configuration
 
@@ -473,12 +473,12 @@ gemini_speaker_model: gemini-1.5-pro
 gemini_summary_model: gemini-1.5-pro
 gemini_temperature: 0.3
 
-# Groq configuration
+# Grok configuration
 
-groq_api_key: null                   # Set via GROQ_API_KEY env var
-groq_speaker_model: llama-3.3-70b-versatile
-groq_summary_model: llama-3.3-70b-versatile
-groq_temperature: 0.3
+grok_api_key: null                   # Set via GROK_API_KEY env var
+grok_speaker_model: grok-2
+grok_summary_model: grok-2
+grok_temperature: 0.3
 
 # Ollama configuration
 
@@ -615,7 +615,7 @@ whisper_model: base.en       # NEW: English-optimized model
 
 **Major Features:**
 
-- #193: Multi-provider integration (Anthropic, Mistral, DeepSeek, Gemini, Groq, Ollama)
+- #193: Multi-provider integration (Anthropic, Mistral, DeepSeek, Gemini, Grok, Ollama)
 - #247: Improved defaults and cache management CLI (#221, #208, #224)
 - #283: Inconsistent summarization quality at 4k token threshold
 - #280: Metadata improvements and run suffix enhancements

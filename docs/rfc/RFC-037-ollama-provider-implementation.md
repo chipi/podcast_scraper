@@ -10,7 +10,7 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-013-openai-provider-implementation.md` (reference - unified provider pattern)
   - `docs/rfc/RFC-034-deepseek-provider-implementation.md` (OpenAI SDK pattern)
-  - `docs/rfc/RFC-036-groq-provider-implementation.md` (similar pattern)
+  - `docs/rfc/RFC-036-grok-provider-implementation.md` (similar pattern)
 
 ## Abstract
 
@@ -119,12 +119,12 @@ Add to `config.py` following OpenAI pattern exactly:
 from typing import Literal, Optional
 
 # Provider Selection (updated)
-speaker_detector_provider: Literal["spacy", "openai", "anthropic", "deepseek", "groq", "ollama"] = Field(
+speaker_detector_provider: Literal["spacy", "openai", "anthropic", "deepseek", "grok", "ollama"] = Field(
     default="spacy",
     description="Speaker detection provider"
 )
 
-summary_provider: Literal["transformers", "openai", "anthropic", "deepseek", "groq", "ollama"] = Field(
+summary_provider: Literal["transformers", "openai", "anthropic", "deepseek", "grok", "ollama"] = Field(
     default="transformers",
     description="Summarization provider"
 )
@@ -907,7 +907,7 @@ def create_speaker_detector(
     else:
         raise ValueError(
             f"Unsupported speaker detector type: {provider_type}. "
-            "Supported types: 'spacy', 'openai', 'anthropic', 'deepseek', 'groq', 'ollama'"
+            "Supported types: 'spacy', 'openai', 'anthropic', 'deepseek', 'grok', 'ollama'"
         )
 ```
 

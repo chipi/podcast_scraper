@@ -35,7 +35,7 @@ def create_transcription_provider(
 
     Args:
         cfg_or_provider_type: Either a Config object or provider type string
-            ("whisper", "openai", or "gemini")
+            ("whisper", "openai", "gemini", or "mistral")
         params: Optional parameters dict or TranscriptionParams object (experiment mode only)
 
     Returns:
@@ -79,10 +79,12 @@ def create_transcription_provider(
         # Experiment-based mode
         provider_type_str = str(cfg_or_provider_type)
         # Type narrowing: validate it's one of the allowed values
-        if provider_type_str not in ("whisper", "openai", "gemini"):
+        if provider_type_str not in ("whisper", "openai", "gemini", "mistral"):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
 
-        provider_type_value = cast(Literal["whisper", "openai", "gemini"], provider_type_str)
+        provider_type_value = cast(
+            Literal["whisper", "openai", "gemini", "mistral"], provider_type_str
+        )
         experiment_mode = True
         provider_type = provider_type_value
 
@@ -167,8 +169,48 @@ def create_transcription_provider(
             return GeminiProvider(cfg)
         else:
             return GeminiProvider(cfg)
+    elif provider_type == "mistral":
+        from ..providers.mistral.mistral_provider import MistralProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be TranscriptionParams
+            assert isinstance(params, TranscriptionParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for transcription (use alias)
+                transcription_provider="mistral",
+                mistral_transcription_model=(
+                    params.model_name if params.model_name else "voxtral-mini-latest"
+                ),
+                mistral_api_key=os.getenv("MISTRAL_API_KEY"),  # Load from env
+            )
+            return MistralProvider(cfg)
+        else:
+            return MistralProvider(cfg)
+    elif provider_type == "anthropic":
+        from ..providers.anthropic.anthropic_provider import AnthropicProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be TranscriptionParams
+            assert isinstance(params, TranscriptionParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for transcription (use alias)
+                transcription_provider="anthropic",
+                anthropic_transcription_model=(
+                    params.model_name if params.model_name else "claude-3-5-sonnet-20241022"
+                ),
+                anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),  # Load from env
+            )
+            return AnthropicProvider(cfg)
+        else:
+            return AnthropicProvider(cfg)
     else:
         raise ValueError(
             f"Unsupported transcription provider: {provider_type}. "
-            "Supported providers: 'whisper', 'openai', 'gemini'"
+            "Supported providers: 'whisper', 'openai', 'gemini', 'mistral', 'anthropic'"
         )

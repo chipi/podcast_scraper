@@ -8,7 +8,7 @@ Usage:
     In E2E tests, monkeypatch the Gemini SDK to use this fake client:
 
     ```python
-    from tests.e2e.fixtures.gemini_mock_client import FakeGeminiClient
+    from tests.fixtures.mock_server.gemini_mock_client import FakeGeminiClient
 
     # In conftest.py or test setup
     monkeypatch.setattr("google.generativeai.GenerativeModel", FakeGeminiClient)
@@ -50,6 +50,8 @@ class FakeGenerativeModel:
         *,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        system_instruction: Optional[str] = None,
+        **kwargs: Any,
     ):
         """Initialize fake GenerativeModel.
 
@@ -57,10 +59,14 @@ class FakeGenerativeModel:
             model_name: Model name (e.g., "gemini-2.0-flash")
             api_key: API key (required for compatibility, but not used with mock server)
             base_url: Base URL for E2E mock server (e.g., "http://127.0.0.1:8000/v1beta")
+            system_instruction: System instruction/prompt
+                (accepted for compatibility, stored but not used)
+            **kwargs: Additional arguments (ignored for mock)
         """
         self.model_name = model_name
         self.api_key = api_key
         self.base_url = base_url or "http://127.0.0.1:8000/v1beta"
+        self.system_instruction = system_instruction
         logger.debug("FakeGenerativeModel initialized: model=%s, base_url=%s", model_name, base_url)
 
     def generate_content(

@@ -471,6 +471,50 @@ def _add_gemini_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_anthropic_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add Anthropic API-related arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
+    parser.add_argument(
+        "--anthropic-api-key",
+        type=str,
+        default=None,
+        help="Anthropic API key (or set ANTHROPIC_API_KEY env var)",
+    )
+    parser.add_argument(
+        "--anthropic-api-base",
+        type=str,
+        default=None,
+        help="Anthropic API base URL (for E2E testing, or set ANTHROPIC_API_BASE env var)",
+    )
+    parser.add_argument(
+        "--anthropic-speaker-model",
+        type=str,
+        default=None,
+        help="Anthropic model for speaker detection (default: claude-3-5-haiku-latest)",
+    )
+    parser.add_argument(
+        "--anthropic-summary-model",
+        type=str,
+        default=None,
+        help="Anthropic model for summarization (default: claude-3-5-haiku-latest)",
+    )
+    parser.add_argument(
+        "--anthropic-temperature",
+        type=float,
+        default=None,
+        help="Temperature for Anthropic models (0.0-1.0, default: 0.3)",
+    )
+    parser.add_argument(
+        "--anthropic-max-tokens",
+        type=int,
+        default=None,
+        help="Maximum tokens for Anthropic responses (default: model-specific)",
+    )
+
+
 def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
     """Add transcription-related arguments to parser.
 
@@ -581,7 +625,7 @@ def _add_speaker_detection_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--speaker-detector-provider",
-        choices=["spacy", "openai", "gemini"],
+        choices=["spacy", "openai", "gemini", "anthropic", "mistral", "grok", "deepseek", "ollama"],
         default="spacy",
         help="Speaker detection provider to use (default: spacy)",
     )
@@ -668,7 +712,16 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--summary-provider",
-        choices=["transformers", "openai", "gemini"],
+        choices=[
+            "transformers",
+            "openai",
+            "gemini",
+            "anthropic",
+            "mistral",
+            "grok",
+            "deepseek",
+            "ollama",
+        ],
         default="transformers",
         help="Summary provider to use (default: transformers)",
     )
@@ -752,13 +805,40 @@ def _load_and_merge_config(
         ValueError: If config is invalid or RSS URL is missing
     """
     config_data = config.load_config_file(config_path)
+    # Debug: Log grok model values from config file
+    if "grok_speaker_model" in config_data:
+        import logging
+
+        logging.getLogger(__name__).debug(
+            "Config file grok_speaker_model: %s", config_data["grok_speaker_model"]
+        )
+    if "grok_summary_model" in config_data:
+        import logging
+
+        logging.getLogger(__name__).debug(
+            "Config file grok_summary_model: %s", config_data["grok_summary_model"]
+        )
     valid_dests = {action.dest for action in parser._actions if action.dest}
-    unknown_keys = [key for key in config_data.keys() if key not in valid_dests]
+    # Also check against Config model field aliases (some fields are config-only, not CLI args)
+    config_field_aliases = {
+        field.alias or field_name for field_name, field in config.Config.model_fields.items()
+    }
+    valid_keys = valid_dests | config_field_aliases
+    unknown_keys = [key for key in config_data.keys() if key not in valid_keys]
     if unknown_keys:
         raise ValueError("Unknown config option(s): " + ", ".join(sorted(unknown_keys)))
 
     try:
         config_model = config.Config.model_validate(config_data)
+        # Debug: Log grok model values after validation
+        import logging
+
+        logging.getLogger(__name__).debug(
+            "Config model grok_speaker_model: %s", config_model.grok_speaker_model
+        )
+        logging.getLogger(__name__).debug(
+            "Config model grok_summary_model: %s", config_model.grok_summary_model
+        )
     except ValidationError as exc:
         raise ValueError(f"Invalid configuration: {exc}") from exc
 
@@ -1024,6 +1104,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     _add_summarization_arguments(parser)
     _add_openai_arguments(parser)
     _add_gemini_arguments(parser)
+    _add_anthropic_arguments(parser)
     _add_cache_arguments(parser)
 
     initial_args, _ = parser.parse_known_args(argv)
@@ -1041,7 +1122,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     return args
 
 
-def _build_config(args: argparse.Namespace) -> config.Config:
+def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     """Materialize a Config object from already-validated CLI arguments."""
     speaker_names_list = [s.strip() for s in (args.speaker_names or "").split(",") if s.strip()]
     payload: Dict[str, Any] = {
@@ -1114,20 +1195,94 @@ def _build_config(args: argparse.Namespace) -> config.Config:
     # The field validator will load it from OPENAI_API_KEY env var if available
     payload["openai_api_key"] = None
     # Add Gemini API configuration
-    payload["gemini_api_base"] = args.gemini_api_base
-    if args.gemini_transcription_model is not None:
-        payload["gemini_transcription_model"] = args.gemini_transcription_model
-    if args.gemini_speaker_model is not None:
-        payload["gemini_speaker_model"] = args.gemini_speaker_model
-    if args.gemini_summary_model is not None:
-        payload["gemini_summary_model"] = args.gemini_summary_model
-    if args.gemini_temperature is not None:
-        payload["gemini_temperature"] = args.gemini_temperature
-    if args.gemini_max_tokens is not None:
-        payload["gemini_max_tokens"] = args.gemini_max_tokens
+    payload["gemini_api_base"] = getattr(args, "gemini_api_base", None)
+    gemini_transcription_model = getattr(args, "gemini_transcription_model", None)
+    if gemini_transcription_model is not None:
+        payload["gemini_transcription_model"] = gemini_transcription_model
+    gemini_speaker_model = getattr(args, "gemini_speaker_model", None)
+    if gemini_speaker_model is not None:
+        payload["gemini_speaker_model"] = gemini_speaker_model
+    gemini_summary_model = getattr(args, "gemini_summary_model", None)
+    if gemini_summary_model is not None:
+        payload["gemini_summary_model"] = gemini_summary_model
+    gemini_temperature = getattr(args, "gemini_temperature", None)
+    if gemini_temperature is not None:
+        payload["gemini_temperature"] = gemini_temperature
+    gemini_max_tokens = getattr(args, "gemini_max_tokens", None)
+    if gemini_max_tokens is not None:
+        payload["gemini_max_tokens"] = gemini_max_tokens
     # Explicitly include gemini_api_key=None to trigger field validator
     # The field validator will load it from GEMINI_API_KEY env var if available
     payload["gemini_api_key"] = None
+    # Add Anthropic API configuration
+    payload["anthropic_api_base"] = getattr(args, "anthropic_api_base", None)
+    if hasattr(args, "anthropic_speaker_model") and args.anthropic_speaker_model is not None:
+        payload["anthropic_speaker_model"] = args.anthropic_speaker_model
+    if hasattr(args, "anthropic_summary_model") and args.anthropic_summary_model is not None:
+        payload["anthropic_summary_model"] = args.anthropic_summary_model
+    if hasattr(args, "anthropic_temperature") and args.anthropic_temperature is not None:
+        payload["anthropic_temperature"] = args.anthropic_temperature
+    if hasattr(args, "anthropic_max_tokens") and args.anthropic_max_tokens is not None:
+        payload["anthropic_max_tokens"] = args.anthropic_max_tokens
+    # Explicitly include anthropic_api_key=None to trigger field validator
+    # The field validator will load it from ANTHROPIC_API_KEY env var if available
+    payload["anthropic_api_key"] = None
+    # Add Grok API configuration
+    payload["grok_api_base"] = getattr(args, "grok_api_base", None)
+    if hasattr(args, "grok_speaker_model") and args.grok_speaker_model is not None:
+        payload["grok_speaker_model"] = args.grok_speaker_model
+    if hasattr(args, "grok_summary_model") and args.grok_summary_model is not None:
+        payload["grok_summary_model"] = args.grok_summary_model
+    if hasattr(args, "grok_temperature") and args.grok_temperature is not None:
+        payload["grok_temperature"] = args.grok_temperature
+    if hasattr(args, "grok_max_tokens") and args.grok_max_tokens is not None:
+        payload["grok_max_tokens"] = args.grok_max_tokens
+    # Explicitly include grok_api_key=None to trigger field validator
+    # The field validator will load it from GROK_API_KEY env var if available
+    payload["grok_api_key"] = None
+    # Add Mistral API configuration
+    payload["mistral_api_base"] = getattr(args, "mistral_api_base", None)
+    if (
+        hasattr(args, "mistral_transcription_model")
+        and args.mistral_transcription_model is not None
+    ):
+        payload["mistral_transcription_model"] = args.mistral_transcription_model
+    if hasattr(args, "mistral_speaker_model") and args.mistral_speaker_model is not None:
+        payload["mistral_speaker_model"] = args.mistral_speaker_model
+    if hasattr(args, "mistral_summary_model") and args.mistral_summary_model is not None:
+        payload["mistral_summary_model"] = args.mistral_summary_model
+    if hasattr(args, "mistral_temperature") and args.mistral_temperature is not None:
+        payload["mistral_temperature"] = args.mistral_temperature
+    if hasattr(args, "mistral_max_tokens") and args.mistral_max_tokens is not None:
+        payload["mistral_max_tokens"] = args.mistral_max_tokens
+    # Explicitly include mistral_api_key=None to trigger field validator
+    # The field validator will load it from MISTRAL_API_KEY env var if available
+    payload["mistral_api_key"] = None
+    # Add DeepSeek API configuration
+    payload["deepseek_api_base"] = getattr(args, "deepseek_api_base", None)
+    if hasattr(args, "deepseek_speaker_model") and args.deepseek_speaker_model is not None:
+        payload["deepseek_speaker_model"] = args.deepseek_speaker_model
+    if hasattr(args, "deepseek_summary_model") and args.deepseek_summary_model is not None:
+        payload["deepseek_summary_model"] = args.deepseek_summary_model
+    if hasattr(args, "deepseek_temperature") and args.deepseek_temperature is not None:
+        payload["deepseek_temperature"] = args.deepseek_temperature
+    if hasattr(args, "deepseek_max_tokens") and args.deepseek_max_tokens is not None:
+        payload["deepseek_max_tokens"] = args.deepseek_max_tokens
+    # Explicitly include deepseek_api_key=None to trigger field validator
+    # The field validator will load it from DEEPSEEK_API_KEY env var if available
+    payload["deepseek_api_key"] = None
+    # Add Ollama API configuration
+    payload["ollama_api_base"] = getattr(args, "ollama_api_base", None)
+    if hasattr(args, "ollama_speaker_model") and args.ollama_speaker_model is not None:
+        payload["ollama_speaker_model"] = args.ollama_speaker_model
+    if hasattr(args, "ollama_summary_model") and args.ollama_summary_model is not None:
+        payload["ollama_summary_model"] = args.ollama_summary_model
+    if hasattr(args, "ollama_temperature") and args.ollama_temperature is not None:
+        payload["ollama_temperature"] = args.ollama_temperature
+    if hasattr(args, "ollama_max_tokens") and args.ollama_max_tokens is not None:
+        payload["ollama_max_tokens"] = args.ollama_max_tokens
+    if hasattr(args, "ollama_timeout") and args.ollama_timeout is not None:
+        payload["ollama_timeout"] = args.ollama_timeout
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))
 

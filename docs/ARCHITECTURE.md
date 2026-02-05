@@ -148,6 +148,8 @@ flowchart TD
   - `ml/ml_provider.py` - `MLProvider`: Implements all three protocols using local ML models (Whisper for transcription, spaCy for speaker detection, Transformers for summarization)
   - `openai/openai_provider.py` - `OpenAIProvider`: Implements all three protocols using OpenAI APIs (Whisper API for transcription, GPT API for speaker detection and summarization)
   - `gemini/gemini_provider.py` - `GeminiProvider`: Implements all three protocols using Google Gemini APIs (Gemini API for transcription, speaker detection, and summarization)
+  - `grok/grok_provider.py` - `GrokProvider`: Implements two protocols using Grok APIs (speaker detection and summarization only, no transcription - real-time information access)
+  - `deepseek/deepseek_provider.py` - `DeepSeekProvider`: Implements two protocols using DeepSeek's OpenAI-compatible API (speaker detection and summarization; transcription not supported)
   - **Factories**: Factory functions in `transcription/factory.py`, `speaker_detectors/factory.py`, and `summarization/factory.py` create the appropriate unified provider based on configuration.
 - `whisper_integration.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names. Now accessed via `MLProvider` (unified provider pattern).
 - `speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Now accessed via `MLProvider` (unified provider pattern).

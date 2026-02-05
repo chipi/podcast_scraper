@@ -223,6 +223,109 @@ ffmpeg -version
 2. **Compress Audio**: Use a tool like `ffmpeg` to reduce the bitrate or convert to a more efficient format (like Mono instead of Stereo) before processing if you must use the OpenAI API.
 3. **Wait for Future Feature**: Plan for automatic audio preprocessing (downsampling/mono conversion) is in the roadmap.
 
+### Ollama Provider Issues
+
+#### "Ollama server is not running"
+
+**Symptom:** Error message: "Ollama server is not running. Please start it with: ollama serve"
+
+**Solution:**
+
+```bash
+# Start Ollama server (keep terminal open)
+ollama serve
+
+# Verify server is running
+curl http://localhost:11434/api/tags
+
+# In another terminal, test
+ollama list
+```
+
+#### `ollama list` Hangs
+
+**Symptom:** Command hangs with no output.
+
+**Cause:** Ollama server is not running.
+
+**Solution:**
+
+```bash
+# 1. Start Ollama server in separate terminal
+ollama serve
+
+# 2. Keep that terminal open, then in another terminal:
+ollama list
+
+# 3. If still hangs, check if server is responding
+curl http://localhost:11434/api/tags
+```
+
+#### "Model 'llama3.3:latest' is not available"
+
+**Symptom:** Error: "Model 'X' is not available in Ollama. Install it with: ollama pull X"
+
+**Solution:**
+
+```bash
+# Pull the required model
+ollama pull llama3.3:latest
+
+# Verify it's available
+ollama list
+
+# Test the model
+ollama run llama3.3:latest "Test"
+```
+
+#### Ollama Process Won't Die
+
+**Symptom:** Can't kill Ollama process.
+
+**Solution:**
+
+```bash
+# Kill by name
+pkill ollama
+
+# Or force kill
+killall ollama
+
+# Or find and kill manually
+ps aux | grep ollama
+kill <PID>
+
+# If running as service (macOS)
+brew services stop ollama
+```
+
+#### Slow Performance with Ollama
+
+**Symptom:** Ollama inference is very slow.
+
+**Solutions:**
+
+1. **Use smaller model:**
+
+   ```bash
+   ollama pull llama3.1:8b       # Smallest, fastest (6GB+ RAM)
+   # OR
+   ollama pull llama3.2:latest   # Medium size (8GB+ RAM)
+   ```
+
+2. **Increase timeout:**
+
+   ```yaml
+   ollama_timeout: 600  # 10 minutes for slow models
+   ```
+
+3. **Check hardware:**
+   - CPU-only inference is slow
+   - Consider GPU acceleration if available
+   - Use model size appropriate for your RAM
+
+See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) for detailed troubleshooting.
+
 ---
 
 ## Test Failures

@@ -1522,6 +1522,10 @@ def _build_processing_metadata(
             # Include Gemini speaker detection model
             speaker_model = getattr(cfg, "gemini_speaker_model", "gemini-1.5-pro")
             ml_providers["speaker_detection"]["gemini_model"] = speaker_model
+        elif cfg.speaker_detector_provider == "anthropic":
+            # Include Anthropic speaker detection model
+            speaker_model = getattr(cfg, "anthropic_speaker_model", "claude-3-5-haiku-latest")
+            ml_providers["speaker_detection"]["anthropic_model"] = speaker_model
 
     # Summarization provider
     if cfg.summary_provider:
@@ -1565,6 +1569,10 @@ def _build_processing_metadata(
             # Include Gemini summarization model
             summary_model = getattr(cfg, "gemini_summary_model", "gemini-1.5-pro")
             ml_providers["summarization"]["gemini_model"] = summary_model
+        elif cfg.summary_provider == "anthropic":
+            # Include Anthropic summarization model
+            summary_model = getattr(cfg, "anthropic_summary_model", "claude-3-5-haiku-latest")
+            ml_providers["summarization"]["anthropic_model"] = summary_model
 
     # Build config_snapshot with ml_providers first for prominence
     config_snapshot: Dict[str, Any] = {}
