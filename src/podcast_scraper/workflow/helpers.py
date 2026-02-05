@@ -240,6 +240,49 @@ def generate_pipeline_summary(
         return saved, summary
 
 
+def calculate_provider_cost(
+    cfg: config.Config,
+    provider_type: str,
+    capability: str,
+    model: str,
+    prompt_tokens: Optional[int] = None,
+    completion_tokens: Optional[int] = None,
+    audio_minutes: Optional[float] = None,
+) -> Optional[float]:
+    """Calculate estimated cost for a provider call.
+
+    Args:
+        cfg: Configuration object
+        provider_type: Provider type ("openai", "gemini", etc.)
+        capability: Capability type ("transcription", "speaker_detection", "summarization")
+        model: Model name
+        prompt_tokens: Input tokens (for text-based capabilities)
+        completion_tokens: Output tokens (for text-based capabilities)
+        audio_minutes: Audio duration in minutes (for transcription)
+
+    Returns:
+        Estimated cost in USD, or None if cost cannot be calculated
+    """
+    pricing = _get_provider_pricing(cfg, provider_type, capability, model)
+    if not pricing:
+        return None
+
+    cost = 0.0
+
+    # Text-based pricing (tokens)
+    if prompt_tokens is not None or completion_tokens is not None:
+        if "input_cost_per_1m_tokens" in pricing and prompt_tokens:
+            cost += (prompt_tokens / 1_000_000) * pricing["input_cost_per_1m_tokens"]
+        if "output_cost_per_1m_tokens" in pricing and completion_tokens:
+            cost += (completion_tokens / 1_000_000) * pricing["output_cost_per_1m_tokens"]
+
+    # Audio-based pricing (minutes)
+    if audio_minutes is not None and "cost_per_minute" in pricing:
+        cost += audio_minutes * pricing["cost_per_minute"]
+
+    return cost if cost > 0 else None
+
+
 def _get_provider_pricing(
     cfg: config.Config, provider_type: str, capability: str, model: str
 ) -> Dict[str, float]:

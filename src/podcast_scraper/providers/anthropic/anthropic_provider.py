@@ -276,6 +276,7 @@ class AnthropicProvider:
         language: str | None = None,
         pipeline_metrics: metrics.Metrics | None = None,
         episode_duration_seconds: int | None = None,
+        call_metrics: Any | None = None,  # ProviderCallMetrics from utils.provider_metrics
     ) -> tuple[dict[str, object], float]:
         """Transcribe audio file and return full result with segments.
 
@@ -297,6 +298,11 @@ class AnthropicProvider:
         start_time = time.time()
         text = self.transcribe(audio_path, language)
         elapsed = time.time() - start_time
+
+        # Finalize call_metrics (Anthropic doesn't support audio transcription,
+        # but finalize for consistency)
+        if call_metrics is not None:
+            call_metrics.finalize()
 
         return {"text": text, "segments": []}, elapsed
 
@@ -551,6 +557,7 @@ class AnthropicProvider:
         episode_description: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
         pipeline_metrics: metrics.Metrics | None = None,
+        call_metrics: Any | None = None,  # ProviderCallMetrics from utils.provider_metrics
     ) -> Dict[str, Any]:
         """Summarize text using Anthropic API.
 
@@ -613,20 +620,42 @@ class AnthropicProvider:
                 text, episode_title, episode_description, max_length, min_length, custom_prompt
             )
 
-            # Call Anthropic API
-            # Anthropic uses messages API with system parameter
-            response = self.client.messages.create(
-                model=self.summary_model,
-                max_tokens=max_length,
-                temperature=self.summary_temperature,
-                system=system_prompt,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": user_prompt,
-                    }
-                ],
-            )
+            # Track retries and rate limits
+            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+
+            if call_metrics is None:
+                call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("anthropic")
+
+            # Wrap API call with retry tracking
+            def _make_api_call():
+                return self.client.messages.create(
+                    model=self.summary_model,
+                    max_tokens=max_length,
+                    temperature=self.summary_temperature,
+                    system=system_prompt,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": user_prompt,
+                        }
+                    ],
+                )
+
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(Exception,),  # Anthropic SDK handles specific errors
+                    metrics=call_metrics,
+                )
+            except Exception:
+                call_metrics.finalize()
+                raise
+
+            call_metrics.finalize()
 
             # Extract text from response - handle different block types
             summary = ""
@@ -642,12 +671,44 @@ class AnthropicProvider:
 
             logger.debug("Anthropic summarization completed: %d characters", len(summary))
 
-            # Track LLM call metrics if available
-            if pipeline_metrics is not None and hasattr(response, "usage"):
-                usage = response.usage
-                input_tokens = getattr(usage, "input_tokens", 0)
-                output_tokens = getattr(usage, "output_tokens", 0)
+            # Extract token counts and populate call_metrics
+            input_tokens = None
+            output_tokens = None
+            if hasattr(response, "usage") and response.usage:
+                input_tokens_val = getattr(response.usage, "input_tokens", None)
+                output_tokens_val = getattr(response.usage, "output_tokens", None)
+                # Convert to int if they're actual numbers, otherwise use 0
+                # Handle Mock objects from tests by checking type
+                input_tokens = (
+                    int(input_tokens_val) if isinstance(input_tokens_val, (int, float)) else 0
+                )
+                output_tokens = (
+                    int(output_tokens_val) if isinstance(output_tokens_val, (int, float)) else 0
+                )
+                if input_tokens > 0 or output_tokens > 0:
+                    call_metrics.set_tokens(input_tokens, output_tokens)
+
+            # Track LLM call metrics if available (aggregate tracking)
+            if (
+                pipeline_metrics is not None
+                and input_tokens is not None
+                and output_tokens is not None
+            ):
                 pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
+
+            # Calculate cost
+            if input_tokens is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="anthropic",
+                    capability="summarization",
+                    model=self.summary_model,
+                    prompt_tokens=input_tokens,
+                    completion_tokens=output_tokens,
+                )
+                call_metrics.set_cost(cost)
 
             # Get prompt metadata for tracking (RFC-017)
             from ...prompts.store import get_prompt_metadata

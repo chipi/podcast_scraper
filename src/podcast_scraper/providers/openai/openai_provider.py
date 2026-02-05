@@ -309,6 +309,7 @@ class OpenAIProvider:
         language: str | None = None,
         pipeline_metrics: metrics.Metrics | None = None,
         episode_duration_seconds: int | None = None,
+        call_metrics: Any | None = None,  # ProviderCallMetrics from utils.provider_metrics
     ) -> tuple[dict[str, object], float]:
         """Transcribe audio file and return full result with segments.
 
@@ -345,41 +346,86 @@ class OpenAIProvider:
 
         start_time = time.time()
         try:
-            with open(audio_path, "rb") as audio_file:
-                # Use verbose_json format to get segments
-                if effective_language is not None:
-                    response = self.client.audio.transcriptions.create(
-                        model=self.transcription_model,
-                        file=audio_file,
-                        language=effective_language,
-                        response_format="verbose_json",  # Get full response with segments
-                    )
-                else:
-                    response = self.client.audio.transcriptions.create(
-                        model=self.transcription_model,
-                        file=audio_file,
-                        response_format="verbose_json",  # Get full response with segments
-                    )
+            # Track retries and rate limits
+            from ...utils.provider_metrics import ProviderCallMetrics
+
+            if call_metrics is None:
+                call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("openai")
+
+            # Wrap API call with retry tracking
+            from openai import APIError, RateLimitError
+
+            from ...utils.provider_metrics import retry_with_metrics
+
+            def _make_api_call():
+                with open(audio_path, "rb") as audio_file:
+                    # Use verbose_json format to get segments
+                    if effective_language is not None:
+                        return self.client.audio.transcriptions.create(
+                            model=self.transcription_model,
+                            file=audio_file,
+                            language=effective_language,
+                            response_format="verbose_json",  # Get full response with segments
+                        )
+                    else:
+                        return self.client.audio.transcriptions.create(
+                            model=self.transcription_model,
+                            file=audio_file,
+                            response_format="verbose_json",  # Get full response with segments
+                        )
+
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                call_metrics.finalize()
+                raise
 
             elapsed = time.time() - start_time
+            call_metrics.finalize()
 
-            # Track LLM call metrics if available
-            if pipeline_metrics is not None:
-                # Get audio duration from episode metadata, response, or estimate from file size
-                audio_minutes = 0.0
-                if episode_duration_seconds is not None:
-                    audio_minutes = episode_duration_seconds / 60.0
-                elif hasattr(response, "duration") and response.duration:
-                    audio_minutes = response.duration / 60.0
-                else:
-                    # Estimate from file size (rough: 1MB ≈ 1 minute for typical MP3)
-                    try:
-                        file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
-                        audio_minutes = file_size_mb  # Rough estimate
-                    except OSError:
-                        pass
-                if audio_minutes > 0:
+            # Extract token counts (OpenAI Whisper API doesn't return tokens,
+            # but track audio minutes)
+            # Get audio duration from episode metadata, response, or estimate from file size
+            audio_minutes = 0.0
+            if episode_duration_seconds is not None:
+                # Handle Mock objects from tests by checking type
+                if isinstance(episode_duration_seconds, (int, float)):
+                    audio_minutes = float(episode_duration_seconds) / 60.0
+            elif hasattr(response, "duration") and response.duration:
+                duration_val = getattr(response, "duration", None)
+                if isinstance(duration_val, (int, float)):
+                    audio_minutes = float(duration_val) / 60.0
+            else:
+                # Estimate from file size (rough: 1MB ≈ 1 minute for typical MP3)
+                try:
+                    file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
+                    audio_minutes = file_size_mb  # Rough estimate
+                except OSError:
+                    pass
+
+            # Calculate cost for transcription (per minute pricing)
+            if audio_minutes > 0:
+                if pipeline_metrics is not None:
                     pipeline_metrics.record_llm_transcription_call(audio_minutes)
+                # Calculate cost
+                from ...workflow.helpers import calculate_provider_cost
+
+                cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="openai",
+                    capability="transcription",
+                    model=self.transcription_model,
+                    audio_minutes=audio_minutes,
+                )
+                call_metrics.set_cost(cost)
 
             # OpenAI API returns a Transcription object with text and segments
             # when verbose_json is used. Convert to dict format matching Whisper output.
@@ -738,6 +784,7 @@ class OpenAIProvider:
         episode_description: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
         pipeline_metrics: metrics.Metrics | None = None,
+        call_metrics: Any | None = None,  # ProviderCallMetrics from utils.provider_metrics
     ) -> Dict[str, Any]:
         """Summarize text using OpenAI GPT API.
 
@@ -809,16 +856,43 @@ class OpenAIProvider:
                 text, episode_title, episode_description, max_length, min_length, custom_prompt
             )
 
-            # Call OpenAI API
-            response = self.client.chat.completions.create(
-                model=self.summary_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=self.summary_temperature,
-                max_tokens=max_length,
-            )
+            # Track retries and rate limits
+            from ...utils.provider_metrics import ProviderCallMetrics
+
+            if call_metrics is None:
+                call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("openai")
+
+            # Wrap API call with retry tracking
+            from openai import APIError, RateLimitError
+
+            from ...utils.provider_metrics import retry_with_metrics
+
+            def _make_api_call():
+                return self.client.chat.completions.create(
+                    model=self.summary_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=self.summary_temperature,
+                    max_tokens=max_length,
+                )
+
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                call_metrics.finalize()
+                raise
+
+            call_metrics.finalize()
 
             summary = response.choices[0].message.content
             if not summary:
@@ -827,11 +901,42 @@ class OpenAIProvider:
 
             logger.debug("OpenAI summarization completed: %d characters", len(summary))
 
-            # Track LLM call metrics if available
-            if pipeline_metrics is not None and hasattr(response, "usage"):
-                input_tokens = response.usage.prompt_tokens if response.usage else 0
-                output_tokens = response.usage.completion_tokens if response.usage else 0
+            # Extract token counts and populate call_metrics
+            input_tokens = None
+            output_tokens = None
+            if hasattr(response, "usage") and response.usage:
+                prompt_tokens = getattr(response.usage, "prompt_tokens", None)
+                completion_tokens = getattr(response.usage, "completion_tokens", None)
+                # Convert to int if they're actual numbers, otherwise use 0
+                # Handle Mock objects from tests by checking type
+                input_tokens = int(prompt_tokens) if isinstance(prompt_tokens, (int, float)) else 0
+                output_tokens = (
+                    int(completion_tokens) if isinstance(completion_tokens, (int, float)) else 0
+                )
+                if input_tokens > 0 or output_tokens > 0:
+                    call_metrics.set_tokens(input_tokens, output_tokens)
+
+            # Track LLM call metrics if available (aggregate tracking)
+            if (
+                pipeline_metrics is not None
+                and input_tokens is not None
+                and output_tokens is not None
+            ):
                 pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
+
+            # Calculate cost
+            if input_tokens is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="openai",
+                    capability="summarization",
+                    model=self.summary_model,
+                    prompt_tokens=input_tokens,
+                    completion_tokens=output_tokens,
+                )
+                call_metrics.set_cost(cost)
 
             # Get prompt metadata for tracking (RFC-017)
             from ...prompts.store import get_prompt_metadata

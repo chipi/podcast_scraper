@@ -464,6 +464,7 @@ class OllamaProvider:
         episode_description: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
         pipeline_metrics: metrics.Metrics | None = None,
+        call_metrics: Any | None = None,  # ProviderCallMetrics from utils.provider_metrics
     ) -> Dict[str, Any]:
         """Summarize text using Ollama API.
 
@@ -528,16 +529,41 @@ class OllamaProvider:
                 text, episode_title, episode_description, max_length, min_length, custom_prompt
             )
 
-            # Call Ollama API (OpenAI-compatible format)
-            response = self.client.chat.completions.create(
-                model=self.summary_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=self.summary_temperature,
-                max_tokens=max_length,
-            )
+            # Track retries and rate limits
+            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+
+            if call_metrics is None:
+                call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("ollama")
+
+            # Wrap API call with retry tracking
+            from openai import APIError, RateLimitError
+
+            def _make_api_call():
+                return self.client.chat.completions.create(
+                    model=self.summary_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=self.summary_temperature,
+                    max_tokens=max_length,
+                )
+
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                call_metrics.finalize()
+                raise
+
+            call_metrics.finalize()
 
             summary = response.choices[0].message.content
             if not summary:
@@ -546,11 +572,46 @@ class OllamaProvider:
 
             logger.debug("Ollama summarization completed: %d characters", len(summary))
 
-            # Track LLM call metrics if available (Ollama doesn't report usage, but track anyway)
-            if pipeline_metrics is not None and hasattr(response, "usage"):
-                input_tokens = response.usage.prompt_tokens if response.usage else 0
-                output_tokens = response.usage.completion_tokens if response.usage else 0
+            # Extract token counts and populate call_metrics (Ollama may not report usage)
+            input_tokens = None
+            output_tokens = None
+            if hasattr(response, "usage") and response.usage:
+                prompt_tokens_val = getattr(response.usage, "prompt_tokens", None)
+                completion_tokens_val = getattr(response.usage, "completion_tokens", None)
+                # Convert to int if they're actual numbers, otherwise use 0
+                # Handle Mock objects from tests by checking type
+                input_tokens = (
+                    int(prompt_tokens_val) if isinstance(prompt_tokens_val, (int, float)) else 0
+                )
+                output_tokens = (
+                    int(completion_tokens_val)
+                    if isinstance(completion_tokens_val, (int, float))
+                    else 0
+                )
+                if input_tokens > 0 or output_tokens > 0:
+                    call_metrics.set_tokens(input_tokens, output_tokens)
+
+            # Track LLM call metrics if available (aggregate tracking)
+            if (
+                pipeline_metrics is not None
+                and input_tokens is not None
+                and output_tokens is not None
+            ):
                 pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
+
+            # Calculate cost (Ollama is free, but track for consistency)
+            if input_tokens is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="ollama",
+                    capability="summarization",
+                    model=self.summary_model,
+                    prompt_tokens=input_tokens,
+                    completion_tokens=output_tokens,
+                )
+                call_metrics.set_cost(cost)
 
             # Get prompt metadata for tracking (RFC-017)
             from ...prompts.store import get_prompt_metadata

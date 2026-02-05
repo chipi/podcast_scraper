@@ -263,7 +263,7 @@ def process_transcription_jobs_concurrent(  # noqa: C901
     to finish before starting transcription.
 
     Uses transcription_parallelism config to control episode-level parallelism:
-    - Whisper provider: Always sequential (parallelism = 1, ignores config > 1)
+    - Whisper provider: Respects config (default: 1). Values > 1 are experimental.
     - OpenAI provider: Parallel with rate limiting (uses parallelism config)
 
     Args:
@@ -285,20 +285,17 @@ def process_transcription_jobs_concurrent(  # noqa: C901
     if saved_counter is None:
         saved_counter = [0]
 
-    # Get parallelism from config (provider-specific behavior)
-    # Whisper: Always sequential (parallelism = 1)
-    # OpenAI: Uses parallelism config (default: 5)
+    # Get parallelism from config
+    # All providers now respect transcription_parallelism for experimentation
+    # Note: Whisper parallelism > 1 is experimental and not production-ready
     max_workers = cfg.transcription_parallelism
-    if cfg.transcription_provider == "whisper":
-        # Whisper is memory/CPU bound - always sequential
-        max_workers = 1
+    if cfg.transcription_provider == "whisper" and max_workers > 1:
         logger.warning(
-            "Whisper provider: Using sequential processing (parallelism=%d ignored, "
-            "effective=1 - Whisper provider limitation)",
-            cfg.transcription_parallelism,
+            "Whisper provider: Using parallel processing (parallelism=%d) - "
+            "EXPERIMENTAL: Not production-ready, may cause memory/GPU contention",
+            max_workers,
         )
     else:
-        # Other providers (OpenAI) can use parallelism
         logger.info(
             "Transcription provider '%s': configured=%d, effective=%d",
             cfg.transcription_provider,
@@ -440,7 +437,7 @@ def process_transcription_jobs_concurrent(  # noqa: C901
             if pipeline_metrics is not None:
                 pipeline_metrics.record_queue_wait_time(queue_wait_duration)
     else:
-        # Parallel processing (OpenAI provider)
+        # Parallel processing (OpenAI provider, or Whisper with parallelism > 1)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {}
 

@@ -742,7 +742,8 @@ def process_episodes(  # noqa: C901
             except Exception as exc:  # pragma: no cover
                 update_metric_safely(pipeline_metrics, "errors_total", 1)
                 logger.error(
-                    f"[{episode.idx}] episode processing raised an unexpected error: {exc}"
+                    f"[{episode.idx}] episode processing raised an unexpected error: {exc}",
+                    exc_info=True,
                 )
     else:
         # Concurrent processing

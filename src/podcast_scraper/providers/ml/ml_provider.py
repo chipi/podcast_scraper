@@ -832,7 +832,12 @@ class MLProvider:
         return str(text)  # Ensure we return str, not Any
 
     def transcribe_with_segments(
-        self, audio_path: str, language: str | None = None
+        self,
+        audio_path: str,
+        language: str | None = None,
+        pipeline_metrics: Any | None = None,
+        episode_duration_seconds: int | None = None,
+        call_metrics: Any | None = None,  # ProviderCallMetrics from utils.provider_metrics
     ) -> tuple[dict[str, object], float]:
         """Transcribe audio file and return full result with segments.
 
@@ -843,6 +848,9 @@ class MLProvider:
             audio_path: Path to audio file
             language: Optional language code (e.g., "en", "fr").
                      If None, uses cfg.language or defaults to "en"
+            pipeline_metrics: Optional pipeline metrics tracker (unused for local ML)
+            episode_duration_seconds: Optional episode duration (unused for local ML)
+            call_metrics: Required ProviderCallMetrics for tracking (local ML has no tokens/retries)
 
         Returns:
             Tuple of (result_dict, elapsed_time) where result_dict contains:
@@ -867,6 +875,10 @@ class MLProvider:
 
         # Call internal transcription method
         result_dict, elapsed = self._transcribe_with_whisper(audio_path, effective_language)
+
+        # Finalize call_metrics (local ML has no tokens/retries, but finalize for consistency)
+        if call_metrics is not None:
+            call_metrics.finalize()
 
         logger.debug(
             "Transcription with segments completed in %.2fs (%d segments)",
@@ -1139,6 +1151,8 @@ class MLProvider:
         episode_title: Optional[str] = None,
         episode_description: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Any | None = None,
+        call_metrics: Any | None = None,  # ProviderCallMetrics from utils.provider_metrics
     ) -> Dict[str, Any]:
         """Summarize text using Transformers MAP/REDUCE pattern.
 
@@ -1154,6 +1168,8 @@ class MLProvider:
                 - word_chunk_size: Chunk size in words (default from config)
                 - word_overlap: Overlap in words (default from config)
                 - prompt: Optional instruction/prompt
+            pipeline_metrics: Optional pipeline metrics tracker (unused for local ML)
+            call_metrics: Required ProviderCallMetrics for tracking (local ML has no tokens/retries)
 
         Returns:
             Dictionary with summary results:
@@ -1400,6 +1416,10 @@ class MLProvider:
             # Include intermediates if available
             if intermediates:
                 result_dict["intermediates"] = intermediates
+
+            # Finalize call_metrics (local ML has no tokens/retries, but finalize for consistency)
+            if call_metrics is not None:
+                call_metrics.finalize()
 
             return result_dict
         except RuntimeError as e:

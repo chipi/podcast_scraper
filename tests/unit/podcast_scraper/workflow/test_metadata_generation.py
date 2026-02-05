@@ -967,7 +967,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
         """Test that summary generation is skipped when disabled."""
         self.cfg = create_test_config(generate_summaries=False)
 
-        result = metadata._generate_episode_summary(
+        result, _ = metadata._generate_episode_summary(
             transcript_file_path="transcript.txt",
             output_dir=self.temp_dir,
             cfg=self.cfg,
@@ -980,7 +980,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
         """Test that summary generation is skipped in dry-run mode."""
         self.cfg = create_test_config(generate_summaries=True, dry_run=True)
 
-        result = metadata._generate_episode_summary(
+        result, _ = metadata._generate_episode_summary(
             transcript_file_path="transcript.txt",
             output_dir=self.temp_dir,
             cfg=self.cfg,
@@ -991,7 +991,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
 
     def test_generate_episode_summary_file_not_found(self):
         """Test handling when transcript file doesn't exist."""
-        result = metadata._generate_episode_summary(
+        result, _ = metadata._generate_episode_summary(
             transcript_file_path="nonexistent.txt",
             output_dir=self.temp_dir,
             cfg=self.cfg,
@@ -1006,7 +1006,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
         with open(transcript_path, "w") as f:
             f.write("Short")  # Less than 50 chars
 
-        result = metadata._generate_episode_summary(
+        result, _ = metadata._generate_episode_summary(
             transcript_file_path="transcript.txt",
             output_dir=self.temp_dir,
             cfg=self.cfg,
@@ -1036,7 +1036,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
         # Disable cleaned transcript saving to avoid filesystem I/O
         self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
 
-        result = metadata._generate_episode_summary(
+        result, call_metrics = metadata._generate_episode_summary(
             transcript_file_path="transcript.txt",
             output_dir=self.temp_dir,
             cfg=self.cfg,
@@ -1157,7 +1157,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
         self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
 
         # Should return None (skip summary) when Mock object has no proper string value
-        result = metadata._generate_episode_summary(
+        result, _ = metadata._generate_episode_summary(
             transcript_file_path="transcript.txt",
             output_dir=self.temp_dir,
             cfg=self.cfg,
@@ -1196,7 +1196,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
         self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
 
         # Should return None (skip summary) when string conversion fails
-        result = metadata._generate_episode_summary(
+        result, _ = metadata._generate_episode_summary(
             transcript_file_path="transcript.txt",
             output_dir=self.temp_dir,
             cfg=self.cfg,
@@ -1233,7 +1233,7 @@ class TestGenerateEpisodeSummary(unittest.TestCase):
         self.cfg = create_test_config(generate_summaries=True, save_cleaned_transcript=False)
 
         # Should use the summary string from the dict
-        result = metadata._generate_episode_summary(
+        result, _ = metadata._generate_episode_summary(
             transcript_file_path="transcript.txt",
             output_dir=self.temp_dir,
             cfg=self.cfg,
@@ -1361,7 +1361,7 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
             provider="local",
             word_count=100,
         )
-        mock_generate_summary.return_value = mock_summary
+        mock_generate_summary.return_value = (mock_summary, None)
 
         result = metadata.generate_episode_metadata(
             feed=self.feed,

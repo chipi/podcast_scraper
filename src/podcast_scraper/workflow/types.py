@@ -53,3 +53,13 @@ class ProcessingResources(NamedTuple):
     processing_jobs: List[ProcessingJob]
     processing_jobs_lock: Optional[Any]  # threading.Lock
     processing_complete_event: Optional[Any]  # threading.Event
+
+
+class ProviderCallMetrics(NamedTuple):
+    """Metrics from a single provider call (transcription or summarization)."""
+
+    prompt_tokens: Optional[int] = None  # Input tokens used
+    completion_tokens: Optional[int] = None  # Output tokens used
+    retries: int = 0  # Number of retries attempted
+    rate_limit_sleep_sec: float = 0.0  # Time spent sleeping due to rate limits
+    estimated_cost: Optional[float] = None  # Estimated cost in USD

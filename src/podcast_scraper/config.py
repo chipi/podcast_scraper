@@ -609,7 +609,10 @@ class Config(BaseModel):
         alias="transcription_parallelism",
         description=(
             "Episode-level parallelism: Number of episodes to transcribe in parallel "
-            "(default: 1 for sequential. Whisper ignores >1, OpenAI uses for parallel API calls)"
+            "(default: 1 for sequential). "
+            "For Whisper provider: Values > 1 are EXPERIMENTAL and not production-ready. "
+            "May cause memory/GPU contention. Use with caution. "
+            "For API providers (OpenAI, etc.): Uses parallelism for parallel API calls."
         ),
     )
     transcription_device: Optional[str] = Field(

@@ -85,11 +85,14 @@ def create_speaker_detector(  # noqa: C901
             "grok",
             "ollama",
             "deepseek",
+            "anthropic",
         ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
         experiment_mode = True
         provider_type = cast(
-            Literal["spacy", "openai", "gemini", "mistral", "grok", "ollama", "deepseek"],
+            Literal[
+                "spacy", "openai", "gemini", "mistral", "grok", "ollama", "deepseek", "anthropic"
+            ],
             provider_type_str,
         )
 

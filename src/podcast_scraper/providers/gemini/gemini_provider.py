@@ -379,6 +379,7 @@ class GeminiProvider:
         language: str | None = None,
         pipeline_metrics: metrics.Metrics | None = None,
         episode_duration_seconds: int | None = None,
+        call_metrics: Any | None = None,  # ProviderCallMetrics from utils.provider_metrics
     ) -> tuple[dict[str, object], float]:
         """Transcribe audio file and return full result with segments.
 
@@ -389,22 +390,66 @@ class GeminiProvider:
             language: Optional language code
             pipeline_metrics: Optional metrics tracker
             episode_duration_seconds: Optional episode duration
+            call_metrics: Optional per-episode metrics tracker
 
         Returns:
             Tuple of (result_dict, elapsed_time) where result_dict contains:
             - "text": Full transcribed text
             - "segments": Empty list (Gemini doesn't provide segments)
         """
-        start_time = time.time()
-        text = self.transcribe(audio_path, language)
-        elapsed = time.time() - start_time
+        # Track retries and rate limits
+        from ...utils.provider_metrics import ProviderCallMetrics
 
-        # Track LLM call metrics if available
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("gemini")
+
+        # Wrap transcribe call with retry tracking
+        from google.api_core import exceptions as google_exceptions
+
+        from ...utils.provider_metrics import retry_with_metrics
+
+        start_time = time.time()
+        try:
+            text = retry_with_metrics(
+                lambda: self.transcribe(audio_path, language),
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(
+                    google_exceptions.ResourceExhausted,
+                    google_exceptions.ServiceUnavailable,
+                    ConnectionError,
+                ),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+
+        elapsed = time.time() - start_time
+        call_metrics.finalize()
+
+        # Track LLM call metrics if available (aggregate)
         if pipeline_metrics is not None and episode_duration_seconds is not None:
             audio_minutes = episode_duration_seconds / 60.0
             # Note: Gemini doesn't provide token usage for audio, so we track by duration
             # This is an approximation - actual pricing is per second of audio
             pipeline_metrics.record_llm_transcription_call(audio_minutes)
+
+        # Calculate cost for transcription (per minute pricing)
+        if episode_duration_seconds is not None:
+            audio_minutes = episode_duration_seconds / 60.0
+            from ...workflow.helpers import calculate_provider_cost
+
+            cost = calculate_provider_cost(
+                cfg=self.cfg,
+                provider_type="gemini",
+                capability="transcription",
+                model=self.transcription_model,
+                audio_minutes=audio_minutes,
+            )
+            call_metrics.set_cost(cost)
 
         return {"text": text, "segments": []}, elapsed
 
@@ -660,6 +705,7 @@ class GeminiProvider:
         episode_description: Optional[str] = None,
         params: Optional[Dict[str, Any]] = None,
         pipeline_metrics: metrics.Metrics | None = None,
+        call_metrics: Any | None = None,  # ProviderCallMetrics from utils.provider_metrics
     ) -> Dict[str, Any]:
         """Summarize text using Gemini API.
 
@@ -722,24 +768,56 @@ class GeminiProvider:
                 text, episode_title, episode_description, max_length, min_length, custom_prompt
             )
 
-            # Call Gemini API
-            # Gemini uses system_instruction parameter instead of system message
-            model = genai.GenerativeModel(
-                model_name=self.summary_model,
-                system_instruction=system_prompt,
-            )
+            # Track retries and rate limits
+            from ...utils.provider_metrics import ProviderCallMetrics
 
-            # Use dict format for generation config (more compatible with SDK versions)
-            generation_config = {
-                "temperature": self.summary_temperature,
-                "max_output_tokens": max_length,
-            }
+            if call_metrics is None:
+                call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("gemini")
 
-            # Type ignore: Gemini SDK accepts dict for generation_config
-            response = model.generate_content(
-                user_prompt,
-                generation_config=generation_config,  # type: ignore[arg-type]
-            )
+            # Wrap API call with retry tracking
+            from google.api_core import exceptions as google_exceptions
+
+            from ...utils.provider_metrics import retry_with_metrics
+
+            def _make_api_call():
+                # Call Gemini API
+                # Gemini uses system_instruction parameter instead of system message
+                model = genai.GenerativeModel(
+                    model_name=self.summary_model,
+                    system_instruction=system_prompt,
+                )
+
+                # Use dict format for generation config (more compatible with SDK versions)
+                generation_config = {
+                    "temperature": self.summary_temperature,
+                    "max_output_tokens": max_length,
+                }
+
+                # Type ignore: Gemini SDK accepts dict for generation_config
+                return model.generate_content(
+                    user_prompt,
+                    generation_config=generation_config,  # type: ignore[arg-type]
+                )
+
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(
+                        google_exceptions.ResourceExhausted,
+                        google_exceptions.ServiceUnavailable,
+                        ConnectionError,
+                    ),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                call_metrics.finalize()
+                raise
+
+            call_metrics.finalize()
 
             summary = response.text if hasattr(response, "text") else str(response)
             if not summary:
@@ -748,22 +826,50 @@ class GeminiProvider:
 
             logger.debug("Gemini summarization completed: %d characters", len(summary))
 
-            # Track LLM call metrics if available
-            if pipeline_metrics is not None and hasattr(response, "usage_metadata"):
+            # Extract token counts and populate call_metrics
+            input_tokens = None
+            output_tokens = None
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
                 usage = response.usage_metadata
                 # Safely extract token counts, handling Mock objects in tests
-                input_tokens = getattr(usage, "prompt_token_count", 0)
-                output_tokens = getattr(usage, "candidates_token_count", 0)
+                input_tokens_raw = getattr(usage, "prompt_token_count", 0)
+                output_tokens_raw = getattr(usage, "candidates_token_count", 0)
                 # Convert to int (handles Mock objects in tests)
                 try:
-                    input_tokens = int(input_tokens) if input_tokens is not None else 0
+                    input_tokens = int(input_tokens_raw) if input_tokens_raw is not None else None
                 except (TypeError, ValueError):
-                    input_tokens = 0
+                    input_tokens = None
                 try:
-                    output_tokens = int(output_tokens) if output_tokens is not None else 0
+                    output_tokens = (
+                        int(output_tokens_raw) if output_tokens_raw is not None else None
+                    )
                 except (TypeError, ValueError):
-                    output_tokens = 0
+                    output_tokens = None
+
+                if input_tokens is not None and output_tokens is not None:
+                    call_metrics.set_tokens(input_tokens, output_tokens)
+
+            # Track LLM call metrics if available (aggregate tracking)
+            if (
+                pipeline_metrics is not None
+                and input_tokens is not None
+                and output_tokens is not None
+            ):
                 pipeline_metrics.record_llm_summarization_call(input_tokens, output_tokens)
+
+            # Calculate cost
+            if input_tokens is not None:
+                from ...workflow.helpers import calculate_provider_cost
+
+                cost = calculate_provider_cost(
+                    cfg=self.cfg,
+                    provider_type="gemini",
+                    capability="summarization",
+                    model=self.summary_model,
+                    prompt_tokens=input_tokens,
+                    completion_tokens=output_tokens,
+                )
+                call_metrics.set_cost(cost)
 
             # Get prompt metadata for tracking (RFC-017)
             from ...prompts.store import get_prompt_metadata

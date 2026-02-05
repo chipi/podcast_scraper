@@ -29,6 +29,22 @@ class EpisodeStatus:
 
 
 @dataclass
+class EpisodeMetrics:
+    """Per-episode metrics for provider comparison."""
+
+    episode_id: str
+    episode_number: int
+    audio_sec: Optional[float] = None  # Audio duration in seconds
+    transcribe_sec: Optional[float] = None  # Transcription time in seconds
+    summary_sec: Optional[float] = None  # Summarization time in seconds
+    retries: int = 0  # Number of retries (transcription + summarization)
+    rate_limit_sleep_sec: float = 0.0  # Time spent sleeping due to rate limits
+    prompt_tokens: Optional[int] = None  # Input tokens (transcription + summarization)
+    completion_tokens: Optional[int] = None  # Output tokens (transcription + summarization)
+    estimated_cost: Optional[float] = None  # Estimated cost in USD
+
+
+@dataclass
 class Metrics:
     """In-memory metrics collector for pipeline execution.
 
@@ -133,6 +149,12 @@ class Metrics:
     _episode_statuses_lock: threading.Lock = field(
         default_factory=threading.Lock, init=False, repr=False
     )  # Thread-safe access to episode_statuses
+
+    # Per-episode metrics for provider comparison
+    episode_metrics: List[EpisodeMetrics] = field(default_factory=list)
+    _episode_metrics_lock: threading.Lock = field(
+        default_factory=threading.Lock, init=False, repr=False
+    )  # Thread-safe access to episode_metrics
 
     # Device usage tracking per stage (Issue #387)
     transcription_device: Optional[str] = None  # Device used for transcription stage
@@ -502,6 +524,96 @@ class Metrics:
                 error_message=error_message,
             )
             self.episode_statuses.append(episode_status)
+
+    def get_or_create_episode_metrics(self, episode_id: str, episode_number: int) -> EpisodeMetrics:
+        """Get existing episode metrics or create new one (thread-safe).
+
+        Args:
+            episode_id: Unique episode identifier
+            episode_number: Episode number/index
+
+        Returns:
+            EpisodeMetrics object (existing or newly created)
+        """
+        with self._episode_metrics_lock:
+            # Find existing metrics
+            for metrics in self.episode_metrics:
+                if metrics.episode_id == episode_id:
+                    return metrics
+            # Create new metrics
+            episode_metrics = EpisodeMetrics(
+                episode_id=episode_id,
+                episode_number=episode_number,
+            )
+            self.episode_metrics.append(episode_metrics)
+            return episode_metrics
+
+    def update_episode_metrics(
+        self,
+        episode_id: str,
+        audio_sec: Optional[float] = None,
+        transcribe_sec: Optional[float] = None,
+        summary_sec: Optional[float] = None,
+        retries: Optional[int] = None,
+        rate_limit_sleep_sec: Optional[float] = None,
+        prompt_tokens: Optional[int] = None,
+        completion_tokens: Optional[int] = None,
+        estimated_cost: Optional[float] = None,
+    ) -> None:
+        """Update existing episode metrics (thread-safe).
+
+        Args:
+            episode_id: Unique episode identifier
+            audio_sec: Audio duration in seconds
+            transcribe_sec: Transcription time in seconds
+            summary_sec: Summarization time in seconds
+            retries: Number of retries (will be added to existing count)
+            rate_limit_sleep_sec: Time spent sleeping due to rate limits (will be added)
+            prompt_tokens: Input tokens (will be added to existing count)
+            completion_tokens: Output tokens (will be added to existing count)
+            estimated_cost: Estimated cost in USD (will be added to existing cost)
+        """
+        with self._episode_metrics_lock:
+            for metrics in self.episode_metrics:
+                if metrics.episode_id == episode_id:
+                    if audio_sec is not None:
+                        metrics.audio_sec = audio_sec
+                    if transcribe_sec is not None:
+                        metrics.transcribe_sec = transcribe_sec
+                    if summary_sec is not None:
+                        metrics.summary_sec = summary_sec
+                    if retries is not None:
+                        metrics.retries += retries
+                    if rate_limit_sleep_sec is not None:
+                        metrics.rate_limit_sleep_sec += rate_limit_sleep_sec
+                    if prompt_tokens is not None:
+                        if metrics.prompt_tokens is None:
+                            metrics.prompt_tokens = 0
+                        metrics.prompt_tokens += prompt_tokens
+                    if completion_tokens is not None:
+                        if metrics.completion_tokens is None:
+                            metrics.completion_tokens = 0
+                        metrics.completion_tokens += completion_tokens
+                    if estimated_cost is not None:
+                        if metrics.estimated_cost is None:
+                            metrics.estimated_cost = 0.0
+                        metrics.estimated_cost += estimated_cost
+                    return
+            # If not found, create new metrics (shouldn't happen, but be safe)
+            logger.warning(f"Episode metrics not found for {episode_id}, creating new entry")
+            episode_metrics = EpisodeMetrics(
+                episode_id=episode_id,
+                episode_number=0,  # Unknown number
+                audio_sec=audio_sec,
+                transcribe_sec=transcribe_sec,
+                summary_sec=summary_sec,
+                retries=retries or 0,
+                rate_limit_sleep_sec=rate_limit_sleep_sec or 0.0,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                estimated_cost=estimated_cost,
+            )
+            self.episode_metrics.append(episode_metrics)
 
     def finish(self) -> Dict[str, Any]:
         """Calculate final metrics and return as dict.

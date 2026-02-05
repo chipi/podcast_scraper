@@ -1670,7 +1670,8 @@ def _generate_episode_summary(  # noqa: C901
     summary_provider=None,  # SummarizationProvider instance (required)
     whisper_model: Optional[str] = None,  # Whisper model used for transcription
     pipeline_metrics=None,  # Metrics object for tracking LLM calls
-) -> Optional[SummaryMetadata]:
+    call_metrics=None,  # ProviderCallMetrics for per-episode tracking
+) -> tuple[Optional[SummaryMetadata], Any]:  # Returns (summary_metadata, call_metrics)
     """Generate summary for an episode transcript.
 
     Args:
@@ -1684,7 +1685,13 @@ def _generate_episode_summary(  # noqa: C901
         SummaryMetadata object or None if generation failed/skipped
     """
     if not cfg.generate_summaries:
-        return None
+        return None, call_metrics
+
+    # Create call_metrics if not provided
+    if call_metrics is None:
+        from ..utils.provider_metrics import ProviderCallMetrics
+
+        call_metrics = ProviderCallMetrics()
 
     # Handle dry-run mode - skip actual model loading and inference
     # Check this FIRST before any imports or device checks that might trigger PyTorch initialization
@@ -1694,7 +1701,7 @@ def _generate_episode_summary(  # noqa: C901
             episode_idx,
             transcript_file_path,
         )
-        return None
+        return None, call_metrics
 
     # Read transcript file
     full_transcript_path = os.path.join(output_dir, transcript_file_path)
@@ -1707,11 +1714,11 @@ def _generate_episode_summary(  # noqa: C901
             episode_idx,
             e,
         )
-        return None
+        return None, call_metrics
 
     if not transcript_text or len(transcript_text.strip()) < 50:
         logger.debug("[%s] Transcript too short for summarization, skipping", episode_idx)
-        return None
+        return None, call_metrics
 
     # Use provider if available (preferred path)
     if summary_provider is not None:
@@ -1784,25 +1791,18 @@ def _generate_episode_summary(  # noqa: C901
             if cfg.summary_prompt:
                 params["prompt"] = str(cfg.summary_prompt)
 
-            # Pass pipeline_metrics for LLM call tracking (if OpenAI provider)
-            import inspect
+            # All providers must support call_metrics (no backward compatibility)
+            result = summary_provider.summarize(
+                text=cleaned_text,
+                episode_title=None,  # Not available in this context
+                episode_description=None,  # Not available in this context
+                params=params,
+                pipeline_metrics=pipeline_metrics,
+                call_metrics=call_metrics,
+            )
 
-            sig = inspect.signature(summary_provider.summarize)
-            if "pipeline_metrics" in sig.parameters:
-                result = summary_provider.summarize(
-                    text=cleaned_text,
-                    episode_title=None,  # Not available in this context
-                    episode_description=None,  # Not available in this context
-                    params=params,
-                    pipeline_metrics=pipeline_metrics,
-                )
-            else:
-                result = summary_provider.summarize(
-                    text=cleaned_text,
-                    episode_title=None,  # Not available in this context
-                    episode_description=None,  # Not available in this context
-                    params=params,
-                )
+            # Finalize call metrics after provider call
+            call_metrics.finalize()
 
             summary_elapsed = time.time() - summary_start
             short_summary = result.get("summary")
@@ -1828,7 +1828,8 @@ def _generate_episode_summary(  # noqa: C901
                             "string, skipping",
                             episode_idx,
                         )
-                        return None
+                        call_metrics.finalize()
+                        return None, call_metrics
                     else:
                         # Try to convert to string
                         try:
@@ -1838,7 +1839,8 @@ def _generate_episode_summary(  # noqa: C901
                                 "[%s] Could not convert summary to string, skipping",
                                 episode_idx,
                             )
-                            return None
+                            call_metrics.finalize()
+                            return None, call_metrics
                 elif not isinstance(short_summary, str):
                     # Non-string, non-Mock type (e.g., int, dict, etc.)
                     # Fail fast - non-string summary is invalid when generate_summaries=True
@@ -1875,6 +1877,10 @@ def _generate_episode_summary(  # noqa: C901
                 summary_length,
             )
 
+            # Log standardized per-episode metrics after summarization
+            # Note: episode_id lookup is handled at the metadata generation level
+            # where we have access to the episode object
+
             if not short_summary:
                 # Fail fast - empty summary should never be expected when generate_summaries=True
                 error_msg = (
@@ -1897,12 +1903,16 @@ def _generate_episode_summary(  # noqa: C901
 
             word_count = len(transcript_text.split())
 
-            return SummaryMetadata(
-                short_summary=short_summary,
-                generated_at=datetime.now(),
-                word_count=word_count,
+            return (
+                SummaryMetadata(
+                    short_summary=short_summary,
+                    generated_at=datetime.now(),
+                    word_count=word_count,
+                ),
+                call_metrics,
             )
         except ProviderRuntimeError as e:
+            call_metrics.finalize()
             error_msg = str(e).lower()
             # Handle "Already borrowed" error from Rust tokenizer in parallel execution
             # This is a known threading issue with Rust-based tokenizers
@@ -1925,6 +1935,7 @@ def _generate_episode_summary(  # noqa: C901
             logger.error(error_msg_full, exc_info=True)
             raise RuntimeError(error_msg_full) from e
         except Exception as e:
+            call_metrics.finalize()
             # Fail fast - if summarization fails for a specific episode, raise exception
             error_msg = (
                 f"[{episode_idx}] Failed to generate summary using provider: {e}. "
@@ -2210,8 +2221,14 @@ def generate_episode_metadata(
     if cfg.generate_summaries and transcript_file_path:
         summary_start = time.time()
         recoverable_error_occurred = False
+        summary_call_metrics = None
         try:
-            summary_metadata = _generate_episode_summary(
+            # Create call metrics for tracking per-episode provider metrics
+            from ..utils.provider_metrics import ProviderCallMetrics
+
+            summary_call_metrics = ProviderCallMetrics()
+
+            summary_metadata, summary_call_metrics = _generate_episode_summary(
                 transcript_file_path=transcript_file_path,
                 output_dir=output_dir,
                 cfg=cfg,
@@ -2219,6 +2236,7 @@ def generate_episode_metadata(
                 summary_provider=summary_provider,
                 whisper_model=whisper_model,  # Whisper model used for transcription
                 pipeline_metrics=pipeline_metrics,
+                call_metrics=summary_call_metrics,
             )
         except RecoverableSummarizationError as e:
             # Allow metadata generation to continue without summary for recoverable errors
@@ -2232,10 +2250,38 @@ def generate_episode_metadata(
             pipeline_metrics.record_summarize_time(summary_elapsed)
             # Update episode status: summarized (Issue #391)
             if summary_metadata is not None:
+                from ..workflow.orchestration import _log_episode_metrics
                 from .helpers import get_episode_id_from_episode
 
-                episode_id, _ = get_episode_id_from_episode(episode, feed_url)
+                episode_id, episode_number = get_episode_id_from_episode(episode, feed_url)
                 pipeline_metrics.update_episode_status(episode_id=episode_id, stage="summarized")
+
+                # Log standardized per-episode metrics after summarization
+                # Use call_metrics from _generate_episode_summary
+                retries = summary_call_metrics.retries if summary_call_metrics else 0
+                rate_limit_sleep = (
+                    summary_call_metrics.rate_limit_sleep_sec if summary_call_metrics else 0.0
+                )
+                prompt_tokens = summary_call_metrics.prompt_tokens if summary_call_metrics else None
+                completion_tokens = (
+                    summary_call_metrics.completion_tokens if summary_call_metrics else None
+                )
+                estimated_cost = (
+                    summary_call_metrics.estimated_cost if summary_call_metrics else None
+                )
+
+                _log_episode_metrics(
+                    episode_id=episode_id,
+                    episode_number=episode_number,
+                    pipeline_metrics=pipeline_metrics,
+                    cfg=cfg,
+                    summary_sec=summary_elapsed,
+                    retries=retries,
+                    rate_limit_sleep_sec=rate_limit_sleep,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    estimated_cost=estimated_cost,
+                )
         # Validate that summary was generated when required (unless it's a recoverable error)
         if cfg.generate_summaries and summary_metadata is None and not recoverable_error_occurred:
             error_msg = (

@@ -358,10 +358,13 @@ podcast-scraper --rss https://example.com/feed.xml \
 - **Required**: No (defaults to 1 for sequential processing)
 - **Priority**: Config file → Environment variable → Default
 - **Note**:
-  - **Local Whisper**: Always uses sequential processing (parallelism=1) regardless of configured value. The pipeline logs a debug message when configured parallelism is ignored.
+  - **Local Whisper**: Now respects configured parallelism for experimentation. Values > 1 are **EXPERIMENTAL** and not production-ready. May cause memory/GPU contention. Use with caution.
   - **OpenAI provider**: Uses configured parallelism for parallel API calls.
-- **Use Cases**: OpenAI provider (`TRANSCRIPTION_PARALLELISM=3` for parallel API calls), Rate limit tuning
-- **Logging**: When using Whisper, debug logs will show `"Whisper provider: Using sequential processing (parallelism=X ignored)"` to indicate that the configured parallelism was ignored due to provider limitations.
+- **Use Cases**:
+  - OpenAI provider (`TRANSCRIPTION_PARALLELISM=3` for parallel API calls)
+  - Whisper experimentation (`TRANSCRIPTION_PARALLELISM=2` for testing parallel transcription - experimental)
+  - Rate limit tuning
+- **Logging**: When using Whisper with parallelism > 1, logs will show a warning indicating experimental status.
 
 **`PROCESSING_PARALLELISM`**
 

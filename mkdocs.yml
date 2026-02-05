@@ -115,6 +115,11 @@ nav:
       - ADR-040 Periodic Module Coupling Analysis: adr/ADR-040-periodic-module-coupling-analysis.md
       - ADR-041 Mandatory Pre-Release Validation: adr/ADR-041-mandatory-pre-release-validation.md
       - ADR-042 Proactive Metric Regression Alerting: adr/ADR-042-proactive-metric-regression-alerting.md
+      - ADR-043 Unified Provider Metrics Contract: adr/ADR-043-unified-provider-metrics-contract.md
+      - ADR-044 Unified Retry Policy with Metrics: adr/ADR-044-unified-retry-policy-with-metrics.md
+      - ADR-045 Composable E2E Mock Response Strategy: adr/ADR-045-composable-e2e-mock-response-strategy.md
+      - ADR-046 Adaptive Summarization Routing: adr/ADR-046-adaptive-summarization-routing.md
+      - ADR-047 Centralized Model Registry: adr/ADR-047-centralized-model-registry.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -170,6 +175,7 @@ nav:
       - RFC-051 Database Export Knowledge Graph: rfc/RFC-051-database-export-knowledge-graph.md
       - RFC-052 Locally Hosted LLM Models with Prompts: rfc/RFC-052-locally-hosted-llm-models-with-prompts.md
       - RFC-053 Adaptive Summarization Routing: rfc/RFC-053-adaptive-summarization-routing.md
+      - RFC-054 Flexible E2E Mock Response Strategy: rfc/RFC-054-e2e-mock-response-strategy.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

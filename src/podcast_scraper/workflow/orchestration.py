@@ -51,7 +51,192 @@ from ..transcription.factory import (
 create_summarization_provider = _create_summarization_provider_factory
 create_speaker_detector = _create_speaker_detector_factory
 create_transcription_provider = _create_transcription_provider_factory
-from . import helpers as wf_helpers, stages as wf_stages
+from . import helpers as wf_helpers, metrics, stages as wf_stages
+
+
+def _log_provider_ownership(
+    cfg: config.Config,
+    transcription_provider: Optional[Any],
+    speaker_detector: Optional[Any],
+    summary_provider: Optional[Any],
+) -> None:
+    """Log provider ownership for each capability at run start.
+
+    Args:
+        cfg: Configuration object
+        transcription_provider: Optional transcription provider instance
+        speaker_detector: Optional speaker detector instance
+        summary_provider: Optional summarization provider instance
+    """
+    # Determine transcription provider and location
+    transcription_provider_name = cfg.transcription_provider
+    if cfg.transcribe_missing and transcription_provider is not None:
+        # Determine if local or API
+        if transcription_provider_name == "whisper":
+            transcription_location = "local"
+        else:
+            transcription_location = "api"
+        transcription_str = f"{transcription_provider_name}({transcription_location})"
+    else:
+        transcription_str = "disabled"
+
+    # Determine summarization provider and location
+    if cfg.generate_summaries and summary_provider is not None:
+        summarization_provider_name = cfg.summary_provider
+        # Determine if local or API
+        if summarization_provider_name == "transformers":
+            summarization_location = "local"
+        else:
+            summarization_location = "api"
+        summarization_str = f"{summarization_provider_name}({summarization_location})"
+    else:
+        summarization_str = "disabled"
+
+    # Determine entities (speaker detection) provider and location
+    if cfg.auto_speakers and speaker_detector is not None:
+        entities_provider_name = cfg.speaker_detector_provider
+        # Determine if local or API
+        if entities_provider_name == "spacy":
+            entities_location = "local"
+        else:
+            entities_location = "api"
+        entities_str = f"{entities_provider_name}({entities_location})"
+    else:
+        entities_str = "disabled"
+
+    # Determine diarization (part of transcription when screenplay enabled)
+    if (
+        cfg.transcribe_missing
+        and cfg.screenplay
+        and cfg.screenplay_num_speakers
+        and cfg.screenplay_num_speakers > 0
+    ):
+        # Diarization is handled by transcription provider (Whisper)
+        if transcription_provider_name == "whisper":
+            diarization_str = "whisper(local)"
+        else:
+            diarization_str = f"{transcription_provider_name}(api)"
+    else:
+        diarization_str = "none"
+
+    logger.info(
+        f"ownership: transcription={transcription_str}, "
+        f"summarization={summarization_str}, "
+        f"entities={entities_str}, "
+        f"diarization={diarization_str}"
+    )
+
+
+def _log_episode_metrics(
+    episode_id: str,
+    episode_number: Optional[int],
+    pipeline_metrics: metrics.Metrics,
+    cfg: config.Config,
+    audio_sec: Optional[float] = None,
+    transcribe_sec: Optional[float] = None,
+    summary_sec: Optional[float] = None,
+    retries: int = 0,
+    rate_limit_sleep_sec: float = 0.0,
+    prompt_tokens: Optional[int] = None,
+    completion_tokens: Optional[int] = None,
+    estimated_cost: Optional[float] = None,
+) -> None:
+    """Log standardized per-episode metrics for provider comparison.
+
+    All episodes log the same structure with null values for missing data,
+    ensuring parsers don't need to branch.
+
+    Args:
+        episode_id: Unique episode identifier
+        episode_number: Episode number/index (optional)
+        pipeline_metrics: Metrics collector
+        cfg: Configuration object (for cost calculation)
+        audio_sec: Audio duration in seconds
+        transcribe_sec: Transcription time in seconds
+        summary_sec: Summarization time in seconds
+        retries: Number of retries
+        rate_limit_sleep_sec: Time spent sleeping due to rate limits
+        prompt_tokens: Input tokens
+        completion_tokens: Output tokens
+        estimated_cost: Estimated cost in USD
+    """
+    # Update metrics storage
+    if pipeline_metrics is not None:
+        pipeline_metrics.update_episode_metrics(
+            episode_id=episode_id,
+            audio_sec=audio_sec,
+            transcribe_sec=transcribe_sec,
+            summary_sec=summary_sec,
+            retries=retries,
+            rate_limit_sleep_sec=rate_limit_sleep_sec,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            estimated_cost=estimated_cost,
+        )
+
+    # Format values for logging (use None/null for missing data)
+    episode_number_str = str(episode_number) if episode_number is not None else "?"
+    audio_str = f"{audio_sec:.1f}" if audio_sec is not None else "null"
+    transcribe_str = f"{transcribe_sec:.1f}" if transcribe_sec is not None else "null"
+    summary_str = f"{summary_sec:.1f}" if summary_sec is not None else "null"
+    retries_str = str(retries)
+    rate_limit_str = f"{rate_limit_sleep_sec:.1f}" if rate_limit_sleep_sec > 0 else "null"
+    prompt_tokens_str = str(prompt_tokens) if prompt_tokens is not None else "null"
+    completion_tokens_str = str(completion_tokens) if completion_tokens is not None else "null"
+    cost_str = f"{estimated_cost:.4f}" if estimated_cost is not None else "null"
+
+    logger.info(
+        f"[{episode_number_str}] episode_metrics: "
+        f"audio_sec={audio_str}, "
+        f"transcribe_sec={transcribe_str}, "
+        f"summary_sec={summary_str}, "
+        f"retries={retries_str}, "
+        f"rate_limit_sleep_sec={rate_limit_str}, "
+        f"prompt_tokens={prompt_tokens_str}, "
+        f"completion_tokens={completion_tokens_str}, "
+        f"estimated_cost={cost_str}"
+    )
+
+
+def _log_episode_results(pipeline_metrics: metrics.Metrics, episodes: List[models.Episode]) -> None:
+    """Log episode processing results at run end.
+
+    Args:
+        pipeline_metrics: Metrics collector with episode statuses
+        episodes: List of episodes processed
+    """
+    total_episodes = len(episodes)
+    ok_count = 0
+    failed_count = 0
+    skipped_count = 0
+
+    # Count statuses from episode_statuses if available
+    if hasattr(pipeline_metrics, "episode_statuses") and pipeline_metrics.episode_statuses:
+        for status in pipeline_metrics.episode_statuses:
+            if status.status == "ok":
+                ok_count += 1
+            elif status.status == "failed":
+                failed_count += 1
+            elif status.status == "skipped":
+                skipped_count += 1
+        # Use episode_statuses count as authoritative total if available
+        total_episodes = len(pipeline_metrics.episode_statuses)
+    else:
+        # Fallback: estimate from metrics
+        # This is less accurate but better than nothing
+        ok_count = (
+            pipeline_metrics.transcripts_downloaded + pipeline_metrics.transcripts_transcribed
+        )
+        skipped_count = pipeline_metrics.episodes_skipped_total
+        failed_count = pipeline_metrics.errors_total
+        # Adjust total if we're using fallback and episodes list is empty
+        if total_episodes == 0:
+            total_episodes = ok_count + skipped_count + failed_count
+
+    logger.info(
+        f"result: episodes={total_episodes} ok={ok_count} "
+        f"failed={failed_count} skipped={skipped_count}"
+    )
 
 
 def _log_effective_parallelism(cfg: config.Config, summary_provider: Optional[Any]) -> None:
@@ -643,6 +828,9 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     # Step 1.7: Log effective parallelism configuration (Issue #380)
     _log_effective_parallelism(cfg, summary_provider)
 
+    # Step 1.7.5: Log provider ownership for each capability
+    _log_provider_ownership(cfg, transcription_provider, speaker_detector, summary_provider)
+
     # Step 1.8: Record device usage per stage (Issue #387)
     if transcription_provider is not None:
         # Get transcription device (stage-level config takes precedence)
@@ -1015,6 +1203,9 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
     # Step 11: Generate summary and log metrics
     pipeline_metrics.log_metrics()
+
+    # Step 11.5: Log episode processing results
+    _log_episode_results(pipeline_metrics, episodes)
 
     # Step 12: Save metrics to file if configured
     if cfg.metrics_output is not None:

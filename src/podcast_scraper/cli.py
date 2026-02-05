@@ -19,6 +19,7 @@ from typing import (
     Sequence,
     Tuple,
     TYPE_CHECKING,
+    Union,
 )
 from urllib.parse import urlparse
 
@@ -82,13 +83,32 @@ _shared_progress: Optional["rich.progress.Progress"] = None
 _shared_progress_lock = None
 
 
-def _get_shared_progress() -> "rich.progress.Progress":
+def _get_shared_progress() -> Optional["rich.progress.Progress"]:
     """Get or create shared Progress instance for all progress bars.
 
     Using a single Progress instance prevents duplicate bars and conflicts
     when multiple progress contexts are active simultaneously.
+
+    Returns None if output is redirected (not a TTY), in which case progress
+    bars should be disabled to keep log files clean.
     """
     global _shared_progress, _shared_progress_lock
+
+    # Check if stderr is a TTY - only show progress bars in interactive terminals
+    # This prevents ANSI escape sequences and progress bar noise in log files
+    try:
+        is_tty = sys.stderr.isatty()
+    except (AttributeError, OSError):
+        # Fallback for very old Python or if stderr is closed
+        is_tty = False
+
+    # Also respect TERM=dumb (used in tests and some CI environments)
+    if os.getenv("TERM") == "dumb":
+        is_tty = False
+
+    # Don't create progress bars if output is redirected
+    if not is_tty:
+        return None
 
     if _shared_progress is None:
         import threading
@@ -99,8 +119,10 @@ def _get_shared_progress() -> "rich.progress.Progress":
         _shared_progress_lock = threading.Lock()
 
         # Create console for progress bars
+        # force_terminal=False allows Rich to auto-detect terminal capabilities
+        # but we've already checked isatty() above, so this is just for safety
         console = Console(
-            force_terminal=os.getenv("TERM") != "dumb",
+            force_terminal=False,  # Auto-detect, don't force terminal mode
             stderr=True,  # Progress to stderr
             width=None,  # Auto-detect terminal width
         )
@@ -126,18 +148,28 @@ def _get_shared_progress() -> "rich.progress.Progress":
 
 
 @contextmanager
-def _rich_progress(total: Optional[int], description: str) -> Iterator[_RichProgress]:
+def _rich_progress(total: Optional[int], description: str) -> Iterator[Union[_RichProgress, Any]]:
     """Create a rich progress context matching the shared progress API.
 
     Uses a shared Progress instance to prevent duplicate bars and conflicts.
     Each progress context gets its own task in the shared Progress.
+
+    If output is redirected (not a TTY), returns a no-op progress reporter
+    to keep log files clean without ANSI escape sequences.
     """
     # Validate total parameter
     if total is not None and total <= 0:
         total = None
 
-    # Get shared Progress instance
+    # Get shared Progress instance (returns None if not a TTY)
     progress_bar = _get_shared_progress()
+
+    # If not a TTY, return no-op progress to avoid polluting log files
+    if progress_bar is None:
+        from podcast_scraper.utils.progress import _NoopProgress
+
+        yield _NoopProgress()
+        return
 
     # Thread-safe task management
     if _shared_progress_lock is not None:
