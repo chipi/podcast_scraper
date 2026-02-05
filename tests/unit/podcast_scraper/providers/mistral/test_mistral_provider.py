@@ -266,7 +266,8 @@ class TestMistralProviderTranscription(unittest.TestCase):
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_success(self, mock_exists, mock_open, mock_mistral_class):
+    @patch("mistralai.models.file.File", create=True)
+    def test_transcribe_success(self, mock_file_class, mock_exists, mock_open, mock_mistral_class):
         """Test successful transcription."""
         mock_exists.return_value = True
         mock_file = Mock()
@@ -282,6 +283,10 @@ class TestMistralProviderTranscription(unittest.TestCase):
         mock_client.audio.transcriptions.complete.return_value = mock_transcription
         mock_mistral_class.return_value = mock_client
 
+        # Mock File class used inside transcribe method
+        mock_file_instance = Mock()
+        mock_file_class.return_value = mock_file_instance
+
         provider = MistralProvider(self.cfg)
         provider.initialize()
 
@@ -291,9 +296,12 @@ class TestMistralProviderTranscription(unittest.TestCase):
         mock_client.audio.transcriptions.complete.assert_called_once()
 
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    @patch("mistralai.models.file.File", create=True)
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_with_language(self, mock_exists, mock_open, mock_mistral_class):
+    def test_transcribe_with_language(
+        self, mock_exists, mock_open, mock_file_class, mock_mistral_class
+    ):
         """Test transcription with explicit language."""
         mock_exists.return_value = True
         mock_file = Mock()
@@ -306,6 +314,10 @@ class TestMistralProviderTranscription(unittest.TestCase):
         mock_client = Mock()
         mock_client.audio.transcriptions.complete.return_value = mock_transcription
         mock_mistral_class.return_value = mock_client
+
+        # Mock File class used inside transcribe method
+        mock_file_instance = Mock()
+        mock_file_class.return_value = mock_file_instance
 
         provider = MistralProvider(self.cfg)
         provider.initialize()
@@ -372,9 +384,12 @@ class TestMistralProviderTranscription(unittest.TestCase):
         self.assertIn("transcription failed", str(context.exception))
 
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    @patch("mistralai.models.file.File", create=True)
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_with_segments_success(self, mock_exists, mock_open, mock_mistral_class):
+    def test_transcribe_with_segments_success(
+        self, mock_exists, mock_open, mock_file_class, mock_mistral_class
+    ):
         """Test transcribe_with_segments returns full result."""
         mock_exists.return_value = True
         mock_file = Mock()
@@ -387,6 +402,10 @@ class TestMistralProviderTranscription(unittest.TestCase):
         mock_client = Mock()
         mock_client.audio.transcriptions.complete.return_value = mock_transcription
         mock_mistral_class.return_value = mock_client
+
+        # Mock File class used inside transcribe method
+        mock_file_instance = Mock()
+        mock_file_class.return_value = mock_file_instance
 
         provider = MistralProvider(self.cfg)
         provider.initialize()

@@ -38,7 +38,11 @@ if not api_key:
 print("=" * 80)
 print("Gemini API Quota Checker")
 print("=" * 80)
-print(f"API Key: {api_key[:10]}...{api_key[-4:]}")
+# Security: Don't log API key, even partially masked
+if api_key:
+    print("API Key: [REDACTED] (configured)")
+else:
+    print("API Key: [NOT SET]")
 print()
 
 # Configure Gemini

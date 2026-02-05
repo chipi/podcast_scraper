@@ -788,7 +788,11 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 
 ```python
 import os
-print(os.getenv("OPENAI_API_KEY"))  # Should print your key (or None)
+api_key = os.getenv("OPENAI_API_KEY")
+if api_key:
+    print("API key is set (length: {})".format(len(api_key)))  # Don't print the actual key
+else:
+    print("API key is not set")
 ```
 
 ## Configuration Files

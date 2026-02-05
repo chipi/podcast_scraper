@@ -88,8 +88,12 @@ class TestGeminiTranscriptionProvider(unittest.TestCase):
             if original_key is not None:
                 os.environ["GEMINI_API_KEY"] = original_key
 
-    def test_factory_creates_gemini_provider(self):
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_factory_creates_gemini_provider(self, mock_genai):
         """Test that factory creates Gemini transcription provider."""
+        # Ensure genai is not None (module-level import check)
+        if mock_genai is None:
+            mock_genai = Mock()
         provider = create_transcription_provider(self.cfg)
         # Factory now returns unified GeminiProvider, not separate provider classes
         self.assertEqual(provider.__class__.__name__, "GeminiProvider")
@@ -167,8 +171,12 @@ class TestGeminiSpeakerDetector(unittest.TestCase):
             if original_key is not None:
                 os.environ["GEMINI_API_KEY"] = original_key
 
-    def test_factory_creates_gemini_detector(self):
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_factory_creates_gemini_detector(self, mock_genai):
         """Test that factory creates Gemini speaker detector."""
+        # Ensure genai is not None (module-level import check)
+        if mock_genai is None:
+            mock_genai = Mock()
         detector = create_speaker_detector(self.cfg)
         # Factory now returns unified GeminiProvider, not separate provider classes
         self.assertEqual(detector.__class__.__name__, "GeminiProvider")
@@ -236,8 +244,12 @@ class TestGeminiSummarizationProvider(unittest.TestCase):
             if original_key is not None:
                 os.environ["GEMINI_API_KEY"] = original_key
 
-    def test_factory_creates_gemini_provider(self):
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_factory_creates_gemini_provider(self, mock_genai):
         """Test that factory creates Gemini summarization provider."""
+        # Ensure genai is not None (module-level import check)
+        if mock_genai is None:
+            mock_genai = Mock()
         provider = create_summarization_provider(self.cfg)
         # Factory now returns unified GeminiProvider, not separate provider classes
         self.assertEqual(provider.__class__.__name__, "GeminiProvider")

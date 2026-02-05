@@ -2166,9 +2166,12 @@ def generate_episode_metadata(
     corrected_entities: List[EntityCorrection] = []
 
     # Get NLP model for entity reconciliation and consistency checking (if needed)
+    # Only needed for ML providers (transformers) - LLM providers don't need spaCy
     # Reuse provided model if available, otherwise try to get from provider (Issue #387)
+    is_ml_provider = cfg.summary_provider == "transformers"
     if (
-        nlp is None
+        is_ml_provider
+        and nlp is None
         and not cfg.dry_run
         and cfg.auto_speakers
         and cfg.generate_summaries
@@ -2246,8 +2249,12 @@ def generate_episode_metadata(
         if summary_metadata:
             summary_text = summary_metadata.short_summary
 
-            # Reconcile entities in summary if NLP model and extracted entities available
-            if nlp and summary_text:
+            # Entity reconciliation (faithfulness checking + name correction) is only needed for
+            # ML providers (transformers). LLM providers (OpenAI, Gemini, Grok, etc.) are generally
+            # better at names and faithfulness, so we skip spaCy-based checks for them to avoid
+            # requiring users to download spaCy just for this feature.
+            is_ml_provider = cfg.summary_provider == "transformers"
+            if is_ml_provider and nlp and summary_text:
                 # First, check faithfulness and auto-repair if needed (Issue #389)
                 # Read transcript text for faithfulness check if available
                 transcript_text_for_check = None
@@ -2316,6 +2323,14 @@ def generate_episode_metadata(
                             episode.idx,
                             len(corrections),
                         )
+            elif not is_ml_provider:
+                # LLM provider - skip entity reconciliation entirely (rely on LLM quality)
+                logger.debug(
+                    "[%s] Skipping entity reconciliation for LLM provider (%s) - "
+                    "relying on LLM quality",
+                    episode.idx,
+                    cfg.summary_provider,
+                )
 
     # Build content metadata after summary is generated (so QA flags can use summary)
     content_metadata = _build_content_metadata(
