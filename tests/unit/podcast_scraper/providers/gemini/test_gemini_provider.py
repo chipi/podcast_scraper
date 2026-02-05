@@ -18,12 +18,24 @@ import pytest
 
 # Mock google.generativeai before importing modules that require it
 # Unit tests run without google-generativeai package installed
+# Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
+mock_google = MagicMock()
 mock_genai_module = MagicMock()
 mock_genai_module.configure = Mock()
 mock_genai_module.GenerativeModel = Mock()
-with patch.dict("sys.modules", {"google": MagicMock(), "google.generativeai": mock_genai_module}):
-    from podcast_scraper import config
-    from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
+mock_api_core = MagicMock()
+mock_api_core.exceptions = MagicMock()
+_patch_google = patch.dict(
+    "sys.modules",
+    {
+        "google": mock_google,
+        "google.generativeai": mock_genai_module,
+        "google.api_core": mock_api_core,
+    },
+)
+_patch_google.start()
+from podcast_scraper import config
+from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
 
 
 @pytest.mark.unit
@@ -46,6 +58,8 @@ class TestGeminiProviderStandalone(unittest.TestCase):
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_provider_creation(self, mock_genai):
         """Test that GeminiProvider can be created."""
+        # Ensure configure method exists on the mock
+        mock_genai.configure = Mock()
         provider = GeminiProvider(self.cfg)
         self.assertIsNotNone(provider)
         self.assertEqual(provider.__class__.__name__, "GeminiProvider")
@@ -618,6 +632,9 @@ class TestGeminiProviderSummarization(unittest.TestCase):
     )
     def test_summarize_api_error(self, mock_build_prompts, mock_genai):
         """Test summarization error handling."""
+        # Set up mock_genai.configure BEFORE provider instantiation
+        mock_genai.configure = Mock()
+
         # _build_summarization_prompts returns:
         # (system_prompt, user_prompt, system_prompt_name, user_prompt_name,
         #  paragraphs_min, paragraphs_max)

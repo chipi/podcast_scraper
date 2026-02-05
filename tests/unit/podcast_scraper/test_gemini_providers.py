@@ -13,14 +13,26 @@ import pytest
 
 # Mock google.generativeai before importing modules that require it
 # Unit tests run without google-generativeai package installed
+# Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
+mock_google = MagicMock()
 mock_genai_module = MagicMock()
 mock_genai_module.configure = Mock()
 mock_genai_module.GenerativeModel = Mock()
-with patch.dict("sys.modules", {"google": MagicMock(), "google.generativeai": mock_genai_module}):
-    from podcast_scraper import config
-    from podcast_scraper.speaker_detectors.factory import create_speaker_detector
-    from podcast_scraper.summarization.factory import create_summarization_provider
-    from podcast_scraper.transcription.factory import create_transcription_provider
+mock_api_core = MagicMock()
+mock_api_core.exceptions = MagicMock()
+_patch_google = patch.dict(
+    "sys.modules",
+    {
+        "google": mock_google,
+        "google.generativeai": mock_genai_module,
+        "google.api_core": mock_api_core,
+    },
+)
+_patch_google.start()
+from podcast_scraper import config
+from podcast_scraper.speaker_detectors.factory import create_speaker_detector
+from podcast_scraper.summarization.factory import create_summarization_provider
+from podcast_scraper.transcription.factory import create_transcription_provider
 
 pytestmark = [pytest.mark.unit, pytest.mark.module_gemini_providers]
 
@@ -41,6 +53,9 @@ class TestGeminiTranscriptionProvider(unittest.TestCase):
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_provider_initialization(self, mock_genai):
         """Test that Gemini transcription provider initializes correctly via factory."""
+        # Set up mock_genai.configure BEFORE provider instantiation
+        mock_genai.configure = Mock()
+
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
