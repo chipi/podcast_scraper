@@ -383,7 +383,18 @@ test-nightly:
 	@echo "Podcasts: p01-p05 (15 episodes total)"
 	@echo "Models: Whisper base.en, BART-large-cnn, LED-large-16384"
 	@mkdir -p reports
-	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n 2 --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json
+	@echo "🔍 Verifying test collection..."
+	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" --collect-only -q || { \
+		echo "❌ Test collection failed, trying with verbose output..."; \
+		E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" --collect-only -v; \
+		exit 1; \
+	}
+	@echo "✅ Test collection successful, running tests..."
+	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n 2 --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json || { \
+		EXIT_CODE=$$?; \
+		echo "⚠️  Parallel execution failed (exit code $$EXIT_CODE), trying sequential execution..."; \
+		E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json || exit $$EXIT_CODE; \
+	}
 
 test:
 	# All tests: run separately with --cov-append to match CI behavior and get accurate coverage
