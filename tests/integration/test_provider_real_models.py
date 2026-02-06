@@ -268,20 +268,37 @@ class TestTransformersProviderRealModel(unittest.TestCase):
         # Require model to be cached (fail fast if not)
         require_transformers_model_cached(model_name, None)
 
-        model = summarizer.SummaryModel(
-            model_name=model_name,
-            device="cpu",
-            cache_dir=None,
-        )
+        try:
+            model = summarizer.SummaryModel(
+                model_name=model_name,
+                device="cpu",
+                cache_dir=None,
+            )
 
-        # Verify model was loaded
-        self.assertIsNotNone(model, "Transformer model should be loaded")
-        self.assertIsNotNone(model.model, "Model should have model attribute")
-        self.assertIsNotNone(model.tokenizer, "Model should have tokenizer attribute")
-        self.assertIsNotNone(model.pipeline, "Model should have pipeline attribute")
+            # Verify model was loaded
+            self.assertIsNotNone(model, "Transformer model should be loaded")
+            self.assertIsNotNone(model.model, "Model should have model attribute")
+            self.assertIsNotNone(model.tokenizer, "Model should have tokenizer attribute")
+            self.assertIsNotNone(model.pipeline, "Model should have pipeline attribute")
 
-        # Clean up model to prevent memory leak
-        summarizer.unload_model(model)
+            # Clean up model to prevent memory leak
+            summarizer.unload_model(model)
+        except Exception as e:
+            # If network access is blocked (model files not fully cached), skip the test
+            error_str = str(e).lower()
+            if (
+                "socket" in error_str
+                or "connect" in error_str
+                or "network" in error_str
+                or "couldn't connect" in error_str
+                or "huggingface.co" in error_str
+            ):
+                pytest.skip(
+                    f"Model files not fully cached (network access blocked): {e}. "
+                    f"Run 'make preload-ml-models' to ensure all model files are cached."
+                )
+            # Re-raise other errors as real failures
+            raise
 
     def test_summarization_provider_with_real_model(self):
         """Test summarization provider with real transformer model."""
