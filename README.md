@@ -63,7 +63,7 @@ Choose the installation method based on your use case:
 - Want to run models locally (Whisper, spaCy, Transformers)? → Install with ML (`pip install -e ".[ml]"`)
 - Want both options? → Install with ML (`pip install -e ".[ml]"`)
 
-**Note:** LLM provider SDKs (like `openai`, `google-generativeai`) are included in core dependencies, so LLM-based providers work without ML dependencies. For Gemini, install with `pip install -e ".[gemini]"` or `pip install -e ".[dev,ml,gemini]"` for development.
+**Note:** LLM provider SDKs (like `openai`) are included in core dependencies. For other LLM providers (Gemini, Anthropic, Mistral, Ollama), install with `pip install -e ".[llm]"` or individual extras like `pip install -e ".[gemini]"`. For development with all LLM providers, use `pip install -e ".[dev,ml,llm]"`.
 
 ### Install
 

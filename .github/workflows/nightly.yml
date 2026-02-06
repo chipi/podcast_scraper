@@ -90,7 +90,7 @@ jobs:
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,gemini]
+        pip install -e .[dev,ml,llm]
 
     - name: Validate ML model cache
       id: validate-cache
@@ -429,7 +429,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,gemini]
+        pip install -e .[dev,ml,llm]
         pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
@@ -516,7 +516,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,gemini]
+        pip install -e .[dev,ml,llm]
         pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
@@ -608,7 +608,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,gemini]
+        pip install -e .[dev,ml,llm]
         pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
