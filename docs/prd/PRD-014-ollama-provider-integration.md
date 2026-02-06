@@ -4,11 +4,11 @@
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Related RFCs**: RFC-037 (Revised)
-- **Related PRDs**: PRD-006 (OpenAI), PRD-013 (Groq)
+- **Related PRDs**: PRD-006 (OpenAI), PRD-013 (Grok)
 
 ## Summary
 
-Add Ollama as an optional provider for speaker detection and summarization capabilities. Ollama is unique in being a **fully local/offline solution** that runs open-source LLMs on your own hardware. Unlike cloud providers, Ollama requires NO API keys, has NO rate limits, and incurs NO per-token costs. Like OpenAI, Ollama uses a **unified provider pattern** where a single `OllamaProvider` class implements both capabilities. Like Anthropic, DeepSeek, and Groq, Ollama does NOT support audio transcription.
+Add Ollama as an optional provider for speaker detection and summarization capabilities. Ollama is unique in being a **fully local/offline solution** that runs open-source LLMs on your own hardware. Unlike cloud providers, Ollama requires NO API keys, has NO rate limits, and incurs NO per-token costs. Like OpenAI, Ollama uses a **unified provider pattern** where a single `OllamaProvider` class implements both capabilities. Like Anthropic, DeepSeek, and Grok, Ollama does NOT support audio transcription.
 
 ## Background & Context
 
@@ -125,7 +125,7 @@ ollama_summary_user_prompt: str = Field(
 
 ### Cost Comparison: Ollama vs Cloud (Per 1000 Episodes)
 
-| Component | OpenAI (gpt-4o-mini) | DeepSeek | Groq | **Ollama** |
+| Component | OpenAI (gpt-4o-mini) | DeepSeek | Grok | **Ollama** |
 | --------- | -------------------- | -------- | ---- | ---------- |
 | **Transcription** | $6.00 | ❌ N/A | ❌ N/A | ❌ N/A |
 | **Speaker Detection** | $1.40 | $0.04 | $0.06 | **$0.00** |
@@ -149,7 +149,7 @@ For optimal Ollama performance:
 | Provider | 1000-word Summary Time |
 | -------- | ---------------------- |
 | OpenAI GPT-4o-mini | ~5 seconds |
-| Groq (Llama 3.3) | ~0.5 seconds |
+| Grok | ~1.0 seconds |
 | Ollama (Llama 3.3 on M4 Pro) | ~30 seconds |
 | Ollama (Llama 3.2 on M4 Pro) | ~3 seconds |
 
@@ -257,7 +257,7 @@ For optimal Ollama performance:
 
 ## Provider Capability Matrix (Final)
 
-| Capability | Local | OpenAI | Anthropic | Mistral | DeepSeek | Gemini | Groq | Ollama |
+| Capability | Local | OpenAI | Anthropic | Mistral | DeepSeek | Gemini | Grok | Ollama |
 | ---------- | ----- | ------ | --------- | ------- | -------- | ------ | ---- | ------ |
 | **Transcription** | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
 | **Speaker Detection** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |

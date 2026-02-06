@@ -20,10 +20,10 @@ and hands-on work with edge and cloud AI/ML technologies.
 ## Features
 
 - **Transcript Downloads** — Automatic detection and download from RSS feeds
-- **Transcription** — Generate transcripts with Whisper or OpenAI API
+- **Transcription** — Generate transcripts with Whisper, OpenAI API, or Google Gemini API
 - **Audio Preprocessing** — Optimize audio files before transcription (reduce size, remove silence, normalize loudness)
-- **Speaker Detection** — Identify speakers using spaCy NER
-- **Summarization** — Episode summaries with BART/LED (local) or OpenAI
+- **Speaker Detection** — Identify speakers using spaCy NER, OpenAI, Google Gemini, Grok (real-time info), or other providers
+- **Summarization** — Episode summaries with BART/LED (local), OpenAI, Google Gemini, Grok (real-time info), or other providers
 - **Metadata Generation** — JSON/YAML metadata per episode
 - **Resumable** — Skip existing files, handle interruptions gracefully
 - **Provider System** — Swap between local and cloud providers via config
@@ -53,7 +53,7 @@ Choose the installation method based on your use case:
 
 | Use Case | Installation Command | What You Get | Disk Space |
 | -------- | --------------------- | ----------- | --------- |
-| **LLM-only** (recommended) | `pip install -e .` | Core package + LLM SDKs (OpenAI, etc.) | ~50MB |
+| **LLM-only** (recommended) | `pip install -e .` | Core package + LLM SDKs (OpenAI, Gemini, etc.) | ~50MB |
 | **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper + spaCy + Transformers | ~1-3GB |
 | **Both options** | `pip install -e ".[ml]"` | Everything (LLM + local ML) | ~1-3GB |
 
@@ -63,7 +63,7 @@ Choose the installation method based on your use case:
 - Want to run models locally (Whisper, spaCy, Transformers)? → Install with ML (`pip install -e ".[ml]"`)
 - Want both options? → Install with ML (`pip install -e ".[ml]"`)
 
-**Note:** LLM provider SDKs (like `openai`) are included in core dependencies, so LLM-based providers work without ML dependencies.
+**Note:** LLM provider SDKs (like `openai`, `google-generativeai`) are included in core dependencies, so LLM-based providers work without ML dependencies. For Gemini, install with `pip install -e ".[gemini]"` or `pip install -e ".[dev,ml,gemini]"` for development.
 
 ### Install
 
@@ -93,8 +93,11 @@ python --version  # Should show Python 3.10.x or higher
 pip install --upgrade pip setuptools wheel
 
 # Install core package only (includes LLM SDKs like OpenAI, no ML dependencies)
-# This is sufficient if you're using LLM-based providers (OpenAI, etc.) for transcription, speaker detection, and summarization
+# This is sufficient if you're using OpenAI providers for transcription, speaker detection, and summarization
 pip install -e .
+
+# For Gemini providers, install with gemini extras:
+pip install -e ".[gemini]"
 ```
 
 **For local ML users (Whisper, spaCy, Transformers):**
@@ -231,7 +234,7 @@ pip install -e ".[ml]"
 
 - **Python 3.10+ is REQUIRED** — The project uses features that require Python 3.10 or higher. Always verify with `python --version` after activating the venv.
 - **Installation is required** — You must run `pip install -e .` (or `pip install -e ".[ml]"` for ML) before running CLI commands. Without it, you'll get `ModuleNotFoundError: No module named 'podcast_scraper'`.
-- **LLM-only users** — If you're using LLM-based providers (OpenAI, etc.) only, install with `pip install -e .` (no `[ml]` needed). LLM provider SDKs are included in core dependencies.
+- **LLM-only users** — If you're using LLM-based providers (OpenAI, Gemini, etc.) only, install with `pip install -e .` for OpenAI or `pip install -e ".[gemini]"` for Gemini (no `[ml]` needed). LLM provider SDKs are included in core dependencies.
 - **Local ML users** — If you want to use local Whisper, spaCy, or Transformers, install with `pip install -e ".[ml]"` to get ML dependencies.
 - **Upgrade pip/setuptools first** — If you see `"editable mode currently requires a setuptools-based build"` error, run `pip install --upgrade pip setuptools wheel` and try again.
 - **Always activate the venv** — Remember to activate your virtual environment (`source .venv/bin/activate`) before running any commands.
@@ -246,12 +249,13 @@ cp examples/.env.example .env
 
 # Edit .env and add your LLM API key (REQUIRED for LLM providers)
 # For OpenAI: OPENAI_API_KEY=sk-your-actual-api-key-here
-# Additional LLM providers will have their own API key variables
+# For Gemini: GEMINI_API_KEY=your-gemini-api-key-here
 ```
 
 **Important variables:**
 
 - `OPENAI_API_KEY` - **Required** if using OpenAI providers (transcription, speaker detection, or summarization)
+- `GEMINI_API_KEY` - **Required** if using Gemini providers (transcription, speaker detection, or summarization)
 - `LOG_LEVEL` - Controls logging verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `OUTPUT_DIR` - Custom output directory (default: `./output/`)
 - `CACHE_DIR` - ML model cache location (only needed for local ML providers)
@@ -278,6 +282,38 @@ python -m podcast_scraper.cli --help
 
 **Prerequisite:** Make sure you've completed the installation steps above and activated your virtual environment.
 
+#### Basic Usage with Example Config (Recommended for First-Time Users)
+
+The easiest way to get started is using an example config file:
+
+```bash
+# Make sure venv is activated
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Set your API key (if using LLM providers)
+export OPENAI_API_KEY=sk-your-actual-api-key-here
+
+# Run with an example config file
+python -m podcast_scraper.cli --config examples/config.example.yaml
+```
+
+**Available example config:**
+
+- `examples/config.example.yaml` — Example configuration with local ML providers (Whisper, spaCy, Transformers)
+
+**To customize:** Copy the example config and edit the `rss` field with your podcast feed URL:
+
+```bash
+# Copy the example config
+cp examples/config.example.yaml my-config.yaml
+
+# Edit my-config.yaml and change the RSS feed URL
+# Then run:
+python -m podcast_scraper.cli --config my-config.yaml
+```
+
+#### Advanced Usage (Command-Line Options)
+
 Replace `https://example.com/feed.xml` with your podcast's RSS feed URL.
 
 **For LLM-only users (no ML dependencies):**
@@ -290,19 +326,35 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # For OpenAI:
 export OPENAI_API_KEY=sk-your-actual-api-key-here
 
-# Download transcripts (automatically generates missing ones with LLM API, e.g., OpenAI Whisper API)
+# For Gemini:
+export GEMINI_API_KEY=your-gemini-api-key-here
+
+# Download transcripts (automatically generates missing ones with LLM API)
+# Using OpenAI:
 python -m podcast_scraper.cli https://example.com/feed.xml \
   --transcription-provider openai
+
+# Using Gemini:
+python -m podcast_scraper.cli https://example.com/feed.xml \
+  --transcription-provider gemini
 
 # Only download existing transcripts (skip transcription)
 python -m podcast_scraper.cli https://example.com/feed.xml \
   --no-transcribe-missing
 
-# Full processing with LLM providers: transcripts + speaker detection + summaries + metadata
+# Full processing with OpenAI providers: transcripts + speaker detection + summaries + metadata
 python -m podcast_scraper.cli https://example.com/feed.xml \
   --transcription-provider openai \
   --speaker-detector-provider openai \
   --summary-provider openai \
+  --generate-metadata \
+  --generate-summaries
+
+# Full processing with Gemini providers:
+python -m podcast_scraper.cli https://example.com/feed.xml \
+  --transcription-provider gemini \
+  --speaker-detector-provider gemini \
+  --summary-provider gemini \
   --generate-metadata \
   --generate-summaries
 ```
@@ -322,14 +374,9 @@ python -m podcast_scraper.cli https://example.com/feed.xml \
   --generate-summaries
 ```
 
-**Using a config file (recommended):**
+**Using a config file:**
 
-```bash
-# Use a config file to set providers and other options
-python -m podcast_scraper.cli --config examples/config.my.planetmoney.openai.yaml
-```
-
-See `examples/config.my.planetmoney.openai.yaml` for an LLM-only configuration example.
+See the [Basic Usage with Example Config](#basic-usage-with-example-config-recommended-for-first-time-users) section above for the recommended approach. You can also use any config file from the `examples/` directory or create your own.
 
 **Output:** Files are organized in `output/` with subdirectories:
 
@@ -378,6 +425,9 @@ For more help, see [Troubleshooting Guide](docs/guides/TROUBLESHOOTING.md).
 
 | Resource | Description |
 | -------- | ----------- |
+| [Roadmap](docs/ROADMAP.md) | Project roadmap with prioritized PRDs and RFCs |
+| [Architecture](docs/ARCHITECTURE.md) | System design and module responsibilities |
+| [Testing Strategy](docs/TESTING_STRATEGY.md) | Testing approach and test pyramid |
 | [CLI Reference](docs/api/CLI.md) | All command-line options |
 | [Configuration](docs/api/CONFIGURATION.md) | Config files and environment variables |
 | [Guides](docs/guides/) | Development, testing, and usage guides |

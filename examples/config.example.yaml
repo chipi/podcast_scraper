@@ -10,10 +10,10 @@ output_dir: output_podcast_example  # Can also be set via OUTPUT_DIR env var
 max_episodes: 10
 
 # Provider configuration - mixed example (can use different providers for different capabilities)
-# Options: openai (API-based), whisper (local Whisper), spacy (local spaCy), transformers (local HuggingFace)
-transcription_provider: whisper  # Options: openai, whisper
-speaker_detector_provider: spacy  # Options: openai, spacy
-summary_provider: transformers  # Options: openai, transformers
+# Options: openai, gemini, mistral, deepseek, grok, ollama (API-based), whisper (local Whisper), spacy (local spaCy), transformers (local HuggingFace)
+transcription_provider: whisper  # Options: whisper, openai, gemini, mistral (Note: deepseek, grok, and ollama do NOT support transcription)
+speaker_detector_provider: spacy  # Options: spacy, openai, gemini, mistral, deepseek, grok, ollama
+summary_provider: transformers  # Options: transformers, openai, gemini, mistral, deepseek, grok, ollama
 
 transcribe_missing: true  # Enable automatic transcription of missing transcripts
 whisper_model: base.en  # Whisper model to use (tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large, large-v1, large-v2, large-v3)
@@ -49,11 +49,95 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # openai_api_key: your-key-here  # Not recommended - use .env file instead
 # openai_api_base: http://localhost:8000/v1  # Optional: Custom OpenAI API base URL (e.g., for E2E testing)
 
+# Gemini configuration (required if using any Gemini providers)
+# Note: GEMINI_API_KEY should be set in .env file (see examples/.env.example)
+# gemini_api_key: your-key-here  # Not recommended - use .env file instead
+# gemini_api_base: http://localhost:8000/v1beta  # Optional: Custom Gemini API base URL (e.g., for E2E testing)
+
+# Anthropic API key should be set via environment variable:
+# export ANTHROPIC_API_KEY=your-api-key-here
+# Or in .env file: ANTHROPIC_API_KEY=your-api-key-here
+
+# DeepSeek configuration (required if using any DeepSeek providers)
+# Note: DEEPSEEK_API_KEY should be set in .env file (see examples/.env.example)
+# Note: DeepSeek does NOT support transcription (no audio API)
+# deepseek_api_key: your-key-here  # Not recommended - use .env file instead
+# deepseek_api_base: http://localhost:8000/v1  # Optional: Custom DeepSeek API base URL (e.g., for E2E testing)
+
+# Mistral configuration (required if using any Mistral providers)
+# Note: MISTRAL_API_KEY should be set in .env file (see examples/.env.example)
+# Mistral is a full-stack provider (transcription + speaker detection + summarization) with EU data residency
+# mistral_api_key: your-key-here  # Not recommended - use .env file instead
+# mistral_api_base: http://localhost:8000/v1  # Optional: Custom Mistral API base URL (e.g., for E2E testing)
+
+# Grok configuration (required if using any Grok providers)
+# Note: GROK_API_KEY should be set in .env file (see examples/.env.example)
+# Note: Grok does NOT support transcription (no audio API)
+# Grok offers real-time information access via X/Twitter integration
+# grok_api_key: your-key-here  # Not recommended - use .env file instead
+# grok_api_base: http://localhost:8000/v1  # Optional: Custom Grok API base URL (e.g., for E2E testing)
+
+# Ollama configuration (required if using any Ollama providers)
+# Note: OLLAMA_API_BASE can be set in .env file (see examples/.env.example) or defaults to http://localhost:11434/v1
+# Note: Ollama does NOT support transcription (no audio API)
+# Ollama is a local, self-hosted solution with ZERO API costs - all processing happens on your local hardware
+# Perfect for privacy, offline operation, or air-gapped environments
+# Prerequisites: Ollama must be installed and running locally. Models must be pulled (e.g., ollama pull llama3.3)
+# ollama_api_base: http://localhost:11434/v1  # Optional: Custom Ollama API base URL (default: http://localhost:11434/v1)
+
 # OpenAI model configuration (optional - defaults are used if not specified)
 # openai_transcription_model: whisper-1  # Default: whisper-1
 # openai_speaker_model: gpt-4o-mini  # Default: gpt-4o-mini (use gpt-4o for production)
 # openai_summary_model: gpt-4o-mini  # Default: gpt-4o-mini (use gpt-4o for production)
 # openai_temperature: 0.3  # Default: 0.3 (0.0-2.0)
+
+# Gemini model configuration (optional - defaults are used if not specified)
+# Environment-based defaults:
+#   Test/Dev: gemini-1.5-flash (fast, cheap)
+#   Production: gemini-1.5-pro (higher quality)
+# gemini_transcription_model: gemini-1.5-pro  # Default: environment-based (gemini-1.5-flash for test, gemini-1.5-pro for prod)
+# gemini_speaker_model: gemini-1.5-pro  # Default: environment-based
+# gemini_summary_model: gemini-1.5-pro  # Default: environment-based
+# gemini_temperature: 0.3  # Default: 0.3 (0.0-2.0, lower = more deterministic)
+# gemini_max_tokens: null  # Default: null (use model default)
+
+# Mistral model configuration (optional - defaults are used if not specified)
+# Environment-based defaults:
+#   Test/Dev: voxtral-mini-latest (transcription), mistral-small-latest (speaker/summary)
+#   Production: voxtral-mini-latest (transcription), mistral-large-latest (speaker/summary)
+# mistral_transcription_model: voxtral-mini-latest  # Default: environment-based (voxtral-mini-latest)
+# mistral_speaker_model: mistral-large-latest  # Default: environment-based (mistral-small-latest for test, mistral-large-latest for prod)
+# mistral_summary_model: mistral-large-latest  # Default: environment-based (mistral-small-latest for test, mistral-large-latest for prod)
+# mistral_temperature: 0.3  # Default: 0.3 (0.0-1.0, lower = more deterministic)
+# mistral_max_tokens: null  # Default: null (use model default)
+
+# DeepSeek model configuration (optional - defaults are used if not specified)
+# Environment-based defaults:
+#   Test/Dev: deepseek-chat (fast, cheap - 95% cheaper than OpenAI)
+#   Production: deepseek-chat (same model, but can be configured)
+# deepseek_speaker_model: deepseek-chat  # Default: environment-based (deepseek-chat)
+# deepseek_summary_model: deepseek-chat  # Default: environment-based (deepseek-chat)
+# deepseek_temperature: 0.3  # Default: 0.3 (0.0-2.0, lower = more deterministic)
+# deepseek_max_tokens: null  # Default: null (use model default)
+
+# Grok model configuration (optional - defaults are used if not specified)
+# Environment-based defaults:
+#   Test/Dev: llama-3.1-8b-instant (ultra-fast, free tier)
+#   Production: llama-3.3-70b-versatile (best quality, still 10x faster than other providers)
+# grok_speaker_model: grok-2  # Default: environment-based (grok-beta for test, grok-2 for prod)
+# grok_summary_model: grok-2  # Default: environment-based (grok-beta for test, grok-2 for prod)
+# grok_temperature: 0.3  # Default: 0.3 (0.0-2.0, lower = more deterministic)
+# grok_max_tokens: null  # Default: null (use model default)
+
+# Ollama model configuration (optional - defaults are used if not specified)
+# Environment-based defaults:
+#   Test/Dev: llama3.2:latest (smaller, faster)
+#   Production: llama3.3:latest (higher quality)
+# ollama_speaker_model: llama3.3:latest  # Default: environment-based (llama3.2:latest for test, llama3.3:latest for prod)
+# ollama_summary_model: llama3.3:latest  # Default: environment-based (llama3.2:latest for test, llama3.3:latest for prod)
+# ollama_temperature: 0.3  # Default: 0.3 (0.0-2.0, lower = more deterministic)
+# ollama_max_tokens: null  # Default: null (use model default)
+# ollama_timeout: 120  # Default: 120 seconds (local inference can be slow, increase for large models)
 
 # ML-specific settings (used with local transformers/whisper/spaCy providers)
 # Defaults: Pegasus-CNN (map) + LED-base (reduce) - production baseline (baseline_ml_prod_authority_v1)

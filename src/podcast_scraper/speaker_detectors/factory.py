@@ -23,7 +23,7 @@ else:
     from podcast_scraper.speaker_detectors.base import SpeakerDetector
 
 
-def create_speaker_detector(
+def create_speaker_detector(  # noqa: C901
     cfg_or_provider_type: Union[config.Config, str],
     params: Optional[Union[SpeakerDetectionParams, Dict[str, Any]]] = None,
 ) -> SpeakerDetector:
@@ -35,7 +35,7 @@ def create_speaker_detector(
 
     Args:
         cfg_or_provider_type: Either a Config object or provider type string
-            ("spacy" or "openai")
+            ("spacy", "openai", "gemini", "mistral", "grok", or "deepseek")
         params: Optional parameters dict or SpeakerDetectionParams object (experiment mode only)
 
     Returns:
@@ -77,10 +77,24 @@ def create_speaker_detector(
         # Experiment-based mode
         provider_type_str = str(cfg_or_provider_type)
         # Type narrowing: validate it's one of the allowed values
-        if provider_type_str not in ("spacy", "openai"):
+        if provider_type_str not in (
+            "spacy",
+            "openai",
+            "gemini",
+            "mistral",
+            "grok",
+            "ollama",
+            "deepseek",
+            "anthropic",
+        ):
             raise ValueError(f"Invalid provider type: {provider_type_str}")
         experiment_mode = True
-        provider_type = cast(Literal["spacy", "openai"], provider_type_str)
+        provider_type = cast(
+            Literal[
+                "spacy", "openai", "gemini", "mistral", "grok", "ollama", "deepseek", "anthropic"
+            ],
+            provider_type_str,
+        )
 
     # Convert params to SpeakerDetectionParams if needed
     if experiment_mode:
@@ -142,8 +156,129 @@ def create_speaker_detector(
             return OpenAIProvider(cfg)
         else:
             return OpenAIProvider(cfg)
+    elif provider_type == "gemini":
+        from ..providers.gemini.gemini_provider import GeminiProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SpeakerDetectionParams
+            assert isinstance(params, SpeakerDetectionParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for speaker detection (use alias)
+                speaker_detector_provider="gemini",
+                gemini_speaker_model=params.model_name if params.model_name else "gemini-2.0-flash",
+                gemini_temperature=params.temperature if params.temperature is not None else 0.3,
+                gemini_api_key=os.getenv("GEMINI_API_KEY"),  # Load from env
+            )
+            return GeminiProvider(cfg)
+        else:
+            return GeminiProvider(cfg)
+    elif provider_type == "mistral":
+        from ..providers.mistral.mistral_provider import MistralProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SpeakerDetectionParams
+            assert isinstance(params, SpeakerDetectionParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for speaker detection (use alias)
+                speaker_detector_provider="mistral",
+                mistral_speaker_model=(
+                    params.model_name if params.model_name else "mistral-small-latest"
+                ),
+                mistral_temperature=params.temperature if params.temperature is not None else 0.3,
+                mistral_api_key=os.getenv("MISTRAL_API_KEY"),  # Load from env
+            )
+            return MistralProvider(cfg)
+        else:
+            return MistralProvider(cfg)
+    elif provider_type == "grok":
+        from ..providers.grok.grok_provider import GrokProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SpeakerDetectionParams
+            assert isinstance(params, SpeakerDetectionParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for speaker detection (use alias)
+                speaker_detector_provider="grok",
+                grok_speaker_model=(params.model_name if params.model_name else "grok-2"),
+                grok_temperature=params.temperature if params.temperature is not None else 0.3,
+                grok_api_key=os.getenv("GROK_API_KEY"),  # Load from env
+            )
+            return GrokProvider(cfg)
+        else:
+            return GrokProvider(cfg)
+    elif provider_type == "deepseek":
+        from ..providers.deepseek.deepseek_provider import DeepSeekProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SpeakerDetectionParams
+            assert isinstance(params, SpeakerDetectionParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for speaker detection (use alias)
+                speaker_detector_provider="deepseek",
+                deepseek_speaker_model=params.model_name if params.model_name else "deepseek-chat",
+                deepseek_temperature=params.temperature if params.temperature is not None else 0.3,
+                deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),  # Load from env
+            )
+            return DeepSeekProvider(cfg)
+        else:
+            return DeepSeekProvider(cfg)
+    elif provider_type == "ollama":
+        from ..providers.ollama.ollama_provider import OllamaProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SpeakerDetectionParams
+            assert isinstance(params, SpeakerDetectionParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for speaker detection (use alias)
+                speaker_detector_provider="ollama",
+                ollama_speaker_model=params.model_name if params.model_name else "llama3.3:latest",
+                ollama_temperature=params.temperature if params.temperature is not None else 0.3,
+                ollama_api_base=os.getenv("OLLAMA_API_BASE", "http://localhost:11434/v1"),
+            )
+            return OllamaProvider(cfg)
+        else:
+            return OllamaProvider(cfg)
+    elif provider_type == "anthropic":
+        from ..providers.anthropic.anthropic_provider import AnthropicProvider
+
+        if experiment_mode:
+            # Create a minimal Config from params for experiment mode
+            from ..config import Config
+
+            # After conversion above, params is guaranteed to be SpeakerDetectionParams
+            assert isinstance(params, SpeakerDetectionParams)
+            cfg = Config(
+                rss="",  # Dummy, not used for speaker detection (use alias)
+                speaker_detector_provider="anthropic",
+                anthropic_speaker_model=(
+                    params.model_name if params.model_name else "claude-3-5-sonnet-20241022"
+                ),
+                anthropic_temperature=(
+                    params.temperature if params.temperature is not None else 0.3
+                ),
+                anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),  # Load from env
+            )
+            return AnthropicProvider(cfg)
+        else:
+            return AnthropicProvider(cfg)
     else:
         raise ValueError(
             f"Unsupported speaker detector type: {provider_type}. "
-            "Supported types: 'spacy', 'openai'"
+            "Supported types: 'spacy', 'openai', 'gemini', 'mistral', 'grok', "
+            "'deepseek', 'ollama', 'anthropic'"
         )

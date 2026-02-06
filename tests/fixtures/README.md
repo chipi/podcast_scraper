@@ -23,7 +23,8 @@ tests/fixtures/
 ├─ rss/                   # RSS2 + iTunes XML feeds
 ├─ transcripts/           # synthetic transcripts (input to audio generation)
 ├─ scripts/               # audio generation scripts
-└─ audio/                 # generated MP3 files
+├─ audio/                 # generated MP3 files
+└─ mock_server/           # mock SDK clients for E2E/integration testing
 
 ---
 

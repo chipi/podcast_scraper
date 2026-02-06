@@ -11,21 +11,34 @@ The podcast scraper uses a **Unified Provider** pattern where a single class imp
 
 1. **`MLProvider` (Local)**: Handles `whisper`, `spacy`, and `transformers`.
 2. **`OpenAIProvider` (API)**: Handles all OpenAI-based transcription, speaker detection, and summarization.
+3. **`GeminiProvider` (API)**: Handles all Google Gemini-based transcription, speaker detection, and summarization.
+4. **`AnthropicProvider` (API)**: Handles Anthropic Claude-based speaker detection and summarization (transcription not supported).
+5. **`DeepSeekProvider` (API)**: Handles DeepSeek-based speaker detection and summarization (transcription not supported).
+6. **`GrokProvider` (API)**: Handles Grok-based speaker detection and summarization (real-time information access).
 
 ### Transcription Providers
 
 - **`whisper`** (default): Local Whisper models (via `MLProvider`)
 - **`openai`**: OpenAI Whisper API (via `OpenAIProvider`)
+- **`gemini`**: Google Gemini API (via `GeminiProvider`)
 
 ### Speaker Detection Providers
 
 - **`spacy`** (default): Local spaCy NER models (via `MLProvider`)
 - **`openai`**: OpenAI GPT API (via `OpenAIProvider`)
+- **`gemini`**: Google Gemini API (via `GeminiProvider`)
+- **`anthropic`**: Anthropic Claude API (via `AnthropicProvider`) - high quality, 200k context
+- **`deepseek`**: DeepSeek Chat API (via `DeepSeekProvider`) - 95% cheaper than OpenAI
+- **`grok`**: Grok API (via `GrokProvider`) - real-time information access
 
 ### Summarization Providers
 
 - **`transformers`** (default): Local HuggingFace Transformers models (via `MLProvider`)
 - **`openai`**: OpenAI GPT API (via `OpenAIProvider`)
+- **`gemini`**: Google Gemini API (via `GeminiProvider`)
+- **`anthropic`**: Anthropic Claude API (via `AnthropicProvider`) - high quality, 200k context
+- **`deepseek`**: DeepSeek Chat API (via `DeepSeekProvider`) - 95% cheaper than OpenAI
+- **`grok`**: Grok API (via `GrokProvider`) - real-time information access
 
 ## Configuration Methods
 
@@ -72,6 +85,32 @@ podcast-scraper --rss https://example.com/feed.xml \
   --speaker-detector-provider openai \
   --summary-provider openai \
   --openai-api-key sk-your-key-here
+
+# Use Gemini for transcription
+
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider gemini \
+  --gemini-api-key your-key-here
+
+# Use Gemini for speaker detection
+
+podcast-scraper --rss https://example.com/feed.xml \
+  --speaker-detector-provider gemini \
+  --gemini-api-key your-key-here
+
+# Use Gemini for summarization
+
+podcast-scraper --rss https://example.com/feed.xml \
+  --summary-provider gemini \
+  --gemini-api-key your-key-here
+
+# All Gemini providers
+
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider gemini \
+  --speaker-detector-provider gemini \
+  --summary-provider gemini \
+  --gemini-api-key your-key-here
 ```
 
 **OpenAI API Key Options:**
@@ -89,6 +128,64 @@ podcast-scraper --rss https://example.com/feed.xml \
   --openai-api-key sk-test123
 ```
 
+**Gemini API Key Options:**
+
+- Set via `--gemini-api-key` flag
+- Set via `GEMINI_API_KEY` environment variable
+- Set via `.env` file in project root
+
+**Custom Gemini Base URL (for E2E testing):**
+
+```bash
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider gemini \
+  --gemini-api-base http://localhost:8000/v1beta \
+  --gemini-api-key test123
+```
+
+**Ollama Setup (No API Key Required):**
+
+Ollama is a local, self-hosted solution. No API key needed, but requires setup:
+
+```bash
+# 1. Install Ollama
+brew install ollama  # macOS
+# Or download from https://ollama.ai
+
+# 2. Start Ollama server (keep running)
+ollama serve
+
+# 3. Pull required models
+ollama pull llama3.3:latest  # Production
+ollama pull llama3.2:latest  # Testing (faster)
+
+# 4. Verify setup
+ollama list  # Should show your models
+```
+
+**Ollama Configuration Options:**
+
+- Set via `--ollama-api-base` flag (default: `http://localhost:11434/v1`)
+- Set via `OLLAMA_API_BASE` environment variable
+- Set via `.env` file in project root
+- No API key required (local service)
+
+**Custom Ollama Base URL (for remote Ollama server):**
+
+```bash
+podcast-scraper --rss https://example.com/feed.xml \
+  --speaker-detector-provider ollama \
+  --ollama-api-base http://192.168.1.100:11434/v1
+```
+
+**Troubleshooting Ollama:**
+
+- If `ollama list` hangs: Server not running - start with `ollama serve`
+- If "model not available": Pull model with `ollama pull <model-name>`
+- If connection refused: Check server is running: `curl http://localhost:11434/api/tags`
+
+See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) for detailed troubleshooting.
+
 ## 2. Configuration File (YAML/JSON)
 
 Create a config file (e.g., `config.yaml`) with provider settings:
@@ -102,14 +199,25 @@ output_dir: ./transcripts
 
 # Provider configuration
 
-transcription_provider: whisper  # or "openai"
-speaker_detector_provider: spacy  # or "openai"
-summary_provider: transformers  # or "openai"
+transcription_provider: whisper  # or "openai", "gemini", "mistral"
+speaker_detector_provider: spacy  # or "openai", "gemini", "mistral"
+summary_provider: transformers  # or "openai", "gemini", "mistral"
 
 # OpenAI configuration (required if using OpenAI providers)
 
 openai_api_key: sk-your-key-here  # Optional: can use OPENAI_API_KEY env var instead
 openai_api_base: null  # Optional: custom base URL (e.g., "http://localhost:8000/v1" for E2E testing)
+
+# Gemini configuration (required if using Gemini providers)
+
+gemini_api_key: your-key-here  # Optional: can use GEMINI_API_KEY env var instead
+gemini_api_base: null  # Optional: custom base URL (e.g., "http://localhost:8000/v1beta" for E2E testing)
+
+# Mistral configuration (required if using Mistral providers)
+# Mistral is a full-stack provider (transcription + speaker detection + summarization) with EU data residency
+
+mistral_api_key: your-key-here  # Optional: can use MISTRAL_API_KEY env var instead
+mistral_api_base: null  # Optional: custom base URL (e.g., "http://localhost:8000/v1" for E2E testing)
 
 # Transcription settings (for whisper provider)
 
@@ -139,6 +247,7 @@ mps_exclusive: true  # Serialize GPU work on MPS to prevent memory contention (d
   "speaker_detector_provider": "spacy",
   "summary_provider": "transformers",
   "openai_api_key": "sk-your-key-here",
+  "gemini_api_key": "your-key-here",
   "transcribe_missing": true,
   "whisper_model": "base",
   "auto_speakers": true,
@@ -203,6 +312,31 @@ cfg = Config(
     generate_summaries=True,
 )
 
+# Gemini transcription
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    transcription_provider="gemini",
+    gemini_api_key="your-key-here",  # or set GEMINI_API_KEY env var
+)
+
+# Gemini speaker detection
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    speaker_detector_provider="gemini",
+    gemini_api_key="your-key-here",
+)
+
+# Gemini summarization
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    summary_provider="gemini",
+    gemini_api_key="your-key-here",
+    generate_summaries=True,
+)
+
 # Mixed configuration
 
 cfg = Config(
@@ -221,6 +355,19 @@ cfg = Config(
     speaker_detector_provider="openai",
     summary_provider="openai",
     openai_api_key="sk-your-key-here",
+    transcribe_missing=True,
+    auto_speakers=True,
+    generate_summaries=True,
+)
+
+# All Gemini providers
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    transcription_provider="gemini",
+    speaker_detector_provider="gemini",
+    summary_provider="gemini",
+    gemini_api_key="your-key-here",
     transcribe_missing=True,
     auto_speakers=True,
     generate_summaries=True,
@@ -300,10 +447,36 @@ export OPENAI_API_KEY=sk-your-key-here
 
 export OPENAI_API_BASE=http://localhost:8000/v1
 
+# Gemini API key
+
+export GEMINI_API_KEY=your-key-here
+
+# Gemini API base URL (for E2E testing)
+
+export GEMINI_API_BASE=http://localhost:8000/v1beta
+
+# Mistral API key
+
+export MISTRAL_API_KEY=your-key-here
+
+# Mistral API base URL (for E2E testing)
+
+export MISTRAL_API_BASE=http://localhost:8000/v1
+
 # Then use in CLI or config
 
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider openai
+
+# Or with Gemini
+
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider gemini
+
+# Or with Mistral
+
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider mistral
 ```
 
 ## Common Configuration Patterns
@@ -333,7 +506,35 @@ openai_api_key: sk-your-key-here
 - API costs per request
 - Requires internet connection
 
-### Pattern 3: Hybrid (Local + OpenAI)
+### Pattern 2b: All Gemini
+
+```yaml
+transcription_provider: gemini
+speaker_detector_provider: gemini
+summary_provider: gemini
+gemini_api_key: your-key-here
+```
+
+### Pattern 2c: All Mistral
+
+```yaml
+transcription_provider: mistral
+speaker_detector_provider: mistral
+summary_provider: mistral
+mistral_api_key: your-key-here
+```
+
+- Full-stack provider (all three capabilities)
+- EU data residency (compliance-friendly)
+- Competitive pricing
+- Requires internet connection
+
+- No local ML models needed
+- API costs per request
+- Requires internet connection
+- Alternative to OpenAI
+
+### Pattern 3: Hybrid (Local + API)
 
 ```yaml
 transcription_provider: whisper      # Local (fast, free)
@@ -345,7 +546,35 @@ openai_api_key: sk-your-key-here
 - Balance between cost and performance
 - Use local for heavy operations, API for accuracy
 
-### Pattern 4: Transcription Only
+### Pattern 4: All Ollama (Local Self-Hosted)
+
+```yaml
+speaker_detector_provider: ollama
+summary_provider: ollama
+ollama_api_base: http://localhost:11434/v1  # Default, can be omitted
+ollama_speaker_model: llama3.3:latest
+ollama_summary_model: llama3.3:latest
+```
+
+- Zero API costs (all processing on local hardware)
+- Complete privacy (data never leaves your machine)
+- Works offline/air-gapped
+- Requires Ollama installed and models pulled
+- Note: Ollama does NOT support transcription (use `whisper` or `openai`)
+
+**Prerequisites:**
+
+1. Install Ollama: `brew install ollama` (macOS) or [download](https://ollama.ai)
+2. Start server: `ollama serve` (keep running)
+3. Pull models:
+   - Limited RAM (6-8GB): `ollama pull llama3.1:8b`
+   - Standard (8-12GB): `ollama pull llama3.2:latest`
+   - Production (12-16GB): `ollama pull llama3.3:latest` (fits under 16GB)
+4. Verify: `ollama list` should show your models
+
+See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) for detailed installation and troubleshooting.
+
+### Pattern 5: Transcription Only
 
 ```yaml
 transcription_provider: whisper
@@ -367,7 +596,7 @@ Invalid provider types will raise `ValueError`:
 
 cfg = Config(
     rss_url="https://example.com/feed.xml",
-    transcription_provider="invalid",  # Not "whisper" or "openai"
+    transcription_provider="invalid",  # Not "whisper", "openai", or "gemini"
 )
 
 # ✅ Valid
@@ -378,7 +607,7 @@ cfg = Config(
 )
 ```
 
-Missing OpenAI API key when using OpenAI providers will raise `ValueError`:
+Missing API key when using API providers will raise `ValueError`:
 
 ```python
 
@@ -396,6 +625,22 @@ cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="openai",
     openai_api_key="sk-your-key-here",  # Required
+)
+
+# ❌ Invalid - will raise ValueError
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    transcription_provider="gemini",
+    # Missing gemini_api_key
+)
+
+# ✅ Valid
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    transcription_provider="gemini",
+    gemini_api_key="your-key-here",  # Required
 )
 ```
 
@@ -416,6 +661,15 @@ podcast-scraper --rss https://example.com/feed.xml \
 export OPENAI_API_KEY=sk-your-key-here
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider openai \
+  --transcribe-missing
+```
+
+### Example 2b: Gemini Transcription Only
+
+```bash
+export GEMINI_API_KEY=your-key-here
+podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider gemini \
   --transcribe-missing
 ```
 

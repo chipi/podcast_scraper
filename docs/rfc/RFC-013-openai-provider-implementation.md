@@ -1609,7 +1609,7 @@ environment:
 **Troubleshooting:**
 - Check key starts with `sk-`
 - Verify key hasn't been revoked: https://platform.openai.com/api-keys
-- Test with: `python -c "import os; print(os.getenv('OPENAI_API_KEY')[:10])"`
+- Test with: `python -c "import os; key = os.getenv('OPENAI_API_KEY'); print('API key is set' if key else 'API key not set')"`
 
 ## OPENAI_ORGANIZATION (Optional)
 

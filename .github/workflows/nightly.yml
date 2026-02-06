@@ -90,7 +90,7 @@ jobs:
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml]
+        pip install -e .[dev,ml,gemini]
 
     - name: Validate ML model cache
       id: validate-cache
@@ -117,10 +117,9 @@ jobs:
         echo ""
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
-        # Only check models that are actually preloaded by preload-ml-models-production:
-        # - facebook/bart-base (test model)
-        # - allenai/led-base-16384 (test + production REDUCE model)
-        # - google/pegasus-cnn_dailymail (production MAP model)
+        # Test models: facebook/bart-base, allenai/led-base-16384
+        # Production models: google/pegasus-cnn_dailymail (MAP), allenai/led-base-16384 (REDUCE)
+        # Note: allenai/led-base-16384 is used for both test and production (reduce phase)
         for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
@@ -160,10 +159,9 @@ jobs:
         done
 
         HF_CACHE="$HOME/.cache/huggingface/hub"
-        # Only check models that are actually preloaded by preload-ml-models-production:
-        # - facebook/bart-base (test model)
-        # - allenai/led-base-16384 (test + production REDUCE model)
-        # - google/pegasus-cnn_dailymail (production MAP model)
+        # Test models: facebook/bart-base, allenai/led-base-16384
+        # Production models: google/pegasus-cnn_dailymail (MAP), allenai/led-base-16384 (REDUCE)
+        # Note: allenai/led-base-16384 is used for both test and production (reduce phase)
         for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           if [ ! -d "$HF_CACHE/$MODEL_DIR/snapshots" ]; then
@@ -431,7 +429,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml]
+        pip install -e .[dev,ml,gemini]
         pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
@@ -518,7 +516,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml]
+        pip install -e .[dev,ml,gemini]
         pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
@@ -610,7 +608,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml]
+        pip install -e .[dev,ml,gemini]
         pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg

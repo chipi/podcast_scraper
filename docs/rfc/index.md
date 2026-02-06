@@ -30,7 +30,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-033](RFC-033-mistral-provider-implementation.md) | Mistral Provider Implementation | PRD-010 | Technical design for Mistral AI providers (all 3 capabilities) |
 | [RFC-034](RFC-034-deepseek-provider-implementation.md) | DeepSeek Provider Implementation | PRD-011 | Technical design for DeepSeek AI (ultra low-cost) |
 | [RFC-035](RFC-035-gemini-provider-implementation.md) | Gemini Provider Implementation | PRD-012 | Technical design for Google Gemini (2M context) |
-| [RFC-036](RFC-036-groq-provider-implementation.md) | Groq Provider Implementation | PRD-013 | Technical design for Groq (ultra-fast) |
+| [RFC-036](RFC-036-grok-provider-implementation.md) | Grok Provider Implementation (xAI) | PRD-013 | Technical design for Grok (xAI's AI model) |
 | [RFC-037](RFC-037-ollama-provider-implementation.md) | Ollama Provider Implementation | PRD-014 | Technical design for Ollama (local/offline) |
 | [RFC-038](RFC-038-continuous-review-tooling.md) | Continuous Review Tooling | #45 | Dependabot, pydeps, pre-release checklist |
 | [RFC-040](RFC-040-audio-preprocessing-pipeline.md) | Audio Preprocessing Pipeline | - | Optional audio preprocessing (VAD, normalization) before transcription |
@@ -45,6 +45,9 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-049](RFC-049-podcast-knowledge-graph-core.md) | Podcast Knowledge Graph – Core Concepts & Data Model | PRD-017 | Core ontology, storage format, and data contracts for Knowledge Graph |
 | [RFC-050](RFC-050-podcast-knowledge-graph-use-cases.md) | Podcast Knowledge Graph – Use Cases & Consumption | PRD-017 | Use cases, query patterns, and integration with existing outputs |
 || [RFC-051](RFC-051-database-export-knowledge-graph.md) | Podcast Knowledge Graph – Episode & KG Data Store Projection | PRD-018 | Database export design for fast queries and notebook workflows |
+|| [RFC-052](RFC-052-locally-hosted-llm-models-with-prompts.md) | Locally Hosted LLM Models with Prompts | PRD-014 | Architecture for locally hosted LLM models with optimized prompts to solve cost and latency |
+|| [RFC-053](RFC-053-adaptive-summarization-routing.md) | Adaptive Summarization Routing Based on Episode Profiling | PRD-005 | Episode profiling and routing system for optimal summarization strategies per episode type |
+| [RFC-054](RFC-054-e2e-mock-response-strategy.md) | Flexible E2E Mock Response Strategy | #135, #399, #401 | Flexible strategy for E2E mock responses supporting normal and advanced error handling scenarios |
 
 ## Completed RFCs
 

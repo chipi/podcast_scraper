@@ -266,8 +266,13 @@ class TestSetupOutputDirectory(unittest.TestCase):
         # No ML features in this test, so no full_config_string
         self.assertIsNone(full_config_string)
 
-    def test_with_duplicate_directory_counter(self):
+    @patch("podcast_scraper.utils.filesystem.time.strftime")
+    def test_with_duplicate_directory_counter(self, mock_strftime):
         """Test that duplicate directories get a counter appended."""
+        # Mock time.strftime to return the same timestamp for all calls
+        # This ensures the base directory name is the same, triggering counter logic
+        mock_strftime.return_value = "20260204-084518"
+
         cfg = podcast_scraper.Config(
             rss_url=TEST_FEED_URL,
             output_dir=self.temp_dir,

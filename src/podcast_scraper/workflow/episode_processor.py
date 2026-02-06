@@ -459,7 +459,7 @@ def transcribe_media_to_text(
         )
         # Update episode status: transcribed (reused existing) (Issue #391)
         if pipeline_metrics is not None and hasattr(job, "episode"):
-            from ..workflow.helpers import get_episode_id_from_episode
+            from podcast_scraper.workflow.helpers import get_episode_id_from_episode
 
             episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
             pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
@@ -681,30 +681,22 @@ def transcribe_media_to_text(
         # Provider is agnostic to whether audio was preprocessed
         episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
         # Apply timeout enforcement for transcription (Issue #379)
+        # Create call metrics for tracking per-episode provider metrics
+        from ..utils.provider_metrics import ProviderCallMetrics
         from ..utils.timeout import timeout_context, TimeoutError
+
+        call_metrics = ProviderCallMetrics()
 
         try:
             with timeout_context(cfg.transcription_timeout, f"transcription for episode {job.idx}"):
-                if hasattr(transcription_provider, "transcribe_with_segments"):
-                    # Check if provider supports metrics parameter (OpenAI provider)
-                    import inspect
-
-                    sig = inspect.signature(transcription_provider.transcribe_with_segments)
-                    if "pipeline_metrics" in sig.parameters:
-                        result, tc_elapsed = transcription_provider.transcribe_with_segments(
-                            media_for_transcription,
-                            language=cfg.language,
-                            pipeline_metrics=pipeline_metrics,
-                            episode_duration_seconds=episode_duration_seconds,
-                        )
-                    else:
-                        result, tc_elapsed = transcription_provider.transcribe_with_segments(
-                            media_for_transcription, language=cfg.language
-                        )
-                else:
-                    result, tc_elapsed = transcription_provider.transcribe_with_segments(
-                        media_for_transcription, language=cfg.language
-                    )
+                # All providers must support call_metrics (no backward compatibility)
+                result, tc_elapsed = transcription_provider.transcribe_with_segments(
+                    media_for_transcription,
+                    language=cfg.language,
+                    pipeline_metrics=pipeline_metrics,
+                    episode_duration_seconds=episode_duration_seconds,
+                    call_metrics=call_metrics,
+                )
         except TimeoutError as e:
             logger.error(
                 f"[{job.idx}] Transcription timeout after {cfg.transcription_timeout}s: {e}"
@@ -723,10 +715,36 @@ def transcribe_media_to_text(
             pipeline_metrics.record_transcribe_time(tc_elapsed)
             # Update episode status: transcribed (Issue #391)
             if hasattr(job, "episode"):
-                from ..workflow.helpers import get_episode_id_from_episode
+                from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+                from podcast_scraper.workflow.orchestration import _log_episode_metrics
 
-                episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+                episode_id, episode_number = get_episode_id_from_episode(
+                    job.episode, cfg.rss_url or ""
+                )
                 pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
+
+                # Log standardized per-episode metrics after transcription
+                episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
+                # Handle Mock objects from tests by checking type
+                audio_sec = (
+                    float(episode_duration_seconds)
+                    if episode_duration_seconds
+                    and isinstance(episode_duration_seconds, (int, float))
+                    else None
+                )
+                _log_episode_metrics(
+                    episode_id=episode_id,
+                    episode_number=episode_number,
+                    pipeline_metrics=pipeline_metrics,
+                    cfg=cfg,
+                    audio_sec=audio_sec,
+                    transcribe_sec=tc_elapsed,
+                    retries=call_metrics.retries,
+                    rate_limit_sleep_sec=call_metrics.rate_limit_sleep_sec,
+                    prompt_tokens=call_metrics.prompt_tokens,
+                    completion_tokens=call_metrics.completion_tokens,
+                    estimated_cost=call_metrics.estimated_cost,
+                )
 
         return True, rel_path, bytes_downloaded
     except (ValueError, ProviderRuntimeError) as exc:

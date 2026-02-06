@@ -359,6 +359,10 @@ def prepare_episode_download_args(
     download_args = []
     for episode in episodes:
         detected_speaker_names = None
+        # Initialize skip flags at the start of each episode to avoid UnboundLocalError
+        skip_speaker_detection_due_to_size = False
+        skip_episode_due_to_size = False
+
         # Detect guests for all episodes when auto_speakers is enabled
         # (not just when transcribing, so we can log guests even for transcript downloads)
         # Note: Guest detection works in dry-run mode (no media download/transcription needed)
@@ -366,13 +370,12 @@ def prepare_episode_download_args(
             # Always log episode info
             logger.info("Episode %d: %s", episode.idx, episode.title)
 
-            # Check file size before speaker detection if using OpenAI transcription
-            # to avoid wasting API calls on episodes that will be skipped
-            skip_speaker_detection_due_to_size = False
+            # Check file size before speaker detection if using API transcription providers
+            # (OpenAI, Gemini) to avoid wasting API calls on episodes that will be skipped
             if (
                 not cfg.dry_run
                 and cfg.transcribe_missing
-                and cfg.transcription_provider == "openai"
+                and cfg.transcription_provider in ("openai", "gemini")
                 and episode.media_url
             ):
                 # Check file size using HTTP HEAD request
@@ -384,18 +387,40 @@ def prepare_episode_download_args(
                             file_size_bytes = int(content_length)
                             file_size_mb = file_size_bytes / BYTES_PER_MB
                             if file_size_bytes > OPENAI_MAX_FILE_SIZE_BYTES:
-                                logger.info(
-                                    "[%d] Skipping speaker detection: Audio file size (%.1f MB) "
-                                    "exceeds OpenAI API limit (25 MB). Episode will be skipped.",
-                                    episode.idx,
-                                    file_size_mb,
+                                provider_name = (
+                                    "OpenAI" if cfg.transcription_provider == "openai" else "Gemini"
                                 )
-                                skip_speaker_detection_due_to_size = True
+                                # Only skip episode entirely if it has no transcript URLs
+                                # (if it has transcript URLs, we can still download the transcript)
+                                if not episode.transcript_urls:
+                                    logger.info(
+                                        "[%d] Skipping episode: Audio file size (%.1f MB) "
+                                        "exceeds %s API limit (25 MB) and no transcript URLs "
+                                        "available.",
+                                        episode.idx,
+                                        file_size_mb,
+                                        provider_name,
+                                    )
+                                    skip_episode_due_to_size = True
+                                else:
+                                    logger.info(
+                                        "[%d] Skipping speaker detection: Audio file size "
+                                        "(%.1f MB) exceeds %s API limit (25 MB), but transcript "
+                                        "URLs available.",
+                                        episode.idx,
+                                        file_size_mb,
+                                        provider_name,
+                                    )
+                                    skip_speaker_detection_due_to_size = True
                             else:
+                                provider_name = (
+                                    "OpenAI" if cfg.transcription_provider == "openai" else "Gemini"
+                                )
                                 logger.debug(
-                                    "[%d] File size check: %.1f MB (within OpenAI limit)",
+                                    "[%d] File size check: %.1f MB (within %s limit)",
                                     episode.idx,
                                     file_size_mb,
+                                    provider_name,
                                 )
                         except (ValueError, TypeError):
                             # Content-Length header is invalid, proceed with speaker detection
@@ -562,6 +587,14 @@ def prepare_episode_download_args(
                 cfg.screenplay_speaker_names[1:] if len(cfg.screenplay_speaker_names) > 1 else []
             )
 
+        # Skip episode entirely if file size exceeds limit and no transcript URLs available
+        if skip_episode_due_to_size:
+            if pipeline_metrics is not None:
+                from ..helpers import update_metric_safely
+
+                update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
+            continue
+
         download_args.append(
             (
                 episode,
@@ -709,7 +742,8 @@ def process_episodes(  # noqa: C901
             except Exception as exc:  # pragma: no cover
                 update_metric_safely(pipeline_metrics, "errors_total", 1)
                 logger.error(
-                    f"[{episode.idx}] episode processing raised an unexpected error: {exc}"
+                    f"[{episode.idx}] episode processing raised an unexpected error: {exc}",
+                    exc_info=True,
                 )
     else:
         # Concurrent processing

@@ -19,22 +19,61 @@ else:
     GenerationParams = None
     TokenizeConfig = None
 
+
 # Load .env file if it exists (RFC-013: OpenAI API key management)
 # Check for .env in project root
 # Use get_project_root() for robust path resolution
-try:
-    from .cache import get_project_root
+# SKIP .env loading in test environments - tests should use Config objects and
+# environment variables directly, never rely on .env files
+def _is_test_environment() -> bool:
+    """Check if we're running in a test environment."""
+    import sys
 
-    env_path = get_project_root() / ".env"
-    if env_path.exists():
-        load_dotenv(env_path, override=False)
-    else:
+    # Check for pytest (most common test runner)
+    if "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ:
+        return True
+    # Check for unittest
+    if "unittest" in sys.modules:
+        return True
+    # Check for explicit test environment variable
+    if os.environ.get("TESTING", "").lower() in ("1", "true", "yes"):
+        return True
+    return False
+
+
+# Only load .env file if NOT in test environment
+# Tests should use Config objects with explicit values or environment variables
+if not _is_test_environment():
+    try:
+        from .cache import get_project_root
+
+        env_path = get_project_root() / ".env"
+        if env_path.exists():
+            try:
+                load_dotenv(env_path, override=False)
+            except (PermissionError, OSError):
+                # Handle permission errors gracefully
+                # Fallback to current working directory
+                try:
+                    load_dotenv(override=False)
+                except (PermissionError, OSError):
+                    # If both fail, continue without .env file
+                    pass
+        else:
+            # Also check current working directory (for flexibility)
+            try:
+                load_dotenv(override=False)
+            except (PermissionError, OSError):
+                # If loading fails, continue without .env file
+                pass
+    except ImportError:
+        # Fallback if cache module not available (shouldn't happen in normal usage)
         # Also check current working directory (for flexibility)
-        load_dotenv(override=False)
-except ImportError:
-    # Fallback if cache module not available (shouldn't happen in normal usage)
-    # Also check current working directory (for flexibility)
-    load_dotenv(override=False)
+        try:
+            load_dotenv(override=False)
+        except (PermissionError, OSError):
+            # If loading fails, continue without .env file
+            pass
 
 # Import constants from config_constants.py to avoid duplication
 # These are re-exported here for backward compatibility
@@ -91,26 +130,6 @@ DEFAULT_SUMMARY_WORD_CHUNK_SIZE = config_constants.DEFAULT_SUMMARY_WORD_CHUNK_SI
 DEFAULT_SUMMARY_WORD_OVERLAP = config_constants.DEFAULT_SUMMARY_WORD_OVERLAP
 
 
-def _is_test_environment() -> bool:
-    """Check if we're running in a test environment.
-
-    Returns:
-        True if running in pytest or other test framework, False otherwise
-    """
-    # Check for pytest environment variable
-    if os.environ.get("PYTEST_CURRENT_TEST") is not None:
-        return True
-    # Check for unittest environment
-    if "unittest" in os.environ.get("_", ""):
-        return True
-    # Check if pytest is in sys.modules (already imported)
-    import sys
-
-    if "pytest" in sys.modules:
-        return True
-    return False
-
-
 def _get_default_openai_transcription_model() -> str:
     """Get default OpenAI transcription model based on environment.
 
@@ -142,6 +161,174 @@ def _get_default_openai_summary_model() -> str:
     if _is_test_environment():
         return TEST_DEFAULT_OPENAI_SUMMARY_MODEL
     return PROD_DEFAULT_OPENAI_SUMMARY_MODEL
+
+
+def _get_default_gemini_transcription_model() -> str:
+    """Get default Gemini transcription model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_GEMINI_TRANSCRIPTION_MODEL
+    return config_constants.PROD_DEFAULT_GEMINI_TRANSCRIPTION_MODEL
+
+
+def _get_default_gemini_speaker_model() -> str:
+    """Get default Gemini speaker detection model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_GEMINI_SPEAKER_MODEL
+    return config_constants.PROD_DEFAULT_GEMINI_SPEAKER_MODEL
+
+
+def _get_default_gemini_summary_model() -> str:
+    """Get default Gemini summarization model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_GEMINI_SUMMARY_MODEL
+    return config_constants.PROD_DEFAULT_GEMINI_SUMMARY_MODEL
+
+
+def _get_default_anthropic_transcription_model() -> str:
+    """Get default Anthropic transcription model based on environment.
+
+    Note: Anthropic doesn't support native audio transcription.
+    This is a placeholder for API compatibility.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL
+    return config_constants.PROD_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL
+
+
+def _get_default_anthropic_speaker_model() -> str:
+    """Get default Anthropic speaker detection model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_ANTHROPIC_SPEAKER_MODEL
+    return config_constants.PROD_DEFAULT_ANTHROPIC_SPEAKER_MODEL
+
+
+def _get_default_anthropic_summary_model() -> str:
+    """Get default Anthropic summarization model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_ANTHROPIC_SUMMARY_MODEL
+    return config_constants.PROD_DEFAULT_ANTHROPIC_SUMMARY_MODEL
+
+
+def _get_default_deepseek_speaker_model() -> str:
+    """Get default DeepSeek speaker detection model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_DEEPSEEK_SPEAKER_MODEL
+    return config_constants.PROD_DEFAULT_DEEPSEEK_SPEAKER_MODEL
+
+
+def _get_default_deepseek_summary_model() -> str:
+    """Get default DeepSeek summarization model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_DEEPSEEK_SUMMARY_MODEL
+    return config_constants.PROD_DEFAULT_DEEPSEEK_SUMMARY_MODEL
+
+
+def _get_default_grok_speaker_model() -> str:
+    """Get default Grok speaker detection model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_GROK_SPEAKER_MODEL
+    return config_constants.PROD_DEFAULT_GROK_SPEAKER_MODEL
+
+
+def _get_default_grok_summary_model() -> str:
+    """Get default Grok summarization model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_GROK_SUMMARY_MODEL
+    return config_constants.PROD_DEFAULT_GROK_SUMMARY_MODEL
+
+
+def _get_default_ollama_speaker_model() -> str:
+    """Get default Ollama speaker detection model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_OLLAMA_SPEAKER_MODEL
+    return config_constants.PROD_DEFAULT_OLLAMA_SPEAKER_MODEL
+
+
+def _get_default_ollama_summary_model() -> str:
+    """Get default Ollama summarization model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_OLLAMA_SUMMARY_MODEL
+    return config_constants.PROD_DEFAULT_OLLAMA_SUMMARY_MODEL
+
+
+def _get_default_mistral_transcription_model() -> str:
+    """Get default Mistral transcription model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_MISTRAL_TRANSCRIPTION_MODEL
+    return config_constants.PROD_DEFAULT_MISTRAL_TRANSCRIPTION_MODEL
+
+
+def _get_default_mistral_speaker_model() -> str:
+    """Get default Mistral speaker detection model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_MISTRAL_SPEAKER_MODEL
+    return config_constants.PROD_DEFAULT_MISTRAL_SPEAKER_MODEL
+
+
+def _get_default_mistral_summary_model() -> str:
+    """Get default Mistral summarization model based on environment.
+
+    Returns:
+        Test default if in test environment, production default otherwise.
+    """
+    if _is_test_environment():
+        return config_constants.TEST_DEFAULT_MISTRAL_SUMMARY_MODEL
+    return config_constants.PROD_DEFAULT_MISTRAL_SUMMARY_MODEL
 
 
 def _get_default_ner_model() -> str:
@@ -405,12 +592,14 @@ class Config(BaseModel):
         ),
     )
     # Provider selection fields (Stage 0: Foundation)
-    speaker_detector_provider: Literal["spacy", "openai"] = Field(
+    speaker_detector_provider: Literal[
+        "spacy", "openai", "gemini", "mistral", "grok", "deepseek", "anthropic", "ollama"
+    ] = Field(
         default="spacy",
         alias="speaker_detector_provider",
         description="Speaker detection provider type (default: 'spacy' for spaCy NER).",
     )
-    transcription_provider: Literal["whisper", "openai"] = Field(
+    transcription_provider: Literal["whisper", "openai", "gemini", "mistral"] = Field(
         default="whisper",
         alias="transcription_provider",
         description="Transcription provider type (default: 'whisper' for local Whisper)",
@@ -420,7 +609,10 @@ class Config(BaseModel):
         alias="transcription_parallelism",
         description=(
             "Episode-level parallelism: Number of episodes to transcribe in parallel "
-            "(default: 1 for sequential. Whisper ignores >1, OpenAI uses for parallel API calls)"
+            "(default: 1 for sequential). "
+            "For Whisper provider: Values > 1 are EXPERIMENTAL and not production-ready. "
+            "May cause memory/GPU contention. Use with caution. "
+            "For API providers (OpenAI, etc.): Uses parallelism for parallel API calls."
         ),
     )
     transcription_device: Optional[str] = Field(
@@ -514,6 +706,390 @@ class Config(BaseModel):
         alias="ner_prompt_params",
         description="Template parameters for NER prompts (passed to Jinja2 templates).",
     )
+    # Gemini API configuration (Issue #194)
+    gemini_api_key: Optional[str] = Field(
+        default=None,
+        alias="gemini_api_key",
+        description="Google AI API key (prefer GEMINI_API_KEY env var or .env file)",
+    )
+    gemini_api_base: Optional[str] = Field(
+        default=None,
+        alias="gemini_api_base",
+        description="Gemini API base URL (for E2E testing with mock servers). "
+        "Can be set via GEMINI_API_BASE environment variable.",
+    )
+    gemini_transcription_model: str = Field(
+        default_factory=_get_default_gemini_transcription_model,
+        alias="gemini_transcription_model",
+        description="Gemini model for transcription (default: environment-based)",
+    )
+    gemini_speaker_model: str = Field(
+        default_factory=_get_default_gemini_speaker_model,
+        alias="gemini_speaker_model",
+        description="Gemini model for speaker detection (default: environment-based)",
+    )
+    gemini_summary_model: str = Field(
+        default_factory=_get_default_gemini_summary_model,
+        alias="gemini_summary_model",
+        description="Gemini model for summarization (default: environment-based)",
+    )
+    gemini_temperature: float = Field(
+        default=0.3,
+        alias="gemini_temperature",
+        description="Temperature for Gemini generation (0.0-2.0, lower = more deterministic)",
+    )
+    gemini_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="gemini_max_tokens",
+        description="Max tokens for Gemini generation (None = model default)",
+    )
+    # Gemini Prompt Configuration (following OpenAI pattern)
+    gemini_summary_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="gemini_summary_system_prompt",
+        description=(
+            "Gemini system prompt for summarization (default: gemini/summarization/system_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    gemini_summary_user_prompt: str = Field(
+        default="gemini/summarization/long_v1",
+        alias="gemini_summary_user_prompt",
+        description="Gemini user prompt for summarization. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    gemini_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="gemini_speaker_system_prompt",
+        description=(
+            "Gemini system prompt for speaker detection (default: gemini/ner/system_ner_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    gemini_speaker_user_prompt: str = Field(
+        default="gemini/ner/guest_host_v1",
+        alias="gemini_speaker_user_prompt",
+        description="Gemini user prompt for speaker detection. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    # Anthropic API configuration (Issue #106)
+    anthropic_api_key: Optional[str] = Field(
+        default=None,
+        alias="anthropic_api_key",
+        description="Anthropic API key (prefer ANTHROPIC_API_KEY env var or .env file)",
+    )
+    anthropic_api_base: Optional[str] = Field(
+        default=None,
+        alias="anthropic_api_base",
+        description="Anthropic API base URL (for E2E testing with mock servers). "
+        "Can be set via ANTHROPIC_API_BASE environment variable.",
+    )
+    anthropic_transcription_model: str = Field(
+        default_factory=_get_default_anthropic_transcription_model,
+        alias="anthropic_transcription_model",
+        description="Anthropic model for transcription (default: environment-based). "
+        "Note: Anthropic doesn't support native audio transcription.",
+    )
+    anthropic_speaker_model: str = Field(
+        default_factory=_get_default_anthropic_speaker_model,
+        alias="anthropic_speaker_model",
+        description="Anthropic model for speaker detection (default: environment-based)",
+    )
+    anthropic_summary_model: str = Field(
+        default_factory=_get_default_anthropic_summary_model,
+        alias="anthropic_summary_model",
+        description="Anthropic model for summarization (default: environment-based)",
+    )
+    anthropic_temperature: float = Field(
+        default=0.3,
+        alias="anthropic_temperature",
+        description="Temperature for Anthropic generation (0.0-1.0, lower = more deterministic)",
+    )
+    anthropic_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="anthropic_max_tokens",
+        description="Max tokens for Anthropic generation (None = model default)",
+    )
+    # Anthropic Prompt Configuration (following OpenAI/Gemini pattern)
+    anthropic_summary_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="anthropic_summary_system_prompt",
+        description=(
+            "Anthropic system prompt for summarization "
+            "(default: anthropic/summarization/system_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    anthropic_summary_user_prompt: str = Field(
+        default="anthropic/summarization/long_v1",
+        alias="anthropic_summary_user_prompt",
+        description="Anthropic user prompt for summarization. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    anthropic_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="anthropic_speaker_system_prompt",
+        description=(
+            "Anthropic system prompt for speaker detection (default: anthropic/ner/system_ner_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    anthropic_speaker_user_prompt: str = Field(
+        default="anthropic/ner/guest_host_v1",
+        alias="anthropic_speaker_user_prompt",
+        description="Anthropic user prompt for speaker detection. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    # Ollama API configuration (Issue #196)
+    ollama_api_base: Optional[str] = Field(
+        default=None,
+        alias="ollama_api_base",
+        description="Ollama API base URL (default: http://localhost:11434/v1, for E2E testing). "
+        "Can be set via OLLAMA_API_BASE environment variable.",
+    )
+    ollama_speaker_model: str = Field(
+        default_factory=_get_default_ollama_speaker_model,
+        alias="ollama_speaker_model",
+        description="Ollama model for speaker detection (default: environment-based)",
+    )
+    ollama_summary_model: str = Field(
+        default_factory=_get_default_ollama_summary_model,
+        alias="ollama_summary_model",
+        description="Ollama model for summarization (default: environment-based)",
+    )
+    ollama_temperature: float = Field(
+        default=0.3,
+        alias="ollama_temperature",
+        description="Temperature for Ollama generation (0.0-2.0, lower = more deterministic)",
+    )
+    ollama_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="ollama_max_tokens",
+        description="Max tokens for Ollama generation (None = model default)",
+    )
+    ollama_timeout: int = Field(
+        default=120,
+        alias="ollama_timeout",
+        description="Timeout in seconds for Ollama API calls (local inference can be slow)",
+    )
+    # Ollama Prompt Configuration (following OpenAI pattern)
+    ollama_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="ollama_speaker_system_prompt",
+        description=(
+            "Ollama system prompt for speaker detection (default: ollama/ner/system_ner_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    ollama_speaker_user_prompt: str = Field(
+        default="ollama/ner/guest_host_v1",
+        alias="ollama_speaker_user_prompt",
+        description="Ollama user prompt for speaker detection. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    ollama_summary_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="ollama_summary_system_prompt",
+        description=(
+            "Ollama system prompt for summarization (default: ollama/summarization/system_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    ollama_summary_user_prompt: str = Field(
+        default="ollama/summarization/long_v1",
+        alias="ollama_summary_user_prompt",
+        description="Ollama user prompt for summarization. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    # DeepSeek API configuration (Issue #107)
+    deepseek_api_key: Optional[str] = Field(
+        default=None,
+        alias="deepseek_api_key",
+        description="DeepSeek API key (prefer DEEPSEEK_API_KEY env var or .env file)",
+    )
+    deepseek_api_base: Optional[str] = Field(
+        default=None,
+        alias="deepseek_api_base",
+        description="DeepSeek API base URL (default: https://api.deepseek.com, for E2E testing). "
+        "Can be set via DEEPSEEK_API_BASE environment variable.",
+    )
+    deepseek_speaker_model: str = Field(
+        default_factory=_get_default_deepseek_speaker_model,
+        alias="deepseek_speaker_model",
+        description="DeepSeek model for speaker detection (default: environment-based)",
+    )
+    deepseek_summary_model: str = Field(
+        default_factory=_get_default_deepseek_summary_model,
+        alias="deepseek_summary_model",
+        description="DeepSeek model for summarization (default: environment-based)",
+    )
+    deepseek_temperature: float = Field(
+        default=0.3,
+        alias="deepseek_temperature",
+        description="Temperature for DeepSeek generation (0.0-2.0, lower = more deterministic)",
+    )
+    deepseek_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="deepseek_max_tokens",
+        description="Max tokens for DeepSeek generation (None = model default)",
+    )
+    # DeepSeek Prompt Configuration (following OpenAI pattern)
+    deepseek_summary_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="deepseek_summary_system_prompt",
+        description=(
+            "DeepSeek system prompt for summarization (default: deepseek/summarization/system_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    deepseek_summary_user_prompt: str = Field(
+        default="deepseek/summarization/long_v1",
+        alias="deepseek_summary_user_prompt",
+        description="DeepSeek user prompt for summarization. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    deepseek_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="deepseek_speaker_system_prompt",
+        description=(
+            "DeepSeek system prompt for speaker detection (default: deepseek/ner/system_ner_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    deepseek_speaker_user_prompt: str = Field(
+        default="deepseek/ner/guest_host_v1",
+        alias="deepseek_speaker_user_prompt",
+        description="DeepSeek user prompt for speaker detection. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    # Grok API configuration (Issue #1095)
+    grok_api_key: Optional[str] = Field(
+        default=None,
+        alias="grok_api_key",
+        description="Grok API key (prefer GROK_API_KEY env var or .env file)",
+    )
+    grok_api_base: Optional[str] = Field(
+        default=None,
+        alias="grok_api_base",
+        description=(
+            "Grok API base URL (default: https://api.x.ai/v1, for E2E testing with mock servers). "
+            "Can be set via GROK_API_BASE environment variable."
+        ),
+    )
+    grok_speaker_model: str = Field(
+        default_factory=_get_default_grok_speaker_model,
+        alias="grok_speaker_model",
+        description="Grok model for speaker detection (default: environment-based)",
+    )
+    grok_summary_model: str = Field(
+        default_factory=_get_default_grok_summary_model,
+        alias="grok_summary_model",
+        description="Grok model for summarization (default: environment-based)",
+    )
+    grok_temperature: float = Field(
+        default=0.3,
+        alias="grok_temperature",
+        description="Temperature for Grok generation (0.0-2.0, lower = more deterministic)",
+    )
+    grok_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="grok_max_tokens",
+        description="Max tokens for Grok generation (None = model default)",
+    )
+    grok_summary_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="grok_summary_system_prompt",
+        description=(
+            "Grok system prompt for summarization (default: grok/summarization/system_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    grok_summary_user_prompt: str = Field(
+        default="grok/summarization/long_v1",
+        alias="grok_summary_user_prompt",
+        description="Grok user prompt for summarization. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    grok_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="grok_speaker_system_prompt",
+        description=(
+            "Grok system prompt for speaker detection (default: grok/ner/system_ner_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    grok_speaker_user_prompt: str = Field(
+        default="grok/ner/guest_host_v1",
+        alias="grok_speaker_user_prompt",
+        description="Grok user prompt for speaker detection. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    # Mistral API configuration (Issue #106)
+    mistral_api_key: Optional[str] = Field(
+        default=None,
+        alias="mistral_api_key",
+        description="Mistral API key (prefer MISTRAL_API_KEY env var or .env file)",
+    )
+    mistral_api_base: Optional[str] = Field(
+        default=None,
+        alias="mistral_api_base",
+        description="Mistral API base URL (for E2E testing with mock servers). "
+        "Can be set via MISTRAL_API_BASE environment variable.",
+    )
+    mistral_transcription_model: str = Field(
+        default_factory=_get_default_mistral_transcription_model,
+        alias="mistral_transcription_model",
+        description="Mistral Voxtral model for transcription (default: environment-based)",
+    )
+    mistral_speaker_model: str = Field(
+        default_factory=_get_default_mistral_speaker_model,
+        alias="mistral_speaker_model",
+        description="Mistral model for speaker detection (default: environment-based)",
+    )
+    mistral_summary_model: str = Field(
+        default_factory=_get_default_mistral_summary_model,
+        alias="mistral_summary_model",
+        description="Mistral model for summarization (default: environment-based)",
+    )
+    mistral_temperature: float = Field(
+        default=0.3,
+        alias="mistral_temperature",
+        description="Temperature for Mistral generation (0.0-1.0, lower = more deterministic)",
+    )
+    mistral_max_tokens: Optional[int] = Field(
+        default=None,
+        alias="mistral_max_tokens",
+        description="Max tokens for Mistral generation (None = model default)",
+    )
+    # Mistral Prompt Configuration (following OpenAI pattern)
+    mistral_speaker_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="mistral_speaker_system_prompt",
+        description=(
+            "Mistral system prompt for speaker detection (default: mistral/ner/system_ner_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    mistral_speaker_user_prompt: str = Field(
+        default="mistral/ner/guest_host_v1",
+        alias="mistral_speaker_user_prompt",
+        description="Mistral user prompt for speaker detection. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
+    mistral_summary_system_prompt: Optional[str] = Field(
+        default=None,
+        alias="mistral_summary_system_prompt",
+        description=(
+            "Mistral system prompt for summarization (default: mistral/summarization/system_v1). "
+            "Uses prompt_store (RFC-017) for versioned prompts."
+        ),
+    )
+    mistral_summary_user_prompt: str = Field(
+        default="mistral/summarization/long_v1",
+        alias="mistral_summary_user_prompt",
+        description="Mistral user prompt for summarization. "
+        "Uses prompt_store (RFC-017) for versioned prompts.",
+    )
     generate_metadata: bool = Field(default=False, alias="generate_metadata")
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
@@ -526,7 +1102,16 @@ class Config(BaseModel):
         "(same level as transcripts/ and metadata/ subdirectories). "
         "Set to empty string to disable metrics export.",
     )
-    summary_provider: Literal["transformers", "openai"] = Field(
+    summary_provider: Literal[
+        "transformers",
+        "openai",
+        "gemini",
+        "grok",
+        "mistral",
+        "deepseek",
+        "anthropic",
+        "ollama",
+    ] = Field(
         default="transformers",
         alias="summary_provider",
         description=(
@@ -992,6 +1577,86 @@ class Config(BaseModel):
                 if env_value:
                     data["openai_api_base"] = env_value
 
+        # GEMINI_API_KEY: Only set from env if not in config
+        if "gemini_api_key" not in data or data.get("gemini_api_key") is None:
+            env_key = os.getenv("GEMINI_API_KEY")
+            if env_key:
+                env_value = str(env_key).strip()
+                if env_value:
+                    data["gemini_api_key"] = env_value
+
+        # GEMINI_API_BASE: Only set from env if not in config
+        if "gemini_api_base" not in data or data.get("gemini_api_base") is None:
+            env_base = os.getenv("GEMINI_API_BASE")
+            if env_base:
+                env_value = str(env_base).strip()
+                if env_value:
+                    data["gemini_api_base"] = env_value
+
+        # ANTHROPIC_API_KEY: Only set from env if not in config
+        if "anthropic_api_key" not in data or data.get("anthropic_api_key") is None:
+            env_key = os.getenv("ANTHROPIC_API_KEY")
+            if env_key:
+                env_value = str(env_key).strip()
+                if env_value:
+                    data["anthropic_api_key"] = env_value
+
+        # ANTHROPIC_API_BASE: Only set from env if not in config
+        if "anthropic_api_base" not in data or data.get("anthropic_api_base") is None:
+            env_base = os.getenv("ANTHROPIC_API_BASE")
+            if env_base:
+                env_value = str(env_base).strip()
+                if env_value:
+                    data["anthropic_api_base"] = env_value
+
+        # MISTRAL_API_KEY: Only set from env if not in config
+        if "mistral_api_key" not in data or data.get("mistral_api_key") is None:
+            env_key = os.getenv("MISTRAL_API_KEY")
+            if env_key:
+                env_value = str(env_key).strip()
+                if env_value:
+                    data["mistral_api_key"] = env_value
+
+        # MISTRAL_API_BASE: Only set from env if not in config
+        if "mistral_api_base" not in data or data.get("mistral_api_base") is None:
+            env_base = os.getenv("MISTRAL_API_BASE")
+            if env_base:
+                env_value = str(env_base).strip()
+                if env_value:
+                    data["mistral_api_base"] = env_value
+
+        # DEEPSEEK_API_KEY: Only set from env if not in config
+        if "deepseek_api_key" not in data or data.get("deepseek_api_key") is None:
+            env_key = os.getenv("DEEPSEEK_API_KEY")
+            if env_key:
+                env_value = str(env_key).strip()
+                if env_value:
+                    data["deepseek_api_key"] = env_value
+
+        # DEEPSEEK_API_BASE: Only set from env if not in config
+        if "deepseek_api_base" not in data or data.get("deepseek_api_base") is None:
+            env_base = os.getenv("DEEPSEEK_API_BASE")
+            if env_base:
+                env_value = str(env_base).strip()
+                if env_value:
+                    data["deepseek_api_base"] = env_value
+
+        # GROK_API_KEY: Only set from env if not in config
+        if "grok_api_key" not in data or data.get("grok_api_key") is None:
+            env_key = os.getenv("GROK_API_KEY")
+            if env_key:
+                env_value = str(env_key).strip()
+                if env_value:
+                    data["grok_api_key"] = env_value
+
+        # GROK_API_BASE: Only set from env if not in config
+        if "grok_api_base" not in data or data.get("grok_api_base") is None:
+            env_base = os.getenv("GROK_API_BASE")
+            if env_base:
+                env_value = str(env_base).strip()
+                if env_value:
+                    data["grok_api_base"] = env_value
+
         # OPENAI_TEMPERATURE: Only set from env if not in config
         if "openai_temperature" not in data or data.get("openai_temperature") is None:
             env_temp = os.getenv("OPENAI_TEMPERATURE")
@@ -1253,39 +1918,99 @@ class Config(BaseModel):
             return env_base.strip() or None
         return None
 
+    @field_validator("mistral_api_key", mode="before")
+    @classmethod
+    def _load_mistral_api_key_from_env(cls, value: Any) -> Optional[str]:
+        """Load Mistral API key from environment variable if not provided."""
+        # If value is provided and not empty, use it
+        if value is not None and str(value).strip():
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_key = os.getenv("MISTRAL_API_KEY")
+        if env_key:
+            return env_key.strip() or None
+        return None
+
+    @field_validator("mistral_api_base", mode="before")
+    @classmethod
+    def _load_mistral_api_base_from_env(cls, value: Any) -> Optional[str]:
+        """Load Mistral API base URL from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_base = os.getenv("MISTRAL_API_BASE")
+        if env_base:
+            return env_base.strip() or None
+        return None
+
     @field_validator("speaker_detector_provider", mode="before")
     @classmethod
-    def _validate_speaker_detector_provider(cls, value: Any) -> Literal["spacy", "ner", "openai"]:
+    def _validate_speaker_detector_provider(
+        cls, value: Any
+    ) -> Literal[
+        "spacy", "ner", "openai", "gemini", "mistral", "deepseek", "anthropic", "grok", "ollama"
+    ]:
         """Validate speaker detector provider type."""
         if value is None or value == "":
             return "spacy"
         value_str = str(value).strip().lower()
 
-        if value_str not in ("spacy", "openai"):
-            raise ValueError("speaker_detector_provider must be 'spacy' or 'openai'")
+        if value_str not in (
+            "spacy",
+            "openai",
+            "gemini",
+            "mistral",
+            "deepseek",
+            "anthropic",
+            "grok",
+            "ollama",
+        ):
+            raise ValueError(
+                "speaker_detector_provider must be 'spacy', 'openai', 'gemini', "
+                "'mistral', 'deepseek', 'anthropic', 'grok', or 'ollama'"
+            )
         return value_str  # type: ignore[return-value]
 
     @field_validator("transcription_provider", mode="before")
     @classmethod
-    def _validate_transcription_provider(cls, value: Any) -> Literal["whisper", "openai"]:
+    def _validate_transcription_provider(
+        cls, value: Any
+    ) -> Literal["whisper", "openai", "gemini", "mistral", "anthropic"]:
         """Validate transcription provider."""
         if value is None or value == "":
             return "whisper"
         value_str = str(value).strip().lower()
-        if value_str not in ("whisper", "openai"):
-            raise ValueError("transcription_provider must be 'whisper' or 'openai'")
+        if value_str not in ("whisper", "openai", "gemini", "mistral", "anthropic"):
+            raise ValueError(
+                "transcription_provider must be 'whisper', 'openai', 'gemini', "
+                "'mistral', or 'anthropic'"
+            )
         return value_str  # type: ignore[return-value]
 
     @field_validator("summary_provider", mode="before")
     @classmethod
-    def _validate_summary_provider(cls, value: Any) -> Literal["transformers", "openai"]:
+    def _validate_summary_provider(
+        cls, value: Any
+    ) -> Literal["transformers", "openai", "gemini", "grok", "deepseek", "anthropic", "ollama"]:
         """Validate summary provider."""
         if value is None or value == "":
             return "transformers"
         value_str = str(value).strip().lower()
 
-        if value_str not in ("transformers", "openai"):
-            raise ValueError("summary_provider must be 'transformers' or 'openai'")
+        if value_str not in (
+            "transformers",
+            "openai",
+            "gemini",
+            "grok",
+            "mistral",
+            "deepseek",
+            "anthropic",
+            "ollama",
+        ):
+            raise ValueError(
+                "summary_provider must be 'transformers', 'openai', 'gemini', "
+                "'grok', 'mistral', 'deepseek', 'anthropic', or 'ollama'"
+            )
         return value_str  # type: ignore[return-value]
 
     @field_validator("openai_temperature", mode="before")
@@ -1300,6 +2025,173 @@ class Config(BaseModel):
             raise ValueError("openai_temperature must be a number") from exc
         if temp < 0.0 or temp > 2.0:
             raise ValueError("openai_temperature must be between 0.0 and 2.0")
+        return temp
+
+    @field_validator("gemini_api_key", mode="before")
+    @classmethod
+    def _load_gemini_api_key_from_env(cls, value: Any) -> Optional[str]:
+        """Load Gemini API key from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_key = os.getenv("GEMINI_API_KEY")
+        if env_key:
+            return env_key.strip() or None
+        return None
+
+    @field_validator("gemini_api_base", mode="before")
+    @classmethod
+    def _load_gemini_api_base_from_env(cls, value: Any) -> Optional[str]:
+        """Load Gemini API base URL from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_base = os.getenv("GEMINI_API_BASE")
+        if env_base:
+            return env_base.strip() or None
+        return None
+
+    @field_validator("anthropic_api_key", mode="before")
+    @classmethod
+    def _load_anthropic_api_key_from_env(cls, value: Any) -> Optional[str]:
+        """Load Anthropic API key from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_key = os.getenv("ANTHROPIC_API_KEY")
+        if env_key:
+            return env_key.strip() or None
+        return None
+
+    @field_validator("anthropic_api_base", mode="before")
+    @classmethod
+    def _load_anthropic_api_base_from_env(cls, value: Any) -> Optional[str]:
+        """Load Anthropic API base URL from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_base = os.getenv("ANTHROPIC_API_BASE")
+        if env_base:
+            return env_base.strip() or None
+        return None
+
+    @field_validator("gemini_temperature", mode="before")
+    @classmethod
+    def _validate_gemini_temperature(cls, value: Any) -> float:
+        """Validate Gemini temperature is in valid range (0.0-2.0)."""
+        if value is None or value == "":
+            return 0.3
+        try:
+            temp = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("gemini_temperature must be a number") from exc
+        if temp < 0.0 or temp > 2.0:
+            raise ValueError("gemini_temperature must be between 0.0 and 2.0")
+        return temp
+
+    @field_validator("deepseek_api_key", mode="before")
+    @classmethod
+    def _load_deepseek_api_key_from_env(cls, value: Any) -> Optional[str]:
+        """Load DeepSeek API key from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_key = os.getenv("DEEPSEEK_API_KEY")
+        if env_key:
+            return env_key.strip() or None
+        return None
+
+    @field_validator("deepseek_api_base", mode="before")
+    @classmethod
+    def _load_deepseek_api_base_from_env(cls, value: Any) -> Optional[str]:
+        """Load DeepSeek API base URL from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_base = os.getenv("DEEPSEEK_API_BASE")
+        if env_base:
+            return env_base.strip() or None
+        # Default to DeepSeek API base URL
+        return "https://api.deepseek.com"
+
+    @field_validator("ollama_api_base", mode="before")
+    @classmethod
+    def _load_ollama_api_base_from_env(cls, value: Any) -> Optional[str]:
+        """Load Ollama API base URL from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_base = os.getenv("OLLAMA_API_BASE")
+        if env_base:
+            return env_base.strip() or None
+        # Default to local Ollama server
+        return "http://localhost:11434/v1"
+
+    @field_validator("ollama_temperature", mode="before")
+    @classmethod
+    def _validate_ollama_temperature(cls, value: Any) -> float:
+        """Validate Ollama temperature is in valid range (0.0-2.0)."""
+        if value is None or value == "":
+            return 0.3
+        try:
+            temp = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("ollama_temperature must be a number") from exc
+        if temp < 0.0 or temp > 2.0:
+            raise ValueError("ollama_temperature must be between 0.0 and 2.0")
+        return temp
+
+    @field_validator("deepseek_temperature", mode="before")
+    @classmethod
+    def _validate_deepseek_temperature(cls, value: Any) -> float:
+        """Validate DeepSeek temperature is in valid range (0.0-2.0)."""
+        if value is None or value == "":
+            return 0.3
+        try:
+            temp = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("deepseek_temperature must be a number") from exc
+        if temp < 0.0 or temp > 2.0:
+            raise ValueError("deepseek_temperature must be between 0.0 and 2.0")
+        return temp
+
+    @field_validator("grok_api_key", mode="before")
+    @classmethod
+    def _load_grok_api_key_from_env(cls, value: Any) -> Optional[str]:
+        """Load Grok API key from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_key = os.getenv("GROK_API_KEY")
+        if env_key:
+            return env_key.strip() or None
+        return None
+
+    @field_validator("grok_api_base", mode="before")
+    @classmethod
+    def _load_grok_api_base_from_env(cls, value: Any) -> Optional[str]:
+        """Load Grok API base URL from environment variable if not provided."""
+        if value is not None:
+            return str(value).strip() or None
+        # Check environment variable (loaded from .env by dotenv)
+        env_base = os.getenv("GROK_API_BASE")
+        if env_base:
+            return env_base.strip() or None
+        # Default to Grok API base URL (OpenAI-compatible endpoint)
+        return "https://api.x.ai/v1"
+
+    @field_validator("grok_temperature", mode="before")
+    @classmethod
+    def _validate_grok_temperature(cls, value: Any) -> float:
+        """Validate Grok temperature is in valid range (0.0-2.0)."""
+        if value is None or value == "":
+            return 0.3
+        try:
+            temp = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("grok_temperature must be a number") from exc
+        if temp < 0.0 or temp > 2.0:
+            raise ValueError("grok_temperature must be between 0.0 and 2.0")
         return temp
 
     @model_validator(mode="after")
@@ -1318,6 +2210,135 @@ class Config(BaseModel):
             raise ValueError(
                 f"OpenAI API key required for OpenAI providers: {providers_str}. "
                 "Set OPENAI_API_KEY environment variable or openai_api_key in config."
+            )
+
+        return self
+
+    @model_validator(mode="after")
+    def _validate_gemini_provider_requirements(self) -> "Config":
+        """Validate that Gemini API key is provided when Gemini providers are selected."""
+        gemini_providers_used = []
+        if self.transcription_provider == "gemini":
+            gemini_providers_used.append("transcription")
+        if self.speaker_detector_provider == "gemini":
+            gemini_providers_used.append("speaker_detection")
+        if self.summary_provider == "gemini":
+            gemini_providers_used.append("summarization")
+
+        if gemini_providers_used and not self.gemini_api_key:
+            providers_str = ", ".join(gemini_providers_used)
+            raise ValueError(
+                f"Gemini API key required for Gemini providers: {providers_str}. "
+                "Set GEMINI_API_KEY environment variable or gemini_api_key in config."
+            )
+
+        return self
+
+    @model_validator(mode="after")
+    def _validate_anthropic_provider_requirements(self) -> "Config":
+        """Validate that Anthropic API key is provided when Anthropic providers are selected."""
+        anthropic_providers_used = []
+        if self.transcription_provider == "anthropic":
+            anthropic_providers_used.append("transcription")
+        if self.speaker_detector_provider == "anthropic":
+            anthropic_providers_used.append("speaker_detection")
+        if self.summary_provider == "anthropic":
+            anthropic_providers_used.append("summarization")
+
+        if anthropic_providers_used and not self.anthropic_api_key:
+            providers_str = ", ".join(anthropic_providers_used)
+            raise ValueError(
+                f"Anthropic API key required for Anthropic providers: {providers_str}. "
+                "Set ANTHROPIC_API_KEY environment variable or anthropic_api_key in config."
+            )
+
+        return self
+
+    @model_validator(mode="after")
+    def _validate_deepseek_provider_requirements(self) -> "Config":
+        """Validate that DeepSeek API key is provided when DeepSeek providers are selected."""
+        deepseek_providers_used = []
+        if self.speaker_detector_provider == "deepseek":
+            deepseek_providers_used.append("speaker_detection")
+        if self.summary_provider == "deepseek":
+            deepseek_providers_used.append("summarization")
+
+        if deepseek_providers_used and not self.deepseek_api_key:
+            providers_str = ", ".join(deepseek_providers_used)
+            raise ValueError(
+                f"DeepSeek API key required for DeepSeek providers: {providers_str}. "
+                "Set DEEPSEEK_API_KEY environment variable or deepseek_api_key in config."
+            )
+
+        return self
+
+    @model_validator(mode="after")
+    def _validate_provider_capabilities(self) -> "Config":
+        """Validate provider supports requested capability."""
+        # DeepSeek does not support transcription
+        if self.transcription_provider == "deepseek":
+            raise ValueError(
+                "DeepSeek provider does not support transcription. "
+                "Use 'whisper' (local), 'openai', 'gemini', or 'mistral' instead. "
+                "See provider capability matrix in documentation."
+            )
+        # Anthropic does not support transcription
+        if self.transcription_provider == "anthropic":
+            raise ValueError(
+                "Anthropic provider does not support native audio transcription. "
+                "Use 'whisper' (local), 'openai', 'gemini', or 'mistral' instead. "
+                "Anthropic can be used for speaker detection and summarization after transcription."
+            )
+        # Grok does not support transcription
+        if self.transcription_provider == "grok":
+            raise ValueError(
+                "Grok provider does not support transcription. "
+                "Use 'whisper' (local) or 'openai' instead. "
+                "See provider capability matrix in documentation."
+            )
+        # Ollama does not support transcription
+        if self.transcription_provider == "ollama":
+            raise ValueError(
+                "Ollama provider does not support transcription. "
+                "Use 'whisper' (local) or 'openai' instead. "
+                "See provider capability matrix in documentation."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_grok_provider_requirements(self) -> "Config":
+        """Validate that Grok API key is provided when Grok providers are selected."""
+        grok_providers_used = []
+        if self.speaker_detector_provider == "grok":
+            grok_providers_used.append("speaker_detection")
+        if self.summary_provider == "grok":
+            grok_providers_used.append("summarization")
+
+        if grok_providers_used and not self.grok_api_key:
+            providers_str = ", ".join(grok_providers_used)
+            raise ValueError(
+                f"Grok API key required for Grok providers: {providers_str}. "
+                "Set GROK_API_KEY environment variable or grok_api_key in config."
+            )
+
+        return self
+
+    @model_validator(mode="after")
+    def _validate_mistral_provider_requirements(self) -> "Config":
+        """Validate that Mistral API key is provided when Mistral providers are selected."""
+        mistral_providers_used = []
+        if self.transcription_provider == "mistral":
+            mistral_providers_used.append("transcription")
+        if self.speaker_detector_provider == "mistral":
+            mistral_providers_used.append("speaker_detection")
+        if self.summary_provider == "mistral":
+            mistral_providers_used.append("summarization")
+
+        if mistral_providers_used and not self.mistral_api_key:
+            providers_str = ", ".join(mistral_providers_used)
+            raise ValueError(
+                f"Mistral API key required for Mistral providers: {providers_str}. "
+                "Set MISTRAL_API_KEY environment variable or mistral_api_key in config."
             )
 
         return self

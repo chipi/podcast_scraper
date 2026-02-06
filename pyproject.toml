@@ -42,6 +42,22 @@ ml = [
   "accelerate>=0.20.0,<2.0.0",
   "protobuf>=3.20.0,!=6.33.4,<7.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
 ]
+# Gemini API provider (Issue #194)
+gemini = [
+  "google-generativeai>=0.8.0,<1.0.0",
+]
+# Anthropic API provider (Issue #106)
+anthropic = [
+  "anthropic>=0.34.0,<1.0.0",
+]
+# Ollama provider (Issue #196)
+ollama = [
+  "httpx>=0.24.0,<1.0.0",  # For Ollama health checks
+]
+# Mistral API provider (Issue #106)
+mistral = [
+  "mistralai>=1.0.0,<2.0.0",
+]
 # Development tools
 dev = [
   "black>=23.0.0,<27.0.0",
@@ -80,7 +96,12 @@ packages = [
     "podcast_scraper.preprocessing",
     "podcast_scraper.preprocessing.audio",
     "podcast_scraper.providers",
+    "podcast_scraper.providers.deepseek",
+    "podcast_scraper.providers.gemini",
+    "podcast_scraper.providers.anthropic",
+    "podcast_scraper.providers.mistral",
     "podcast_scraper.providers.ml",
+    "podcast_scraper.providers.ollama",
     "podcast_scraper.providers.openai",
     "podcast_scraper.rss",
     "podcast_scraper.speaker_detectors",
@@ -180,6 +201,11 @@ markers = [
     "critical_path: marks tests as part of the critical path (RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files). These tests run in fast suite regardless of ml_models marker if models are cached.",
     "llm: tests that use LLM APIs (may incur costs or rate limits, includes openai and future providers)",
     "openai: tests that use OpenAI API specifically (subset of llm marker)",
+    "gemini: tests that use Gemini API specifically (subset of llm marker)",
+    "mistral: tests that use Mistral API specifically (subset of llm marker)",
+    "anthropic: tests that use Anthropic API specifically (subset of llm marker)",
+    "deepseek: tests that use DeepSeek API specifically (subset of llm marker)",
+    "ollama: tests that use Ollama API specifically (subset of llm marker, local/offline)",
     "golden: golden tests with known stable episodes for regression testing (Issue #379)",
     "chaos: chaos tests for error conditions and edge cases (broken RSS, 404, large files, non-English) (Issue #379)",
     "offline: offline tests with networking disabled (verifies air-gapped operation) (Issue #379)",
@@ -195,6 +221,11 @@ markers = [
     "module_rss_parser: tests for rss/parser.py",
     "module_ml_providers: tests for providers/ml/*.py",
     "module_openai_providers: tests for providers/openai/*.py",
+    "module_gemini_providers: tests for providers/gemini/*.py",
+    "module_anthropic_providers: tests for providers/anthropic/*.py",
+    "module_mistral_providers: tests for providers/mistral/*.py",
+    "module_deepseek_providers: tests for providers/deepseek/*.py",
+    "module_ollama_providers: tests for providers/ollama/*.py",
     "module_summarization: tests for summarization/*.py",
     "module_transcription: tests for transcription/*.py",
     "module_speaker_detection: tests for speaker_detectors/*.py",

@@ -5,8 +5,9 @@ These tests verify that OpenAI providers work correctly in complete user workflo
 - OpenAI transcription in workflow
 - OpenAI speaker detection in workflow
 - OpenAI summarization in workflow
-- Error handling (API errors, rate limiting, retries)
-- Fallback behavior when OpenAI API fails
+
+Note: Error handling (API errors, rate limiting, retries) is tested in unit/integration tests,
+not in E2E tests since the E2E server doesn't simulate errors.
 
 These tests use the E2E server's OpenAI mock endpoints (real HTTP requests to mock server)
 and are marked with @pytest.mark.e2e to allow selective execution.
@@ -47,7 +48,7 @@ from tests.conftest import (  # noqa: E402
 # Check if we should use real OpenAI API (for manual testing only)
 USE_REAL_OPENAI_API = os.getenv("USE_REAL_OPENAI_API", "0") == "1"
 
-# Feed selection for OpenAI tests
+# Feed selection for LLM provider tests (shared by OpenAI, Gemini, etc.)
 # Options:
 # - "fast": Use p01_fast.xml (1 episode, 1 minute) - requires E2E_TEST_MODE=fast
 # - "multi": Use p01_multi.xml (5 episodes, 10-15 seconds each) - DEFAULT (works in all modes)
@@ -56,23 +57,20 @@ USE_REAL_OPENAI_API = os.getenv("USE_REAL_OPENAI_API", "0") == "1"
 # - "p03": Use p03_scuba.xml (podcast3) - requires E2E_TEST_MODE=nightly or data_quality
 # - "p04": Use p04_photo.xml (podcast4) - requires E2E_TEST_MODE=nightly or data_quality
 # - "p05": Use p05_investing.xml (podcast5) - requires E2E_TEST_MODE=nightly or data_quality
-# For real API mode: Set USE_REAL_OPENAI_API=1 and OPENAI_TEST_RSS_FEED=<feed-url>
+# For real API mode: Set USE_REAL_OPENAI_API=1 and LLM_TEST_RSS_FEED=<feed-url>
 #   (no default real feed - must be explicitly provided)
 # Default to "multi" to work in both fast and multi_episode E2E_TEST_MODE
-OPENAI_TEST_FEED = os.getenv("OPENAI_TEST_FEED", "multi")
+LLM_TEST_FEED = os.getenv("LLM_TEST_FEED", "multi")
 
-# Real RSS feed URL for testing (only used when USE_REAL_OPENAI_API=1)
-# NOTE: No default real feed - must be explicitly set via OPENAI_TEST_RSS_FEED
-REAL_TEST_RSS_FEED = os.getenv(
-    "OPENAI_TEST_RSS_FEED",
-    None,  # No default - must be explicitly provided
-)
+# Real RSS feed URL for testing (only used when USE_REAL_OPENAI_API=1 or USE_REAL_GEMINI_API=1)
+# NOTE: No default real feed - must be explicitly set via LLM_TEST_RSS_FEED
+REAL_TEST_RSS_FEED = os.getenv("LLM_TEST_RSS_FEED", None)
 
 
 def _get_test_feed_url(
     e2e_server: Optional[Any] = None,
 ) -> tuple[str, Optional[str], Optional[str]]:
-    """Get RSS feed URL and OpenAI config based on OPENAI_TEST_FEED environment variable.
+    """Get RSS feed URL and OpenAI config based on LLM_TEST_FEED environment variable.
 
     Args:
         e2e_server: E2E server fixture (None if using real API or if fixture not available)
@@ -80,11 +78,11 @@ def _get_test_feed_url(
     Returns:
         Tuple of (rss_url, openai_api_base, openai_api_key)
     """
-    feed_type = OPENAI_TEST_FEED.lower()
+    feed_type = (LLM_TEST_FEED or "multi").lower()
 
     # Real API mode - can use either real RSS feed OR fixture feeds
     if USE_REAL_OPENAI_API:
-        # If OPENAI_TEST_RSS_FEED is explicitly set, use that real RSS feed
+        # If LLM_TEST_RSS_FEED is explicitly set, use that real RSS feed
         if REAL_TEST_RSS_FEED is not None:
             return REAL_TEST_RSS_FEED, None, None
 
@@ -93,7 +91,7 @@ def _get_test_feed_url(
         if e2e_server is None:
             raise ValueError(
                 "E2E server is required when using fixture feeds with real API. "
-                "Set OPENAI_TEST_RSS_FEED=<url> to use a real RSS feed instead."
+                "Set LLM_TEST_RSS_FEED=<url> to use a real RSS feed instead."
             )
 
         # Use fixture feeds but with real API (no mock API base)
@@ -117,7 +115,7 @@ def _get_test_feed_url(
         raise ValueError(
             f"Unknown feed type: {feed_type}. "
             "Use 'fast', 'multi', 'p01', 'p02', 'p03', 'p04', 'p05', "
-            "or set OPENAI_TEST_RSS_FEED for a real feed."
+            "or set LLM_TEST_RSS_FEED for a real feed."
         )
 
     # E2E server mode - use test fixtures with mock API
@@ -216,6 +214,9 @@ def _save_all_episode_responses(
 ) -> list[Path]:
     """Save OpenAI API responses for all episodes processed in a test.
 
+    All episodes from the same test run are saved to the same run folder,
+    with one file per episode (e.g., openai-responses_ep01.txt, openai-responses_ep02.txt).
+
     Args:
         temp_dir: Temporary directory where test output was written
         metadata_files: List of metadata file paths (one per episode)
@@ -229,6 +230,12 @@ def _save_all_episode_responses(
         List of paths to saved response files
     """
     import json as json_module
+    from datetime import datetime
+
+    # Generate ONE run folder name for all episodes in this test run
+    # This ensures all episodes from the same test are saved together
+    now = datetime.now()
+    shared_run_name = now.strftime("run_%Y%m%d-%H%M%S_%f")
 
     saved_files = []
     for idx, metadata_file in enumerate(sorted(metadata_files), 1):
@@ -277,7 +284,11 @@ def _save_all_episode_responses(
         # Include episode number in the test name for uniqueness when multiple episodes
         episode_suffix = f"_ep{idx:02d}" if len(metadata_files) > 1 else ""
         response_file = _save_openai_responses(
-            temp_dir, metadata_content, f"{test_name}{episode_suffix}"
+            temp_dir,
+            metadata_content,
+            f"{test_name}{episode_suffix}",
+            shared_run_name=shared_run_name,
+            metadata_file=metadata_file,
         )
         saved_files.append(response_file)
 
@@ -289,51 +300,106 @@ def _save_all_episode_responses(
     elif len(saved_files) == 1:
         print(f"📁 OpenAI API responses saved to: {saved_files[0]}")
 
+    # Also copy metadata files to output folder for easy access
+    import shutil
+
+    if saved_files:
+        # Get the output directory from the first saved file
+        run_output_dir = saved_files[0].parent
+
+        metadata_files_copied = []
+        for metadata_file in sorted(metadata_files):
+            # Copy metadata file to same output directory as response files
+            output_metadata_file = run_output_dir / metadata_file.name
+            shutil.copy2(metadata_file, output_metadata_file)
+            metadata_files_copied.append(output_metadata_file)
+
+        if len(metadata_files_copied) > 1:
+            print(f"\n📄 Copied {len(metadata_files_copied)} metadata files to output folder:")
+            for idx, file_path in enumerate(metadata_files_copied, 1):
+                print(f"  {idx}. {file_path}")
+        elif len(metadata_files_copied) == 1:
+            print(f"📄 Metadata file copied to: {metadata_files_copied[0]}")
+
     return saved_files
 
 
 def _save_openai_responses(  # noqa: C901
-    temp_dir: Path, metadata_content: dict, test_name: str
+    temp_dir: Path,
+    metadata_content: dict,
+    test_name: str,
+    shared_run_name: Optional[str] = None,
+    metadata_file: Optional[Path] = None,
 ) -> Path:
     """Save actual OpenAI API responses (transcript, speakers, summary) to a file.
 
     Args:
         temp_dir: Temporary directory where test output was written
         metadata_content: Parsed metadata JSON content
-        test_name: Name of the test (e.g., "test_openai_all_providers_in_pipeline")
+        test_name: Name of the test (e.g., "test_openai_all_providers_in_pipeline_ep01")
+        shared_run_name: Optional shared run name for all episodes in a test run.
+                        If provided, all episodes will be saved to the same run folder.
+                        If None, generates a new run name (for backward compatibility).
 
     Returns:
         Path to the saved response file
     """
+    import hashlib
+    import re
     from datetime import datetime
+    from urllib.parse import urlparse
 
-    # Create reports directory structure: reports/output/<test-name>/
-    reports_dir = Path("reports") / "output"
-    reports_dir.mkdir(parents=True, exist_ok=True)
+    from podcast_scraper.utils import filesystem
 
-    # Clean test name (remove test_ prefix, convert underscores to hyphens)
-    clean_test_name = test_name.replace("test_", "").replace("_", "-")
+    # Extract feed information from metadata
+    feed_data = metadata_content.get("feed", {})
+    feed_url = feed_data.get("url", "")
 
-    # Create subfolder for this test
-    test_reports_dir = reports_dir / clean_test_name
-    test_reports_dir.mkdir(exist_ok=True)
+    # Derive feed name from URL (same logic as derive_output_dir)
+    if feed_url:
+        parsed = urlparse(feed_url)
+        base = parsed.netloc or "feed"
+        safe_base = filesystem.sanitize_filename(base)
+        # Deterministic hash for directory naming (not security sensitive)
+        digest = hashlib.sha1(feed_url.encode("utf-8"), usedforsecurity=False).hexdigest()
+        feed_dir_name = f"rss_{safe_base}_{digest[:filesystem.URL_HASH_LENGTH]}"
+    else:
+        # Fallback if no feed URL in metadata
+        feed_dir_name = "unknown_feed"
 
-    # Generate filename with timestamp including microseconds to ensure uniqueness
-    # Format: YYYYMMDD_HHMMSS_microseconds
-    now = datetime.now()
-    timestamp = now.strftime("%Y%m%d_%H%M%S_%f")  # %f is microseconds (6 digits)
-    filename = f"openai-responses_{timestamp}.txt"
-    output_file = test_reports_dir / filename
+    # Use shared run name if provided, otherwise generate new one
+    if shared_run_name:
+        run_name = shared_run_name
+    else:
+        now = datetime.now()
+        run_name = now.strftime("run_%Y%m%d-%H%M%S_%f")  # Include microseconds for uniqueness
+
+    # Create output directory structure: output/<feed-name>/<run-name>/
+    output_dir = Path("output")
+    feed_output_dir = output_dir / feed_dir_name
+    run_output_dir = feed_output_dir / run_name
+    run_output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Extract episode suffix from test_name
+    # (e.g., "_ep01" from "test_openai_all_providers_in_pipeline_ep01")
+    episode_suffix_match = re.search(r"_ep(\d+)$", test_name)
+    if episode_suffix_match:
+        episode_num = episode_suffix_match.group(1)
+        filename = f"openai-responses_ep{episode_num}.txt"
+    else:
+        filename = "openai-responses.txt"
+
+    output_file = run_output_dir / filename
 
     # Additional safety: if file somehow exists, append a counter
     counter = 1
     original_output_file = output_file
     while output_file.exists():
-        filename_with_counter = f"openai-responses_{timestamp}_{counter}.txt"
-        output_file = test_reports_dir / filename_with_counter
+        filename_with_counter = f"openai-responses_{counter}.txt"
+        output_file = run_output_dir / filename_with_counter
         counter += 1
         if counter > 10000:  # Safety limit to prevent infinite loop
-            raise RuntimeError(f"Too many files with same timestamp: {original_output_file}")
+            raise RuntimeError(f"Too many files with same name: {original_output_file}")
 
     # Collect all response data
     response_lines = []
@@ -451,16 +517,79 @@ def _save_openai_responses(  # noqa: C901
     response_lines.append("")
 
     # 1. Transcription result
-    # Try to find transcript file - OpenAI transcription creates .txt files
-    transcript_files = list(temp_dir.rglob("*.txt"))
-    # Filter out cleaned transcripts and metadata files
-    transcript_files = [
-        f for f in transcript_files if "cleaned" not in f.name and "metadata" not in f.name
-    ]
+    # Use transcript_file_path from metadata (most reliable)
+    transcript_file = None
+    content = metadata_content.get("content", {})
+    transcript_file_path = content.get("transcript_file_path")
 
-    if transcript_files:
-        # Use the first transcript file found
-        transcript_file = transcript_files[0]
+    # Determine base directory for transcript lookup
+    # If metadata_file is provided, use its parent directory (handles run subdirectories)
+    # Otherwise, use temp_dir directly
+    if metadata_file:
+        # metadata_file is like temp_dir/run_XXX/metadata/episode.metadata.json
+        # Base dir should be temp_dir/run_XXX/ (parent of metadata/)
+        base_dir = metadata_file.parent.parent
+    else:
+        base_dir = temp_dir
+
+    if transcript_file_path:
+        # transcript_file_path is relative to output_dir
+        # Try direct path first
+        transcript_file = base_dir / transcript_file_path
+        if not transcript_file.exists():
+            # Try transcripts/ subdirectory if path doesn't include it
+            transcript_file = base_dir / "transcripts" / Path(transcript_file_path).name
+            if not transcript_file.exists():
+                transcript_file = None  # Reset to None so fallback can run
+
+    # Fallback: try to find transcript file by episode index and title
+    if transcript_file is None:
+        episode_data = metadata_content.get("episode", {})
+        episode_idx = episode_data.get("idx")
+        episode_title = episode_data.get("title", "")
+
+        if episode_idx is not None:
+            # Transcript files are named like "0001 - Episode Title.txt"
+            # Search for files matching the episode index
+            all_transcript_files = list(base_dir.rglob("*.txt"))
+            # Filter out cleaned transcripts and metadata files
+            candidate_files = [
+                f
+                for f in all_transcript_files
+                if "cleaned" not in f.name and "metadata" not in f.name
+            ]
+
+            # Try to match by episode index (format: "0001 - Title.txt")
+            idx_str = f"{episode_idx:04d}"
+            for candidate in candidate_files:
+                if candidate.name.startswith(idx_str):
+                    transcript_file = candidate
+                    break
+
+            # If not found by index, try to match by title (safe version)
+            if transcript_file is None and episode_title:
+                # Create a safe version of the title (similar to how filesystem does it)
+                import re
+
+                title_safe = re.sub(r"[^\w\s-]", "", episode_title).strip()
+                title_safe = re.sub(r"[-\s]+", "_", title_safe)
+                for candidate in candidate_files:
+                    if title_safe.lower() in candidate.name.lower():
+                        transcript_file = candidate
+                        break
+
+        # Fallback: if we couldn't match by episode, use first available transcript
+        if transcript_file is None:
+            all_transcript_files = list(base_dir.rglob("*.txt"))
+            candidate_files = [
+                f
+                for f in all_transcript_files
+                if "cleaned" not in f.name and "metadata" not in f.name
+            ]
+            if candidate_files:
+                transcript_file = candidate_files[0]
+
+    if transcript_file and transcript_file.exists():
         transcript_text = transcript_file.read_text(encoding="utf-8")
         response_lines.append("\n📝 TRANSCRIPTION RESULT:")
         response_lines.append("-" * 80)
@@ -522,11 +651,11 @@ class TestOpenAIProviderE2E:
 
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            # Get feed URL and OpenAI config based on LLM_TEST_FEED
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Get max_episodes from environment variable (for real feeds) or use default
-            max_episodes = int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1"))
+            max_episodes = int(os.getenv("LLM_TEST_MAX_EPISODES", "1"))
 
             # Create config with OpenAI transcription ONLY (no other providers)
             cfg = create_test_config(
@@ -562,6 +691,12 @@ class TestOpenAIProviderE2E:
             if len(metadata_files) > 0:
                 import json as json_module
 
+                # Generate ONE run folder name for all episodes in this test run
+                from datetime import datetime
+
+                now = datetime.now()
+                shared_run_name = now.strftime("run_%Y%m%d-%H%M%S_%f")
+
                 # Process all metadata files (one per episode)
                 saved_files = []
                 for idx, metadata_file in enumerate(sorted(metadata_files), 1):
@@ -584,6 +719,7 @@ class TestOpenAIProviderE2E:
                         Path(temp_dir),
                         metadata_content,
                         f"test_openai_transcription_in_pipeline{episode_suffix}",
+                        shared_run_name=shared_run_name,
                     )
                     saved_files.append(response_file)
 
@@ -604,7 +740,7 @@ class TestOpenAIProviderE2E:
         """Test OpenAI speaker detection provider in full pipeline."""
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            # Get feed URL and OpenAI config based on LLM_TEST_FEED
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Create config with OpenAI speaker detection and transcription ONLY (no summarization)
@@ -621,7 +757,7 @@ class TestOpenAIProviderE2E:
                 generate_summaries=False,  # Disable summarization
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline (uses OpenAI ONLY, no local ML providers)
@@ -668,7 +804,7 @@ class TestOpenAIProviderE2E:
         """Test OpenAI summarization provider in full pipeline."""
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            # Get feed URL and OpenAI config based on LLM_TEST_FEED
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Create config with OpenAI summarization and transcription ONLY (no speaker detection)
@@ -685,7 +821,7 @@ class TestOpenAIProviderE2E:
                 auto_speakers=False,  # Disable speaker detection
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline (uses OpenAI ONLY, no local ML providers)
@@ -732,7 +868,7 @@ class TestOpenAIProviderE2E:
         """Test all OpenAI providers together in full pipeline."""
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
+            # Get feed URL and OpenAI config based on LLM_TEST_FEED
             rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
 
             # Create config with ALL OpenAI providers ONLY (no local ML providers)
@@ -749,7 +885,7 @@ class TestOpenAIProviderE2E:
                 generate_summaries=True,
                 preload_models=False,  # Disable model preloading (no local ML models)
                 transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
+                max_episodes=int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
             )
 
             # Run pipeline (uses E2E server OpenAI endpoints, no direct mocking)
@@ -782,203 +918,10 @@ class TestOpenAIProviderE2E:
                 validate_provider="openai",
             )
         finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
-    def test_openai_transcription_api_error_handling(self, e2e_server: Optional[Any]):
-        """Test that OpenAI transcription API errors are handled gracefully.
-
-        Note: E2E server currently doesn't simulate errors, so this test verifies
-        that the pipeline completes successfully. Error handling is tested in
-        unit/integration tests.
-        """
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
-            rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
-
-            # Create config with OpenAI transcription ONLY (no other providers)
-            cfg = create_test_config(
-                rss_url=rss_url,
-                output_dir=temp_dir,
-                transcription_provider="openai",
-                speaker_detector_provider="openai",  # Explicitly set to avoid spaCy default
-                summary_provider="openai",  # Explicitly set to avoid transformers default
-                openai_api_key=openai_api_key,
-                openai_api_base=openai_api_base,
-                generate_summaries=False,  # Disable summarization
-                auto_speakers=False,  # Disable speaker detection
-                preload_models=False,  # Disable model preloading (no local ML models)
-                transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
-            )
-
-            # Run pipeline - E2E server provides successful responses
-            transcripts_saved, summary = workflow.run_pipeline(cfg)
-
-            # Pipeline should complete successfully
-            # Note: Error handling is tested in unit/integration tests
-            assert transcripts_saved >= 0, "Pipeline should complete"
-
-            # Verify OpenAI transcription provider was used (if metadata exists)
-            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
-            if len(metadata_files) > 0:
-                # Save responses for all episodes (if any succeeded)
-                _save_all_episode_responses(
-                    Path(temp_dir),
-                    metadata_files,
-                    "test_openai_transcription_api_error_handling",
-                    validate_provider="openai",
-                )
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
-    def test_openai_speaker_detection_api_error_handling(self, e2e_server: Optional[Any]):
-        """Test that OpenAI speaker detection works correctly.
-
-        Note: E2E server currently doesn't simulate errors, so this test verifies
-        that the pipeline completes successfully. Error handling is tested in
-        unit/integration tests.
-        """
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
-            rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
-
-            # Create config with OpenAI speaker detection and transcription ONLY (no summarization)
-            cfg = create_test_config(
-                rss_url=rss_url,
-                output_dir=temp_dir,
-                transcription_provider="openai",
-                speaker_detector_provider="openai",
-                summary_provider="openai",  # Explicitly set to avoid transformers default
-                openai_api_key=openai_api_key,
-                openai_api_base=openai_api_base,
-                auto_speakers=True,
-                generate_metadata=True,
-                generate_summaries=False,  # Disable summarization
-                preload_models=False,  # Disable model preloading (no local ML models)
-                transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
-            )
-
-            # Run pipeline (uses OpenAI ONLY, no local ML providers)
-            transcripts_saved, summary = workflow.run_pipeline(cfg)
-
-            # Pipeline should complete successfully
-            # Note: Error handling is tested in unit/integration tests
-            assert transcripts_saved >= 0, "Pipeline should complete"
-
-            # Verify OpenAI speaker detection provider was used (if metadata exists)
-            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
-            if len(metadata_files) > 0:
-                # Save responses for all episodes
-                _save_all_episode_responses(
-                    Path(temp_dir),
-                    metadata_files,
-                    "test_openai_speaker_detection_api_error_handling",
-                    validate_provider="openai",
-                    validate_summarization=False,  # Summarization not enabled in this test
-                )
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
-    def test_openai_summarization_api_error_handling(self, e2e_server: Optional[Any]):
-        """Test that OpenAI summarization works correctly.
-
-        Note: E2E server currently doesn't simulate errors, so this test verifies
-        that the pipeline completes successfully. Error handling is tested in
-        unit/integration tests.
-        """
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
-            rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
-
-            # Create config with OpenAI summarization and transcription ONLY (no speaker detection)
-            cfg = create_test_config(
-                rss_url=rss_url,
-                output_dir=temp_dir,
-                transcription_provider="openai",
-                speaker_detector_provider="openai",  # Explicitly set to avoid spaCy default
-                summary_provider="openai",
-                openai_api_key=openai_api_key,
-                openai_api_base=openai_api_base,
-                generate_metadata=True,
-                generate_summaries=True,
-                auto_speakers=False,  # Disable speaker detection
-                preload_models=False,  # Disable model preloading (no local ML models)
-                transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
-            )
-
-            # Run pipeline (uses OpenAI ONLY, no local ML providers)
-            transcripts_saved, summary = workflow.run_pipeline(cfg)
-
-            # Pipeline should complete successfully
-            # Note: Error handling is tested in unit/integration tests
-            assert transcripts_saved >= 0, "Pipeline should complete"
-
-            # Verify metadata files were created
-            # Metadata should be created with summary from E2E server
-            # Use *.metadata.json to avoid matching metrics.json files
-            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
-            assert len(metadata_files) > 0, "Metadata files should be created"
-
-            # Save responses for all episodes
-            _save_all_episode_responses(
-                Path(temp_dir),
-                metadata_files,
-                "test_openai_summarization_api_error_handling",
-                validate_provider="openai",
-                validate_speaker_detection=False,  # Speaker detection not enabled in this test
-            )
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
-    def test_openai_transcription_rate_limiting(self, e2e_server: Optional[Any]):
-        """Test that OpenAI transcription works correctly.
-
-        Note: E2E server currently doesn't simulate rate limiting, so this test verifies
-        that the pipeline completes successfully. Rate limiting is tested in
-        unit/integration tests.
-        """
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # Get feed URL and OpenAI config based on OPENAI_TEST_FEED
-            rss_url, openai_api_base, openai_api_key = _get_test_feed_url(e2e_server)
-
-            # Create config with OpenAI transcription ONLY (no other providers)
-            cfg = create_test_config(
-                rss_url=rss_url,
-                output_dir=temp_dir,
-                transcription_provider="openai",
-                speaker_detector_provider="openai",  # Explicitly set to avoid spaCy default
-                summary_provider="openai",  # Explicitly set to avoid transformers default
-                openai_api_key=openai_api_key,
-                openai_api_base=openai_api_base,
-                generate_summaries=False,  # Disable summarization
-                auto_speakers=False,  # Disable speaker detection
-                preload_models=False,  # Disable model preloading (no local ML models)
-                transcribe_missing=True,
-                max_episodes=int(os.getenv("OPENAI_TEST_MAX_EPISODES", "1")),
-            )
-
-            # Run pipeline - E2E server provides successful responses
-            transcripts_saved, summary = workflow.run_pipeline(cfg)
-
-            # Pipeline should complete successfully
-            # Note: Rate limiting is tested in unit/integration tests
-            assert transcripts_saved >= 0, "Pipeline should complete"
-
-            # Verify OpenAI transcription provider was used (if metadata exists)
-            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
-            if len(metadata_files) > 0:
-                # Save responses for all episodes (if any succeeded)
-                _save_all_episode_responses(
-                    Path(temp_dir),
-                    metadata_files,
-                    "test_openai_transcription_rate_limiting",
-                    validate_provider="openai",
-                )
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
+            # Preserve temp_dir when using real API (for inspection/debugging)
+            # Only clean up when using mock E2E server
+            if not USE_REAL_OPENAI_API:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            else:
+                # Log location for debugging
+                print(f"\n⚠️  Preserving temp_dir (USE_REAL_OPENAI_API=1): {temp_dir}")

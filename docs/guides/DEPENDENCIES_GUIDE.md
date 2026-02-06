@@ -269,6 +269,61 @@ If you want to use both OpenAI and local ML providers:
 pip install -e ".[ml]"
 ````
 
+### With API Provider Dependencies (Gemini)
+
+**Note**: The `google-generativeai` package is **not** included in core dependencies. You must install it separately using the `[gemini]` extra:
+
+````bash
+# For Gemini-only users (no ML dependencies needed)
+pip install -e ".[gemini]"
+````
+
+If you want to use both Gemini and local ML providers:
+
+````bash
+# For users who want both Gemini and local ML options
+pip install -e ".[ml,gemini]"
+````
+
+If you want all options (OpenAI, Gemini, and local ML):
+
+````bash
+# For users who want all provider options
+pip install -e ".[ml,gemini]"
+# Note: OpenAI is already in core, so no need to specify it
+````
+
+### With API Provider Dependencies (Ollama)
+
+**Note**: The `openai` package (used for OpenAI-compatible API client) is **already included** in core dependencies. The `httpx` package is required for Ollama health checks and is available via the `[ollama]` extra.
+
+**Prerequisites:**
+
+1. Install Ollama server: `brew install ollama` (macOS) or [download](https://ollama.ai)
+2. Start Ollama server: `ollama serve` (keep running)
+3. Pull models: `ollama pull llama3.3:latest`
+
+**Installation:**
+
+````bash
+# For Ollama-only users (no ML dependencies needed)
+pip install -e ".[ollama]"
+````
+
+If you want to use both Ollama and local ML providers:
+
+````bash
+# For users who want both Ollama and local ML options
+pip install -e ".[ml,ollama]"
+````
+
+**Important Notes:**
+
+- Ollama is a **local, self-hosted solution** - no API key required
+- Ollama server must be running (`ollama serve`) before use
+- Models must be pulled (`ollama pull <model-name>`) before use
+- See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) for detailed setup and troubleshooting
+
 ### With Development Dependencies
 
 ````bash

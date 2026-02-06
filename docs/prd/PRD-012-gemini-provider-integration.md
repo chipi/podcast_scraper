@@ -270,7 +270,7 @@ Google offers a generous free tier:
 
 ## Provider Capability Matrix (Updated)
 
-| Capability | Local | OpenAI | Anthropic | Mistral | DeepSeek | Gemini |
+| Capability | Local | OpenAI | Anthropic | Mistral | DeepSeek | Gemini | Grok | Ollama |
 | ---------- | ----- | ------ | --------- | ------- | -------- | ------ |
 | **Transcription** | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ |
 | **Speaker Detection** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |

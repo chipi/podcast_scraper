@@ -160,7 +160,10 @@ help:
 init:
 	# Upgrade pip, setuptools, and wheel (required for PEP 660 editable installs with pyproject.toml)
 	$(PYTHON) -m pip install --upgrade pip setuptools wheel
-	$(PYTHON) -m pip install -e .[dev,ml]
+	# Install package with all optional dependencies for development
+	# Note: When adding new optional dependency groups to pyproject.toml, add them here too
+	# Current groups: dev (development tools), ml (ML models), gemini (Gemini API provider)
+	$(PYTHON) -m pip install -e .[dev,ml,gemini]
 	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install -r docs/requirements.txt; fi
 
 format:
@@ -238,8 +241,9 @@ quality: complexity deadcode docstrings spelling
 	# Ignore PYSEC-2022-42969: py package vulnerability (transitive dep of interrogate, deprecated, not exploitable here)
 	# Ignore CVE-2026-0994: protobuf vulnerability (affects 6.33.4, fixed in later versions; transitive dep of ML packages)
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
-	# Ignore en-core-web-sm: installed from GitHub (not PyPI), cannot be audited by pip-audit
-	pip-audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-package en-core-web-sm
+	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
+	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
+	pip-audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994
 
 docs:
 	$(PYTHON) -m mkdocs build --strict

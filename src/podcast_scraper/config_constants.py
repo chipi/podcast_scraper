@@ -114,6 +114,86 @@ PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
 PROD_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cost-effective for production
 PROD_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o"  # Higher quality for production
 
+# Gemini model defaults (Issue #194)
+# Test defaults: free tier models for dev/testing (gemini-2.0-flash)
+# Production defaults: best quality models (gemini-1.5-pro with 2M context)
+#
+# For current pricing, see: https://ai.google.dev/pricing
+TEST_DEFAULT_GEMINI_TRANSCRIPTION_MODEL = "gemini-2.0-flash"  # Free tier, fast
+TEST_DEFAULT_GEMINI_SPEAKER_MODEL = "gemini-2.0-flash"  # Free tier, fast
+TEST_DEFAULT_GEMINI_SUMMARY_MODEL = "gemini-2.0-flash"  # Free tier, fast
+PROD_DEFAULT_GEMINI_TRANSCRIPTION_MODEL = "gemini-1.5-pro"  # Best quality, 2M context
+PROD_DEFAULT_GEMINI_SPEAKER_MODEL = "gemini-1.5-pro"  # Best quality
+PROD_DEFAULT_GEMINI_SUMMARY_MODEL = "gemini-1.5-pro"  # Best quality, 2M context
+
+# Anthropic model defaults (Issue #106)
+# Test defaults: cheaper models for dev/testing
+# Production defaults: best quality models (claude-3-5-sonnet with 200K context)
+#
+# For current pricing, see: https://www.anthropic.com/pricing
+# Note: Anthropic does NOT support native audio transcription (no audio API)
+# Note: claude-3-5-haiku-20241022 is deprecated (EOL: 2026-02-19), using latest versions
+TEST_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL = (
+    "claude-3-5-sonnet-20241022"  # Placeholder (not used - no audio support)
+)
+TEST_DEFAULT_ANTHROPIC_SPEAKER_MODEL = "claude-3-5-haiku-latest"  # Latest version, cheaper, fast
+TEST_DEFAULT_ANTHROPIC_SUMMARY_MODEL = "claude-3-5-haiku-latest"  # Latest version, cheaper, fast
+PROD_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL = (
+    "claude-3-5-sonnet-20241022"  # Placeholder (not used - no audio support)
+)
+PROD_DEFAULT_ANTHROPIC_SPEAKER_MODEL = "claude-3-5-sonnet-20241022"  # Best quality
+PROD_DEFAULT_ANTHROPIC_SUMMARY_MODEL = "claude-3-5-sonnet-20241022"  # Best quality, 200K context
+
+# Mistral model defaults (Issue #106)
+# Test defaults: cheapest models for dev/testing (minimize API costs)
+# Production defaults: best quality/cost balance
+#
+# For current pricing, see: https://docs.mistral.ai/pricing/
+TEST_DEFAULT_MISTRAL_TRANSCRIPTION_MODEL = "voxtral-mini-latest"  # Only option
+PROD_DEFAULT_MISTRAL_TRANSCRIPTION_MODEL = "voxtral-mini-latest"  # Only option
+TEST_DEFAULT_MISTRAL_SPEAKER_MODEL = "mistral-small-latest"  # Cheapest text
+PROD_DEFAULT_MISTRAL_SPEAKER_MODEL = "mistral-large-latest"  # Best quality
+TEST_DEFAULT_MISTRAL_SUMMARY_MODEL = "mistral-small-latest"  # Cheapest text
+PROD_DEFAULT_MISTRAL_SUMMARY_MODEL = "mistral-large-latest"  # Best quality, 256k context
+
+
+# DeepSeek model defaults (Issue #107)
+# Test defaults: cheapest models for dev/testing (deepseek-chat - extremely cheap)
+# Production defaults: same model (deepseek-chat - still extremely cheap, 95% cheaper than OpenAI)
+#
+# For current pricing, see: https://platform.deepseek.com/pricing
+# Key advantage: 95% cheaper than OpenAI for text processing
+# Note: DeepSeek does NOT support transcription (no audio API)
+TEST_DEFAULT_DEEPSEEK_SPEAKER_MODEL = "deepseek-chat"  # Extremely cheap, same for test/prod
+TEST_DEFAULT_DEEPSEEK_SUMMARY_MODEL = "deepseek-chat"  # Extremely cheap, same for test/prod
+PROD_DEFAULT_DEEPSEEK_SPEAKER_MODEL = "deepseek-chat"  # Same model, still very cheap
+PROD_DEFAULT_DEEPSEEK_SUMMARY_MODEL = "deepseek-chat"  # Same model, still very cheap
+
+# Ollama model defaults (Issue #196)
+# Test defaults: smaller, faster models for dev/testing (llama3.2:latest)
+# Production defaults: best quality models (llama3.3:latest)
+#
+# Key advantage: Fully offline, zero cost, complete privacy
+# Note: Ollama does NOT support transcription (no audio API)
+# Models must be pulled before use: ollama pull llama3.3
+TEST_DEFAULT_OLLAMA_SPEAKER_MODEL = "llama3.2:latest"  # Smaller, faster for testing
+PROD_DEFAULT_OLLAMA_SPEAKER_MODEL = "llama3.3:latest"  # Best quality
+TEST_DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.2:latest"  # Smaller, faster for testing
+PROD_DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.3:latest"  # Best quality, 128k context
+
+# Grok (xAI) model defaults (Issue #1095)
+# Test defaults: beta model for dev/testing (grok-beta)
+# Production defaults: production model (grok-2)
+#
+# For current pricing, see: https://console.x.ai or https://docs.x.ai
+# Key advantage: Real-time information access via X/Twitter integration
+# Note: Grok does NOT support transcription (no audio API)
+# Note: Model names should be verified with your xAI API access
+TEST_DEFAULT_GROK_SPEAKER_MODEL = "grok-beta"  # Beta model for development
+TEST_DEFAULT_GROK_SUMMARY_MODEL = "grok-beta"  # Beta model for development
+PROD_DEFAULT_GROK_SPEAKER_MODEL = "grok-2"  # Production model, best quality
+PROD_DEFAULT_GROK_SUMMARY_MODEL = "grok-2"  # Production model, best quality
+
 # Validation constants
 VALID_WHISPER_MODELS = (
     "tiny",

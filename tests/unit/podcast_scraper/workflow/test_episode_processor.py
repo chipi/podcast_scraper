@@ -754,10 +754,12 @@ class TestTranscribeMediaToText(unittest.TestCase):
         self.assertTrue(success)
         self.assertEqual(transcript_path, "0001 - Episode_1.txt")
         self.assertEqual(bytes_downloaded, 5000000)
-        # When pipeline_metrics is None, should call without pipeline_metrics
-        mock_provider.transcribe_with_segments.assert_called_once_with(
-            "/tmp/ep1.mp3", language=cfg.language
-        )
+        # Function now always passes pipeline_metrics, episode_duration_seconds, and call_metrics
+        # Check that it was called with the audio path and language
+        mock_provider.transcribe_with_segments.assert_called_once()
+        call_args = mock_provider.transcribe_with_segments.call_args
+        self.assertEqual(call_args[0][0], "/tmp/ep1.mp3")
+        self.assertEqual(call_args[1]["language"], cfg.language)
         mock_cleanup.assert_called_once()
 
     @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
@@ -886,10 +888,12 @@ class TestTranscribeMediaToText(unittest.TestCase):
 
         self.assertTrue(success)
         self.assertEqual(transcript_path, "0001 - Episode_1.txt")
-        # Should call transcribe_with_segments without pipeline_metrics
-        mock_provider.transcribe_with_segments.assert_called_once_with(
-            "/tmp/ep1.mp3", language=cfg.language
-        )
+        # Function now always passes pipeline_metrics, episode_duration_seconds, and call_metrics
+        # Check that it was called with the audio path and language
+        mock_provider.transcribe_with_segments.assert_called_once()
+        call_args = mock_provider.transcribe_with_segments.call_args
+        self.assertEqual(call_args[0][0], "/tmp/ep1.mp3")
+        self.assertEqual(call_args[1]["language"], cfg.language)
         mock_cleanup.assert_called_once()
 
     @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
