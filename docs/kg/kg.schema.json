@@ -1,296 +1,338 @@
 {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://example.com/schemas/kg.schema.json",
-    "title": "Podcast Knowledge Graph Episode Artifact (kg.json)",
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["schema_version", "episode_id", "nodes", "edges"],
-    "properties": {
-      "schema_version": { "type": "string", "pattern": "^1\\.0$" },
-      "episode_id": { "type": "string", "minLength": 1 },
-      "nodes": {
-        "type": "array",
-        "items": { "$ref": "#/$defs/node" }
-      },
-      "edges": {
-        "type": "array",
-        "items": { "$ref": "#/$defs/edge" }
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/kg.schema.json",
+  "title": "Grounded Insight Layer Episode Artifact (kg.json)",
+  "description": "Schema for per-episode GIL data with Insights, Quotes, and grounding relationships",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "model_version",
+    "prompt_version",
+    "episode_id",
+    "nodes",
+    "edges"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.0$",
+      "description": "Schema version (must be 1.0)"
+    },
+    "model_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Model identifier used for extraction (e.g., gpt-4.1-mini-2026-01-xx)"
+    },
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Prompt version used for extraction (e.g., v2.1)"
+    },
+    "episode_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Episode identifier (e.g., episode:abc123)"
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/node" },
+      "description": "All nodes in this episode's GIL data"
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" },
+      "description": "All edges in this episode's GIL data"
+    }
+  },
+
+  "$defs": {
+    "node": {
+      "oneOf": [
+        { "$ref": "#/$defs/podcast_node" },
+        { "$ref": "#/$defs/episode_node" },
+        { "$ref": "#/$defs/speaker_node" },
+        { "$ref": "#/$defs/topic_node" },
+        { "$ref": "#/$defs/insight_node" },
+        { "$ref": "#/$defs/quote_node" }
+      ]
+    },
+
+    "node_base": {
+      "type": "object",
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique node identifier"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["Podcast", "Episode", "Speaker", "Topic", "Insight", "Quote"],
+          "description": "Node type"
+        },
+        "properties": {
+          "type": "object",
+          "description": "Type-specific properties"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Extraction confidence (optional, for ML-derived nodes)"
+        }
       }
     },
-    "$defs": {
-      "evidence": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "episode_id",
-          "transcript_ref",
-          "char_start",
-          "char_end",
-          "timestamp_start_ms",
-          "timestamp_end_ms",
-          "extraction_method",
-          "model_version"
-        ],
+
+    "podcast_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "Podcast" },
         "properties": {
-          "episode_id": { "type": "string", "minLength": 1 },
-          "transcript_ref": { "type": "string", "minLength": 1 },
-          "char_start": { "type": "integer", "minimum": 0 },
-          "char_end": { "type": "integer", "minimum": 0 },
-          "timestamp_start_ms": { "type": "integer", "minimum": 0 },
-          "timestamp_end_ms": { "type": "integer", "minimum": 0 },
-          "extraction_method": { "type": "string", "minLength": 1 },
-          "model_version": { "type": "string", "minLength": 1 }
-        }
-      },
-
-      "ml_provenance": {
-        "type": "object",
-        "additionalProperties": true,
-        "required": ["confidence", "evidence"],
-        "properties": {
-          "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
-          "evidence": { "$ref": "#/$defs/evidence" }
-        }
-      },
-
-      "node_base": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["id", "type", "properties"],
-        "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "type": {
-            "type": "string",
-            "enum": ["Podcast", "Episode", "Speaker", "Topic", "Entity", "Claim"]
-          },
-          "properties": { "type": "object" },
-          "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
-          "evidence": { "$ref": "#/$defs/evidence" }
-        }
-      },
-
-      "node": {
-        "oneOf": [
-          { "$ref": "#/$defs/podcast_node" },
-          { "$ref": "#/$defs/episode_node" },
-          { "$ref": "#/$defs/speaker_node" },
-          { "$ref": "#/$defs/topic_node" },
-          { "$ref": "#/$defs/entity_node" },
-          { "$ref": "#/$defs/claim_node" }
-        ]
-      },
-
-      "podcast_node": {
-        "allOf": [
-          { "$ref": "#/$defs/node_base" },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "type": { "const": "Podcast" },
-              "properties": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["title", "rss_url"],
-                "properties": {
-                  "title": { "type": "string", "minLength": 1 },
-                  "rss_url": { "type": "string", "minLength": 1 },
-                  "publisher": { "type": "string" }
-                }
-              }
-            }
-          }
-        ]
-      },
-
-      "episode_node": {
-        "allOf": [
-          { "$ref": "#/$defs/node_base" },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "type": { "const": "Episode" },
-              "properties": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["podcast_id", "title", "publish_date"],
-                "properties": {
-                  "podcast_id": { "type": "string", "minLength": 1 },
-                  "title": { "type": "string", "minLength": 1 },
-                  "publish_date": { "type": "string", "format": "date-time" },
-                  "audio_url": { "type": "string" },
-                  "duration_ms": { "type": "integer", "minimum": 0 }
-                }
-              }
-            }
-          }
-        ]
-      },
-
-      "speaker_node": {
-        "allOf": [
-          { "$ref": "#/$defs/node_base" },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "type": { "const": "Speaker" },
-              "properties": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["name"],
-                "properties": {
-                  "name": { "type": "string", "minLength": 1 },
-                  "aliases": { "type": "array", "items": { "type": "string" } }
-                }
-              }
-            }
-          }
-        ]
-      },
-
-      "topic_node": {
-        "allOf": [
-          { "$ref": "#/$defs/node_base" },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "type": { "const": "Topic" },
-              "properties": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["label"],
-                "properties": {
-                  "label": { "type": "string", "minLength": 1 },
-                  "aliases": { "type": "array", "items": { "type": "string" } }
-                }
-              }
-            }
-          }
-        ]
-      },
-
-      "entity_node": {
-        "allOf": [
-          { "$ref": "#/$defs/node_base" },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "type": { "const": "Entity" },
-              "properties": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["name", "entity_type"],
-                "properties": {
-                  "name": { "type": "string", "minLength": 1 },
-                  "entity_type": {
-                    "type": "string",
-                    "enum": ["person", "company", "product", "place", "org", "event", "other"]
-                  },
-                  "external_ids": { "type": "object" }
-                }
-              }
-            }
-          }
-        ]
-      },
-
-      "claim_node": {
-        "allOf": [
-          { "$ref": "#/$defs/node_base" },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["confidence", "evidence"],
-            "properties": {
-              "type": { "const": "Claim" },
-              "properties": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "text",
-                  "speaker_id",
-                  "episode_id",
-                  "timestamp_start_ms",
-                  "timestamp_end_ms"
-                ],
-                "properties": {
-                  "text": { "type": "string", "minLength": 1 },
-                  "speaker_id": { "type": "string", "minLength": 1 },
-                  "episode_id": { "type": "string", "minLength": 1 },
-                  "timestamp_start_ms": { "type": "integer", "minimum": 0 },
-                  "timestamp_end_ms": { "type": "integer", "minimum": 0 }
-                }
-              },
-              "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
-              "evidence": { "$ref": "#/$defs/evidence" }
-            }
-          }
-        ]
-      },
-
-      "edge": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["type", "from", "to", "properties"],
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "HAS_EPISODE",
-              "SPOKE_IN",
-              "DISCUSSES",
-              "MENTIONS",
-              "ASSERTS",
-              "ABOUT",
-              "RELATED_TO"
-            ]
-          },
-          "from": { "type": "string", "minLength": 1 },
-          "to": { "type": "string", "minLength": 1 },
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["title", "rss_url"],
           "properties": {
-            "type": "object",
-            "additionalProperties": true
+            "title": { "type": "string", "minLength": 1 },
+            "rss_url": { "type": "string", "minLength": 1 },
+            "publisher": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "episode_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "Episode" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["podcast_id", "title", "publish_date"],
+          "properties": {
+            "podcast_id": { "type": "string", "minLength": 1 },
+            "title": { "type": "string", "minLength": 1 },
+            "publish_date": { "type": "string", "format": "date-time" },
+            "audio_url": { "type": "string" },
+            "duration_ms": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+
+    "speaker_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "Speaker" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "aliases": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "topic_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "Topic" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label"],
+          "properties": {
+            "label": { "type": "string", "minLength": 1 },
+            "aliases": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "insight_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "Insight" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text", "episode_id", "grounded"],
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The insight statement (can be rephrased for clarity)"
+            },
+            "episode_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Episode where insight was extracted"
+            },
+            "grounded": {
+              "type": "boolean",
+              "description": "Whether insight has ≥1 supporting quote (CRITICAL: must be explicit)"
+            }
           }
         },
-        "allOf": [
-          {
-            "if": {
-              "properties": {
-                "type": { "enum": ["DISCUSSES", "MENTIONS", "ABOUT", "RELATED_TO"] }
-              }
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Extraction confidence (0.0-1.0)"
+        }
+      },
+      "description": "A key takeaway or conclusion extracted from episode content"
+    },
+
+    "quote_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "Quote" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text",
+            "episode_id",
+            "char_start",
+            "char_end",
+            "timestamp_start_ms",
+            "timestamp_end_ms",
+            "transcript_ref"
+          ],
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "description": "VERBATIM text from transcript (no paraphrasing!)"
             },
-            "then": {
+            "episode_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Episode containing the quote"
+            },
+            "speaker_id": {
+              "type": ["string", "null"],
+              "description": "Speaker who said the quote (nullable if no diarization)"
+            },
+            "char_start": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Character start in transcript text"
+            },
+            "char_end": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Character end in transcript text"
+            },
+            "timestamp_start_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Timestamp start (milliseconds)"
+            },
+            "timestamp_end_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Timestamp end (milliseconds)"
+            },
+            "transcript_ref": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Reference to transcript artifact (e.g., transcript.json)"
+            }
+          }
+        }
+      },
+      "description": "A verbatim transcript span used as evidence for an Insight"
+    },
+
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "from", "to"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "HAS_EPISODE",
+            "SPOKE_IN",
+            "HAS_INSIGHT",
+            "SUPPORTED_BY",
+            "SPOKEN_BY",
+            "ABOUT",
+            "RELATED_TO"
+          ],
+          "description": "Edge type"
+        },
+        "from": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Source node ID"
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Target node ID"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional edge properties"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": { "enum": ["ABOUT", "RELATED_TO"] }
+            }
+          },
+          "then": {
+            "properties": {
               "properties": {
+                "type": "object",
+                "additionalProperties": true,
                 "properties": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "required": ["confidence", "evidence"],
-                  "properties": {
-                    "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
-                    "evidence": { "$ref": "#/$defs/evidence" }
+                  "confidence": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "Edge confidence (optional)"
                   }
                 }
               }
             }
-          },
-          {
-            "if": {
-              "properties": { "type": { "enum": ["HAS_EPISODE", "SPOKE_IN", "ASSERTS"] } }
-            },
-            "then": {
-              "properties": {
-                "properties": {
-                  "type": "object",
-                  "additionalProperties": false
-                }
-              }
-            }
           }
-        ]
-      }
+        }
+      ]
     }
   }
+}

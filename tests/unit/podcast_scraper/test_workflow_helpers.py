@@ -917,8 +917,8 @@ class TestNoDuplicateAliases(unittest.TestCase):
         self.assertTrue(hasattr(stages.transcription, "process_transcription_jobs_concurrent"))
         self.assertTrue(hasattr(stages.processing, "process_processing_jobs_concurrent"))
         self.assertTrue(hasattr(stages.metadata, "generate_episode_metadata"))
-        self.assertTrue(hasattr(stages.summarization_stage, "parallel_episode_summarization"))
-        self.assertTrue(hasattr(stages.summarization_stage, "summarize_single_episode"))
+        self.assertTrue(hasattr(stages.summarization, "parallel_episode_summarization"))
+        self.assertTrue(hasattr(stages.summarization, "summarize_single_episode"))
 
     def test_helper_functions_exist_in_helpers_module(self):
         """Test that helper functions exist in helpers module."""

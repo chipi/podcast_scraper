@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Unit tests for Gemini providers (Issue #194).
+"""Unit tests for Gemini providers via factory (Issue #194).
 
-These tests verify Gemini provider implementations with mocked API calls.
+These tests verify Gemini provider implementations with mocked API calls,
+using factory functions to create providers (tests factory integration).
+
+For standalone provider tests, see test_gemini_provider.py.
 """
 
 import json
@@ -39,8 +42,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.module_gemini_providers]
 
 @pytest.mark.llm
 @pytest.mark.gemini
-class TestGeminiTranscriptionProvider(unittest.TestCase):
-    """Test Gemini transcription provider."""
+class TestGeminiTranscriptionProviderFactory(unittest.TestCase):
+    """Test Gemini transcription provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -122,8 +125,8 @@ class TestGeminiTranscriptionProvider(unittest.TestCase):
 
 @pytest.mark.llm
 @pytest.mark.gemini
-class TestGeminiSpeakerDetector(unittest.TestCase):
-    """Test Gemini speaker detection provider."""
+class TestGeminiSpeakerDetectorFactory(unittest.TestCase):
+    """Test Gemini speaker detection provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -205,8 +208,8 @@ class TestGeminiSpeakerDetector(unittest.TestCase):
 
 @pytest.mark.llm
 @pytest.mark.gemini
-class TestGeminiSummarizationProvider(unittest.TestCase):
-    """Test Gemini summarization provider."""
+class TestGeminiSummarizationProviderFactory(unittest.TestCase):
+    """Test Gemini summarization provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""

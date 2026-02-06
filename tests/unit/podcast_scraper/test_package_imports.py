@@ -15,7 +15,7 @@ import unittest
 from pathlib import Path
 
 # Allow importing the package when tests run from within the package directory.
-PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
+PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)

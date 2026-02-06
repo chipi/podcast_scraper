@@ -18,7 +18,7 @@ if PROJECT_ROOT not in sys.path:
 from pydantic import ValidationError
 
 from podcast_scraper import config
-from podcast_scraper.evaluation import config as experiment_config
+from podcast_scraper.evaluation import experiment_config
 
 
 class TestPromptConfig(unittest.TestCase):

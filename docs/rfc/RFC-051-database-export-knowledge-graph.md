@@ -1,10 +1,10 @@
-# RFC-051: Podcast Knowledge Graph – Episode & KG Data Store Projection
+# RFC-051: Grounded Insight Layer – Database Projection
 
 - **Status**: Draft
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, ML engineers, downstream consumers, power users
 - **Related PRDs**:
-  - `docs/prd/PRD-017-podcast-knowledge-graph.md` (Knowledge Graph)
+  - `docs/prd/PRD-017-podcast-knowledge-graph.md` (Grounded Insight Layer)
   - `docs/prd/PRD-018-database-export-knowledge-graph.md` (Database Export)
 - **Related RFCs**:
   - `docs/rfc/RFC-049-podcast-knowledge-graph-core.md` (Core Concepts & Data Model)
@@ -20,43 +20,49 @@
 
 ## Abstract
 
-This RFC defines how episode-level outputs and Knowledge Graph (KG) metadata are projected from file-based artifacts into a queryable data store (e.g., Postgres, ClickHouse, Elasticsearch). The goal is to enable fast querying, experimentation, and analytics without changing the canonical file-based KG model.
+This RFC defines how episode-level outputs and **Grounded Insight Layer (GIL)** data are projected from file-based artifacts into a queryable data store (e.g., Postgres). The goal is to enable fast **Insight Explorer** queries without changing the canonical file-based model.
 
-Conceptually, exporting to Postgres provides a fast, queryable "projection" of file-based episode bundles + KG. The KG stays the semantic truth; Postgres becomes the serving layer that makes UC1–UC4 cheap and ergonomic. On disk, `output/episode_x/...` is the canonical, auditable record. In Postgres, a normalized, indexed view enables millisecond queries and tool/UI development.
+The key addition is tables for **insights**, **quotes**, and **insight_support** (the grounding join table). This enables the core user value: query a topic → get insights with supporting quotes → navigate to timestamps—all in milliseconds.
+
+Conceptually, exporting to Postgres provides a fast, queryable "projection" of file-based episode bundles + GIL data. The files stay the semantic truth; Postgres becomes the serving layer that makes UC1–UC5 cheap and ergonomic. On disk, `output/episode_x/...` is the canonical, auditable record. In Postgres, a normalized, indexed view enables millisecond queries.
 
 **Architecture Alignment:** This RFC aligns with existing architecture by:
+
 - Preserving file-based outputs as canonical source of truth
 - Enabling incremental updates without reprocessing historical data
 - Providing stable SQL interface for downstream tools (CLI, notebooks, web UIs, agents)
 - Maintaining full provenance traceability to `kg.json` and transcript evidence
+- **Supporting the Insight Explorer pattern** (insights + quotes + timestamps)
 
 ## Problem Statement
 
-The Knowledge Graph (RFC-049, RFC-050) produces structured `kg.json` files per episode, enabling semantic querying and evidence-backed exploration. However, file-based access has limitations:
+The Grounded Insight Layer (RFC-049, RFC-050) produces structured `kg.json` files per episode, containing **insights** and **supporting quotes** with grounding relationships. However, file-based access has limitations:
 
 - **Scalability**: Scanning N folders and parsing N JSON files becomes slow at scale (50 episodes is fine; 5,000 is painful)
-- **Query Performance**: No indexing, filtering, or pagination for global queries
+- **Query Performance**: No indexing, filtering, or pagination for cross-episode insight queries
 - **Integration Friction**: Downstream tools (CLI, notebooks, web UIs, agents) must implement file scanning logic
-- **Iteration Speed**: Re-running extraction or comparing runs requires manual file operations
+- **Insight Explorer**: The canonical query (UC5) requires joining insights → quotes → episodes across many files
 
-**The Core Problem**: Files are canonical and auditable, but they're not optimized for fast queries and tooling.
+**The Core Problem**: Files are canonical and auditable, but they're not optimized for the **Insight Explorer** pattern.
 
-**The Solution**: Export to Postgres as a "projection layer" that preserves provenance while enabling SQL-based queries, indexing, and incremental updates. Files remain the source of truth; the database becomes the serving layer.
+**The Solution**: Export to Postgres as a "projection layer" with dedicated tables for **insights**, **quotes**, and **insight_support** (grounding join table). This makes the Insight Explorer query fast and ergonomic.
 
 **Use Cases:**
 
-1. **UC1 – Cross-Podcast Topic Research**: Query all episodes discussing a topic in milliseconds, filter by date/podcast/confidence, paginate results
-2. **UC2 – Speaker-Centric Insight Mapping**: Build speaker profiles with top topics and claims via SQL joins
-3. **UC3 – Claim Retrieval with Evidence**: Fetch claims with evidence pointers without opening JSON files
+1. **UC1 – Cross-Podcast Topic Research**: Query insights about a topic with supporting quotes in milliseconds
+2. **UC2 – Speaker-Centric Insight Mapping**: Build speaker profiles with insights they support via SQL joins
+3. **UC3 – Evidence-Backed Retrieval**: Fetch insights with quotes and timestamps without opening JSON files
 4. **UC4 – Semantic Question Answering**: Answer focused questions via deterministic SQL queries
+5. **UC5 – Insight Explorer**: The canonical query that proves the layer works—fast via indexed tables
 
 ## Goals
 
-1. **Enable Fast Queries**: Transform file scanning into indexed SQL queries for UC1–UC4
-2. **Support Notebook Research Workflows**: Enable power users to build topic dossiers, speaker profiles, and entity narratives
-3. **Provide Stable Integration Interface**: Give downstream tools (CLI, notebooks, web UIs, agents) a consistent SQL interface
-4. **Preserve Provenance**: Every database row is traceable back to `kg.json`, transcript evidence, and extraction metadata
-5. **Enable Incremental Growth**: Support upserting new episodes without reprocessing historical data
+1. **Enable Fast Insight Queries**: Transform file scanning into indexed SQL queries for UC1–UC5
+2. **Support Insight Explorer Pattern**: Make the canonical query (insights + quotes + timestamps) fast
+3. **Support Notebook Research Workflows**: Enable power users to build topic dossiers, speaker profiles
+4. **Provide Stable Integration Interface**: Give downstream tools (CLI, notebooks, web UIs, agents) consistent SQL
+5. **Preserve Provenance**: Every database row traceable to `kg.json`, transcript evidence, extraction metadata
+6. **Enable Incremental Growth**: Support upserting new episodes without reprocessing historical data
 
 ## Constraints & Assumptions
 
@@ -109,6 +115,7 @@ kg export \
 **Core Tables:**
 
 **`episodes`**
+
 - `id` (PK) - Episode identifier
 - `podcast_id` - Podcast identifier
 - `title` - Episode title
@@ -121,55 +128,67 @@ kg export \
 - `ingestion_run_id` - Export run identifier
 
 **`speakers`**
+
 - `id` (PK) - Speaker identifier (global, deduplicated)
 - `name` - Speaker name
 
 **`topics`**
+
 - `id` (PK) - Topic identifier (global, deduplicated)
 - `label` - Topic label
 
-**`entities`**
-- `id` (PK) - Entity identifier (global, deduplicated)
-- `name` - Entity name
-- `entity_type` - Entity type (person, company, product, place)
+**`insights`** (NEW - Core GIL Table)
 
-**`claims`**
-- `id` (PK) - Claim identifier (episode-scoped)
+- `id` (PK) - Insight identifier (episode-scoped)
 - `episode_id` (FK) - Reference to episodes
-- `speaker_id` (FK) - Reference to speakers
-- `text` - Claim text
+- `text` - Insight text (takeaway)
+- `grounded` - Boolean: has ≥1 supporting quote
 - `confidence` - Extraction confidence (0.0-1.0)
+- `model_version` - Model version used for extraction
+- `prompt_version` - Prompt version used for extraction
+- `ingestion_run_id` - Export run identifier
+
+**`quotes`** (NEW - Evidence Table)
+
+- `id` (PK) - Quote identifier (episode-scoped)
+- `episode_id` (FK) - Reference to episodes
+- `speaker_id` (FK, nullable) - Reference to speakers (nullable if no diarization)
+- `text` - Verbatim quote text
 - `char_start` - Character start in transcript
 - `char_end` - Character end in transcript
 - `timestamp_start_ms` - Timestamp start (milliseconds)
 - `timestamp_end_ms` - Timestamp end (milliseconds)
 - `transcript_ref` - Transcript file reference
-- `model_version` - Model version used for extraction
 - `ingestion_run_id` - Export run identifier
 
 **Relationship Tables:**
 
-**`episode_topics`** (DISCUSSES edge)
-- `episode_id` (FK)
-- `topic_id` (FK)
+**`insight_support`** (NEW - Grounding Join Table: SUPPORTED_BY edge)
+
+- `insight_id` (FK) - Reference to insights
+- `quote_id` (FK) - Reference to quotes
+- PRIMARY KEY (insight_id, quote_id)
+
+**`insight_topics`** (ABOUT edge: Insight → Topic)
+
+- `insight_id` (FK) - Reference to insights
+- `topic_id` (FK) - Reference to topics
 - `confidence` - Edge confidence (optional)
 
-**`episode_entities`** (MENTIONS edge)
-- `episode_id` (FK)
-- `entity_id` (FK)
-- `confidence` - Edge confidence (optional)
+**Deferred to v1.1:**
 
-**`claim_about`** (ABOUT edge)
-- `claim_id` (FK)
-- `target_id` - Target node ID (topic or entity)
-- `target_type` - 'topic' or 'entity'
-- `confidence` - Edge confidence (optional)
+**`entities`** (Deferred - Entity extraction deferred to v1.1)
+
+- `id` (PK) - Entity identifier (global, deduplicated)
+- `name` - Entity name
+- `entity_type` - Entity type (person, company, product, place)
 
 ### 3. Identity & Deduplication Rules
 
 - **Episode ID**: Authoritative and immutable (derived from RSS GUID)
-- **Claim IDs**: Episode-scoped (format: `claim:<episode_id>:<hash>`)
-- **Speakers, Topics, Entities**: Use stable global IDs (slug-based normalization)
+- **Insight IDs**: Episode-scoped (format: `insight:<episode_id>:<hash>`)
+- **Quote IDs**: Episode-scoped (format: `quote:<episode_id>:<hash>` or `quote:<episode_id>:<char_start>-<char_end>`)
+- **Speakers, Topics**: Use stable global IDs (slug-based normalization)
 - **Deduplication Logic**: Lives outside the exporter (resolved before export)
 
 ### 4. Versioning & Lineage
@@ -207,131 +226,211 @@ This enables:
   - **Pros**: Evidence resolution is a single query, fully DB-only serving
   - **Cons**: Big database, duplication, more migration pain
 
-### 6. How Postgres Supports UC1–UC4
+### 6. How Postgres Supports UC1–UC5
 
 #### UC1 – Cross-Podcast Topic Research
 
 **Question Examples:**
-- "Show me all episodes discussing AI Regulation"
-- "Which speakers talk about it most?"
 
-**KG Terms:**
-- Topic → Episode via DISCUSSES
-- Episode → Speaker via SPOKE_IN
+- "Show me insights about AI Regulation"
+- "Which speakers have quotes supporting these insights?"
+
+**GIL Terms:**
+
+- Topic → Insight via insight_topics
+- Insight → Quote via insight_support
+- Quote → Speaker via speaker_id
 
 **Postgres Implementation:**
-- `topics` + `episode_topics` + `episodes` + `speakers` (via join)
+
+- `topics` + `insight_topics` + `insights` + `insight_support` + `quotes` + `speakers`
 
 **Benefit:**
-- Instant topic-wide views, fast filters by date/podcast/confidence
-- Easy pagination ("show next 50 episodes")
+
+- Instant topic-wide insight views with supporting quotes
+- Easy pagination ("show next 50 insights")
 
 **Example SQL:**
+
 ```sql
-SELECT e.id, e.title, e.publish_date, e.podcast_id
-FROM episodes e
-JOIN episode_topics et ON e.id = et.episode_id
-JOIN topics t ON et.topic_id = t.id
+SELECT i.id, i.text, i.grounded, i.confidence, e.title, e.publish_date
+FROM insights i
+JOIN insight_topics it ON i.id = it.insight_id
+JOIN topics t ON it.topic_id = t.id
+JOIN episodes e ON i.episode_id = e.id
 WHERE t.label = 'AI Regulation'
-  AND e.publish_date >= '2026-01-01'
-ORDER BY e.publish_date DESC;
+  AND i.grounded = true
+ORDER BY i.confidence DESC;
 ```
 
 #### UC2 – Speaker-Centric Insight Mapping
 
 **Question Examples:**
-- "What topics does Speaker X cover?"
-- "What are their most confident claims?"
 
-**KG Terms:**
-- Speaker → Claim via ASSERTS
-- Claim → Topic/Entity via ABOUT
+- "What topics does Speaker X have quotes about?"
+- "What insights do their quotes support?"
+
+**GIL Terms:**
+
+- Speaker → Quote via speaker_id
+- Quote → Insight via insight_support
+- Insight → Topic via insight_topics
 
 **Postgres Implementation:**
-- `speakers` → `claims` → `claim_about` (+ topics/entities)
+
+- `speakers` → `quotes` → `insight_support` → `insights` → `insight_topics` → `topics`
 
 **Benefit:**
-- Speaker profiles become one query
-- Easy ranking: "top claims by confidence", "latest claims", "claims about X"
+
+- Speaker profiles with insights they support (via their quotes)
+- Easy ranking: "top insights by confidence", "topics with most quotes"
 
 **Example SQL:**
+
 ```sql
-SELECT t.label, COUNT(DISTINCT c.id) as claim_count, AVG(c.confidence) as avg_confidence
+SELECT t.label, COUNT(DISTINCT i.id) as insight_count, COUNT(DISTINCT q.id) as quote_count
 FROM speakers s
-JOIN claims c ON s.id = c.speaker_id
-JOIN claim_about ca ON c.id = ca.claim_id
-JOIN topics t ON ca.target_id = t.id AND ca.target_type = 'topic'
+JOIN quotes q ON s.id = q.speaker_id
+JOIN insight_support isup ON q.id = isup.quote_id
+JOIN insights i ON isup.insight_id = i.id
+JOIN insight_topics it ON i.id = it.insight_id
+JOIN topics t ON it.topic_id = t.id
 WHERE s.name = 'Sam Altman'
 GROUP BY t.label
-ORDER BY claim_count DESC
+ORDER BY quote_count DESC
 LIMIT 10;
 ```
 
-#### UC3 – Claim Retrieval with Evidence
+#### UC3 – Evidence-Backed Quote/Insight Retrieval
 
 **Question Examples:**
-- "Give me the exact quote + timestamp for this claim"
-- "Show me context around it"
 
-**KG Terms:**
-- Claim has evidence pointing into transcript
+- "Give me the exact quotes supporting this insight"
+- "Show me timestamps for each quote"
+
+**GIL Terms:**
+
+- Insight → Supporting Quotes via insight_support
+- Quote has transcript evidence
 
 **Postgres Implementation:**
-- `claims` table stores:
-  - `char_start`/`char_end` - Character spans
-  - `timestamp_start_ms`/`timestamp_end_ms` - Temporal spans
-  - `transcript_ref` and/or transcript path
-  - `episode_id`
+
+- `insights` → `insight_support` → `quotes` (with char_start/char_end, timestamps)
 
 **Benefit:**
-- Fetch claims without opening JSON
-- Build claim viewer UI/CLI that resolves evidence reliably
-- Audit extraction quality faster
+
+- Fetch insights with all supporting quotes in one query
+- Build insight viewer UI/CLI that resolves evidence reliably
 
 **Example SQL:**
+
 ```sql
-SELECT c.text, c.timestamp_start_ms, c.timestamp_end_ms,
-       c.transcript_ref, c.char_start, c.char_end,
-       e.kg_path, e.transcript_path
-FROM claims c
-JOIN episodes e ON c.episode_id = e.id
-WHERE c.id = 'claim:episode:abc123:...';
+SELECT i.text as insight_text, i.grounded, i.confidence,
+       q.text as quote_text, q.timestamp_start_ms, q.timestamp_end_ms,
+       q.char_start, q.char_end, s.name as speaker_name,
+       e.transcript_path
+FROM insights i
+JOIN insight_support isup ON i.id = isup.insight_id
+JOIN quotes q ON isup.quote_id = q.id
+LEFT JOIN speakers s ON q.speaker_id = s.id
+JOIN episodes e ON i.episode_id = e.id
+WHERE i.id = 'insight:episode:abc123:a1b2c3d4';
 ```
 
 #### UC4 – Semantic Question Answering (v1-Scoped)
 
 **Question Examples:**
-- "What claims mention OpenAI?"
-- "Which claims are about AI Regulation since Jan 2026?"
 
-**KG Terms:**
-- Entity/Topic selection → ABOUT edges → Claims
-- Filter by time/confidence
+- "What insights are there about AI Regulation?"
+- "Which insights since Jan 2026 have the most evidence?"
+
+**GIL Terms:**
+
+- Topic selection → insight_topics → insights
+- Filter by time/confidence/grounding
 
 **Postgres Implementation:**
-- `entities`/`topics` + `claim_about` + `claims` + `episodes` (for date)
+
+- `topics` + `insight_topics` + `insights` + `episodes` (for date)
 
 **Benefit:**
+
 - Deterministic "semantic" queries without LLM reasoning
 - Fast enough to support interactive tools and future UI
 
 **Example SQL:**
+
 ```sql
-SELECT c.text, c.confidence, s.name, e.title
-FROM entities ent
-JOIN claim_about ca ON ent.id = ca.target_id AND ca.target_type = 'entity'
-JOIN claims c ON ca.claim_id = c.id
-JOIN speakers s ON c.speaker_id = s.id
-JOIN episodes e ON c.episode_id = e.id
-WHERE ent.name = 'OpenAI'
-ORDER BY c.confidence DESC;
+SELECT i.text, i.grounded, i.confidence, e.title,
+       COUNT(isup.quote_id) as supporting_quote_count
+FROM topics t
+JOIN insight_topics it ON t.id = it.topic_id
+JOIN insights i ON it.insight_id = i.id
+JOIN episodes e ON i.episode_id = e.id
+LEFT JOIN insight_support isup ON i.id = isup.insight_id
+WHERE t.label = 'AI Regulation'
+  AND e.publish_date >= '2026-01-01'
+GROUP BY i.id, i.text, i.grounded, i.confidence, e.title
+ORDER BY supporting_quote_count DESC, i.confidence DESC;
+```
+
+#### UC5 – Insight Explorer (The Canonical Query)
+
+**Question Examples:**
+
+- "Show me all insights about AI Regulation with supporting quotes"
+- "Give me the full insight report for a topic"
+
+**GIL Terms:**
+
+- Topic → Insights → Supporting Quotes → Speakers + Episodes + Timestamps
+
+**Postgres Implementation:**
+
+- Full join across all GIL tables
+
+**Benefit:**
+
+- The canonical query that proves the layer works
+- Delivers insights + quotes + timestamps in one fast query
+
+**Example SQL (Insight Explorer):**
+
+```sql
+WITH topic_insights AS (
+  SELECT i.id, i.text, i.grounded, i.confidence, i.episode_id
+  FROM insights i
+  JOIN insight_topics it ON i.id = it.insight_id
+  JOIN topics t ON it.topic_id = t.id
+  WHERE t.label = 'AI Regulation'
+    AND i.grounded = true
+  ORDER BY i.confidence DESC
+  LIMIT 20
+)
+SELECT
+  ti.text as insight_text,
+  ti.grounded,
+  ti.confidence,
+  e.title as episode_title,
+  e.publish_date,
+  q.text as quote_text,
+  q.timestamp_start_ms,
+  q.timestamp_end_ms,
+  s.name as speaker_name
+FROM topic_insights ti
+JOIN episodes e ON ti.episode_id = e.id
+LEFT JOIN insight_support isup ON ti.id = isup.insight_id
+LEFT JOIN quotes q ON isup.quote_id = q.id
+LEFT JOIN speakers s ON q.speaker_id = s.id
+ORDER BY ti.confidence DESC, q.timestamp_start_ms ASC;
 ```
 
 ### 7. Notebook Research Workflows
 
 Once data is in Postgres, power users can build research workflows:
 
-**Topic Dossier:**
+**Topic Dossier (Insights + Quotes):**
+
 ```python
 import pandas as pd
 import sqlalchemy
@@ -339,46 +438,75 @@ import sqlalchemy
 engine = sqlalchemy.create_engine("postgresql://...")
 
 query = """
-SELECT e.title, e.publish_date, c.text, c.confidence, s.name
+SELECT i.text as insight, i.grounded, i.confidence,
+       q.text as quote, q.timestamp_start_ms, s.name as speaker,
+       e.title as episode
 FROM topics t
-JOIN episode_topics et ON t.id = et.topic_id
-JOIN episodes e ON et.episode_id = e.id
-JOIN claims c ON e.id = c.episode_id
-JOIN speakers s ON c.speaker_id = s.id
+JOIN insight_topics it ON t.id = it.topic_id
+JOIN insights i ON it.insight_id = i.id
+JOIN episodes e ON i.episode_id = e.id
+LEFT JOIN insight_support isup ON i.id = isup.insight_id
+LEFT JOIN quotes q ON isup.quote_id = q.id
+LEFT JOIN speakers s ON q.speaker_id = s.id
 WHERE t.label = 'AI Regulation'
-ORDER BY c.confidence DESC
-LIMIT 50;
+ORDER BY i.confidence DESC
+LIMIT 100;
 """
 
 df = pd.read_sql(query, engine)
-# Build topic dossier with claims, speakers, evidence
+# Build topic dossier with insights, supporting quotes, speakers
 ```
 
-**Speaker Profile:**
+**Speaker Profile (Insights Supported):**
+
 ```python
 query = """
-SELECT t.label, COUNT(*) as claim_count, AVG(c.confidence) as avg_confidence
+SELECT t.label, COUNT(DISTINCT i.id) as insight_count,
+       COUNT(DISTINCT q.id) as quote_count
 FROM speakers s
-JOIN claims c ON s.id = c.speaker_id
-JOIN claim_about ca ON c.id = ca.claim_id
-JOIN topics t ON ca.target_id = t.id AND ca.target_type = 'topic'
+JOIN quotes q ON s.id = q.speaker_id
+JOIN insight_support isup ON q.id = isup.quote_id
+JOIN insights i ON isup.insight_id = i.id
+JOIN insight_topics it ON i.id = it.insight_id
+JOIN topics t ON it.topic_id = t.id
 WHERE s.name = 'Sam Altman'
 GROUP BY t.label
-ORDER BY claim_count DESC;
+ORDER BY quote_count DESC;
 """
 ```
 
-**Quality Audit:**
+**Grounding Quality Audit:**
+
 ```python
 query = """
-SELECT c.id, c.text, c.confidence, e.title
-FROM claims c
-JOIN episodes e ON c.episode_id = e.id
-WHERE c.confidence < 0.5
-   OR c.char_start IS NULL
-   OR c.timestamp_start_ms IS NULL
-ORDER BY c.confidence ASC;
+SELECT i.id, i.text, i.grounded, i.confidence, e.title,
+       COUNT(isup.quote_id) as quote_count
+FROM insights i
+JOIN episodes e ON i.episode_id = e.id
+LEFT JOIN insight_support isup ON i.id = isup.insight_id
+WHERE i.grounded = false
+   OR i.confidence < 0.5
+GROUP BY i.id, i.text, i.grounded, i.confidence, e.title
+ORDER BY i.confidence ASC;
 """
+
+# Find insights with grounding issues
+```
+
+**Quote Validity Audit:**
+
+```python
+query = """
+SELECT q.id, q.text, q.char_start, q.char_end,
+       q.timestamp_start_ms, e.transcript_path
+FROM quotes q
+JOIN episodes e ON q.episode_id = e.id
+WHERE q.char_start IS NULL
+   OR q.char_end IS NULL
+   OR q.timestamp_start_ms IS NULL;
+"""
+
+# Find quotes with missing evidence pointers
 ```
 
 ### 8. Data Store Options
@@ -437,19 +565,23 @@ KG export should be controlled via `Config` model:
    - **Decision**: Files remain source of truth; database is derived, rebuildable view
    - **Rationale**: Preserves auditability, enables reprocessing, maintains co-location pattern
 
-2. **Relational Projection Over Graph Database**
-   - **Decision**: Use Postgres relational tables, not graph database (Neo4j, ArangoDB)
-   - **Rationale**: Simpler ops, covers UC1–UC4, no new infrastructure, SQL is familiar
+2. **Insights + Quotes + Grounding Tables**
+   - **Decision**: Add dedicated tables for insights, quotes, and insight_support (grounding join)
+   - **Rationale**: Enables Insight Explorer query; makes grounding relationships queryable
 
-3. **Pointers Only for Transcript Text (v1)**
+3. **Relational Projection Over Graph Database**
+   - **Decision**: Use Postgres relational tables, not graph database (Neo4j, ArangoDB)
+   - **Rationale**: Simpler ops, covers UC1–UC5, no new infrastructure, SQL is familiar
+
+4. **Pointers Only for Transcript Text (v1)**
    - **Decision**: Store transcript path + spans, not full text
    - **Rationale**: Simpler, smaller DB, canonical stays on disk, easier migration
 
-4. **Incremental Updates by Default**
+5. **Incremental Updates by Default**
    - **Decision**: Default to incremental mode, support rebuild flag
    - **Rationale**: Fast updates for new episodes, full control for schema changes
 
-5. **Provenance Tracking Required**
+6. **Provenance Tracking Required**
    - **Decision**: Every row must be traceable to `kg.json`, transcript evidence, extraction metadata
    - **Rationale**: Enables trust, debugging, explainability, run comparison
 
@@ -518,40 +650,43 @@ KG export should be controlled via `Config` model:
 
 **Success Criteria:**
 
-1. ✅ Episode + KG data can be exported to Postgres
-2. ✅ UC1–UC4 queries run faster via DB than file scan
-3. ✅ Data store can be rebuilt from disk with no data loss
-4. ✅ All database rows are traceable to source `kg.json` files
-5. ✅ Notebook workflows can query Postgres successfully
+1. ✅ Episode + GIL data (insights, quotes) can be exported to Postgres
+2. ✅ UC1–UC5 queries (including Insight Explorer) run faster via DB than file scan
+3. ✅ Grounding relationships are queryable via insight_support table
+4. ✅ Data store can be rebuilt from disk with no data loss
+5. ✅ All database rows are traceable to source `kg.json` files
+6. ✅ Notebook workflows can query insights + quotes successfully
 
 ## Relationship to Other RFCs
 
-This RFC (RFC-051) is part of the Knowledge Graph initiative that includes:
+This RFC (RFC-051) is part of the Grounded Insight Layer initiative that includes:
 
-1. **RFC-049: Core KG Concepts & Data Model** - Defines ontology, storage, and schema
-2. **RFC-050: KG Use Cases & Consumption** - Defines query patterns and integration
-3. **PRD-017: Podcast Knowledge Graph** - Defines product requirements
+1. **RFC-049: Core GIL Concepts & Data Model** - Defines ontology, grounding contract, and storage
+2. **RFC-050: GIL Use Cases & Consumption** - Defines query patterns and Insight Explorer
+3. **PRD-017: Grounded Insight Layer** - Defines product requirements
 4. **PRD-018: Database Export** - Defines product requirements for database export
 
 **Key Distinction:**
 
-- **RFC-049**: Focuses on *how* knowledge is extracted and stored (file-based)
-- **RFC-050**: Focuses on *how* knowledge is consumed (file-based queries)
-- **RFC-051 (This RFC)**: Focuses on *how* knowledge is projected into database for fast queries
+- **RFC-049**: Focuses on *how* knowledge is extracted and stored (file-based, grounding contract)
+- **RFC-050**: Focuses on *how* knowledge is consumed (use cases, output shapes)
+- **RFC-051 (This RFC)**: Focuses on *how* knowledge is projected for fast Insight Explorer queries
 
 Together, these RFCs provide:
-- Complete technical design for Knowledge Graph implementation
-- Clear separation between file-based storage (RFC-049, RFC-050) and database projection (RFC-051)
-- Foundation for fast queries and downstream tooling
+
+- Complete technical design for Grounded Insight Layer implementation
+- Clear separation between ontology (RFC-049), consumption (RFC-050), and serving (RFC-051)
+- Foundation for fast queries, notebook research, and downstream tooling
 
 ## Benefits
 
-1. **Fast Queries**: UC1–UC4 queries complete in milliseconds instead of seconds/minutes
-2. **Notebook Workflows**: Power users can build research workflows without file scanning
-3. **Stable Interface**: Downstream tools (CLI, notebooks, web UIs, agents) get consistent SQL interface
-4. **Incremental Growth**: New episodes can be ingested without reprocessing historical data
-5. **Provenance Preserved**: Every database row is traceable to source files and evidence
-6. **Tool Transformation**: Project becomes a tool, not just a pipeline
+1. **Fast Insight Queries**: UC1–UC5 queries complete in milliseconds instead of seconds/minutes
+2. **Insight Explorer Support**: The canonical query (insights + quotes + timestamps) is fast
+3. **Grounding is Queryable**: insight_support table makes grounding relationships easy to explore
+4. **Notebook Workflows**: Power users can build research workflows without file scanning
+5. **Stable Interface**: Downstream tools (CLI, notebooks, web UIs, agents) get consistent SQL interface
+6. **Incremental Growth**: New episodes can be ingested without reprocessing historical data
+7. **Provenance Preserved**: Every database row is traceable to source files and evidence
 
 ## Migration Path
 

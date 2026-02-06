@@ -29,7 +29,7 @@ from podcast_scraper.workflow.stages import (
     processing,
     scraping,
     setup,
-    summarization_stage,
+    summarization,
     transcription,
 )
 from podcast_scraper.workflow.types import FeedMetadata
@@ -597,7 +597,7 @@ class TestSummarizationStage(unittest.TestCase):
     def test_collect_episodes_for_summarization_no_transcript(self):
         """Test _collect_episodes_for_summarization returns empty when no transcript."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = summarization_stage._collect_episodes_for_summarization(
+            result = summarization._collect_episodes_for_summarization(
                 episodes=self.episodes,
                 download_args=None,
                 effective_output_dir=tmpdir,
@@ -625,7 +625,7 @@ class TestSummarizationStage(unittest.TestCase):
             with open(transcript_path, "w") as f:
                 f.write("Test transcript content")
 
-            result = summarization_stage._collect_episodes_for_summarization(
+            result = summarization._collect_episodes_for_summarization(
                 episodes=self.episodes,
                 download_args=None,
                 effective_output_dir=tmpdir,

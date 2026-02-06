@@ -144,11 +144,11 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
             Path(transcript_path).write_text("This is a test transcript. " * 100)
 
         # Mock the summarize_single_episode function
-        with patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode"):
+        with patch("podcast_scraper.workflow.stages.summarization.summarize_single_episode"):
             # Call parallel_episode_summarization (re-exported as _parallel_episode_summarization)
-            from podcast_scraper.workflow.stages import summarization_stage
+            from podcast_scraper.workflow.stages import summarization
 
-            summarization_stage.parallel_episode_summarization(
+            summarization.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -201,10 +201,10 @@ class TestParallelSummarizationPreLoading(unittest.TestCase):
         # Create transcript files using the expected path format
         _create_test_transcript_files(episodes, self.temp_dir, cfg)
 
-        with patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode"):
-            from podcast_scraper.workflow.stages import summarization_stage
+        with patch("podcast_scraper.workflow.stages.summarization.summarize_single_episode"):
+            from podcast_scraper.workflow.stages import summarization
 
-            summarization_stage.parallel_episode_summarization(
+            summarization.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -291,12 +291,12 @@ class TestParallelSummarizationThreadSafety(unittest.TestCase):
                     used_models.append(id(kwargs["summary_model"]))
 
         with patch(
-            "podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode",
+            "podcast_scraper.workflow.stages.summarization.summarize_single_episode",
             side_effect=track_model_usage,
         ):
-            from podcast_scraper.workflow.stages import summarization_stage
+            from podcast_scraper.workflow.stages import summarization
 
-            summarization_stage.parallel_episode_summarization(
+            summarization.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -385,12 +385,12 @@ class TestParallelSummarizationFallback(unittest.TestCase):
 
         mock_provider = _create_mock_provider(mock_summary_model)
         with patch(
-            "podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode",
+            "podcast_scraper.workflow.stages.summarization.summarize_single_episode",
             side_effect=track_summarize,
         ):
-            from podcast_scraper.workflow.stages import summarization_stage
+            from podcast_scraper.workflow.stages import summarization
 
-            summarization_stage.parallel_episode_summarization(
+            summarization.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -460,10 +460,10 @@ class TestParallelSummarizationCleanup(unittest.TestCase):
         # Create transcript files using the expected path format
         _create_test_transcript_files(episodes, self.temp_dir, cfg)
 
-        with patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode"):
-            from podcast_scraper.workflow.stages import summarization_stage
+        with patch("podcast_scraper.workflow.stages.summarization.summarize_single_episode"):
+            from podcast_scraper.workflow.stages import summarization
 
-            summarization_stage.parallel_episode_summarization(
+            summarization.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -521,10 +521,10 @@ class TestParallelSummarizationCleanup(unittest.TestCase):
         _create_test_transcript_files(episodes, self.temp_dir, cfg)
 
         # Should not raise exception even if unload fails
-        with patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode"):
-            from podcast_scraper.workflow.stages import summarization_stage
+        with patch("podcast_scraper.workflow.stages.summarization.summarize_single_episode"):
+            from podcast_scraper.workflow.stages import summarization
 
-            summarization_stage.parallel_episode_summarization(
+            summarization.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -595,12 +595,12 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
             return None
 
         with patch(
-            "podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode",
+            "podcast_scraper.workflow.stages.summarization.summarize_single_episode",
             side_effect=track_summarize,
         ):
-            from podcast_scraper.workflow.stages import summarization_stage
+            from podcast_scraper.workflow.stages import summarization
 
-            summarization_stage.parallel_episode_summarization(
+            summarization.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -652,10 +652,10 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
         # Create transcript files using the expected path format
         _create_test_transcript_files(episodes, self.temp_dir, cfg)
 
-        with patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode"):
-            from podcast_scraper.workflow.stages import summarization_stage
+        with patch("podcast_scraper.workflow.stages.summarization.summarize_single_episode"):
+            from podcast_scraper.workflow.stages import summarization
 
-            summarization_stage.parallel_episode_summarization(
+            summarization.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,
@@ -706,10 +706,10 @@ class TestParallelSummarizationEdgeCases(unittest.TestCase):
         # Create transcript files using the expected path format
         _create_test_transcript_files(episodes, self.temp_dir, cfg)
 
-        with patch("podcast_scraper.workflow.stages.summarization_stage.summarize_single_episode"):
-            from podcast_scraper.workflow.stages import summarization_stage
+        with patch("podcast_scraper.workflow.stages.summarization.summarize_single_episode"):
+            from podcast_scraper.workflow.stages import summarization
 
-            summarization_stage.parallel_episode_summarization(
+            summarization.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,

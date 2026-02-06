@@ -26,7 +26,7 @@ from typing import Any, Dict, List, Optional
 # Add parent directory to path to import podcast_scraper modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from podcast_scraper.evaluation.config import load_experiment_config
+from podcast_scraper.evaluation.experiment_config import load_experiment_config
 from podcast_scraper.evaluation.history import find_all_baselines
 from podcast_scraper.evaluation.reporter import save_report
 

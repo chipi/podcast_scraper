@@ -58,7 +58,6 @@ if str(integration_dir) not in sys.path:
     sys.path.insert(0, str(integration_dir))
 from ml_model_cache_helpers import (  # noqa: E402
     _is_transformers_model_cached,
-    require_transformers_model_cached,
 )
 
 # Try to import summarizer, skip tests if dependencies not available
@@ -95,91 +94,6 @@ class TestModelIntegration(unittest.TestCase):
     def tearDown(self):
         """Clean up test fixtures."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    def test_bart_small_model_loads(self):
-        """Test that test default MAP model can be loaded."""
-        cfg = create_test_config(summary_model=config.TEST_DEFAULT_SUMMARY_MODEL)
-        model_name = summarizer.select_summary_model(cfg)
-        # config.TEST_DEFAULT_SUMMARY_MODEL is "bart-small" (alias)
-        # select_summary_model resolves it to "facebook/bart-base" (actual model ID)
-        # So we compare to the resolved model ID
-        self.assertEqual(model_name, "facebook/bart-base")
-
-        # Require model to be cached (fail fast if not)
-        # Use None to match working tests - this uses default cache logic that respects
-        # HF_HUB_CACHE env var set in CI, ensuring we check the same cache where models
-        # were preloaded
-        require_transformers_model_cached(model_name, None)
-
-        try:
-            # Use None for cache_dir to match working tests - this ensures we use the
-            # same cache directory logic that respects HF_HUB_CACHE env var
-            model = summarizer.SummaryModel(
-                model_name=model_name,
-                device=cfg.summary_device,
-                cache_dir=None,
-            )
-            self.assertIsNotNone(model.model)
-            self.assertIsNotNone(model.tokenizer)
-            summarizer.unload_model(model)
-        except Exception as e:
-            # If network access is blocked (model files not fully cached), skip the test
-            error_str = str(e)
-            if (
-                "socket" in error_str.lower()
-                or "connect" in error_str.lower()
-                or "network" in error_str.lower()
-                or "couldn't connect" in error_str.lower()
-                or "huggingface.co" in error_str.lower()
-            ):
-                pytest.skip(
-                    f"Model files not fully cached (network access blocked): {e}. "
-                    f"Run 'make preload-ml-models' to ensure all model files are cached."
-                )
-            self.fail(
-                f"Failed to load '{config.TEST_DEFAULT_SUMMARY_MODEL}' model "
-                f"({model_name}): {e}"
-            )
-
-    def test_long_fast_model_loads(self):
-        """Test that test default REDUCE model can be loaded."""
-        cfg = create_test_config(summary_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL)
-        model_name = summarizer.select_summary_model(cfg)
-        # config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL is "long-fast" (alias)
-        # select_summary_model resolves it to "allenai/led-base-16384" (actual model ID)
-        # So we compare to the resolved model ID
-        self.assertEqual(model_name, "allenai/led-base-16384")
-
-        # Require model to be cached (fail fast if not)
-        # Use None to match working tests - this uses default cache logic that respects
-        # HF_HUB_CACHE env var set in CI, ensuring we check the same cache where models
-        # were preloaded
-        require_transformers_model_cached(model_name, None)
-
-        try:
-            # Use None for cache_dir to match working tests - this ensures we use the
-            # same cache directory logic that respects HF_HUB_CACHE env var
-            model = summarizer.SummaryModel(
-                model_name=model_name,
-                device=cfg.summary_device,
-                cache_dir=None,
-            )
-            self.assertIsNotNone(model.model)
-            self.assertIsNotNone(model.tokenizer)
-            summarizer.unload_model(model)
-        except Exception as e:
-            # If network access is blocked (model files not fully cached), skip the test
-            error_str = str(e)
-            if (
-                "socket" in error_str.lower()
-                or "connect" in error_str.lower()
-                or "network" in error_str.lower()
-            ):
-                pytest.skip(
-                    f"Model files not fully cached (network access blocked): {e}. "
-                    f"Run 'make preload-ml-models' to ensure all model files are cached."
-                )
-            self.fail(f"Failed to load 'long-fast' model ({model_name}): {e}")
 
     def test_all_models_defined_can_be_loaded(self):
         """Test that test default models (MAP and REDUCE) can be loaded.

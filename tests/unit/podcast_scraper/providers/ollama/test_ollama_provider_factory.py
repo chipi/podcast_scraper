@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Unit tests for Ollama providers.
+"""Unit tests for Ollama providers via factory.
 
-These tests verify Ollama provider implementations with mocked API calls.
+These tests verify Ollama provider implementations with mocked API calls,
+using factory functions to create providers (tests factory integration).
+
+For standalone provider tests, see test_ollama_provider.py.
 """
 
 import json
@@ -19,8 +22,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.module_ollama_providers]
 
 @pytest.mark.llm
 @pytest.mark.ollama
-class TestOllamaSpeakerDetector(unittest.TestCase):
-    """Test Ollama speaker detection provider."""
+class TestOllamaSpeakerDetectorFactory(unittest.TestCase):
+    """Test Ollama speaker detection provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -135,8 +138,8 @@ class TestOllamaSpeakerDetector(unittest.TestCase):
 
 @pytest.mark.llm
 @pytest.mark.ollama
-class TestOllamaSummarizationProvider(unittest.TestCase):
-    """Test Ollama summarization provider."""
+class TestOllamaSummarizationProviderFactory(unittest.TestCase):
+    """Test Ollama summarization provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""

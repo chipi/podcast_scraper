@@ -1,107 +1,147 @@
-# Podcast Knowledge Graph Ontology (v1)
+# Grounded Insight Layer Ontology (v1)
 
 ## Status
 
-v1 (lean, implementation-ready)
+v1 (implementation-ready)
 
 ## Purpose
 
-Define the canonical ontology contract for the Podcast Knowledge Graph (PKG):
-  •  Node & edge types
-  •  Required properties
-  •  Identity (ID) rules
-  •  Provenance & evidence requirements
+Define the canonical ontology contract for the **Grounded Insight Layer (GIL)**:
 
-This document is the source of truth for contributors. All kg.json outputs MUST conform to this ontology and the companion schema (schemas/kg.schema.json).
+- Node & edge types
+- Required properties
+- Identity (ID) rules
+- **Grounding contract** (the 2025 moat)
+- Provenance & evidence requirements
 
-⸻
+This document is the source of truth for contributors. All `kg.json` outputs MUST conform
+to this ontology and the companion schema (`docs/kg/kg.schema.json`).
+
+---
 
 ## Design Principles
 
-  •  Minimal ontology: only what is required for attribution + aggregation + evidence.
-  •  Evidence-first: anything extracted from ML must be traceable to transcript evidence.
-  •  Stable IDs: global concepts must have stable identifiers across episodes.
+- **Insight-centric**: Focus on takeaways (Insights) and evidence (Quotes), not just claims
+- **Evidence first-class**: Quotes are nodes, not metadata—enables trust and navigation
+- **Explicit grounding**: Every Insight must declare `grounded=true/false`
+- **Stable IDs**: Global concepts must have stable identifiers across episodes
+- **Entities deferred**: Entity extraction deferred to v1.1 to focus on core value
 
-⸻
+---
+
+## The Grounding Contract (Critical)
+
+The grounding contract is what makes GIL trustworthy:
+
+### Hard Rules (Invariants)
+
+1. **Every Quote MUST be verbatim**
+   - `Quote.text` must exactly match `transcript[char_start:char_end]`
+   - No paraphrasing, no summarization, no rewording
+   - Timestamps must correspond to the quoted span
+
+2. **Every Insight MUST have explicit grounding status**
+   - `grounded=true`: Insight has ≥1 `SUPPORTED_BY` edge to a Quote
+   - `grounded=false`: Insight is extracted but lacks supporting quote (rare, but honest)
+
+3. **SUPPORTED_BY edges are evidence links**
+   - An Insight can have multiple supporting Quotes
+   - Each Quote provides evidence for the Insight's validity
+
+### Why This Matters
+
+- **Trust**: Users know exactly which Insights have evidence
+- **Quality Metrics**: System can measure `% insights grounded` and `quote validity rate`
+- **RAG Applications**: Downstream systems can filter for grounded-only Insights
+- **Debugging**: Ungrounded Insights are visible, not hidden
+
+---
 
 ## Top-Level Concepts
 
 ### Node Types (v1)
 
-  •  Podcast
-  •  Episode
-  •  Speaker
-  •  Topic
-  •  Entity
-  •  Claim
+| Node Type    | Description                                          |
+| ------------ | ---------------------------------------------------- |
+| Podcast      | A podcast feed                                       |
+| Episode      | A single podcast episode                             |
+| Speaker      | A person speaking (optional if no diarization)       |
+| Topic        | An abstract subject discussed (lightweight)          |
+| **Insight**  | A key takeaway / conclusion extracted from content   |
+| **Quote**    | Verbatim transcript span used as evidence            |
 
-Edge Types (v1)
-  •  HAS_EPISODE (Podcast → Episode)
-  •  SPOKE_IN (Speaker → Episode)
-  •  DISCUSSES (Episode → Topic)
-  •  MENTIONS (Episode → Entity)
-  •  ASSERTS (Speaker → Claim)
-  •  ABOUT (Claim → Topic | Entity)
-  •  RELATED_TO (Topic ↔ Topic)
+### Node Types (v1.1 - Deferred)
 
-⸻
+| Node Type | Description                                        |
+| --------- | -------------------------------------------------- |
+| Entity    | Person, company, product, place (deferred to v1.1) |
+
+### Edge Types (v1)
+
+| Edge             | From -> To         | Description                         |
+| ---------------- | ------------------ | ----------------------------------- |
+| HAS_EPISODE      | Podcast -> Episode | Podcast contains episode            |
+| SPOKE_IN         | Speaker -> Episode | Speaker participated                |
+| **HAS_INSIGHT**  | Episode -> Insight | Episode contains insight            |
+| **SUPPORTED_BY** | Insight -> Quote   | Quote provides evidence for insight |
+| **SPOKEN_BY**    | Quote -> Speaker   | Speaker said the quote              |
+| ABOUT            | Insight -> Topic   | Insight is about topic              |
+| RELATED_TO       | Topic <-> Topic    | Semantic relationship (optional)    |
+
+---
 
 ## Common Properties
 
 ### Required on all nodes
 
-  •  id (string)
-  •  type (enum)
-  •  properties (object; type-specific)
+- `id` (string) - Unique identifier
+- `type` (enum) - Node type
+- `properties` (object) - Type-specific properties
 
-Required on all edges
-  •  type (enum)
-  •  from (node id)
-  •  to (node id)
-  •  properties (object; type-specific)
+### Required on all edges
 
-Provenance (required for ML-derived content)
+- `type` (enum) - Edge type
+- `from` (node id) - Source node
+- `to` (node id) - Target node
 
-Any node/edge produced by ML extraction MUST include:
-  •  confidence (0.0–1.0)
-  •  evidence object containing:
-  •  episode_id
-  •  transcript_ref (pointer to transcript artifact)
-  •  char_start / char_end (span in transcript text)
-  •  timestamp_start_ms / timestamp_end_ms
-  •  extraction_method (e.g. llm, ner, rules)
-  •  model_version
+### Provenance (required for ML-derived content)
 
-Note: confidence is extraction certainty, not factual truth.
+Any node produced by ML extraction SHOULD include:
 
-⸻
+- `confidence` (0.0–1.0) - Extraction certainty (not factual truth)
+
+The root `kg.json` file MUST include:
+
+- `model_version` - Model identifier used for extraction
+- `prompt_version` - Prompt version used (enables A/B testing)
+
+---
 
 ## Identity Rules (IDs)
 
 ### Episode-scoped IDs
 
-  •  Episode ID must be stable and derived from RSS entry GUID if available.
-  •  Claim ID should be episode-scoped to avoid accidental global merging.
+- Episode ID must be stable and derived from RSS entry GUID if available
+- Insight ID should be episode-scoped to avoid accidental global merging
+- Quote ID should be episode-scoped and content-based
 
-Recommended:
-  •  episode:<rss_guid>
-  •  claim:<episode_id>:<sha1(text_normalized)>
+Recommended format:
 
-Global IDs (deduplicated across episodes)
+- `episode:<rss_guid>`
+- `insight:<episode_id>:<sha1(text_normalized)>`
+- `quote:<episode_id>:<sha1(text)>` or `quote:<episode_id>:<char_start>-<char_end>`
+
+### Global IDs (deduplicated across episodes)
 
 These must be stable across episodes:
-  •  Speaker
-  •  Topic
-  •  Entity
 
-Recommended normalization:
-  •  Speakers: speaker:<slug(name)> (optionally include podcast namespace if collisions occur)
-  •  Topics: topic:<slug(label)>
-  •  Entities: entity:<type>:<slug(name)>
+- Speaker: `speaker:<slug(name)>`
+- Topic: `topic:<slug(label)>`
 
-Deduplication: Extraction and resolution are separate. The extractor may emit provisional IDs, but the resolver should converge to stable IDs over time.
+Deduplication: Extraction and resolution are separate steps. The extractor may emit
+provisional IDs, but the resolver should converge to stable IDs over time.
 
-⸻
+---
 
 ## Node Definitions
 
@@ -110,82 +150,124 @@ Deduplication: Extraction and resolution are separate. The extractor may emit pr
 **Definition:** A podcast feed.
 
 Required properties:
-  •  title (string)
-  •  rss_url (string)
+
+- `title` (string)
+- `rss_url` (string)
 
 Optional:
-  •  publisher (string)
 
-⸻
+- `publisher` (string)
+
+---
 
 ### Episode
 
 **Definition:** A single podcast episode.
 
 Required properties:
-  •  podcast_id (string)
-  •  title (string)
-  •  publish_date (ISO date-time string)
+
+- `podcast_id` (string)
+- `title` (string)
+- `publish_date` (ISO date-time string)
 
 Optional:
-  •  audio_url (string)
-  •  duration_ms (integer)
 
-⸻
+- `audio_url` (string)
+- `duration_ms` (integer)
+
+---
 
 ### Speaker
 
 **Definition:** A person speaking in the episode.
 
 Required properties:
-  •  name (string)
+
+- `name` (string)
 
 Optional:
-  •  aliases (string[])
 
-⸻
+- `aliases` (string[])
+
+---
 
 ### Topic
 
-**Definition:** An abstract subject discussed.
+**Definition:** An abstract subject discussed. Lightweight and mergeable.
 
 Required properties:
-  •  label (string)
+
+- `label` (string)
 
 Optional:
-  •  aliases (string[])
 
-⸻
+- `aliases` (string[])
 
-### Entity
+---
 
-**Definition:** A real-world named entity.
+### Insight (NEW)
+
+**Definition:** A key takeaway or conclusion extracted from episode content.
+
+Unlike traditional "claims," Insights:
+
+- Focus on **what users want to know** (takeaways)
+- Have explicit **grounding status** (`grounded=true/false`)
+- Link to supporting **Quote** nodes for evidence
 
 Required properties:
-  •  name (string)
-  •  entity_type (enum: person, company, product, place, org, event, other)
+
+- `text` (string) - The insight statement (can be rephrased for clarity)
+- `episode_id` (string) - Episode where insight was extracted
+- `grounded` (boolean) - Whether insight has ≥1 supporting quote
 
 Optional:
-  •  external_ids (object, e.g. { "wikidata": "Q..." })
 
-⸻
+- `confidence` (number, 0.0-1.0) - Extraction confidence
 
-### Claim
+---
 
-**Definition:** A declarative statement attributed to a speaker.
+### Quote (NEW)
+
+**Definition:** A verbatim transcript span that serves as evidence.
+
+Making Quote a first-class node enables:
+
+- Evidence-backed retrieval (Insight → Quote → timestamp)
+- Trust verification (users can check Quote against transcript)
+- Quality metrics (quote validity rate)
+- Speaker attribution when available
 
 Required properties:
-  •  text (string)
-  •  speaker_id (string)
-  •  episode_id (string)
-  •  timestamp_start_ms (integer)
-  •  timestamp_end_ms (integer)
 
-Required provenance (see above):
-  •  confidence
-  •  evidence
+- `text` (string) - **Verbatim** text from transcript (no paraphrasing!)
+- `episode_id` (string) - Episode containing the quote
+- `char_start` (integer) - Character start in transcript text
+- `char_end` (integer) - Character end in transcript text
+- `timestamp_start_ms` (integer) - Timestamp start (milliseconds)
+- `timestamp_end_ms` (integer) - Timestamp end (milliseconds)
+- `transcript_ref` (string) - Reference to transcript artifact
 
-⸻
+Optional:
+
+- `speaker_id` (string, nullable) - Speaker who said the quote (if diarization available)
+
+---
+
+### Entity (v1.1 - Deferred)
+
+**Definition:** A real-world named entity. Deferred to v1.1.
+
+Required properties:
+
+- `name` (string)
+- `entity_type` (enum: person, company, product, place, org, event, other)
+
+Optional:
+
+- `external_ids` (object, e.g. `{ "wikidata": "Q..." }`)
+
+---
 
 ## Edge Definitions
 
@@ -197,108 +279,229 @@ Required provenance (see above):
 
 **Required properties:** none
 
-### DISCUSSES (Episode → Topic)
+### HAS_INSIGHT (Episode → Insight) (NEW)
 
-Required properties:
-  •  confidence
-  •  evidence
+**Required properties:** none
 
-MENTIONS (Episode → Entity)
+### SUPPORTED_BY (Insight → Quote) (NEW)
 
-Required properties:
-  •  confidence
-  •  evidence
+**Definition:** Links an Insight to a Quote that provides evidence for it.
 
-ASSERTS (Speaker → Claim)
+**Required properties:** none (Quote already carries evidence/provenance)
 
-**Required properties:** none (Claim already carries evidence/provenance)
+**Semantics:** If an Insight has ≥1 `SUPPORTED_BY` edge, it is `grounded=true`.
 
-### ABOUT (Claim → Topic | Entity)
+### SPOKEN_BY (Quote → Speaker) (NEW)
 
-Required properties:
-  •  confidence
-  •  evidence
+**Definition:** Links a Quote to the Speaker who said it.
 
-RELATED_TO (Topic ↔ Topic)
+**Required properties:** none
 
-Required properties:
-  •  confidence
-  •  evidence
+**Note:** Only present if speaker diarization is available.
 
-⸻
+### ABOUT (Insight → Topic)
+
+**Definition:** Links an Insight to a Topic it discusses.
+
+Optional properties:
+
+- `confidence` (number, 0.0-1.0)
+
+### RELATED_TO (Topic ↔ Topic)
+
+**Definition:** Semantic relationship between topics.
+
+Optional properties:
+
+- `confidence` (number, 0.0-1.0)
+
+---
 
 ## Required Output Artifact: kg.json
 
-Each episode output folder contains a kg.json capturing nodes/edges introduced or referenced by the episode.
+Each episode output folder contains a `kg.json` capturing nodes/edges for the episode.
 
-Guidance:
-  •  Episode-local Claim nodes live here.
-  •  Global nodes (Topic, Entity, Speaker) may be referenced or introduced.
-  •  The logical full KG is the union of all episode kg.json files.
+### Root-level fields
 
-⸻
+- `schema_version` (string, required) - Schema version (e.g., "1.0")
+- `model_version` (string, required) - Model used for extraction
+- `prompt_version` (string, required) - Prompt version used
+- `episode_id` (string, required) - Episode identifier
+- `nodes` (array, required) - All nodes
+- `edges` (array, required) - All edges
+
+### Guidance
+
+- Episode-local Insight and Quote nodes live here
+- Global nodes (Topic, Speaker) may be referenced or introduced
+- The logical full GIL is the union of all episode `kg.json` files
+- Every Insight must have `grounded` field set explicitly
+
+---
 
 ## Minimal Example
 
 ```json
 {
   "schema_version": "1.0",
+  "model_version": "gpt-4.1-mini-2026-01-xx",
+  "prompt_version": "v2.1",
   "episode_id": "episode:abc123",
   "nodes": [
-    {"id": "podcast:the-journal", "type": "Podcast", "properties": {"title": "The Journal", "rss_url": "https://..."}},
-    {"id": "episode:abc123", "type": "Episode", "properties": {"podcast_id": "podcast:the-journal", "title": "AI Regulation", "publish_date": "2026-02-03T00:00:00Z"}},
-    {"id": "speaker:sam-altman", "type": "Speaker", "properties": {"name": "Sam Altman"}},
-    {"id": "topic:ai-regulation", "type": "Topic", "properties": {"label": "AI Regulation"}},
     {
-      "id": "claim:episode:abc123:5d41402abc4b2a76b9719d911017c592",
-      "type": "Claim",
+      "id": "podcast:the-journal",
+      "type": "Podcast",
       "properties": {
-        "text": "Regulation will lag innovation by 3–5 years.",
-        "speaker_id": "speaker:sam-altman",
+        "title": "The Journal",
+        "rss_url": "https://feeds.example.com/the-journal"
+      }
+    },
+    {
+      "id": "episode:abc123",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "podcast:the-journal",
+        "title": "AI Regulation",
+        "publish_date": "2026-02-03T00:00:00Z"
+      }
+    },
+    {
+      "id": "speaker:sam-altman",
+      "type": "Speaker",
+      "properties": {
+        "name": "Sam Altman"
+      }
+    },
+    {
+      "id": "topic:ai-regulation",
+      "type": "Topic",
+      "properties": {
+        "label": "AI Regulation"
+      }
+    },
+    {
+      "id": "insight:episode:abc123:a1b2c3d4",
+      "type": "Insight",
+      "properties": {
+        "text": "AI regulation will significantly lag behind the pace of innovation",
         "episode_id": "episode:abc123",
-        "timestamp_start_ms": 120000,
-        "timestamp_end_ms": 135000
+        "grounded": true
       },
-      "confidence": 0.82,
-      "evidence": {
+      "confidence": 0.85
+    },
+    {
+      "id": "quote:episode:abc123:e5f6g7h8",
+      "type": "Quote",
+      "properties": {
+        "text": "Regulation will lag innovation by 3–5 years. That's my prediction.",
         "episode_id": "episode:abc123",
-        "transcript_ref": "transcript.json",
+        "speaker_id": "speaker:sam-altman",
         "char_start": 10234,
-        "char_end": 10321,
+        "char_end": 10302,
         "timestamp_start_ms": 120000,
         "timestamp_end_ms": 135000,
-        "extraction_method": "llm",
-        "model_version": "gpt-4.1-mini-2026-01-xx"
+        "transcript_ref": "transcript.json"
+      }
+    },
+    {
+      "id": "quote:episode:abc123:i9j0k1l2",
+      "type": "Quote",
+      "properties": {
+        "text": "We'll see laws that are already outdated when they pass.",
+        "episode_id": "episode:abc123",
+        "speaker_id": "speaker:sam-altman",
+        "char_start": 10890,
+        "char_end": 10945,
+        "timestamp_start_ms": 142000,
+        "timestamp_end_ms": 148000,
+        "transcript_ref": "transcript.json"
       }
     }
   ],
   "edges": [
-    {"type": "HAS_EPISODE", "from": "podcast:the-journal", "to": "episode:abc123", "properties": {}},
-    {"type": "SPOKE_IN", "from": "speaker:sam-altman", "to": "episode:abc123", "properties": {}},
     {
-      "type": "ASSERTS",
+      "type": "HAS_EPISODE",
+      "from": "podcast:the-journal",
+      "to": "episode:abc123"
+    },
+    {
+      "type": "SPOKE_IN",
       "from": "speaker:sam-altman",
-      "to": "claim:episode:abc123:5d41402abc4b2a76b9719d911017c592",
-      "properties": {}
+      "to": "episode:abc123"
+    },
+    {
+      "type": "HAS_INSIGHT",
+      "from": "episode:abc123",
+      "to": "insight:episode:abc123:a1b2c3d4"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:episode:abc123:a1b2c3d4",
+      "to": "quote:episode:abc123:e5f6g7h8"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:episode:abc123:a1b2c3d4",
+      "to": "quote:episode:abc123:i9j0k1l2"
+    },
+    {
+      "type": "SPOKEN_BY",
+      "from": "quote:episode:abc123:e5f6g7h8",
+      "to": "speaker:sam-altman"
+    },
+    {
+      "type": "SPOKEN_BY",
+      "from": "quote:episode:abc123:i9j0k1l2",
+      "to": "speaker:sam-altman"
     },
     {
       "type": "ABOUT",
-      "from": "claim:episode:abc123:5d41402abc4b2a76b9719d911017c592",
+      "from": "insight:episode:abc123:a1b2c3d4",
       "to": "topic:ai-regulation",
       "properties": {
-        "confidence": 0.79,
-        "evidence": {
-          "episode_id": "episode:abc123",
-          "transcript_ref": "transcript.json",
-          "char_start": 10234,
-          "char_end": 10321,
-          "timestamp_start_ms": 120000,
-          "timestamp_end_ms": 135000,
-          "extraction_method": "llm",
-          "model_version": "gpt-4.1-mini-2026-01-xx"
-        }
+        "confidence": 0.79
       }
     }
   ]
 }
 ```
+
+---
+
+## Grounding Example
+
+The above example shows a **grounded** Insight:
+
+```text
+Insight: "AI regulation will significantly lag behind the pace of innovation"
+  grounded: true
+  confidence: 0.85
+
+  SUPPORTED_BY → Quote 1: "Regulation will lag innovation by 3–5 years..."
+  SUPPORTED_BY → Quote 2: "We'll see laws that are already outdated..."
+```
+
+An **ungrounded** Insight would look like:
+
+```json
+{
+  "id": "insight:episode:abc123:x9y8z7w6",
+  "type": "Insight",
+  "properties": {
+    "text": "European approach may become the global standard",
+    "episode_id": "episode:abc123",
+    "grounded": false
+  },
+  "confidence": 0.45
+}
+```
+
+Note: No `SUPPORTED_BY` edges exist for this Insight, and `grounded=false` is explicit.
+
+---
+
+## Version History
+
+| Version | Date       | Changes                                               |
+| ------- | ---------- | ----------------------------------------------------- |
+| 1.0     | 2026-02-06 | Initial v1: Insight + Quote model, grounding contract |

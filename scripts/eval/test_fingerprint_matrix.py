@@ -59,7 +59,7 @@ def find_test_config(
     Raises:
         FileNotFoundError: If no matching config is found
     """
-    from podcast_scraper.evaluation.config import load_experiment_config
+    from podcast_scraper.evaluation.experiment_config import load_experiment_config
 
     # Search for configs matching criteria
     for config_file in sorted(EXPERIMENTS_DIR.glob("*.yaml")):

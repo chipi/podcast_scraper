@@ -5,7 +5,7 @@ import os
 import sys
 
 # Allow importing the package when tests run from within the package directory.
-PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
+PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -26,7 +26,7 @@ with patch.dict("sys.modules", {"spacy": MagicMock()}):
 # Import from parent conftest explicitly to avoid conflicts
 import importlib.util
 
-parent_tests_dir = Path(__file__).parent.parent
+parent_tests_dir = Path(__file__).parent.parent.parent
 if str(parent_tests_dir) not in sys.path:
     sys.path.insert(0, str(parent_tests_dir))
 

@@ -770,7 +770,7 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
+    @patch("openai.OpenAI")
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_critical_path_with_openai_providers(
         self,

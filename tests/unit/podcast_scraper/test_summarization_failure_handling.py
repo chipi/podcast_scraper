@@ -505,10 +505,10 @@ class TestParallelSummarizationFailure(unittest.TestCase):
         )
 
         # Should raise RuntimeError when summary_provider is None but generate_summaries=True
-        from podcast_scraper.workflow.stages import summarization_stage
+        from podcast_scraper.workflow.stages import summarization
 
         with self.assertRaises(RuntimeError) as context:
-            summarization_stage.parallel_episode_summarization(
+            summarization.parallel_episode_summarization(
                 episodes=self.episodes,
                 feed=self.feed,
                 cfg=cfg,
@@ -527,7 +527,7 @@ class TestParallelSummarizationFailure(unittest.TestCase):
     def test_parallel_summarization_no_provider_when_generate_summaries_false(self):
         """Test parallel summarization logs warning when provider is None and generate_summaries=False."""  # noqa: E501
         from podcast_scraper.utils import filesystem
-        from podcast_scraper.workflow.stages import summarization_stage
+        from podcast_scraper.workflow.stages import summarization
 
         cfg = create_test_config(
             output_dir=self.output_dir,
@@ -546,8 +546,8 @@ class TestParallelSummarizationFailure(unittest.TestCase):
         transcript_path.write_text("This is a test transcript with enough content. " * 20)
 
         # Should not raise, just log warning and return
-        with patch("podcast_scraper.workflow.stages.summarization_stage.logger") as mock_logger:
-            summarization_stage.parallel_episode_summarization(
+        with patch("podcast_scraper.workflow.stages.summarization.logger") as mock_logger:
+            summarization.parallel_episode_summarization(
                 episodes=self.episodes,
                 feed=self.feed,
                 cfg=cfg,

@@ -283,6 +283,16 @@ test-unit: cleanup-processes
 	# Note: cleanup-processes runs automatically via pytest fixture, but also called here for safety
 	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
 
+test-unit-no-ml: cleanup-processes
+	# Unit tests without ML dependencies (matches CI setup - Issue #403)
+	# This target verifies that unit tests can run without optional dependencies installed
+	# First verify imports work without ML dependencies (same check as CI)
+	@echo "Verifying unit tests can import modules without ML dependencies..."
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_unit_test_imports.py
+	# Then run unit tests (same as test-unit but with explicit verification)
+	@echo "Running unit tests without ML dependencies..."
+	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
+
 test-integration: cleanup-processes
 	# Integration tests: parallel execution (3.4x faster, significant benefit)
 	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)

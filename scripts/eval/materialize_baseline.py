@@ -30,7 +30,7 @@ from typing import Any, Dict, List, Optional
 # Add parent directory to path to import podcast_scraper modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from podcast_scraper.evaluation.config import ExperimentConfig, load_experiment_config
+from podcast_scraper.evaluation.experiment_config import ExperimentConfig, load_experiment_config
 from podcast_scraper.prompts.store import get_prompt_metadata
 from podcast_scraper.providers.params import SummarizationParams
 from podcast_scraper.summarization.factory import create_summarization_provider

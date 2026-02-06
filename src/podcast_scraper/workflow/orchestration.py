@@ -1144,7 +1144,7 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             # It will skip episodes that already have summaries
             # Track summarization wait time (Issue #387)
             summarization_start = time.time()
-            wf_stages.summarization_stage.parallel_episode_summarization(
+            wf_stages.summarization.parallel_episode_summarization(
                 episodes=episodes,
                 feed=feed,
                 cfg=cfg,

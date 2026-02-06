@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from . import config_constants
 
 if TYPE_CHECKING:
-    from podcast_scraper.evaluation.config import GenerationParams, TokenizeConfig
+    from podcast_scraper.evaluation.experiment_config import GenerationParams, TokenizeConfig
 else:
     # Lazy import to avoid circular dependency
     GenerationParams = None

@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Unit tests for Grok providers (Issue #1095).
+"""Unit tests for Grok providers via factory (Issue #1095).
 
-These tests verify Grok provider implementations with mocked API calls.
+These tests verify Grok provider implementations with mocked API calls,
+using factory functions to create providers (tests factory integration).
+
+For standalone provider tests, see test_grok_provider.py.
 """
 
 import json
@@ -20,8 +23,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.module_grok_providers]
 
 @pytest.mark.llm
 @pytest.mark.grok
-class TestGrokSpeakerDetector(unittest.TestCase):
-    """Test Grok speaker detection provider."""
+class TestGrokSpeakerDetectorFactory(unittest.TestCase):
+    """Test Grok speaker detection provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -107,8 +110,8 @@ class TestGrokSpeakerDetector(unittest.TestCase):
 
 @pytest.mark.llm
 @pytest.mark.grok
-class TestGrokSummarizationProvider(unittest.TestCase):
-    """Test Grok summarization provider."""
+class TestGrokSummarizationProviderFactory(unittest.TestCase):
+    """Test Grok summarization provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""

@@ -1119,7 +1119,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
     @pytest.mark.critical_path
     @pytest.mark.openai
     @patch("podcast_scraper.downloader.fetch_url")
-    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
+    @patch("openai.OpenAI")
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_full_workflow_with_openai_providers(
         self,

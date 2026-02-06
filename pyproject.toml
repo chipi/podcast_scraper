@@ -21,7 +21,6 @@ dependencies = [
   "python-dotenv>=1.0.0,<2.0.0",  # For .env file support (RFC-013)
   "zipp>=3.19.1,<4.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.0,<4.0.0",  # For prompt templating (RFC-017)
-  "openai>=1.0.0,<3.0.0",  # For OpenAI API providers (RFC-013)
   "filelock>=3.20.1,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
 ]
 
@@ -45,6 +44,7 @@ ml = [
 # LLM API providers - grouped for CI/test convenience
 # Individual extras (gemini, anthropic, mistral, ollama) are kept for selective installation
 llm = [
+  "openai>=1.0.0,<3.0.0",  # OpenAI API provider (RFC-013, Issue #405)
   "google-generativeai>=0.8.0,<1.0.0",  # Gemini API provider (Issue #194)
   "anthropic>=0.34.0,<1.0.0",  # Anthropic API provider (Issue #106)
   "mistralai>=1.0.0,<2.0.0",  # Mistral API provider (Issue #106)

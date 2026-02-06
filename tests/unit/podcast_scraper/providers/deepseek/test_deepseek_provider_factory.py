@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Unit tests for DeepSeek providers (Issue #107).
+"""Unit tests for DeepSeek providers via factory (Issue #107).
 
-These tests verify DeepSeek provider implementations with mocked API calls.
+These tests verify DeepSeek provider implementations with mocked API calls,
+using factory functions to create providers (tests factory integration).
+
+For standalone provider tests, see test_deepseek_provider.py.
 """
 
 import unittest
@@ -18,8 +21,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.module_deepseek_providers]
 
 @pytest.mark.llm
 @pytest.mark.deepseek
-class TestDeepSeekSpeakerDetectionProvider(unittest.TestCase):
-    """Test DeepSeek speaker detection provider."""
+class TestDeepSeekSpeakerDetectionProviderFactory(unittest.TestCase):
+    """Test DeepSeek speaker detection provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -75,8 +78,8 @@ class TestDeepSeekSpeakerDetectionProvider(unittest.TestCase):
 
 @pytest.mark.llm
 @pytest.mark.deepseek
-class TestDeepSeekSummarizationProvider(unittest.TestCase):
-    """Test DeepSeek summarization provider."""
+class TestDeepSeekSummarizationProviderFactory(unittest.TestCase):
+    """Test DeepSeek summarization provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""

@@ -157,6 +157,8 @@ class TestMPSExclusiveMode(unittest.TestCase):
 
         # Track when processing attempts to start
         processing_started = threading.Event()
+        # Track when thread has entered wait state (to avoid race condition)
+        thread_entered_wait = threading.Event()
         wait_times = []
 
         # Mock the entire processing function to verify waiting behavior
@@ -175,6 +177,8 @@ class TestMPSExclusiveMode(unittest.TestCase):
 
             # If serialization is enabled, wait for event
             if should_serialize and event and cfg.generate_summaries:
+                # Signal that we've entered the wait state
+                thread_entered_wait.set()
                 # Record time before waiting
                 wait_start = time.time()
                 event.wait(timeout=1.0)  # Wait with timeout to avoid hanging
@@ -237,8 +241,12 @@ class TestMPSExclusiveMode(unittest.TestCase):
             )
             processing_thread.start()
 
-            # Wait a bit to ensure processing thread has started
-            time.sleep(0.1)
+            # Wait for thread to enter wait state (with timeout to avoid hanging)
+            thread_entered_wait.wait(timeout=2.0)
+            self.assertTrue(
+                thread_entered_wait.is_set(),
+                "Thread should have entered wait state",
+            )
 
             # Verify processing hasn't started yet (waiting for event)
             self.assertFalse(

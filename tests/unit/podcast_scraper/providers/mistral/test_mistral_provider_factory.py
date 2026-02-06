@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Unit tests for Mistral providers.
+"""Unit tests for Mistral providers via factory.
 
-These tests verify Mistral provider implementations with mocked API calls.
+These tests verify Mistral provider implementations with mocked API calls,
+using factory functions to create providers (tests factory integration).
+
+For standalone provider tests, see test_mistral_provider.py.
 """
 
 import json
@@ -20,8 +23,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.module_mistral_providers]
 
 @pytest.mark.llm
 @pytest.mark.mistral
-class TestMistralSpeakerDetector(unittest.TestCase):
-    """Test Mistral speaker detection provider."""
+class TestMistralSpeakerDetectorFactory(unittest.TestCase):
+    """Test Mistral speaker detection provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -115,8 +118,8 @@ class TestMistralSpeakerDetector(unittest.TestCase):
 
 @pytest.mark.llm
 @pytest.mark.mistral
-class TestMistralSummarizationProvider(unittest.TestCase):
-    """Test Mistral summarization provider."""
+class TestMistralSummarizationProviderFactory(unittest.TestCase):
+    """Test Mistral summarization provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""

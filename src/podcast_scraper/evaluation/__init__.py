@@ -12,7 +12,7 @@ This package provides:
 from .comparator import compare_vs_baseline
 
 # Re-export experiment config for convenience
-from .config import (
+from .experiment_config import (
     BackendConfig,
     DataConfig,
     ExperimentConfig,

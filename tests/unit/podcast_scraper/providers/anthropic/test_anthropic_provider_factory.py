@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Unit tests for Anthropic providers (Issue #106).
+"""Unit tests for Anthropic providers via factory (Issue #106).
 
-These tests verify Anthropic provider implementations with mocked API calls.
+These tests verify Anthropic provider implementations with mocked API calls,
+using factory functions to create providers (tests factory integration).
+
+For standalone provider tests, see test_anthropic_provider.py.
 """
 
 import json
@@ -20,8 +23,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.module_anthropic_providers]
 
 @pytest.mark.llm
 @pytest.mark.anthropic
-class TestAnthropicSpeakerDetector(unittest.TestCase):
-    """Test Anthropic speaker detection provider."""
+class TestAnthropicSpeakerDetectorFactory(unittest.TestCase):
+    """Test Anthropic speaker detection provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""
@@ -116,8 +119,8 @@ class TestAnthropicSpeakerDetector(unittest.TestCase):
 
 @pytest.mark.llm
 @pytest.mark.anthropic
-class TestAnthropicSummarizationProvider(unittest.TestCase):
-    """Test Anthropic summarization provider."""
+class TestAnthropicSummarizationProviderFactory(unittest.TestCase):
+    """Test Anthropic summarization provider via factory."""
 
     def setUp(self):
         """Set up test fixtures."""

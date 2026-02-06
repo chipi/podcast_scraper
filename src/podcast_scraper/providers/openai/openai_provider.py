@@ -18,8 +18,6 @@ import re
 import time
 from typing import Any, Dict, Optional, Set, Tuple
 
-from openai import OpenAI
-
 from ... import config, models
 from ...workflow import metrics
 
@@ -73,7 +71,17 @@ class OpenAIProvider:
 
         Raises:
             ValueError: If OpenAI API key is not provided
+            ImportError: If openai package is not installed (install with [llm] extra)
         """
+        # Lazy import to allow unit tests without openai installed (Issue #405)
+        try:
+            from openai import OpenAI
+        except ImportError as exc:
+            raise ImportError(
+                "openai package is required for OpenAI provider. "
+                "Install it with: pip install podcast-scraper[llm]"
+            ) from exc
+
         if not cfg.openai_api_key:
             raise ValueError(
                 "OpenAI API key required for OpenAI provider. "

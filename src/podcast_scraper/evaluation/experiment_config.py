@@ -6,7 +6,7 @@
 
 This module implements RFC-017: Prompt Management and Loading.
 
-Note: This module was moved from root-level experiment_config.py to evaluation/config.py
+Note: This module was moved from root-level experiment_config.py to evaluation/experiment_config.py
 for better organization. The evaluation system uses this configuration exclusively.
 """
 

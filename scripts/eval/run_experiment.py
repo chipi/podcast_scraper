@@ -32,7 +32,7 @@ from typing import Any, Dict, List, Optional
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from podcast_scraper.evaluation.comparator import compare_vs_baseline
-from podcast_scraper.evaluation.config import (
+from podcast_scraper.evaluation.experiment_config import (
     discover_input_files,
     episode_id_from_path,
     ExperimentConfig,
