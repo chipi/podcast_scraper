@@ -106,13 +106,18 @@ class TestModelIntegration(unittest.TestCase):
         self.assertEqual(model_name, "facebook/bart-base")
 
         # Require model to be cached (fail fast if not)
-        require_transformers_model_cached(model_name, cfg.summary_cache_dir)
+        # Use None to match working tests - this uses default cache logic that respects
+        # HF_HUB_CACHE env var set in CI, ensuring we check the same cache where models
+        # were preloaded
+        require_transformers_model_cached(model_name, None)
 
         try:
+            # Use None for cache_dir to match working tests - this ensures we use the
+            # same cache directory logic that respects HF_HUB_CACHE env var
             model = summarizer.SummaryModel(
                 model_name=model_name,
                 device=cfg.summary_device,
-                cache_dir=cfg.summary_cache_dir,
+                cache_dir=None,
             )
             self.assertIsNotNone(model.model)
             self.assertIsNotNone(model.tokenizer)
@@ -133,13 +138,18 @@ class TestModelIntegration(unittest.TestCase):
         self.assertEqual(model_name, "allenai/led-base-16384")
 
         # Require model to be cached (fail fast if not)
-        require_transformers_model_cached(model_name, cfg.summary_cache_dir)
+        # Use None to match working tests - this uses default cache logic that respects
+        # HF_HUB_CACHE env var set in CI, ensuring we check the same cache where models
+        # were preloaded
+        require_transformers_model_cached(model_name, None)
 
         try:
+            # Use None for cache_dir to match working tests - this ensures we use the
+            # same cache directory logic that respects HF_HUB_CACHE env var
             model = summarizer.SummaryModel(
                 model_name=model_name,
                 device=cfg.summary_device,
-                cache_dir=cfg.summary_cache_dir,
+                cache_dir=None,
             )
             self.assertIsNotNone(model.model)
             self.assertIsNotNone(model.tokenizer)
@@ -195,14 +205,19 @@ class TestModelIntegration(unittest.TestCase):
                     resolved_model_name = summarizer.select_reduce_model(cfg, map_model_name)
 
                 # Check if model is cached before attempting to load
-                if not _is_transformers_model_cached(resolved_model_name, cfg.summary_cache_dir):
+                # Use None to match working tests - this uses default cache logic that respects
+                # HF_HUB_CACHE env var set in CI, ensuring we check the same cache where models
+                # were preloaded
+                if not _is_transformers_model_cached(resolved_model_name, None):
                     missing_cache_models.append(f"{model_label} ({resolved_model_name})")
                     continue
 
+                # Use None for cache_dir to match working tests - this ensures we use the
+                # same cache directory logic that respects HF_HUB_CACHE env var
                 model = summarizer.SummaryModel(
                     model_name=resolved_model_name,
                     device=cfg.summary_device,
-                    cache_dir=cfg.summary_cache_dir,
+                    cache_dir=None,
                 )
                 self.assertIsNotNone(model.model, f"Model {model_label} has no model")
                 self.assertIsNotNone(model.tokenizer, f"Model {model_label} has no tokenizer")
