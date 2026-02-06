@@ -56,6 +56,35 @@ LLM_TEST_FEED = os.getenv("LLM_TEST_FEED", "multi")
 REAL_TEST_RSS_FEED = os.getenv("LLM_TEST_RSS_FEED", None)
 
 
+def _check_ollama_available(ollama_api_base: Optional[str]) -> bool:
+    """Check if Ollama server is available at the given API base URL.
+
+    Args:
+        ollama_api_base: Ollama API base URL (None for real API mode)
+
+    Returns:
+        True if Ollama is available, False otherwise
+    """
+    try:
+        import httpx
+
+        # Determine health check URL
+        if ollama_api_base:
+            # Mock server mode - use provided base URL
+            health_url = ollama_api_base.rstrip("/v1") + "/api/version"
+        else:
+            # Real API mode - use default localhost
+            health_url = "http://localhost:11434/api/version"
+
+        # Try to connect with short timeout
+        response = httpx.get(health_url, timeout=2.0)
+        response.raise_for_status()
+        return True
+    except Exception:
+        # Any error means Ollama is not available
+        return False
+
+
 def _get_test_feed_url(
     e2e_server: Optional[Any] = None,
 ) -> tuple[str, Optional[str]]:
@@ -430,11 +459,15 @@ class TestOllamaProviderE2E:
 
     def test_ollama_speaker_detection_in_workflow(self, e2e_server):
         """Test Ollama speaker detection in complete workflow."""
+        # Get feed URL and Ollama config based on LLM_TEST_FEED
+        rss_url, ollama_api_base = _get_test_feed_url(e2e_server)
+
+        # Skip if Ollama is not available
+        if not _check_ollama_available(ollama_api_base):
+            pytest.skip("Ollama server is not available (not running or not accessible)")
+
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and Ollama config based on LLM_TEST_FEED
-            rss_url, ollama_api_base = _get_test_feed_url(e2e_server)
-
             cfg = create_test_config(
                 rss_url=rss_url,
                 output_dir=temp_dir,
@@ -468,11 +501,15 @@ class TestOllamaProviderE2E:
 
     def test_ollama_summarization_in_workflow(self, e2e_server):
         """Test Ollama summarization in complete workflow."""
+        # Get feed URL and Ollama config based on LLM_TEST_FEED
+        rss_url, ollama_api_base = _get_test_feed_url(e2e_server)
+
+        # Skip if Ollama is not available
+        if not _check_ollama_available(ollama_api_base):
+            pytest.skip("Ollama server is not available (not running or not accessible)")
+
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and Ollama config based on LLM_TEST_FEED
-            rss_url, ollama_api_base = _get_test_feed_url(e2e_server)
-
             cfg = create_test_config(
                 rss_url=rss_url,
                 output_dir=temp_dir,
@@ -506,10 +543,15 @@ class TestOllamaProviderE2E:
 
     def test_ollama_all_providers_in_pipeline(self, e2e_server):
         """Test all Ollama providers (speaker detection + summarization) in complete workflow."""
+        # Get feed URL and Ollama config based on LLM_TEST_FEED
+        rss_url, ollama_api_base = _get_test_feed_url(e2e_server)
+
+        # Skip if Ollama is not available
+        if not _check_ollama_available(ollama_api_base):
+            pytest.skip("Ollama server is not available (not running or not accessible)")
+
         temp_dir = tempfile.mkdtemp()
         try:
-            # Get feed URL and Ollama config based on LLM_TEST_FEED
-            rss_url, ollama_api_base = _get_test_feed_url(e2e_server)
 
             # Create config with ALL Ollama providers ONLY (no local ML providers)
             # Allow model override via environment variable
