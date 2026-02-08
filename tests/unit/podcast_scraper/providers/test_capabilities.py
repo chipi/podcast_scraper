@@ -194,8 +194,10 @@ class TestGetProviderCapabilities(unittest.TestCase):
         self.assertEqual(caps.provider_name, "openai")
         self.assertEqual(caps.max_context_tokens, 128000)
 
-    def test_gemini_provider_capabilities(self):
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_gemini_provider_capabilities(self, mock_genai):
         """Test GeminiProvider capabilities."""
+        # Ensure genai is not None (required by provider __init__)
         cfg = config.Config(
             rss_url="https://example.com",
             transcription_provider="gemini",
@@ -216,8 +218,12 @@ class TestGetProviderCapabilities(unittest.TestCase):
         self.assertEqual(caps.provider_name, "gemini")
         self.assertEqual(caps.max_context_tokens, 2000000)
 
-    def test_anthropic_provider_capabilities(self):
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_anthropic_provider_capabilities(self, mock_anthropic_class):
         """Test AnthropicProvider capabilities."""
+        # Ensure Anthropic is not None (required by provider __init__)
+        mock_anthropic_class.return_value = Mock()
+
         cfg = config.Config(
             rss_url="https://example.com",
             speaker_detector_provider="anthropic",
