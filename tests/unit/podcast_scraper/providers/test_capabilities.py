@@ -5,18 +5,24 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
-# Mock openai before importing modules that require it
-# Unit tests run without openai package installed
+# Mock openai, anthropic, and google.generativeai before importing modules that require them
+# Unit tests run without these optional packages installed
 # Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
 mock_openai = MagicMock()
 mock_openai.OpenAI = Mock()
-_patch_openai = patch.dict(
+mock_anthropic = MagicMock()
+mock_anthropic.Anthropic = Mock()
+mock_genai = MagicMock()
+_patch_modules = patch.dict(
     "sys.modules",
     {
         "openai": mock_openai,
+        "anthropic": mock_anthropic,
+        "google.generativeai": mock_genai,
+        "google": MagicMock(generativeai=mock_genai),
     },
 )
-_patch_openai.start()
+_patch_modules.start()
 
 from podcast_scraper import config
 from podcast_scraper.providers.capabilities import (
