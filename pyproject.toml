@@ -112,6 +112,7 @@ packages = [
     "podcast_scraper.providers.ollama",
     "podcast_scraper.providers.openai",
     "podcast_scraper.rss",
+    "podcast_scraper.schemas",
     "podcast_scraper.speaker_detectors",
     "podcast_scraper.summarization",
     "podcast_scraper.transcription",

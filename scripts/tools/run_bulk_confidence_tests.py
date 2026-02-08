@@ -357,7 +357,8 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
         "ok=",  # Success indicators (e.g., "ok=3, failed=0")
         "ok:",
         "result: episodes=",  # Result summary lines
-        "degradation policy",  # Degradation warnings (e.g., "Saving transcript without summary (degradation policy: ...)")
+        "degradation policy",  # Degradation warnings
+        # (e.g., "Saving transcript without summary (degradation policy: ...)")
         "degradation:",  # Degradation logger messages
     ]
 
@@ -455,14 +456,16 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
                         or has_debug_level
                         or has_debug_uppercase
                     ):
-                        # INFO/DEBUG logs are never errors or warnings, even if they mention "error" or "warning"
+                        # INFO/DEBUG logs are never errors or warnings
+                        # (even if they mention "error" or "warning")
                         is_error = False
                         is_warning = False
                     else:
                         # No explicit log level found - use pattern matching as fallback
                         # But be more conservative to avoid false positives
 
-                        # Check for Python traceback patterns (always errors, regardless of log level)
+                        # Check for Python traceback patterns
+                        # (always errors, regardless of log level)
                         if (
                             "traceback (most recent call last)" in line_lower
                             or "traceback:" in line_lower
@@ -484,7 +487,8 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
                                         "result: episodes=",  # Result summaries
                                     ]
                                 ):
-                                    # Exclude degradation policy warnings (they contain "failed" but are warnings)
+                                    # Exclude degradation policy warnings
+                                    # (they contain "failed" but are warnings)
                                     if "degradation" in line_lower and "policy" in line_lower:
                                         is_warning = True  # Degradation messages are warnings
                                     else:
@@ -610,7 +614,8 @@ def copy_service_outputs(service_output_dir: Path, run_output_dir: Path) -> None
     Metadata and transcripts folders are kept, but run.json, index.json, etc. are placed flat.
 
     Args:
-        service_output_dir: The output directory configured in the service (where service wrote files)
+        service_output_dir: The output directory configured in the service
+            (where service wrote files)
         run_output_dir: The run directory where we want to copy the files
     """
     if not service_output_dir.exists():
@@ -649,7 +654,8 @@ def copy_service_outputs(service_output_dir: Path, run_output_dir: Path) -> None
         shutil.copytree(transcripts_source, transcripts_dest)
         logger.debug(f"Copied transcript files to: {transcripts_dest}")
 
-    # Copy run tracking files (run.json, index.json, run_manifest.json, metrics.json) directly to run_output_dir (flat)
+    # Copy run tracking files (run.json, index.json, run_manifest.json, metrics.json)
+    # directly to run_output_dir (flat)
     for tracking_file in ["run.json", "index.json", "run_manifest.json", "metrics.json"]:
         source_file = source_dir / tracking_file
         if source_file.exists():
@@ -666,6 +672,20 @@ def copy_service_outputs(service_output_dir: Path, run_output_dir: Path) -> None
         dest_file = run_output_dir / md_file.name
         shutil.copy2(md_file, dest_file)
         logger.debug(f"Copied markdown file {md_file.name} to: {dest_file}")
+
+    # Clean up the original nested service output directory after copying
+    # This prevents confusion and saves disk space (files are now in flattened structure)
+    # Only remove if source_dir is different from run_output_dir (i.e., it's a nested subdirectory)
+    if source_dir != run_output_dir and source_dir.exists():
+        try:
+            # Check if source_dir is actually inside run_output_dir (safety check)
+            if run_output_dir in source_dir.parents or source_dir.parent == run_output_dir:
+                logger.debug(f"Removing original nested service output directory: {source_dir}")
+                shutil.rmtree(source_dir)
+                logger.debug(f"Cleaned up nested directory: {source_dir}")
+        except Exception as exc:
+            # Don't fail if cleanup fails - files are already copied
+            logger.warning(f"Failed to clean up nested directory {source_dir}: {exc}")
 
 
 def collect_outputs(output_dir: Path) -> Dict[str, Any]:
@@ -685,15 +705,20 @@ def collect_outputs(output_dir: Path) -> Dict[str, Any]:
     metadata = 0
     summaries = 0
 
+    # Track unique transcript files by their normalized name to avoid double-counting
+    # (deduplication by filename ensures we count each unique transcript once)
+    unique_txt_files = set()  # normalized_name (filename only)
+    unique_srt_files = set()  # normalized_name (filename only)
+
     # Track unique metadata files by their normalized name to avoid double-counting
     # (in case files exist in multiple locations)
     unique_metadata_files = {}  # normalized_name -> Path (we'll use the first one we find)
 
-    # First pass: collect all unique metadata files across all search directories
+    # First pass: collect all unique transcript and metadata files across all search directories
     for search_dir in search_dirs:
         if not search_dir.exists():
             continue
-        # Count transcript files, excluding .cleaned.txt variants
+        # Collect transcript files, excluding .cleaned.txt variants
         # Note: .cleaned.txt files are for quality tooling later to measure the effect of cleaning.
         # They should NOT be part of any stats or counting - only the primary .txt files count.
         txt_files = [
@@ -704,7 +729,13 @@ def collect_outputs(output_dir: Path) -> Dict[str, Any]:
             )  # Exclude cleaned variants (quality tooling only)
         ]
         srt_files = list(search_dir.rglob("*.srt"))
-        transcripts += len(txt_files) + len(srt_files)
+
+        # Track unique transcript files by filename (not path) to avoid double-counting
+        # (deduplication ensures we count each unique transcript once)
+        for txt_file in txt_files:
+            unique_txt_files.add(txt_file.name)  # Use filename only for deduplication
+        for srt_file in srt_files:
+            unique_srt_files.add(srt_file.name)  # Use filename only for deduplication
 
         # Collect metadata files (not run_data.json, run.json, etc.)
         metadata_files = [
@@ -726,6 +757,9 @@ def collect_outputs(output_dir: Path) -> Dict[str, Any]:
             normalized_name = metadata_file.name
             if normalized_name not in unique_metadata_files:
                 unique_metadata_files[normalized_name] = metadata_file
+
+    # Count unique transcript files (deduplicated by filename)
+    transcripts = len(unique_txt_files) + len(unique_srt_files)
 
     # Count unique metadata files
     metadata = len(unique_metadata_files)
@@ -1049,7 +1083,8 @@ def run_config(
                 try:
                     episodes_processed = int(match.group(1))
                     logger.debug(
-                        f"Extracted planned transcripts from dry-run output: {episodes_processed} (pattern: {pattern})"
+                        f"Extracted planned transcripts from dry-run output: "
+                        f"{episodes_processed} (pattern: {pattern})"
                     )
                     break
                 except (ValueError, IndexError):
@@ -1059,20 +1094,9 @@ def run_config(
                 "Could not extract transcripts_planned from dry-run output, defaulting to 0"
             )
     else:
-        # Find service run directory (service creates run_<suffix> subdirs)
-        # But we've already copied files to run_output_dir, so check there first
-        service_run_dirs = [
-            d for d in run_output_dir.iterdir() if d.is_dir() and d.name.startswith("run_")
-        ]
-        service_source_dir = None
-        if service_run_dirs:
-            service_source_dir = max(service_run_dirs, key=lambda p: p.stat().st_mtime)
-
         # Try to read from run.json first (most reliable)
-        # Check in run_output_dir first (flattened structure)
+        # Files are now in flattened structure (nested directory was removed after copying)
         run_json_path = run_output_dir / "run.json"
-        if not run_json_path.exists() and service_source_dir:
-            run_json_path = service_source_dir / "run.json"
 
         if run_json_path.exists():
             try:
@@ -1092,8 +1116,6 @@ def run_config(
         # Fallback: try index.json
         if episodes_processed == 0:
             index_json_path = run_output_dir / "index.json"
-            if not index_json_path.exists() and service_source_dir:
-                index_json_path = service_source_dir / "index.json"
 
             if index_json_path.exists():
                 try:

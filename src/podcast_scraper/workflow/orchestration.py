@@ -793,6 +793,14 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 "Speaker detector initialized: %s",
                 type(speaker_detector).__name__,
             )
+            # Warm up Ollama models if using Ollama provider (loads models before real work)
+            if hasattr(speaker_detector, "warmup"):
+                try:
+                    speaker_detector.warmup(timeout_s=600)  # 10 minute timeout for first load
+                    logger.debug("Ollama speaker detection models warmed up")
+                except Exception as exc:
+                    logger.warning(f"Failed to warm up Ollama speaker detection models: {exc}")
+                    # Don't fail - models will load on first use, just slower
         except Exception as exc:
             logger.error("Failed to initialize speaker detector: %s", exc)
             # Fail fast - provider initialization should succeed
@@ -819,6 +827,14 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 "Summarization provider initialized: %s",
                 type(summary_provider).__name__,
             )
+            # Warm up Ollama models if using Ollama provider (loads models before real work)
+            if hasattr(summary_provider, "warmup"):
+                try:
+                    summary_provider.warmup(timeout_s=600)  # 10 minute timeout for first load
+                    logger.debug("Ollama summarization models warmed up")
+                except Exception as exc:
+                    logger.warning(f"Failed to warm up Ollama summarization models: {exc}")
+                    # Don't fail - models will load on first use, just slower
         except ImportError as e:
             # Fail fast when generate_summaries=True - dependencies must be available
             error_msg = (

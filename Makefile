@@ -315,9 +315,12 @@ test-integration: cleanup-processes
 	# This requires localhost socket access. We disable socket blocking for integration tests
 	# when using reruns with parallel execution, but still restrict to localhost only
 	# Note: Force coverage collection completion by combining coverage files immediately after tests
-	$(PYTHON) -m pytest tests/integration/ -m integration -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --allow-hosts=127.0.0.1,localhost || true
-	@# Force coverage file combination to prevent hangs from pytest-xdist workers
-	@$(PYTHON) -m coverage combine 2>/dev/null || true
+	# Capture pytest exit code to ensure test failures are not masked
+	@set -e; \
+	pytest_exit=0; \
+	$(PYTHON) -m pytest tests/integration/ -m integration -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --allow-hosts=127.0.0.1,localhost || pytest_exit=$$?; \
+	$(PYTHON) -m coverage combine 2>/dev/null || true; \
+	exit $$pytest_exit
 
 test-integration-fast:
 	# Fast integration tests: critical path tests only (excludes ml_models for speed)

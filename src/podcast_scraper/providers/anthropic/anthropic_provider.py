@@ -99,7 +99,8 @@ class AnthropicProvider:
             expected_prefixes=["sk-ant-"],
         )
         if not is_valid:
-            logger.warning("Anthropic API key validation: %s", error_msg)
+            # Note: error_msg does not contain the API key itself, only validation status
+            logger.warning("Anthropic API key validation failed: %s", error_msg)
 
         self.cfg = cfg
 

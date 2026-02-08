@@ -123,3 +123,32 @@ class TestTranscriptCache(unittest.TestCase):
         # Retrieve
         retrieved = transcript_cache.get_cached_transcript(audio_hash, cache_dir=self.cache_dir)
         self.assertEqual(retrieved, transcript_text)
+
+    def test_save_transcript_to_cache_with_non_string_model(self):
+        """Test saving transcript with non-string model (defensive conversion)."""
+        import json
+        from unittest.mock import Mock
+
+        audio_hash = "test_hash_non_string_model"
+        transcript_text = "Test transcript with non-string model."
+
+        # Create a mock model object (simulating Whisper model object)
+        mock_model = Mock()
+        mock_model.__str__ = Mock(return_value="<MockModel object>")
+
+        result_path = transcript_cache.save_transcript_to_cache(
+            audio_hash,
+            transcript_text,
+            provider_name="whisper",
+            model=mock_model,  # Non-string model object
+            cache_dir=self.cache_dir,
+        )
+
+        self.assertTrue(os.path.exists(result_path))
+        # Check JSON contains converted model string
+        with open(result_path, "r", encoding="utf-8") as f:
+            cache_data = json.load(f)
+        self.assertEqual(cache_data["transcript"], transcript_text)
+        self.assertEqual(cache_data["provider"], "whisper")
+        # Model should be converted to string representation
+        self.assertEqual(cache_data["model"], "<MockModel object>")

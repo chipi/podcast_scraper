@@ -107,7 +107,8 @@ class OpenAIProvider:
             expected_prefixes=["sk-", "sk-proj-"],
         )
         if not is_valid:
-            logger.warning("OpenAI API key validation: %s", error_msg)
+            # Note: error_msg does not contain the API key itself, only validation status
+            logger.warning("OpenAI API key validation failed: %s", error_msg)
 
         self.cfg = cfg
 

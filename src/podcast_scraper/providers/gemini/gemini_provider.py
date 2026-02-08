@@ -96,7 +96,8 @@ class GeminiProvider:
             expected_prefixes=None,  # Gemini keys don't have standard prefix
         )
         if not is_valid:
-            logger.warning("Gemini API key validation: %s", error_msg)
+            # Note: error_msg does not contain the API key itself, only validation status
+            logger.warning("Gemini API key validation failed: %s", error_msg)
 
         self.cfg = cfg
 

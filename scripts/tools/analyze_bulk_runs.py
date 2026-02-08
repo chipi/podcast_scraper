@@ -34,6 +34,7 @@ import logging
 import statistics
 import sys
 from collections import defaultdict
+
 # from datetime import datetime  # Unused import
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -529,7 +530,8 @@ def generate_basic_report(
             "ok=",  # Success indicators (e.g., "ok=3, failed=0")
             "ok:",
             "result: episodes=",  # Result summary lines
-            "degradation policy",  # Degradation warnings (e.g., "Saving transcript without summary (degradation policy: ...)")
+            "degradation policy",  # Degradation warnings
+            # (e.g., "Saving transcript without summary (degradation policy: ...)")
             "degradation:",  # Degradation logger messages
         ]
         if any(exclusion in error_lower for exclusion in exclusions):
@@ -608,7 +610,8 @@ def generate_basic_report(
         if has_error_level or has_error_uppercase:
             return False
 
-        # If it's INFO or DEBUG level, it's NOT a warning (even if it mentions "warning" in parameters)
+        # If it's INFO or DEBUG level, it's NOT a warning
+        # (even if it mentions "warning" in parameters)
         if has_info_level or has_info_uppercase or has_debug_level or has_debug_uppercase:
             return False
 
@@ -646,7 +649,9 @@ def generate_basic_report(
     report.append("## Analysis and Insights")
     report.append("")
     report.append(
-        "> **Note:** Basic statistics (duration, episodes, memory, errors, warnings) are shown in the [Per-Run Summary](#per-run-summary) table below. This section focuses on additional analysis and insights."
+        "> **Note:** Basic statistics (duration, episodes, memory, errors, warnings) "
+        "are shown in the [Per-Run Summary](#per-run-summary) table below. "
+        "This section focuses on additional analysis and insights."
     )
     report.append("")
 
@@ -689,11 +694,13 @@ def generate_basic_report(
             report.append("")
             if speed_ratio > 2:
                 report.append(
-                    f"⚠️ **High performance variance detected:** Slowest run is {speed_ratio:.1f}x slower than fastest"
+                    f"⚠️ **High performance variance detected:** "
+                    f"Slowest run is {speed_ratio:.1f}x slower than fastest"
                 )
                 if cv > 30:
                     report.append(
-                        f"  - Coefficient of Variation: {cv:.1f}% (high variance indicates inconsistent performance)"
+                        f"  - Coefficient of Variation: {cv:.1f}% "
+                        f"(high variance indicates inconsistent performance)"
                     )
             else:
                 report.append(
@@ -701,7 +708,8 @@ def generate_basic_report(
                 )
                 if cv < 10:
                     report.append(
-                        f"  - Coefficient of Variation: {cv:.1f}% (low variance indicates stable performance)"
+                        f"  - Coefficient of Variation: {cv:.1f}% "
+                        f"(low variance indicates stable performance)"
                     )
             report.append("")
 
@@ -761,15 +769,21 @@ def generate_basic_report(
             report.append("")
             if transcript_coverage < 100:
                 report.append(
-                    f"⚠️ **Missing transcripts:** {non_dry_run_episodes - total_transcripts} episodes ({100 - transcript_coverage:.1f}% missing)"
+                    f"⚠️ **Missing transcripts:** "
+                    f"{non_dry_run_episodes - total_transcripts} episodes "
+                    f"({100 - transcript_coverage:.1f}% missing)"
                 )
             if metadata_coverage < 100:
                 report.append(
-                    f"⚠️ **Missing metadata:** {non_dry_run_episodes - total_metadata} episodes ({100 - metadata_coverage:.1f}% missing)"
+                    f"⚠️ **Missing metadata:** "
+                    f"{non_dry_run_episodes - total_metadata} episodes "
+                    f"({100 - metadata_coverage:.1f}% missing)"
                 )
             if summary_coverage < 100:
                 report.append(
-                    f"⚠️ **Missing summaries:** {non_dry_run_episodes - total_summaries} episodes ({100 - summary_coverage:.1f}% missing)"
+                    f"⚠️ **Missing summaries:** "
+                    f"{non_dry_run_episodes - total_summaries} episodes "
+                    f"({100 - summary_coverage:.1f}% missing)"
                 )
             report.append("")
         else:
@@ -805,7 +819,9 @@ def generate_basic_report(
     report.append("## Per-Run Summary")
     report.append("")
     report.append(
-        "> **All basic statistics** (duration, episodes, errors, warnings, memory, throughput) are shown in the table below. Use this as the primary reference for per-run metrics."
+        "> **All basic statistics** (duration, episodes, errors, warnings, memory, "
+        "throughput) are shown in the table below. Use this as the primary reference "
+        "for per-run metrics."
     )
     report.append("")
 
@@ -936,9 +952,8 @@ def generate_comprehensive_report(
     )
     report.append(f"**Failed:** {failed_runs} ({failed_runs/max(1,total_runs)*100:.1f}%)")
     report.append(f"**Total Duration:** {session_data.get('total_duration_seconds', 0):.1f}s")
-    report.append(
-        f"**Average per Config:** {session_data.get('total_duration_seconds', 0) / max(1, total_runs):.1f}s"
-    )
+    avg_duration = session_data.get("total_duration_seconds", 0) / max(1, total_runs)
+    report.append(f"**Average per Config:** {avg_duration:.1f}s")
     report.append("")
 
     # Comprehensive Statistical Analysis
@@ -1053,9 +1068,8 @@ def generate_comprehensive_report(
         report.append(
             f"- **Runs with Errors:** {runs_with_errors} ({runs_with_errors/total_runs*100:.1f}%)"
         )
-        report.append(
-            f"- **Runs with Warnings:** {runs_with_warnings} ({runs_with_warnings/total_runs*100:.1f}%)"
-        )
+        warnings_pct = runs_with_warnings / total_runs * 100
+        report.append(f"- **Runs with Warnings:** {runs_with_warnings} ({warnings_pct:.1f}%)")
 
     # Error categorization
     all_errors = []
@@ -1131,14 +1145,16 @@ def generate_comprehensive_report(
             speed_ratio = slowest / fastest
             if speed_ratio > 3:
                 report.append(
-                    f"⚠️ **High performance variance:** Slowest run is {speed_ratio:.1f}x slower than fastest"
+                    f"⚠️ **High performance variance:** "
+                    f"Slowest run is {speed_ratio:.1f}x slower than fastest"
                 )
                 report.append(
                     "  - **Recommendation:** Investigate why some configs are significantly slower"
                 )
             elif speed_ratio > 2:
                 report.append(
-                    f"⚠️ **Moderate performance variance:** Slowest run is {speed_ratio:.1f}x slower than fastest"
+                    f"⚠️ **Moderate performance variance:** "
+                    f"Slowest run is {speed_ratio:.1f}x slower than fastest"
                 )
             else:
                 report.append(
@@ -1164,7 +1180,8 @@ def generate_comprehensive_report(
             eff_stats = calculate_statistics(efficiency_scores)
             report.append(f"- **Mean Throughput:** {eff_stats['mean']:.3f} episodes/second")
             report.append(
-                f"- **Throughput Range:** {eff_stats['min']:.3f} - {eff_stats['max']:.3f} episodes/second"
+                f"- **Throughput Range:** {eff_stats['min']:.3f} - "
+                f"{eff_stats['max']:.3f} episodes/second"
             )
         report.append("")
 
@@ -1185,12 +1202,12 @@ def generate_comprehensive_report(
     if sorted_runs:
         slowest = sorted_runs[0]
         fastest = sorted_runs[-1]
-        report.append(
-            f"**Slowest Run:** {slowest.get('config_name')} ({slowest.get('duration_seconds', 0):.1f}s)"
-        )
+        slowest_duration = slowest.get("duration_seconds", 0)
+        report.append(f"**Slowest Run:** {slowest.get('config_name')} ({slowest_duration:.1f}s)")
         if len(sorted_runs) > 1:
+            fastest_duration = fastest.get("duration_seconds", 0)
             report.append(
-                f"**Fastest Run:** {fastest.get('config_name')} ({fastest.get('duration_seconds', 0):.1f}s)"
+                f"**Fastest Run:** {fastest.get('config_name')} ({fastest_duration:.1f}s)"
             )
 
     # Find runs with most errors
@@ -1336,13 +1353,11 @@ def generate_comprehensive_report(
         if len(runs) > 1:
             avg_duration = duration_stats["mean"]
             if duration > avg_duration * 1.2:
-                report.append(
-                    f"⚠️ **Slower than average:** {((duration / avg_duration - 1) * 100):.1f}% above mean"
-                )
+                pct_above = (duration / avg_duration - 1) * 100
+                report.append(f"⚠️ **Slower than average:** {pct_above:.1f}% above mean")
             elif duration < avg_duration * 0.8:
-                report.append(
-                    f"✅ **Faster than average:** {((1 - duration / avg_duration) * 100):.1f}% below mean"
-                )
+                pct_below = (1 - duration / avg_duration) * 100
+                report.append(f"✅ **Faster than average:** {pct_below:.1f}% below mean")
             report.append("")
 
     # Baseline comparison

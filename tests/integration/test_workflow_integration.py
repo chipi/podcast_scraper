@@ -167,48 +167,52 @@ class TestIntegrationMain(unittest.TestCase):
                     "podcast_scraper.providers.ml.ml_provider.MLProvider._transcribe_with_whisper",
                     return_value=({"text": transcribed_text, "segments": []}, 1.0),
                 ) as mock_transcribe:
-                    with tempfile.TemporaryDirectory() as tmpdir:
-                        exit_code = cli.main(
-                            [
-                                rss_url,
-                                "--output-dir",
-                                tmpdir,
-                                "--transcribe-missing",
-                                "--whisper-model",
-                                config.TEST_DEFAULT_WHISPER_MODEL,
-                                "--run-id",
-                                "testrun",
-                            ]
-                        )
-                        self.assertEqual(exit_code, 0)
-                        # Note: Episodes may be skipped if they already have transcripts
-                        # Check if transcription was called (only if episode wasn't skipped)
-                        if mock_import_whisper.called:
-                            mock_transcribe.assert_called()
-                            # Files are now saved in run_<suffix>/transcripts/ with run suffix in filename
-                            # Find the run directory and transcript file
-                            import glob
+                    with patch(
+                        "podcast_scraper.cache.transcript_cache.get_cached_transcript",
+                        return_value=None,
+                    ):  # Disable cache to ensure transcription is called
+                        with tempfile.TemporaryDirectory() as tmpdir:
+                            exit_code = cli.main(
+                                [
+                                    rss_url,
+                                    "--output-dir",
+                                    tmpdir,
+                                    "--transcribe-missing",
+                                    "--whisper-model",
+                                    config.TEST_DEFAULT_WHISPER_MODEL,
+                                    "--run-id",
+                                    "testrun",
+                                ]
+                            )
+                            self.assertEqual(exit_code, 0)
+                            # Note: Episodes may be skipped if they already have transcripts
+                            # Check if transcription was called (only if episode wasn't skipped)
+                            if mock_import_whisper.called:
+                                mock_transcribe.assert_called()
+                                # Files are now saved in run_<suffix>/transcripts/ with run suffix in filename
+                                # Find the run directory and transcript file
+                                import glob
 
-                            run_dirs = glob.glob(os.path.join(tmpdir, "run_*"))
-                            self.assertGreater(
-                                len(run_dirs), 0, "Should have at least one run directory"
-                            )
-                            run_dir = run_dirs[0]
-                            transcripts_dir = os.path.join(run_dir, "transcripts")
-                            # Find transcript file (may have run suffix in filename)
-                            transcript_files = glob.glob(
-                                os.path.join(transcripts_dir, "0001 - Episode 1*.txt")
-                            )
-                            self.assertGreater(
-                                len(transcript_files),
-                                0,
-                                f"Should find transcript file in {transcripts_dir}",
-                            )
-                            out_path = Path(transcript_files[0])
-                            self.assertTrue(out_path.exists())
-                            self.assertEqual(
-                                out_path.read_text(encoding="utf-8").strip(), transcribed_text
-                            )
+                                run_dirs = glob.glob(os.path.join(tmpdir, "run_*"))
+                                self.assertGreater(
+                                    len(run_dirs), 0, "Should have at least one run directory"
+                                )
+                                run_dir = run_dirs[0]
+                                transcripts_dir = os.path.join(run_dir, "transcripts")
+                                # Find transcript file (may have run suffix in filename)
+                                transcript_files = glob.glob(
+                                    os.path.join(transcripts_dir, "0001 - Episode 1*.txt")
+                                )
+                                self.assertGreater(
+                                    len(transcript_files),
+                                    0,
+                                    f"Should find transcript file in {transcripts_dir}",
+                                )
+                                out_path = Path(transcript_files[0])
+                                self.assertTrue(out_path.exists())
+                                self.assertEqual(
+                                    out_path.read_text(encoding="utf-8").strip(), transcribed_text
+                                )
 
     def test_path_traversal_attempt_normalized(self):
         """Test that path traversal attempts are normalized correctly.
