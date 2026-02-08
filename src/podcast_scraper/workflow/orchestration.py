@@ -941,6 +941,10 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             pipeline_metrics.get_or_create_episode_status(
                 episode_id=episode_id, episode_number=episode.idx
             )
+            # Create initial metrics entry (to avoid warnings when updating later)
+            pipeline_metrics.get_or_create_episode_metrics(
+                episode_id=episode_id, episode_number=episode.idx
+            )
 
     # Step 5: Detect hosts and analyze patterns (if auto_speakers enabled)
     # This is part of normalizing stage

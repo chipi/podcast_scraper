@@ -208,6 +208,10 @@ def process_transcription_jobs(
                     )
                 if success:
                     saved += 1
+                    # Increment transcripts_transcribed for both cache hits and actual
+                    # transcriptions. This metric counts transcripts saved, not transcription
+                    # work performed. When cache is used, transcripts_transcribed > 0 but
+                    # transcribe_count = 0.
                     update_metric_safely(pipeline_metrics, "transcripts_transcribed", 1)
 
                     # Generate metadata if enabled
@@ -362,6 +366,9 @@ def process_transcription_jobs_concurrent(  # noqa: C901
             if bytes_downloaded:
                 update_metric_safely(pipeline_metrics, "bytes_downloaded_total", bytes_downloaded)
             if success:
+                # Increment transcripts_transcribed for both cache hits and actual transcriptions
+                # This metric counts transcripts saved, not transcription work performed.
+                # When cache is used, transcripts_transcribed > 0 but transcribe_count = 0.
                 update_metric_safely(pipeline_metrics, "transcripts_transcribed", 1)
 
                 # Queue processing job if metadata generation is enabled

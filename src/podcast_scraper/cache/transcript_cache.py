@@ -99,7 +99,17 @@ def save_transcript_to_cache(
     if provider_name:
         cache_data["provider"] = provider_name
     if model:
-        cache_data["model"] = model
+        # Ensure model is a string (defensive check for non-serializable objects)
+        if isinstance(model, str):
+            cache_data["model"] = model
+        else:
+            # Convert to string representation if not already a string
+            # This handles cases where a model object might be passed instead of a string
+            cache_data["model"] = str(model)
+            logger.warning(
+                "Model passed to cache was not a string, converted to string: %s",
+                type(model).__name__,
+            )
 
     try:
         with open(cache_path, "w", encoding="utf-8") as f:

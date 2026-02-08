@@ -617,6 +617,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
                         transcribe_missing=True,
                         whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
                         max_episodes=1,
+                        transcript_cache_enabled=False,  # Disable cache to ensure transcription is called
                     )
 
                     count, summary = podcast_scraper.run_pipeline(cfg)

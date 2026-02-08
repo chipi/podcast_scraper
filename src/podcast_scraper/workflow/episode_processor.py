@@ -524,6 +524,13 @@ def transcribe_media_to_text(
             )
             logger.info(f"    saved transcript from cache: {rel_path}")
             # Update episode status: transcribed (from cache)
+            # Note: We do NOT call pipeline_metrics.record_transcribe_time() here because
+            # no actual transcription work was performed. This means:
+            # - transcribe_times list remains empty
+            # - transcribe_count = len(transcribe_times) = 0
+            # - avg_transcribe_seconds = 0.0
+            # However, transcripts_transcribed is still incremented in transcription.py
+            # because a transcript was successfully saved (from cache).
             if pipeline_metrics is not None:
                 if hasattr(job, "episode"):
                     from podcast_scraper.workflow.helpers import get_episode_id_from_episode
@@ -767,8 +774,35 @@ def transcribe_media_to_text(
                     or type(transcription_provider).__name__.replace("Provider", "").lower()
                 )
                 # Try to get model name from provider
+                # Note: MLProvider.model returns Whisper object (not JSON serializable),
+                # so we need to get model name from config or provider attributes
                 if hasattr(transcription_provider, "model"):
                     model = getattr(transcription_provider, "model", None)
+                    # If model is not a string (e.g., Whisper model object), get name from config
+                    if model is not None and not isinstance(model, str):
+                        # Get model name from config based on provider type
+                        if cfg.transcription_provider == "whisper":
+                            model = cfg.whisper_model
+                        elif cfg.transcription_provider == "openai":
+                            model = getattr(cfg, "openai_transcription_model", "whisper-1")
+                        elif cfg.transcription_provider == "gemini":
+                            model = getattr(cfg, "gemini_transcription_model", "gemini-1.5-pro")
+                        elif cfg.transcription_provider == "mistral":
+                            model = getattr(cfg, "mistral_transcription_model", None)
+                        elif cfg.transcription_provider == "anthropic":
+                            model = getattr(cfg, "anthropic_transcription_model", None)
+                        elif cfg.transcription_provider == "deepseek":
+                            model = getattr(cfg, "deepseek_transcription_model", None)
+                        elif cfg.transcription_provider == "grok":
+                            model = getattr(cfg, "grok_transcription_model", None)
+                        elif cfg.transcription_provider == "ollama":
+                            model = getattr(cfg, "ollama_transcription_model", None)
+                        else:
+                            # Fallback: try to get transcription_model attribute from provider
+                            model = getattr(transcription_provider, "transcription_model", None)
+                # If provider has transcription_model attribute (like OpenAIProvider), prefer that
+                elif hasattr(transcription_provider, "transcription_model"):
+                    model = getattr(transcription_provider, "transcription_model", None)
             try:
                 transcript_cache.save_transcript_to_cache(
                     audio_hash, text, provider_name=provider_name, model=model, cache_dir=cache_dir
