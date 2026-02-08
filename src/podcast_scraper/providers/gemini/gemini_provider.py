@@ -15,7 +15,7 @@ import json
 import logging
 import os
 import time
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple, TYPE_CHECKING
 
 # Import Gemini SDK (verify package name during implementation)
 try:
@@ -23,8 +23,16 @@ try:
 except ImportError:
     genai = None  # type: ignore
 
-from ... import config, models
+from ... import config
+
+if TYPE_CHECKING:
+    from ...models import Episode
+else:
+    from ... import models
+
+    Episode = models.Episode  # type: ignore[assignment]
 from ...workflow import metrics
+from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +87,17 @@ class GeminiProvider:
                 "Set GEMINI_API_KEY environment variable or gemini_api_key in config."
             )
 
+        # Validate API key format
+        from ...utils.provider_metadata import validate_api_key_format
+
+        is_valid, error_msg = validate_api_key_format(
+            cfg.gemini_api_key,
+            "Gemini",
+            expected_prefixes=None,  # Gemini keys don't have standard prefix
+        )
+        if not is_valid:
+            logger.warning("Gemini API key validation: %s", error_msg)
+
         self.cfg = cfg
 
         # Suppress verbose Gemini SDK debug logs (if needed)
@@ -97,6 +116,18 @@ class GeminiProvider:
         # Configure Gemini client
         genai.configure(api_key=cfg.gemini_api_key)
 
+        # Log non-sensitive provider metadata (for debugging)
+        from ...utils.provider_metadata import log_provider_metadata
+
+        # Gemini may have project/region in config (if supported)
+        project = getattr(cfg, "gemini_project", None)
+        region = getattr(cfg, "gemini_region", None)
+        log_provider_metadata(
+            provider_name="Gemini",
+            project=project,
+            region=region,
+        )
+
         # Support custom base_url for E2E testing with mock servers
         # Note: Gemini SDK may not support custom base_url directly
         # This would need to be handled via environment variable or SDK configuration
@@ -106,6 +137,11 @@ class GeminiProvider:
                 "gemini_api_base is set but Gemini SDK may not support custom base URLs. "
                 "This is primarily for E2E testing - verify SDK support."
             )
+
+        # Note: HTTP timeout configuration
+        # Gemini SDK uses global configure() and may not support per-client timeout configuration.
+        # Timeout behavior is controlled by the SDK's default settings.
+        # If timeout configuration is needed, it may require SDK version update or workaround.
 
         # Transcription settings
         # Model validation happens at API call time - invalid models will raise clear errors
@@ -643,7 +679,7 @@ class GeminiProvider:
 
     def analyze_patterns(
         self,
-        episodes: list[models.Episode],
+        episodes: list[Episode],  # type: ignore[valid-type]
         known_hosts: Set[str],
     ) -> dict[str, object] | None:
         """Analyze patterns across multiple episodes (optional).
@@ -998,4 +1034,23 @@ class GeminiProvider:
             self._transcription_initialized
             or self._speaker_detection_initialized
             or self._summarization_initialized
+        )
+
+    def get_capabilities(self) -> ProviderCapabilities:
+        """Get provider capabilities.
+
+        Returns:
+            ProviderCapabilities object describing Gemini provider capabilities
+        """
+        return ProviderCapabilities(
+            supports_transcription=True,
+            supports_speaker_detection=True,
+            supports_summarization=True,
+            supports_audio_input=True,  # Gemini supports multimodal audio
+            supports_json_mode=True,  # Gemini supports JSON mode via response_schema
+            max_context_tokens=self.max_context_tokens,
+            supports_tool_calls=True,  # Gemini supports function calling
+            supports_system_prompt=True,  # Gemini supports system prompts
+            supports_streaming=True,  # Gemini API supports streaming
+            provider_name="gemini",
         )

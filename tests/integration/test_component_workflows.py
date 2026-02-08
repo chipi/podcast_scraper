@@ -15,6 +15,7 @@ These tests use:
 
 import json
 import os
+import queue
 import sys
 import tempfile
 import unittest
@@ -443,7 +444,9 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             temp_dir = os.path.join(self.temp_dir, "temp")
             os.makedirs(temp_dir, exist_ok=True)
 
-            transcription_jobs = []
+            import queue
+
+            transcription_jobs = queue.Queue()
             transcription_jobs_lock = None
 
             # Process episode download - should download audio and create transcription job
@@ -460,8 +463,8 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             )
 
             # Verify audio download happened (transcription job was created)
-            self.assertEqual(len(transcription_jobs), 1, "Should create one transcription job")
-            job = transcription_jobs[0]
+            self.assertEqual(transcription_jobs.qsize(), 1, "Should create one transcription job")
+            job = transcription_jobs.get()
             self.assertIsNotNone(job.temp_media, "Transcription job should have temp media file")
             self.assertTrue(os.path.exists(job.temp_media), "Audio file should be downloaded")
 
@@ -585,7 +588,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)
 
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
 
         # Mock only HTTP (external dependency), use real Whisper
         with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
@@ -603,8 +606,8 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             )
 
             # Verify transcription job was created
-            self.assertEqual(len(transcription_jobs), 1, "Should create one transcription job")
-            job = transcription_jobs[0]
+            self.assertEqual(transcription_jobs.qsize(), 1, "Should create one transcription job")
+            job = transcription_jobs.get()
             self.assertEqual(job.idx, 1)
             self.assertEqual(job.ep_title, "Episode 1: Test")
             self.assertIsNotNone(job.temp_media, "Transcription job should have temp media file")
@@ -782,7 +785,9 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 # Step 4: Download audio and create transcription job with detected speakers
                 temp_dir = os.path.join(self.temp_dir, "temp")
                 os.makedirs(temp_dir, exist_ok=True)
-                transcription_jobs = []
+                import queue
+
+                transcription_jobs = queue.Queue()
 
                 success, transcript_path, transcript_source, bytes_downloaded = (
                     episode_processor.process_episode_download(
@@ -798,8 +803,8 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 )
 
                 # Verify transcription job was created with detected speakers
-                self.assertEqual(len(transcription_jobs), 1)
-                job = transcription_jobs[0]
+                self.assertEqual(transcription_jobs.qsize(), 1)
+                job = transcription_jobs.get()
                 self.assertIsNotNone(
                     job.detected_speaker_names, "Transcription job should have detected speakers"
                 )
@@ -1009,7 +1014,9 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 # Step 4: Download audio and transcribe (real Whisper)
                 temp_dir = os.path.join(self.temp_dir, "temp")
                 os.makedirs(temp_dir, exist_ok=True)
-                transcription_jobs = []
+                import queue
+
+                transcription_jobs = queue.Queue()
 
                 success, transcript_path, transcript_source, bytes_downloaded = (
                     episode_processor.process_episode_download(
@@ -1025,8 +1032,8 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 )
 
                 # Verify transcription job was created
-                self.assertEqual(len(transcription_jobs), 1)
-                job = transcription_jobs[0]
+                self.assertEqual(transcription_jobs.qsize(), 1)
+                job = transcription_jobs.get()
 
                 # Transcribe (real Whisper)
                 transcription_provider = create_transcription_provider(cfg)
@@ -1093,11 +1100,30 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                         # Summary is at top level, not in content
                         self.assertIn("summary", data)
                         summary = data["summary"]
-                        # Summary should be a dict with short_summary field
+                        # Summary should be a dict with normalized schema fields
                         self.assertIsInstance(summary, dict, "Summary should be a dict")
-                        self.assertIn("short_summary", summary)
-                        self.assertIsInstance(summary["short_summary"], str)
-                        self.assertGreater(len(summary["short_summary"]), 0)
+                        # Check normalized schema fields (required)
+                        self.assertIn(
+                            "bullets",
+                            summary,
+                            "Summary should have bullets field (normalized schema)",
+                        )
+                        self.assertIsInstance(summary["bullets"], list, "bullets should be a list")
+                        self.assertGreater(
+                            len(summary["bullets"]), 0, "bullets should not be empty"
+                        )
+                        # short_summary is computed from bullets
+                        self.assertIn(
+                            "short_summary",
+                            summary,
+                            "Summary should have short_summary field (computed)",
+                        )
+                        self.assertIsInstance(
+                            summary["short_summary"], str, "short_summary should be a string"
+                        )
+                        self.assertGreater(
+                            len(summary["short_summary"]), 0, "short_summary should not be empty"
+                        )
 
                         # Verify transcript source
                         self.assertEqual(
@@ -1184,6 +1210,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             generate_metadata=True,
             metadata_format="json",
             screenplay_num_speakers=3,  # Allow 3 speakers so Bob Guest is included
+            transcript_cache_enabled=False,  # Disable cache to ensure API is called
         )
 
         # Mock unified OpenAI client (all capabilities share the same client)
@@ -1195,7 +1222,11 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             "The conversation covers various topics including artificial intelligence, machine learning, and software engineering. "
             "The speakers provide insights into current trends and future directions in the tech industry."
         )
-        mock_client.audio.transcriptions.create.return_value = mock_transcription_text
+        # transcribe_with_segments expects verbose_json format with text and segments
+        mock_transcription_response = Mock()
+        mock_transcription_response.text = mock_transcription_text
+        mock_transcription_response.segments = []
+        mock_client.audio.transcriptions.create.return_value = mock_transcription_response
 
         # Mock prompt rendering for speaker detection and summarization
         mock_render_prompt.side_effect = [
@@ -1294,7 +1325,9 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         # Step 4: Download audio and transcribe (OpenAI)
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)
-        transcription_jobs = []
+        import queue
+
+        transcription_jobs = queue.Queue()
 
         success, transcript_path, transcript_source, bytes_downloaded = (
             episode_processor.process_episode_download(
@@ -1310,8 +1343,8 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         )
 
         # Verify transcription job was created
-        self.assertEqual(len(transcription_jobs), 1)
-        job = transcription_jobs[0]
+        self.assertEqual(transcription_jobs.qsize(), 1)
+        job = transcription_jobs.get()
 
         # Transcribe with OpenAI
         transcription_provider = create_transcription_provider(cfg)
@@ -1401,7 +1434,16 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         # Summary is stored in a separate "summary" field, not in "content"
         self.assertIn("summary", data)
         self.assertIsNotNone(data["summary"], "Summary should be generated")
-        self.assertIn("short_summary", data["summary"])
+        # Check normalized schema fields (required)
+        self.assertIn(
+            "bullets", data["summary"], "Summary should have bullets field (normalized schema)"
+        )
+        self.assertIsInstance(data["summary"]["bullets"], list, "bullets should be a list")
+        self.assertGreater(len(data["summary"]["bullets"]), 0, "bullets should not be empty")
+        # short_summary is computed from bullets
+        self.assertIn(
+            "short_summary", data["summary"], "Summary should have short_summary field (computed)"
+        )
         self.assertIsNotNone(data["summary"]["short_summary"], "Summary text should be generated")
         self.assertIn(
             "technology", data["summary"]["short_summary"].lower(), "Summary should contain content"
@@ -1509,21 +1551,27 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         # Verify summary metadata is present
         self.assertIn("summary", data, "Metadata should contain summary at top level")
         self.assertIsNotNone(data["summary"], "Summary should be generated")
-        # Summary structure: should have short_summary field
-        if isinstance(data["summary"], dict):
-            self.assertIn(
-                "short_summary", data["summary"], "Summary should have short_summary field"
-            )
-            self.assertIsInstance(
-                data["summary"]["short_summary"], str, "short_summary should be a string"
-            )
-            self.assertGreater(
-                len(data["summary"]["short_summary"]), 0, "short_summary should not be empty"
-            )
-        else:
-            # Fallback: summary might be a string
-            self.assertIsInstance(data["summary"], str, "Summary should be a string or dict")
-            self.assertGreater(len(data["summary"]), 0, "Summary should not be empty")
+        # Summary structure: should use normalized schema format
+        self.assertIsInstance(
+            data["summary"], dict, "Summary should be a dict with normalized schema"
+        )
+        # Check normalized schema fields (required)
+        self.assertIn(
+            "bullets", data["summary"], "Summary should have bullets field (normalized schema)"
+        )
+        self.assertIsInstance(data["summary"]["bullets"], list, "bullets should be a list")
+        self.assertGreater(len(data["summary"]["bullets"]), 0, "bullets should not be empty")
+        self.assertIn("schema_status", data["summary"], "Summary should have schema_status field")
+        # short_summary is computed from bullets, should still be available
+        self.assertIn(
+            "short_summary", data["summary"], "Summary should have short_summary field (computed)"
+        )
+        self.assertIsInstance(
+            data["summary"]["short_summary"], str, "short_summary should be a string"
+        )
+        self.assertGreater(
+            len(data["summary"]["short_summary"]), 0, "short_summary should not be empty"
+        )
 
         # Cleanup: unload provider to free resources
         if hasattr(summary_provider, "cleanup"):
@@ -1576,8 +1624,10 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)
 
-        # Shared transcription jobs list with lock
-        transcription_jobs = []
+        # Shared transcription jobs queue with lock
+        import queue
+
+        transcription_jobs = queue.Queue()
         transcription_jobs_lock = threading.Lock()
 
         # Mock Whisper
@@ -1617,10 +1667,13 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 process_episode(episode)
 
             # Step 2: Verify all transcription jobs were created
-            self.assertEqual(len(transcription_jobs), 3, "Should create 3 transcription jobs")
+            self.assertEqual(transcription_jobs.qsize(), 3, "Should create 3 transcription jobs")
 
             # Verify jobs are for different episodes
-            job_indices = {job.idx for job in transcription_jobs}
+            jobs = []
+            while not transcription_jobs.empty():
+                jobs.append(transcription_jobs.get())
+            job_indices = {job.idx for job in jobs}
             self.assertEqual(job_indices, {1, 2, 3}, "Jobs should be for all 3 episodes")
 
             # Step 3: Process transcription jobs (simulate sequential transcription)
@@ -1628,7 +1681,8 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             transcription_provider.initialize()
 
             transcript_paths = []
-            for job in transcription_jobs:
+            # Use the jobs list that was already extracted from the queue
+            for job in jobs:
                 success, transcript_path, _ = episode_processor.transcribe_media_to_text(
                     job=job,
                     cfg=cfg,
@@ -1676,7 +1730,9 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         )
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)
-        transcription_jobs = []
+        import queue
+
+        transcription_jobs = queue.Queue()
 
         # Mock HTTP download failure
         def failing_download(url, user_agent=None, timeout=None, stream=False):
@@ -1704,7 +1760,9 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             self.assertFalse(success, "Should return False on download failure")
             self.assertIsNone(transcript_path, "No transcript path on failure")
             self.assertEqual(
-                len(transcription_jobs), 0, "No transcription job should be created on failure"
+                transcription_jobs.qsize(),
+                0,
+                "No transcription job should be created on failure",
             )
 
     def test_error_recovery_transcription_failure(self):
@@ -1740,10 +1798,13 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             transcribe_missing=True,
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             auto_speakers=False,  # Disable to avoid loading spaCy (only testing transcription)
+            transcript_cache_enabled=False,  # Disable cache to test actual transcription failure
         )
         temp_dir = os.path.join(self.temp_dir, "temp")
         os.makedirs(temp_dir, exist_ok=True)
-        transcription_jobs = []
+        import queue
+
+        transcription_jobs = queue.Queue()
 
         # Mock Whisper transcription failure
         with (
@@ -1776,24 +1837,33 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
             )
 
             # Verify download succeeded
-            self.assertEqual(len(transcription_jobs), 1, "Transcription job should be created")
-            job = transcription_jobs[0]
+            self.assertEqual(transcription_jobs.qsize(), 1, "Transcription job should be created")
+            job = transcription_jobs.get()
             self.assertTrue(os.path.exists(job.temp_media), "Audio file should be downloaded")
 
             # Step 2: Attempt transcription (should fail gracefully)
             transcription_provider = create_transcription_provider(cfg)
             transcription_provider.initialize()
 
-            transcribe_success, transcript_file_path, bytes_downloaded_transcribe = (
-                episode_processor.transcribe_media_to_text(
-                    job=job,
-                    cfg=cfg,
-                    whisper_model=mock_whisper_model,
-                    run_suffix=None,
-                    effective_output_dir=self.temp_dir,
-                    transcription_provider=transcription_provider,
-                )
+            # Mock the provider's transcribe_with_segments method to raise an error
+            # This is the method actually called by transcribe_media_to_text
+            original_transcribe = transcription_provider.transcribe_with_segments
+            transcription_provider.transcribe_with_segments = Mock(
+                side_effect=RuntimeError("Transcription failed: Model error")
             )
+            try:
+                transcribe_success, transcript_file_path, bytes_downloaded_transcribe = (
+                    episode_processor.transcribe_media_to_text(
+                        job=job,
+                        cfg=cfg,
+                        whisper_model=mock_whisper_model,
+                        run_suffix=None,
+                        effective_output_dir=self.temp_dir,
+                        transcription_provider=transcription_provider,
+                    )
+                )
+            finally:
+                transcription_provider.transcribe_with_segments = original_transcribe
 
             # Step 3: Verify failure is handled gracefully
             self.assertFalse(transcribe_success, "Transcription should fail")
@@ -2032,11 +2102,24 @@ class TestMultipleComponentsWorkflow(unittest.TestCase):
                 # Summary is at top level, not in content
                 self.assertIn("summary", data)
                 summary = data["summary"]
-                # Summary should be a dict with short_summary field
+                # Summary should be a dict with normalized schema fields
                 self.assertIsInstance(summary, dict, "Summary should be a dict")
-                self.assertIn("short_summary", summary)
-                self.assertIsInstance(summary["short_summary"], str)
-                self.assertGreater(len(summary["short_summary"]), 0)
+                # Check normalized schema fields (required)
+                self.assertIn(
+                    "bullets", summary, "Summary should have bullets field (normalized schema)"
+                )
+                self.assertIsInstance(summary["bullets"], list, "bullets should be a list")
+                self.assertGreater(len(summary["bullets"]), 0, "bullets should not be empty")
+                # short_summary is computed from bullets
+                self.assertIn(
+                    "short_summary", summary, "Summary should have short_summary field (computed)"
+                )
+                self.assertIsInstance(
+                    summary["short_summary"], str, "short_summary should be a string"
+                )
+                self.assertGreater(
+                    len(summary["short_summary"]), 0, "short_summary should not be empty"
+                )
 
                 # Verify transcript source
                 self.assertEqual(data["content"]["transcript_source"], "direct_download")

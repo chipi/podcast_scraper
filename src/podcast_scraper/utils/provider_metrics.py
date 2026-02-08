@@ -7,9 +7,12 @@ including retries, rate limit sleep time, and token usage.
 from __future__ import annotations
 
 import logging
+import random
 import time
 from dataclasses import dataclass, field
 from typing import Callable, Optional, TypeVar
+
+from podcast_scraper.utils.retryable_errors import get_retry_reason, is_retryable_error
 
 logger = logging.getLogger(__name__)
 
@@ -83,8 +86,9 @@ def retry_with_metrics(
     max_delay: float = 30.0,
     retryable_exceptions: tuple[type[Exception], ...] = (Exception,),
     metrics: Optional[ProviderCallMetrics] = None,
+    jitter: bool = True,
 ) -> T:
-    """Retry a function with exponential backoff and metrics tracking.
+    """Retry a function with exponential backoff, jitter, and metrics tracking.
 
     Args:
         func: Function to retry (must be callable with no arguments)
@@ -94,12 +98,20 @@ def retry_with_metrics(
         retryable_exceptions: Tuple of exception types that should trigger retry
                              (default: all exceptions)
         metrics: Optional metrics object to track retries and sleep time
+        jitter: Whether to add random jitter to delays (default: True).
+                Jitter prevents thundering herd by randomizing retry timing.
+                Adds ±10% random variation to delay.
 
     Returns:
         Result of calling func()
 
     Raises:
         Exception: The last exception raised by func() if all retries are exhausted
+
+    Note:
+        Jitter is applied to prevent multiple clients from retrying simultaneously,
+        which can cause a "thundering herd" problem. The jitter adds ±10% random
+        variation to the calculated delay.
     """
     last_exception: Optional[Exception] = None
     delay = initial_delay
@@ -109,8 +121,14 @@ def retry_with_metrics(
             return func()
         except retryable_exceptions as e:
             last_exception = e
+            # Check if error is actually retryable using improved classification
+            if not is_retryable_error(e):
+                # Non-retryable error - re-raise immediately
+                logger.debug(f"Non-retryable error detected: {e}")
+                raise
+
             if attempt < max_retries:
-                # Determine if this is a rate limit error
+                # Determine if this is a rate limit error (for special handling)
                 error_msg = str(e).lower()
                 is_rate_limit = (
                     "429" in str(e)
@@ -127,9 +145,18 @@ def retry_with_metrics(
                     except (ValueError, TypeError):
                         pass
 
-                # Record retry in metrics
+                # Apply jitter to prevent thundering herd
+                if jitter:
+                    # Add ±10% random variation to delay
+                    jitter_factor = random.uniform(0.9, 1.1)
+                    sleep_time = sleep_time * jitter_factor
+                    # Ensure sleep_time doesn't go negative or exceed max_delay
+                    sleep_time = max(0.0, min(sleep_time, max_delay))
+
+                # Record retry in metrics (use original delay before jitter for metrics)
                 if metrics is not None:
-                    reason = "429" if is_rate_limit else type(e).__name__
+                    reason = get_retry_reason(e)
+                    # Record the actual sleep time (with jitter) for accurate metrics
                     metrics.record_retry(sleep_seconds=sleep_time, reason=reason)
                     # Log compact retry line as requested
                     provider_name = getattr(metrics, "_provider_name", "unknown")

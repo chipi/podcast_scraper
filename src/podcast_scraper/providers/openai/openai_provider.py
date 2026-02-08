@@ -16,10 +16,22 @@ import logging
 import os
 import re
 import time
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple, TYPE_CHECKING
 
 from ... import config, models
+
+if TYPE_CHECKING:
+    from ...models import Episode
+else:
+    Episode = models.Episode  # type: ignore[assignment]
+from ...utils.provider_metadata import (
+    extract_region_from_endpoint,
+    log_provider_metadata,
+    validate_api_key_format,
+)
+from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
+from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +100,15 @@ class OpenAIProvider:
                 "Set OPENAI_API_KEY environment variable or openai_api_key in config."
             )
 
+        # Validate API key format
+        is_valid, error_msg = validate_api_key_format(
+            cfg.openai_api_key,
+            "OpenAI",
+            expected_prefixes=["sk-", "sk-proj-"],
+        )
+        if not is_valid:
+            logger.warning("OpenAI API key validation: %s", error_msg)
+
         self.cfg = cfg
 
         # Suppress verbose OpenAI SDK debug logs (they're too long and clutter the output)
@@ -113,7 +134,23 @@ class OpenAIProvider:
         client_kwargs: dict[str, Any] = {"api_key": cfg.openai_api_key}
         if cfg.openai_api_base:
             client_kwargs["base_url"] = cfg.openai_api_base
+
+        # Configure HTTP timeouts with separate connect/read timeouts
+        # Connect timeout: 10s (fail fast on connection issues)
+        # Read timeout: 60s default (from cfg.timeout), longer for transcription/summarization
+        client_kwargs["timeout"] = get_http_timeout(cfg)
+
         self.client = OpenAI(**client_kwargs)
+
+        # Log non-sensitive provider metadata (for debugging)
+        # Extract region from base_url if possible
+        region = extract_region_from_endpoint(cfg.openai_api_base)
+        log_provider_metadata(
+            provider_name="OpenAI",
+            organization=getattr(cfg, "openai_organization", None),
+            base_url=cfg.openai_api_base,
+            region=region,
+        )
 
         # Transcription settings
         self.transcription_model = getattr(cfg, "openai_transcription_model", "whisper-1")
@@ -479,7 +516,38 @@ class OpenAIProvider:
         except Exception as exc:
             elapsed = time.time() - start_time
             logger.error("OpenAI Whisper API error: %s", exc)
-            raise ValueError(f"OpenAI transcription failed: {exc}") from exc
+            from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
+
+            # Handle OpenAI-specific error types
+            error_msg = str(exc).lower()
+            exc_type_name = type(exc).__name__
+            if (
+                "api key" in error_msg
+                or "authentication" in error_msg
+                or "permission" in error_msg
+                or "401" in error_msg
+                or "unauthorized" in error_msg
+                or exc_type_name == "AuthenticationError"
+            ):
+                raise ProviderAuthError(
+                    message=f"OpenAI authentication failed: {exc}",
+                    provider="OpenAIProvider/Transcription",
+                    suggestion=(
+                        "Check your OPENAI_API_KEY environment variable or config setting. "
+                        "Verify the key is valid and has not expired."
+                    ),
+                ) from exc
+            elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
+                raise ProviderRuntimeError(
+                    message=f"OpenAI rate limit exceeded: {exc}",
+                    provider="OpenAIProvider/Transcription",
+                    suggestion="Wait before retrying or check your API quota",
+                ) from exc
+            else:
+                raise ProviderRuntimeError(
+                    message=f"OpenAI transcription failed: {exc}",
+                    provider="OpenAIProvider/Transcription",
+                ) from exc
 
     # ============================================================================
     # SpeakerDetector Protocol Implementation
@@ -620,11 +688,42 @@ class OpenAIProvider:
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False
         except Exception as exc:
             logger.error("OpenAI API error in speaker detection: %s", exc)
-            raise ValueError(f"OpenAI speaker detection failed: {exc}") from exc
+            from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
+
+            # Handle OpenAI-specific error types
+            error_msg = str(exc).lower()
+            exc_type_name = type(exc).__name__
+            if (
+                "api key" in error_msg
+                or "authentication" in error_msg
+                or "permission" in error_msg
+                or "401" in error_msg
+                or "unauthorized" in error_msg
+                or exc_type_name == "AuthenticationError"
+            ):
+                raise ProviderAuthError(
+                    message=f"OpenAI authentication failed: {exc}",
+                    provider="OpenAIProvider/SpeakerDetection",
+                    suggestion=(
+                        "Check your OPENAI_API_KEY environment variable or config setting. "
+                        "Verify the key is valid and has not expired."
+                    ),
+                ) from exc
+            elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
+                raise ProviderRuntimeError(
+                    message=f"OpenAI rate limit exceeded: {exc}",
+                    provider="OpenAIProvider/SpeakerDetection",
+                    suggestion="Wait before retrying or check your API quota",
+                ) from exc
+            else:
+                raise ProviderRuntimeError(
+                    message=f"OpenAI speaker detection failed: {exc}",
+                    provider="OpenAIProvider/SpeakerDetection",
+                ) from exc
 
     def analyze_patterns(
         self,
-        episodes: list[models.Episode],
+        episodes: list[Episode],  # type: ignore[valid-type]
         known_hosts: Set[str],
     ) -> dict[str, object] | None:
         """Analyze patterns across multiple episodes (optional).
@@ -978,7 +1077,38 @@ class OpenAIProvider:
 
         except Exception as exc:
             logger.error("OpenAI API error in summarization: %s", exc)
-            raise ValueError(f"OpenAI summarization failed: {exc}") from exc
+            from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
+
+            # Handle OpenAI-specific error types
+            error_msg = str(exc).lower()
+            exc_type_name = type(exc).__name__
+            if (
+                "api key" in error_msg
+                or "authentication" in error_msg
+                or "permission" in error_msg
+                or "401" in error_msg
+                or "unauthorized" in error_msg
+                or exc_type_name == "AuthenticationError"
+            ):
+                raise ProviderAuthError(
+                    message=f"OpenAI authentication failed: {exc}",
+                    provider="OpenAIProvider/Summarization",
+                    suggestion=(
+                        "Check your OPENAI_API_KEY environment variable or config setting. "
+                        "Verify the key is valid and has not expired."
+                    ),
+                ) from exc
+            elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
+                raise ProviderRuntimeError(
+                    message=f"OpenAI rate limit exceeded: {exc}",
+                    provider="OpenAIProvider/Summarization",
+                    suggestion="Wait before retrying or check your API quota",
+                ) from exc
+            else:
+                raise ProviderRuntimeError(
+                    message=f"OpenAI summarization failed: {exc}",
+                    provider="OpenAIProvider/Summarization",
+                ) from exc
 
     def _build_summarization_prompts(
         self,
@@ -1086,4 +1216,23 @@ class OpenAIProvider:
             self._transcription_initialized
             or self._speaker_detection_initialized
             or self._summarization_initialized
+        )
+
+    def get_capabilities(self) -> ProviderCapabilities:
+        """Get provider capabilities.
+
+        Returns:
+            ProviderCapabilities object describing OpenAI provider capabilities
+        """
+        return ProviderCapabilities(
+            supports_transcription=True,
+            supports_speaker_detection=True,
+            supports_summarization=True,
+            supports_audio_input=True,  # Whisper API accepts audio files
+            supports_json_mode=True,  # GPT models support JSON mode
+            max_context_tokens=self.max_context_tokens,
+            supports_tool_calls=True,  # GPT models support function calling
+            supports_system_prompt=True,  # GPT models support system prompts
+            supports_streaming=True,  # OpenAI API supports streaming
+            provider_name="openai",
         )

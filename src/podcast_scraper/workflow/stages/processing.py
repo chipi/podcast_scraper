@@ -11,9 +11,15 @@ import os
 import threading
 import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from typing import Any, cast, Dict, List, Literal, Optional, Set, Tuple
+from typing import Any, cast, Dict, List, Literal, Optional, Set, Tuple, TYPE_CHECKING
 
 from ... import config, models
+
+if TYPE_CHECKING:
+    from ...models import Episode, RssFeed
+else:
+    Episode = models.Episode  # type: ignore[assignment]
+    RssFeed = models.RssFeed  # type: ignore[assignment]
 from ...rss import BYTES_PER_MB, http_head, OPENAI_MAX_FILE_SIZE_BYTES
 from .. import metrics
 from ..episode_processor import process_episode_download as factory_process_episode_download
@@ -68,8 +74,8 @@ logger = logging.getLogger(__name__)
 
 def detect_feed_hosts_and_patterns(
     cfg: config.Config,
-    feed: models.RssFeed,
-    episodes: List[models.Episode],
+    feed: RssFeed,  # type: ignore[valid-type]
+    episodes: List[Episode],  # type: ignore[valid-type]
     pipeline_metrics: Optional[metrics.Metrics] = None,
     speaker_detector: Optional[Any] = None,
 ) -> HostDetectionResult:
@@ -327,7 +333,7 @@ def setup_processing_resources(cfg: config.Config) -> ProcessingResources:
 
 
 def prepare_episode_download_args(
-    episodes: List[models.Episode],
+    episodes: List[Episode],  # type: ignore[valid-type]
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],
@@ -613,8 +619,8 @@ def prepare_episode_download_args(
 
 def process_episodes(  # noqa: C901
     download_args: List[Tuple],
-    episodes: List[models.Episode],
-    feed: models.RssFeed,
+    episodes: List[Episode],  # type: ignore[valid-type]
+    feed: RssFeed,  # type: ignore[valid-type]
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],
@@ -848,7 +854,7 @@ def process_episodes(  # noqa: C901
 # TODO: Reduce complexity - extract more helper functions for parallel processing logic
 def process_processing_jobs_concurrent(  # noqa: C901
     processing_resources: ProcessingResources,
-    feed: models.RssFeed,
+    feed: RssFeed,  # type: ignore[valid-type]
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],

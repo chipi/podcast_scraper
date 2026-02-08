@@ -22,7 +22,14 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ...models import Episode
+else:
+    from ... import models
+
+    Episode = models.Episode  # type: ignore[assignment]
 
 try:
     import httpx
@@ -34,7 +41,8 @@ try:
 except ImportError:
     OpenAI = None  # type: ignore
 
-from ... import config, models
+from ... import config
+from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
 logger = logging.getLogger(__name__)
@@ -129,8 +137,13 @@ class OllamaProvider:
         client_kwargs: dict[str, Any] = {
             "api_key": "ollama",  # Ollama ignores API key, but SDK requires one
             "base_url": base_url,
-            "timeout": getattr(cfg, "ollama_timeout", 120),
         }
+
+        # Configure HTTP timeouts with separate connect/read timeouts
+        # Use ollama_timeout for read timeout (local Ollama can be slower)
+        ollama_timeout = getattr(cfg, "ollama_timeout", 120)
+        client_kwargs["timeout"] = get_http_timeout(cfg, read_timeout=float(ollama_timeout))
+
         self.client = OpenAI(**client_kwargs)
 
         # Speaker detection settings
@@ -193,8 +206,52 @@ class OllamaProvider:
             # Catch all httpx exceptions (ConnectError, TimeoutException, RequestError, etc.)
             # httpx exceptions inherit from httpx.HTTPError, but we catch Exception
             # to be safe across different httpx versions
-            if "httpx" in type(exc).__module__:
+            # Check if it's an httpx error by checking the exception type name or module
+            exc_type_name = type(exc).__name__
+            exc_module = getattr(type(exc), "__module__", "")
+            # Check for httpx errors - either by module name or exception type name
+            is_httpx_error = False
+
+            # Try isinstance check first (works when httpx is not mocked)
+            # Get the real httpx module from sys.modules if available
+            # This works even when httpx is mocked in the provider module
+            import sys
+
+            real_httpx_module = sys.modules.get("httpx")
+            # Check if real_httpx_module is actually the real httpx module (not a mock)
+            # Real httpx module has __file__ attribute, mocks don't
+            if (
+                real_httpx_module is not None
+                and hasattr(real_httpx_module, "__file__")
+                and hasattr(real_httpx_module, "ConnectError")
+            ):
+                try:
+                    is_httpx_error = isinstance(
+                        exc,
+                        (
+                            real_httpx_module.ConnectError,
+                            real_httpx_module.TimeoutException,
+                            real_httpx_module.RequestError,
+                            real_httpx_module.HTTPError,
+                        ),
+                    )
+                except (TypeError, AttributeError):
+                    # isinstance() failed (likely because httpx is mocked)
+                    pass
+
+            # Fallback to string-based checks if isinstance didn't work
+            # This handles cases where httpx is mocked
+            # Real httpx exceptions have module "httpx", not "unittest.mock"
+            if not is_httpx_error:
+                is_httpx_error = exc_module == "httpx" or exc_type_name in (
+                    "ConnectError",
+                    "TimeoutException",
+                    "RequestError",
+                    "HTTPError",
+                )
+            if is_httpx_error:
                 raise ConnectionError(OLLAMA_NOT_RUNNING_ERROR) from exc
+            # If it's not an httpx error, re-raise the original exception
             raise
 
     def _validate_model_available(self, model: str) -> None:
@@ -402,7 +459,7 @@ class OllamaProvider:
 
     def analyze_patterns(
         self,
-        episodes: list[models.Episode],
+        episodes: list[Episode],  # type: ignore[valid-type]
         known_hosts: Set[str],
     ) -> dict[str, object] | None:
         """Analyze patterns across multiple episodes (optional).

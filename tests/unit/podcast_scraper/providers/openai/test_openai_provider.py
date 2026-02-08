@@ -11,9 +11,39 @@ not its integration with the app.
 
 import os
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+
+# Mock openai before importing modules that require it
+# Unit tests run without openai package installed
+# Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
+mock_openai = MagicMock()
+mock_openai.OpenAI = Mock()
+
+
+# Add real exception classes so they can be used in retry_with_metrics
+class MockAPIError(Exception):
+    """Mock APIError for testing."""
+
+    pass
+
+
+class MockRateLimitError(Exception):
+    """Mock RateLimitError for testing."""
+
+    pass
+
+
+mock_openai.APIError = MockAPIError
+mock_openai.RateLimitError = MockRateLimitError
+_patch_openai = patch.dict(
+    "sys.modules",
+    {
+        "openai": mock_openai,
+    },
+)
+_patch_openai.start()
 
 from podcast_scraper import config
 from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
@@ -310,17 +340,25 @@ class TestOpenAIProviderTranscription(unittest.TestCase):
     @patch("os.path.exists")
     def test_transcribe_api_error(self, mock_exists, mock_open):
         """Test transcribe handles API errors."""
-        from openai import APIError
+
+        # Since openai is mocked globally, we need to create a real exception
+        # that will be caught and converted to ProviderRuntimeError
+        class MockAPIError(Exception):
+            """Mock APIError for testing."""
+
+            pass
 
         mock_exists.return_value = True
         mock_file = Mock()
-        mock_open.return_value.__enter__.return_value = mock_file
-        mock_open.return_value.__exit__.return_value = None
+        # Set up context manager properly
+        mock_context = Mock()
+        mock_context.__enter__ = Mock(return_value=mock_file)
+        mock_context.__exit__ = Mock(return_value=False)
+        mock_open.return_value = mock_context
 
         mock_client = Mock()
-        # APIError requires request and body parameters
-        mock_request = Mock()
-        api_error = APIError(message="API error", request=mock_request, body={})
+        # Use a real exception class (not the mocked APIError)
+        api_error = MockAPIError("API error")
         mock_client.audio.transcriptions.create.side_effect = api_error
 
         provider = OpenAIProvider(self.cfg)
@@ -622,8 +660,6 @@ class TestOpenAIProviderSummarization(unittest.TestCase):
     )
     def test_summarize_api_error(self, mock_build_prompts):
         """Test summarization error handling."""
-        from openai import APIError
-
         # _build_summarization_prompts returns:
         # (system_prompt, user_prompt, system_prompt_name, user_prompt_name,
         #  paragraphs_min, paragraphs_max)
@@ -637,16 +673,15 @@ class TestOpenAIProviderSummarization(unittest.TestCase):
         )
 
         mock_client = Mock()
-        # APIError requires request and body parameters
-        mock_request = Mock()
-        api_error = APIError(message="API error", request=mock_request, body={})
-        mock_client.chat.completions.create.side_effect = api_error
+        mock_client.chat.completions.create.side_effect = Exception("API error")
 
         provider = OpenAIProvider(self.cfg)
         provider.client = mock_client
         provider.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        from podcast_scraper.exceptions import ProviderRuntimeError
+
+        with self.assertRaises(ProviderRuntimeError) as context:
             provider.summarize("Text")
 
         self.assertIn("summarization failed", str(context.exception).lower())

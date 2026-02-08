@@ -11,11 +11,17 @@ import logging
 import os
 import threading
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from typing import Any, List, Literal, Optional, Tuple
+from typing import Any, List, Literal, Optional, Tuple, TYPE_CHECKING
 
 import yaml
 
 from ... import config, models
+
+if TYPE_CHECKING:
+    from ...models import Episode, RssFeed
+else:
+    Episode = models.Episode  # type: ignore[assignment]
+    RssFeed = models.RssFeed  # type: ignore[assignment]
 from ...rss import extract_episode_metadata, extract_episode_published_date
 from ...utils import filesystem
 from .. import metrics
@@ -29,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 def _collect_episodes_for_summarization(
-    episodes: List[models.Episode],
+    episodes: List[Episode],  # type: ignore[valid-type]  # type: ignore[valid-type]
     download_args: Optional[List[Tuple]],
     effective_output_dir: str,
     run_suffix: Optional[str],
@@ -93,7 +99,7 @@ def _collect_episodes_for_summarization(
 
 def _process_episodes_sequentially(
     episodes_to_summarize: List[Tuple],
-    feed: models.RssFeed,
+    feed: RssFeed,  # type: ignore[valid-type]
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],
@@ -161,10 +167,10 @@ def _determine_max_workers(model_device: str, cfg: config.Config, num_episodes: 
 
 
 def summarize_single_episode(
-    episode: models.Episode,
+    episode: Episode,  # type: ignore[valid-type]
     transcript_path: str,
     metadata_path: Optional[str],
-    feed: models.RssFeed,
+    feed: RssFeed,  # type: ignore[valid-type]
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],
@@ -333,7 +339,7 @@ def summarize_single_episode(
 
 def _process_episodes_in_parallel(
     episodes_to_summarize: List[Tuple],
-    feed: models.RssFeed,
+    feed: RssFeed,  # type: ignore[valid-type]
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],
@@ -435,7 +441,7 @@ def _process_episodes_in_parallel(
 
 def _execute_parallel_summarization(
     episodes_to_summarize: List[Tuple],
-    feed: models.RssFeed,
+    feed: RssFeed,  # type: ignore[valid-type]
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],
@@ -507,8 +513,8 @@ def _execute_parallel_summarization(
 
 
 def parallel_episode_summarization(
-    episodes: List[models.Episode],
-    feed: models.RssFeed,
+    episodes: List[Episode],  # type: ignore[valid-type]
+    feed: RssFeed,  # type: ignore[valid-type]
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],

@@ -3,27 +3,76 @@
 - **Status**: Draft
 - **Date**: 2026-02-05
 - **Authors**:
-- **Stakeholders**: Maintainers, users processing diverse podcast types, developers
-  integrating summarization
+- **Stakeholders**: Maintainers, users processing diverse
+  podcast types, developers integrating summarization
+- **Execution Timing**: **Phase 4** — Implement after
+  RFC-042 (Hybrid ML Platform) and RFC-049 (GIL) are
+  stable. This RFC is an **optimization layer** that
+  makes existing capabilities work better across diverse
+  content types. It also serves as the **bridge to
+  multi-content-type expansion** beyond podcasts.
 - **Related PRDs**:
-  - `docs/prd/PRD-005-episode-summarization.md` (Episode summarization requirements)
+  - `docs/prd/PRD-005-episode-summarization.md`
+    (Episode summarization requirements)
 - **Related RFCs**:
-  - `docs/rfc/RFC-012-episode-summarization.md` (Current summarization implementation)
-  - `docs/rfc/RFC-042-hybrid-summarization-pipeline.md` (Hybrid MAP-REDUCE architecture)
-  - `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md` (Local LLM models)
+  - `docs/rfc/RFC-012-episode-summarization.md`
+    (Current summarization implementation)
+  - `docs/rfc/RFC-042-hybrid-summarization-pipeline.md`
+    (Hybrid MAP-REDUCE architecture — provides models)
+  - `docs/rfc/RFC-044-model-registry.md`
+    (Model Registry — model capability lookup)
+  - `docs/rfc/RFC-049-grounded-insight-layer-core.md`
+    (GIL — extraction routing per content type)
+  - `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
+    (Local LLM models — routing targets)
 - **Related ADRs**:
-  - `docs/adr/ADR-010-hierarchical-summarization-pattern.md` (Hierarchical summarization)
+  - `docs/adr/ADR-010-hierarchical-summarization-pattern.md`
+    (Hierarchical summarization)
+
+**Execution Order:**
+
+```text
+Phase 1: RFC-044 (Model Registry)          ~2-3 weeks
+    ▼
+Phase 2: RFC-042 (Hybrid ML Platform)      ~10 weeks
+    │  + RFC-052 (Local LLM Prompts)       parallel
+    ▼
+Phase 3: RFC-049 (GIL)                     ~6-8 weeks
+    ▼
+Phase 4: RFC-053 (this RFC — Routing)      ~4-6 weeks
+          Optimization + multi-content bridge
+```
+
+**Why Phase 4?** RFC-053 routes to capabilities that
+RFC-042 provides (MAP/REDUCE models, FLAN-T5, LLMs) and
+can also optimize GIL extraction (RFC-049). It requires
+those foundations to be stable first. Additionally,
+the profiling data collected during Phase 3 (GIL
+extraction on real episodes) provides empirical evidence
+for tuning routing thresholds.
 
 ## Abstract
 
-This RFC proposes an **adaptive routing system** for podcast summarization that selects
-optimal summarization strategies based on episode characteristics (duration, structure,
-content type). Instead of using a single summarization approach for all episodes, the
-system profiles each episode and routes it to the most appropriate strategy. This
-enables consistent output quality across diverse podcast formats while keeping system
-complexity manageable.
+This RFC proposes an **adaptive routing system** for
+podcast summarization that selects optimal summarization
+strategies based on episode characteristics (duration,
+structure, content type). Instead of using a single
+summarization approach for all episodes, the system
+profiles each episode and routes it to the most
+appropriate strategy. This enables consistent output
+quality across diverse podcast formats while keeping
+system complexity manageable.
 
-**Key Principle:** Standardize the pipeline and outputs; vary strategy via routing.
+**Key Principle:** Standardize the pipeline and outputs;
+vary strategy via routing.
+
+**Beyond Podcasts:** While v1 focuses on podcast episode
+profiles, the profiling and routing architecture is
+**content-type-agnostic**. The same framework extends
+to lectures, panel discussions, interviews, debates,
+audiobooks, and other long-form audio/text content.
+RFC-053 is the **bridge from "podcast scraper" to
+"content intelligence platform"**.
 
 ## Problem Statement
 
@@ -391,12 +440,24 @@ routing_entity_density_threshold: float = 10.0
 
 ## Rollout & Monitoring
 
+**Prerequisites (must be complete before starting):**
+
+- RFC-042 (Hybrid ML Platform) — provides model diversity
+  to route to
+- RFC-049 (GIL) — stable extraction pipeline for GIL
+  routing
+
 **Rollout Plan:**
 
-- **Phase 1**: Implement profiling and routing logic (opt-in)
-- **Phase 2**: Validate routing decisions on representative episodes
-- **Phase 3**: Enable by default for new episodes
-- **Phase 4**: Iterate on thresholds based on quality feedback
+- **Phase 4a**: Implement profiling and routing logic
+  (opt-in, podcast profiles only)
+- **Phase 4b**: Validate routing decisions on
+  representative episodes (summarization + GIL)
+- **Phase 4c**: Enable by default for new episodes
+- **Phase 4d**: Iterate on thresholds based on quality
+- **Phase 4e** (v1.1): Add interview + lecture profiles
+- **Phase 4f** (v2): Multi-content expansion with
+  content-type detection
 
 **Monitoring:**
 
@@ -413,27 +474,167 @@ routing_entity_density_threshold: float = 10.0
 4. ✅ No regressions for default (non-routed) behavior
 5. ✅ Documentation complete (routing guide, threshold tuning)
 
+## Integration with GIL (RFC-049)
+
+### Routing for GIL Extraction
+
+Episode profiling benefits GIL extraction, not just
+summarization. Different content types benefit from
+different extraction strategies:
+
+| Profile | GIL Strategy | Rationale |
+| --- | --- | --- |
+| Short Monologue | Single-pass FLAN-T5 | Short enough for direct extraction |
+| Short Dialogue | Speaker-aware extraction | "Who said what" matters for quotes |
+| Long Monologue | MAP → REDUCE extraction | Chunking needed for long content |
+| Long Dialogue | Topic-segmented extraction | Panel insights cluster by topic |
+| Technical | Entity-first extraction | Preserve facts/numbers in insights |
+| Abstract | Claim-mapping extraction | Focus on arguments and positions |
+
+**Implementation:** RFC-053 can expose `route_episode()`
+to both the summarization pipeline and the GIL extraction
+pipeline, allowing RFC-049 to adapt its strategy per
+episode.
+
+### Shared Profiling
+
+Episode profiling is computed once and reused:
+
+```python
+profile = profile_episode(transcript, metadata, speakers)
+
+# Summarization uses profile for strategy selection
+summary_strategy = route_summarization(profile)
+
+# GIL uses profile for extraction strategy selection
+extraction_strategy = route_extraction(profile)
+```
+
+This avoids duplicate work and ensures consistent
+routing decisions across both pipelines.
+
+## Beyond Podcasts: Multi-Content Expansion
+
+RFC-053's profiling and routing architecture is
+**content-type-agnostic**. The same framework extends
+to any long-form audio/text content.
+
+### Future Content Profiles
+
+Beyond podcast-specific profiles (v1), the system can
+add content-type profiles:
+
+| Content Type | Key Characteristics | Strategy Adaptations |
+| --- | --- | --- |
+| **Lectures** | Single speaker, structured, technical | Section-aware chunking, definition extraction |
+| **Interviews** | Two speakers, Q&A format | Question-answer pairing, interviewer filtering |
+| **Panel Discussions** | 3+ speakers, topic hopping | Topic segmentation, speaker-position mapping |
+| **Debates** | Opposing viewpoints, structured | Claim-counterclaim mapping, position extraction |
+| **Audiobooks** | Narrative, long-form, chapters | Chapter-aware segmentation, narrative synthesis |
+| **Meetings** | Multiple speakers, action items | Decision extraction, action item tracking |
+| **Earnings Calls** | Structured, financial, Q&A | Financial entity extraction, guidance tracking |
+
+### Expansion Strategy
+
+**Phase 4a (v1 — Podcasts):**
+
+- Implement profiling + routing for podcast profiles
+- Validate on representative episodes
+- Tune thresholds based on quality feedback
+
+**Phase 4b (v1.1 — Adjacent Content):**
+
+- Add interview and lecture profiles (closest to podcasts)
+- Test with real interview/lecture transcripts
+- Minimal routing rule additions
+
+**Phase 4c (v2 — Multi-Content):**
+
+- Add panel, debate, meeting profiles
+- Introduce content-type detection (auto-classify input)
+- Expand extraction strategies for new content types
+
+**Key Insight:** The profiling metrics (duration, speaker
+count, turn-taking rate, entity density, topic drift)
+are universal. What changes per content type is the
+**routing rules** and **strategy implementations**, not
+the profiling framework itself.
+
+### Content-Type Detection (Future)
+
+For multi-content support, add auto-detection:
+
+```python
+def detect_content_type(
+    profile: EpisodeProfile,
+    metadata: dict,
+) -> ContentType:
+    """Auto-detect content type from profile + metadata."""
+    # Heuristic-based detection
+    if profile.speaker_count == 1 and profile.entity_density > 10:
+        return ContentType.LECTURE
+    if profile.speaker_count == 2 and profile.turn_taking_rate > 3.0:
+        return ContentType.INTERVIEW
+    if profile.speaker_count >= 3:
+        return ContentType.PANEL
+    # Default
+    return ContentType.PODCAST
+```
+
+This enables the system to handle mixed input without
+manual content-type specification.
+
 ## Relationship to Other RFCs
 
-This RFC (RFC-053) complements existing summarization RFCs:
+This RFC (RFC-053) is the **optimization and expansion
+layer** in the overall architecture:
 
-1. **RFC-012: Episode Summarization** - Current implementation, provides foundation
-2. **RFC-042: Hybrid Summarization Pipeline** - REDUCE phase can use instruction-tuned
-   LLMs for routed episodes
-3. **RFC-052: Locally Hosted LLM Models** - Local LLMs can be used in routing strategies
+```text
+Phase 1: RFC-044 (Model Registry)
+    ▼
+Phase 2: RFC-042 (Hybrid ML Platform)
+    │  + RFC-052 (Local LLM Prompts)
+    ▼
+Phase 3: RFC-049 (GIL)
+    ▼
+Phase 4: RFC-053 (this RFC)
+          Routing + multi-content bridge
+```
+
+**Dependency chain:**
+
+1. **RFC-044 (Phase 1)**: Model capabilities — RFC-053
+   uses registry to check which models are available
+   for each routing strategy
+2. **RFC-042 (Phase 2)**: Hybrid platform — provides
+   the MAP/REDUCE models and FLAN-T5/LLM tiers that
+   RFC-053 routes to
+3. **RFC-052 (Phase 2b)**: Local LLM prompts — provides
+   model-specific prompts that RFC-053 can select
+   per routing strategy
+4. **RFC-049 (Phase 3)**: GIL extraction — RFC-053 can
+   route GIL extraction strategies per content type
+5. **RFC-053 (Phase 4, this RFC)**: Routing — selects
+   optimal strategies for both summarization and GIL
+   extraction based on episode/content profiling
 
 **Key Distinction:**
 
-- **RFC-012**: Implements basic summarization pipeline
-- **RFC-042**: Improves REDUCE phase quality with instruction-tuned LLMs
-- **RFC-052**: Adds local LLM models as provider options
-- **RFC-053**: Routes episodes to optimal strategies based on characteristics
+- **RFC-012**: Basic summarization pipeline
+- **RFC-042**: Model diversity (MAP/REDUCE, FLAN-T5,
+  LLMs, embedding, QA, NLI)
+- **RFC-052**: Prompt quality for local LLMs
+- **RFC-049**: GIL extraction orchestration
+- **RFC-053**: Adaptive routing — selects the right
+  strategy from the available capabilities
 
 Together, these provide:
+
 - Complete summarization pipeline (RFC-012)
-- High-quality REDUCE phase (RFC-042)
-- Local LLM options (RFC-052)
-- Adaptive routing for diverse episode types (RFC-053)
+- High-quality model platform (RFC-042)
+- Local LLM options with optimized prompts (RFC-052)
+- Evidence-backed insight extraction (RFC-049)
+- Adaptive routing for diverse content types (RFC-053)
 
 ## Benefits
 
@@ -462,18 +663,37 @@ Together, these provide:
 
 ## Open Questions
 
-1. **Threshold Tuning**: What are optimal thresholds for routing rules?
-2. **Topic Drift Calculation**: How to efficiently calculate semantic variance?
-3. **Profile Expansion**: When to add new profiles vs adjust existing ones?
-4. **Evaluation Metrics**: What metrics matter most per profile?
-5. **Provider Integration**: How do different providers (ML, OpenAI, Ollama) affect
-   routing decisions?
+1. **Threshold Tuning**: What are optimal thresholds for
+   routing rules? Use Phase 3 profiling data to calibrate.
+2. **Topic Drift Calculation**: How to efficiently
+   calculate semantic variance? Sentence-transformers
+   (RFC-042) can provide embeddings for this.
+3. **Profile Expansion**: When to add new profiles vs
+   adjust existing ones? Start with 6 podcast profiles,
+   expand to content-type profiles in v1.1.
+4. **Evaluation Metrics**: What metrics matter most per
+   profile? Per-profile quality (faithfulness, coverage).
+5. ~~**Provider Integration**: How do different providers
+   affect routing?~~
+   **Resolved**: Routing is provider-agnostic. Strategies
+   map to model roles (MAP, REDUCE), not specific
+   providers. RFC-042 + RFC-044 handle provider/model
+   resolution.
+6. **GIL Extraction Routing**: Should GIL extraction use
+   the same routing rules as summarization, or separate
+   rules? Proposal: shared profiling, separate strategy
+   selection.
+7. **Content-Type Detection**: When should auto-detection
+   of content type be implemented? Proposal: Phase 4e
+   (v1.1), after podcast routing is validated.
 
 ## References
 
 - **Related PRD**: `docs/prd/PRD-005-episode-summarization.md`
 - **Related RFC**: `docs/rfc/RFC-012-episode-summarization.md`
-- **Related RFC**: `docs/rfc/RFC-042-hybrid-summarization-pipeline.md`
+- **Prerequisite**: `docs/rfc/RFC-042-hybrid-summarization-pipeline.md`
+- **Prerequisite**: `docs/rfc/RFC-044-model-registry.md`
+- **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
 - **Related RFC**: `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
 - **Related ADR**: `docs/adr/ADR-010-hierarchical-summarization-pattern.md`
 - **Source Code**: `podcast_scraper/workflow/stages/summarization_stage.py`

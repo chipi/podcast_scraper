@@ -10,12 +10,18 @@ import xml.etree.ElementTree as ET  # nosec B405
 from datetime import datetime
 from html import unescape
 from html.parser import HTMLParser
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urljoin
 
 from defusedxml.ElementTree import fromstring as safe_fromstring, ParseError as DefusedXMLParseError
 
 from .. import config, models
+
+if TYPE_CHECKING:
+    from ..models import Episode, RssFeed
+else:
+    Episode = models.Episode  # type: ignore[assignment]
+    RssFeed = models.RssFeed  # type: ignore[assignment]
 from ..utils import filesystem
 
 logger = logging.getLogger(__name__)
@@ -603,7 +609,9 @@ def extract_episode_description(item: ET.Element) -> Optional[str]:
     return None
 
 
-def create_episode_from_item(item: ET.Element, idx: int, feed_base_url: str) -> models.Episode:
+def create_episode_from_item(
+    item: ET.Element, idx: int, feed_base_url: str
+) -> Episode:  # type: ignore[valid-type]
     """Create an Episode object from an RSS item.
 
     Args:
@@ -619,7 +627,7 @@ def create_episode_from_item(item: ET.Element, idx: int, feed_base_url: str) -> 
     media = find_enclosure_media(item, feed_base_url)
     media_url, media_type = media if media else (None, None)
 
-    return models.Episode(
+    return Episode(  # type: ignore[no-any-return]
         idx=idx,
         title=title,
         title_safe=title_safe,
@@ -630,7 +638,7 @@ def create_episode_from_item(item: ET.Element, idx: int, feed_base_url: str) -> 
     )
 
 
-def fetch_and_parse_rss(cfg: config.Config) -> models.RssFeed:
+def fetch_and_parse_rss(cfg: config.Config) -> RssFeed:  # type: ignore[valid-type]
     """Fetch RSS feed from URL and parse it into an RssFeed object.
 
     Args:
@@ -661,6 +669,6 @@ def fetch_and_parse_rss(cfg: config.Config) -> models.RssFeed:
     except (DefusedXMLParseError, ValueError) as exc:
         raise ValueError(f"Failed to parse RSS XML: {exc}") from exc
 
-    return models.RssFeed(
+    return RssFeed(  # type: ignore[no-any-return]
         title=feed_title, authors=feed_authors, items=items, base_url=feed_base_url
     )

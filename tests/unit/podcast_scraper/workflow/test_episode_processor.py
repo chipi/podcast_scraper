@@ -9,7 +9,7 @@ import os
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,6 +22,20 @@ if PROJECT_ROOT not in sys.path:
 parent_tests_dir = Path(__file__).parent.parent.parent
 if str(parent_tests_dir) not in sys.path:
     sys.path.insert(0, str(parent_tests_dir))
+
+# Mock openai before importing modules that require it
+# Unit tests run without openai package installed
+# (patch already imported above)
+
+mock_openai = MagicMock()
+mock_openai.OpenAI = Mock()
+_patch_openai = patch.dict(
+    "sys.modules",
+    {
+        "openai": mock_openai,
+    },
+)
+_patch_openai.start()
 
 from podcast_scraper.workflow import episode_processor
 
@@ -469,8 +483,10 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         episode = create_test_episode(
             idx=1, transcript_urls=[("https://example.com/transcript.vtt", "vtt")]
         )
+        import queue
+
         cfg = create_test_config(transcribe_missing=False)
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
         mock_choose.return_value = ("https://example.com/transcript.vtt", "vtt")
         mock_process_transcript.return_value = (True, "transcript.vtt", "direct_download", 1000)
 
@@ -500,8 +516,10 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         episode = create_test_episode(
             idx=1, transcript_urls=[("https://example.com/transcript.vtt", "vtt")]
         )
+        import queue
+
         cfg = create_test_config(transcribe_missing=False, delay_ms=100)
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
         mock_choose.return_value = ("https://example.com/transcript.vtt", "vtt")
         mock_process_transcript.return_value = (True, "transcript.vtt", "direct_download", 1000)
 
@@ -525,11 +543,13 @@ class TestProcessEpisodeDownload(unittest.TestCase):
     @patch("podcast_scraper.workflow.episode_processor.download_media_for_transcription")
     def test_process_episode_download_with_transcription(self, mock_download_media, mock_choose):
         """Test process_episode_download when transcription is needed."""
+        import queue
+
         episode = create_test_episode(
             idx=1, transcript_urls=[], media_url="https://example.com/ep1.mp3"
         )
         cfg = create_test_config(transcribe_missing=True)
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
         mock_choose.return_value = None  # No transcript URL
         mock_job = Mock()
         mock_job.idx = 1
@@ -551,8 +571,8 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         self.assertIsNone(transcript_path)
         self.assertIsNone(transcript_source)
         self.assertEqual(bytes_downloaded, 0)
-        self.assertEqual(len(transcription_jobs), 1)
-        self.assertEqual(transcription_jobs[0], mock_job)
+        self.assertEqual(transcription_jobs.qsize(), 1)
+        self.assertEqual(transcription_jobs.get(), mock_job)
         mock_download_media.assert_called_once()
 
     @patch("podcast_scraper.workflow.episode_processor.choose_transcript_url")
@@ -561,11 +581,13 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         self, mock_download_media, mock_choose
     ):
         """Test process_episode_download uses lock when provided."""
+        import queue
+
         episode = create_test_episode(
             idx=1, transcript_urls=[], media_url="https://example.com/ep1.mp3"
         )
         cfg = create_test_config(transcribe_missing=True)
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
         mock_lock = Mock()
         mock_lock.__enter__ = Mock(return_value=None)
         mock_lock.__exit__ = Mock(return_value=None)
@@ -587,7 +609,7 @@ class TestProcessEpisodeDownload(unittest.TestCase):
 
         mock_lock.__enter__.assert_called_once()
         mock_lock.__exit__.assert_called_once()
-        self.assertEqual(len(transcription_jobs), 1)
+        self.assertEqual(transcription_jobs.qsize(), 1)
 
     @patch("podcast_scraper.workflow.episode_processor.choose_transcript_url")
     @patch("podcast_scraper.workflow.episode_processor.download_media_for_transcription")
@@ -598,8 +620,10 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         episode = create_test_episode(
             idx=1, transcript_urls=[], media_url="https://example.com/ep1.mp3"
         )
+        import queue
+
         cfg = create_test_config(transcribe_missing=False)
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
         mock_choose.return_value = None
 
         success, transcript_path, transcript_source, bytes_downloaded = (
@@ -618,7 +642,7 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         self.assertIsNone(transcript_path)
         self.assertIsNone(transcript_source)
         self.assertEqual(bytes_downloaded, 0)
-        self.assertEqual(len(transcription_jobs), 0)
+        self.assertEqual(transcription_jobs.qsize(), 0)
         mock_download_media.assert_not_called()
 
     @patch("podcast_scraper.workflow.episode_processor.choose_transcript_url")
@@ -628,8 +652,10 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         episode = create_test_episode(
             idx=1, transcript_urls=[], media_url="https://example.com/ep1.mp3"
         )
+        import queue
+
         cfg = create_test_config(transcribe_missing=True)
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
         mock_choose.return_value = None
 
         success, transcript_path, transcript_source, bytes_downloaded = (

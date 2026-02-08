@@ -22,6 +22,8 @@ else:
     from podcast_scraper.providers.params import TranscriptionParams
     from podcast_scraper.transcription.base import TranscriptionProvider
 
+from podcast_scraper.utils.protocol_verification import verify_protocol_compliance
+
 
 def create_transcription_provider(
     cfg_or_provider_type: Union[config.Config, str],
@@ -107,7 +109,12 @@ def create_transcription_provider(
                 from ..workflow import _preloaded_ml_provider
 
                 if _preloaded_ml_provider is not None:
-                    return cast(TranscriptionProvider, _preloaded_ml_provider)
+                    provider = cast(TranscriptionProvider, _preloaded_ml_provider)
+                    # Runtime protocol verification (dev-mode only)
+                    verify_protocol_compliance(
+                        provider, TranscriptionProvider, "TranscriptionProvider"
+                    )
+                    return provider
             except (ImportError, AttributeError):
                 # workflow module not available (e.g., in tests), create new instance
                 pass
@@ -128,9 +135,13 @@ def create_transcription_provider(
                 whisper_device=params.device,
                 language=params.language or "en",
             )
-            return MLProvider(cfg)
+            provider = MLProvider(cfg)
         else:
-            return MLProvider(cfg)
+            provider = MLProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
+        return provider
     elif provider_type == "openai":
         from ..providers.openai.openai_provider import OpenAIProvider
 
@@ -146,9 +157,13 @@ def create_transcription_provider(
                 openai_transcription_model=params.model_name if params.model_name else "whisper-1",
                 openai_api_key=os.getenv("OPENAI_API_KEY"),  # Load from env
             )
-            return OpenAIProvider(cfg)
+            provider = OpenAIProvider(cfg)
         else:
-            return OpenAIProvider(cfg)
+            provider = OpenAIProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
+        return provider
     elif provider_type == "gemini":
         from ..providers.gemini.gemini_provider import GeminiProvider
 
@@ -166,9 +181,13 @@ def create_transcription_provider(
                 ),
                 gemini_api_key=os.getenv("GEMINI_API_KEY"),  # Load from env
             )
-            return GeminiProvider(cfg)
+            provider = GeminiProvider(cfg)
         else:
-            return GeminiProvider(cfg)
+            provider = GeminiProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
+        return provider
     elif provider_type == "mistral":
         from ..providers.mistral.mistral_provider import MistralProvider
 
@@ -186,9 +205,13 @@ def create_transcription_provider(
                 ),
                 mistral_api_key=os.getenv("MISTRAL_API_KEY"),  # Load from env
             )
-            return MistralProvider(cfg)
+            provider = MistralProvider(cfg)
         else:
-            return MistralProvider(cfg)
+            provider = MistralProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
+        return provider
     elif provider_type == "anthropic":
         from ..providers.anthropic.anthropic_provider import AnthropicProvider
 
@@ -206,9 +229,13 @@ def create_transcription_provider(
                 ),
                 anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),  # Load from env
             )
-            return AnthropicProvider(cfg)
+            provider = AnthropicProvider(cfg)
         else:
-            return AnthropicProvider(cfg)
+            provider = AnthropicProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, TranscriptionProvider, "TranscriptionProvider")
+        return provider
     else:
         raise ValueError(
             f"Unsupported transcription provider: {provider_type}. "

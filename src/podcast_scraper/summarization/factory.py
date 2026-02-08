@@ -22,6 +22,8 @@ else:
     from podcast_scraper.providers.params import SummarizationParams
     from podcast_scraper.summarization.base import SummarizationProvider
 
+from podcast_scraper.utils.protocol_verification import verify_protocol_compliance
+
 
 def create_summarization_provider(  # noqa: C901
     cfg_or_provider_type: Union[config.Config, str],
@@ -127,7 +129,12 @@ def create_summarization_provider(  # noqa: C901
                 from ..workflow import _preloaded_ml_provider
 
                 if _preloaded_ml_provider is not None:
-                    return cast(SummarizationProvider, _preloaded_ml_provider)
+                    provider = cast(SummarizationProvider, _preloaded_ml_provider)
+                    # Runtime protocol verification (dev-mode only)
+                    verify_protocol_compliance(
+                        provider, SummarizationProvider, "SummarizationProvider"
+                    )
+                    return provider
             except (ImportError, AttributeError):
                 # workflow module not available (e.g., in tests), create new instance
                 pass
@@ -170,9 +177,13 @@ def create_summarization_provider(  # noqa: C901
                 summary_word_overlap=params.word_overlap,
                 summary_cache_dir=params.cache_dir,
             )
-            return MLProvider(cfg)
+            provider = MLProvider(cfg)
         else:
-            return MLProvider(cfg)
+            provider = MLProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
     elif provider_type == "openai":
         from ..providers.openai.openai_provider import OpenAIProvider
 
@@ -192,9 +203,13 @@ def create_summarization_provider(  # noqa: C901
                 openai_api_key=os.getenv("OPENAI_API_KEY"),  # Load from env
                 openai_max_tokens=params.max_length if params.max_length else None,
             )
-            return OpenAIProvider(cfg)
+            provider = OpenAIProvider(cfg)
         else:
-            return OpenAIProvider(cfg)
+            provider = OpenAIProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
     elif provider_type == "gemini":
         from ..providers.gemini.gemini_provider import GeminiProvider
 
@@ -214,9 +229,13 @@ def create_summarization_provider(  # noqa: C901
                 gemini_api_key=os.getenv("GEMINI_API_KEY"),  # Load from env
                 gemini_max_tokens=params.max_length if params.max_length else None,
             )
-            return GeminiProvider(cfg)
+            provider = GeminiProvider(cfg)
         else:
-            return GeminiProvider(cfg)
+            provider = GeminiProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
     elif provider_type == "mistral":
         from ..providers.mistral.mistral_provider import MistralProvider
 
@@ -238,9 +257,13 @@ def create_summarization_provider(  # noqa: C901
                 mistral_api_key=os.getenv("MISTRAL_API_KEY"),  # Load from env
                 mistral_max_tokens=params.max_length if params.max_length else None,
             )
-            return MistralProvider(cfg)
+            provider = MistralProvider(cfg)
         else:
-            return MistralProvider(cfg)
+            provider = MistralProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
     elif provider_type == "grok":
         from ..providers.grok.grok_provider import GrokProvider
 
@@ -260,9 +283,13 @@ def create_summarization_provider(  # noqa: C901
                 grok_api_key=os.getenv("GROK_API_KEY"),  # Load from env
                 grok_max_tokens=params.max_length if params.max_length else None,
             )
-            return GrokProvider(cfg)
+            provider = GrokProvider(cfg)
         else:
-            return GrokProvider(cfg)
+            provider = GrokProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
     elif provider_type == "deepseek":
         from ..providers.deepseek.deepseek_provider import DeepSeekProvider
 
@@ -282,9 +309,13 @@ def create_summarization_provider(  # noqa: C901
                 deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),  # Load from env
                 deepseek_max_tokens=params.max_length if params.max_length else None,
             )
-            return DeepSeekProvider(cfg)
+            provider = DeepSeekProvider(cfg)
         else:
-            return DeepSeekProvider(cfg)
+            provider = DeepSeekProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
     elif provider_type == "ollama":
         from ..providers.ollama.ollama_provider import OllamaProvider
 
@@ -304,9 +335,13 @@ def create_summarization_provider(  # noqa: C901
                 ollama_api_base=os.getenv("OLLAMA_API_BASE", "http://localhost:11434/v1"),
                 ollama_max_tokens=params.max_length if params.max_length else None,
             )
-            return OllamaProvider(cfg)
+            provider = OllamaProvider(cfg)
         else:
-            return OllamaProvider(cfg)
+            provider = OllamaProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
     elif provider_type == "anthropic":
         from ..providers.anthropic.anthropic_provider import AnthropicProvider
 
@@ -330,9 +365,13 @@ def create_summarization_provider(  # noqa: C901
                 anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),  # Load from env
                 anthropic_max_tokens=params.max_length if params.max_length else None,
             )
-            return AnthropicProvider(cfg)
+            provider = AnthropicProvider(cfg)
         else:
-            return AnthropicProvider(cfg)
+            provider = AnthropicProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
     else:
         raise ValueError(
             f"Unsupported summarization provider: {provider_type}. "

@@ -6,6 +6,7 @@ with fail-fast behavior when generate_summaries=True.
 """
 
 import os
+import queue
 import sys
 import tempfile
 import unittest
@@ -187,7 +188,7 @@ class TestSummarizationInitializationFailure(unittest.TestCase):
         mock_setup_transcription.return_value = TranscriptionResources(
             transcription_provider=mock_transcription_provider,
             temp_dir=None,
-            transcription_jobs=[],
+            transcription_jobs=queue.Queue(),
             transcription_jobs_lock=None,
             saved_counter_lock=None,
         )
@@ -338,7 +339,7 @@ class TestSummarizationInitializationFailure(unittest.TestCase):
         mock_setup_transcription.return_value = TranscriptionResources(
             transcription_provider=mock_transcription_provider,
             temp_dir=None,
-            transcription_jobs=[],
+            transcription_jobs=queue.Queue(),
             transcription_jobs_lock=None,
             saved_counter_lock=None,
         )

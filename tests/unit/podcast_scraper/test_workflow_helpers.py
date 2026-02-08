@@ -7,6 +7,7 @@ can be tested without I/O operations or complex orchestration.
 
 import logging
 import os
+import queue
 import sys
 import threading
 import unittest
@@ -326,7 +327,7 @@ class TestGeneratePipelineSummary(unittest.TestCase):
         transcription_resources = TranscriptionResources(
             transcription_provider=None,
             temp_dir=None,
-            transcription_jobs=[],
+            transcription_jobs=queue.Queue(),
             transcription_jobs_lock=None,
             saved_counter_lock=None,
         )
@@ -364,7 +365,7 @@ class TestGeneratePipelineSummary(unittest.TestCase):
         transcription_resources = TranscriptionResources(
             transcription_provider=None,
             temp_dir=None,
-            transcription_jobs=[],
+            transcription_jobs=queue.Queue(),
             transcription_jobs_lock=None,
             saved_counter_lock=None,
         )
@@ -1752,7 +1753,7 @@ class TestDryRunCostProjection(unittest.TestCase):
         transcription_resources = TranscriptionResources(
             transcription_provider=None,
             temp_dir=None,
-            transcription_jobs=[],
+            transcription_jobs=queue.Queue(),
             transcription_jobs_lock=None,
             saved_counter_lock=None,
         )

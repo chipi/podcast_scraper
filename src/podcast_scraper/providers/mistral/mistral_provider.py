@@ -20,14 +20,21 @@ import json
 import logging
 import os
 import time
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple, TYPE_CHECKING
 
 try:
     from mistralai import Mistral
 except ImportError:
     Mistral = None  # type: ignore
 
-from ... import config, models
+from ... import config
+
+if TYPE_CHECKING:
+    from ...models import Episode
+else:
+    from ... import models
+
+    Episode = models.Episode  # type: ignore[assignment]
 from ...workflow import metrics
 
 logger = logging.getLogger(__name__)
@@ -105,6 +112,13 @@ class MistralProvider:
         if cfg.mistral_api_base:
             # Mistral SDK uses 'server' parameter for custom base URL
             client_kwargs["server"] = cfg.mistral_api_base
+
+        # Configure HTTP timeouts with separate connect/read timeouts
+        # Note: Mistral SDK does not support timeout parameter in __init__
+        # Timeout configuration would need to be handled at the HTTP client level
+        # if needed in the future. For now, we skip timeout configuration.
+        # timeout_config = get_http_timeout(cfg)  # Not supported by Mistral SDK
+
         self.client = Mistral(**client_kwargs)
 
         # Transcription settings
@@ -564,7 +578,7 @@ class MistralProvider:
 
     def analyze_patterns(
         self,
-        episodes: list[models.Episode],
+        episodes: list[Episode],  # type: ignore[valid-type]
         known_hosts: Set[str],
     ) -> dict[str, object] | None:
         """Analyze patterns across multiple episodes (optional).

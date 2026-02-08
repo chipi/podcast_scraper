@@ -1,20 +1,79 @@
 # RFC-044: Model Registry for Architecture Limits
 
 - **Status**: Draft
-- **Authors**: [To be filled]
+- **Authors**: Podcast Scraper Team
 - **Stakeholders**: ML Provider maintainers, Core developers
+- **Execution Timing**: **Phase 1 of 3** — Build first, before
+  RFC-042 and RFC-049. This RFC provides the infrastructure that
+  RFC-042 populates and RFC-049 consumes.
 - **Related RFCs**:
-  - `docs/rfc/RFC-012-episode-summarization.md` (Summarization architecture)
-  - `docs/rfc/RFC-013-openai-provider-implementation.md` (Provider system)
-  - `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (Provider architecture)
+  - `docs/rfc/RFC-012-episode-summarization.md`
+    (Summarization architecture)
+  - `docs/rfc/RFC-013-openai-provider-implementation.md`
+    (Provider system)
+  - `docs/rfc/RFC-029-provider-refactoring-consolidation.md`
+    (Provider architecture)
+  - `docs/rfc/RFC-042-hybrid-summarization-pipeline.md`
+    (Hybrid ML platform — populates registry with all model
+    families)
+  - `docs/rfc/RFC-049-grounded-insight-layer-core.md`
+    (GIL — consumes registry for extraction model selection)
 - **Related Documents**:
-  - Phase 1 & 2 of hardcoded values tightening completed (duplicate constants resolved, validation ranges extracted, default extensions centralized)
+  - Phase 1 & 2 of hardcoded values tightening completed
+    (duplicate constants resolved, validation ranges
+    extracted, default extensions centralized)
 
 ## Abstract
 
-This RFC proposes a centralized **Model Registry** to eliminate hardcoded model architecture limits throughout the codebase. Currently, model limits (e.g., `1024` for BART, `16384` for LED) are scattered across multiple files, making it difficult to add new models and maintain consistency. The registry provides a single source of truth for model capabilities, supports dynamic detection with intelligent fallbacks, and enables extensibility for future model types.
+This RFC proposes a centralized **Model Registry** to eliminate
+hardcoded model architecture limits throughout the codebase.
+Currently, model limits (e.g., `1024` for BART, `16384` for LED)
+are scattered across multiple files, making it difficult to add
+new models and maintain consistency. The registry provides a
+single source of truth for model capabilities, supports dynamic
+detection with intelligent fallbacks, and enables extensibility
+for future model types.
 
-**Architecture Alignment:** This RFC aligns with RFC-029 provider architecture by centralizing model metadata and making the codebase model-agnostic. It supports the provider system's goal of pluggable model implementations.
+**Expanded Scope (v2.5+):** With the introduction of RFC-042
+(Hybrid ML Platform) and RFC-049 (Grounded Insight Layer), the
+model landscape has grown from 2 model families (MAP + REDUCE
+summarizers) to **6 model families**:
+
+| Family | Purpose | Example Models |
+| --- | --- | --- |
+| MAP Summarizers | Chunk compression | LED, LongT5 |
+| REDUCE (Seq2Seq) | Instruction-following | FLAN-T5 |
+| REDUCE (LLMs) | Premium extraction | Qwen, LLaMA, Mistral |
+| Embedding | Semantic similarity | MiniLM, MPNet |
+| Extractive QA | Verbatim span extraction | RoBERTa-SQuAD2 |
+| NLI Cross-Encoder | Grounding validation | DeBERTa-NLI |
+
+This RFC provides the **infrastructure** that RFC-042 populates
+with model entries and that RFC-049 queries for extraction model
+selection.
+
+**Architecture Alignment:** This RFC aligns with RFC-029 provider
+architecture by centralizing model metadata and making the
+codebase model-agnostic. It supports the provider system's goal
+of pluggable model implementations.
+
+**Execution Order:**
+
+```text
+Phase 1: RFC-044 (this RFC) — Registry infrastructure
+    │     Build ModelCapabilities, ModelRegistry, lookup/fallback
+    │     Duration: ~2-3 weeks
+    ▼
+Phase 2: RFC-042 — Hybrid ML Platform
+    │     Populate registry with all model families
+    │     Implement hybrid provider + extended models
+    │     Duration: ~10 weeks
+    ▼
+Phase 3: RFC-049 — Grounded Insight Layer
+          Query registry for model selection per tier
+          Run extraction pipeline using registered models
+          Duration: ~6-8 weeks
+```
 
 ## Problem Statement
 
@@ -52,12 +111,22 @@ Model architecture limits are currently hardcoded in multiple locations:
 
 ## Goals
 
-1. **Centralize Model Metadata**: Single source of truth for all model architecture limits
-2. **Eliminate Hardcoded Limits**: Remove scattered hardcoded values throughout codebase
-3. **Support Dynamic Detection**: Maintain ability to detect limits from loaded model instances
-4. **Enable Extensibility**: Allow registration of new models without code changes
-5. **Type Safety**: Provide structured, type-safe model capability information
-6. **Intelligent Fallbacks**: Pattern-based guessing for unknown models with safe defaults
+1. **Centralize Model Metadata**: Single source of truth for
+   all model architecture limits
+2. **Eliminate Hardcoded Limits**: Remove scattered hardcoded
+   values throughout codebase
+3. **Support Dynamic Detection**: Maintain ability to detect
+   limits from loaded model instances
+4. **Enable Extensibility**: Allow registration of new models
+   without code changes
+5. **Type Safety**: Provide structured, type-safe model
+   capability information
+6. **Intelligent Fallbacks**: Pattern-based guessing for
+   unknown models with safe defaults
+7. **Support All Model Families**: Handle MAP, REDUCE,
+   Embedding, QA, and NLI models (not just summarizers)
+8. **Enable RFC-042 and RFC-049**: Provide the model
+   metadata infrastructure that downstream RFCs depend on
 
 ## Constraints & Assumptions
 
@@ -92,21 +161,45 @@ The registry is **model-agnostic** and handles both test and production models i
 Create a new module `src/podcast_scraper/providers/ml/model_registry.py` with:
 
 **ModelCapabilities Dataclass:**
+
 ```python
 from dataclasses import dataclass
 from typing import Optional
 
 @dataclass(frozen=True)
 class ModelCapabilities:
-    """Model architecture capabilities and limits."""
-    max_position_embeddings: int  # Maximum input tokens
-    model_type: str  # "bart", "led", "pegasus", "t5", etc.
-    supports_long_context: bool  # True for LED, LongT5, etc. (>=4096 tokens)
-    default_chunk_size: Optional[int] = None  # Recommended token chunk size (model-specific)
-    default_overlap: Optional[int] = None  # Recommended token overlap (model-specific)
+    """Model architecture capabilities and limits.
 
-    # Note: Word-based defaults (900 words, 150 overlap) remain in config_constants.py
-    # as they're global recommendations, not model-specific
+    Generalized to support all model families:
+    summarizers, instruction-tuned models, embedding
+    models, extractive QA, and NLI cross-encoders.
+    """
+
+    # ── Core (all models) ──────────────────────
+    max_input_tokens: int  # Maximum input tokens
+    model_type: str  # "bart", "led", "flan-t5", etc.
+    model_family: str  # "map", "reduce", "embedding",
+    #                     "extractive_qa", "nli"
+    supports_long_context: bool  # >=4096 tokens
+
+    # ── Summarizer-specific ────────────────────
+    default_chunk_size: Optional[int] = None
+    default_overlap: Optional[int] = None
+
+    # ── Instruction-tuned model fields ─────────
+    supports_json_output: bool = False
+    supports_extraction: bool = False
+
+    # ── Embedding model fields ─────────────────
+    embedding_dim: Optional[int] = None
+
+    # ── Resource estimates ─────────────────────
+    memory_mb: Optional[int] = None
+    default_device: str = "cpu"
+
+    # Note: Word-based defaults (900 words, 150
+    # overlap) remain in config_constants.py as
+    # they're global, not model-specific
 ```
 
 **ModelRegistry Class:**
@@ -115,81 +208,199 @@ class ModelRegistry:
     """Centralized registry of model capabilities and metadata."""
 
     _registry: Dict[str, ModelCapabilities] = {
-        # BART models (1024 token limit)
-        # Note: Both test (bart-small) and production (bart-large) models have same limits
-        "bart-large": ModelCapabilities(  # Production default
-            max_position_embeddings=1024,
+        # ── BART models (1024 token limit) ─────
+        "bart-large": ModelCapabilities(
+            max_input_tokens=1024,
             model_type="bart",
+            model_family="map",
             supports_long_context=False,
-            default_chunk_size=600,  # ENCODER_DECODER_TOKEN_CHUNK_SIZE from summarizer.py
-            default_overlap=60,  # 10% of 600 (CHUNK_OVERLAP_RATIO = 0.1)
-        ),
-        "bart-small": ModelCapabilities(  # Test default
-            max_position_embeddings=1024,
-            model_type="bart",
-            supports_long_context=False,
-            default_chunk_size=600,  # Same as bart-large (model type determines chunk size)
+            default_chunk_size=600,
             default_overlap=60,
+            memory_mb=1600,
+        ),
+        "bart-small": ModelCapabilities(
+            max_input_tokens=1024,
+            model_type="bart",
+            model_family="map",
+            supports_long_context=False,
+            default_chunk_size=600,
+            default_overlap=60,
+            memory_mb=500,
         ),
         "facebook/bart-large-cnn": ModelCapabilities(
-            max_position_embeddings=1024,
+            max_input_tokens=1024,
             model_type="bart",
+            model_family="map",
             supports_long_context=False,
+            memory_mb=1600,
         ),
         "facebook/bart-base": ModelCapabilities(
-            max_position_embeddings=1024,
+            max_input_tokens=1024,
             model_type="bart",
+            model_family="map",
             supports_long_context=False,
+            memory_mb=500,
         ),
         "sshleifer/distilbart-cnn-12-6": ModelCapabilities(
-            max_position_embeddings=1024,
+            max_input_tokens=1024,
             model_type="bart",
+            model_family="map",
             supports_long_context=False,
+            memory_mb=1200,
         ),
 
-        # PEGASUS models (1024 token limit)
+        # ── PEGASUS models (1024 token limit) ──
         "pegasus": ModelCapabilities(
-            max_position_embeddings=1024,
+            max_input_tokens=1024,
             model_type="pegasus",
+            model_family="map",
             supports_long_context=False,
+            memory_mb=2000,
         ),
         "google/pegasus-large": ModelCapabilities(
-            max_position_embeddings=1024,
+            max_input_tokens=1024,
             model_type="pegasus",
+            model_family="map",
             supports_long_context=False,
+            memory_mb=2000,
         ),
         "google/pegasus-xsum": ModelCapabilities(
-            max_position_embeddings=1024,
+            max_input_tokens=1024,
             model_type="pegasus",
+            model_family="map",
             supports_long_context=False,
+            memory_mb=2000,
         ),
 
         # LED models (16384 token limit)
-        # Note: Both test (long-fast) and production (long) models have same limits
-        "long": ModelCapabilities(  # Production default
-            max_position_embeddings=16384,
+        "long": ModelCapabilities(
+            max_input_tokens=16384,
             model_type="led",
+            model_family="map",
             supports_long_context=True,
-            default_chunk_size=16384,  # LED can use full context (no chunking needed)
-            default_overlap=1638,  # 10% of 16384 (CHUNK_OVERLAP_RATIO = 0.1)
-        ),
-        "long-fast": ModelCapabilities(  # Test default
-            max_position_embeddings=16384,
-            model_type="led",
-            supports_long_context=True,
-            default_chunk_size=16384,  # Same as long (model type determines chunk size)
+            default_chunk_size=16384,
             default_overlap=1638,
+            memory_mb=2000,
+        ),
+        "long-fast": ModelCapabilities(
+            max_input_tokens=16384,
+            model_type="led",
+            model_family="map",
+            supports_long_context=True,
+            default_chunk_size=16384,
+            default_overlap=1638,
+            memory_mb=1000,
         ),
         "allenai/led-large-16384": ModelCapabilities(
-            max_position_embeddings=16384,
+            max_input_tokens=16384,
             model_type="led",
+            model_family="map",
             supports_long_context=True,
+            memory_mb=2000,
         ),
         "allenai/led-base-16384": ModelCapabilities(
-            max_position_embeddings=16384,
+            max_input_tokens=16384,
             model_type="led",
+            model_family="map",
             supports_long_context=True,
+            memory_mb=1000,
         ),
+
+        # ── FLAN-T5 (Tier 1 REDUCE — PyTorch) ──
+        "google/flan-t5-base": ModelCapabilities(
+            max_input_tokens=512,
+            model_type="flan-t5",
+            model_family="reduce",
+            supports_long_context=False,
+            supports_json_output=True,
+            supports_extraction=True,
+            memory_mb=1000,
+        ),
+        "google/flan-t5-large": ModelCapabilities(
+            max_input_tokens=512,
+            model_type="flan-t5",
+            model_family="reduce",
+            supports_long_context=False,
+            supports_json_output=True,
+            supports_extraction=True,
+            memory_mb=3000,
+            default_device="mps",
+        ),
+        "google/flan-t5-xl": ModelCapabilities(
+            max_input_tokens=512,
+            model_type="flan-t5",
+            model_family="reduce",
+            supports_long_context=False,
+            supports_json_output=True,
+            supports_extraction=True,
+            memory_mb=12000,
+            default_device="cuda",
+        ),
+
+        # ── Embedding Models ────────────────────
+        "sentence-transformers/all-MiniLM-L6-v2":
+            ModelCapabilities(
+                max_input_tokens=256,
+                model_type="sentence-transformer",
+                model_family="embedding",
+                supports_long_context=False,
+                embedding_dim=384,
+                memory_mb=90,
+            ),
+        "sentence-transformers/all-MiniLM-L12-v2":
+            ModelCapabilities(
+                max_input_tokens=256,
+                model_type="sentence-transformer",
+                model_family="embedding",
+                supports_long_context=False,
+                embedding_dim=384,
+                memory_mb=120,
+            ),
+        "sentence-transformers/all-mpnet-base-v2":
+            ModelCapabilities(
+                max_input_tokens=384,
+                model_type="sentence-transformer",
+                model_family="embedding",
+                supports_long_context=False,
+                embedding_dim=768,
+                memory_mb=420,
+            ),
+
+        # ── Extractive QA Models ────────────────
+        "deepset/roberta-base-squad2":
+            ModelCapabilities(
+                max_input_tokens=512,
+                model_type="roberta",
+                model_family="extractive_qa",
+                supports_long_context=False,
+                memory_mb=500,
+            ),
+        "deepset/deberta-v3-base-squad2":
+            ModelCapabilities(
+                max_input_tokens=512,
+                model_type="deberta",
+                model_family="extractive_qa",
+                supports_long_context=False,
+                memory_mb=700,
+            ),
+
+        # ── NLI Cross-Encoder Models ────────────
+        "cross-encoder/nli-deberta-v3-base":
+            ModelCapabilities(
+                max_input_tokens=512,
+                model_type="deberta-nli",
+                model_family="nli",
+                supports_long_context=False,
+                memory_mb=400,
+            ),
+        "cross-encoder/nli-deberta-v3-small":
+            ModelCapabilities(
+                max_input_tokens=512,
+                model_type="deberta-nli",
+                model_family="nli",
+                supports_long_context=False,
+                memory_mb=200,
+            ),
     }
 
     @classmethod
@@ -225,55 +436,124 @@ class ModelRegistry:
                     if hasattr(model_instance, 'model')
                     else model_instance.config
                 )
-                max_pos = getattr(config, 'max_position_embeddings', None)
+                max_pos = getattr(
+                    config, 'max_position_embeddings',
+                    None,
+                )
                 if max_pos:
-                    model_type = cls._infer_model_type(config)
+                    model_type = cls._infer_model_type(
+                        config
+                    )
+                    family = cls._infer_model_family(
+                        model_id, model_type
+                    )
                     supports_long = max_pos >= 4096
                     return ModelCapabilities(
-                        max_position_embeddings=max_pos,
+                        max_input_tokens=max_pos,
                         model_type=model_type,
+                        model_family=family,
                         supports_long_context=supports_long,
                     )
             except (AttributeError, TypeError):
                 pass
 
         # 3. Pattern-based fallback
-        if "led" in model_id.lower() or "longformer" in model_id.lower():
+        lower_id = model_id.lower()
+        if "led" in lower_id or "longformer" in lower_id:
             return ModelCapabilities(
-                max_position_embeddings=16384,
+                max_input_tokens=16384,
                 model_type="led",
+                model_family="map",
                 supports_long_context=True,
             )
-        if "bart" in model_id.lower():
+        if "bart" in lower_id:
             return ModelCapabilities(
-                max_position_embeddings=1024,
+                max_input_tokens=1024,
                 model_type="bart",
+                model_family="map",
                 supports_long_context=False,
             )
-        if "pegasus" in model_id.lower():
+        if "pegasus" in lower_id:
             return ModelCapabilities(
-                max_position_embeddings=1024,
+                max_input_tokens=1024,
                 model_type="pegasus",
+                model_family="map",
+                supports_long_context=False,
+            )
+        if "flan-t5" in lower_id or "flan_t5" in lower_id:
+            return ModelCapabilities(
+                max_input_tokens=512,
+                model_type="flan-t5",
+                model_family="reduce",
+                supports_long_context=False,
+                supports_json_output=True,
+                supports_extraction=True,
+            )
+        if "sentence-transformer" in lower_id:
+            return ModelCapabilities(
+                max_input_tokens=256,
+                model_type="sentence-transformer",
+                model_family="embedding",
+                supports_long_context=False,
+                embedding_dim=384,
+            )
+        if "squad" in lower_id:
+            return ModelCapabilities(
+                max_input_tokens=512,
+                model_type="qa",
+                model_family="extractive_qa",
+                supports_long_context=False,
+            )
+        if "nli" in lower_id:
+            return ModelCapabilities(
+                max_input_tokens=512,
+                model_type="nli",
+                model_family="nli",
                 supports_long_context=False,
             )
 
         # 4. Safe default (conservative)
         return ModelCapabilities(
-            max_position_embeddings=1024,
+            max_input_tokens=1024,
             model_type="unknown",
+            model_family="unknown",
             supports_long_context=False,
         )
 
     @classmethod
     def _infer_model_type(cls, config: Any) -> str:
         """Infer model type from config."""
-        model_type = getattr(config, 'model_type', '').lower()
+        model_type = getattr(
+            config, 'model_type', ''
+        ).lower()
         if 'bart' in model_type:
             return 'bart'
-        if 'led' in model_type or 'longformer' in model_type:
+        if 'led' in model_type:
+            return 'led'
+        if 'longformer' in model_type:
             return 'led'
         if 'pegasus' in model_type:
             return 'pegasus'
+        if 't5' in model_type:
+            return 'flan-t5'
+        return 'unknown'
+
+    @classmethod
+    def _infer_model_family(
+        cls, model_id: str, model_type: str,
+    ) -> str:
+        """Infer model family from ID and type."""
+        lower_id = model_id.lower()
+        if 'nli' in lower_id:
+            return 'nli'
+        if 'squad' in lower_id:
+            return 'extractive_qa'
+        if 'sentence-transformer' in lower_id:
+            return 'embedding'
+        if model_type in ('bart', 'led', 'pegasus'):
+            return 'map'
+        if model_type in ('flan-t5',):
+            return 'reduce'
         return 'unknown'
 
     @classmethod
@@ -298,39 +578,86 @@ class ModelRegistry:
 ```python
 # Before:
 model_max_tokens = (
-    getattr(model.model.config, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS)
+    getattr(
+        model.model.config,
+        "max_position_embeddings",
+        BART_MAX_POSITION_EMBEDDINGS,
+    )
     if model.model and hasattr(model.model, "config")
     else BART_MAX_POSITION_EMBEDDINGS
 )
 
 # After:
 from .model_registry import ModelRegistry
-capabilities = ModelRegistry.get_capabilities(model_name, model_instance)
-model_max_tokens = capabilities.max_position_embeddings
+caps = ModelRegistry.get_capabilities(
+    model_name, model_instance
+)
+model_max_tokens = caps.max_input_tokens
 ```
 
 **Replace hardcoded limits in `config.py`:**
 
 ```python
 # Before:
-DEFAULT_MAP_MAX_INPUT_TOKENS = 1024  # BART model limit
-DEFAULT_REDUCE_MAX_INPUT_TOKENS = 4096  # LED model limit
+DEFAULT_MAP_MAX_INPUT_TOKENS = 1024  # BART limit
+DEFAULT_REDUCE_MAX_INPUT_TOKENS = 4096  # LED limit
 
 # After:
 # Keep as defaults, but document they're model-specific
-# When model is known, use ModelRegistry.get_capabilities()
+# When model is known, use ModelRegistry
 ```
 
 **Update all dynamic detection sites:**
 
 Replace all instances of:
+
 ```python
-getattr(model.model.config, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS)
+getattr(
+    model.model.config,
+    "max_position_embeddings",
+    BART_MAX_POSITION_EMBEDDINGS,
+)
 ```
 
 With:
+
 ```python
-ModelRegistry.get_capabilities(model_name, model_instance).max_position_embeddings
+ModelRegistry.get_capabilities(
+    model_name, model_instance
+).max_input_tokens
+```
+
+**RFC-042 Integration (Hybrid ML Platform):**
+
+RFC-042 registers models into the registry and queries
+capabilities during model loading:
+
+```python
+# In hybrid_ml_provider.py
+caps = ModelRegistry.get_capabilities(
+    cfg.hybrid_reduce_model
+)
+if caps.supports_json_output:
+    # Use structured extraction mode
+    ...
+if caps.model_family == "extractive_qa":
+    # Use QA pipeline mode
+    ...
+```
+
+**RFC-049 Integration (GIL Extraction):**
+
+RFC-049 queries the registry to determine which models
+are available per extraction tier:
+
+```python
+# In GIL extraction orchestrator
+qa_caps = ModelRegistry.get_capabilities(
+    cfg.extractive_qa_model
+)
+# QA models have max_input_tokens = 512
+# → need chunking strategy for long transcripts
+chunk_size = qa_caps.max_input_tokens - 64  # margin
 ```
 
 ### 4. Relationship to Config Files
@@ -570,18 +897,51 @@ registry-promote:
 
 ## Relationship to Other RFCs
 
-This RFC (RFC-044) complements:
+This RFC (RFC-044) is the **foundation layer** in a three-RFC
+dependency chain:
 
-1. **RFC-012: Episode Summarization** - Provides infrastructure for model-agnostic summarization
-2. **RFC-029: Provider Refactoring Consolidation** - Supports provider system's goal of pluggable models
-3. **RFC-013: OpenAI Provider Implementation** - Can be extended to include API model capabilities
+```text
+RFC-044 (this RFC) → RFC-042 → RFC-049
+   Registry infra       Populate      Consume
+   (Phase 1)            (Phase 2)     (Phase 3)
+```
+
+**Dependency chain:**
+
+1. **RFC-044 (Phase 1 — this RFC)**: Model registry
+   infrastructure. Build `ModelCapabilities`,
+   `ModelRegistry`, lookup/fallback/registration logic.
+   All other RFCs depend on this.
+
+2. **RFC-042 (Phase 2)**: Hybrid ML Platform. Populates
+   the registry with all model families (MAP, REDUCE,
+   Embedding, QA, NLI). Implements the hybrid provider
+   and structured extraction protocol.
+
+3. **RFC-049 (Phase 3)**: Grounded Insight Layer. Queries
+   the registry for model availability per extraction
+   tier. Runs the GIL extraction pipeline using
+   registered models.
+
+**Other related RFCs:**
+
+- **RFC-012**: Summarization algorithms (uses registry
+  for model limits)
+- **RFC-013**: OpenAI provider (can be extended to
+  include API model capabilities)
+- **RFC-029**: Provider architecture (registry supports
+  pluggable models)
+- **RFC-045**: ML model optimization (preprocessing +
+  parameter tuning, informed by registry capabilities)
 
 **Key Distinction:**
-- **RFC-044**: Focuses on model metadata and architecture limits
-- **RFC-012**: Focuses on summarization algorithms and strategies
-- **RFC-029**: Focuses on provider architecture and interfaces
 
-Together, these RFCs provide a complete, extensible model system.
+- **RFC-044**: Model metadata, capabilities, and lookup
+  infrastructure
+- **RFC-042**: Model catalog, loading, and hybrid
+  pipeline implementation
+- **RFC-049**: Domain-specific extraction using models
+  from the registry
 
 ## Benefits
 
@@ -594,11 +954,17 @@ Together, these RFCs provide a complete, extensible model system.
 
 ## Migration Path
 
-1. **Phase 1**: Create `ModelRegistry` with current models, add tests
-2. **Phase 2**: Replace hardcoded limits in `summarizer.py` (backward compatible)
-3. **Phase 3**: Update `config.py` documentation, remove old constants
-4. **Phase 4**: Verify all tests pass, update documentation
-5. **Phase 5**: (Future) Extend registry with additional metadata (memory, device, quality ratings)
+1. **Phase 1**: Create `ModelRegistry` with current
+   summarization models + new model families, add tests
+2. **Phase 2**: Replace hardcoded limits in `summarizer.py`
+   (backward compatible)
+3. **Phase 3**: Update `config.py` documentation, remove
+   old constants
+4. **Phase 4**: Verify all tests pass, update docs
+5. **Phase 5**: RFC-042 populates registry with all model
+   families (FLAN-T5, Embedding, QA, NLI)
+6. **Phase 6**: RFC-049 consumes registry for GIL
+   extraction model selection
 
 ## Promotion Mechanism: Baseline → Registry
 
@@ -788,19 +1154,116 @@ logger.info(f"REDUCE Params: max_tokens={mode_config.reduce_params['max_new_toke
 logger.info(f"Promoted From: {mode_config.promoted_from}")
 ```
 
-## Open Questions
+## Resolved Questions
 
-1. Should registry include memory requirements for models?
-2. Should registry include recommended devices (CPU/GPU/MPS)?
-3. Should we validate model IDs against HuggingFace Hub at runtime?
-4. Should registry support model versioning (different limits per version)?
-5. **Config File Integration**: Should registry auto-populate `summary_tokenize` limits in user configs based on selected models?
-6. **Config Validation**: Should registry validate that user-specified token limits in config files don't exceed model capabilities?
-7. **Mode Versioning**: Should modes be versioned (e.g., `ml_small_authority_v1`, `ml_small_authority_v2`) or replaced in place?
+All design questions have been resolved. Decisions are
+recorded here for traceability.
+
+1. **Memory requirements in registry?**
+   **Yes** — `memory_mb` field added to
+   `ModelCapabilities`. Enables resource budgeting
+   across model families.
+
+2. **Recommended devices in registry?**
+   **Yes** — `default_device` field added (`"cpu"`,
+   `"mps"`, `"cuda"`). Informs model loading strategy.
+
+3. **Validate model IDs against HuggingFace Hub at
+   runtime?**
+   **No.** Adds network dependency, latency, and
+   breaks offline users (key RFC-052 use case). The
+   registry handles unknown models via pattern-based
+   fallback → safe defaults. Development-time
+   validation is available via `make registry-validate`
+   (checks Hub availability in CI, not at runtime).
+
+4. **Support model versioning (per-version limits)?**
+   **No (v1).** Architecture limits rarely change
+   between versions. When they do, models have different
+   HuggingFace IDs (e.g., `facebook/bart-large-cnn`),
+   which the registry handles as separate entries. Easy
+   to add later if needed.
+
+5. **Auto-populate token limits from registry?**
+   **Yes.** When a user specifies a model but not token
+   limits, derive optimal limits from the registry.
+   Priority chain: User config → Registry defaults →
+   Config defaults → Hardcoded fallback. Already
+   described in Default Management Strategy (§3).
+
+6. **Validate user-specified token limits?**
+   **Yes, as warnings (not errors).** If a user sets
+   `map_max_input_tokens: 2048` for a BART model (1024
+   limit), log a warning and clamp to the model limit.
+   Prevents silent truncation failures. Implementation:
+   `validate_config()` method comparing user config
+   against registry capabilities. Warn-and-clamp
+   strategy, never crash.
+
+7. **Mode versioning (`v1`, `v2`) or replace in place?**
+   **Replace in place.** Mode IDs stay stable (e.g.,
+   `ml_small_authority`). The `promoted_from` +
+   `promoted_at` fields provide full traceability. Git
+   history shows what changed and when. Explicit version
+   suffixes add naming burden without functional benefit.
+
+8. **Family-specific subclasses for capabilities?**
+   **No, keep flat dataclass.** Current field count (11)
+   is manageable. Subclasses add type-checking
+   complexity, casting boilerplate, and multiple class
+   definitions for little gain. `Optional` fields with
+   `None` defaults clearly signal which fields apply per
+   family; `model_family` identifies the type. Revisit
+   if field count exceeds ~20.
+
+9. **Register cloud API model capabilities?**
+   **Yes, but v1.1+.** Cloud API models have relevant
+   capabilities (context window, JSON mode, tool calls)
+   that benefit from unified lookup. v1 scope: local ML
+   models only. Future phase adds entries for OpenAI,
+   Gemini, Anthropic, and Ollama-hosted models
+   (RFC-052). The existing `ModelCapabilities` dataclass
+   already supports the needed fields.
+
+---
+
+## Conclusion
+
+The scattered hardcoded model limits throughout the
+codebase are a **maintenance and correctness liability**
+that grows with every new model family.
+
+By centralizing model metadata into a single
+**Model Registry**, this RFC provides:
+
+- **A single source of truth** for all model
+  architecture limits — no more magic numbers in
+  `summarizer.py`, `config.py`, or detection fallbacks
+- **Intelligent resolution** via a four-level priority
+  chain: registry lookup → dynamic detection → pattern
+  fallback → safe default
+- **Extensibility** through `register_model()` for
+  custom models and `ModeConfiguration` for promoted
+  baselines
+- **Cross-RFC infrastructure** that RFC-042 populates
+  with 6 model families and RFC-049 queries for
+  extraction model selection
+
+The registry is deliberately **minimal and focused**:
+a frozen dataclass for capabilities, a class-variable
+dict for storage, and O(1) lookups. No external files,
+no network calls, no runtime overhead.
+
+**As the foundational Phase 1 of the three-phase
+build-out (RFC-044 → RFC-042 → RFC-049), this registry
+is the infrastructure that makes the entire local ML
+platform and Grounded Insight Layer possible.**
 
 ## References
 
 - **Related RFC**: `docs/rfc/RFC-012-episode-summarization.md`
 - **Related RFC**: `docs/rfc/RFC-029-provider-refactoring-consolidation.md`
+- **Related RFC**: `docs/rfc/RFC-042-hybrid-summarization-pipeline.md`
+- **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
 - **Source Code**: `src/podcast_scraper/providers/ml/summarizer.py`
 - **Source Code**: `src/podcast_scraper/config.py`

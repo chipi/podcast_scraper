@@ -388,7 +388,17 @@ class TestFullPipelineE2E:
             assert "content" in metadata
             assert "summary" in metadata, "Summary should be at top level of metadata"
             assert metadata["summary"] is not None, "Summary should not be None"
-            assert "short_summary" in metadata["summary"], "Summary should have short_summary field"
+            # Check normalized schema fields (required)
+            assert (
+                "bullets" in metadata["summary"]
+            ), "Summary should have bullets field (normalized schema)"
+            assert isinstance(metadata["summary"]["bullets"], list), "bullets should be a list"
+            assert len(metadata["summary"]["bullets"]) > 0, "bullets should not be empty"
+            assert "schema_status" in metadata["summary"], "Summary should have schema_status field"
+            # short_summary is computed from bullets, should still be available
+            assert (
+                "short_summary" in metadata["summary"]
+            ), "Summary should have short_summary field (computed)"
             assert len(metadata["summary"]["short_summary"]) > 0, "Summary should not be empty"
 
     @pytest.mark.ml_models

@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple, TYPE_CHECKING
 
 # Import Anthropic SDK
 try:
@@ -23,8 +23,17 @@ try:
 except ImportError:
     Anthropic = None  # type: ignore
 
-from ... import config, models
+from ... import config
+
+if TYPE_CHECKING:
+    from ...models import Episode
+else:
+    from ... import models
+
+    Episode = models.Episode  # type: ignore[assignment]
+from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
+from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +90,17 @@ class AnthropicProvider:
                 "Set ANTHROPIC_API_KEY environment variable or anthropic_api_key in config."
             )
 
+        # Validate API key format
+        from ...utils.provider_metadata import validate_api_key_format
+
+        is_valid, error_msg = validate_api_key_format(
+            cfg.anthropic_api_key,
+            "Anthropic",
+            expected_prefixes=["sk-ant-"],
+        )
+        if not is_valid:
+            logger.warning("Anthropic API key validation: %s", error_msg)
+
         self.cfg = cfg
 
         # Suppress verbose Anthropic SDK debug logs (if needed)
@@ -96,11 +116,31 @@ class AnthropicProvider:
                 anthropic_logger = logging.getLogger(logger_name)
                 anthropic_logger.setLevel(logging.WARNING)
 
+        # Log non-sensitive provider metadata (for debugging)
+        from ...utils.provider_metadata import extract_region_from_endpoint, log_provider_metadata
+
+        # Extract region from base_url if possible
+        base_url = getattr(cfg, "anthropic_api_base", None)
+        region = extract_region_from_endpoint(base_url)
+        log_provider_metadata(
+            provider_name="Anthropic",
+            base_url=base_url,
+            region=region,
+        )
+
         # Configure Anthropic client
         # Support custom base_url for E2E testing with mock servers
         client_kwargs: Dict[str, Any] = {"api_key": cfg.anthropic_api_key}
         if cfg.anthropic_api_base:
             client_kwargs["base_url"] = cfg.anthropic_api_base
+
+        # Configure HTTP timeouts with separate connect/read timeouts
+        # Note: Anthropic SDK may support timeout parameter (verify SDK version)
+        # If not supported, this will be ignored but won't break
+        timeout_config = get_http_timeout(cfg)
+        if timeout_config is not None:
+            client_kwargs["timeout"] = timeout_config
+
         self.client = Anthropic(**client_kwargs)  # type: ignore[arg-type]
 
         # Transcription settings
@@ -495,7 +535,7 @@ class AnthropicProvider:
 
     def analyze_patterns(
         self,
-        episodes: list[models.Episode],
+        episodes: list[Episode],  # type: ignore[valid-type]
         known_hosts: Set[str],
     ) -> dict[str, object] | None:
         """Analyze patterns across multiple episodes (optional).
@@ -844,4 +884,23 @@ class AnthropicProvider:
             self._transcription_initialized
             or self._speaker_detection_initialized
             or self._summarization_initialized
+        )
+
+    def get_capabilities(self) -> ProviderCapabilities:
+        """Get provider capabilities.
+
+        Returns:
+            ProviderCapabilities object describing Anthropic provider capabilities
+        """
+        return ProviderCapabilities(
+            supports_transcription=False,  # Anthropic doesn't support audio transcription
+            supports_speaker_detection=True,
+            supports_summarization=True,
+            supports_audio_input=False,  # Anthropic doesn't accept audio files
+            supports_json_mode=True,  # Anthropic supports JSON mode
+            max_context_tokens=self.max_context_tokens,
+            supports_tool_calls=True,  # Anthropic supports tool use
+            supports_system_prompt=True,  # Anthropic supports system prompts
+            supports_streaming=True,  # Anthropic API supports streaming
+            provider_name="anthropic",
         )

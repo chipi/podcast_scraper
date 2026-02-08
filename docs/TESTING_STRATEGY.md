@@ -11,10 +11,25 @@
 
 ## Overview
 
-This document defines the testing strategy for the podcast scraper codebase. It establishes the test pyramid approach,
-decision criteria for choosing test types, and high-level testing patterns.
+This document defines the testing strategy for the
+podcast scraper codebase. It establishes the test
+pyramid approach, decision criteria for choosing test
+types, and high-level testing patterns.
 
-For detailed implementation guides per test layer, see the layer-specific guides linked above.
+The system supports **8 providers** (ML, OpenAI,
+Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama)
+with per-provider unit, integration, and E2E tests.
+All LLM providers use versioned Jinja2 prompt
+templates managed by `PromptStore` (RFC-017).
+
+**Planned**: The Grounded Insight Layer (GIL,
+PRD-017) will add testing for insight/quote extraction,
+grounding contract validation, and `kg.json` schema
+compliance. See
+[GIL Testing (Planned)](#gil-testing-planned).
+
+For detailed implementation guides per test layer,
+see the layer-specific guides linked above.
 
 ## Problem Statement
 
@@ -98,20 +113,52 @@ The testing strategy follows a three-tier pyramid:
 
 ### End-to-End Tests
 
-- **Purpose**: Test complete user workflows from entry point to final output (CLI commands, library API calls, service API calls)
-- **Speed**: Slow (< 60s each, may be minutes for full workflows)
-- **Scope**: Full pipeline from entry point to output, real HTTP client, real data files, real ML models
-- **Entry Point**: User-level (CLI commands, `run_pipeline()`, `service.run()`)
+- **Purpose**: Test complete user workflows from entry
+  point to final output (CLI commands, library API
+  calls, service API calls)
+- **Speed**: Slow (< 60s each, may be minutes for
+  full workflows)
+- **Scope**: Full pipeline from entry point to output,
+  real HTTP client, real data files, real ML models
+- **Entry Point**: User-level (CLI commands,
+  `run_pipeline()`, `service.run()`)
 - **I/O Policy**:
-  - ✅ **Allowed**: Real HTTP client with local HTTP server (no external network), real filesystem I/O, real data files
-  - ✅ **Real implementations**: Use actual HTTP clients (no mocking), real file operations, real model loading
-  - ✅ **Real ML models**: Use real Whisper, spaCy, and Transformers models (NO mocks)
-  - ✅ **Real data files**: RSS feeds, transcripts, audio files from `tests/fixtures/e2e_server/`
-  - ❌ **No external network**: All HTTP calls go to local server (network guard prevents external calls)
-  - ❌ **No mocks**: E2E tests use real implementations throughout (no Whisper mocks, no ML model mocks)
-- **Coverage**: Complete user workflows, production-like scenarios
-- **Examples**: CLI command (`podcast-scraper <rss_url>`) → Full pipeline → Output files, Library API (`run_pipeline(config)`) → Full pipeline → Output files
-- **Key Distinction**: Tests complete user workflows with real implementations. NO mocks allowed - tests the system as users would use it.
+  - ✅ **Allowed**: Real HTTP client with local HTTP
+    server (no external network), real filesystem I/O,
+    real data files
+  - ✅ **Real implementations**: Use actual HTTP
+    clients (no mocking), real file operations, real
+    model loading
+  - ✅ **Real ML models**: Use real Whisper, spaCy,
+    and Transformers models (NO mocks)
+  - ✅ **Real data files**: RSS feeds, transcripts,
+    audio files from `tests/fixtures/e2e_server/`
+  - ❌ **No external network**: All HTTP calls go to
+    local server (network guard prevents external
+    calls)
+  - ❌ **No mocks**: E2E tests use real
+    implementations throughout (no Whisper mocks,
+    no ML model mocks)
+- **Provider E2E tests**: Dedicated E2E test files
+  exist for each of the 8 providers:
+  `test_ml_models_e2e.py`, `test_openai_provider_e2e.py`,
+  `test_gemini_provider_e2e.py`,
+  `test_anthropic_provider_e2e.py`,
+  `test_mistral_provider_e2e.py`,
+  `test_deepseek_provider_e2e.py`,
+  `test_grok_provider_e2e.py`,
+  `test_ollama_provider_e2e.py`. LLM providers use
+  mock API endpoints served by the E2E HTTP server.
+- **Coverage**: Complete user workflows,
+  production-like scenarios
+- **Examples**: CLI command
+  (`podcast-scraper <rss_url>`) → Full pipeline →
+  Output files, Library API
+  (`run_pipeline(config)`) → Full pipeline →
+  Output files
+- **Key Distinction**: Tests complete user workflows
+  with real implementations. NO mocks allowed — tests
+  the system as users would use it.
 
 ## Decision Criteria
 
@@ -225,34 +272,65 @@ The decision questions above provide a quick way to determine test type. For cri
 - Model unloading and cleanup
 - Integration with metadata generation pipeline
 
-### Provider System (RFC-013)
+### Provider System (RFC-013, RFC-029)
 
-- **RFC-013**: Protocol-based provider architecture for transcription, speaker detection, and summarization
-- **Unified Provider Architecture**: MLProvider (unified local ML) and OpenAIProvider (unified OpenAI API)
+- **RFC-013/RFC-029**: Protocol-based provider
+  architecture for transcription, speaker detection,
+  and summarization with 8 unified providers.
+- **Provider Coverage**: Each provider has a
+  consistent test structure:
+
+| Provider | Unit Tests | Integration | E2E |
+| --- | --- | --- | --- |
+| MLProvider | `test_ml_provider.py`, `_lifecycle.py` | `test_provider_real_models.py` | `test_ml_models_e2e.py` |
+| OpenAIProvider | `test_openai_provider.py`, `_factory.py`, `_lifecycle.py` | `test_openai_providers.py` | `test_openai_provider_e2e.py` |
+| GeminiProvider | `test_gemini_provider.py`, `_factory.py`, `_lifecycle.py` | `test_gemini_providers.py` | `test_gemini_provider_e2e.py` |
+| AnthropicProvider | `test_anthropic_provider.py`, `_factory.py`, `_lifecycle.py` | `test_anthropic_providers.py` | `test_anthropic_provider_e2e.py` |
+| MistralProvider | `test_mistral_provider.py`, `_factory.py`, `_lifecycle.py` | `test_mistral_providers.py` | `test_mistral_provider_e2e.py` |
+| DeepSeekProvider | `test_deepseek_provider.py`, `_factory.py`, `_lifecycle.py` | `test_deepseek_providers.py` | `test_deepseek_provider_e2e.py` |
+| GrokProvider | `test_grok_provider.py`, `_factory.py`, `_lifecycle.py` | `test_grok_providers.py` | `test_grok_provider_e2e.py` |
+| OllamaProvider | `test_ollama_provider.py`, `_factory.py`, `_lifecycle.py` | `test_ollama_providers.py` | `test_ollama_provider_e2e.py` |
+
+- **Provider Capabilities**: `test_capabilities.py`
+  (unit) and `test_capabilities_e2e.py` (E2E) test
+  `ProviderCapabilities` — which providers support
+  which features (JSON mode, tool calls, streaming).
+
 - **Test Cases**:
-  - **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, all dependencies
-    mocked, test provider creation, initialization, protocol method implementation, error handling,
+  - **Unit Tests (Standalone Provider)**: Each
+    provider tested directly with all dependencies
+    mocked. Tests: creation, initialization, protocol
+    method implementation, error handling, cleanup,
+    configuration validation.
+  - **Unit Tests (Factory)**: Factory tests verify
+    correct provider instantiation per config,
+    protocol compliance, error handling.
+  - **Unit Tests (Lifecycle)**: Provider lifecycle
+    tests verify initialization, cleanup,
+    resource management.
+  - **Integration Tests**: Real provider
+    implementations with mocked external services.
+    Tests: provider factory, protocol compliance,
+    component interactions, provider switching, error
+    handling in workflow context.
+  - **E2E Tests**: Real providers in full pipeline.
+    LLM providers use E2E server mock endpoints.
+    MLProvider uses real ML models (Whisper, spaCy,
+    Transformers). Tests: complete workflows,
+    error scenarios (API failures, rate limits).
 
-    cleanup, configuration validation
+### Prompt Management (RFC-017)
 
-  - **Unit Tests (Factory)**: Test factories create correct unified providers
-    (MLProvider/OpenAIProvider), verify protocol compliance, test factory error handling
-
-  - **Integration Tests**: Test unified providers working with other components, use real providers
-    with mocked external services, test provider factory, protocol compliance, component
-
-    interactions, provider switching, error handling in workflow context
-
-  - **E2E Tests**: Test unified providers in full pipeline, providers work with real HTTP client
-    (E2E server mock endpoints for API providers), real ML models (for local providers), multiple
-
-```text
-    providers work together, error scenarios (API failures, rate limits). Includes E2E Server Tests
-    (mock endpoint returns correct format, handles different request types, error handling, URL
-    helper methods) and Provider-specific tests (MLProvider for Whisper/spaCy/Transformers,
-    OpenAIProvider for OpenAI API). See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test
-    organization and separation
-```python
+- **Prompt Store**: `test_prompt_store.py` (unit)
+  tests versioned Jinja2 prompt template management.
+- **Test Cases**:
+  - Template loading per provider/task/version
+  - Jinja2 variable rendering
+  - Missing template error handling
+  - Template version selection
+  - All 8 providers have prompt directories
+    (`prompts/<provider>/ner/`, `summarization/`)
+  - Template validation (syntax, required variables)
 
 #### Service API (`service.py`)
 
@@ -422,30 +500,34 @@ E2E tests are organized into three tiers to balance fast CI feedback with compre
 
   (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
 
-**Provider Testing Strategy:**
+**Provider Testing Strategy (8 providers):**
 
-- **Unit Tests (Standalone Provider)**: Test MLProvider/OpenAIProvider directly, mock all
-  dependencies (API clients, ML models). Test provider creation, initialization, protocol methods,
-
-  error handling, cleanup
-
-- **Unit Tests (Factory)**: Test factories create correct unified providers, verify protocol
-  compliance, test factory error handling
-
-- **Integration Tests**: Use real unified provider implementations (MLProvider/OpenAIProvider) with
-  mocked external services and mocked ML models. Test provider factory, protocol compliance,
-
-  component interactions, providers working together. ML models are mocked for speed.
-
-- **E2E Tests**: Use real unified providers with E2E server mock endpoints (for API providers like
-  OpenAI) or real implementations (for local providers like MLProvider). Test complete workflows
-
-  with providers. ML models (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
-
-- **Key Principle**: Always verify protocol compliance, not class names. Unified providers
-  (MLProvider, OpenAIProvider) replace old separate provider classes
-
-- **Test Organization**: See `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed test organization and separation
+- **Unit Tests (Standalone Provider)**: Each of the
+  8 providers tested directly with all dependencies
+  mocked (API clients, ML models). Dedicated test
+  files: `test_<provider>_provider.py`,
+  `_factory.py`, `_lifecycle.py`.
+- **Unit Tests (Factory)**: Test factories create
+  correct unified providers for each
+  `<provider>_provider` config value. Verify protocol
+  compliance, test factory error handling.
+- **Integration Tests**: Per-provider integration
+  files (`test_<provider>_providers.py`) use real
+  provider implementations with mocked external
+  services. ML models mocked for speed.
+- **E2E Tests**: Per-provider E2E files
+  (`test_<provider>_provider_e2e.py`) use E2E server
+  mock endpoints for LLM providers, real ML models
+  for MLProvider.
+- **Key Principle**: Always verify protocol
+  compliance, not class names. All providers
+  implement the same protocol interfaces.
+- **Prompt Templates**: LLM providers load prompts
+  via `PromptStore`. Unit tests mock `PromptStore`;
+  integration/E2E tests use real templates.
+- **Test Organization**: See
+  `docs/wip/PROVIDER_TEST_STRATEGY.md` for detailed
+  test organization and separation.
 
 ### Test Organization
 
@@ -470,8 +552,13 @@ The test suite is organized into three main categories:
 - `@pytest.mark.multi_episode` - Multi-episode tests (nightly)
 - `@pytest.mark.data_quality` - Data quality validation (nightly only, 3 episodes)
 - `@pytest.mark.nightly` - Comprehensive nightly tests (15 episodes, production models)
-- `@pytest.mark.llm` - Tests using LLM APIs (excluded from nightly to avoid costs)
-- `@pytest.mark.openai` - Tests using OpenAI API specifically (subset of llm)
+- `@pytest.mark.llm` - Tests using LLM APIs (excluded
+  from nightly to avoid costs)
+- `@pytest.mark.openai` - Tests using OpenAI API
+  specifically (subset of llm)
+- `@pytest.mark.gil` - (planned) GIL extraction tests
+- `@pytest.mark.grounding` - (planned) Grounding
+  contract validation tests
 
 **Execution Pattern**: Tests marked `serial` run first sequentially, then remaining tests run in
 parallel with `-n auto`. All tests use network isolation via
@@ -481,7 +568,10 @@ parallel with `-n auto`. All tests use network isolation via
 
 ## ML Quality Evaluation
 
-Beyond functional testing, the project uses objective metrics to evaluate the **quality** of ML-generated outputs. These evaluations are performed using dedicated scripts and a "golden" dataset.
+Beyond functional testing, the project uses objective
+metrics to evaluate the **quality** of ML-generated
+outputs. These evaluations are performed using
+dedicated scripts and a "golden" dataset.
 
 ### Evaluation Layers
 
@@ -489,14 +579,33 @@ Beyond functional testing, the project uses objective metrics to evaluate the **
 | :--- | :--- | :--- | :--- |
 | **Cleaning** | Effective removal of ads/outro | Removal %, Brand detection | Automatic (via experiment runner) |
 | **Summarization** | Accuracy and synthesis quality | ROUGE-1/2/L, Compression ratio | Automatic (via experiment runner) |
+| **GIL** (planned) | Insight/quote extraction quality | Grounding rate, Quote verbatim %, Insight coverage | Per-provider comparison |
 
 ### Golden Datasets
 
-Evaluation is performed against human-verified ground truth data stored in `data/eval/`. This dataset is versioned and frozen to provide a stable baseline for comparison. See [ADR-026](adr/ADR-026-explicit-golden-dataset-versioning.md) for details.
+Evaluation is performed against human-verified ground
+truth data stored in `data/eval/`. This dataset is
+versioned and frozen to provide a stable baseline for
+comparison. See
+[ADR-026](adr/ADR-026-explicit-golden-dataset-versioning.md)
+for details.
+
+**Planned (GIL)**: A golden dataset for GIL
+evaluation will include human-annotated insights,
+quotes, and grounding links for a representative
+set of episodes. This enables comparison across
+extraction tiers (ML-only, Hybrid, Cloud LLM).
 
 ### Continuous Improvement
 
-Quality evaluation is integrated into the **[AI Quality & Experimentation Platform](prd/PRD-007-ai-quality-experiment-platform.md)** (PRD-007), which uses these metrics to gate new model deployments and configuration changes. The complete evaluation loop (runner, scorer, comparator) is documented in the **[Experiment Guide](guides/EXPERIMENT_GUIDE.md)** (Step 4: Evaluate Results).
+Quality evaluation is integrated into the
+**[AI Quality & Experimentation Platform](prd/PRD-007-ai-quality-experiment-platform.md)**
+(PRD-007), which uses these metrics to gate new model
+deployments and configuration changes. The complete
+evaluation loop (runner, scorer, comparator) is
+documented in the
+**[Experiment Guide](guides/EXPERIMENT_GUIDE.md)**
+(Step 4: Evaluate Results).
 
 ## CI/CD Integration
 
@@ -505,31 +614,43 @@ Quality evaluation is integrated into the **[AI Quality & Experimentation Platfo
 The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strategy to balance fast feedback with comprehensive quality control.
 
 #### 1. Every Pull Request (Per-Commit Feedback)
-*   **lint**: Fast formatting, code linting, markdown linting, and type checking (~2 min)
-*   **test-unit**: All unit tests with coverage, verified network isolation (~3-5 min)
-*   **test-integration-fast**: Critical path integration tests using test ML models (~5-8 min)
-*   **test-e2e-fast**: Critical path E2E tests (Tier 1) using test ML models (~8-12 min)
-*   **build**: Package build validation (~2 min)
-*   **docs**: Documentation build validation (~3 min)
+
+- **lint**: Fast formatting, code linting, markdown
+  linting, and type checking (~2 min)
+- **test-unit**: All unit tests with coverage,
+  verified network isolation (~3-5 min)
+- **test-integration-fast**: Critical path integration
+  tests using test ML models (~5-8 min)
+- **test-e2e-fast**: Critical path E2E tests (Tier 1)
+  using test ML models (~8-12 min)
+- **build**: Package build validation (~2 min)
+- **docs**: Documentation build validation (~3 min)
 
 #### 2. Main Branch & Release Branches (Full Validation)
-*   **Unified Coverage**: Combines unit, integration, and E2E coverage reports into a single artifact.
-*   **test-integration**: Complete integration test suite.
-*   **test-e2e**: Complete E2E test suite (Tier 1).
-*   **Automated Metrics**: Collection of test health, code quality, and pipeline performance metrics.
-*   **Unified Dashboard**: Deployment of the [Metrics Dashboard](ci/METRICS.md) to GitHub Pages.
+
+- **Unified Coverage**: Combines unit, integration,
+  and E2E coverage reports into a single artifact.
+- **test-integration**: Complete integration test
+  suite.
+- **test-e2e**: Complete E2E test suite (Tier 1).
+- **Automated Metrics**: Collection of test health,
+  code quality, and pipeline performance metrics.
+- **Unified Dashboard**: Deployment of the
+  [Metrics Dashboard](ci/METRICS.md) to GitHub Pages.
 
 #### 3. Nightly Comprehensive (Deep Analysis)
-*   **nightly-only-tests**: Full validation (Tier 3) using production-quality ML models (Whisper base, BART-large, LED-large).
-*   **Data Quality (Tier 2)**: Volume validation with multiple episodes.
-*   **Module Dependency Analysis**: Automated graph generation and coupling analysis.
-*   **Trend Tracking**: Historical metrics accumulation for long-term health monitoring.
+
+- **nightly-only-tests**: Full validation (Tier 3) using production-quality ML models (Whisper base, BART-large, LED-large).
+- **Data Quality (Tier 2)**: Volume validation with multiple episodes.
+- **Module Dependency Analysis**: Automated graph generation and coupling analysis.
+- **Trend Tracking**: Historical metrics accumulation for long-term health monitoring.
 
 #### Test Execution Pattern
-*   **Parallel Execution**: Most jobs run in parallel with reserved cores for system stability (`auto - 2`).
-*   **Flaky Test Resilience**: Integration and E2E tests use automatic reruns (`--reruns 2`).
-*   **Network Isolation**: Enforced via `pytest-socket` across all test tiers.
-*   **LLM Exclusion**: API-based tests (OpenAI) are excluded from nightly runs to avoid costs.
+
+- **Parallel Execution**: Most jobs run in parallel with reserved cores for system stability (`auto - 2`).
+- **Flaky Test Resilience**: Integration and E2E tests use automatic reruns (`--reruns 2`).
+- **Network Isolation**: Enforced via `pytest-socket` across all test tiers.
+- **LLM Exclusion**: API-based tests (OpenAI) are excluded from nightly runs to avoid costs.
 
 **For detailed test execution commands, parallel execution, and coverage configuration, see [Testing Guide](guides/TESTING_GUIDE.md).**
 
@@ -550,10 +671,16 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
   - **Integration Tests**: Real ML dependencies required
   - **Verification**: CI runs `scripts/tools/check_unit_test_imports.py` to ensure modules can import without ML deps
 - **File System**: Use `tempfile` for isolated test environments
-- **API Providers (OpenAI, etc.)**:
-  - **Unit Tests**: Mock API clients (`OpenAI` class)
-  - **Integration Tests**: Mock API clients or use E2E server mock endpoints
-  - **E2E Tests**: Use E2E server mock endpoints (real HTTP client, mock API responses)
+- **API Providers** (OpenAI, Gemini, Anthropic,
+  Mistral, DeepSeek, Grok, Ollama):
+  - **Unit Tests**: Mock API clients (e.g., `OpenAI`,
+    `genai`, `anthropic.Anthropic` classes)
+  - **Integration Tests**: Mock API clients or use
+    E2E server mock endpoints
+  - **E2E Tests**: Use E2E server mock endpoints
+    (real HTTP client, mock API responses). Dedicated
+    mock fixtures: `openai_mock.py`,
+    `gemini_mock_client.py`
 
 ### Test Isolation
 
@@ -665,21 +792,59 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 
 ### `service.py` (Public API)
 
-- [x] `ServiceResult` dataclass (success/failure states, attributes)
-- [x] `service.run()` with valid Config (success path)
+- [x] `ServiceResult` dataclass
+- [x] `service.run()` with valid Config
 - [x] `service.run()` with logging configuration
-- [x] `service.run()` exception handling (returns failed ServiceResult)
-- [x] `service.run_from_config_file()` with JSON config
-- [x] `service.run_from_config_file()` with YAML config
-- [x] `service.run_from_config_file()` with missing file (returns failed ServiceResult)
-- [x] `service.run_from_config_file()` with invalid config (returns failed ServiceResult)
-- [x] `service.run_from_config_file()` with Path objects
-- [x] `service.main()` CLI entry point (success/failure exit codes)
-- [x] `service.main()` version flag handling
-- [x] `service.main()` missing config argument handling
+- [x] `service.run()` exception handling
+- [x] `service.run_from_config_file()` JSON/YAML
+- [x] `service.run_from_config_file()` error cases
+- [x] `service.main()` CLI entry point
+- [x] `service.main()` version/missing config
 - [x] Service API importability via `__getattr__`
-- [x] ServiceResult equality and string representation
-- [x] Integration with public API (`Config`, `load_config_file`, `run_pipeline`)
+- [x] ServiceResult equality and string repr
+- [x] Integration with public API
+
+### `providers/` (All 8 Providers)
+
+- [x] MLProvider: unit, lifecycle, integration, E2E
+- [x] OpenAIProvider: unit, factory, lifecycle,
+  integration, E2E
+- [x] GeminiProvider: unit, factory, lifecycle,
+  integration, E2E
+- [x] AnthropicProvider: unit, factory, lifecycle,
+  integration, E2E
+- [x] MistralProvider: unit, factory, lifecycle,
+  integration, E2E
+- [x] DeepSeekProvider: unit, factory, lifecycle,
+  integration, E2E
+- [x] GrokProvider: unit, factory, lifecycle,
+  integration, E2E
+- [x] OllamaProvider: unit, factory, lifecycle,
+  integration, E2E
+- [x] Provider capabilities (`test_capabilities.py`)
+- [x] Provider params (`test_provider_params.py`)
+
+### `prompts/store.py` (Prompt Management)
+
+- [x] Template loading per provider/task/version
+- [x] Jinja2 variable rendering
+- [x] Missing template error handling
+- [x] Template version selection
+
+### `schemas/summary_schema.py`
+
+- [x] Summary schema validation
+  (`test_summary_schema.py`)
+
+### GIL Modules (Planned — RFC-049)
+
+- [ ] `workflow/gil_extraction.py` — GIL orchestration
+- [ ] `kg/schema.py` — `kg.json` validation
+- [ ] `kg/writer.py` — kg.json serialization
+- [ ] Grounding contract enforcement
+- [ ] Three-tier extraction (ML-only, Hybrid, Cloud)
+- [ ] Quote verbatim validation
+- [ ] Insight grounding status tracking
 
 ## Test Pyramid Status
 
@@ -810,28 +975,107 @@ Ideal Pyramid:
 - [x] Error handling tests
 - [x] Return value validation
 
+### GIL Testing (Planned)
+
+Testing for the Grounded Insight Layer (PRD-017,
+RFC-049/050/051) will follow the established test
+pyramid:
+
+**Unit Tests:**
+
+- `kg/schema.py` — JSON schema validation against
+  `docs/kg/kg.schema.json`
+- `kg/writer.py` — Serialization of insights, quotes,
+  edges to `kg.json` format
+- `workflow/gil_extraction.py` — Extraction
+  orchestration with mocked providers
+- Grounding contract validation (every quote verbatim,
+  every insight declares grounding status)
+- Three extraction tiers (ML-only, Hybrid, Cloud LLM)
+  with mocked models
+
+**Integration Tests:**
+
+- GIL extraction → provider interaction (real
+  providers, mocked external services)
+- `kg.json` → Postgres export pipeline (RFC-051)
+- GIL extraction within workflow pipeline stages
+- Cross-tier consistency (same transcript, different
+  tiers should produce compatible outputs)
+
+**E2E Tests:**
+
+- Full pipeline with GIL extraction enabled
+  (`--enable-gil`)
+- CLI commands: `kg inspect`, `kg show-insight`,
+  `kg explore` (RFC-050)
+- `kg.json` output validation against schema
+- Per-provider GIL extraction (ML, OpenAI, Ollama)
+
+**Quality Evaluation:**
+
+- Quote verbatim accuracy (% exact match with
+  transcript spans)
+- Grounding rate (% of insights with ≥1 supporting
+  quote)
+- Insight coverage (% of key topics covered)
+- Cross-provider comparison using golden dataset
+
+### Model Registry Testing (RFC-044, Planned)
+
+- `ModelRegistry` initialization and model lookup
+- `ModelCapabilities` validation (token limits,
+  device defaults)
+- Registry used by summarizer and GIL extractor
+- Invalid model name error handling
+
+### Hybrid ML Platform Testing (RFC-042, Planned)
+
+- Hybrid MAP-REDUCE pipeline (LED map → FLAN-T5
+  reduce)
+- Extractive QA for quote extraction
+- NLI for grounding validation
+- Sentence embeddings for topic deduplication
+- `StructuredExtractor` protocol compliance
+
 ### Performance Testing
 
 - [ ] Benchmark large feed processing (1000+ episodes)
 - [ ] Measure Whisper transcription performance
 - [ ] Profile memory usage
 - [ ] Test concurrent download limits
+- [ ] GIL extraction latency per tier (planned)
 
 ### Property-Based Testing
 
 - [ ] Generate random RSS feeds
 - [ ] Test filename sanitization with fuzzing
 - [ ] Test URL normalization with edge cases
+- [ ] `kg.json` schema fuzzing (planned)
 
 ## References
 
-- **[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md)** - What to test based on the critical path, prioritization
-- **[Testing Guide](guides/TESTING_GUIDE.md)** - Detailed implementation instructions, test execution, fixtures, and coverage
-- Test structure reorganization: `docs/rfc/RFC-018-test-structure-reorganization.md`
+- **[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md)**
+  — What to test, prioritization
+- **[Testing Guide](guides/TESTING_GUIDE.md)**
+  — Test execution, fixtures, coverage
+- **[Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md)**
+  — Mocking patterns and isolation
+- **[Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md)**
+  — Integration test mocking guidelines
+- **[E2E Testing Guide](guides/E2E_TESTING_GUIDE.md)**
+  — E2E server, real ML models, API mocking
+- Test structure reorganization:
+  `docs/rfc/RFC-018-test-structure-reorganization.md`
 - CI workflow: `.github/workflows/python-app.yml`
-- Related RFCs: RFC-001 through RFC-018 (testing strategies and reorganization)
-- Related Issues: #14 (E2E testing), #16 (Library API E2E tests), #94 (src/ layout), #98 (Test structure reorganization)
-- Architecture: `docs/ARCHITECTURE.md` (Testing Notes section)
-- Contributing guide: `CONTRIBUTING.md` (Testing Requirements section)
+- Related RFCs: RFC-001–RFC-018 (testing strategies),
+  RFC-029 (unified providers), RFC-017 (prompt store)
+- Planned RFCs: RFC-042 (Hybrid ML), RFC-044 (Model
+  Registry), RFC-049/050/051 (GIL)
+- Related Issues: #14 (E2E testing), #16 (Library API
+  E2E tests), #94 (src/ layout), #98 (Test structure
+  reorganization)
+- Architecture: `docs/ARCHITECTURE.md`
+- Contributing guide: `CONTRIBUTING.md`
 
 ````

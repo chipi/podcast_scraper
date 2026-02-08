@@ -136,20 +136,20 @@
 
 ### Terminal Command Execution
 
-9. **ALWAYS show terminal output for make commands and tests (CRITICAL: keep logs in foreground)**
-   - **MANDATORY**: Use `is_background: false` for ALL `make` commands - NO EXCEPTIONS
-   - **MANDATORY**: Use `is_background: false` for ALL test commands (pytest, etc.)
-   - **MANDATORY**: Use `is_background: false` for validation commands (lint, format, type check)
-   - User wants to see output immediately in the foreground, NOT in expandable/collapsed sections
-   - Logs must be visible in real-time so user can monitor progress and catch errors early
-   - ONLY use `is_background: true` for long-running servers/daemons (never for make/test commands)
-   - Examples requiring immediate foreground output:
-     - `make test`, `make ci`, `make ci-fast`, `make test-unit`, `make test-integration`
-     - `make lint`, `make format`, `make type`, `make security`
-     - `make docs`, `make lint-markdown`, `make fix-md`
+9. **🚨 NEVER run terminal commands in the background — ALWAYS use `is_background: false` 🚨**
+   - **THIS IS THE #1 MOST VIOLATED RULE — PAY EXTRA ATTENTION**
+   - **EVERY `run_terminal_cmd` call MUST set `is_background: false`** unless it is a server/daemon
+   - There are NO exceptions for `make`, `pytest`, `git`, `pip`, or any short-lived command
+   - `is_background: true` is ONLY for servers that run forever (e.g., `mkdocs serve`, `flask run`)
+   - The user MUST see all output in real-time in the foreground terminal
+   - If you are about to write `is_background: true`, STOP and ask yourself: "Is this a long-running server?" If NO → use `false`
+   - Commands that MUST be foreground (non-exhaustive):
+     - `make *` (ALL make targets — test, lint, format, docs, ci, etc.)
      - `pytest`, `python -m pytest`, `.venv/bin/python -m pytest`
-     - `git status`, `git diff`, `git log`
-   - **Why**: Foreground output allows real-time monitoring, immediate error detection, and better debugging experience
+     - `git status`, `git diff`, `git log`, `git add`, `git commit`
+     - `pip install`, `pip freeze`
+     - Any command that produces output the user needs to see
+   - **Why**: Background commands hide output in collapsed sections. The user cannot monitor progress or catch errors in real-time. This is unacceptable.
 
 9a. **NEVER use `cd` to project root before commands**
    - Terminal is ALREADY in project root (workspace directory)
@@ -502,6 +502,7 @@ make docker-test     # ONLY if changed Dockerfile, structure, dependencies
 
 ## ⚠️ REMEMBER
 
+0. 🚨 **NEVER use `is_background: true`** for make/test/git/pip commands — ALWAYS foreground (`is_background: false`)
 1. NEVER push to main (use feature branches + PRs)
 2. ALWAYS show changes and get approval before commit/push
 3. ALWAYS review and update tests after code changes - never leave failing tests
