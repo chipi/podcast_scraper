@@ -20,6 +20,199 @@ from podcast_scraper import Config, config
 pytestmark = [pytest.mark.unit, pytest.mark.module_config]
 
 
+@pytest.mark.unit
+class TestLoadEnvVariableHelpers(unittest.TestCase):
+    """Tests for environment variable loading helper functions."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.data = {}
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        # Clear environment variables
+        env_vars = [
+            "OUTPUT_DIR",
+            "WORKERS",
+            "OPENAI_TEMPERATURE",
+            "MPS_EXCLUSIVE",
+            "SUMMARY_DEVICE",
+        ]
+        for var in env_vars:
+            if var in os.environ:
+                del os.environ[var]
+
+    def test_load_string_env_var_success(self):
+        """Test successful loading of string environment variable."""
+        os.environ["OUTPUT_DIR"] = "/tmp/test_output"
+
+        config.Config._load_string_env_var(self.data, "output_dir", "OUTPUT_DIR")
+
+        self.assertEqual(self.data["output_dir"], "/tmp/test_output")
+
+    def test_load_string_env_var_not_set(self):
+        """Test that nothing is loaded when env var is not set."""
+        config.Config._load_string_env_var(self.data, "output_dir", "OUTPUT_DIR")
+
+        self.assertNotIn("output_dir", self.data)
+
+    def test_load_string_env_var_already_in_data(self):
+        """Test that existing value in data is not overwritten."""
+        self.data["output_dir"] = "/existing/path"
+        os.environ["OUTPUT_DIR"] = "/tmp/test_output"
+
+        config.Config._load_string_env_var(self.data, "output_dir", "OUTPUT_DIR")
+
+        self.assertEqual(self.data["output_dir"], "/existing/path")
+
+    def test_load_string_env_var_empty_string(self):
+        """Test that empty string env var is not loaded."""
+        os.environ["OUTPUT_DIR"] = "   "
+
+        config.Config._load_string_env_var(self.data, "output_dir", "OUTPUT_DIR")
+
+        self.assertNotIn("output_dir", self.data)
+
+    def test_load_int_env_var_success(self):
+        """Test successful loading of integer environment variable."""
+        os.environ["WORKERS"] = "4"
+
+        config.Config._load_int_env_var(self.data, "workers", "WORKERS")
+
+        self.assertEqual(self.data["workers"], 4)
+
+    def test_load_int_env_var_below_minimum(self):
+        """Test that value below minimum is not loaded."""
+        os.environ["WORKERS"] = "0"
+
+        config.Config._load_int_env_var(self.data, "workers", "WORKERS", min_value=1)
+
+        self.assertNotIn("workers", self.data)
+
+    def test_load_int_env_var_invalid(self):
+        """Test that invalid integer value is not loaded."""
+        os.environ["WORKERS"] = "not_a_number"
+
+        config.Config._load_int_env_var(self.data, "workers", "WORKERS")
+
+        self.assertNotIn("workers", self.data)
+
+    def test_load_int_env_var_already_in_data(self):
+        """Test that existing value in data is not overwritten."""
+        self.data["workers"] = 2
+        os.environ["WORKERS"] = "4"
+
+        config.Config._load_int_env_var(self.data, "workers", "WORKERS")
+
+        self.assertEqual(self.data["workers"], 2)
+
+    def test_load_float_env_var_success(self):
+        """Test successful loading of float environment variable."""
+        os.environ["OPENAI_TEMPERATURE"] = "0.7"
+
+        config.Config._load_float_env_var(
+            self.data, "openai_temperature", "OPENAI_TEMPERATURE", 0.0, 2.0
+        )
+
+        self.assertEqual(self.data["openai_temperature"], 0.7)
+
+    def test_load_float_env_var_below_minimum(self):
+        """Test that value below minimum is not loaded."""
+        os.environ["OPENAI_TEMPERATURE"] = "-0.1"
+
+        config.Config._load_float_env_var(
+            self.data, "openai_temperature", "OPENAI_TEMPERATURE", 0.0, 2.0
+        )
+
+        self.assertNotIn("openai_temperature", self.data)
+
+    def test_load_float_env_var_above_maximum(self):
+        """Test that value above maximum is not loaded."""
+        os.environ["OPENAI_TEMPERATURE"] = "2.1"
+
+        config.Config._load_float_env_var(
+            self.data, "openai_temperature", "OPENAI_TEMPERATURE", 0.0, 2.0
+        )
+
+        self.assertNotIn("openai_temperature", self.data)
+
+    def test_load_float_env_var_invalid(self):
+        """Test that invalid float value is not loaded."""
+        os.environ["OPENAI_TEMPERATURE"] = "not_a_float"
+
+        config.Config._load_float_env_var(
+            self.data, "openai_temperature", "OPENAI_TEMPERATURE", 0.0, 2.0
+        )
+
+        self.assertNotIn("openai_temperature", self.data)
+
+    def test_load_bool_env_var_true(self):
+        """Test loading boolean environment variable with true values."""
+        for true_value in ["1", "true", "yes", "on", "TRUE", "YES", "ON"]:
+            self.data = {}
+            os.environ["MPS_EXCLUSIVE"] = true_value
+
+            config.Config._load_bool_env_var(self.data, "mps_exclusive", "MPS_EXCLUSIVE")
+
+            self.assertTrue(self.data["mps_exclusive"], f"Should be True for '{true_value}'")
+
+    def test_load_bool_env_var_false(self):
+        """Test loading boolean environment variable with false values."""
+        for false_value in ["0", "false", "no", "off", "FALSE", "NO", "OFF"]:
+            self.data = {}
+            os.environ["MPS_EXCLUSIVE"] = false_value
+
+            config.Config._load_bool_env_var(self.data, "mps_exclusive", "MPS_EXCLUSIVE")
+
+            self.assertFalse(self.data["mps_exclusive"], f"Should be False for '{false_value}'")
+
+    def test_load_bool_env_var_invalid(self):
+        """Test that invalid boolean value is not loaded."""
+        os.environ["MPS_EXCLUSIVE"] = "maybe"
+
+        config.Config._load_bool_env_var(self.data, "mps_exclusive", "MPS_EXCLUSIVE")
+
+        self.assertNotIn("mps_exclusive", self.data)
+
+    def test_load_bool_env_var_already_in_data(self):
+        """Test that existing value in data is not overwritten."""
+        self.data["mps_exclusive"] = False
+        os.environ["MPS_EXCLUSIVE"] = "true"
+
+        config.Config._load_bool_env_var(self.data, "mps_exclusive", "MPS_EXCLUSIVE")
+
+        self.assertFalse(self.data["mps_exclusive"])
+
+    def test_load_device_env_var_valid_devices(self):
+        """Test loading valid device environment variables."""
+        for device in ["cpu", "cuda", "mps", "CPU", "CUDA", "MPS"]:
+            self.data = {}
+            os.environ["SUMMARY_DEVICE"] = device
+
+            config.Config._load_device_env_var(self.data, "summary_device", "SUMMARY_DEVICE")
+
+            self.assertEqual(
+                self.data["summary_device"], device.lower(), f"Should load '{device}' as lowercase"
+            )
+
+    def test_load_device_env_var_invalid(self):
+        """Test that invalid device value is not loaded."""
+        os.environ["SUMMARY_DEVICE"] = "invalid_device"
+
+        config.Config._load_device_env_var(self.data, "summary_device", "SUMMARY_DEVICE")
+
+        self.assertNotIn("summary_device", self.data)
+
+    def test_load_device_env_var_already_in_data(self):
+        """Test that existing value in data is not overwritten."""
+        self.data["summary_device"] = "cpu"
+        os.environ["SUMMARY_DEVICE"] = "cuda"
+
+        config.Config._load_device_env_var(self.data, "summary_device", "SUMMARY_DEVICE")
+
+        self.assertEqual(self.data["summary_device"], "cpu")
+
+
 class TestSummaryValidation(unittest.TestCase):
     """Test summary-related cross-field validation."""
 

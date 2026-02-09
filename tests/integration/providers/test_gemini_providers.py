@@ -93,8 +93,14 @@ class TestGeminiTranscriptionProvider(unittest.TestCase):
             if original_key is not None:
                 os.environ["GEMINI_API_KEY"] = original_key
 
-    def test_factory_creates_gemini_provider(self):
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_factory_creates_gemini_provider(self, mock_genai):
         """Test that factory creates unified Gemini provider."""
+        # Mock genai.configure for API compatibility
+        mock_genai.configure = Mock()
+        # Mock GenerativeModel
+        mock_model = Mock()
+        mock_genai.GenerativeModel = Mock(return_value=mock_model)
         provider = create_transcription_provider(self.cfg)
         # Verify it's the unified Gemini provider
         self.assertEqual(provider.__class__.__name__, "GeminiProvider")
@@ -184,8 +190,14 @@ class TestGeminiSpeakerDetector(unittest.TestCase):
             if original_key is not None:
                 os.environ["GEMINI_API_KEY"] = original_key
 
-    def test_factory_creates_gemini_detector(self):
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_factory_creates_gemini_detector(self, mock_genai):
         """Test that factory creates unified Gemini provider."""
+        # Mock genai.configure for API compatibility
+        mock_genai.configure = Mock()
+        # Mock GenerativeModel
+        mock_model = Mock()
+        mock_genai.GenerativeModel = Mock(return_value=mock_model)
         detector = create_speaker_detector(self.cfg)
         # Verify it's the unified Gemini provider
         self.assertEqual(detector.__class__.__name__, "GeminiProvider")
@@ -274,8 +286,14 @@ class TestGeminiSummarizationProvider(unittest.TestCase):
             if original_key is not None:
                 os.environ["GEMINI_API_KEY"] = original_key
 
-    def test_factory_creates_gemini_provider(self):
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_factory_creates_gemini_provider(self, mock_genai):
         """Test that factory creates unified Gemini provider."""
+        # Mock genai.configure for API compatibility
+        mock_genai.configure = Mock()
+        # Mock GenerativeModel
+        mock_model = Mock()
+        mock_genai.GenerativeModel = Mock(return_value=mock_model)
         provider = create_summarization_provider(self.cfg)
         # Verify it's the unified Gemini provider
         self.assertEqual(provider.__class__.__name__, "GeminiProvider")

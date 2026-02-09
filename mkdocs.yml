@@ -38,6 +38,7 @@ nav:
       - Experiment Guide: guides/EXPERIMENT_GUIDE.md
       - Metrics Guide: guides/METRICS_GUIDE.md
       - Promotion Workflow: guides/PROMOTION_WORKFLOW.md
+      - Performance: guides/PERFORMANCE.md
       - Glossary: guides/GLOSSARY.md
   - Architecture: ARCHITECTURE.md
   - Engineering Process: guides/ENGINEERING_PROCESS.md
@@ -171,8 +172,11 @@ nav:
       - RFC-047 Run Comparison Visual Tool: rfc/RFC-047-run-comparison-visual-tool.md
       - RFC-048 Evaluation Application Alignment: rfc/RFC-048-evaluation-application-alignment.md
       - RFC-049 Grounded Insight Layer – Core Concepts: rfc/RFC-049-grounded-insight-layer-core.md
+      - RFC-049 Podcast Knowledge Graph – Core: rfc/RFC-049-podcast-knowledge-graph-core.md
       - RFC-050 Grounded Insight Layer – Use Cases: rfc/RFC-050-grounded-insight-layer-use-cases.md
+      - RFC-050 Podcast Knowledge Graph – Use Cases: rfc/RFC-050-podcast-knowledge-graph-use-cases.md
       - RFC-051 Grounded Insight Layer – Database Projection: rfc/RFC-051-grounded-insight-layer-database-projection.md
+      - RFC-051 Database Export Knowledge Graph: rfc/RFC-051-database-export-knowledge-graph.md
       - RFC-052 Locally Hosted LLM Models with Prompts: rfc/RFC-052-locally-hosted-llm-models-with-prompts.md
       - RFC-053 Adaptive Summarization Routing: rfc/RFC-053-adaptive-summarization-routing.md
       - RFC-054 Flexible E2E Mock Response Strategy: rfc/RFC-054-e2e-mock-response-strategy.md

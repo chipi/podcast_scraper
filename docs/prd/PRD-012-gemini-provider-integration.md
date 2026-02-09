@@ -241,9 +241,9 @@ Google offers a generous free tier:
 
 ### TR2: Dependencies
 
-- **TR2.1**: Add `google-generativeai` Python package as optional dependency (verify package name during implementation)
+- **TR2.1**: Add `google-genai` Python package as optional dependency (migrated from `google-generativeai` in Issue #415)
 - **TR2.2**: Lazy import when provider is selected (ImportError with helpful message if not installed)
-- **TR2.3**: Add to `pyproject.toml` optional dependencies: `gemini = ["google-generativeai>=0.8.0,<1.0.0"]`
+- **TR2.3**: Add to `pyproject.toml` optional dependencies: `gemini = ["google-genai>=0.1.0,<1.0.0"]`
 
 ### TR3: Testing
 

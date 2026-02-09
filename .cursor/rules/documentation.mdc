@@ -1,0 +1,161 @@
+# Documentation & Markdown - Quick Reference
+
+**For complete details:** `docs/guides/MARKDOWN_LINTING_GUIDE.md`
+
+## 🚨 MANDATORY Workflow Before Committing Markdown
+
+1. **Run `make fix-md`** — auto-fixes common issues (tables, trailing spaces, blank lines)
+2. **Self-check** — scan for these issues:
+   - [ ] Only one H1 (`#`) in the document
+   - [ ] Blank line after all headings
+   - [ ] No trailing spaces
+   - [ ] Lists have blank lines before and after
+   - [ ] Code fences have language specifiers (` ```python `, ` ```bash `, etc.)
+   - [ ] Tables use consistent spacing around pipes
+   - [ ] No multiple consecutive blank lines
+3. **Run `make lint-markdown`** — verify no linting errors
+4. **Run `make docs`** — validate docs build (catches broken links, missing nav)
+
+**CRITICAL:**
+
+- **NEVER use `npx markdownlint-cli2` directly** — always use `make fix-md` or `make lint-markdown`
+- **NEVER use `npx` commands** — always check if a Makefile target exists first
+- Run `make lint-markdown` immediately after any doc/markdown edit
+- Do NOT leave lint errors for follow-up; fix during the edit, not later
+
+## 📁 Document Location Rules
+
+### 🚨 ABSOLUTE RULE
+
+- ✅ **ALL analysis/plans/reviews** → `docs/wip/` folder
+- ❌ **NEVER create `docs/analysis/`** — this folder MUST NOT EXIST
+- ❌ **NEVER create `docs/plan/`** — this folder MUST NOT EXIST
+
+**Examples:**
+
+- ✅ `docs/wip/implementation-plan.md`
+- ✅ `docs/wip/code-analysis.md`
+- ❌ `docs/analysis/anything.md` — FORBIDDEN
+- ❌ `docs/plan/anything.md` — FORBIDDEN
+
+## 📚 When to Create PRD/RFC
+
+- **PRD** → User-facing features, significant additions, workflow changes
+- **RFC** → Architecture changes, breaking API changes, design decisions
+- **Skip** → Bug fixes, small enhancements (<100 lines), internal refactoring
+
+### PRD/RFC Templates
+
+1. Copy template: `docs/prd/PRD_TEMPLATE.md` or `docs/rfc/RFC_TEMPLATE.md`
+2. Rename: `PRD-NNN-feature.md` or `RFC-NNN-feature.md` (check indexes for next number)
+3. Fill placeholders
+4. Update index files: `docs/prd/index.md`, `docs/rfc/index.md`
+
+## 📝 Always Update When
+
+- `README.md` → CLI flags, features, installation
+- `docs/ARCHITECTURE.md` → Modules, data flow, design
+- `docs/api/` → Public API changes (auto from docstrings)
+- `mkdocs.yml` → New/moved/deleted doc files (add to nav)
+
+## Common Markdown Issues & Fixes
+
+### Tables (MD060)
+
+```markdown
+✅ Good:
+| Header | Column2 |
+| ------ | ------- |
+| Value1 | Value2  |
+
+❌ Bad (no spaces around pipes):
+|Header|Column2|
+|------|-------|
+|Value1|Value2|
+```
+
+### Lists (MD032)
+
+```markdown
+✅ Good:
+Paragraph text.
+
+- List item 1
+- List item 2
+
+Another paragraph.
+
+❌ Bad (no blank lines):
+Paragraph text.
+- List item 1
+- List item 2
+Another paragraph.
+```
+
+### Code Blocks (MD040)
+
+Always specify a language for code blocks.
+
+### Blank Lines After Headings
+
+```markdown
+✅ Good:
+## Heading
+
+Paragraph text.
+
+❌ Bad:
+## Heading
+Paragraph text.
+```
+
+### Markdown Best Practices Summary
+
+- Blank lines before/after lists (MD032)
+- No trailing spaces (MD009)
+- Tables: spaces around pipes, consistent separator (MD060)
+- Code blocks: always specify language (MD040)
+- No multiple blank lines (MD012)
+- Heading hierarchy: H1 → H2 → H3 (don't skip)
+- Lines < 100 characters
+
+## Auto-Fix Command
+
+```bash
+# Fix all markdown files
+make fix-md
+
+# Or directly
+python scripts/fix_markdown.py
+
+# Fix specific files
+python scripts/fix_markdown.py docs/TESTING_STRATEGY.md
+
+# Dry run (preview fixes)
+python scripts/fix_markdown.py --dry-run
+```
+
+### What `fix_markdown.py` Fixes
+
+- ✅ Table separator formatting (MD060)
+- ✅ Trailing spaces (MD009)
+- ✅ Blank lines around lists (MD032)
+- ✅ Code block language specifiers (MD040) — when detectable
+- ✅ Blank lines around code fences (MD031)
+- ✅ Multiple blank lines (MD012)
+
+## Full Reference
+
+See `docs/guides/MARKDOWN_LINTING_GUIDE.md` for:
+
+- Complete style rules
+- Advanced table formatting
+- Pre-commit hook details
+- CI/CD integration
+- Troubleshooting guide
+
+---
+
+**Version:** 1.0
+**Created:** 2026-02-09
+**Source:** Merged from `markdown-style.mdc` v2.0 + `.cursorrules` v1.0 documentation rules

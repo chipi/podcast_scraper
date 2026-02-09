@@ -1,0 +1,112 @@
+# Coding Standards - Quick Reference
+
+**For complete details:** `.ai-coding-guidelines.md`, `docs/guides/DEVELOPMENT_GUIDE.md`
+
+## Imports (isort-compatible)
+
+```python
+# Group 1: stdlib
+import os
+from pathlib import Path
+
+# Group 2: third-party
+import requests
+from pydantic import BaseModel
+
+# Group 3: local
+from podcast_scraper import config
+from podcast_scraper.models import Episode
+```
+
+## Lazy Loading Pattern
+
+- `__init__.py` uses lazy loading to prevent circular imports
+- Access modules via `from podcast_scraper import cli, service`
+- When adding new modules, update `__getattr__` in `__init__.py`
+
+## Configuration Pattern
+
+- ALL runtime options go in `Config` model (Pydantic v2)
+- No scattered parameters across functions
+- Pydantic validation ensures type safety
+
+```python
+# ✅ GOOD - Centralized
+cfg = Config(rss_url="...", transcribe_missing=True, workers=8)
+run_pipeline(cfg)
+
+# ❌ BAD - Scattered parameters
+fetch_rss(url, timeout=30)
+download(episodes, workers=8)
+```
+
+## Error Handling
+
+- Recoverable errors → log warning, return None, continue
+- Fatal errors → raise appropriate exception with context
+- Optional deps → try/except ImportError with helpful message
+
+## Docstrings (Google-style)
+
+```python
+def function(arg: Type) -> ReturnType:
+    """One-line summary.
+
+    Longer description if needed.
+
+    Args:
+        arg: Description.
+
+    Returns:
+        Description of return value.
+
+    Raises:
+        ErrorType: When this happens.
+
+    Example:
+        >>> result = function(value)
+    """
+```
+
+## Logging (NOT print)
+
+```python
+import logging
+logger = logging.getLogger(__name__)
+
+# Use structured logging with context
+logger.info(f"Processing episode {episode.number}: {episode.title}")
+logger.warning(f"Failed to download: {error}")
+logger.error(f"Pipeline failed: {error}", exc_info=True)
+
+# NEVER use print() statements
+```
+
+## Code Quality Checklist
+
+- Lines < 100 characters (break long lines — #1 source of lint errors)
+- Markdown lines < 100 characters
+- Imports organized (stdlib → third-party → local)
+- Remove unused imports/variables immediately
+- Add type hints to all function signatures
+- Add Google-style docstrings to public functions
+- Use `logging`, never `print()`
+- Run `make format` proactively during development
+
+## Shippable Code Standard
+
+Before considering work complete, run:
+
+```bash
+make format        # Auto-fix formatting
+make lint          # Check for linting errors (fix immediately)
+make type          # Check type hints (fix critical issues)
+```
+
+Code must pass linting, formatting, AND tests after every session.
+
+---
+
+**Version:** 1.0
+**Created:** 2026-02-09
+**Source:** Extracted from `.cursorrules` v1.0

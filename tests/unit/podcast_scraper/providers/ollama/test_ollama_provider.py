@@ -212,7 +212,11 @@ class TestOllamaProviderStandalone(unittest.TestCase):
         mock_models_response = Mock()
         mock_models_response.raise_for_status = Mock()
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.3:latest"}, {"name": "llama3.2:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.3:latest"},
+                {"name": "llama3.2:latest"},
+            ]
         }
         mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
 
@@ -244,7 +248,11 @@ class TestOllamaProviderStandalone(unittest.TestCase):
         mock_models_response = Mock()
         mock_models_response.raise_for_status = Mock()
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.3:latest"}, {"name": "llama3.2:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.3:latest"},
+                {"name": "llama3.2:latest"},
+            ]
         }
         mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
 
@@ -325,7 +333,11 @@ class TestOllamaProviderSpeakerDetection(unittest.TestCase):
         mock_models_response.raise_for_status = Mock()
         # Include both models in case both are validated
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.3:latest"}, {"name": "llama3.2:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.3:latest"},
+                {"name": "llama3.2:latest"},
+            ]
         }
         mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
 
@@ -377,7 +389,11 @@ class TestOllamaProviderSpeakerDetection(unittest.TestCase):
         mock_models_response.raise_for_status = Mock()
         # Include both models in case both are validated
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.3:latest"}, {"name": "llama3.2:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.3:latest"},
+                {"name": "llama3.2:latest"},
+            ]
         }
         mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
 
@@ -428,7 +444,11 @@ class TestOllamaProviderSpeakerDetection(unittest.TestCase):
         mock_models_response = Mock()
         mock_models_response.raise_for_status = Mock()
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.3:latest"}, {"name": "llama3.2:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.3:latest"},
+                {"name": "llama3.2:latest"},
+            ]
         }
         mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
 
@@ -509,7 +529,11 @@ class TestOllamaProviderSummarization(unittest.TestCase):
         mock_models_response.raise_for_status = Mock()
         # Include both models in case both are validated
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.3:latest"}, {"name": "llama3.2:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.3:latest"},
+                {"name": "llama3.2:latest"},
+            ]
         }
         mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
 
@@ -559,7 +583,11 @@ class TestOllamaProviderSummarization(unittest.TestCase):
         mock_models_response.raise_for_status = Mock()
         # Include both models in case both are validated
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.3:latest"}, {"name": "llama3.2:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.3:latest"},
+                {"name": "llama3.2:latest"},
+            ]
         }
         mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
 
@@ -618,7 +646,11 @@ class TestOllamaProviderSummarization(unittest.TestCase):
         mock_models_response.raise_for_status = Mock()
         # Include both models in case both are validated
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.3:latest"}, {"name": "llama3.2:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.3:latest"},
+                {"name": "llama3.2:latest"},
+            ]
         }
         mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
 

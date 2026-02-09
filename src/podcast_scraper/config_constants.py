@@ -178,8 +178,8 @@ PROD_DEFAULT_DEEPSEEK_SUMMARY_MODEL = "deepseek-chat"  # Same model, still very 
 # Models must be pulled before use: ollama pull llama3.3
 TEST_DEFAULT_OLLAMA_SPEAKER_MODEL = "llama3.2:latest"  # Smaller, faster for testing
 PROD_DEFAULT_OLLAMA_SPEAKER_MODEL = "llama3.3:latest"  # Best quality
-TEST_DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.2:latest"  # Smaller, faster for testing
-PROD_DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.3:latest"  # Best quality, 128k context
+TEST_DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.1:8b"  # Smaller, faster for testing
+PROD_DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.1:8b"  # Smaller model, good quality
 
 # Grok (xAI) model defaults (Issue #1095)
 # Test defaults: beta model for dev/testing (grok-beta)

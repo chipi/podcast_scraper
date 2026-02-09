@@ -16,9 +16,9 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 try:
-    import google.generativeai as genai
+    import google.genai as genai
 except ImportError:
-    print("ERROR: google-generativeai package not installed")
+    print("ERROR: google-genai package not installed")
     print("Install with: pip install 'podcast-scraper[gemini]'")
     sys.exit(1)
 

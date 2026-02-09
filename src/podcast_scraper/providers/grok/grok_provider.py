@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Any, cast, Dict, Optional, Set, Tuple, TYPE_CHECKING
 
 try:
     from openai import OpenAI
@@ -30,10 +30,13 @@ from ... import config
 
 if TYPE_CHECKING:
     from ...models import Episode
+    from ..capabilities import ProviderCapabilities
 else:
     from ... import models
 
     Episode = models.Episode  # type: ignore[assignment]
+from ...cleaning import PatternBasedCleaner
+from ...cleaning.base import TranscriptCleaningProcessor
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
@@ -53,6 +56,8 @@ GROK_2_OUTPUT_COST_PER_1M_TOKENS = 0.0  # Verify with xAI pricing
 
 
 class GrokProvider:
+
+    cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
     """Unified Grok provider implementing SpeakerDetector and SummarizationProvider.
 
     This provider initializes and manages:
@@ -90,6 +95,21 @@ class GrokProvider:
             )
 
         self.cfg = cfg
+
+        # Set up transcript cleaning processor based on strategy (Issue #418)
+        from ...cleaning import HybridCleaner, LLMBasedCleaner
+
+        cleaning_strategy = getattr(cfg, "transcript_cleaning_strategy", "hybrid")
+        if cleaning_strategy == "pattern":
+            self.cleaning_processor = PatternBasedCleaner()  # type: ignore[assignment]
+        elif cleaning_strategy == "llm":
+            self.cleaning_processor = LLMBasedCleaner()  # type: ignore[assignment]
+        else:  # hybrid (default)
+            self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
+
+        # Cleaning model settings (cheaper model for cost efficiency)
+        self.cleaning_model = getattr(cfg, "grok_cleaning_model", "grok-beta")
+        self.cleaning_temperature = getattr(cfg, "grok_cleaning_temperature", 0.2)
 
         # Suppress verbose OpenAI SDK debug logs (same as OpenAI provider)
         # Set OpenAI SDK loggers to WARNING level when root logger is DEBUG
@@ -793,7 +813,132 @@ class GrokProvider:
         """Clear cache (no-op for API provider)."""
         pass
 
+    def clean_transcript(self, text: str) -> str:
+        """Clean transcript using LLM for semantic filtering.
+
+        Args:
+            text: Transcript text to clean (should already be pattern-cleaned)
+
+        Returns:
+            Cleaned transcript text
+
+        Raises:
+            RuntimeError: If provider is not initialized or cleaning fails
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError("GrokProvider not initialized. Call initialize() first.")
+
+        from ...prompts.store import render_prompt
+
+        # Build cleaning prompt using prompt_store (RFC-017)
+        prompt_name = "grok/cleaning/v1"
+        user_prompt = render_prompt(prompt_name, transcript=text)
+
+        # Use system prompt (OpenAI-compatible pattern)
+        system_prompt = (
+            "You are a transcript cleaning assistant. "
+            "Remove sponsors, ads, intros, outros, and meta-commentary. "
+            "Preserve all substantive content and speaker information. "
+            "Return only the cleaned text, no explanations."
+        )
+
+        logger.debug(
+            "Cleaning transcript via Grok API (model: %s, text length: %d chars)",
+            self.cleaning_model,
+            len(text),
+        )
+
+        try:
+            # Track retries and rate limits
+            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+
+            call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("grok")
+
+            # Wrap API call with retry tracking
+            from openai import APIError, RateLimitError
+
+            def _make_api_call():
+                return self.client.chat.completions.create(
+                    model=self.cleaning_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=self.cleaning_temperature,
+                    max_tokens=int(len(text.split()) * 0.85 * 1.3),  # Rough token estimate
+                )
+
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                call_metrics.finalize()
+                raise
+
+            call_metrics.finalize()
+
+            cleaned = response.choices[0].message.content
+            if not cleaned:
+                logger.warning("Grok API returned empty cleaned text, using original")
+                return text
+
+            logger.debug("Grok cleaning completed: %d -> %d chars", len(text), len(cleaned))
+            return cast(str, cleaned)
+
+        except Exception as exc:
+            logger.error("Grok API error in cleaning: %s", exc)
+            from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
+
+            # Handle Grok-specific error types
+            error_msg = str(exc).lower()
+            if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
+                raise ProviderAuthError(
+                    message=f"Grok authentication failed: {exc}",
+                    provider="GrokProvider/Cleaning",
+                    suggestion="Check your GROK_API_KEY environment variable or config setting",
+                ) from exc
+            elif "quota" in error_msg or "rate limit" in error_msg:
+                raise ProviderRuntimeError(
+                    message=f"Grok rate limit exceeded: {exc}",
+                    provider="GrokProvider/Cleaning",
+                    suggestion="Wait before retrying or check your API quota",
+                ) from exc
+            else:
+                raise ProviderRuntimeError(
+                    message=f"Grok cleaning failed: {exc}",
+                    provider="GrokProvider/Cleaning",
+                ) from exc
+
     @property
     def is_initialized(self) -> bool:
         """Check if provider is initialized (any component)."""
         return self._speaker_detection_initialized or self._summarization_initialized
+
+    def get_capabilities(self) -> ProviderCapabilities:
+        """Get provider capabilities.
+
+        Returns:
+            ProviderCapabilities object describing Grok provider capabilities
+        """
+        from ..capabilities import ProviderCapabilities  # noqa: PLC0415
+
+        return ProviderCapabilities(
+            supports_transcription=False,  # Grok doesn't support audio transcription
+            supports_speaker_detection=True,
+            supports_summarization=True,
+            supports_semantic_cleaning=True,  # Grok supports LLM-based cleaning
+            supports_audio_input=False,  # Grok doesn't accept audio files
+            supports_json_mode=True,  # Grok supports JSON mode
+            max_context_tokens=self.max_context_tokens,
+            supports_tool_calls=True,  # Grok supports function calling
+            supports_system_prompt=True,  # Grok supports system prompts
+            supports_streaming=True,  # Grok API supports streaming
+            provider_name="grok",
+        )

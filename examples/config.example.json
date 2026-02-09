@@ -43,5 +43,7 @@
 
   "_comment_advanced": "Advanced settings. Optional: save_cleaned_transcript (true)",
 
+  "_comment_cleaning": "Transcript cleaning configuration (Issue #418: LLM-Based Semantic Transcript Cleaning). Optional: transcript_cleaning_strategy (pattern/llm/hybrid, default: hybrid for LLM providers, pattern for ML providers). Provider-specific cleaning settings: {provider}_cleaning_model (defaults to summary model), {provider}_cleaning_temperature (default: 0.2), {provider}_cleaning_max_tokens (default: null, 80-90% of input), {provider}_cleaning_llm_threshold (default: 0.10 for hybrid strategy). Use cheaper models for cleaning to reduce costs. Hybrid strategy uses pattern-based cleaning first, then conditionally applies LLM cleaning when needed (reduces LLM calls by 70-90%).",
+
   "_comment_preprocessing": "Audio preprocessing settings (RFC-040: Optimize audio for API providers with file size limits). Optional: preprocessing_enabled (false), preprocessing_cache_dir (null), preprocessing_sample_rate (16000), preprocessing_silence_threshold (-50dB), preprocessing_silence_duration (2.0), preprocessing_target_loudness (-16). Note: Requires ffmpeg installed on system. Benefits: File size reduction, API compatibility, cost savings, performance"
 }

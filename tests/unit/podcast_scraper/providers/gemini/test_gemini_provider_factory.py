@@ -14,8 +14,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-# Mock google.generativeai before importing modules that require it
-# Unit tests run without google-generativeai package installed
+# Mock google.genai before importing modules that require it
+# Unit tests run without google-genai package installed
 # Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
 mock_google = MagicMock()
 mock_genai_module = MagicMock()
@@ -27,7 +27,7 @@ _patch_google = patch.dict(
     "sys.modules",
     {
         "google": mock_google,
-        "google.generativeai": mock_genai_module,
+        "google.genai": mock_genai_module,
         "google.api_core": mock_api_core,
     },
 )

@@ -5,523 +5,132 @@
 ### Git & Branch Workflow
 
 0. **NEVER push any branch unless the user explicitly asks**
-   - Do not push to main or feature branches without explicit user instruction
    - Commits are allowed after user approves the diff; pushes are never allowed by default
-   - Always pause and ask before any push action, even if tests are green
+   - Always pause and ask before any push action
 
 1. **NEVER push directly to main branch**
    - ALWAYS create feature branch: `git checkout -b feat/name`
    - ALWAYS push to feature branch, NEVER to main
-   - Even with admin permissions, NEVER bypass this rule
-   - "Bypassed rule violations" warning = YOU MADE A MISTAKE
 
 2. **NEVER commit without explicit user approval**
-   - MUST run: `git status` → `git diff` → show user → wait for approval → THEN commit
-   - NEVER skip showing changes first
-   - NEVER assume approval
-   - Get commit message from user OR ask for one
+   - MUST: `git status` → `git diff` → show user → wait for approval → THEN commit
+   - NEVER skip showing changes; NEVER assume approval
 
-2a. **ALWAYS stage only files changed for current task (CRITICAL: never use `git add -A`)**
-   - **NEVER use `git add -A` or `git add .`** - this stages ALL changes including unrelated work
-   - **ALWAYS check what files are already modified** before staging: `git status --porcelain`
-   - **ONLY stage files you actually changed** for the current task/feature
-   - **Selective staging**: Use `git add <specific-file>` for each file you changed
-   - **Verify before committing**: Run `git status` after staging to confirm only intended files are staged
-   - **Why**: Mixing unrelated changes in a commit breaks atomic commits, makes reviews harder, and can cause merge conflicts
-   - **Example workflow**:
-     ```bash
-     # 1. Check what's already modified
-     git status --porcelain
-
-     # 2. Only stage files you changed for THIS task
-     git add pyproject.toml Makefile scripts/tools/new_script.py
-
-     # 3. Verify only intended files are staged
-     git status
-
-     # 4. Then commit
-     git commit -m "..."
-     ```
-   - **If unsure**: Ask user which files should be committed, don't guess
+2a. **ALWAYS stage only files changed for current task (never `git add -A`)**
+   - Use `git add <specific-file>` for each file you changed
+   - Verify with `git status` after staging; ask user if unsure which files
 
 3. **NEVER push to PR without explicit user approval**
-   - MUST run: `git status` → `git diff` → show changes → wait for "yes"/"push"/"go ahead" → THEN push
-   - NEVER push without showing what you're pushing
-   - Pre-commit hook runs `make ci-fast`, so can push directly after it passes
+   - Show `git status` + `git diff` → wait for explicit approval
+   - Pre-commit hook runs `make ci-fast` automatically
 
 4. **ALWAYS check for uncommitted changes before creating branch**
-   - Run `git status --porcelain` first
-   - If output exists → commit, stash, or discard before creating branch
-   - Prevents accidentally including unrelated changes in new branch
-
-### Testing & Validation
-
-5. **ALWAYS review and update tests after code changes (CRITICAL: never leave failing tests)**
-   - After any code session with new/modified code, MUST review related tests
-   - Review hierarchy: unit → integration → e2e (from bottom to top)
-   - Adjust tests to match new code behavior (update assertions, mocks, fixtures)
-   - Run tests at each level and ensure ALL pass before considering work complete
-   - **NEVER end up with working code but failing tests** - this is a blocker
-   - If tests fail, fix them immediately (don't defer or skip)
-   - Test review checklist:
-     - Unit tests: Do they cover the changed code paths?
-     - Integration tests: Do they reflect new behavior correctly?
-     - E2E tests: Do end-to-end flows still work?
-     - All tests pass: `make test-unit`, `make test-integration`, `make test-e2e`
-   - If you're unsure which tests are affected, run the full test suite and fix failures
-
-5a. **ALWAYS ensure code is shippable after each session (linting + formatting + tests)**
-   - Code must be "shippable" immediately after session: passes linting, formatting, AND tests
-   - **Write lint-valid code from the start** - don't defer linting fixes
-   - Common issues to avoid:
-     - Lines over 100 characters (break long lines)
-     - Markdown lines over 100 characters (common source of MD errors)
-     - Unused imports/variables
-     - Missing type hints on function signatures
-     - Inconsistent formatting (use `make format` proactively)
-   - Before considering work complete, run:
-     - `make format` - auto-fix formatting issues
-     - `make lint` - check for linting errors (fix immediately)
-     - `make type` - check type hints (fix critical issues)
-     - `make lint-markdown` - check markdown files (if any were modified)
-     - Tests (see Rule 5 above)
-   - **NEVER leave linting/formatting errors for later** - fix them as you write code
-   - If linting fails, fix it immediately before moving on
-   - Goal: Code should be ready to commit without additional cleanup
-
-6. **ALWAYS run `make ci-fast` before committing** (~6-10 min)
-   - Fast tests: unit + fast integration + fast e2e
-   - Catches issues early
-   - Pre-commit hook will also run this automatically
-   - If `make ci-fast` fails, fix tests before committing
-
-7. **Run slow tests if changes touch ML code**
-   - Changed ML model code? → Run `make test-integration-slow` or `make test-e2e-slow`
-   - Changed `whisper_integration.py`, `summarizer.py`, `speaker_detection.py`? → Run slow tests
-   - Changed `workflow.py` with ML? → Run `make test-all-slow`
-
-8. **CONDITIONALLY run `make docker-test` before commit**
-   - ONLY if changed: Dockerfile, pyproject.toml structure, package layout
-   - Skip for: Python code only, docs only, tests only
-   - Prevents Docker CI failures
-
-8a. **ALWAYS use Makefile commands, NEVER direct tool invocations**
-   - ✅ Good: `make test`, `make test-unit`, `make ci`
-   - ❌ Bad: `pytest`, `python3 -m pytest`, `python test.py`
-   - ✅ Good: `make format`, `make lint`, `make lint-markdown`, `make fix-md`
-   - ❌ Bad: `black .`, `flake8`, `mypy`, `npx markdownlint-cli2`, `markdownlint` (direct)
-   - **CRITICAL**: Never use `npx` or direct tool commands when a Makefile target exists
-   - Why: Makefile uses worktree-specific `.venv/bin/python3`, proper tool paths, and configured options
-   - Exception: `git` commands are safe (not Python/tool-related)
-   - If you must run Python directly: `.venv/bin/python3 script.py`
-
-8b. **ALWAYS update venv when dependency ranges change (CRITICAL: prevents version mismatches)**
-   - **When to update:** After any change to `pyproject.toml` dependency version ranges (e.g., `black>=23.0.0,<27.0.0`)
-   - **Why:** CI installs fresh each time and gets the latest version in the range, but local venv may have an older version
-   - **How to update:**
-     ```bash
-     pip install --upgrade -e .[dev]  # Update all dev dependencies
-     # Or update specific tool:
-     pip install --upgrade "black>=23.0.0,<27.0.0"
-     ```
-   - **Verify versions match CI:**
-     ```bash
-     python -m black --version  # Should match what CI installs
-     ```
-   - **Common symptoms of stale venv:**
-     - Local formatting passes but CI fails
-     - Local linting passes but CI fails
-     - "File would be reformatted" errors in CI but not locally
-   - **Prevention:** After modifying `pyproject.toml` dependency ranges, always run `pip install --upgrade -e .[dev]`
+   - Run `git status --porcelain`; if output → commit/stash/discard first
 
 ### Terminal Command Execution
 
-9. **🚨 NEVER run terminal commands in the background — ALWAYS use `is_background: false` 🚨**
-   - **THIS IS THE #1 MOST VIOLATED RULE — PAY EXTRA ATTENTION**
-   - **EVERY `run_terminal_cmd` call MUST set `is_background: false`** unless it is a server/daemon
-   - There are NO exceptions for `make`, `pytest`, `git`, `pip`, or any short-lived command
-   - `is_background: true` is ONLY for servers that run forever (e.g., `mkdocs serve`, `flask run`)
-   - The user MUST see all output in real-time in the foreground terminal
-   - If you are about to write `is_background: true`, STOP and ask yourself: "Is this a long-running server?" If NO → use `false`
-   - Commands that MUST be foreground (non-exhaustive):
-     - `make *` (ALL make targets — test, lint, format, docs, ci, etc.)
-     - `pytest`, `python -m pytest`, `.venv/bin/python -m pytest`
-     - `git status`, `git diff`, `git log`, `git add`, `git commit`
-     - `pip install`, `pip freeze`
-     - Any command that produces output the user needs to see
-   - **Why**: Background commands hide output in collapsed sections. The user cannot monitor progress or catch errors in real-time. This is unacceptable.
+9. **🚨 NEVER run commands in background — ALWAYS `is_background: false` 🚨**
+   - **#1 MOST VIOLATED RULE — PAY EXTRA ATTENTION**
+   - `is_background: true` ONLY for long-running servers (e.g., `mkdocs serve`)
+   - ALL `make`, `pytest`, `git`, `pip` commands MUST be foreground
 
 9a. **NEVER use `cd` to project root before commands**
-   - Terminal is ALREADY in project root (workspace directory)
-   - Run commands directly: `make test` (NOT `cd /path && make test`)
-   - Exception: Only use `cd` when navigating to subdirectories
-   - Examples:
-     - ✅ Good: `make docs`
-     - ❌ Bad: `cd /path/to/project && make docs`
-     - ✅ Good (subdirectory): `cd scripts && python analyze.py`
+   - Terminal is ALREADY in project root; run commands directly
 
-9b. **NEVER run the same test suite multiple times (CRITICAL: tests are slow, especially e2e)**
-   - **ALWAYS collect ALL needed information in a SINGLE test run** - never run tests 2-3 times
-   - E2E tests take 6-10+ minutes - running them multiple times wastes significant time
-   - **Before running tests, decide what you need:**
-     - Test results (pass/fail/skip)? → Use `-v` (verbose) and `-ra` (show all outcomes)
-     - Failure details? → Use `--tb=short` or `--tb=long` in the SAME run
-     - Skipped tests? → Use `-rs` (show skip reasons) in the SAME run
-     - Test count? → Use `--co` (collect-only) OR check final summary in same run
-   - **Single efficient run example:**
-     ```bash
-     # ✅ GOOD: One run with all flags
-     pytest tests/e2e -v --tb=short -ra -rs
-     # This gives: verbose output, short tracebacks, all outcomes, skip reasons
+### Tool Usage
 
-     # ❌ BAD: Multiple runs
-     pytest tests/e2e  # Run 1
-     pytest tests/e2e -v  # Run 2 (wasteful!)
-     pytest tests/e2e -rs  # Run 3 (wasteful!)
-     ```
-   - **If you need to check specific failures after a run:**
-     - Use `grep`/`tail` on the output file (already captured)
-     - OR run only the failing test: `pytest path/to/test.py::test_name -xvs`
-   - **Why:** Tests are expensive (time, resources). Running them multiple times is wasteful and frustrating for users
-   - **Exception:** Only re-run if you've FIXED something and need to verify the fix
+8a. **ALWAYS use Makefile commands, NEVER direct tool invocations**
+   - ✅ `make test`, `make format`, `make lint`, `make fix-md`
+   - ❌ `pytest`, `black .`, `flake8`, `npx markdownlint-cli2`
+   - Exception: `git` commands are fine; Python: `.venv/bin/python3 script.py`
 
-### Documentation & Markdown
+8b. **ALWAYS update venv when dependency ranges change**
+   - After changing `pyproject.toml` deps: `pip install --upgrade -e .[dev]`
 
-10. **Fix markdown linting issues before committing markdown files**
-   - Use `make fix-md` for reliable auto-fixes (uses Makefile target)
-   - Or fix manually based on `make lint-markdown` output
-   - Then self-check: one H1, blank lines after headings, no trailing spaces, consistent lists, code fences have languages
-   - **NEVER use `npx markdownlint-cli2` directly** - always use `make fix-md` or `make lint-markdown`
+### Code Quality & Testing
 
-10a. **When creating or editing markdown, lint/format immediately with our tools**
-    - Run `make lint-markdown` immediately after any doc/markdown edit
-    - Fix issues manually based on lint output (or use `markdownlint --fix` if needed, but prefer Makefile targets)
-    - Do NOT leave lint errors for follow-up; ensure zero markdown lint violations before asking for review
-    - This avoids lint churn and ensures clean commits from the start
-    - Apply during the edit, not later
-    - **NEVER use `npx` commands** - always check if a Makefile target exists first
+13. **Write lint-valid code from the start**
+    - Lines < 100 chars, imports organized, type hints on signatures
+    - Run `make format` proactively; fix linting as you write
+    - Code must be shippable after every session
 
-11. **ALWAYS run `make docs` to validate docs build**
-   - Catches: broken links, missing nav entries, invalid references
-   - Required before committing doc changes
+5. **ALWAYS review/update tests after code changes — never leave failing tests**
+   - Run `make ci-fast` before committing; fix failures immediately
+   - Load `testing-strategy.mdc` for detailed checklist
 
-12. **NEVER create `docs/analysis/` or `docs/plan/` folders**
-    - ALL analysis/plans/reviews → `docs/wip/` folder
-    - Examples: `docs/wip/implementation-plan.md`, `docs/wip/code-analysis.md`
-    - This is ABSOLUTE - no exceptions
+12. **ALL analysis/plans → `docs/wip/` (never `docs/analysis/` or `docs/plan/`)**
 
-### Code Quality
-
-13. **Write lint-valid code from the start (CRITICAL: proactive, not reactive)**
-    - **Write code that passes linting as you write it** - don't write then fix later
-    - Lines < 100 chars (break long lines) - this is the #1 source of linting errors
-    - Markdown lines < 100 chars - common source of MD linting errors
-    - Imports organized (stdlib → third-party → local)
-    - Remove unused imports/variables immediately
-    - Add type hints to function signatures as you write them
-    - Add docstrings (Google-style) to public functions
-    - Run `make format` proactively during development, not just at the end
-    - If you see a linting error, fix it immediately - don't accumulate technical debt
-    - **Think "shippable" as you write** - code should be ready to commit when you're done
+### GitHub
 
 14. **Use MCP GitHub server for GitHub operations**
-    - Preferred: `mcp_github_*` tools (PRs, issues, branches)
-    - Fallback: GitHub API only if MCP fails
-    - NEVER use raw API when MCP available
+    - Preferred: `mcp_github_*` tools; fallback: GitHub API only if MCP fails
 
 15. **ALWAYS use correct GitHub username, NOT Mac username**
-    - Mac username (from file paths) may differ from GitHub username
-    - GitHub username: Use `mcp_github_get_me` tool to get current user's GitHub login
-    - NEVER hardcode usernames - always check dynamically
-    - Example: Call `mcp_github_get_me` → use `login` field from response
-    - This prevents using Mac username when GitHub username is needed
+    - Use `mcp_github_get_me` to get current user's GitHub login
 
 ### Auto-Loading Detailed Rules (.mdc Files)
 
-16. **AUTOMATICALLY load detailed rule files when encountering specific situations**
-    - `.cursor/rules/*.mdc` files contain detailed, topic-specific guidance
-    - These are NOT automatically loaded by Cursor - YOU must read them when needed
-    - Use `read_file` tool to load the appropriate `.mdc` file BEFORE proceeding
-    - Load the file, then follow its detailed workflow
+16. **AUTOMATICALLY load `.mdc` files when encountering specific situations**
+    - These are NOT auto-loaded — YOU must `read_file` them BEFORE proceeding
+    - **ALWAYS announce loading** (e.g., "Loading testing-strategy.mdc...")
 
-    **When to load which file:**
+    | Situation | Load This File |
+    |-----------|---------------|
+    | Writing/modifying Python code | `coding-standards.mdc` |
+    | Writing or modifying tests | `testing-strategy.mdc` |
+    | Running tests or validating | `testing-strategy.mdc` |
+    | Editing markdown or docs | `documentation.mdc` |
+    | Markdown linting errors | `documentation.mdc` |
+    | Git worktree operations | `git-worktree.mdc` |
+    | Refactoring / module boundaries | `module-boundaries.mdc` |
+    | About to commit or push | `ai-guidelines.mdc` |
+    | Need decision guidance | `ai-guidelines.mdc` |
 
-    | Situation | Load This File | Why |
-    |-----------|---------------|-----|
-    | Markdown linting errors found (from `make ci`, `make lint-markdown`, or editing markdown) | `.cursor/rules/markdown-style.mdc` | Detailed markdown workflow: `make fix-md` → `make lint-markdown` → `make docs` |
-    | About to write or modify tests | `.cursor/rules/testing-strategy.mdc` | Pytest markers, mocking patterns, test structure, coverage requirements |
-    | Creating or managing git worktrees | `.cursor/rules/git-worktree.mdc` | Worktree commands, branch naming, rebase strategies, cleanup |
-    | Refactoring or checking module boundaries | `.cursor/rules/module-boundaries.mdc` | Architecture constraints, module responsibilities, common violations |
-    | About to commit or push (need detailed checklist) | `.cursor/rules/ai-guidelines.mdc` | Step-by-step commit/push workflow, validation requirements |
-
-    **Workflow:**
-    1. Detect the situation (e.g., "markdown linting errors found")
-    2. Read the appropriate `.mdc` file using `read_file` tool
-    3. Follow the detailed workflow from that file
-    4. Proceed with the task using the detailed guidance
-
-    **Example:**
-    ```
-    Situation: make ci shows markdown linting errors
-    Action: Read .cursor/rules/markdown-style.mdc
-    Then: Follow workflow: make fix-md → make lint-markdown → make docs
-    ```
+    All files in `.cursor/rules/`.
 
 ## 📋 PROJECT CONTEXT
 
-### What This Project Is
-
 Python tool for podcast transcript downloading/generation:
-- Download transcripts from RSS feeds
-- Fallback to Whisper transcription
-- Speaker detection (spaCy NER)
-- Summarization (BART/LED or OpenAI)
-- Metadata generation (JSON/YAML)
 
-### Tech Stack
+- Download transcripts from RSS feeds, fallback to Whisper transcription
+- Speaker detection (spaCy NER), Summarization (BART/LED or OpenAI)
+- Python 3.10+, Pydantic v2, pytest, black/isort/flake8/mypy, MkDocs
 
-- Python 3.10+ with Pydantic v2
-- pytest (testing), black/isort/flake8/mypy (linting)
-- MkDocs (docs), Whisper (transcription), transformers (ML)
-- OpenAI API (optional provider)
+### Module Boundaries (details in `module-boundaries.mdc`)
 
-### Module Boundaries (STRICT - DO NOT MIX)
+- `cli.py` → CLI only | `service.py` → Service API only
+- `workflow.py` → Orchestration only | `config.py` → Config model only
+- `downloader.py` → HTTP only | `rss_parser.py` → RSS parsing only
 
-- `cli.py` → CLI only (no business logic, HTTP, file I/O)
-- `service.py` → Service API only (no CLI interaction)
-- `workflow.py` → Orchestration only (no HTTP, parsing, direct I/O)
-- `config.py` → Configuration model only (no side effects)
-- `downloader.py` → HTTP only (no parsing, business logic)
-- `rss_parser.py` → RSS parsing only (no HTTP, file I/O)
-
-## 🎯 CODING STANDARDS
-
-### Imports (isort-compatible)
-
-```python
-# Group 1: stdlib
-import os
-from pathlib import Path
-
-# Group 2: third-party
-import requests
-from pydantic import BaseModel
-
-# Group 3: local
-from podcast_scraper import config
-from podcast_scraper.models import Episode
-```
-
-### Lazy Loading Pattern
-
-- `__init__.py` uses lazy loading to prevent circular imports
-- Access modules via `from podcast_scraper import cli, service`
-- When adding new modules, update `__getattr__` in `__init__.py`
-
-### Configuration Pattern
-
-- ALL runtime options go in `Config` model
-- No scattered parameters across functions
-- Pydantic validation ensures type safety
-
-### Error Handling
-
-- Recoverable errors → log warning, return None, continue
-- Fatal errors → raise appropriate exception with context
-- Optional deps → try/except ImportError with helpful message
-
-### Testing Requirements
-
-- Mock external deps: Whisper, HTTP, file I/O, spaCy, time operations
-- Use pytest markers: `@pytest.mark.slow`, `@pytest.mark.integration`, `@pytest.mark.ml_models`
-- Test names: `test_<function>_<scenario>` (descriptive)
-- Coverage target: >80%
-
-### Docstrings (Google-style)
-
-```python
-def function(arg: Type) -> ReturnType:
-    """One-line summary.
-
-    Longer description if needed.
-
-    Args:
-        arg: Description.
-
-    Returns:
-        Description of return value.
-
-    Raises:
-        ErrorType: When this happens.
-
-    Example:
-        >>> result = function(value)
-    """
-```
-
-### Logging (NOT print)
-
-```python
-import logging
-logger = logging.getLogger(__name__)
-
-# Use structured logging with context
-logger.info(f"Processing episode {episode.number}: {episode.title}")
-logger.warning(f"Failed to download: {error}")
-logger.error(f"Pipeline failed: {error}", exc_info=True)
-
-# NEVER use print() statements
-```
-
-## 📚 DOCUMENTATION RULES
-
-### When to Create PRD/RFC
-
-- **PRD** → User-facing features, significant additions, workflow changes
-- **RFC** → Architecture changes, breaking API changes, design decisions
-- **Skip** → Bug fixes, small enhancements (<100 lines), internal refactoring
-
-### PRD/RFC Templates
-
-1. Copy template: `docs/prd/PRD_TEMPLATE.md` or `docs/rfc/RFC_TEMPLATE.md`
-2. Rename: `PRD-NNN-feature.md` or `RFC-NNN-feature.md` (check indexes for next number)
-3. Fill placeholders
-4. Update index files: `docs/prd/index.md`, `docs/rfc/index.md`
-
-### Markdown Best Practices
-
-- Blank lines before/after lists (MD032)
-- No trailing spaces (MD009)
-- Tables: spaces around pipes, consistent separator (MD060)
-- Code blocks: always specify language (MD040)
-- No multiple blank lines (MD012)
-- Heading hierarchy: H1 → H2 → H3 (don't skip)
-
-### Always Update When
-
-- `README.md` → CLI flags, features, installation
-- `docs/ARCHITECTURE.md` → Modules, data flow, design
-- `docs/api/` → Public API changes (auto from docstrings)
-- `mkdocs.yml` → New/moved/deleted doc files (add to nav)
-
-## 🔧 COMMON COMMANDS
-
-### Development
+## 🔧 ESSENTIAL COMMANDS
 
 ```bash
-make install-hooks    # Install pre-commit hook (one-time)
-make format           # Format code (black + isort)
-make lint             # Run flake8
-make type             # Run mypy
-make security         # Run bandit + pip-audit
+make format        # black + isort
+make lint          # flake8
+make type          # mypy
+make ci-fast       # Fast tests before commit (~6-10 min)
+make ci            # Full CI suite (~10-15 min)
+make docs          # Build docs (before committing doc changes)
+make lint-markdown # Check markdown
+make fix-md        # Auto-fix markdown
 ```
-
-### Testing Strategy
-
-```bash
-# Default: Start with fast tests
-make test-ci-fast     # Unit + fast integration + fast e2e (~6-10 min)
-
-# If changes touch ML code, run slow tests
-make test-integration-slow  # Slow integration (~5-10 min)
-make test-e2e-slow         # Slow E2E (~15-20 min)
-make test-all-slow         # All slow tests
-
-# Full CI validation before PR
-make ci              # Full suite: formatting, linting, tests, docs, build
-```
-
-### Documentation
-
-```bash
-make docs            # Build docs (catches broken links)
-make lint-markdown   # Check markdown files
-# Fix markdown issues manually or use markdownlint --fix if needed
-```
-
-### Docker (conditional)
-
-```bash
-make docker-test     # ONLY if changed Dockerfile, structure, dependencies
-```
-
-## 🎯 DECISION TREES
-
-### When to Ask User
-
-- Ambiguous requirements
-- Multiple valid approaches
-- Breaking changes needed
-- New dependencies required
-- Security implications
-- Performance vs readability trade-offs
-
-### When NOT to Ask
-
-- Following established patterns
-- Standard bug fixes
-- Documentation updates
-- Adding type hints (always do)
-- Adding tests (always do)
-- Formatting with black (always do)
-- Adding docstrings (always do)
-
-## 🔍 CURSOR-SPECIFIC GUIDANCE
-
-### Auto-Loading Detailed Rules
-
-- **Rule 15** → Automatically load `.cursor/rules/*.mdc` files when encountering specific situations
-- Read the appropriate `.mdc` file BEFORE proceeding with the task
-- These files provide detailed workflows that supplement the basic rules in `.cursorrules`
-- See Rule 15 above for the complete mapping of situations to rule files
-
-### Model Selection
-
-- **Auto** → Fast iteration, small/local changes, mechanical work
-- **Manual** → Planning, debugging, architecture, complex reasoning
-- Control scope: small selection → fast model, multiple files → stronger model
-- Use reasoning language: "analyze", "root cause", "tradeoffs" → stronger model
-
-### Workflow Tips
-
-- Split planning (Chat) and execution (Inline Chat)
-- Use Composer for big tasks (multi-file changes)
-- Reference specific sections of `.ai-coding-guidelines.md` for deep dives
-- Auto-load detailed `.mdc` rules when needed (see Rule 15)
-
-## 📖 RELATED DOCUMENTATION
-
-- `.ai-coding-guidelines.md` (2,310 lines) → Complete AI guidelines
-- `docs/guides/DEVELOPMENT_GUIDE.md` → Technical details (code style, testing, CI/CD)
-- `docs/guides/TESTING_GUIDE.md` → Test execution, fixtures, coverage
-- `docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md` → Model selection strategies
-- `docs/guides/MARKDOWN_LINTING_GUIDE.md` → Markdown style rules
-- `docs/ci/index.md` → CI/CD pipeline documentation
-- `docs/ARCHITECTURE.md` → System design, module responsibilities
-- `CONTRIBUTING.md` → Human contributor guide
 
 ## ⚠️ REMEMBER
 
-0. 🚨 **NEVER use `is_background: true`** for make/test/git/pip commands — ALWAYS foreground (`is_background: false`)
-1. NEVER push to main (use feature branches + PRs)
-2. ALWAYS show changes and get approval before commit/push
-3. ALWAYS review and update tests after code changes - never leave failing tests
-4. ALWAYS ensure code is shippable after each session (linting + formatting + tests passing)
-5. Write lint-valid code from the start - fix linting as you write, not later
-6. ALWAYS run `make ci-fast` before committing
-7. Respect module boundaries (no mixing concerns)
-8. Mock external deps in tests
-9. Use Config for all runtime options
-10. NEVER commit secrets
-11. ALL analysis/plans → `docs/wip/` (never `docs/analysis/`)
-12. Run `make docs` before committing doc changes
-13. Auto-load detailed `.mdc` rule files when encountering specific situations (see Rule 16)
-
-When in doubt, check `.ai-coding-guidelines.md` for complete details.
+0. 🚨 NEVER `is_background: true` for make/test/git/pip
+1. NEVER push to main (feature branches + PRs only)
+2. ALWAYS show changes + get approval before commit/push
+3. ALWAYS use Makefile commands, never direct tools
+4. Write lint-valid code from the start
+5. Respect module boundaries
+6. ALWAYS `make ci-fast` before committing
+7. ALL analysis/plans → `docs/wip/`
+8. Auto-load `.mdc` files for detailed guidance (Rule 16)
+9. NEVER commit secrets
+10. **End-of-session**: announce `.mdc` loads, self-audit rules, append to `.cursor/metrics/rule-adherence.jsonl`
 
 ---
 
-**Version:** 1.0
-**Created:** 2026-01-07
-**Source:** Distilled from `.ai-coding-guidelines.md` (2,310 lines)
-
+**Version:** 2.0
+**Updated:** 2026-02-09
+**Source:** Trimmed from v1.0; details moved to `.cursor/rules/*.mdc`

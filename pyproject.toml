@@ -42,29 +42,12 @@ ml = [
   "protobuf>=3.20.0,!=6.33.4,<7.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
 ]
 # LLM API providers - grouped for CI/test convenience
-# Individual extras (gemini, anthropic, mistral, ollama) are kept for selective installation
 llm = [
   "openai>=1.0.0,<3.0.0",  # OpenAI API provider (RFC-013, Issue #405)
-  "google-generativeai>=0.8.0,<1.0.0",  # Gemini API provider (Issue #194)
+  "google-genai>=0.1.0,<1.0.0",  # Gemini API provider (Issue #194, migrated from google-generativeai in Issue #415)
   "anthropic>=0.34.0,<1.0.0",  # Anthropic API provider (Issue #106)
   "mistralai>=1.0.0,<2.0.0",  # Mistral API provider (Issue #106)
   "httpx>=0.24.0,<1.0.0",  # Ollama provider (Issue #196) - for health checks
-]
-# Gemini API provider (Issue #194)
-gemini = [
-  "google-generativeai>=0.8.0,<1.0.0",
-]
-# Anthropic API provider (Issue #106)
-anthropic = [
-  "anthropic>=0.34.0,<1.0.0",
-]
-# Ollama provider (Issue #196)
-ollama = [
-  "httpx>=0.24.0,<1.0.0",  # For Ollama health checks
-]
-# Mistral API provider (Issue #106)
-mistral = [
-  "mistralai>=1.0.0,<2.0.0",
 ]
 # Development tools
 dev = [

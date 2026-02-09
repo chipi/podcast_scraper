@@ -1252,8 +1252,75 @@ class TestAddArgumentGroups(unittest.TestCase):
             (a for a in parser._actions if a.dest == "transcription_provider"), None
         )
         self.assertIsNotNone(transcription_action)
-        self.assertEqual(transcription_action.choices, ["whisper", "openai", "gemini"])
+        self.assertEqual(transcription_action.choices, ["whisper", "openai", "gemini", "mistral"])
         self.assertEqual(transcription_action.default, "whisper")
+
+    def test_add_mistral_arguments(self):
+        """Test that _add_mistral_arguments adds expected arguments."""
+        parser = argparse.ArgumentParser()
+        cli._add_mistral_arguments(parser)
+
+        # Check that Mistral arguments are present
+        action_dests = [a.dest for a in parser._actions]
+        self.assertIn("mistral_api_key", action_dests)
+        self.assertIn("mistral_api_base", action_dests)
+        self.assertIn("mistral_transcription_model", action_dests)
+        self.assertIn("mistral_speaker_model", action_dests)
+        self.assertIn("mistral_summary_model", action_dests)
+        self.assertIn("mistral_temperature", action_dests)
+        self.assertIn("mistral_max_tokens", action_dests)
+        self.assertIn("mistral_cleaning_model", action_dests)
+        self.assertIn("mistral_cleaning_temperature", action_dests)
+
+    def test_add_deepseek_arguments(self):
+        """Test that _add_deepseek_arguments adds expected arguments."""
+        parser = argparse.ArgumentParser()
+        cli._add_deepseek_arguments(parser)
+
+        # Check that DeepSeek arguments are present
+        action_dests = [a.dest for a in parser._actions]
+        self.assertIn("deepseek_api_key", action_dests)
+        self.assertIn("deepseek_api_base", action_dests)
+        self.assertIn("deepseek_speaker_model", action_dests)
+        self.assertIn("deepseek_summary_model", action_dests)
+        self.assertIn("deepseek_temperature", action_dests)
+        self.assertIn("deepseek_max_tokens", action_dests)
+        self.assertIn("deepseek_cleaning_model", action_dests)
+        self.assertIn("deepseek_cleaning_temperature", action_dests)
+
+    def test_add_grok_arguments(self):
+        """Test that _add_grok_arguments adds expected arguments."""
+        parser = argparse.ArgumentParser()
+        cli._add_grok_arguments(parser)
+
+        # Check that Grok arguments are present
+        action_dests = [a.dest for a in parser._actions]
+        self.assertIn("grok_api_key", action_dests)
+        self.assertIn("grok_api_base", action_dests)
+        self.assertIn("grok_speaker_model", action_dests)
+        self.assertIn("grok_summary_model", action_dests)
+        self.assertIn("grok_temperature", action_dests)
+        self.assertIn("grok_max_tokens", action_dests)
+        self.assertIn("grok_cleaning_model", action_dests)
+        self.assertIn("grok_cleaning_temperature", action_dests)
+
+    def test_add_ollama_arguments(self):
+        """Test that _add_ollama_arguments adds expected arguments."""
+        parser = argparse.ArgumentParser()
+        cli._add_ollama_arguments(parser)
+
+        # Check that Ollama arguments are present
+        action_dests = [a.dest for a in parser._actions]
+        self.assertIn("ollama_api_base", action_dests)
+        self.assertIn("ollama_speaker_model", action_dests)
+        self.assertIn("ollama_summary_model", action_dests)
+        self.assertIn("ollama_temperature", action_dests)
+        self.assertIn("ollama_max_tokens", action_dests)
+        self.assertIn("ollama_timeout", action_dests)
+        self.assertIn("ollama_cleaning_model", action_dests)
+        self.assertIn("ollama_cleaning_temperature", action_dests)
+        # Ollama doesn't have API key (local service)
+        self.assertNotIn("ollama_api_key", action_dests)
 
     def test_add_metadata_arguments(self):
         """Test that _add_metadata_arguments adds expected arguments."""
@@ -1315,11 +1382,15 @@ class TestAddArgumentGroups(unittest.TestCase):
 
         # Check that OpenAI arguments are present
         action_dests = [a.dest for a in parser._actions]
+        self.assertIn("openai_api_key", action_dests)
         self.assertIn("openai_api_base", action_dests)
         self.assertIn("openai_transcription_model", action_dests)
         self.assertIn("openai_speaker_model", action_dests)
         self.assertIn("openai_summary_model", action_dests)
         self.assertIn("openai_temperature", action_dests)
+        self.assertIn("openai_max_tokens", action_dests)
+        self.assertIn("openai_cleaning_model", action_dests)
+        self.assertIn("openai_cleaning_temperature", action_dests)
 
         # Check that openai_api_base has correct default
         openai_action = next((a for a in parser._actions if a.dest == "openai_api_base"), None)
@@ -1331,6 +1402,9 @@ class TestAddArgumentGroups(unittest.TestCase):
             "openai_transcription_model",
             "openai_speaker_model",
             "openai_summary_model",
+            "openai_max_tokens",
+            "openai_cleaning_model",
+            "openai_cleaning_temperature",
         ]:
             action = next((a for a in parser._actions if a.dest == model_arg), None)
             self.assertIsNotNone(action, f"{model_arg} should be present")

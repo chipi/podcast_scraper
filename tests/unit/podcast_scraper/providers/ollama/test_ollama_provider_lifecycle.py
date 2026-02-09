@@ -185,7 +185,11 @@ class TestOllamaProviderLifecycle(unittest.TestCase):
         mock_response = Mock()
         mock_response.raise_for_status = Mock()
         mock_response.json.return_value = {
-            "models": [{"name": "llama3.2:latest"}, {"name": "llama3.3:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.2:latest"},
+                {"name": "llama3.3:latest"},
+            ]
         }
         mock_httpx.get.return_value = mock_response
 

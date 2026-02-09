@@ -330,7 +330,7 @@ def create_summarization_provider(  # noqa: C901
                 summary_provider="ollama",
                 generate_summaries=True,  # Required for Ollama provider initialization
                 generate_metadata=True,  # Required when generate_summaries=True
-                ollama_summary_model=params.model_name if params.model_name else "llama3.3:latest",
+                ollama_summary_model=params.model_name if params.model_name else "llama3.1:8b",
                 ollama_temperature=params.temperature if params.temperature is not None else 0.3,
                 ollama_api_base=os.getenv("OLLAMA_API_BASE", "http://localhost:11434/v1"),
                 ollama_max_tokens=params.max_length if params.max_length else None,

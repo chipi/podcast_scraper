@@ -44,12 +44,13 @@ class TestSummarySchemaIntegration(unittest.TestCase):
 
     def _create_mock_provider(self, summary_value: dict) -> Mock:
         """Create a mock provider with proper cleaning processor."""
-        from podcast_scraper.cleaning import PatternBasedCleaner
+        from podcast_scraper.cleaning import HybridCleaner
 
         mock_provider = Mock()
         mock_provider.summarize.return_value = summary_value
         # Provide a real cleaning processor to avoid Mock write errors
-        mock_provider.cleaning_processor = PatternBasedCleaner()
+        # Use HybridCleaner as default (matches default config)
+        mock_provider.cleaning_processor = HybridCleaner()
         return mock_provider
 
     def test_plain_text_summary_requires_parsing(self):

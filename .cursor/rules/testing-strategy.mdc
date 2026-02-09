@@ -2,13 +2,33 @@
 
 **For complete details:** `docs/guides/TESTING_GUIDE.md`, `docs/TESTING_STRATEGY.md`
 
+## 🚨 After Code Changes: Test Review Checklist
+
+**CRITICAL: Never leave failing tests after code changes.**
+
+After any code session with new/modified code, MUST review related tests:
+
+1. **Review hierarchy** (bottom to top): unit → integration → e2e
+2. **Adjust tests** to match new code behavior (update assertions, mocks, fixtures)
+3. **Run tests** at each level and ensure ALL pass before considering work complete
+4. **If tests fail, fix them immediately** — don't defer or skip
+
+### Test Review Questions
+
+- Unit tests: Do they cover the changed code paths?
+- Integration tests: Do they reflect new behavior correctly?
+- E2E tests: Do end-to-end flows still work?
+- All tests pass: `make test-unit`, `make test-integration`, `make test-e2e`
+
+If you're unsure which tests are affected, run the full test suite and fix failures.
+
 ## 🚨 MANDATORY: Testing Before Commit
 
 ### Default Strategy: Start with Fast Tests
 
 ```bash
 # Step 1: ALWAYS run fast tests first
-make test-ci-fast  # ~6-10 min (unit + fast integration + fast e2e)
+make ci-fast  # ~6-10 min (unit + fast integration + fast e2e)
 ```
 
 ### Step 2: Run Slow Tests If Needed
@@ -24,10 +44,49 @@ make test-ci-fast  # ~6-10 min (unit + fast integration + fast e2e)
 | E2E tests with ML models | `make test-e2e-slow` | ~15-20 min |
 
 **When NOT to run slow tests:**
+
 - ❌ Only unit test changes
 - ❌ Only documentation changes
 - ❌ Only configuration changes (that don't affect ML)
 - ❌ Code changes that don't touch ML model paths
+
+### Step 3: Docker Testing (CONDITIONAL)
+
+**Run `make docker-test` ONLY if you changed:**
+
+- ✅ Dockerfile — any changes to build process
+- ✅ Project structure — changes to package layout
+- ✅ Dependencies — changes to `pyproject.toml` (core deps, metadata)
+- ✅ Package configuration — changes to `[tool.setuptools]`
+
+**Skip for:** Python-only changes, docs, tests, non-Docker config.
+
+## ⚡ Test Efficiency Rules
+
+**CRITICAL: Tests are slow. NEVER run the same suite multiple times.**
+
+- **Collect ALL needed info in a SINGLE run** — never run tests 2-3 times
+- E2E tests take 6-10+ minutes; multiple runs waste significant time
+
+**Before running tests, decide what you need:**
+
+- Test results? → Use `-v` (verbose) and `-ra` (show all outcomes)
+- Failure details? → Use `--tb=short` or `--tb=long` in the SAME run
+- Skipped tests? → Use `-rs` (show skip reasons) in the SAME run
+
+**Single efficient run example:**
+
+```bash
+# ✅ GOOD: One run with all flags
+pytest tests/e2e -v --tb=short -ra -rs
+
+# ❌ BAD: Multiple runs
+pytest tests/e2e        # Run 1
+pytest tests/e2e -v     # Run 2 (wasteful!)
+pytest tests/e2e -rs    # Run 3 (wasteful!)
+```
+
+**Re-run only if you've FIXED something** and need to verify the fix.
 
 ## Pytest Markers
 
@@ -80,7 +139,7 @@ def test_sanitize():
 
 ### Test Organization
 
-```
+```text
 tests/
 ├── unit/              # Pure unit tests (no external deps)
 │   ├── test_config.py
@@ -142,7 +201,7 @@ def test_save_file():
 
 ```bash
 # Fast tests (default for development)
-make test-ci-fast          # No coverage, fastest (~6-10 min)
+make ci-fast               # No coverage, fastest (~6-10 min)
 
 # Individual test suites
 make test-unit            # Unit tests only (~2-5 min)
@@ -169,28 +228,30 @@ pytest -k "test_whisper" -v  # Run tests matching pattern
 
 ## Quick Decision Tree
 
-```
+```text
 Changed code?
 ├─ Docs only? → No tests needed
-├─ Unit tests only? → make test-ci-fast
+├─ Unit tests only? → make ci-fast
 ├─ ML code changed?
-│  ├─ Integration ML? → make test-ci-fast + make test-integration-slow
-│  ├─ E2E ML? → make test-ci-fast + make test-e2e-slow
-│  └─ Both? → make test-ci-fast + make test-all-slow
-└─ No ML? → make test-ci-fast
+│  ├─ Integration ML? → make ci-fast + make test-integration-slow
+│  ├─ E2E ML? → make ci-fast + make test-e2e-slow
+│  └─ Both? → make ci-fast + make test-all-slow
+├─ Dockerfile/structure? → make ci-fast + make docker-test
+└─ No ML? → make ci-fast
 ```
 
 ## Remember
 
-1. **Start with fast tests** - Catches most issues quickly
-2. **Run slow tests conditionally** - Only when touching ML code
-3. **Mock external dependencies** - Tests must be isolated
-4. **Use descriptive test names** - `test_<function>_<scenario>`
-5. **Target >80% coverage** - Focus on business logic
-6. **Pre-commit hook runs fast tests** - Automatic validation
+1. **Start with fast tests** — catches most issues quickly
+2. **Run slow tests conditionally** — only when touching ML code
+3. **Mock external dependencies** — tests must be isolated
+4. **Use descriptive test names** — `test_<function>_<scenario>`
+5. **Target >80% coverage** — focus on business logic
+6. **Never run the same test suite twice** — collect all info in one run
+7. **Fix failing tests immediately** — never leave tests broken
 
 ---
 
-**Version:** 1.0
-**Created:** 2026-01-07
-**Source:** Distilled from `docs/guides/TESTING_GUIDE.md` and `docs/TESTING_STRATEGY.md`
+**Version:** 2.0
+**Updated:** 2026-02-09
+**Source:** Expanded from v1.0 with rules from `.cursorrules` v1.0

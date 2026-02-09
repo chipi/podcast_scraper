@@ -691,6 +691,87 @@ def _calculate_levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
+def _check_entity_match_in_extracted(
+    summary_alias: EntityAlias,
+    extracted_map: Dict[str, str],
+    extracted_aliases: Dict[str, EntityAlias],
+    extracted_entities: List[str],
+    edit_distance_threshold: int,
+) -> bool:
+    """Check if a summary entity matches any extracted entity.
+
+    Args:
+        summary_alias: Normalized summary entity
+        extracted_map: Maps normalized canonical -> original
+        extracted_aliases: Maps canonical -> EntityAlias object
+        extracted_entities: Original extracted entities list
+        edit_distance_threshold: Maximum edit distance for fuzzy matching
+
+    Returns:
+        True if match found, False otherwise
+    """
+    # Check for exact match using aliases
+    if summary_alias.canonical in extracted_map:
+        return True
+    for alias in summary_alias.aliases:
+        if alias in extracted_map:
+            return True
+
+    # Check for fuzzy match with constraints (Issue #387)
+    for extracted_canonical, extracted_original in extracted_map.items():
+        # Only consider if both names are long enough
+        if len(summary_alias.canonical) <= 3 or len(extracted_canonical) <= 3:
+            continue
+
+        # Check distance
+        distance = _calculate_levenshtein_distance(summary_alias.canonical, extracted_canonical)
+        # Check against aliases too
+        if distance > edit_distance_threshold and extracted_canonical in extracted_aliases:
+            entity_alias = extracted_aliases[extracted_canonical]
+            for alias in entity_alias.aliases:
+                alias_distance = _calculate_levenshtein_distance(summary_alias.canonical, alias)
+                if alias_distance < distance:
+                    distance = alias_distance
+
+        # Apply constraints for fuzzy matching
+        if distance <= edit_distance_threshold:
+            # Constraint 1: Check if names are common words
+            summary_parts = summary_alias.canonical.split()
+            extracted_parts = extracted_canonical.split()
+
+            if len(summary_parts) == 1 and len(extracted_parts) == 1:
+                if not _is_rare_last_name(summary_alias.canonical) or not _is_rare_last_name(
+                    extracted_canonical
+                ):
+                    continue
+
+            # Constraint 2: For last name matches, check pairing
+            summary_last = summary_parts[-1] if summary_parts else ""
+            extracted_last = extracted_parts[-1] if extracted_parts else ""
+
+            if summary_last and extracted_last:
+                last_name_distance = _calculate_levenshtein_distance(summary_last, extracted_last)
+                if last_name_distance <= 1:
+                    if not _is_rare_last_name(summary_last):
+                        continue
+                    if len(summary_parts) == 1 and len(extracted_parts) > 1:
+                        if not _has_paired_first_name(
+                            summary_last, extracted_entities, extracted_aliases
+                        ):
+                            continue
+
+            # Match found with constraints - not a mismatch
+            logger.debug(
+                "Entity fuzzy match: summary '%s' matches extracted '%s' (distance: %d)",
+                summary_alias.original,
+                extracted_original,
+                distance,
+            )
+            return True
+
+    return False
+
+
 def _check_entity_consistency(
     extracted_entities: List[str], summary_text: Optional[str], nlp: Optional[Any] = None
 ) -> Tuple[bool, bool]:
@@ -732,17 +813,7 @@ def _check_entity_consistency(
             return False, summary_has_named_entities
 
         # Normalize extracted entities using comprehensive normalization (Issue #387)
-        extracted_map: Dict[str, str] = {}
-        extracted_aliases: Dict[str, EntityAlias] = {}
-        for entity in extracted_entities:
-            if entity:
-                entity_alias = _normalize_entity(entity)
-                extracted_map[entity_alias.canonical] = entity_alias.original
-                extracted_aliases[entity_alias.canonical] = entity_alias
-                # Also map aliases
-                for alias in entity_alias.aliases:
-                    if alias not in extracted_map:
-                        extracted_map[alias] = entity_alias.original
+        extracted_map, extracted_aliases = _normalize_extracted_entities(extracted_entities)
 
         # Check each summary entity against extracted entities
         edit_distance_threshold = 2
@@ -754,78 +825,14 @@ def _check_entity_consistency(
             # Normalize summary entity
             summary_alias = _normalize_entity(summary_name)
 
-            # Check for exact match using aliases
-            if summary_alias.canonical in extracted_map:
-                continue
-            found_exact_match = False
-            for alias in summary_alias.aliases:
-                if alias in extracted_map:
-                    found_exact_match = True
-                    break
-            if found_exact_match:
-                continue
-
-            # Check for fuzzy match with constraints (Issue #387)
-            found_match = False
-            for extracted_canonical, extracted_original in extracted_map.items():
-                # Only consider if both names are long enough
-                if len(summary_alias.canonical) <= 3 or len(extracted_canonical) <= 3:
-                    continue
-
-                # Check distance
-                distance = _calculate_levenshtein_distance(
-                    summary_alias.canonical, extracted_canonical
-                )
-                # Check against aliases too
-                if distance > edit_distance_threshold and extracted_canonical in extracted_aliases:
-                    entity_alias = extracted_aliases[extracted_canonical]
-                    for alias in entity_alias.aliases:
-                        alias_distance = _calculate_levenshtein_distance(
-                            summary_alias.canonical, alias
-                        )
-                        if alias_distance < distance:
-                            distance = alias_distance
-
-                # Apply constraints for fuzzy matching
-                if distance <= edit_distance_threshold:
-                    # Constraint 1: Check if names are common words
-                    summary_parts = summary_alias.canonical.split()
-                    extracted_parts = extracted_canonical.split()
-
-                    if len(summary_parts) == 1 and len(extracted_parts) == 1:
-                        if not _is_rare_last_name(
-                            summary_alias.canonical
-                        ) or not _is_rare_last_name(extracted_canonical):
-                            continue
-
-                    # Constraint 2: For last name matches, check pairing
-                    summary_last = summary_parts[-1] if summary_parts else ""
-                    extracted_last = extracted_parts[-1] if extracted_parts else ""
-
-                    if summary_last and extracted_last:
-                        last_name_distance = _calculate_levenshtein_distance(
-                            summary_last, extracted_last
-                        )
-                        if last_name_distance <= 1:
-                            if not _is_rare_last_name(summary_last):
-                                continue
-                            if len(summary_parts) == 1 and len(extracted_parts) > 1:
-                                if not _has_paired_first_name(
-                                    summary_last, extracted_entities, extracted_aliases
-                                ):
-                                    continue
-
-                    # Match found with constraints - not a mismatch
-                    found_match = True
-                    logger.debug(
-                        "Entity fuzzy match: summary '%s' matches extracted '%s' (distance: %d)",
-                        summary_name,
-                        extracted_original,
-                        distance,
-                    )
-                    break
-
-            if not found_match:
+            # Check if entity matches any extracted entity
+            if not _check_entity_match_in_extracted(
+                summary_alias,
+                extracted_map,
+                extracted_aliases,
+                extracted_entities,
+                edit_distance_threshold,
+            ):
                 # Zero-evidence entity: no match found even with fuzzy matching
                 summary_entity_mismatch = True
                 logger.debug(
@@ -842,6 +849,177 @@ def _check_entity_consistency(
         return False, summary_has_named_entities
 
     return summary_entity_mismatch, summary_has_named_entities
+
+
+def _normalize_extracted_entities(
+    extracted_entities: List[str],
+) -> Tuple[Dict[str, str], Dict[str, EntityAlias]]:
+    """Normalize extracted entities and build lookup maps.
+
+    Args:
+        extracted_entities: List of extracted entity names
+
+    Returns:
+        Tuple of (extracted_map, extracted_aliases)
+        - extracted_map: Maps normalized canonical -> original
+        - extracted_aliases: Maps canonical -> EntityAlias object
+    """
+    extracted_map: Dict[str, str] = {}
+    extracted_aliases: Dict[str, EntityAlias] = {}
+    for entity in extracted_entities:
+        if entity:
+            entity_alias = _normalize_entity(entity)
+            # Use canonical form as key
+            extracted_map[entity_alias.canonical] = entity_alias.original
+            extracted_aliases[entity_alias.canonical] = entity_alias
+            # Also map aliases to original for better matching
+            for alias in entity_alias.aliases:
+                if alias not in extracted_map:
+                    extracted_map[alias] = entity_alias.original
+    return extracted_map, extracted_aliases
+
+
+def _find_best_entity_match(
+    summary_alias: EntityAlias,
+    extracted_map: Dict[str, str],
+    extracted_aliases: Dict[str, EntityAlias],
+    edit_distance_threshold: int,
+    extracted_entities: List[str],
+) -> Optional[Tuple[str, int]]:
+    """Find best matching extracted entity for a summary entity.
+
+    Args:
+        summary_alias: Normalized summary entity
+        extracted_map: Maps normalized canonical -> original
+        extracted_aliases: Maps canonical -> EntityAlias object
+        edit_distance_threshold: Maximum edit distance for matches
+        extracted_entities: Original extracted entities list
+
+    Returns:
+        Tuple of (best_match_original, best_distance) or None if no match found
+    """
+    # Check for exact match using aliases (case-insensitive, normalized)
+    if summary_alias.canonical in extracted_map:
+        # Exact match - no correction needed
+        return None
+    # Check aliases too
+    for alias in summary_alias.aliases:
+        if alias in extracted_map:
+            # Exact match found
+            return None
+
+    # Check for close match with constraints (Issue #387)
+    best_match = None
+    best_distance = edit_distance_threshold + 1
+
+    for extracted_canonical, extracted_original in extracted_map.items():
+        # Only consider if both names are long enough (avoid false positives)
+        if len(summary_alias.canonical) <= 3 or len(extracted_canonical) <= 3:
+            continue
+
+        # Check distance against canonical forms and aliases
+        distance = _calculate_levenshtein_distance(summary_alias.canonical, extracted_canonical)
+        # Also check against aliases for better matching
+        if distance > edit_distance_threshold and extracted_canonical in extracted_aliases:
+            entity_alias = extracted_aliases[extracted_canonical]
+            for alias in entity_alias.aliases:
+                alias_distance = _calculate_levenshtein_distance(summary_alias.canonical, alias)
+                if alias_distance < distance:
+                    distance = alias_distance
+
+        # Apply constraints for fuzzy matching (Issue #387)
+        if distance <= edit_distance_threshold:
+            # Constraint 1: Check if names are common words (reject if so)
+            summary_parts = summary_alias.canonical.split()
+            extracted_parts = extracted_canonical.split()
+
+            # If both are single words, check if they're common words
+            if len(summary_parts) == 1 and len(extracted_parts) == 1:
+                if not _is_rare_last_name(summary_alias.canonical) or not _is_rare_last_name(
+                    extracted_canonical
+                ):
+                    # At least one is a common word - reject match
+                    continue
+
+            # Constraint 2: For last name matches, check if paired with first name
+            # Extract last names
+            summary_last = summary_parts[-1] if summary_parts else ""
+            extracted_last = extracted_parts[-1] if extracted_parts else ""
+
+            # If last names match (or are close), check if they're paired with first names
+            if summary_last and extracted_last:
+                last_name_distance = _calculate_levenshtein_distance(summary_last, extracted_last)
+                # If last names are close (distance <= 1) and one is a single word
+                if last_name_distance <= 1:
+                    # Check if the last name is rare and paired with first name
+                    if not _is_rare_last_name(summary_last):
+                        continue
+                    # If extracted entity has first+last, that's good
+                    # If summary entity is just last name, check if it's paired elsewhere
+                    if len(summary_parts) == 1 and len(extracted_parts) > 1:
+                        # Summary has just last name, extracted has full name
+                        # Check if this last name appears with a first name
+                        if not _has_paired_first_name(
+                            summary_last, extracted_entities, extracted_aliases
+                        ):
+                            # Last name not paired - might be false positive
+                            continue
+
+        if distance <= edit_distance_threshold and distance < best_distance:
+            best_match = extracted_original
+            best_distance = distance
+
+    if best_match:
+        return best_match, best_distance
+    return None
+
+
+def _apply_entity_correction(
+    summary_text: str,
+    summary_ent: Dict[str, Any],
+    best_match: str,
+    summary_name: str,
+) -> Tuple[str, EntityCorrection]:
+    """Apply entity correction to summary text with capitalization preservation.
+
+    Args:
+        summary_text: Original summary text
+        summary_ent: Summary entity dict with start/end positions
+        best_match: Corrected entity name
+        summary_name: Original entity name from summary
+
+    Returns:
+        Tuple of (corrected_text, EntityCorrection)
+    """
+    start_pos = summary_ent.get("start", 0)
+    end_pos = summary_ent.get("end", len(summary_text))
+
+    # Replace the entity in the summary text
+    # Preserve original capitalization if possible
+    original_in_text = summary_text[start_pos:end_pos]
+    corrected_in_text = best_match
+
+    # Try to preserve capitalization pattern
+    if original_in_text and corrected_in_text:
+        if original_in_text[0].isupper():
+            corrected_in_text = corrected_in_text[0].upper() + corrected_in_text[1:]
+        if len(original_in_text) > 1 and original_in_text[1:].isupper():
+            # All caps
+            corrected_in_text = corrected_in_text.upper()
+        elif len(original_in_text) > 1 and original_in_text[1:].islower():
+            # Title case
+            if len(corrected_in_text) > 1:
+                corrected_in_text = corrected_in_text[0].upper() + corrected_in_text[1:].lower()
+
+    corrected_text = summary_text[:start_pos] + corrected_in_text + summary_text[end_pos:]
+
+    correction = EntityCorrection(
+        original=summary_name,
+        corrected=best_match,
+        edit_distance=0,  # Will be set by caller
+    )
+
+    return corrected_text, correction
 
 
 def _reconcile_entities(
@@ -885,19 +1063,7 @@ def _reconcile_entities(
             return summary_text, []
 
         # Normalize extracted entities using comprehensive normalization (Issue #387)
-        # Map normalized canonical -> original for lookup
-        extracted_map: Dict[str, str] = {}
-        extracted_aliases: Dict[str, EntityAlias] = {}  # Store full normalization info
-        for entity in extracted_entities:
-            if entity:
-                entity_alias = _normalize_entity(entity)
-                # Use canonical form as key
-                extracted_map[entity_alias.canonical] = entity_alias.original
-                extracted_aliases[entity_alias.canonical] = entity_alias
-                # Also map aliases to original for better matching
-                for alias in entity_alias.aliases:
-                    if alias not in extracted_map:
-                        extracted_map[alias] = entity_alias.original
+        extracted_map, extracted_aliases = _normalize_extracted_entities(extracted_entities)
 
         corrected_text = summary_text
         # Process entities in reverse order (end to start) to preserve positions
@@ -909,121 +1075,23 @@ def _reconcile_entities(
             # Normalize summary entity for matching
             summary_alias = _normalize_entity(summary_name)
 
-            # Check for exact match using aliases (case-insensitive, normalized)
-            if summary_alias.canonical in extracted_map:
-                # Exact match - no correction needed
-                continue
-            # Check aliases too
-            found_exact_match = False
-            for alias in summary_alias.aliases:
-                if alias in extracted_map:
-                    found_exact_match = True
-                    break
-            if found_exact_match:
-                continue
+            # Find best match for this entity
+            match_result = _find_best_entity_match(
+                summary_alias,
+                extracted_map,
+                extracted_aliases,
+                edit_distance_threshold,
+                extracted_entities,
+            )
 
-            # Check for close match with constraints (Issue #387)
-            best_match = None
-            best_distance = edit_distance_threshold + 1
-
-            for extracted_canonical, extracted_original in extracted_map.items():
-                # Only consider if both names are long enough (avoid false positives)
-                if len(summary_alias.canonical) <= 3 or len(extracted_canonical) <= 3:
-                    continue
-
-                # Check distance against canonical forms and aliases
-                distance = _calculate_levenshtein_distance(
-                    summary_alias.canonical, extracted_canonical
+            if match_result:
+                best_match, best_distance = match_result
+                # Apply correction
+                corrected_text, correction = _apply_entity_correction(
+                    corrected_text, summary_ent, best_match, summary_name
                 )
-                # Also check against aliases for better matching
-                if distance > edit_distance_threshold and extracted_canonical in extracted_aliases:
-                    entity_alias = extracted_aliases[extracted_canonical]
-                    for alias in entity_alias.aliases:
-                        alias_distance = _calculate_levenshtein_distance(
-                            summary_alias.canonical, alias
-                        )
-                        if alias_distance < distance:
-                            distance = alias_distance
-
-                # Apply constraints for fuzzy matching (Issue #387)
-                if distance <= edit_distance_threshold:
-                    # Constraint 1: Check if names are common words (reject if so)
-                    summary_parts = summary_alias.canonical.split()
-                    extracted_parts = extracted_canonical.split()
-
-                    # If both are single words, check if they're common words
-                    if len(summary_parts) == 1 and len(extracted_parts) == 1:
-                        if not _is_rare_last_name(
-                            summary_alias.canonical
-                        ) or not _is_rare_last_name(extracted_canonical):
-                            # At least one is a common word - reject match
-                            continue
-
-                    # Constraint 2: For last name matches, check if paired with first name
-                    # Extract last names
-                    summary_last = summary_parts[-1] if summary_parts else ""
-                    extracted_last = extracted_parts[-1] if extracted_parts else ""
-
-                    # If last names match (or are close), check if they're paired with first names
-                    if summary_last and extracted_last:
-                        last_name_distance = _calculate_levenshtein_distance(
-                            summary_last, extracted_last
-                        )
-                        # If last names are close (distance <= 1) and one is a single word
-                        if last_name_distance <= 1:
-                            # Check if the last name is rare and paired with first name
-                            if not _is_rare_last_name(summary_last):
-                                continue
-                            # If extracted entity has first+last, that's good
-                            # If summary entity is just last name, check if it's paired elsewhere
-                            if len(summary_parts) == 1 and len(extracted_parts) > 1:
-                                # Summary has just last name, extracted has full name
-                                # Check if this last name appears with a first name
-                                if not _has_paired_first_name(
-                                    summary_last, extracted_entities, extracted_aliases
-                                ):
-                                    # Last name not paired - might be false positive
-                                    continue
-
-                if distance <= edit_distance_threshold and distance < best_distance:
-                    best_match = extracted_original
-                    best_distance = distance
-
-            if best_match:
-                # Found close match - correct the summary text
-                start_pos = summary_ent.get("start", 0)
-                end_pos = summary_ent.get("end", len(summary_text))
-
-                # Replace the entity in the summary text
-                # Preserve original capitalization if possible
-                original_in_text = summary_text[start_pos:end_pos]
-                corrected_in_text = best_match
-
-                # Try to preserve capitalization pattern
-                if original_in_text and corrected_in_text:
-                    if original_in_text[0].isupper():
-                        corrected_in_text = corrected_in_text[0].upper() + corrected_in_text[1:]
-                    if len(original_in_text) > 1 and original_in_text[1:].isupper():
-                        # All caps
-                        corrected_in_text = corrected_in_text.upper()
-                    elif len(original_in_text) > 1 and original_in_text[1:].islower():
-                        # Title case
-                        if len(corrected_in_text) > 1:
-                            corrected_in_text = (
-                                corrected_in_text[0].upper() + corrected_in_text[1:].lower()
-                            )
-
-                corrected_text = (
-                    corrected_text[:start_pos] + corrected_in_text + corrected_text[end_pos:]
-                )
-
-                corrections.append(
-                    EntityCorrection(
-                        original=summary_name,
-                        corrected=best_match,
-                        edit_distance=best_distance,
-                    )
-                )
+                correction.edit_distance = best_distance
+                corrections.append(correction)
 
                 logger.debug(
                     "Entity reconciliation: corrected '%s' -> '%s' (edit distance: %d)",
@@ -1038,6 +1106,143 @@ def _reconcile_entities(
         return summary_text, []
 
     return corrected_text, corrections
+
+
+def _extract_source_entities(
+    transcript_text: Optional[str],
+    episode_description: Optional[str],
+    nlp: Any,
+    top_n_entities: int,
+) -> Tuple[Dict[str, str], Dict[str, EntityAlias], List[str]]:
+    """Extract and normalize entities from transcript and episode description.
+
+    Args:
+        transcript_text: Transcript text
+        episode_description: Episode description
+        nlp: spaCy NLP model
+        top_n_entities: Number of top entities to extract from transcript
+
+    Returns:
+        Tuple of (source_entity_map, source_aliases, source_entity_names)
+    """
+    from ..providers.ml.ner_extraction import extract_all_entities
+
+    source_entity_names: List[str] = []
+
+    # Extract entities from transcript (top N by frequency)
+    if transcript_text:
+        transcript_entities = extract_all_entities(transcript_text, nlp, labels=["PERSON"])
+        # Count entity frequencies
+        entity_frequencies: Dict[str, int] = {}
+        for ent in transcript_entities:
+            entity_name = ent.get("text", "").strip()
+            if entity_name:
+                entity_frequencies[entity_name] = entity_frequencies.get(entity_name, 0) + 1
+
+        # Get top N entities by frequency
+        sorted_entities = sorted(entity_frequencies.items(), key=lambda x: x[1], reverse=True)
+        top_entities = [name for name, _ in sorted_entities[:top_n_entities]]
+        source_entity_names.extend(top_entities)
+
+    # Extract entities from episode description
+    if episode_description:
+        description_entities = extract_all_entities(episode_description, nlp, labels=["PERSON"])
+        description_entity_names = [
+            ent.get("text", "").strip()
+            for ent in description_entities
+            if ent.get("text", "").strip()
+        ]
+        source_entity_names.extend(description_entity_names)
+
+    # Normalize source entities for matching
+    source_entity_map: Dict[str, str] = {}
+    source_aliases: Dict[str, EntityAlias] = {}
+    for entity in source_entity_names:
+        if entity:
+            entity_alias = _normalize_entity(entity)
+            source_entity_map[entity_alias.canonical] = entity_alias.original
+            source_aliases[entity_alias.canonical] = entity_alias
+            # Also map aliases
+            for alias in entity_alias.aliases:
+                if alias not in source_entity_map:
+                    source_entity_map[alias] = entity_alias.original
+
+    return source_entity_map, source_aliases, source_entity_names
+
+
+def _check_entity_in_source(
+    summary_alias: EntityAlias,
+    source_entity_map: Dict[str, str],
+    source_aliases: Dict[str, EntityAlias],
+    source_entity_names: List[str],
+    edit_distance_threshold: int,
+) -> bool:
+    """Check if a summary entity is found in source entities (exact or fuzzy match).
+
+    Args:
+        summary_alias: Normalized summary entity
+        source_entity_map: Maps normalized canonical -> original
+        source_aliases: Maps canonical -> EntityAlias object
+        source_entity_names: Original source entity names list
+        edit_distance_threshold: Maximum edit distance for fuzzy matching
+
+    Returns:
+        True if entity is found in source, False otherwise
+    """
+    # Check for exact match using aliases
+    if summary_alias.canonical in source_entity_map:
+        return True
+    for alias in summary_alias.aliases:
+        if alias in source_entity_map:
+            return True
+
+    # Check for fuzzy match with constraints
+    for source_canonical, source_original in source_entity_map.items():
+        # Only consider if both names are long enough
+        if len(summary_alias.canonical) <= 3 or len(source_canonical) <= 3:
+            continue
+
+        # Check distance
+        distance = _calculate_levenshtein_distance(summary_alias.canonical, source_canonical)
+        # Check against aliases too
+        if distance > edit_distance_threshold and source_canonical in source_aliases:
+            entity_alias = source_aliases[source_canonical]
+            for alias in entity_alias.aliases:
+                alias_distance = _calculate_levenshtein_distance(summary_alias.canonical, alias)
+                if alias_distance < distance:
+                    distance = alias_distance
+
+        # Apply constraints for fuzzy matching
+        if distance <= edit_distance_threshold:
+            # Constraint 1: Check if names are common words
+            summary_parts = summary_alias.canonical.split()
+            source_parts = source_canonical.split()
+
+            if len(summary_parts) == 1 and len(source_parts) == 1:
+                if not _is_rare_last_name(summary_alias.canonical) or not _is_rare_last_name(
+                    source_canonical
+                ):
+                    continue
+
+            # Constraint 2: For last name matches, check pairing
+            summary_last = summary_parts[-1] if summary_parts else ""
+            source_last = source_parts[-1] if source_parts else ""
+
+            if summary_last and source_last:
+                last_name_distance = _calculate_levenshtein_distance(summary_last, source_last)
+                if last_name_distance <= 1:
+                    if not _is_rare_last_name(summary_last):
+                        continue
+                    if len(summary_parts) == 1 and len(source_parts) > 1:
+                        if not _has_paired_first_name(
+                            summary_last, source_entity_names, source_aliases
+                        ):
+                            continue
+
+            # Match found - entity is in source
+            return True
+
+    return False
 
 
 def _check_summary_faithfulness(
@@ -1070,50 +1275,14 @@ def _check_summary_faithfulness(
     try:
         from ..providers.ml.ner_extraction import extract_all_entities
 
-        # Build source entity set from transcript and description
-        source_entity_names: List[str] = []
-
-        # Extract entities from transcript (top N by frequency)
-        if transcript_text:
-            transcript_entities = extract_all_entities(transcript_text, nlp, labels=["PERSON"])
-            # Count entity frequencies
-            entity_frequencies: Dict[str, int] = {}
-            for ent in transcript_entities:
-                entity_name = ent.get("text", "").strip()
-                if entity_name:
-                    entity_frequencies[entity_name] = entity_frequencies.get(entity_name, 0) + 1
-
-            # Get top N entities by frequency
-            sorted_entities = sorted(entity_frequencies.items(), key=lambda x: x[1], reverse=True)
-            top_entities = [name for name, _ in sorted_entities[:top_n_entities]]
-            source_entity_names.extend(top_entities)
-
-        # Extract entities from episode description
-        if episode_description:
-            description_entities = extract_all_entities(episode_description, nlp, labels=["PERSON"])
-            description_entity_names = [
-                ent.get("text", "").strip()
-                for ent in description_entities
-                if ent.get("text", "").strip()
-            ]
-            source_entity_names.extend(description_entity_names)
+        # Extract and normalize source entities
+        source_entity_map, source_aliases, source_entity_names = _extract_source_entities(
+            transcript_text, episode_description, nlp, top_n_entities
+        )
 
         if not source_entity_names:
             # No source entities - can't check faithfulness
             return False, []
-
-        # Normalize source entities for matching
-        source_entity_map: Dict[str, str] = {}
-        source_aliases: Dict[str, EntityAlias] = {}
-        for entity in source_entity_names:
-            if entity:
-                entity_alias = _normalize_entity(entity)
-                source_entity_map[entity_alias.canonical] = entity_alias.original
-                source_aliases[entity_alias.canonical] = entity_alias
-                # Also map aliases
-                for alias in entity_alias.aliases:
-                    if alias not in source_entity_map:
-                        source_entity_map[alias] = entity_alias.original
 
         # Extract entities from summary
         summary_entities = extract_all_entities(summary_text, nlp, labels=["PERSON"])
@@ -1132,72 +1301,14 @@ def _check_summary_faithfulness(
             # Normalize summary entity
             summary_alias = _normalize_entity(summary_name)
 
-            # Check for exact match using aliases
-            if summary_alias.canonical in source_entity_map:
-                continue
-            found_exact_match = False
-            for alias in summary_alias.aliases:
-                if alias in source_entity_map:
-                    found_exact_match = True
-                    break
-            if found_exact_match:
-                continue
-
-            # Check for fuzzy match with constraints
-            found_match = False
-            for source_canonical, source_original in source_entity_map.items():
-                # Only consider if both names are long enough
-                if len(summary_alias.canonical) <= 3 or len(source_canonical) <= 3:
-                    continue
-
-                # Check distance
-                distance = _calculate_levenshtein_distance(
-                    summary_alias.canonical, source_canonical
-                )
-                # Check against aliases too
-                if distance > edit_distance_threshold and source_canonical in source_aliases:
-                    entity_alias = source_aliases[source_canonical]
-                    for alias in entity_alias.aliases:
-                        alias_distance = _calculate_levenshtein_distance(
-                            summary_alias.canonical, alias
-                        )
-                        if alias_distance < distance:
-                            distance = alias_distance
-
-                # Apply constraints for fuzzy matching
-                if distance <= edit_distance_threshold:
-                    # Constraint 1: Check if names are common words
-                    summary_parts = summary_alias.canonical.split()
-                    source_parts = source_canonical.split()
-
-                    if len(summary_parts) == 1 and len(source_parts) == 1:
-                        if not _is_rare_last_name(
-                            summary_alias.canonical
-                        ) or not _is_rare_last_name(source_canonical):
-                            continue
-
-                    # Constraint 2: For last name matches, check pairing
-                    summary_last = summary_parts[-1] if summary_parts else ""
-                    source_last = source_parts[-1] if source_parts else ""
-
-                    if summary_last and source_last:
-                        last_name_distance = _calculate_levenshtein_distance(
-                            summary_last, source_last
-                        )
-                        if last_name_distance <= 1:
-                            if not _is_rare_last_name(summary_last):
-                                continue
-                            if len(summary_parts) == 1 and len(source_parts) > 1:
-                                if not _has_paired_first_name(
-                                    summary_last, source_entity_names, source_aliases
-                                ):
-                                    continue
-
-                    # Match found - entity is in source
-                    found_match = True
-                    break
-
-            if not found_match:
+            # Check if entity is in source
+            if not _check_entity_in_source(
+                summary_alias,
+                source_entity_map,
+                source_aliases,
+                source_entity_names,
+                edit_distance_threshold,
+            ):
                 # Entity not found in source - potential hallucination
                 out_of_source_entities.append(summary_name)
                 logger.debug(
@@ -1498,6 +1609,193 @@ def _build_content_metadata(
     )
 
 
+def _build_transcription_provider_info(cfg: config.Config) -> Optional[Dict[str, Any]]:
+    """Build transcription provider information.
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        Dictionary with transcription provider info or None
+    """
+    if not cfg.transcription_provider:
+        return None
+
+    provider_info: Dict[str, Any] = {"provider": str(cfg.transcription_provider)}
+
+    if cfg.transcription_provider == "whisper" and cfg.transcribe_missing:
+        provider_info["whisper_model"] = cfg.whisper_model
+    elif cfg.transcription_provider == "openai":
+        transcription_model = getattr(cfg, "openai_transcription_model", "whisper-1")
+        provider_info["openai_model"] = transcription_model
+    elif cfg.transcription_provider == "gemini":
+        transcription_model = getattr(cfg, "gemini_transcription_model", "gemini-1.5-pro")
+        provider_info["gemini_model"] = transcription_model
+
+    return provider_info
+
+
+def _build_speaker_detection_provider_info(cfg: config.Config) -> Optional[Dict[str, Any]]:
+    """Build speaker detection provider information.
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        Dictionary with speaker detection provider info or None
+    """
+    if not cfg.speaker_detector_provider:
+        return None
+
+    provider_info: Dict[str, Any] = {"provider": str(cfg.speaker_detector_provider)}
+
+    if cfg.speaker_detector_provider == "spacy" and cfg.ner_model:
+        provider_info["ner_model"] = cfg.ner_model
+    elif cfg.speaker_detector_provider == "openai":
+        speaker_model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
+        provider_info["openai_model"] = speaker_model
+    elif cfg.speaker_detector_provider == "gemini":
+        speaker_model = getattr(cfg, "gemini_speaker_model", "gemini-1.5-pro")
+        provider_info["gemini_model"] = speaker_model
+    elif cfg.speaker_detector_provider == "anthropic":
+        speaker_model = getattr(cfg, "anthropic_speaker_model", "claude-3-5-haiku-latest")
+        provider_info["anthropic_model"] = speaker_model
+
+    return provider_info
+
+
+def _build_summarization_provider_info(cfg: config.Config) -> Optional[Dict[str, Any]]:
+    """Build summarization provider information.
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        Dictionary with summarization provider info or None
+    """
+    if not cfg.summary_provider:
+        return None
+
+    provider_info: Dict[str, Any] = {"provider": str(cfg.summary_provider)}
+
+    if cfg.summary_provider in ("transformers", "local"):
+        # Include model information for transformers provider
+        if cfg.summary_model:
+            provider_info["map_model"] = cfg.summary_model
+        if cfg.summary_reduce_model:
+            provider_info["reduce_model"] = cfg.summary_reduce_model
+        if cfg.summary_device:
+            provider_info["device"] = cfg.summary_device
+
+        # Record library versions and device for reproducibility and drift detection
+        try:
+            import torch
+            import transformers
+
+            # Convert torch version to string (it's a TorchVersion object)
+            torch_version = getattr(torch, "__version__", "unknown")
+            torch_version_str = str(torch_version) if torch_version != "unknown" else "unknown"
+            provider_info["versions"] = {
+                "transformers": getattr(transformers, "__version__", "unknown"),
+                "torch": torch_version_str,
+            }
+            # Record device (mps/cpu/cuda) for reproducibility
+            if cfg.summary_device:
+                provider_info["device"] = cfg.summary_device
+            # Record model revision if available (from config or model)
+            if hasattr(cfg, "summary_model_revision") and cfg.summary_model_revision:
+                provider_info["model_revision"] = cfg.summary_model_revision
+        except (ImportError, AttributeError, ValueError):
+            pass  # Versions not available if libraries not installed or mocked
+    elif cfg.summary_provider == "openai":
+        summary_model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
+        provider_info["openai_model"] = summary_model
+    elif cfg.summary_provider == "gemini":
+        summary_model = getattr(cfg, "gemini_summary_model", "gemini-1.5-pro")
+        provider_info["gemini_model"] = summary_model
+    elif cfg.summary_provider == "anthropic":
+        summary_model = getattr(cfg, "anthropic_summary_model", "claude-3-5-haiku-latest")
+        provider_info["anthropic_model"] = summary_model
+
+    return provider_info
+
+
+def _extract_episode_stage_timings(
+    pipeline_metrics: Any, episode_idx: int
+) -> Optional[EpisodeStageTimings]:
+    """Extract per-episode stage timings from pipeline metrics.
+
+    Args:
+        pipeline_metrics: Metrics object
+        episode_idx: Episode index (1-based)
+
+    Returns:
+        EpisodeStageTimings object or None if no timings available
+    """
+    if pipeline_metrics is None or episode_idx is None:
+        return None
+
+    # Get timings for this episode from the metrics lists
+    # Note: Lists are indexed by processing order, not episode.idx
+    # We use the length of lists to determine which entry corresponds to this episode
+    # This assumes episodes are processed in order (which is generally true)
+    download_time = None
+    transcribe_time = None
+    extract_names_time = None
+    summarize_time = None
+
+    list_idx = episode_idx - 1
+
+    # Get download time (if available)
+    if (
+        hasattr(pipeline_metrics, "download_media_times")
+        and pipeline_metrics.download_media_times
+        and 0 <= list_idx < len(pipeline_metrics.download_media_times)
+    ):
+        download_time = pipeline_metrics.download_media_times[list_idx]
+
+    # Get transcription time
+    if (
+        hasattr(pipeline_metrics, "transcribe_times")
+        and pipeline_metrics.transcribe_times
+        and 0 <= list_idx < len(pipeline_metrics.transcribe_times)
+    ):
+        transcribe_time = pipeline_metrics.transcribe_times[list_idx]
+
+    # Get speaker detection time
+    if (
+        hasattr(pipeline_metrics, "extract_names_times")
+        and pipeline_metrics.extract_names_times
+        and 0 <= list_idx < len(pipeline_metrics.extract_names_times)
+    ):
+        extract_names_time = pipeline_metrics.extract_names_times[list_idx]
+
+    # Get summarization time
+    if (
+        hasattr(pipeline_metrics, "summarize_times")
+        and pipeline_metrics.summarize_times
+        and 0 <= list_idx < len(pipeline_metrics.summarize_times)
+    ):
+        summarize_time = pipeline_metrics.summarize_times[list_idx]
+
+    # Calculate total processing time
+    times = [download_time, transcribe_time, extract_names_time, summarize_time]
+    valid_times = [t for t in times if t is not None]
+    total_time = sum(valid_times) if valid_times else None
+
+    # Create EpisodeStageTimings if we have at least one timing
+    if any(t is not None for t in times):
+        return EpisodeStageTimings(
+            download_media_time=download_time,
+            transcribe_time=transcribe_time,
+            extract_names_time=extract_names_time,
+            summarize_time=summarize_time,
+            total_processing_time=total_time,
+        )
+
+    return None
+
+
 def _build_processing_metadata(
     cfg: config.Config,
     output_dir: str,
@@ -1519,88 +1817,17 @@ def _build_processing_metadata(
     # Place at top of config_snapshot for prominence
     ml_providers: Dict[str, Any] = {}
 
-    # Transcription provider
-    if cfg.transcription_provider:
-        ml_providers["transcription"] = {
-            "provider": str(cfg.transcription_provider),
-        }
-        if cfg.transcription_provider == "whisper" and cfg.transcribe_missing:
-            ml_providers["transcription"]["whisper_model"] = cfg.whisper_model
-        elif cfg.transcription_provider == "openai":
-            # Include OpenAI transcription model
-            transcription_model = getattr(cfg, "openai_transcription_model", "whisper-1")
-            ml_providers["transcription"]["openai_model"] = transcription_model
-        elif cfg.transcription_provider == "gemini":
-            # Include Gemini transcription model
-            transcription_model = getattr(cfg, "gemini_transcription_model", "gemini-1.5-pro")
-            ml_providers["transcription"]["gemini_model"] = transcription_model
+    transcription_info = _build_transcription_provider_info(cfg)
+    if transcription_info:
+        ml_providers["transcription"] = transcription_info
 
-    # Speaker detection provider
-    if cfg.speaker_detector_provider:
-        ml_providers["speaker_detection"] = {
-            "provider": str(cfg.speaker_detector_provider),
-        }
-        if cfg.speaker_detector_provider == "spacy" and cfg.ner_model:
-            ml_providers["speaker_detection"]["ner_model"] = cfg.ner_model
-        elif cfg.speaker_detector_provider == "openai":
-            # Include OpenAI speaker detection model
-            speaker_model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
-            ml_providers["speaker_detection"]["openai_model"] = speaker_model
-        elif cfg.speaker_detector_provider == "gemini":
-            # Include Gemini speaker detection model
-            speaker_model = getattr(cfg, "gemini_speaker_model", "gemini-1.5-pro")
-            ml_providers["speaker_detection"]["gemini_model"] = speaker_model
-        elif cfg.speaker_detector_provider == "anthropic":
-            # Include Anthropic speaker detection model
-            speaker_model = getattr(cfg, "anthropic_speaker_model", "claude-3-5-haiku-latest")
-            ml_providers["speaker_detection"]["anthropic_model"] = speaker_model
+    speaker_detection_info = _build_speaker_detection_provider_info(cfg)
+    if speaker_detection_info:
+        ml_providers["speaker_detection"] = speaker_detection_info
 
-    # Summarization provider
-    if cfg.summary_provider:
-        ml_providers["summarization"] = {
-            "provider": str(cfg.summary_provider),
-        }
-        if cfg.summary_provider in ("transformers", "local"):
-            # Include model information for transformers provider
-            if cfg.summary_model:
-                ml_providers["summarization"]["map_model"] = cfg.summary_model
-            if cfg.summary_reduce_model:
-                ml_providers["summarization"]["reduce_model"] = cfg.summary_reduce_model
-            if cfg.summary_device:
-                ml_providers["summarization"]["device"] = cfg.summary_device
-
-            # Record library versions and device for reproducibility and drift detection
-            try:
-                import torch
-                import transformers
-
-                # Convert torch version to string (it's a TorchVersion object)
-                torch_version = getattr(torch, "__version__", "unknown")
-                torch_version_str = str(torch_version) if torch_version != "unknown" else "unknown"
-                ml_providers["summarization"]["versions"] = {
-                    "transformers": getattr(transformers, "__version__", "unknown"),
-                    "torch": torch_version_str,
-                }
-                # Record device (mps/cpu/cuda) for reproducibility
-                if cfg.summary_device:
-                    ml_providers["summarization"]["device"] = cfg.summary_device
-                # Record model revision if available (from config or model)
-                if hasattr(cfg, "summary_model_revision") and cfg.summary_model_revision:
-                    ml_providers["summarization"]["model_revision"] = cfg.summary_model_revision
-            except (ImportError, AttributeError, ValueError):
-                pass  # Versions not available if libraries not installed or mocked
-        elif cfg.summary_provider == "openai":
-            # Include OpenAI summarization model
-            summary_model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
-            ml_providers["summarization"]["openai_model"] = summary_model
-        elif cfg.summary_provider == "gemini":
-            # Include Gemini summarization model
-            summary_model = getattr(cfg, "gemini_summary_model", "gemini-1.5-pro")
-            ml_providers["summarization"]["gemini_model"] = summary_model
-        elif cfg.summary_provider == "anthropic":
-            # Include Anthropic summarization model
-            summary_model = getattr(cfg, "anthropic_summary_model", "claude-3-5-haiku-latest")
-            ml_providers["summarization"]["anthropic_model"] = summary_model
+    summarization_info = _build_summarization_provider_info(cfg)
+    if summarization_info:
+        ml_providers["summarization"] = summarization_info
 
     # Build config_snapshot with ml_providers first for prominence
     config_snapshot: Dict[str, Any] = {}
@@ -1618,67 +1845,11 @@ def _build_processing_metadata(
     )
 
     # Extract per-episode stage timings if available (Issue #379)
-    stage_timings = None
-    if pipeline_metrics is not None and episode_idx is not None:
-        # Get timings for this episode from the metrics lists
-        # Note: Lists are indexed by processing order, not episode.idx
-        # We use the length of lists to determine which entry corresponds to this episode
-        # This assumes episodes are processed in order (which is generally true)
-        download_time = None
-        transcribe_time = None
-        extract_names_time = None
-        summarize_time = None
-
-        # Get download time (if available)
-        if (
-            hasattr(pipeline_metrics, "download_media_times")
-            and pipeline_metrics.download_media_times
-        ):
-            # Find the entry for this episode
-            # Since episodes are processed in order, we can use list position
-            # But we need to account for episodes that might not have downloads
-            # For now, use episode_idx - 1 (assuming 1-based indexing)
-            list_idx = episode_idx - 1
-            if 0 <= list_idx < len(pipeline_metrics.download_media_times):
-                download_time = pipeline_metrics.download_media_times[list_idx]
-
-        # Get transcription time
-        if hasattr(pipeline_metrics, "transcribe_times") and pipeline_metrics.transcribe_times:
-            list_idx = episode_idx - 1
-            if 0 <= list_idx < len(pipeline_metrics.transcribe_times):
-                transcribe_time = pipeline_metrics.transcribe_times[list_idx]
-
-        # Get speaker detection time
-        if (
-            hasattr(pipeline_metrics, "extract_names_times")
-            and pipeline_metrics.extract_names_times
-        ):
-            list_idx = episode_idx - 1
-            if 0 <= list_idx < len(pipeline_metrics.extract_names_times):
-                extract_names_time = pipeline_metrics.extract_names_times[list_idx]
-
-        # Get summarization time
-        if hasattr(pipeline_metrics, "summarize_times") and pipeline_metrics.summarize_times:
-            list_idx = episode_idx - 1
-            if 0 <= list_idx < len(pipeline_metrics.summarize_times):
-                summarize_time = pipeline_metrics.summarize_times[list_idx]
-
-        # Calculate total processing time
-        total_time = None
-        times = [download_time, transcribe_time, extract_names_time, summarize_time]
-        valid_times = [t for t in times if t is not None]
-        if valid_times:
-            total_time = sum(valid_times)
-
-        # Create EpisodeStageTimings if we have at least one timing
-        if any(t is not None for t in times):
-            stage_timings = EpisodeStageTimings(
-                download_media_time=download_time,
-                transcribe_time=transcribe_time,
-                extract_names_time=extract_names_time,
-                summarize_time=summarize_time,
-                total_processing_time=total_time,
-            )
+    stage_timings = (
+        _extract_episode_stage_timings(pipeline_metrics, episode_idx)
+        if episode_idx is not None
+        else None
+    )
 
     return ProcessingMetadata(
         processing_timestamp=datetime.now(),
@@ -1773,7 +1944,13 @@ def _generate_episode_summary(  # noqa: C901
                 # Default to pattern-based cleaner
                 cleaning_processor = PatternBasedCleaner()
 
-            cleaned_text = cleaning_processor.clean(transcript_text)
+            # Pass provider to cleaner if it supports it (for HybridCleaner)
+            from ..cleaning import HybridCleaner
+
+            if isinstance(cleaning_processor, HybridCleaner):
+                cleaned_text = cleaning_processor.clean(transcript_text, provider=summary_provider)
+            else:
+                cleaned_text = cleaning_processor.clean(transcript_text)
             # Safely get lengths for logging (handle Mock objects in tests)
             try:
                 original_len = len(transcript_text) if transcript_text else 0
@@ -2142,6 +2319,441 @@ def _serialize_metadata(
             pipeline_metrics.record_stage("writing_storage", write_elapsed)
 
 
+def _prepare_metadata_ids(
+    feed_url: str,
+    episode: Episode,  # type: ignore[valid-type]
+    episode_guid: Optional[str],
+    episode_link: Optional[str],
+    episode_published_date: Optional[datetime],
+    episode_number: Optional[int],
+    cfg: config.Config,
+) -> Tuple[str, str, List[TranscriptInfo], Optional[str]]:
+    """Prepare all IDs needed for metadata generation.
+
+    Args:
+        feed_url: RSS feed URL
+        episode: Episode object
+        episode_guid: Episode GUID
+        episode_link: Episode link
+        episode_published_date: Episode published date
+        episode_number: Episode number
+        cfg: Configuration object
+
+    Returns:
+        Tuple of (feed_id, episode_id, transcript_infos, media_id)
+    """
+    feed_id = generate_feed_id(feed_url)
+    episode_id = generate_episode_id(
+        feed_url=feed_url,
+        episode_title=episode.title,
+        episode_guid=episode_guid,
+        published_date=episode_published_date,
+        episode_link=episode_link,
+        episode_number=episode_number,
+    )
+
+    # Build transcript URLs with IDs
+    transcript_infos = []
+    for url, transcript_type in episode.transcript_urls:
+        transcript_id = generate_content_id(url) if url else None
+        transcript_infos.append(
+            TranscriptInfo(
+                url=url,
+                transcript_id=transcript_id,
+                type=transcript_type,
+                language=cfg.language if cfg.language else None,
+            )
+        )
+
+    # Generate media ID if media URL exists
+    media_id = generate_content_id(episode.media_url) if episode.media_url else None
+
+    return feed_id, episode_id, transcript_infos, media_id
+
+
+def _prepare_base_metadata_objects(
+    feed: RssFeed,  # type: ignore[valid-type]
+    episode: Episode,  # type: ignore[valid-type]
+    feed_url: str,
+    feed_id: str,
+    episode_id: str,
+    cfg: config.Config,
+    output_dir: str,
+    feed_description: Optional[str],
+    feed_image_url: Optional[str],
+    feed_last_updated: Optional[datetime],
+    episode_description: Optional[str],
+    episode_published_date: Optional[datetime],
+    episode_guid: Optional[str],
+    episode_link: Optional[str],
+    episode_duration_seconds: Optional[int],
+    episode_number: Optional[int],
+    episode_image_url: Optional[str],
+    detected_hosts: Optional[List[str]],
+    detected_guests: Optional[List[str]],
+    pipeline_metrics=None,
+) -> Tuple[FeedMetadata, EpisodeMetadata, List[SpeakerInfo], ProcessingMetadata]:
+    """Prepare base metadata objects (feed, episode, speakers, processing).
+
+    Args:
+        feed: RssFeed object
+        episode: Episode object
+        feed_url: RSS feed URL
+        feed_id: Feed ID
+        episode_id: Episode ID
+        cfg: Configuration object
+        output_dir: Output directory path
+        feed_description: Feed description
+        feed_image_url: Feed image URL
+        feed_last_updated: Feed last updated date
+        episode_description: Episode description
+        episode_published_date: Episode published date
+        episode_guid: Episode GUID
+        episode_link: Episode link
+        episode_duration_seconds: Episode duration
+        episode_number: Episode number
+        episode_image_url: Episode image URL
+        detected_hosts: Detected host names
+        detected_guests: Detected guest names
+        pipeline_metrics: Optional metrics object
+
+    Returns:
+        Tuple of (feed_metadata, episode_metadata, speakers, processing_metadata)
+    """
+    feed_metadata = _build_feed_metadata(
+        feed, feed_url, feed_id, cfg, feed_description, feed_image_url, feed_last_updated
+    )
+    episode_metadata = _build_episode_metadata(
+        episode,
+        episode_id,
+        episode_description,
+        episode_published_date,
+        episode_guid,
+        episode_link,
+        episode_duration_seconds,
+        episode_number,
+        episode_image_url,
+    )
+    speakers = _build_speakers_from_detected_names(detected_hosts, detected_guests)
+    processing_metadata = _build_processing_metadata(
+        cfg, output_dir, episode_idx=episode.idx, pipeline_metrics=pipeline_metrics
+    )
+    return feed_metadata, episode_metadata, speakers, processing_metadata
+
+
+def _get_nlp_model_for_reconciliation(
+    cfg: config.Config,
+    episode: Episode,  # type: ignore[valid-type]
+    transcript_file_path: Optional[str],
+    summary_provider: Optional[Any],
+    nlp: Optional[Any],
+) -> Optional[Any]:
+    """Get NLP model for entity reconciliation if needed.
+
+    Args:
+        cfg: Configuration object
+        episode: Episode object
+        transcript_file_path: Path to transcript file
+        summary_provider: Summarization provider instance
+        nlp: Existing NLP model (if available)
+
+    Returns:
+        NLP model or None if not needed
+    """
+    # Only needed for ML providers (transformers) - LLM providers don't need spaCy
+    is_ml_provider = cfg.summary_provider == "transformers"
+    if not (
+        is_ml_provider
+        and nlp is None
+        and not cfg.dry_run
+        and cfg.auto_speakers
+        and cfg.generate_summaries
+        and transcript_file_path
+    ):
+        return nlp
+
+    # Try to get spaCy model from summary_provider if it's an MLProvider
+    if summary_provider is not None:
+        try:
+            # Check if provider has spaCy model (MLProvider pattern)
+            if hasattr(summary_provider, "_spacy_nlp") and summary_provider._spacy_nlp is not None:
+                nlp = summary_provider._spacy_nlp
+                logger.debug(
+                    "[%s] Reusing spaCy model from summary_provider (Issue #387)", episode.idx
+                )
+                return nlp
+        except Exception as exc:
+            logger.debug("Could not get spaCy model from provider: %s", exc)
+
+    # Fallback: load model if not available from provider (should be rare)
+    try:
+        from ..providers.ml.speaker_detection import get_ner_model
+
+        nlp = get_ner_model(cfg)
+        if nlp is not None:
+            logger.warning(
+                "[%s] Loaded spaCy model for entity reconciliation (fallback - "
+                "model should be reused from provider, Issue #387)",
+                episode.idx,
+            )
+        return nlp
+    except Exception as exc:
+        logger.debug("Could not load NLP model for entity reconciliation: %s", exc)
+        return None
+
+
+def _generate_and_validate_summary(
+    episode: Episode,  # type: ignore[valid-type]
+    feed_url: str,
+    transcript_file_path: Optional[str],
+    output_dir: str,
+    cfg: config.Config,
+    summary_provider: Optional[Any],
+    whisper_model: Optional[str],
+    pipeline_metrics=None,
+) -> Tuple[Optional[Any], float, Optional[Any]]:
+    """Generate episode summary and validate it.
+
+    Args:
+        episode: Episode object
+        feed_url: RSS feed URL
+        transcript_file_path: Path to transcript file
+        output_dir: Output directory path
+        cfg: Configuration object
+        summary_provider: Summarization provider instance
+        whisper_model: Whisper model name
+        pipeline_metrics: Optional metrics object
+
+    Returns:
+        Tuple of (summary_metadata, summary_elapsed, summary_call_metrics)
+    """
+    if not (cfg.generate_summaries and transcript_file_path):
+        return None, 0.0, None
+
+    summary_start = time.time()
+    recoverable_error_occurred = False
+    summary_call_metrics = None
+    try:
+        # Create call metrics for tracking per-episode provider metrics
+        from ..utils.provider_metrics import ProviderCallMetrics
+
+        summary_call_metrics = ProviderCallMetrics()
+
+        summary_metadata, summary_call_metrics = _generate_episode_summary(
+            transcript_file_path=transcript_file_path,
+            output_dir=output_dir,
+            cfg=cfg,
+            episode_idx=episode.idx,
+            summary_provider=summary_provider,
+            whisper_model=whisper_model,
+            pipeline_metrics=pipeline_metrics,
+            call_metrics=summary_call_metrics,
+        )
+    except RecoverableSummarizationError as e:
+        # Allow metadata generation to continue without summary for recoverable errors
+        logger.warning(f"[{episode.idx}] {e}. Continuing metadata generation without summary.")
+        summary_metadata = None
+        recoverable_error_occurred = True
+    summary_elapsed = time.time() - summary_start
+
+    # Record summary generation time if metrics available
+    if pipeline_metrics is not None and summary_elapsed > 0:
+        pipeline_metrics.record_summarize_time(summary_elapsed)
+        # Update episode status: summarized (Issue #391)
+        if summary_metadata is not None:
+            from ..workflow.orchestration import _log_episode_metrics
+            from .helpers import get_episode_id_from_episode
+
+            episode_id, episode_number = get_episode_id_from_episode(episode, feed_url)
+            pipeline_metrics.update_episode_status(episode_id=episode_id, stage="summarized")
+
+            # Log standardized per-episode metrics after summarization
+            retries = summary_call_metrics.retries if summary_call_metrics else 0
+            rate_limit_sleep = (
+                summary_call_metrics.rate_limit_sleep_sec if summary_call_metrics else 0.0
+            )
+            prompt_tokens = summary_call_metrics.prompt_tokens if summary_call_metrics else None
+            completion_tokens = (
+                summary_call_metrics.completion_tokens if summary_call_metrics else None
+            )
+            estimated_cost = summary_call_metrics.estimated_cost if summary_call_metrics else None
+
+            _log_episode_metrics(
+                episode_id=episode_id,
+                episode_number=episode_number,
+                pipeline_metrics=pipeline_metrics,
+                cfg=cfg,
+                summary_sec=summary_elapsed,
+                retries=retries,
+                rate_limit_sleep_sec=rate_limit_sleep,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                estimated_cost=estimated_cost,
+            )
+
+    # Validate that summary was generated when required (unless it's a recoverable error)
+    # Apply degradation policy if summarization failed
+    if cfg.generate_summaries and summary_metadata is None and not recoverable_error_occurred:
+        from .degradation import DegradationPolicy, handle_stage_failure
+
+        # Get degradation policy (default if not configured)
+        policy_dict = cfg.degradation_policy or {}
+        policy = DegradationPolicy(**policy_dict)
+
+        # Handle summarization failure according to policy
+        should_continue = handle_stage_failure(
+            stage="summarization",
+            error=RuntimeError("Summary generation failed"),
+            policy=policy,
+            episode_idx=episode.idx,
+        )
+
+        if not should_continue:
+            error_msg = (
+                f"[{episode.idx}] Summary generation failed but generate_summaries=True. "
+                "Summarization is required when generate_summaries is enabled."
+            )
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+    return summary_metadata, summary_elapsed, summary_call_metrics
+
+
+def _reconcile_entities_in_summary(
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    summary_metadata: Optional[Any],
+    summary_text: Optional[str],
+    transcript_file_path: Optional[str],
+    output_dir: str,
+    episode_description: Optional[str],
+    detected_hosts: Optional[List[str]],
+    detected_guests: Optional[List[str]],
+    nlp: Optional[Any],
+    summary_provider: Optional[Any],
+) -> Tuple[Optional[str], List[EntityCorrection]]:
+    """Reconcile entities in summary (faithfulness checking + name correction).
+
+    Args:
+        episode: Episode object
+        cfg: Configuration object
+        summary_metadata: Summary metadata object
+        summary_text: Summary text
+        transcript_file_path: Path to transcript file
+        output_dir: Output directory path
+        episode_description: Episode description
+        detected_hosts: Detected host names
+        detected_guests: Detected guest names
+        nlp: NLP model for entity processing
+        summary_provider: Summarization provider instance
+
+    Returns:
+        Tuple of (corrected_summary_text, corrected_entities)
+    """
+    corrected_entities: List[EntityCorrection] = []
+    if not summary_metadata or not summary_text:
+        return summary_text, corrected_entities
+
+    # Entity reconciliation (faithfulness checking + name correction) is only needed for
+    # ML providers (transformers). LLM providers (OpenAI, Gemini, Grok, etc.) are generally
+    # better at names and faithfulness, so we skip spaCy-based checks for them to avoid
+    # requiring users to download spaCy just for this feature.
+    is_ml_provider = cfg.summary_provider == "transformers"
+    if not (is_ml_provider and nlp and summary_text):
+        if not is_ml_provider:
+            logger.debug(
+                "[%s] Skipping entity reconciliation for LLM provider (%s) - "
+                "relying on LLM quality",
+                episode.idx,
+                cfg.summary_provider,
+            )
+        return summary_text, corrected_entities
+
+    # First, check faithfulness and auto-repair if needed (Issue #389)
+    # Read transcript text for faithfulness check if available
+    transcript_text_for_check = None
+    if transcript_file_path:
+        try:
+            full_transcript_path = os.path.join(output_dir, transcript_file_path)
+            with open(full_transcript_path, "r", encoding="utf-8") as f:
+                transcript_text_for_check = f.read()
+        except Exception as exc:
+            logger.debug(
+                "[%s] Error reading transcript for faithfulness check: %s",
+                episode.idx,
+                exc,
+            )
+
+    (
+        has_out_of_source,
+        out_of_source_entities,
+    ) = _check_summary_faithfulness(
+        transcript_text=transcript_text_for_check,
+        episode_description=episode_description,
+        summary_text=summary_text,
+        nlp=nlp,
+    )
+
+    # Auto-repair: remove sentences containing out-of-source entities
+    if has_out_of_source and out_of_source_entities:
+        repaired_summary = _auto_repair_summary(summary_text, out_of_source_entities, nlp)
+        if repaired_summary != summary_text:
+            # Re-parse repaired text to update schema
+            parse_result = parse_summary_output(
+                repaired_summary, summary_provider, episode_title=None
+            )
+            if parse_result.success and parse_result.schema and parse_result.schema.bullets:
+                # Update bullets with repaired content
+                summary_metadata.bullets = parse_result.schema.bullets
+                summary_metadata.raw_text = parse_result.schema.raw_text
+                summary_metadata.schema_status = parse_result.schema.status
+            summary_text = repaired_summary
+            logger.info(
+                "[%s] Auto-repaired summary: removed sentences containing "
+                "out-of-source entities: %s",
+                episode.idx,
+                ", ".join(out_of_source_entities),
+            )
+        else:
+            logger.warning(
+                "[%s] Summary contains out-of-source entities but "
+                "auto-repair did not remove them: %s",
+                episode.idx,
+                ", ".join(out_of_source_entities),
+            )
+
+    # Then, reconcile entities (correct entity name spellings)
+    extracted_entities = []
+    if detected_hosts:
+        extracted_entities.extend(detected_hosts)
+    if detected_guests:
+        extracted_entities.extend(detected_guests)
+
+    if extracted_entities:
+        corrected_summary_text, corrections = _reconcile_entities(
+            extracted_entities, summary_text, nlp
+        )
+        if corrections:
+            # Re-parse corrected text to update schema
+            parse_result = parse_summary_output(
+                corrected_summary_text, summary_provider, episode_title=None
+            )
+            if parse_result.success and parse_result.schema and parse_result.schema.bullets:
+                # Update bullets with corrected content
+                summary_metadata.bullets = parse_result.schema.bullets
+                summary_metadata.raw_text = parse_result.schema.raw_text
+                summary_metadata.schema_status = parse_result.schema.status
+            summary_text = corrected_summary_text
+            corrected_entities = corrections
+            logger.info(
+                "[%s] Entity reconciliation: corrected %d entity name(s) in summary",
+                episode.idx,
+                len(corrections),
+            )
+
+    return summary_text, corrected_entities
+
+
 def generate_episode_metadata(
     feed: RssFeed,  # type: ignore[valid-type]
     episode: Episode,  # type: ignore[valid-type]
@@ -2200,40 +2812,28 @@ def generate_episode_metadata(
     if not cfg.generate_metadata:
         return None
 
-    # Generate IDs
-    feed_id = generate_feed_id(feed_url)
-    episode_id = generate_episode_id(
-        feed_url=feed_url,
-        episode_title=episode.title,
-        episode_guid=episode_guid,
-        published_date=episode_published_date,
-        episode_link=episode_link,
-        episode_number=episode_number,
-    )
-
-    # Build transcript URLs with IDs
-    transcript_infos = []
-    for url, transcript_type in episode.transcript_urls:
-        transcript_id = generate_content_id(url) if url else None
-        transcript_infos.append(
-            TranscriptInfo(
-                url=url,
-                transcript_id=transcript_id,
-                type=transcript_type,
-                language=cfg.language if cfg.language else None,
-            )
-        )
-
-    # Generate media ID if media URL exists
-    media_id = generate_content_id(episode.media_url) if episode.media_url else None
-
-    # Build metadata objects
-    feed_metadata = _build_feed_metadata(
-        feed, feed_url, feed_id, cfg, feed_description, feed_image_url, feed_last_updated
-    )
-    episode_metadata = _build_episode_metadata(
+    # Prepare IDs and base metadata objects
+    feed_id, episode_id, transcript_infos, media_id = _prepare_metadata_ids(
+        feed_url,
         episode,
+        episode_guid,
+        episode_link,
+        episode_published_date,
+        episode_number,
+        cfg,
+    )
+
+    feed_metadata, episode_metadata, speakers, processing_metadata = _prepare_base_metadata_objects(
+        feed,
+        episode,
+        feed_url,
+        feed_id,
         episode_id,
+        cfg,
+        output_dir,
+        feed_description,
+        feed_image_url,
+        feed_last_updated,
         episode_description,
         episode_published_date,
         episode_guid,
@@ -2241,261 +2841,49 @@ def generate_episode_metadata(
         episode_duration_seconds,
         episode_number,
         episode_image_url,
+        detected_hosts,
+        detected_guests,
+        pipeline_metrics,
     )
-    # Build speakers array from detected_hosts and detected_guests
-    speakers = _build_speakers_from_detected_names(detected_hosts, detected_guests)
 
-    processing_metadata = _build_processing_metadata(
-        cfg, output_dir, episode_idx=episode.idx, pipeline_metrics=pipeline_metrics
+    # Get NLP model for entity reconciliation if needed
+    nlp = _get_nlp_model_for_reconciliation(
+        cfg, episode, transcript_file_path, summary_provider, nlp
     )
 
     # Generate summary if enabled and transcript is available
-    summary_metadata = None
-    summary_elapsed = 0.0
+    summary_metadata, summary_elapsed, summary_call_metrics = _generate_and_validate_summary(
+        episode,
+        feed_url,
+        transcript_file_path,
+        output_dir,
+        cfg,
+        summary_provider,
+        whisper_model,
+        pipeline_metrics,
+    )
+
+    # Extract summary text for QA flags and entity reconciliation
     summary_text = None
     corrected_entities: List[EntityCorrection] = []
+    if summary_metadata:
+        # short_summary is a @computed_field property, returns str
+        summary_text = str(summary_metadata.short_summary)  # type: ignore[assignment]
 
-    # Get NLP model for entity reconciliation and consistency checking (if needed)
-    # Only needed for ML providers (transformers) - LLM providers don't need spaCy
-    # Reuse provided model if available, otherwise try to get from provider (Issue #387)
-    is_ml_provider = cfg.summary_provider == "transformers"
-    if (
-        is_ml_provider
-        and nlp is None
-        and not cfg.dry_run
-        and cfg.auto_speakers
-        and cfg.generate_summaries
-        and transcript_file_path
-    ):
-        # Try to get spaCy model from summary_provider if it's an MLProvider
-        if summary_provider is not None:
-            try:
-                # Check if provider has spaCy model (MLProvider pattern)
-                if (
-                    hasattr(summary_provider, "_spacy_nlp")
-                    and summary_provider._spacy_nlp is not None
-                ):
-                    nlp = summary_provider._spacy_nlp
-                    logger.debug(
-                        "[%s] Reusing spaCy model from summary_provider (Issue #387)", episode.idx
-                    )
-            except Exception as exc:
-                logger.debug("Could not get spaCy model from provider: %s", exc)
-
-        # Fallback: load model if not available from provider (should be rare)
-        if nlp is None:
-            try:
-                from ..providers.ml.speaker_detection import get_ner_model
-
-                nlp = get_ner_model(cfg)
-                if nlp is not None:
-                    logger.warning(
-                        "[%s] Loaded spaCy model for entity reconciliation (fallback - "
-                        "model should be reused from provider, Issue #387)",
-                        episode.idx,
-                    )
-            except Exception as exc:
-                logger.debug("Could not load NLP model for entity reconciliation: %s", exc)
-
-    if cfg.generate_summaries and transcript_file_path:
-        summary_start = time.time()
-        recoverable_error_occurred = False
-        summary_call_metrics = None
-        try:
-            # Create call metrics for tracking per-episode provider metrics
-            from ..utils.provider_metrics import ProviderCallMetrics
-
-            summary_call_metrics = ProviderCallMetrics()
-
-            summary_metadata, summary_call_metrics = _generate_episode_summary(
-                transcript_file_path=transcript_file_path,
-                output_dir=output_dir,
-                cfg=cfg,
-                episode_idx=episode.idx,
-                summary_provider=summary_provider,
-                whisper_model=whisper_model,  # Whisper model used for transcription
-                pipeline_metrics=pipeline_metrics,
-                call_metrics=summary_call_metrics,
-            )
-        except RecoverableSummarizationError as e:
-            # Allow metadata generation to continue without summary for recoverable errors
-            # (e.g., tokenizer threading errors in parallel execution)
-            logger.warning(f"[{episode.idx}] {e}. Continuing metadata generation without summary.")
-            summary_metadata = None
-            recoverable_error_occurred = True
-        summary_elapsed = time.time() - summary_start
-        # Record summary generation time if metrics available
-        if pipeline_metrics is not None and summary_elapsed > 0:
-            pipeline_metrics.record_summarize_time(summary_elapsed)
-            # Update episode status: summarized (Issue #391)
-            if summary_metadata is not None:
-                from ..workflow.orchestration import _log_episode_metrics
-                from .helpers import get_episode_id_from_episode
-
-                episode_id, episode_number = get_episode_id_from_episode(episode, feed_url)
-                pipeline_metrics.update_episode_status(episode_id=episode_id, stage="summarized")
-
-                # Log standardized per-episode metrics after summarization
-                # Use call_metrics from _generate_episode_summary
-                retries = summary_call_metrics.retries if summary_call_metrics else 0
-                rate_limit_sleep = (
-                    summary_call_metrics.rate_limit_sleep_sec if summary_call_metrics else 0.0
-                )
-                prompt_tokens = summary_call_metrics.prompt_tokens if summary_call_metrics else None
-                completion_tokens = (
-                    summary_call_metrics.completion_tokens if summary_call_metrics else None
-                )
-                estimated_cost = (
-                    summary_call_metrics.estimated_cost if summary_call_metrics else None
-                )
-
-                _log_episode_metrics(
-                    episode_id=episode_id,
-                    episode_number=episode_number,
-                    pipeline_metrics=pipeline_metrics,
-                    cfg=cfg,
-                    summary_sec=summary_elapsed,
-                    retries=retries,
-                    rate_limit_sleep_sec=rate_limit_sleep,
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    estimated_cost=estimated_cost,
-                )
-        # Validate that summary was generated when required (unless it's a recoverable error)
-        # Apply degradation policy if summarization failed
-        if cfg.generate_summaries and summary_metadata is None and not recoverable_error_occurred:
-            from .degradation import DegradationPolicy, handle_stage_failure
-
-            # Get degradation policy (default if not configured)
-            policy_dict = cfg.degradation_policy or {}
-            policy = DegradationPolicy(**policy_dict)
-
-            # Handle summarization failure according to policy
-            should_continue = handle_stage_failure(
-                stage="summarization",
-                error=RuntimeError("Summary generation failed"),
-                policy=policy,
-                episode_idx=episode.idx,
-            )
-
-            if not should_continue:
-                error_msg = (
-                    f"[{episode.idx}] Summary generation failed but generate_summaries=True. "
-                    "Summarization is required when generate_summaries is enabled."
-                )
-                logger.error(error_msg)
-                raise RuntimeError(error_msg)
-
-        # Extract summary text for QA flags and entity reconciliation
-        if summary_metadata:
-            # short_summary is a @computed_field property, returns str
-            summary_text = str(summary_metadata.short_summary)  # type: ignore[assignment]
-
-            # Entity reconciliation (faithfulness checking + name correction) is only needed for
-            # ML providers (transformers). LLM providers (OpenAI, Gemini, Grok, etc.) are generally
-            # better at names and faithfulness, so we skip spaCy-based checks for them to avoid
-            # requiring users to download spaCy just for this feature.
-            is_ml_provider = cfg.summary_provider == "transformers"
-            if is_ml_provider and nlp and summary_text:
-                # First, check faithfulness and auto-repair if needed (Issue #389)
-                # Read transcript text for faithfulness check if available
-                transcript_text_for_check = None
-                if transcript_file_path:
-                    try:
-                        full_transcript_path = os.path.join(output_dir, transcript_file_path)
-                        with open(full_transcript_path, "r", encoding="utf-8") as f:
-                            transcript_text_for_check = f.read()
-                    except Exception as exc:
-                        logger.debug(
-                            "[%s] Error reading transcript for faithfulness check: %s",
-                            episode.idx,
-                            exc,
-                        )
-
-                (
-                    has_out_of_source,
-                    out_of_source_entities,
-                ) = _check_summary_faithfulness(
-                    transcript_text=transcript_text_for_check,
-                    episode_description=episode_description,
-                    summary_text=summary_text,
-                    nlp=nlp,
-                )
-
-                # Auto-repair: remove sentences containing out-of-source entities
-                if has_out_of_source and out_of_source_entities:
-                    repaired_summary = _auto_repair_summary(
-                        summary_text, out_of_source_entities, nlp
-                    )
-                    if repaired_summary != summary_text:
-                        # Re-parse repaired text to update schema
-                        parse_result = parse_summary_output(
-                            repaired_summary, summary_provider, episode_title=None
-                        )
-                        if (
-                            parse_result.success
-                            and parse_result.schema
-                            and parse_result.schema.bullets
-                        ):
-                            # Update bullets with repaired content
-                            summary_metadata.bullets = parse_result.schema.bullets
-                            summary_metadata.raw_text = parse_result.schema.raw_text
-                            summary_metadata.schema_status = parse_result.schema.status
-                        summary_text = repaired_summary
-                        logger.info(
-                            "[%s] Auto-repaired summary: removed sentences containing "
-                            "out-of-source entities: %s",
-                            episode.idx,
-                            ", ".join(out_of_source_entities),
-                        )
-                    else:
-                        logger.warning(
-                            "[%s] Summary contains out-of-source entities but "
-                            "auto-repair did not remove them: %s",
-                            episode.idx,
-                            ", ".join(out_of_source_entities),
-                        )
-
-                # Then, reconcile entities (correct entity name spellings)
-                extracted_entities = []
-                if detected_hosts:
-                    extracted_entities.extend(detected_hosts)
-                if detected_guests:
-                    extracted_entities.extend(detected_guests)
-
-                if extracted_entities:
-                    corrected_summary_text, corrections = _reconcile_entities(
-                        extracted_entities, summary_text, nlp
-                    )
-                    if corrections:
-                        # Re-parse corrected text to update schema
-                        parse_result = parse_summary_output(
-                            corrected_summary_text, summary_provider, episode_title=None
-                        )
-                        if (
-                            parse_result.success
-                            and parse_result.schema
-                            and parse_result.schema.bullets
-                        ):
-                            # Update bullets with corrected content
-                            summary_metadata.bullets = parse_result.schema.bullets
-                            summary_metadata.raw_text = parse_result.schema.raw_text
-                            summary_metadata.schema_status = parse_result.schema.status
-                        summary_text = corrected_summary_text
-                        corrected_entities = corrections
-                        logger.info(
-                            "[%s] Entity reconciliation: corrected %d entity name(s) in summary",
-                            episode.idx,
-                            len(corrections),
-                        )
-            elif not is_ml_provider:
-                # LLM provider - skip entity reconciliation entirely (rely on LLM quality)
-                logger.debug(
-                    "[%s] Skipping entity reconciliation for LLM provider (%s) - "
-                    "relying on LLM quality",
-                    episode.idx,
-                    cfg.summary_provider,
-                )
+        # Reconcile entities in summary (faithfulness checking + name correction)
+        summary_text, corrected_entities = _reconcile_entities_in_summary(
+            episode,
+            cfg,
+            summary_metadata,
+            summary_text,
+            transcript_file_path,
+            output_dir,
+            episode_description,
+            detected_hosts,
+            detected_guests,
+            nlp,
+            summary_provider,
+        )
 
     # Build content metadata after summary is generated (so QA flags can use summary)
     content_metadata = _build_content_metadata(

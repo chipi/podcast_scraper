@@ -11,6 +11,7 @@ factory functions create providers as expected:
 
 import os
 import unittest
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -256,8 +257,15 @@ class TestProviderFactories(unittest.TestCase):
         self.assertTrue(hasattr(provider, "initialize"))
         self.assertTrue(hasattr(provider, "cleanup"))
 
-    def test_gemini_providers_factory_creation(self):
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_gemini_providers_factory_creation(self, mock_genai):
         """Test that Gemini providers can be created via factories."""
+        # Mock genai.configure for API compatibility (old API used configure, new uses Client)
+        mock_genai.configure = Mock()
+        # Mock GenerativeModel for all provider types
+        mock_model = Mock()
+        mock_genai.GenerativeModel = Mock(return_value=mock_model)
+
         from podcast_scraper.speaker_detectors.factory import create_speaker_detector
         from podcast_scraper.summarization.factory import create_summarization_provider
         from podcast_scraper.transcription.factory import create_transcription_provider

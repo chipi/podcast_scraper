@@ -8,7 +8,6 @@ Usage:
     python scripts/tools/run_bulk_confidence_tests.py \
         --configs "examples/config.my.planetmoney.*.yaml" \
         --output-dir .test_outputs/bulk_confidence \
-        [--baseline-id baseline_id] \
         [--compare-baseline baseline_id] \
         [--save-as-baseline baseline_id]
 
@@ -1233,12 +1232,6 @@ def main() -> None:
         type=str,
         default=".test_outputs/bulk_confidence",
         help="Output directory for results (default: .test_outputs/bulk_confidence)",
-    )
-    parser.add_argument(
-        "--baseline-id",
-        type=str,
-        default=None,
-        help="Baseline ID to compare against (optional)",
     )
     parser.add_argument(
         "--compare-baseline",

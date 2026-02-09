@@ -467,7 +467,7 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                 "mistral": "mistral-small",
                 "deepseek": "deepseek-chat",
                 "grok": "grok-beta",
-                "ollama": "llama3.2",
+                "ollama": "llama3.1:8b",
             }
             model = getattr(cfg, model_attr, default_models.get(llm_summarization_provider, ""))
             pricing = _get_provider_pricing(cfg, llm_summarization_provider, "summarization", model)
@@ -645,7 +645,7 @@ def _generate_dry_run_cost_projection(
             "mistral": "mistral-small",
             "deepseek": "deepseek-chat",
             "grok": "grok-beta",
-            "ollama": "llama3.2",
+            "ollama": "llama3.1:8b",
         }
         model = getattr(cfg, model_attr, default_models.get(llm_summarization_provider, ""))
         pricing = _get_provider_pricing(cfg, llm_summarization_provider, "summarization", model)
