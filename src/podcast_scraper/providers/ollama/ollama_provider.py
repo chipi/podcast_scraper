@@ -16,6 +16,7 @@ Key advantages:
 - Complete privacy - data never leaves local machine
 
 Note: Ollama does NOT support transcription (no audio API).
+Note: Model names are normalized to ensure correct format (e.g., '3.1:7b' -> 'llama3.1:7b').
 """
 
 from __future__ import annotations
