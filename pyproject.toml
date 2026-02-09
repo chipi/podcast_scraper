@@ -81,7 +81,8 @@ dev = [
 [tool.setuptools]
 # Package is now in src/ directory (src-layout)
 # Use find: to automatically discover all packages (more reliable than explicit listing)
-packages = {find = {}}
+# Exclude non-package directories that might be detected incorrectly
+packages = {find = {where = ["src"], exclude = ["*.egg-info", "examples", "docker"]}}
 package-dir = {"" = "src"}
 
 [tool.black]
