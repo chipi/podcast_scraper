@@ -80,29 +80,8 @@ dev = [
 
 [tool.setuptools]
 # Package is now in src/ directory (src-layout)
-packages = [
-    "podcast_scraper",
-    "podcast_scraper.cache",
-    "podcast_scraper.evaluation",
-    "podcast_scraper.preprocessing",
-    "podcast_scraper.preprocessing.audio",
-    "podcast_scraper.providers",
-    "podcast_scraper.providers.deepseek",
-    "podcast_scraper.providers.gemini",
-    "podcast_scraper.providers.anthropic",
-    "podcast_scraper.providers.mistral",
-    "podcast_scraper.providers.ml",
-    "podcast_scraper.providers.ollama",
-    "podcast_scraper.providers.openai",
-    "podcast_scraper.rss",
-    "podcast_scraper.schemas",
-    "podcast_scraper.speaker_detectors",
-    "podcast_scraper.summarization",
-    "podcast_scraper.transcription",
-    "podcast_scraper.utils",
-    "podcast_scraper.workflow",
-    "podcast_scraper.workflow.stages",
-]
+# Use find: to automatically discover all packages (more reliable than explicit listing)
+packages = {find = {}}
 package-dir = {"" = "src"}
 
 [tool.black]

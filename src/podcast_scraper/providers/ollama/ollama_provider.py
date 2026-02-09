@@ -130,7 +130,13 @@ class OllamaProvider:
             self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
 
         # Cleaning model settings (smaller model for cost efficiency)
-        self.cleaning_model = getattr(cfg, "ollama_cleaning_model", "llama3.1:8b")
+        cleaning_model_raw = getattr(cfg, "ollama_cleaning_model", "llama3.1:8b")
+        self.cleaning_model = self._normalize_model_name(cleaning_model_raw)
+        logger.info(
+            "Ollama cleaning model configured: '%s' -> '%s'",
+            cleaning_model_raw,
+            self.cleaning_model,
+        )
         self.cleaning_temperature = getattr(cfg, "ollama_cleaning_temperature", 0.2)
 
         # Validate Ollama server is running
@@ -167,11 +173,23 @@ class OllamaProvider:
         self.client = OpenAI(**client_kwargs)
 
         # Speaker detection settings
-        self.speaker_model = getattr(cfg, "ollama_speaker_model", "llama3.3:latest")
+        speaker_model_raw = getattr(cfg, "ollama_speaker_model", "llama3.1:8b")
+        self.speaker_model = self._normalize_model_name(speaker_model_raw)
+        logger.info(
+            "Ollama speaker model configured: '%s' -> '%s'",
+            speaker_model_raw,
+            self.speaker_model,
+        )
         self.speaker_temperature = getattr(cfg, "ollama_temperature", 0.3)
 
         # Summarization settings
-        self.summary_model = getattr(cfg, "ollama_summary_model", "llama3.1:8b")
+        summary_model_raw = getattr(cfg, "ollama_summary_model", "llama3.1:8b")
+        self.summary_model = self._normalize_model_name(summary_model_raw)
+        logger.info(
+            "Ollama summary model configured: '%s' -> '%s'",
+            summary_model_raw,
+            self.summary_model,
+        )
         self.summary_temperature = getattr(cfg, "ollama_temperature", 0.3)
         # Modern Ollama models support 128k context window
         self.max_context_tokens = 128000  # Conservative estimate
@@ -191,7 +209,7 @@ class OllamaProvider:
         All operations run on your local hardware with no per-token pricing.
 
         Args:
-            model: Model name (e.g., "llama3.3:latest", "llama3.2:latest")
+            model: Model name (e.g., "llama3.1:8b", "llama3.1:7b")
             capability: Capability type ("speaker_detection", "summarization")
 
         Returns:
@@ -207,6 +225,61 @@ class OllamaProvider:
             "input_cost_per_1m_tokens": 0.0,
             "output_cost_per_1m_tokens": 0.0,
         }
+
+    def _normalize_model_name(self, model: str) -> str:
+        """Normalize Ollama model name to ensure correct format.
+
+        Handles cases where users specify shortened names like "3.1:7b"
+        instead of the full name "llama3.1:7b". Ollama requires exact model names.
+
+        Args:
+            model: Model name from config (may be shortened)
+
+        Returns:
+            Normalized model name (e.g., "3.1:7b" -> "llama3.1:7b")
+        """
+        if not model:
+            return model
+
+        # If model name starts with a digit, it's likely a shortened format
+        # Common patterns: "3.1:7b", "3.2:latest", "3.3:8b"
+        if model[0].isdigit():
+            normalized = f"llama{model}"
+            logger.warning(
+                "Normalizing Ollama model name: '%s' -> '%s'. "
+                "Ollama requires exact model names. If this is incorrect, "
+                "specify the full name in your config (e.g., 'llama3.1:7b').",
+                model,
+                normalized,
+            )
+            return normalized
+
+        # Warn about :latest tags - they can resolve to different model sizes
+        # and may load larger models than expected (e.g., 70B instead of 7B)
+        model_lower = model.lower()
+        if ":latest" in model_lower:
+            logger.warning(
+                "⚠️  WARNING: Model name uses ':latest' tag: '%s'. "
+                "The ':latest' tag can resolve to different model sizes "
+                "(e.g., 70B instead of 7B). "
+                "For predictable behavior, use a specific model tag like "
+                "'llama3.1:7b' or 'llama3.1:8b'. "
+                "Check 'ollama list' to see what size model ':latest' points to.",
+                model,
+            )
+
+        # Also handle cases like "llama3.1:70b" when user wants "llama3.1:7b"
+        # This is a common typo - check if it looks like a 70b when they might mean 7b
+        if ":70b" in model_lower and ":7b" not in model_lower:
+            logger.error(
+                "⚠️  WARNING: Model name contains ':70b' - did you mean ':7b'? "
+                "Ollama will load the 70B model which is much larger and slower. "
+                "Current model name: '%s'. If you want the 7B model, change it to '%s'",
+                model,
+                model.replace("70b", "7b").replace("70B", "7b"),
+            )
+
+        return model
 
     def _validate_ollama_running(self, base_url: str) -> None:
         """Validate that Ollama server is running and accessible.
@@ -283,6 +356,7 @@ class OllamaProvider:
         Raises:
             ValueError: If model is not available
         """
+        logger.debug("Validating Ollama model availability: %s", model)
         try:
             base_url = self.cfg.ollama_api_base or "http://localhost:11434/v1"
             health_url = base_url.rstrip("/v1") + "/api/tags"
@@ -292,8 +366,31 @@ class OllamaProvider:
             available_models = [m.get("name", "") for m in data.get("models", [])]
 
             if model not in available_models:
+                logger.error(
+                    "Model '%s' not found in Ollama. Available models: %s",
+                    model,
+                    ", ".join(sorted(available_models)) if available_models else "(none)",
+                )
+                # Check for similar model names (fuzzy matching suggestion)
+                model_lower = model.lower()
+                similar_models = [
+                    m
+                    for m in available_models
+                    if model_lower in m.lower() or m.lower() in model_lower
+                ]
+                if similar_models:
+                    logger.error(
+                        "Similar models found (did you mean one of these?): %s",
+                        ", ".join(similar_models),
+                    )
                 error_msg = MODEL_NOT_FOUND_ERROR_TEMPLATE.format(model=model)
                 raise ValueError(error_msg)
+            logger.info(
+                "Model '%s' validated successfully (available in Ollama). "
+                "Available models at validation time: %s",
+                model,
+                ", ".join(sorted(available_models)) if available_models else "(none)",
+            )
         except Exception as exc:
             # Catch all httpx exceptions (RequestError, ConnectError, etc.)
             # httpx exceptions inherit from httpx.HTTPError, but we catch Exception
@@ -573,6 +670,11 @@ class OllamaProvider:
             system_prompt = render_prompt(system_prompt_name)
 
             # Call Ollama API (OpenAI-compatible format)
+            logger.info(
+                "Calling Ollama API for speaker detection with model: '%s' "
+                "(exact name being sent to Ollama)",
+                self.speaker_model,
+            )
             response = self.client.chat.completions.create(
                 model=self.speaker_model,
                 messages=[
@@ -761,6 +863,11 @@ class OllamaProvider:
             from openai import APIError, RateLimitError
 
             def _make_api_call():
+                logger.info(
+                    "Calling Ollama API for summarization with model: '%s' "
+                    "(exact name being sent to Ollama)",
+                    self.summary_model,
+                )
                 return self.client.chat.completions.create(
                     model=self.summary_model,
                     messages=[
@@ -975,6 +1082,11 @@ class OllamaProvider:
             from openai import APIError, RateLimitError
 
             def _make_api_call():
+                logger.info(
+                    "Calling Ollama API for cleaning with model: '%s' "
+                    "(exact name being sent to Ollama)",
+                    self.cleaning_model,
+                )
                 return self.client.chat.completions.create(
                     model=self.cleaning_model,
                     messages=[

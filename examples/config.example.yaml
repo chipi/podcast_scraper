@@ -130,10 +130,8 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # grok_max_tokens: null  # Default: null (use model default)
 
 # Ollama model configuration (optional - defaults are used if not specified)
-# Environment-based defaults:
-#   Test/Dev: llama3.2:latest (smaller, faster)
-#   Production: llama3.3:latest (higher quality)
-# ollama_speaker_model: llama3.3:latest  # Default: environment-based (llama3.2:latest for test, llama3.3:latest for prod)
+# Default: llama3.1:8b (specific tag, not :latest - avoids unexpected model size resolution)
+# ollama_speaker_model: llama3.1:8b  # Default: llama3.1:8b
 # ollama_summary_model: llama3.1:8b  # Default: llama3.1:8b
 # ollama_temperature: 0.3  # Default: 0.3 (0.0-2.0, lower = more deterministic)
 # ollama_max_tokens: null  # Default: null (use model default)
@@ -206,7 +204,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # openai_cleaning_max_tokens: null  # Default: null (80-90% of input length)
 # openai_cleaning_llm_threshold: 0.10  # Default: 0.10 (use LLM if pattern reduces < 10%)
 
-# gemini_cleaning_model: gemini-1.5-flash  # Default: gemini-1.5-flash (cheaper)
+# gemini_cleaning_model: gemini-2.0-flash  # Default: gemini-2.0-flash (gemini-1.5-flash not available in new API)
 # gemini_cleaning_temperature: 0.2
 # gemini_cleaning_max_tokens: null
 # gemini_cleaning_llm_threshold: 0.10

@@ -45,20 +45,30 @@
    - Exception: `git` commands are fine; Python: `.venv/bin/python3 script.py`
 
 8b. **ALWAYS update venv when dependency ranges change**
-   - After changing `pyproject.toml` deps: `pip install --upgrade -e .[dev]`
+   - Trigger: After ANY edit to `[project.dependencies]` or `[project.optional-dependencies]` in `pyproject.toml`
+   - Action: Run `pip install --upgrade -e .[dev]` BEFORE running tests or committing
+   - Verify: Check that new packages are installed (or ask user to verify)
 
 ### Code Quality & Testing
 
 13. **Write lint-valid code from the start**
-    - Lines < 100 chars, imports organized, type hints on signatures
-    - Run `make format` proactively; fix linting as you write
-    - Code must be shippable after every session
+    - BEFORE saving any Python file: Run `make format` on that file
+    - AFTER writing a complete function/class: Check line length (< 100 chars)
+    - BEFORE committing: Run `make lint` and fix all errors
+    - Code must pass `make lint` before session ends
 
 5. **ALWAYS review/update tests after code changes — never leave failing tests**
-   - Run `make ci-fast` before committing; fix failures immediately
-   - Load `testing-strategy.mdc` for detailed checklist
+   - Trigger: After modifying ANY code in `src/` (not just tests)
+   - Action 1: Run `make ci-fast` BEFORE committing
+   - Action 2: If tests fail, fix them BEFORE continuing with other work
+   - Action 3: Load `testing-strategy.mdc` when writing new tests
+   - Exception: If test failure is complex, document it and ask user before proceeding
 
 12. **ALL analysis/plans → `docs/wip/` (never `docs/analysis/` or `docs/plan/`)**
+    - Applies to: Design docs, RFCs, investigation notes, planning documents, analysis outputs
+    - Trigger: BEFORE creating any new doc file in `docs/`
+    - Action: Save to `docs/wip/` (never `docs/analysis/` or `docs/plan/`)
+    - Exception: Finalized docs can be moved out of `wip/` after review
 
 ### GitHub
 
@@ -73,18 +83,19 @@
 16. **AUTOMATICALLY load `.mdc` files when encountering specific situations**
     - These are NOT auto-loaded — YOU must `read_file` them BEFORE proceeding
     - **ALWAYS announce loading** (e.g., "Loading testing-strategy.mdc...")
+    - Load timing: BEFORE writing code/tests/docs, not after errors occur
 
-    | Situation | Load This File |
-    |-----------|---------------|
-    | Writing/modifying Python code | `coding-standards.mdc` |
-    | Writing or modifying tests | `testing-strategy.mdc` |
-    | Running tests or validating | `testing-strategy.mdc` |
-    | Editing markdown or docs | `documentation.mdc` |
-    | Markdown linting errors | `documentation.mdc` |
-    | Git worktree operations | `git-worktree.mdc` |
-    | Refactoring / module boundaries | `module-boundaries.mdc` |
-    | About to commit or push | `ai-guidelines.mdc` |
-    | Need decision guidance | `ai-guidelines.mdc` |
+    | Situation | Load This File | When to Load |
+    |-----------|---------------|--------------|
+    | Writing/modifying Python code | `coding-standards.mdc` | BEFORE writing first line |
+    | Writing or modifying tests | `testing-strategy.mdc` | BEFORE writing test |
+    | Running tests or validating | `testing-strategy.mdc` | BEFORE running `make test` |
+    | Editing markdown or docs | `documentation.mdc` | BEFORE editing markdown |
+    | Markdown linting errors | `documentation.mdc` | IMMEDIATELY when error appears |
+    | Git worktree operations | `git-worktree.mdc` | BEFORE creating worktree |
+    | Refactoring / module boundaries | `module-boundaries.mdc` | BEFORE moving code |
+    | About to commit or push | `ai-guidelines.mdc` | BEFORE `git commit` |
+    | Need decision guidance | `ai-guidelines.mdc` | When unsure about approach |
 
     All files in `.cursor/rules/`.
 
@@ -127,7 +138,10 @@ make fix-md        # Auto-fix markdown
 7. ALL analysis/plans → `docs/wip/`
 8. Auto-load `.mdc` files for detailed guidance (Rule 16)
 9. NEVER commit secrets
-10. **End-of-session**: announce `.mdc` loads, self-audit rules, append to `.cursor/metrics/rule-adherence.jsonl`
+10. **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion**:
+    - Perform self-audit: review rules applied/missed, `.mdc` files loaded/should-have-loaded
+    - Append one JSON line to `.cursor/metrics/rule-adherence.jsonl`
+    - **MUST announce**: "Updated metrics file" (so user can verify)
 
 ---
 

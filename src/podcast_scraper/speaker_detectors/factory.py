@@ -275,7 +275,7 @@ def create_speaker_detector(  # noqa: C901
             cfg = Config(
                 rss="",  # Dummy, not used for speaker detection (use alias)
                 speaker_detector_provider="ollama",
-                ollama_speaker_model=params.model_name if params.model_name else "llama3.3:latest",
+                ollama_speaker_model=params.model_name if params.model_name else "llama3.1:8b",
                 ollama_temperature=params.temperature if params.temperature is not None else 0.3,
                 ollama_api_base=os.getenv("OLLAMA_API_BASE", "http://localhost:11434/v1"),
             )

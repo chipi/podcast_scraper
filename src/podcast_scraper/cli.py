@@ -1099,19 +1099,13 @@ def _add_ollama_arguments(parser: argparse.ArgumentParser) -> None:
         "--ollama-speaker-model",
         type=str,
         default=None,
-        help=(
-            "Ollama speaker detection model "
-            "(default: llama3.3:latest for prod, llama3.2:latest for test)"
-        ),
+        help=("Ollama speaker detection model " "(default: llama3.1:8b for both test and prod)"),
     )
     parser.add_argument(
         "--ollama-summary-model",
         type=str,
         default=None,
-        help=(
-            "Ollama summarization model "
-            "(default: llama3.3:latest for prod, llama3.2:latest for test)"
-        ),
+        help=("Ollama summarization model " "(default: llama3.1:8b for both test and prod)"),
     )
     parser.add_argument(
         "--ollama-temperature",
@@ -1136,8 +1130,7 @@ def _add_ollama_arguments(parser: argparse.ArgumentParser) -> None:
         type=str,
         default=None,
         help=(
-            "Ollama model for transcript cleaning "
-            "(default: llama3.2:latest, smaller/faster than summary model)"
+            "Ollama model for transcript cleaning " "(default: llama3.1:8b, same as summary model)"
         ),
     )
     parser.add_argument(

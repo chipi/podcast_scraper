@@ -104,6 +104,7 @@ class GeminiProvider:
             logger.warning("Gemini API key validation failed: %s", error_msg)
 
         self.cfg = cfg
+        self.api_key = cfg.gemini_api_key
 
         # Set up transcript cleaning processor based on strategy (Issue #418)
         from ...cleaning import HybridCleaner, LLMBasedCleaner
@@ -117,7 +118,8 @@ class GeminiProvider:
             self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
 
         # Cleaning model settings (cheaper model for cost efficiency)
-        self.cleaning_model = getattr(cfg, "gemini_cleaning_model", "gemini-1.5-flash")
+        # Note: gemini-1.5-flash not available in new API, using gemini-2.0-flash
+        self.cleaning_model = getattr(cfg, "gemini_cleaning_model", "gemini-2.0-flash")
         self.cleaning_temperature = getattr(cfg, "gemini_cleaning_temperature", 0.2)
 
         # Suppress verbose Gemini SDK debug logs (if needed)
@@ -133,8 +135,13 @@ class GeminiProvider:
                 gemini_logger = logging.getLogger(logger_name)
                 gemini_logger.setLevel(logging.WARNING)
 
-        # Configure Gemini client
-        genai.configure(api_key=cfg.gemini_api_key)
+        # Create Gemini client using new API (google-genai v0.1.0+)
+        # New API uses Client instead of configure() + GenerativeModel
+        client_kwargs: Dict[str, Any] = {"api_key": cfg.gemini_api_key}
+        if cfg.gemini_api_base:
+            # Support custom base_url for E2E testing with mock servers
+            client_kwargs["base_url"] = cfg.gemini_api_base
+        self.client = genai.Client(**client_kwargs)
 
         # Log non-sensitive provider metadata (for debugging)
         from ...utils.provider_metadata import log_provider_metadata
@@ -320,25 +327,25 @@ class GeminiProvider:
             }
             mime_type = mime_types.get(suffix, "audio/mpeg")
 
-            # Use Gemini's native multimodal API
-            # Create model instance
-            model = genai.GenerativeModel(self.transcription_model)
-
+            # Use Gemini's native multimodal API with new Client API
             # Build prompt with language hint if provided
             prompt_text = "Transcribe this audio file to text."
             if effective_language:
                 prompt_text += f" The language is {effective_language}."
 
             # Create content with audio (multimodal input)
-            # Gemini SDK supports file upload and inline data
-            response = model.generate_content(
-                [
-                    {
-                        "mime_type": mime_type,
-                        "data": audio_data,
-                    },
-                    prompt_text,
-                ]
+            # New API: client.models.generate_content() instead of
+            # GenerativeModel().generate_content()
+            contents = [
+                {
+                    "mime_type": mime_type,
+                    "data": audio_data,
+                },
+                prompt_text,
+            ]
+            response = self.client.models.generate_content(
+                model=self.transcription_model,
+                contents=contents,
             )
 
             # Extract text from response
@@ -603,25 +610,23 @@ class GeminiProvider:
             system_prompt_name = self.cfg.gemini_speaker_system_prompt or "gemini/ner/system_ner_v1"
             system_prompt = render_prompt(system_prompt_name)
 
-            # Call Gemini API
-            # Gemini uses system_instruction parameter instead of system message
-            model = genai.GenerativeModel(
-                model_name=self.speaker_model,
-                system_instruction=system_prompt,
-            )
-
+            # Call Gemini API using new Client API
             # Request JSON response
             # Use dict format for generation config (more compatible with SDK versions)
+            # Note: system_instruction is part of config in new API
             generation_config = {
                 "temperature": self.speaker_temperature,
                 "max_output_tokens": 300,
                 "response_mime_type": "application/json",
+                "system_instruction": system_prompt,
             }
 
-            # Type ignore: Gemini SDK accepts dict for generation_config
-            response = model.generate_content(
-                user_prompt,
-                generation_config=generation_config,  # type: ignore[arg-type]
+            # New API: client.models.generate_content() instead of
+            # GenerativeModel().generate_content()
+            response = self.client.models.generate_content(
+                model=self.speaker_model,
+                contents=user_prompt,
+                config=generation_config,
             )
 
             response_text = response.text if hasattr(response, "text") else str(response)
@@ -837,23 +842,21 @@ class GeminiProvider:
             from ...utils.provider_metrics import retry_with_metrics
 
             def _make_api_call():
-                # Call Gemini API
-                # Gemini uses system_instruction parameter instead of system message
-                model = genai.GenerativeModel(
-                    model_name=self.summary_model,
-                    system_instruction=system_prompt,
-                )
-
+                # Call Gemini API using new Client API
                 # Use dict format for generation config (more compatible with SDK versions)
+                # Note: system_instruction is part of config in new API
                 generation_config = {
                     "temperature": self.summary_temperature,
                     "max_output_tokens": max_length,
+                    "system_instruction": system_prompt,
                 }
 
-                # Type ignore: Gemini SDK accepts dict for generation_config
-                return model.generate_content(
-                    user_prompt,
-                    generation_config=generation_config,  # type: ignore[arg-type]
+                # New API: client.models.generate_content() instead of
+                # GenerativeModel().generate_content()
+                return self.client.models.generate_content(
+                    model=self.summary_model,
+                    contents=user_prompt,
+                    config=generation_config,
                 )
 
             try:
@@ -1102,22 +1105,22 @@ class GeminiProvider:
             from google.api_core import exceptions as google_exceptions
 
             def _make_api_call():
-                # Call Gemini API
-                model = genai.GenerativeModel(
-                    model_name=self.cleaning_model,
-                    system_instruction=system_prompt,
-                )
-
+                # Call Gemini API using new Client API
+                # Note: system_instruction is part of config in new API
                 generation_config = {
                     "temperature": self.cleaning_temperature,
                     "max_output_tokens": int(
                         len(text.split()) * 0.85 * 1.3
                     ),  # Rough token estimate
+                    "system_instruction": system_prompt,
                 }
 
-                return model.generate_content(
-                    user_prompt,
-                    generation_config=generation_config,  # type: ignore[arg-type]
+                # New API: client.models.generate_content() instead of
+                # GenerativeModel().generate_content()
+                return self.client.models.generate_content(
+                    model=self.cleaning_model,
+                    contents=user_prompt,
+                    config=generation_config,
                 )
 
             try:

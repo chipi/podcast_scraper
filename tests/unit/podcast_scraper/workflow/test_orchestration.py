@@ -1057,3 +1057,160 @@ class TestFinalizePipeline(unittest.TestCase):
             )
 
             mock_create_index.assert_not_called()
+
+
+@pytest.mark.unit
+class TestOrchestrationErrorHandling(unittest.TestCase):
+    """Tests for error handling in orchestration functions."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcribe_missing=True,
+            auto_speakers=True,
+            generate_summaries=True,
+            generate_metadata=True,
+        )
+
+    @patch("podcast_scraper.workflow.orchestration._get_factory_function")
+    def test_create_transcription_provider_initialization_error(self, mock_get_factory):
+        """Test that transcription provider initialization errors are raised."""
+        mock_provider = Mock()
+        mock_provider.initialize.side_effect = Exception("Initialization failed")
+        mock_factory = Mock(return_value=mock_provider)
+        mock_get_factory.return_value = mock_factory
+
+        with self.assertRaises(Exception) as context:
+            orchestration._create_transcription_provider(self.cfg)
+
+        self.assertIn("Initialization failed", str(context.exception))
+
+    @patch("podcast_scraper.workflow.orchestration._get_factory_function")
+    def test_create_speaker_detector_initialization_error(self, mock_get_factory):
+        """Test that speaker detector initialization errors are raised."""
+        mock_detector = Mock()
+        mock_detector.initialize.side_effect = Exception("Initialization failed")
+        mock_factory = Mock(return_value=mock_detector)
+        mock_get_factory.return_value = mock_factory
+
+        with self.assertRaises(Exception) as context:
+            orchestration._create_speaker_detector(self.cfg)
+
+        self.assertIn("Initialization failed", str(context.exception))
+
+    @patch("podcast_scraper.workflow.orchestration._get_factory_function")
+    def test_create_summarization_provider_initialization_error(self, mock_get_factory):
+        """Test that summarization provider initialization errors are raised."""
+        mock_provider = Mock()
+        mock_provider.initialize.side_effect = Exception("Initialization failed")
+        mock_factory = Mock(return_value=mock_provider)
+        mock_get_factory.return_value = mock_factory
+
+        with self.assertRaises(Exception) as context:
+            orchestration._create_summarization_provider(self.cfg)
+
+        self.assertIn("Initialization failed", str(context.exception))
+
+    @patch("podcast_scraper.workflow.orchestration._get_factory_function")
+    def test_create_transcription_provider_factory_error(self, mock_get_factory):
+        """Test that transcription provider factory errors are raised."""
+        mock_factory = Mock(side_effect=Exception("Factory error"))
+        mock_get_factory.return_value = mock_factory
+
+        with self.assertRaises(Exception) as context:
+            orchestration._create_transcription_provider(self.cfg)
+
+        self.assertIn("Factory error", str(context.exception))
+
+    @patch("podcast_scraper.workflow.orchestration._get_factory_function")
+    def test_create_speaker_detector_factory_error(self, mock_get_factory):
+        """Test that speaker detector factory errors are raised."""
+        mock_factory = Mock(side_effect=Exception("Factory error"))
+        mock_get_factory.return_value = mock_factory
+
+        with self.assertRaises(Exception) as context:
+            orchestration._create_speaker_detector(self.cfg)
+
+        self.assertIn("Factory error", str(context.exception))
+
+    @patch("podcast_scraper.workflow.orchestration._get_factory_function")
+    def test_create_summarization_provider_factory_error(self, mock_get_factory):
+        """Test that summarization provider factory errors are raised."""
+        mock_factory = Mock(side_effect=Exception("Factory error"))
+        mock_get_factory.return_value = mock_factory
+
+        with self.assertRaises(Exception) as context:
+            orchestration._create_summarization_provider(self.cfg)
+
+        self.assertIn("Factory error", str(context.exception))
+
+    def test_create_transcription_provider_disabled(self):
+        """Test that transcription provider returns None when disabled."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcribe_missing=False,
+        )
+
+        provider = orchestration._create_transcription_provider(cfg)
+
+        self.assertIsNone(provider)
+
+    def test_create_transcription_provider_dry_run(self):
+        """Test that transcription provider returns None in dry run."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcribe_missing=True,
+            dry_run=True,
+        )
+
+        provider = orchestration._create_transcription_provider(cfg)
+
+        self.assertIsNone(provider)
+
+    def test_create_speaker_detector_disabled(self):
+        """Test that speaker detector returns None when disabled."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            auto_speakers=False,
+        )
+
+        detector = orchestration._create_speaker_detector(cfg)
+
+        self.assertIsNone(detector)
+
+    def test_create_speaker_detector_dry_run(self):
+        """Test that speaker detector returns None in dry run."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            auto_speakers=True,
+            dry_run=True,
+        )
+
+        detector = orchestration._create_speaker_detector(cfg)
+
+        self.assertIsNone(detector)
+
+    def test_create_summarization_provider_disabled(self):
+        """Test that summarization provider returns None when disabled."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            generate_summaries=False,
+        )
+
+        provider = orchestration._create_summarization_provider(cfg)
+
+        self.assertIsNone(provider)
+
+    def test_create_summarization_provider_dry_run(self):
+        """Test that summarization provider returns None in dry run."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            generate_summaries=True,
+            generate_metadata=True,  # Required when generate_summaries=True
+            dry_run=True,
+        )
+
+        provider = orchestration._create_summarization_provider(cfg)
+
+        self.assertIsNone(provider)

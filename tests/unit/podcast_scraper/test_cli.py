@@ -1625,6 +1625,227 @@ class TestLoadAndMergeConfig(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             cli._load_and_merge_config(parser, "missing.yaml", None)
 
+    @patch("podcast_scraper.cli.config.load_config_file")
+    def test_load_and_merge_config_validation_error_in_config(self, mock_load):
+        """Test that _load_and_merge_config handles ValidationError from Config."""
+        # Use an invalid enum value that will trigger ValidationError
+        # log_level must be one of the valid log levels
+        mock_load.return_value = {
+            "rss": "https://example.com/feed.xml",
+            "log_level": "INVALID_LEVEL",  # Invalid: not a valid log level
+        }
+        parser = argparse.ArgumentParser()
+        cli._add_common_arguments(parser)
+
+        # Pass empty argv to avoid argparse parsing sys.argv
+        # Config validation will happen when Config is created, raising ValidationError
+        # which gets converted to ValueError
+        with self.assertRaises(ValueError) as cm:
+            cli._load_and_merge_config(parser, "config.yaml", [])
+        # Should raise ValidationError which gets converted to ValueError
+        # Error message contains "invalid configuration" (lowercase)
+        self.assertIn("invalid", str(cm.exception).lower())
+
+    @patch("podcast_scraper.cli.config.load_config_file")
+    def test_load_and_merge_config_missing_rss(self, mock_load):
+        """Test that _load_and_merge_config raises error when RSS is missing."""
+        mock_load.return_value = {"max_episodes": 5}  # No RSS URL
+        parser = argparse.ArgumentParser()
+        cli._add_common_arguments(parser)
+
+        # Pass empty argv to avoid argparse parsing sys.argv
+        with self.assertRaises(ValueError) as cm:
+            cli._load_and_merge_config(parser, "config.yaml", [])
+        self.assertIn("RSS URL is required", str(cm.exception))
+
+    @patch("podcast_scraper.cli.config.load_config_file")
+    def test_load_and_merge_config_speaker_names_list(self, mock_load):
+        """Test that _load_and_merge_config converts speaker_names list to comma-separated."""
+        mock_load.return_value = {
+            "rss": "https://example.com/feed.xml",  # Use 'rss' not 'rss_url' for CLI
+            "speaker_names": ["Host 1", "Host 2"],
+        }
+        parser = argparse.ArgumentParser()
+        cli._add_common_arguments(parser)
+
+        # Pass empty argv to avoid argparse parsing sys.argv
+        args = cli._load_and_merge_config(parser, "config.yaml", [])
+        self.assertEqual(args.speaker_names, "Host 1,Host 2")
+
+
+class TestCLIErrorHandling(unittest.TestCase):
+    """Test error handling in CLI functions."""
+
+    def test_validate_args_timeout_negative(self):
+        """Test that negative timeout raises error."""
+        args = argparse.Namespace(
+            rss="https://example.com/feed.xml",
+            timeout=-1,
+            delay_ms=0,
+            transcribe_missing=False,
+            auto_speakers=False,
+            screenplay=False,
+            num_speakers=2,
+            speaker_names=None,
+            workers=1,
+            output_dir=None,
+            max_episodes=None,
+            whisper_model="base.en",
+        )
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(args)
+        self.assertIn("--timeout must be positive", str(cm.exception))
+
+    def test_validate_args_timeout_zero(self):
+        """Test that zero timeout raises error."""
+        args = argparse.Namespace(
+            rss="https://example.com/feed.xml",
+            timeout=0,
+            delay_ms=0,
+            transcribe_missing=False,
+            auto_speakers=False,
+            screenplay=False,
+            num_speakers=2,
+            speaker_names=None,
+            workers=1,
+            output_dir=None,
+            max_episodes=None,
+            whisper_model="base.en",
+        )
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(args)
+        self.assertIn("--timeout must be positive", str(cm.exception))
+
+    def test_validate_args_delay_ms_negative(self):
+        """Test that negative delay_ms raises error."""
+        args = argparse.Namespace(
+            rss="https://example.com/feed.xml",
+            timeout=30,
+            delay_ms=-1,
+            transcribe_missing=False,
+            auto_speakers=False,
+            screenplay=False,
+            num_speakers=2,
+            speaker_names=None,
+            workers=1,
+            output_dir=None,
+            max_episodes=None,
+            whisper_model="base.en",
+        )
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(args)
+        self.assertIn("--delay-ms must be non-negative", str(cm.exception))
+
+    def test_validate_args_max_episodes_negative(self):
+        """Test that negative max_episodes raises error."""
+        args = argparse.Namespace(
+            rss="https://example.com/feed.xml",
+            timeout=30,
+            delay_ms=0,
+            transcribe_missing=False,
+            auto_speakers=False,
+            screenplay=False,
+            num_speakers=2,
+            speaker_names=None,
+            workers=1,
+            output_dir=None,
+            max_episodes=-1,
+            whisper_model="base.en",
+        )
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(args)
+        self.assertIn("--max-episodes must be positive", str(cm.exception))
+
+    def test_validate_args_max_episodes_zero(self):
+        """Test that zero max_episodes raises error."""
+        args = argparse.Namespace(
+            rss="https://example.com/feed.xml",
+            timeout=30,
+            delay_ms=0,
+            transcribe_missing=False,
+            auto_speakers=False,
+            screenplay=False,
+            num_speakers=2,
+            speaker_names=None,
+            workers=1,
+            output_dir=None,
+            max_episodes=0,
+            whisper_model="base.en",
+        )
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(args)
+        self.assertIn("--max-episodes must be positive", str(cm.exception))
+
+    @patch("podcast_scraper.cli.filesystem.validate_and_normalize_output_dir")
+    def test_validate_args_output_dir_validation_error(self, mock_validate):
+        """Test that output_dir validation errors are caught."""
+        mock_validate.side_effect = ValueError("Invalid output directory")
+        args = argparse.Namespace(
+            rss="https://example.com/feed.xml",
+            timeout=30,
+            delay_ms=0,
+            transcribe_missing=False,
+            auto_speakers=False,
+            screenplay=False,
+            num_speakers=2,
+            speaker_names=None,
+            workers=1,
+            output_dir="/invalid/path",
+            max_episodes=None,
+            whisper_model="base.en",
+        )
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(args)
+        self.assertIn("Invalid output directory", str(cm.exception))
+
+    @patch("podcast_scraper.cli.parse_args")
+    def test_main_handles_value_error(self, mock_parse):
+        """Test that main() handles ValueError from parse_args."""
+        mock_parse.side_effect = ValueError("Invalid arguments")
+
+        exit_code = cli.main([])
+
+        self.assertEqual(exit_code, 1)
+
+    @patch("podcast_scraper.cli.parse_args")
+    def test_main_handles_system_exit(self, mock_parse):
+        """Test that main() handles SystemExit from parse_args (e.g., --help)."""
+        mock_parse.side_effect = SystemExit(0)
+
+        exit_code = cli.main([])
+
+        self.assertEqual(exit_code, 0)
+
+    @patch("podcast_scraper.cli.parse_args")
+    def test_main_handles_system_exit_non_zero(self, mock_parse):
+        """Test that main() handles SystemExit with non-zero code."""
+        mock_parse.side_effect = SystemExit(2)
+
+        exit_code = cli.main([])
+
+        self.assertEqual(exit_code, 2)
+
+    @patch("podcast_scraper.cli.parse_args")
+    def test_main_handles_system_exit_no_code(self, mock_parse):
+        """Test that main() handles SystemExit without code."""
+        mock_parse.side_effect = SystemExit(None)
+
+        exit_code = cli.main([])
+
+        self.assertEqual(exit_code, 0)
+
+    def test_parse_args_version_exits(self):
+        """Test that --version causes SystemExit."""
+        with self.assertRaises(SystemExit) as cm:
+            cli.parse_args(["--version"])
+        self.assertEqual(cm.exception.code, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
