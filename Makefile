@@ -407,6 +407,9 @@ test-nightly:
 	# Sequential execution per podcast, parallel episodes within podcast (2 workers)
 	# NOT marked with @pytest.mark.e2e - separate category from regular E2E tests
 	# Excludes LLM/OpenAI tests to avoid API costs (see issue #183)
+	# Note: Removed --disable-socket for pytest-xdist compatibility with -n (parallel)
+	# pytest-xdist requires localhost socket access for worker communication
+	# Network access is still restricted via --allow-hosts=127.0.0.1,localhost
 	@echo "Running nightly tests with production models..."
 	@echo "Podcasts: p01-p05 (15 episodes total)"
 	@echo "Models: Whisper base.en, BART-large-cnn, LED-large-16384"
@@ -418,16 +421,36 @@ test-nightly:
 		exit 1; \
 	}
 	@echo "✅ Test collection successful, running tests..."
-	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n 2 --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json || { \
+	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n 2 --tb=short -ra --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json || { \
 		PARALLEL_EXIT_CODE=$$?; \
 		echo "⚠️  Parallel execution failed (exit code $$PARALLEL_EXIT_CODE), trying sequential execution..."; \
-		E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json; \
+		E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v --tb=short -ra --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json; \
 		SEQUENTIAL_EXIT_CODE=$$?; \
 		if [ $$SEQUENTIAL_EXIT_CODE -ne 0 ]; then \
 			echo "❌ Sequential execution also failed (exit code $$SEQUENTIAL_EXIT_CODE)"; \
 			exit $$SEQUENTIAL_EXIT_CODE; \
 		fi; \
 	}
+
+test-nightly-subset:
+	# Run a subset of nightly tests for local verification
+	# Usage: make test-nightly-subset PODCASTS=podcast1,podcast2
+	# Default: runs only podcast1 (3 episodes) for quick verification
+	# Note: Runs sequentially (no -n flag) for simplicity
+	# Note: Removed --disable-socket for pytest-rerunfailures compatibility (needs socket for ServerStatusDB)
+	# Network access is still restricted via --allow-hosts=127.0.0.1,localhost
+	@PODCASTS=$${PODCASTS:-podcast1}; \
+	echo "Running nightly test subset with podcasts: $$PODCASTS"; \
+	echo "Models: Whisper base.en, BART-large-cnn, LED-large-16384"; \
+	mkdir -p reports; \
+	echo "🔍 Verifying test collection..."; \
+	E2E_TEST_MODE=nightly $(PYTHON) -m pytest tests/e2e/test_nightly_full_suite_e2e.py -k "$$(echo $$PODCASTS | tr ',' ' or ')" --collect-only -q || { \
+		echo "❌ Test collection failed, trying with verbose output..."; \
+		E2E_TEST_MODE=nightly $(PYTHON) -m pytest tests/e2e/test_nightly_full_suite_e2e.py -k "$$(echo $$PODCASTS | tr ',' ' or ')" --collect-only -v; \
+		exit 1; \
+	}; \
+	echo "✅ Test collection successful, running tests..."; \
+	E2E_TEST_MODE=nightly $(PYTHON) -m pytest tests/e2e/test_nightly_full_suite_e2e.py -k "$$(echo $$PODCASTS | tr ',' ' or ')" -v --tb=short -ra --allow-hosts=127.0.0.1,localhost --durations=20
 
 test:
 	# All tests: run separately with --cov-append to match CI behavior and get accurate coverage
